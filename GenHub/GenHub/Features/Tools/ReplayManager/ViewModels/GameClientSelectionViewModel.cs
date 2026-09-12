@@ -270,7 +270,7 @@ public sealed partial class GameClientSelectionViewModel(
         return false;
     }
 
-    private static string GetPublisherDisplayName(PublisherInfo? publisher)
+    private string GetPublisherDisplayName(PublisherInfo? publisher)
     {
         if (!string.IsNullOrWhiteSpace(publisher?.Name))
         {
@@ -285,7 +285,7 @@ public sealed partial class GameClientSelectionViewModel(
         return "Catalog";
     }
 
-    private static bool IsMatchedByVersion(CrcMappingEntry? matchedClient, GameClient client)
+    private bool IsMatchedByVersion(CrcMappingEntry? matchedClient, GameClient client)
     {
         if (matchedClient != null && !string.IsNullOrEmpty(matchedClient.Version) && !string.IsNullOrEmpty(client.Version))
         {
@@ -393,7 +393,7 @@ public sealed partial class GameClientSelectionViewModel(
         }
     }
 
-    private static bool IsRetailExeCrcMatch(GameType targetGame, uint exeCrc, string? replayExeCrc)
+    private bool IsRetailExeCrcMatch(GameType targetGame, uint exeCrc, string? replayExeCrc)
     {
         if (targetGame == GameType.ZeroHour)
         {
@@ -518,7 +518,7 @@ public sealed partial class GameClientSelectionViewModel(
         }
     }
 
-    private static bool IsMatchedClientMatch(ContentManifest manifest, CrcMappingEntry? matchedClient)
+    private bool IsMatchedClientMatch(ContentManifest manifest, CrcMappingEntry? matchedClient)
     {
         if (matchedClient == null)
         {
@@ -726,7 +726,7 @@ public sealed partial class GameClientSelectionViewModel(
                pub.Contains("steam", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsRetailProfileClient(GameClient client)
+    private bool IsRetailProfileClient(GameClient client)
     {
         return client.PublisherType?.Contains(RetailKeyword, StringComparison.OrdinalIgnoreCase) == true ||
                client.Name.Contains(RetailKeyword, StringComparison.OrdinalIgnoreCase);
@@ -816,7 +816,7 @@ public sealed partial class GameClientSelectionViewModel(
         }
     }
 
-    private static string ResolveInstallationCandidatePath(GameInstallation installation, GameClient client, string fullExePath)
+    private string ResolveInstallationCandidatePath(GameInstallation installation, GameClient client, string fullExePath)
     {
         if (!string.IsNullOrEmpty(fullExePath) && Directory.Exists(fullExePath))
         {
@@ -831,7 +831,7 @@ public sealed partial class GameClientSelectionViewModel(
         return installation.InstallationPath ?? string.Empty;
     }
 
-    private static string ResolveInstallationExePath(GameInstallation installation, GameClient client)
+    private string ResolveInstallationExePath(GameInstallation installation, GameClient client)
     {
         var exePath = client.ExecutablePath ?? string.Empty;
         var fullExePath = exePath;
@@ -883,7 +883,7 @@ public sealed partial class GameClientSelectionViewModel(
         return false;
     }
 
-    private static bool IsRetailBaseInstallation(GameInstallationType installationType)
+    private bool IsRetailBaseInstallation(GameInstallationType installationType)
     {
         return installationType is GameInstallationType.Retail or GameInstallationType.Steam or GameInstallationType.EaApp;
     }

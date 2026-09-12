@@ -535,7 +535,7 @@ public sealed class ReplayDirectoryServiceTests
 
             var mockCrcCalc = new Mock<IGameCrcCalculatorService>();
             mockCrcCalc
-                .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<CancellationToken>()))
+                .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0xDA2B4B18"));
 
             var profiles = new List<GameProfile> { profile1 };
@@ -600,7 +600,7 @@ public sealed class ReplayDirectoryServiceTests
 
             var mockCrcCalc = new Mock<IGameCrcCalculatorService>();
             mockCrcCalc
-                .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<CancellationToken>()))
+                .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0xDA2B4B18"));
 
             var profiles = new List<GameProfile> { profile1 };

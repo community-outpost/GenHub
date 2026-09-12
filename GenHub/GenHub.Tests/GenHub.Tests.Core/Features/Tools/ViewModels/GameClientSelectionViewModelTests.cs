@@ -75,6 +75,7 @@ public sealed class GameClientSelectionViewModelTests
     /// Verifies that when a replay has zero compatible clients, ShowAllClients remains false
     /// and FilteredClients is empty, rather than dumping all incompatible clients onto the user.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task LoadClientsForReplayAsync_WhenNoCompatibleClients_DoesNotAutoShowAllClientsAsync()
     {
@@ -85,11 +86,11 @@ public sealed class GameClientSelectionViewModelTests
 
         mockProfileMgr
             .Setup(p => p.GetAllProfilesAsync(Moq.It.IsAny<CancellationToken>()))
-            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<IReadOnlyList<GenHub.Core.Models.GameProfile.GameProfile>>.CreateSuccess([]));
+            .ReturnsAsync(GenHub.Core.Models.Results.ProfileOperationResult<IReadOnlyList<GenHub.Core.Models.GameProfile.GameProfile>>.CreateSuccess([]));
 
         mockManifestPool
             .Setup(m => m.GetAllManifestsAsync(Moq.It.IsAny<CancellationToken>()))
-            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess([]));
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
 
         var vm = new GameClientSelectionViewModel(
             mockProfileMgr.Object,
@@ -102,8 +103,13 @@ public sealed class GameClientSelectionViewModelTests
         {
             FileName = "i-fly.rep",
             FullPath = "/replays/i-fly.rep",
-            ExeCrc = 0x88BEB180,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x88BEB180,
+            },
         };
 
         await vm.LoadClientsForReplayAsync(GameType.ZeroHour, replay);

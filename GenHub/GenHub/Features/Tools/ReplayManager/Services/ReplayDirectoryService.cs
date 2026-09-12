@@ -459,79 +459,6 @@ public sealed class ReplayDirectoryService(
             .ToList();
     }
 
-    private static bool IsProfileCandidateCompatible(
-        GameProfile p,
-        GameType gameVersion,
-        string clientManifestId,
-        string? dataPatchManifestId,
-        string? targetExeCrc,
-        ReplayFile? replay,
-        bool isRetailClient,
-        ILogger? logger,
-        IGameCrcCalculatorService? crcCalculator)
-    {
-        if (p.GameClient?.GameType != gameVersion)
-        {
-            return false;
-        }
-
-        if (!IsProfileExeCrcMatching(p, targetExeCrc, crcCalculator, logger))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
-            string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (IsDedicatedToThisReplay(p, replay, logger))
-        {
-            return true;
-        }
-
-        if (isRetailClient)
-        {
-            return IsProfileMatchingRetail(p, dataPatchManifestId);
-        }
-
-        return IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId, replay?.MatchedClient?.Version);
-    }
-
-    private static bool IsProfileExeCrcMatching(
-        GameProfile profile,
-        string? targetExeCrc,
-        IGameCrcCalculatorService? crcCalculator,
-        ILogger? logger)
-    {
-        if (crcCalculator == null || string.IsNullOrEmpty(targetExeCrc))
-        {
-            return true;
-        }
-
-        var exePath = ResolveProfileFullExePath(profile.GameClient);
-        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
-        {
-            return true;
-        }
-
-        try
-        {
-            var calcRes = crcCalculator.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
-            if (calcRes.Success && !string.IsNullOrEmpty(calcRes.Data))
-            {
-                return string.Equals(calcRes.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase);
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger?.LogWarning(ex, "[ReplayManager] Error verifying profile '{ProfileName}' EXE CRC for replay matching", profile.Name);
-        }
-
-        return true;
-    }
-
     /// <summary>
     /// Finds the best matching profile for a replay file from a list of profiles based on game version, client manifest ID, and patch ID.
     /// Uses deterministic scoring and tie-breaking:
@@ -733,6 +660,79 @@ public sealed class ReplayDirectoryService(
         replay.MatchingProfileName = null;
         var isInstalled = IsClientManifestInstalled(match, replay.GameVersion, acquiredIds);
         replay.CompatibilityStatus = DetermineUnconfiguredStatus(match, isInstalled);
+    }
+
+private static bool IsProfileCandidateCompatible(
+        GameProfile p,
+        GameType gameVersion,
+        string clientManifestId,
+        string? dataPatchManifestId,
+        string? targetExeCrc,
+        ReplayFile? replay,
+        bool isRetailClient,
+        ILogger? logger,
+        IGameCrcCalculatorService? crcCalculator)
+    {
+        if (p.GameClient?.GameType != gameVersion)
+        {
+            return false;
+        }
+
+        if (!IsProfileExeCrcMatching(p, targetExeCrc, crcCalculator, logger))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
+            string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (IsDedicatedToThisReplay(p, replay, logger))
+        {
+            return true;
+        }
+
+        if (isRetailClient)
+        {
+            return IsProfileMatchingRetail(p, dataPatchManifestId);
+        }
+
+        return IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId, replay?.MatchedClient?.Version);
+    }
+
+    private static bool IsProfileExeCrcMatching(
+        GameProfile profile,
+        string? targetExeCrc,
+        IGameCrcCalculatorService? crcCalculator,
+        ILogger? logger)
+    {
+        if (crcCalculator == null || string.IsNullOrEmpty(targetExeCrc))
+        {
+            return true;
+        }
+
+        var exePath = ResolveProfileFullExePath(profile.GameClient);
+        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        {
+            return true;
+        }
+
+        try
+        {
+            var calcRes = crcCalculator.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
+            if (calcRes.Success && !string.IsNullOrEmpty(calcRes.Data))
+            {
+                return string.Equals(calcRes.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogWarning(ex, "[ReplayManager] Error verifying profile '{ProfileName}' EXE CRC for replay matching", profile.Name);
+        }
+
+        return true;
     }
 
     /// <summary>
