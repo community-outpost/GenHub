@@ -967,6 +967,16 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                         {
                             return true;
                         }
+
+                        // Publisher-agnostic dependencies (e.g. "1.104.genhub.gameinstallation.zerohour"
+                        // with StrictPublisher = false) are satisfied by any installation of a
+                        // compatible game type, mirroring FindCompatibleGameInstallation.
+                        if (!dep.StrictPublisher &&
+                            (dep.CompatibleGameTypes is not { Count: > 0 } ||
+                             dep.CompatibleGameTypes.Contains(installation.GameType)))
+                        {
+                            return true;
+                        }
                     }
                     else
                     {

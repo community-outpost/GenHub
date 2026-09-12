@@ -180,8 +180,40 @@ public partial class GameProfileSettingsViewModel
         await EnableContentInternal(contentItem, bypassLoadingGuard: false);
     }
 
+    private async Task<bool> ValidateInstallationRemovalAsync(
+        ContentDisplayItem contentItem,
+        string actionVerb,
+        string notificationTitle,
+        CancellationToken cancellationToken = default)
+    {
+        if (contentItem.ContentType != ContentType.GameInstallation)
+        {
+            return true;
+        }
+
+        var installation = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value) ?? contentItem;
+        var dependentClients = await GetDependentActiveGameClientsAsync(installation, cancellationToken);
+        if (dependentClients.Count == 0)
+        {
+            return true;
+        }
+
+        var clientNames = string.Join(", ", dependentClients.Select(c => $"'{c.DisplayName}'"));
+        StatusMessage = $"Cannot {actionVerb} {contentItem.DisplayName} while dependent game client {clientNames} is active";
+        _logger?.LogWarning(
+            "{Action}Content blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
+            char.ToUpperInvariant(actionVerb[0]) + actionVerb[1..],
+            contentItem.DisplayName,
+            clientNames);
+
+        var notificationMessage = $"Cannot {actionVerb} game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.";
+        _localNotificationService.ShowWarning(notificationTitle, notificationMessage);
+        _notificationService?.ShowWarning(notificationTitle, notificationMessage);
+        return false;
+    }
+
     [RelayCommand]
-    private async Task DisableContentAsync(ContentDisplayItem? contentItem)
+    private async Task DisableContentAsync(ContentDisplayItem? contentItem, CancellationToken cancellationToken = default)
     {
         if (contentItem == null)
         {
@@ -190,26 +222,13 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
-        if (contentItem.ContentType == ContentType.GameInstallation)
+        if (!await ValidateInstallationRemovalAsync(
+                contentItem,
+                "remove",
+                ProfileValidationConstants.CannotRemoveInstallationTitle,
+                cancellationToken))
         {
-            var installation = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value) ?? contentItem;
-            var dependentClients = await GetDependentActiveGameClientsAsync(installation);
-            if (dependentClients.Count > 0)
-            {
-                var clientNames = string.Join(", ", dependentClients.Select(c => $"'{c.DisplayName}'"));
-                StatusMessage = $"Cannot remove {contentItem.DisplayName} while dependent game client {clientNames} is active";
-                _logger?.LogWarning(
-                    "DisableContent blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
-                    contentItem.DisplayName,
-                    clientNames);
-                _localNotificationService.ShowWarning(
-                    "Cannot Remove Installation",
-                    $"Cannot remove game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
-                _notificationService?.ShowWarning(
-                    "Cannot Remove Installation",
-                    $"Cannot remove game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
-                return;
-            }
+            return;
         }
 
         if (contentItem.IsLocked)
@@ -224,7 +243,7 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = "This content item cannot be toggled";
             _logger?.LogWarning("DisableContent: Cannot disable non-toggleable item {DisplayName}", contentItem.DisplayName);
-            _localNotificationService.ShowWarning("Cannot Modify Content", $"'{contentItem.DisplayName}' cannot be modified in this mode.");
+            _localNotificationService.ShowWarning(ProfileValidationConstants.CannotModifyContentTitle, $"'{contentItem.DisplayName}' cannot be modified in this mode.");
             return;
         }
 
@@ -290,7 +309,7 @@ public partial class GameProfileSettingsViewModel
     }
 
     [RelayCommand]
-    private async Task DeleteContentAsync(ContentDisplayItem? contentItem)
+    private async Task DeleteContentAsync(ContentDisplayItem? contentItem, CancellationToken cancellationToken = default)
     {
         if (contentItem == null)
         {
@@ -299,26 +318,13 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
-        if (contentItem.ContentType == ContentType.GameInstallation)
+        if (!await ValidateInstallationRemovalAsync(
+                contentItem,
+                "delete",
+                ProfileValidationConstants.CannotDeleteInstallationTitle,
+                cancellationToken))
         {
-            var installation = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value) ?? contentItem;
-            var dependentClients = await GetDependentActiveGameClientsAsync(installation);
-            if (dependentClients.Count > 0)
-            {
-                var clientNames = string.Join(", ", dependentClients.Select(c => $"'{c.DisplayName}'"));
-                StatusMessage = $"Cannot delete {contentItem.DisplayName} while dependent game client {clientNames} is active";
-                _logger?.LogWarning(
-                    "DeleteContent blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
-                    contentItem.DisplayName,
-                    clientNames);
-                _localNotificationService.ShowWarning(
-                    "Cannot Delete Installation",
-                    $"Cannot delete game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
-                _notificationService?.ShowWarning(
-                    "Cannot Delete Installation",
-                    $"Cannot delete game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
-                return;
-            }
+            return;
         }
 
         if (contentItem.IsLocked)
@@ -411,11 +417,11 @@ public partial class GameProfileSettingsViewModel
             {
                 StatusMessage = "Please select a game installation";
                 _localNotificationService.ShowError(
-                    "Missing Game Installation",
-                    "Please select a game installation before saving.");
+                    ProfileValidationConstants.MissingGameInstallationTitle,
+                    ProfileValidationConstants.SelectGameInstallationBeforeSaving);
                 _notificationService?.ShowError(
-                    "Missing Game Installation",
-                    "Please select a game installation before saving.");
+                    ProfileValidationConstants.MissingGameInstallationTitle,
+                    ProfileValidationConstants.SelectGameInstallationBeforeSaving);
                 _logger?.LogWarning("Profile save blocked: No game installation selected");
                 return;
             }
@@ -424,8 +430,8 @@ public partial class GameProfileSettingsViewModel
             {
                 StatusMessage = "Please enter a profile name";
                 _localNotificationService.ShowWarning(
-                    "Missing Name",
-                    "Please enter a profile name before saving.");
+                    ProfileValidationConstants.MissingProfileNameTitle,
+                    ProfileValidationConstants.EnterProfileNameBeforeSaving);
                 _logger?.LogWarning("Profile save blocked: Profile name is empty");
                 return;
             }

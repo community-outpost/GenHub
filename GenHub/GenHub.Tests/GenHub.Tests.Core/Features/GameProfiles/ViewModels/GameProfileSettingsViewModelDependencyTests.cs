@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
@@ -1059,7 +1060,7 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.True(zeroHourInstall.IsEnabled);
         Assert.Contains("Cannot remove", _viewModel.StatusMessage);
         _mockNotificationService.Verify(
-            x => x.ShowWarning("Cannot Remove Installation", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            x => x.ShowWarning(ProfileValidationConstants.CannotRemoveInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
     }
 
@@ -1142,10 +1143,127 @@ public class GameProfileSettingsViewModelDependencyTests
         // Assert
         Assert.Equal("Please select a game installation", _viewModel.StatusMessage);
         _mockNotificationService.Verify(
-            x => x.ShowError("Missing Game Installation", "Please select a game installation before saving.", It.IsAny<int?>(), It.IsAny<bool>()),
+            x => x.ShowError(ProfileValidationConstants.MissingGameInstallationTitle, ProfileValidationConstants.SelectGameInstallationBeforeSaving, It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         _mockGameProfileManager.Verify(
             x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is blocked when a publisher-agnostic GameClient
+    /// (e.g. StrictPublisher = false) depends on the installation's GameType.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_BlocksGameInstallationRemoval_WhenPublisherAgnosticClientDependsOnInstallationAsync()
+    {
+        // Arrange
+        var agnosticClientId = new ManifestId("1.104.genhub.gameclient.zerohour");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = agnosticClientId,
+            Name = "SuperHackers ZH Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = new ManifestId("1.104.genhub.gameinstallation.zerohour"),
+                    DependencyType = ContentType.GameInstallation,
+                    StrictPublisher = false,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = agnosticClientId,
+            DisplayName = "SuperHackers ZH Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            Manifest = clientManifest,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.True(zeroHourInstall.IsEnabled);
+        Assert.Contains("Cannot remove", _viewModel.StatusMessage);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(ProfileValidationConstants.CannotRemoveInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that deleting a GameInstallation is blocked when an active GameClient depends on it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteContent_BlocksGameInstallationDeletion_WhenDependentGameClientIsActiveAsync()
+    {
+        // Arrange
+        var standardClientId = new ManifestId("1.04.eaapp.gameclient.zerohour");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = standardClientId,
+            DisplayName = "Zero Hour 1.04 Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            SourceId = zeroHourInstallId.Value,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DeleteContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert
+        Assert.Contains("Cannot delete", _viewModel.StatusMessage);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(ProfileValidationConstants.CannotDeleteInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 }
