@@ -30,6 +30,13 @@ public static class PublisherInfoConstants
         (["github"], GitHub.LogoSource),
     ];
 
+    private static readonly (string[] Keywords, string CoverSource)[] CoverRules =
+    [
+        (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpostConstants.CoverSource),
+        (["superhacker"], SuperHackersConstants.ZeroHourCoverSource),
+        (["generalsonline", "generals online", "generals-online"], GeneralsOnlineConstants.CoverSource),
+    ];
+
     /// <summary>
     /// Publisher information for Steam.
     /// </summary>
@@ -371,6 +378,20 @@ public static class PublisherInfoConstants
         return primary ?? secondary;
     }
 
+    /// <summary>
+    /// Gets the cover source URI for a publisher or content item based on publisher ID, provider name, or title.
+    /// </summary>
+    /// <param name="publisherIdOrName">The publisher ID or provider display name.</param>
+    /// <param name="contentIdOrName">The content ID, title, or manifest ID context.</param>
+    /// <returns>A cover image path string, or null if unmapped.</returns>
+    public static string? GetPublisherCover(string? publisherIdOrName, string? contentIdOrName = null)
+    {
+        var primary = MatchCover(publisherIdOrName);
+        var secondary = MatchCover(contentIdOrName);
+
+        return primary ?? secondary;
+    }
+
     private static string? MatchLogo(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -383,6 +404,24 @@ public static class PublisherInfoConstants
             if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
             {
                 return logoSource;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? MatchCover(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        foreach (var (keywords, coverSource) in CoverRules)
+        {
+            if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+            {
+                return coverSource;
             }
         }
 

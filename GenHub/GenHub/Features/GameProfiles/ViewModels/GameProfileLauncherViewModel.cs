@@ -165,16 +165,9 @@ public partial class GameProfileLauncherViewModel(
                 {
                     if (profile == null) continue;
 
-                    // Use ProfileResourceService to get default paths based on game type if profile paths are missing
+                    // Resolve display icon and cover, prioritizing publisher branding before generic game defaults
                     var gameTypeStr = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
-
-                    var iconPath = !string.IsNullOrEmpty(profile.IconPath)
-                        ? profile.IconPath
-                        : UriConstants.DefaultIconUri;
-
-                    var coverPath = !string.IsNullOrEmpty(profile.CoverPath)
-                        ? profile.CoverPath
-                        : profileResourceService.GetDefaultCoverPath(gameTypeStr);
+                    var (iconPath, coverPath) = ResolveProfileDisplayPaths(profile, gameTypeStr);
 
                     var item = new GameProfileItemViewModel(
                         profile.Id,
@@ -426,12 +419,9 @@ public partial class GameProfileLauncherViewModel(
                     existingItem.UpdateFromProfile(profile);
 
                     var gameType = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
-                    existingItem.IconPath = !string.IsNullOrEmpty(profile.IconPath)
-                        ? profile.IconPath
-                        : UriConstants.DefaultIconUri;
-                    existingItem.CoverPath = !string.IsNullOrEmpty(profile.CoverPath)
-                        ? profile.CoverPath
-                        : profileResourceService.GetDefaultCoverPath(gameType);
+                    var (iconPath, coverPath) = ResolveProfileDisplayPaths(profile, gameType);
+                    existingItem.IconPath = iconPath;
+                    existingItem.CoverPath = coverPath;
 
                     logger.LogInformation("Refreshed profile {ProfileId} in-place (Running: {IsRunning})", profileId, existingItem.IsProcessRunning);
                 }
@@ -933,6 +923,29 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Adds a newly created profile to the UI immediately (without waiting for full refresh).
     /// </summary>
+    /// <summary>
+    /// Resolves display icon and cover image paths for a profile, checking publisher branding before falling back to generic defaults.
+    /// </summary>
+    private (string IconPath, string CoverPath) ResolveProfileDisplayPaths(Core.Models.GameProfile.GameProfile profile, string fallbackGameType)
+    {
+        var publisherKey = profile.GameClient?.PublisherType ?? profile.GameClient?.Name ?? profile.Name;
+
+        var iconPath = !string.IsNullOrEmpty(profile.IconPath) &&
+                       !profile.IconPath.Contains("generalshub-icon") &&
+                       !profile.IconPath.Contains("zerohour-icon")
+            ? profile.IconPath
+            : (PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id) ??
+               (!string.IsNullOrEmpty(profile.IconPath) ? profile.IconPath : UriConstants.DefaultIconUri));
+
+        var coverPath = !string.IsNullOrEmpty(profile.CoverPath) &&
+                        !profile.CoverPath.Contains("zerohour-cover")
+            ? profile.CoverPath
+            : (PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id) ??
+               (!string.IsNullOrEmpty(profile.CoverPath) ? profile.CoverPath : profileResourceService.GetDefaultCoverPath(fallbackGameType)));
+
+        return (iconPath, coverPath);
+    }
+
     private void AddProfileToUI(Core.Models.GameProfile.GameProfile profile)
     {
         try
@@ -944,13 +957,8 @@ public partial class GameProfileLauncherViewModel(
                 return;
             }
 
-            var iconPath = !string.IsNullOrEmpty(profile.IconPath)
-                ? profile.IconPath
-                : UriConstants.DefaultIconUri;
-
-            var coverPath = !string.IsNullOrEmpty(profile.CoverPath)
-                ? profile.CoverPath
-                : iconPath;
+            var gameTypeStr = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
+            var (iconPath, coverPath) = ResolveProfileDisplayPaths(profile, gameTypeStr);
 
             var item = new GameProfileItemViewModel(
                 profile.Id,

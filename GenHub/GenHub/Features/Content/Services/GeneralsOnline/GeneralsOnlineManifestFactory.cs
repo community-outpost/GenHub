@@ -84,6 +84,8 @@ public class GeneralsOnlineManifestFactory(
             Version = release.Version,
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = $"GeneralsOnline_{release.Version}",
             Publisher = new PublisherInfo
             {
                 Name = GeneralsOnlineConstants.PublisherName,
@@ -335,6 +337,8 @@ public class GeneralsOnlineManifestFactory(
             Version = release.Version,
             ContentType = ContentType.Patch,
             TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = $"GeneralsOnline_{release.Version}",
             Publisher = new PublisherInfo
             {
                 Name = GeneralsOnlineConstants.PublisherName,
@@ -388,6 +392,8 @@ public class GeneralsOnlineManifestFactory(
             Version = release.Version,
             ContentType = ContentType.MapPack,
             TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = $"GeneralsOnline_{release.Version}",
             Publisher = new PublisherInfo
             {
                 Name = GeneralsOnlineConstants.PublisherName,
@@ -429,6 +435,13 @@ public class GeneralsOnlineManifestFactory(
         var version = originalManifest.Version ?? GeneralsOnlineConstants.UnknownVersion;
         var userVersion = ParseVersionForManifestId(version);
 
+        var originalProviderName = !string.IsNullOrEmpty(originalManifest.OriginalProviderName)
+            ? originalManifest.OriginalProviderName
+            : PublisherTypeConstants.GeneralsOnline;
+        var originalContentId = !string.IsNullOrEmpty(originalManifest.OriginalContentId)
+            ? originalManifest.OriginalContentId
+            : $"GeneralsOnline_{version}";
+
         // Get URLs from provider definition (prefer original manifest metadata if available)
         var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
@@ -463,6 +476,8 @@ public class GeneralsOnlineManifestFactory(
             Version = version,
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
+            OriginalProviderName = originalProviderName,
+            OriginalContentId = originalContentId,
             Publisher = publisherInfo,
             Metadata = new ContentMetadata
             {
@@ -494,6 +509,8 @@ public class GeneralsOnlineManifestFactory(
             Version = version,
             ContentType = ContentType.MapPack,
             TargetGame = GameType.ZeroHour,
+            OriginalProviderName = originalProviderName,
+            OriginalContentId = originalContentId,
             Publisher = publisherInfo,
             Metadata = new ContentMetadata
             {
@@ -524,6 +541,8 @@ public class GeneralsOnlineManifestFactory(
             Version = version,
             ContentType = ContentType.Patch,
             TargetGame = GameType.ZeroHour,
+            OriginalProviderName = originalProviderName,
+            OriginalContentId = originalContentId,
             Publisher = publisherInfo,
             Metadata = new ContentMetadata
             {
@@ -598,6 +617,8 @@ public class GeneralsOnlineManifestFactory(
                 Version = manifest.Version,
                 ContentType = manifest.ContentType,
                 TargetGame = manifest.TargetGame,
+                OriginalProviderName = manifest.OriginalProviderName,
+                OriginalContentId = manifest.OriginalContentId,
                 Publisher = manifest.Publisher,
                 Metadata = manifest.Metadata,
                 Files = manifestFiles,
