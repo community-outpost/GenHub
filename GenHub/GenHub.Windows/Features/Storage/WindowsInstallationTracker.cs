@@ -16,7 +16,7 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
 {
     private const string GenHubSubKey = RegistryConstants.GenHubSubKey;
     private const string CustomInstallPathValueName = RegistryConstants.CustomInstallPathValueName;
-    private const string UriSchemeCommandKey = RegistryConstants.ClassesSubKeyPrefix + @"\" + CommandLineConstants.SchemeName + @"\" + RegistryConstants.ShellOpenCommandSubKey;
+    private const string UriSchemeCommandKey = RegistryConstants.GenHubUriSchemeCommandKey;
 
     /// <summary>
     /// Records the current installation directory in the user registry when running from a custom install root.

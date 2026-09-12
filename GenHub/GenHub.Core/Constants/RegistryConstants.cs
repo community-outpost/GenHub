@@ -183,6 +183,9 @@ public static class RegistryConstants
     /// <summary>Registry shell open command subkey path.</summary>
     public const string ShellOpenCommandSubKey = @"shell\open\command";
 
+    /// <summary>Registry shell open command subkey path for GenHub URI scheme.</summary>
+    public const string GenHubUriSchemeCommandKey = @"Software\Classes\genhub\shell\open\command";
+
     // ===== GenHub Application Keys =====
 
     /// <summary>Registry subkey under HKCU for GenHub application settings and install state.</summary>
