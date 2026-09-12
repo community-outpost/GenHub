@@ -175,27 +175,6 @@ nav {
     border-color: var(--primary-light);
 }
 
-.mobile-drawer-discord {
-    display: none;
-}
-
-@media (max-width: 768px) {
-    .nav-links.mobile-open .mobile-drawer-discord {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-        padding: 0.65rem 1rem;
-        background: rgba(88, 101, 242, 0.22);
-        border: 1px solid rgba(88, 101, 242, 0.5);
-        color: #ffffff;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        width: 100%;
-        box-sizing: border-box;
-    }
-}
 
 @media (max-width: 600px) {
     .nav-btn-discord {
