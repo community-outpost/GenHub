@@ -2537,7 +2537,7 @@ public partial class SettingsViewModel(
 
     private bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
     {
-        return subscription != null && subscription.TrustLevel != TrustLevel.Verified;
+        return subscription is { TrustLevel: not TrustLevel.Verified };
     }
 
     /// <summary>
