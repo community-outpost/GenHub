@@ -1158,4 +1158,68 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.True(File.Exists(splashPath));
         Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
     }
+
+    /// <summary>
+    /// Verifies that installing the same manifest for a new profile adopts ownership of existing files without failing with conflict.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_WhenSameManifestInstalledByAnotherProfile_AdoptsOwnershipAndSucceedsAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.0.map.desertstorm";
+        const string oldProfileId = "profile-primary";
+        const string newProfileId = "profile-secondary";
+        var mapPath = Path.Combine(_zeroHourDataDir, "Maps", "DesertStorm", "map.ini");
+
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Maps/DesertStorm/map.ini",
+                Hash = "hash-desert",
+                Size = 512,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        _fileOperationsMock.Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), "hash-desert", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _fileOperationsMock.Setup(f => f.LinkFromCasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // 1. Primary profile installs map
+        var firstResult = await _trackerService.InstallUserDataAsync(
+            manifestId,
+            oldProfileId,
+            GameType.ZeroHour,
+            files,
+            "1.0.0",
+            "Desert Storm",
+            CancellationToken.None);
+
+        Assert.True(firstResult.Success);
+
+        // 2. Secondary profile adopts the same map (skipCleanup scenario)
+        var secondResult = await _trackerService.InstallUserDataAsync(
+            manifestId,
+            newProfileId,
+            GameType.ZeroHour,
+            files,
+            "1.0.0",
+            "Desert Storm",
+            CancellationToken.None);
+
+        // Assert
+        Assert.True(secondResult.Success);
+        var conflictResult = await _trackerService.CheckFileConflictAsync(mapPath);
+        Assert.True(conflictResult.Success);
+        // Ownership transferred to new profile
+        Assert.Equal($"{manifestId}_{newProfileId}", conflictResult.Data);
+
+        // 3. Deactivating old profile must NOT delete the adopted file
+        var deactResult = await _trackerService.DeactivateProfileUserDataAsync(oldProfileId, CancellationToken.None);
+        Assert.True(deactResult.Success);
+        Assert.True(File.Exists(mapPath));
+    }
 }
