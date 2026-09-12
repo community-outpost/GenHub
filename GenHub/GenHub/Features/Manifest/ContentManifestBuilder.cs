@@ -344,22 +344,19 @@ public partial class ContentManifestBuilder(
         List<ManifestId>? conflictsWith = null,
         List<GameType>? compatibleGameTypes = null)
     {
-        var dependency = new ContentDependency
-        {
-            Id = id,
-            Name = name,
-            DependencyType = dependencyType,
-            MinVersion = minVersion,
-            MaxVersion = maxVersion,
-            CompatibleVersions = compatibleVersions ?? [],
-            IsExclusive = isExclusive,
-            ConflictsWith = conflictsWith ?? [],
-            InstallBehavior = installBehavior,
-            CompatibleGameTypes = compatibleGameTypes ?? [],
-        };
-        _manifest.Dependencies.Add(dependency);
-        logger.LogDebug("Added dependency: {DependencyId} (InstallBehavior: {InstallBehavior}, Exclusive: {IsExclusive})", id, installBehavior, isExclusive);
-        return this;
+        return AddDependency(
+            id,
+            name,
+            dependencyType,
+            installBehavior,
+            minVersion,
+            maxVersion,
+            compatibleVersions,
+            isExclusive,
+            conflictsWith,
+            compatibleGameTypes,
+            minInclusive: true,
+            maxInclusive: true);
     }
 
     /// <inheritdoc/>

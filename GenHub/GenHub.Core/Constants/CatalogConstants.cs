@@ -126,7 +126,7 @@ public static class CatalogConstants
     /// <summary>
     /// Publisher wildcard for base game installations satisfied by any publisher.
     /// </summary>
-    public const string AnyPublisherId = "any";
+    public const string AnyPublisherId = ManifestConstants.AnyPublisherToken;
 
     /// <summary>
     /// Variant axis name for target game discrimination (Generals vs Zero Hour).
