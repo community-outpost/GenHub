@@ -40,7 +40,6 @@ public sealed partial class GameClientSelectionViewModel(
     private const string RetailBaseClientKey = "retail-base-client";
     private const string ZhRetailExeCrc = "0xDA2B4B18";
     private const string ZhAltRetailExeCrc = "0x401D89EA";
-    private const string ZhOctRetailExeCrc = "0x887B0CAA";
 
     private readonly List<GameClientCardViewModel> _allClients = [];
 
@@ -289,10 +288,9 @@ public sealed partial class GameClientSelectionViewModel(
     {
         if (targetGame == GameType.ZeroHour)
         {
-            return exeCrc is 0xDA2B4B18 or 0x401D89EA or 0x887B0CAA ||
+            return exeCrc is 0xDA2B4B18 or 0x401D89EA ||
                    string.Equals(replayExeCrc, ZhRetailExeCrc, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(replayExeCrc, ZhAltRetailExeCrc, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(replayExeCrc, ZhOctRetailExeCrc, StringComparison.OrdinalIgnoreCase);
+                   string.Equals(replayExeCrc, ZhAltRetailExeCrc, StringComparison.OrdinalIgnoreCase);
         }
 
         if (targetGame == GameType.Generals)
@@ -543,7 +541,7 @@ public sealed partial class GameClientSelectionViewModel(
     {
         CompatibleCount = _allClients.Count(c => c.IsCrcMatch);
         HasCompatibleCrcClients = CompatibleCount > 0;
-        ShowAllClients = false;
+        ShowAllClients = !HasCompatibleCrcClients;
     }
 
     private async Task DiscoverManifestClientsAsync(

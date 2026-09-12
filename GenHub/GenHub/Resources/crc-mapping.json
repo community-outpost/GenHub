@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "lastUpdated": "2026-08-26T03:08:47.522373+00:00",
-  "totalEntries": 139,
+  "totalEntries": 136,
   "mappings": [
     {
       "exeCrc": "0x401D89EA",
@@ -1658,48 +1658,6 @@
       "buildDate": "2026-02-15",
       "description": "GeneralsOnline 021326_QFE2",
       "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_021326_QFE2.zip"
-    },
-    {
-      "exeCrc": "0x887B0CAA",
-      "iniCrc": "0x7C5E8069",
-      "sha256": null,
-      "manifestId": "1.104.retail.gameclient.zerohour",
-      "dataPatchManifestId": null,
-      "dataPatchName": "Vanilla 1.04 INI",
-      "publisher": "retail",
-      "gameType": "ZeroHour",
-      "version": "1.04",
-      "buildDate": "2005-10-17",
-      "description": "Zero Hour 1.04 (Oct 17 2005)",
-      "cdnUrl": null
-    },
-    {
-      "exeCrc": "0x887B0CAA",
-      "iniCrc": "0x76B251A3",
-      "sha256": null,
-      "manifestId": "1.104.retail.gameclient.zerohour",
-      "dataPatchManifestId": null,
-      "dataPatchName": "Vanilla 1.04 INI",
-      "publisher": "retail",
-      "gameType": "ZeroHour",
-      "version": "1.04",
-      "buildDate": "2005-10-17",
-      "description": "Zero Hour 1.04 (Oct 17 2005)",
-      "cdnUrl": null
-    },
-    {
-      "exeCrc": "0x887B0CAA",
-      "iniCrc": "0xFEAAE3F3",
-      "sha256": null,
-      "manifestId": "1.104.retail.gameclient.zerohour",
-      "dataPatchManifestId": null,
-      "dataPatchName": "Vanilla 1.04 INI",
-      "publisher": "retail",
-      "gameType": "ZeroHour",
-      "version": "1.04",
-      "buildDate": "2005-10-17",
-      "description": "Zero Hour 1.04 (Oct 17 2005)",
-      "cdnUrl": null
     }
   ]
 }

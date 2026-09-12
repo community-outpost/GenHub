@@ -140,12 +140,12 @@ public sealed class GameClientSelectionViewModelTests
         var otherReplayProfile = new GenHub.Core.Models.GameProfile.GameProfile
         {
             Id = "profile-for-other-replay",
-            Name = "Zero Hour 1.04 (Oct 17 2005) (Replay: other_replay)",
+            Name = "Retail 1.04 (Replay: other_replay)",
             Description = "[replay:other_replay.rep] Dedicated profile for other_replay",
             GameClient = new GenHub.Core.Models.GameClients.GameClient
             {
                 Id = "client-other-replay",
-                Name = "Zero Hour 1.04 (Oct 17 2005)",
+                Name = "Retail 1.04",
                 GameType = GameType.ZeroHour,
                 PublisherType = "Retail",
             },

@@ -763,11 +763,6 @@ public sealed class ReplayDirectoryService(
             return true;
         }
 
-        if (IsDedicatedToAnotherReplay(p))
-        {
-            return false;
-        }
-
         if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
             string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
         {
@@ -809,7 +804,24 @@ public sealed class ReplayDirectoryService(
             var calcRes = crcCalculator.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
             if (calcRes.Success && !string.IsNullOrEmpty(calcRes.Data))
             {
-                return string.Equals(calcRes.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase);
+                if (string.Equals(calcRes.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                // Retail Zero Hour compatibility: Steam (0x401D89EA) and Retail CD/EA (0xDA2B4B18) both play 1.04 replays
+                if (IsZeroHourRetailExeCrc(calcRes.Data) && IsZeroHourRetailExeCrc(targetExeCrc))
+                {
+                    return true;
+                }
+
+                // Retail Generals compatibility: 0x1C96366F and 0x27533BB0 both play 1.08 replays
+                if (IsGeneralsRetailExeCrc(calcRes.Data) && IsGeneralsRetailExeCrc(targetExeCrc))
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -819,6 +831,14 @@ public sealed class ReplayDirectoryService(
 
         return false;
     }
+
+    private static bool IsZeroHourRetailExeCrc(string? crc) =>
+        string.Equals(crc, "0xDA2B4B18", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(crc, "0x401D89EA", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGeneralsRetailExeCrc(string? crc) =>
+        string.Equals(crc, "0x1C96366F", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(crc, "0x27533BB0", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Attempts to compute and validate a contained relative path within the specified working directory.
@@ -2761,11 +2781,6 @@ public sealed class ReplayDirectoryService(
         out CrcMappingEntry? matchedProfileEntry)
     {
         matchedProfileEntry = null;
-        if (IsDedicatedToAnotherReplay(profile))
-        {
-            return false;
-        }
-
         var exePath = ResolveProfileFullExePath(profile.GameClient);
         if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
         {
@@ -2775,7 +2790,10 @@ public sealed class ReplayDirectoryService(
         try
         {
             var calcResult = crcCalculator!.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
-            if (calcResult.Success && string.Equals(calcResult.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase))
+            if (calcResult.Success && !string.IsNullOrEmpty(calcResult.Data) &&
+                (string.Equals(calcResult.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase) ||
+                 (IsZeroHourRetailExeCrc(calcResult.Data) && IsZeroHourRetailExeCrc(targetExeCrc)) ||
+                 (IsGeneralsRetailExeCrc(calcResult.Data) && IsGeneralsRetailExeCrc(targetExeCrc))))
             {
                 logger.LogInformation(
                     "[ReplayManager] Discovered matching profile '{ProfileName}' for replay '{ReplayFile}' via executable CRC '{ExeCrc}' ({ExePath})",

@@ -118,7 +118,7 @@ public sealed class ReplayFile : IExportableFile
             {
                 if (!string.IsNullOrEmpty(Metadata.BuildTimeString))
                 {
-                    return $"{Metadata.VersionString ?? "Zero Hour"} ({Metadata.BuildTimeString})";
+                    return $"Unmapped Build ({Metadata.BuildTimeString})";
                 }
 
                 return $"Custom (Exe: {Metadata.FormattedExeCrc ?? "N/A"}, INI: {Metadata.FormattedIniCrc ?? "N/A"})";

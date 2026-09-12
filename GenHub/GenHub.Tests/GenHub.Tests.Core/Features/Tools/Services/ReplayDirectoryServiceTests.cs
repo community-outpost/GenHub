@@ -509,8 +509,8 @@ public sealed class ReplayDirectoryServiceTests
         {
             var replay = new ReplayFile
             {
-                FileName = "Oct17Replay.rep",
-                FullPath = "/test/Oct17Replay.rep",
+                FileName = "CustomExeReplay.rep",
+                FullPath = "/test/CustomExeReplay.rep",
                 SizeInBytes = 2048,
                 LastModified = DateTime.UtcNow,
                 GameVersion = GameType.ZeroHour,
@@ -3138,7 +3138,7 @@ public sealed class ReplayDirectoryServiceTests
 
     /// <summary>
     /// Verifies that CreateProfileForReplayAsync resolves the installation's base game client manifest
-    /// when a retail client card (e.g. Oct 17 2005) is selected from the client selection dialog.
+    /// when a retail client card is selected from the client selection dialog.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -3146,21 +3146,21 @@ public sealed class ReplayDirectoryServiceTests
     {
         var replay = new ReplayFile
         {
-            FileName = "Oct17Replay.rep",
-            FullPath = "/replays/Oct17Replay.rep",
+            FileName = "RetailReplay.rep",
+            FullPath = "/replays/RetailReplay.rep",
             SizeInBytes = 2048,
             LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
             Metadata = new ReplayMetadata
             {
-                ExeCrc = 0x887B0CAA,
+                ExeCrc = 0xDA2B4B18,
             },
         };
 
         var customClient = new GameClient
         {
             Id = "1.104.retail.gameclient.zerohour",
-            Name = "Zero Hour 1.04 (Oct 17 2005)",
+            Name = "Retail 1.04",
             Version = "1.04",
             PublisherType = "Retail",
             GameType = GameType.ZeroHour,
@@ -3197,7 +3197,7 @@ public sealed class ReplayDirectoryServiceTests
         _mockProfileManager
             .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
             .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created-oct17-profile-id", Name = "Zero Hour 1.04 (Oct 17 2005) (Replay: Oct17Replay)" }));
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created-retail-profile-id", Name = "Retail 1.04 (Replay: RetailReplay)" }));
 
         _mockCasPoolService
             .Setup(c => c.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
@@ -3214,20 +3214,20 @@ public sealed class ReplayDirectoryServiceTests
         Assert.True(result.Success);
         Assert.NotNull(capturedRequest);
         Assert.NotNull(capturedRequest!.GameClient);
-        Assert.Equal("Zero Hour 1.04 (Oct 17 2005)", capturedRequest.GameClient!.Name);
+        Assert.Equal("Retail 1.04", capturedRequest.GameClient!.Name);
         Assert.Equal("1.104.steam.gameclient.zerohour", capturedRequest.GameClient!.Id);
         Assert.NotNull(capturedRequest.EnabledContentIds);
         Assert.Contains("1.104.steam.gameclient.zerohour", capturedRequest.EnabledContentIds!);
         Assert.Contains("1.104.steam.gameinstallation.zerohour", capturedRequest.EnabledContentIds!);
-        Assert.Equal("created-oct17-profile-id", replay.MatchingProfileId);
+        Assert.Equal("created-retail-profile-id", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
     }
 
     /// <summary>
-    /// Verifies that FindMatchingProfile does not match a profile dedicated to another replay.
+    /// Verifies that FindMatchingProfile reuses a compatible profile across replays when the client and patch match.
     /// </summary>
     [Fact]
-    public void FindMatchingProfile_WhenProfileDedicatedToAnotherReplay_ReturnsNull()
+    public void FindMatchingProfile_WhenProfileDedicatedToAnotherReplayWithMatchingClient_ReusesCompatibleProfile()
     {
         var replayA = new ReplayFile
         {
@@ -3263,7 +3263,8 @@ public sealed class ReplayDirectoryServiceTests
             null,
             replayA);
 
-        Assert.Null(match);
+        Assert.NotNull(match);
+        Assert.Equal("profile-for-match-b", match.Id);
     }
 
     /// <summary>
