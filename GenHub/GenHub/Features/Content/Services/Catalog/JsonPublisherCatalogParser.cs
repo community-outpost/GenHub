@@ -121,9 +121,9 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
 
         logger.LogWarning(
-            "Signature present in catalog for publisher '{PublisherId}', but signature verification is unconfigured; accepting catalog without validation",
+            "Signature present in catalog for publisher '{PublisherId}', but cryptographic verification is not configured; rejecting signed catalog",
             catalog.Publisher?.Id);
-        return true;
+        return false;
     }
 
     private static void ValidateDependencies(
@@ -235,12 +235,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         catalog.Content ??= [];
         foreach (var content in catalog.Content)
         {
-            if (content == null)
-            {
-                continue;
-            }
-
-            content.Tags ??= [];
+            content.Description ??= string.Empty;
+            content.Tags = content.Tags != null
+                ? content.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
+                : [];
             if (content.Metadata != null)
             {
                 content.Metadata.ScreenshotUrls ??= [];
@@ -249,11 +247,6 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             content.Releases ??= [];
             foreach (var release in content.Releases)
             {
-                if (release == null)
-                {
-                    continue;
-                }
-
                 release.Artifacts ??= [];
                 release.Dependencies ??= [];
             }
@@ -348,7 +341,6 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         if (string.IsNullOrWhiteSpace(release.Version))
         {
             errors.Add($"Content '{content.Id}' has release with missing version");
-            return;
         }
 
         var hasArtifacts = release.Artifacts is { Count: > 0 };
@@ -359,7 +351,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             ValidateDependencies(content, release, itemsById, hostPublisherId, errors);
         }
 
-        var isDynamicRelease = release.Version.Equals("latest", StringComparison.OrdinalIgnoreCase) ||
+        var isDynamicRelease = release.Version?.Equals("latest", StringComparison.OrdinalIgnoreCase) == true ||
             content.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true;
 
         if (!hasArtifacts && !hasDependencies && !isDynamicRelease)

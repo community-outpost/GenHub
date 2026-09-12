@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services.Catalog;
 
 /// <summary>
-/// Reads a publisher catalog from either an HTTP(S) endpoint or a local file selected by the user.
+/// Reads a publisher catalog from either an HTTPS endpoint or a local file selected by the user.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Local file support is intentional for Publisher Studio previews and offline catalog authoring.
-/// It is limited to explicit <c>file://</c> URIs or fully qualified file paths; other URI schemes
-/// are rejected rather than being passed to <see cref="HttpClient"/>.
+/// It is limited to explicit <c>file://</c> URIs or fully qualified local file paths; UNC paths and
+/// other URI schemes are rejected rather than being passed to <see cref="HttpClient"/>.
 /// </para>
 /// <para>
 /// All catalog consumers use this reader so that subscription confirmation, browsing, refreshing,
@@ -26,12 +26,13 @@ public static class CatalogDocumentReader
     /// <summary>
     /// Reads catalog JSON from the supplied catalog location.
     /// </summary>
-    /// <param name="httpClient">HTTP client used for HTTP(S) catalog locations.</param>
-    /// <param name="catalogLocation">An HTTP(S) URL, a file URI, or a fully qualified file path.</param>
+    /// <param name="httpClient">HTTP client used for HTTPS catalog locations.</param>
+    /// <param name="catalogLocation">An HTTPS URL, a local file URI, or a fully qualified local file path.</param>
     /// <param name="maximumSizeBytes">Optional maximum permitted catalog size.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The catalog JSON payload.</returns>
     /// <exception cref="ArgumentException">Thrown when the location is blank or uses an unsupported scheme.</exception>
+    /// <exception cref="FileNotFoundException">Thrown when a local file does not exist.</exception>
     /// <exception cref="InvalidDataException">Thrown when the catalog exceeds the configured size limit.</exception>
     public static async Task<string> ReadAsync(
         HttpClient httpClient,
@@ -50,15 +51,29 @@ public static class CatalogDocumentReader
         if (localPath is not null)
         {
             var fileInfo = new FileInfo(localPath);
-            EnsureWithinSizeLimit(fileInfo.Exists ? fileInfo.Length : 0, maximumSizeBytes);
-            return await File.ReadAllTextAsync(localPath, cancellationToken).ConfigureAwait(false);
+            if (!fileInfo.Exists)
+            {
+                throw new FileNotFoundException("Catalog file not found.", localPath);
+            }
+
+            EnsureWithinSizeLimit(fileInfo.Length, maximumSizeBytes);
+
+            using var localStream = new FileStream(
+                localPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 8192,
+                useAsync: true);
+
+            return await ReadStreamWithLimitAsync(localStream, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
         }
 
         if (!Uri.TryCreate(catalogLocation, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            uri.Scheme != Uri.UriSchemeHttps)
         {
             throw new ArgumentException(
-                "Catalog locations must use HTTP(S), a file URI, or a fully qualified file path.",
+                "Catalog locations must use HTTPS, a local file URI, or a fully qualified local file path.",
                 nameof(catalogLocation));
         }
 
@@ -71,7 +86,50 @@ public static class CatalogDocumentReader
         }
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadStreamWithLimitAsync(stream, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
+    }
 
+    private static string? ResolveLocalPath(string catalogLocation)
+    {
+        if (Path.IsPathFullyQualified(catalogLocation))
+        {
+            // Reject UNC paths (\\server\share or //server/share) to prevent SSRF / SMB access
+            if (catalogLocation.StartsWith(@"\\", StringComparison.Ordinal) ||
+                catalogLocation.StartsWith("//", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return catalogLocation;
+        }
+
+        if (Uri.TryCreate(catalogLocation, UriKind.Absolute, out var uri) && uri.IsFile)
+        {
+            // Reject UNC file URIs (file://server/share)
+            if (uri.IsUnc || !string.IsNullOrEmpty(uri.Host))
+            {
+                return null;
+            }
+
+            return uri.LocalPath;
+        }
+
+        return null;
+    }
+
+    private static void EnsureWithinSizeLimit(long contentLength, long? maximumSizeBytes)
+    {
+        if (maximumSizeBytes is > 0 && contentLength > maximumSizeBytes.Value)
+        {
+            throw new InvalidDataException($"Catalog exceeds maximum size of {maximumSizeBytes.Value} bytes.");
+        }
+    }
+
+    private static async Task<string> ReadStreamWithLimitAsync(
+        Stream stream,
+        long? maximumSizeBytes,
+        CancellationToken cancellationToken)
+    {
         if (maximumSizeBytes is not > 0)
         {
             using var directReader = new StreamReader(stream, Encoding.UTF8);
@@ -97,25 +155,5 @@ public static class CatalogDocumentReader
         memoryStream.Position = 0;
         using var reader = new StreamReader(memoryStream, Encoding.UTF8);
         return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static string? ResolveLocalPath(string catalogLocation)
-    {
-        if (Path.IsPathFullyQualified(catalogLocation))
-        {
-            return catalogLocation;
-        }
-
-        return Uri.TryCreate(catalogLocation, UriKind.Absolute, out var uri) && uri.IsFile
-            ? uri.LocalPath
-            : null;
-    }
-
-    private static void EnsureWithinSizeLimit(long contentLength, long? maximumSizeBytes)
-    {
-        if (maximumSizeBytes is > 0 && contentLength > maximumSizeBytes.Value)
-        {
-            throw new InvalidDataException($"Catalog exceeds maximum size of {maximumSizeBytes.Value} bytes.");
-        }
     }
 }

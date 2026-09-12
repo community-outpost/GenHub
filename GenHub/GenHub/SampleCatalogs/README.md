@@ -175,8 +175,8 @@ dotnet run --project <platform csproj> -- "genhub://subscribe?url=<catalog-url>"
 
 The `.url` / `.webloc` / `xdg-open genhub://...` paths **do** need the handler.
 
-The catalog URL is a `file://` path. If the `HttpClient` file-handler rejects `file://` on your
-host, serve the catalog over HTTP instead:
+The catalog URL is a `file://` URI, handled directly via `CatalogDocumentReader` for offline
+and preview scenarios. Alternatively, serve the catalog over HTTP:
 
 ```bash
 cd GenHub/GenHub/SampleCatalogs && python -m http.server 8080

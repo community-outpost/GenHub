@@ -50,9 +50,6 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IWorkspaceManager>(),
             sp.GetRequiredService<IContentManifestPool>(),
             sp.GetRequiredService<IVelopackUpdateManager>(),
-            sp.GetRequiredService<IPublisherSubscriptionStore>(),
-            sp.GetRequiredService<IPublisherCatalogRefreshService>(),
-            sp.GetRequiredService<IGitHubApiClient>(),
             sp.GetRequiredService<INotificationService>(),
             sp.GetRequiredService<IConfigurationProviderService>(),
             sp.GetRequiredService<IGameInstallationService>(),
@@ -63,7 +60,9 @@ public static class SharedViewModelModule
             sp.GetService<IThemeService>(),
             /* Optional dependencies that can be null if GitHub integration is not configured */
             sp.GetService<IGitHubTokenStorage>(),
-            sp.GetService<IGitHubApiClient>()));
+            sp.GetService<IGitHubApiClient>(),
+            sp.GetService<IPublisherSubscriptionStore>(),
+            sp.GetService<IPublisherCatalogRefreshService>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register ProfileSelectionViewModel as transient for profile selection scenarios

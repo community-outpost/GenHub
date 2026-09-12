@@ -48,13 +48,13 @@ public class GenericCatalogManifestFactory(
     }
 
     /// <summary>
-    /// Creates manifests from extracted content directory.
+    /// Creates enriched manifests from extracted content with optional progress reporting.
     /// </summary>
     /// <param name="originalManifest">The original manifest.</param>
-    /// <param name="extractedDirectory">The directory containing extracted files.</param>
+    /// <param name="extractedDirectory">The directory where content was extracted.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of generated content manifests.</returns>
+    /// <returns>A list of updated manifests.</returns>
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
@@ -88,9 +88,7 @@ public class GenericCatalogManifestFactory(
             extractedDirectory,
             originalManifest.ContentType,
             originalManifest.TargetGame,
-            normalizeInactiveArchives: true,
-            progress: progress,
-            cancellationToken: cancellationToken);
+            cancellationToken);
 
         if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
         {
@@ -111,12 +109,27 @@ public class GenericCatalogManifestFactory(
         logger.LogDebug("Found {Count} files in extracted directory", extractedFiles.Length);
 
         // Create updated file entries with computed hashes
-        var updatedFiles = new List<ManifestFile>();
+        var updatedFiles = new List<ManifestFile>(extractedFiles.Length);
+        var totalFiles = extractedFiles.Length;
+        var processedFiles = 0;
+
         foreach (var filePath in extractedFiles)
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var relativePath = Path.GetRelativePath(extractedDirectory, filePath);
+
+                progress?.Report(new GenHub.Core.Models.Content.ContentAcquisitionProgress
+                {
+                    Phase = GenHub.Core.Models.Content.ContentAcquisitionPhase.ValidatingFiles,
+                    ProgressPercentage = totalFiles > 0 ? (double)processedFiles / totalFiles * 100 : 100,
+                    CurrentOperation = $"Hashing {relativePath}",
+                    CurrentFile = relativePath,
+                    FilesProcessed = processedFiles,
+                    TotalFiles = totalFiles,
+                });
+
                 var fileInfo = new FileInfo(filePath);
                 var hash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
 
@@ -130,44 +143,36 @@ public class GenericCatalogManifestFactory(
                 };
 
                 updatedFiles.Add(manifestFile);
+                processedFiles++;
+
                 logger.LogDebug(
                     "Computed hash for file {RelativePath}: {Hash}, Size: {Size}",
                     relativePath,
                     hash,
                     fileInfo.Length);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                logger.LogError(ex, "Failed to compute hash for file: {FilePath}", filePath);
                 throw new InvalidOperationException($"Failed to compute hash for file: {filePath}", ex);
             }
         }
 
-        // Create updated manifest with computed hashes
-        var updatedManifest = new ContentManifest
+        progress?.Report(new GenHub.Core.Models.Content.ContentAcquisitionProgress
         {
-            SchemaVersion = originalManifest.SchemaVersion,
-            Id = originalManifest.Id,
-            Name = originalManifest.Name,
-            Version = !string.IsNullOrWhiteSpace(originalManifest.Version)
-                ? originalManifest.Version
-                : CommunityOutpostCatalogConstants.DefaultMetadataVersion,
-            ContentType = originalManifest.ContentType,
-            TargetGame = originalManifest.TargetGame,
-            Publisher = originalManifest.Publisher,
-            Metadata = originalManifest.Metadata,
-            OriginalProviderName = originalManifest.OriginalProviderName,
-            OriginalContentId = originalManifest.OriginalContentId,
-            SourcePath = originalManifest.SourcePath,
-            Dependencies = originalManifest.Dependencies,
-            ContentReferences = originalManifest.ContentReferences,
-            KnownAddons = originalManifest.KnownAddons,
-            Files = updatedFiles,
-            Variants = originalManifest.Variants,
-            EntryPoint = originalManifest.EntryPoint,
-            RequiredDirectories = originalManifest.RequiredDirectories,
-            InstallationInstructions = originalManifest.InstallationInstructions,
-        };
+            Phase = GenHub.Core.Models.Content.ContentAcquisitionPhase.ValidatingFiles,
+            ProgressPercentage = 100,
+            CurrentOperation = "Finished hashing files",
+            FilesProcessed = totalFiles,
+            TotalFiles = totalFiles,
+        });
+
+        // Create updated manifest with computed hashes
+        var updatedManifest = originalManifest.Clone();
+        updatedManifest.Files = updatedFiles;
+        if (string.IsNullOrWhiteSpace(updatedManifest.Version))
+        {
+            updatedManifest.Version = CommunityOutpostCatalogConstants.DefaultMetadataVersion;
+        }
 
         if (string.IsNullOrWhiteSpace(updatedManifest.EntryPoint))
         {

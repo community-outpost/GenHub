@@ -442,9 +442,23 @@ if [[ "$PLATFORM" = "unknown" ]]; then
     exit 1
 fi
 
+url_encode() {
+    local s="$1"
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$s"
+        return
+    fi
+    if command -v python >/dev/null 2>&1; then
+        python -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$s"
+        return
+    fi
+    printf '%s' "$s"
+}
+
 resolve_targets
 FILE_URI="$(to_file_uri "$CATALOG_PATH" | tr -d '\r')"
-SUBSCRIBE_URI="genhub://subscribe?url=$FILE_URI"
+ENCODED_FILE_URI="$(url_encode "$FILE_URI")"
+SUBSCRIBE_URI="genhub://subscribe?url=$ENCODED_FILE_URI"
 
 if [[ ! -f "$EXE_PATH" && ! -f "${EXE_PATH}.exe" ]]; then
     warn_missing_exe "$EXE_PATH" "$PROJECT"

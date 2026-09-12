@@ -157,6 +157,70 @@ public sealed class CatalogTabProviderTests
         Assert.Equal("all-items-tab", tab.TabId);
     }
 
+    /// <summary>
+    /// Ensures subsequent calls within cache duration use the cached catalog without re-fetching.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetTabsAsync_SubsequentCall_UsesCachedCatalogAsync()
+    {
+        // Arrange
+        const string publisherId = "cached-publisher";
+        const string publisherName = "Cached Publisher";
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore
+            .Setup(store => store.GetSubscriptionAsync(publisherId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(new PublisherSubscription
+            {
+                PublisherId = publisherId,
+                PublisherName = publisherName,
+                CatalogUrl = "https://catalog.example.test/catalog.json",
+            }));
+
+        var catalogParser = new Mock<IPublisherCatalogParser>();
+        catalogParser
+            .Setup(parser => parser.ParseCatalogAsync("{}", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(new PublisherCatalog
+            {
+                CustomTabs =
+                [
+                    new CatalogTabDefinition
+                    {
+                        TabId = "cached-tab",
+                        Header = "Cached Tab",
+                    },
+                ],
+            }));
+
+        var httpClientFactory = new Mock<IHttpClientFactory>();
+        httpClientFactory
+            .Setup(factory => factory.CreateClient(It.IsAny<string>()))
+            .Returns(new HttpClient(new StaticResponseHandler("{}")));
+
+        var provider = new CatalogTabProvider(
+            subscriptionStore.Object,
+            catalogParser.Object,
+            httpClientFactory.Object,
+            new Mock<ILogger<CatalogTabProvider>>().Object);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.cached-publisher.mod.example",
+            ProviderName = publisherName,
+        };
+        searchResult.ResolverMetadata["publisherProfileJson"] = "{\"id\":\"cached-publisher\",\"name\":\"Cached Publisher\"}";
+
+        // Act
+        var firstResult = await provider.GetTabsAsync(searchResult);
+        var secondResult = await provider.GetTabsAsync(searchResult);
+
+        // Assert
+        Assert.Single(firstResult);
+        Assert.Single(secondResult);
+        subscriptionStore.Verify(store => store.GetSubscriptionAsync(publisherId, It.IsAny<CancellationToken>()), Times.Once);
+        catalogParser.Verify(parser => parser.ParseCatalogAsync("{}", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private sealed class StaticResponseHandler(string content) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

@@ -116,7 +116,8 @@ Windows Registry Editor Version 5.00
 
 # --- .url file ---------------------------------------------------------------
 $urlPath = Join-Path $scriptDir "Subscribe-Test-Catalog.url"
-$fileUri = "file:///" + ($catalogPath -replace '\\', '/')
+$rawFileUri = "file:///" + ($catalogPath -replace '\\', '/')
+$fileUri = [System.Uri]::EscapeDataString($rawFileUri)
 
 $urlContent = @'
 [InternetShortcut]

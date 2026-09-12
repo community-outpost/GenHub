@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
@@ -222,5 +223,54 @@ public sealed class CatalogManifestIdentityTests
     {
         var humanized = CatalogManifestIdentity.HumanizeContentId("superhackers-zerohour-gamecode");
         Assert.Equal("Superhackers Zerohour Gamecode", humanized);
+    }
+
+    /// <summary>
+    /// Tests that lone constraint tokens are only accepted as exact versions if parsable and valid.
+    /// Prefixes like 'v' are stripped and normalized, while operators or arbitrary text are rejected.
+    /// </summary>
+    /// <param name="token">The token to evaluate.</param>
+    /// <param name="expectedSuccess">Expected parse success flag.</param>
+    /// <param name="expectedVersion">Expected clean version output.</param>
+    [Theory]
+    [InlineData("1.04", true, "1.04")]
+    [InlineData("=1.04", true, "1.04")]
+    [InlineData("1.0.0", true, "1.0.0")]
+    [InlineData("v1.5", true, "1.5")]
+    [InlineData("vv1.5", true, "1.5")]
+    [InlineData("vV1.5", true, "1.5")]
+    [InlineData("V2.0.0", true, "2.0.0")]
+    [InlineData("1..0", false, "")]
+    [InlineData(">=1.0.0", false, "")]
+    [InlineData("<2.0.0", false, "")]
+    [InlineData("^1.2.3", false, "")]
+    [InlineData("~1.2.3", false, "")]
+    [InlineData("latest", false, "")]
+    [InlineData("invalid-version", false, "")]
+    [InlineData("", false, "")]
+    [InlineData(null, false, "")]
+    public void TryParseExactVersion_ValidatesAndNormalizesCorrectly(string? token, bool expectedSuccess, string expectedVersion)
+    {
+        var success = CatalogManifestIdentity.TryParseExactVersion(token, out var cleanVersion);
+        Assert.Equal(expectedSuccess, success);
+        Assert.Equal(expectedVersion, cleanVersion);
+    }
+
+    /// <summary>
+    /// Tests that CompareVersions compares semantic and numeric versions correctly.
+    /// </summary>
+    /// <param name="v1">The first version string.</param>
+    /// <param name="v2">The second version string.</param>
+    /// <param name="expectedSign">Expected comparison sign (-1, 0, or 1).</param>
+    [Theory]
+    [InlineData("1.10", "1.9", 1)]
+    [InlineData("1.9", "1.10", -1)]
+    [InlineData("1.04", "1.04", 0)]
+    [InlineData("1.04", "1.08", -1)]
+    [InlineData("2.0.0", "1.9.9", 1)]
+    public void CompareVersions_ComparesVersionsCorrectly(string v1, string v2, int expectedSign)
+    {
+        var result = CatalogManifestIdentity.CompareVersions(v1, v2);
+        Assert.Equal(expectedSign, Math.Sign(result));
     }
 }

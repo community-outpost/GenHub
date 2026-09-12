@@ -61,6 +61,7 @@ public sealed class SubscriptionConfirmationViewModelTests
         Assert.Equal(3, vm.FilteredContentItems.Count);
         Assert.True(vm.ShowDetails);
         Assert.False(vm.ShowInitialError);
+        Assert.False(vm.ShowActionError);
     }
 
     /// <summary>
@@ -144,7 +145,7 @@ public sealed class SubscriptionConfirmationViewModelTests
     }
 
     /// <summary>
-    /// Verifies that confirming an already subscribed publisher calls UpdateSubscriptionAsync.
+    /// Verifies that confirming an already subscribed publisher calls UpdateSubscriptionAsync and preserves settings.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -160,6 +161,7 @@ public sealed class SubscriptionConfirmationViewModelTests
             .Setup(s => s.IsSubscribedAsync("existing-pub", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
+        var existingDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         _subscriptionStore
             .Setup(s => s.GetSubscriptionAsync("existing-pub", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(new PublisherSubscription
@@ -168,6 +170,10 @@ public sealed class SubscriptionConfirmationViewModelTests
                 PublisherName = "Existing Publisher",
                 CatalogUrl = "https://example.com/old-catalog.json",
                 TrustLevel = TrustLevel.Trusted,
+                AutoUpdate = true,
+                NotifyNewReleases = false,
+                CachedCatalogHash = "hash123",
+                LastFetched = existingDate,
             }));
 
         _subscriptionStore
@@ -191,8 +197,46 @@ public sealed class SubscriptionConfirmationViewModelTests
 
         // Assert
         Assert.True(closeResult);
-        _subscriptionStore.Verify(s => s.UpdateSubscriptionAsync(It.Is<PublisherSubscription>(sub => sub.PublisherId == "existing-pub" && sub.TrustLevel == TrustLevel.Trusted), It.IsAny<CancellationToken>()), Times.Once);
+        _subscriptionStore.Verify(
+            s => s.UpdateSubscriptionAsync(
+                It.Is<PublisherSubscription>(sub =>
+                    sub.PublisherId == "existing-pub" &&
+                    sub.CatalogUrl == "https://example.com/new-catalog.json" &&
+                    sub.TrustLevel == TrustLevel.Trusted &&
+                    sub.AutoUpdate == true &&
+                    sub.NotifyNewReleases == false &&
+                    sub.CachedCatalogHash == "hash123" &&
+                    sub.LastFetched == existingDate),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that ShowActionError is true only when catalog is loaded and an error occurs.
+    /// </summary>
+    [Fact]
+    public void ShowActionError_EvaluatesCorrectly()
+    {
+        var vm = new SubscriptionConfirmationViewModel(
+            "https://example.com/catalog.json",
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            _httpClient,
+            _logger.Object)
+        {
+            // Initially loading and not loaded
+            ErrorMessage = "Some error",
+        };
+        Assert.False(vm.ShowActionError);
+
+        // Loaded with error -> action error is true
+        vm.IsCatalogLoaded = true;
+        Assert.True(vm.ShowActionError);
+
+        // Cleared error -> action error is false
+        vm.ErrorMessage = null;
+        Assert.False(vm.ShowActionError);
     }
 
     /// <summary>

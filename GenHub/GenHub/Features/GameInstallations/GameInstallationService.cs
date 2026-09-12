@@ -467,6 +467,8 @@ public class GameInstallationService(
             return GameInstallationType.Wine;
         if (idString.Contains(".lutris."))
             return GameInstallationType.Lutris;
+        if (idString.Contains(".custom.") || idString.Contains(".genhublocal."))
+            return GameInstallationType.Custom;
 
         return GameInstallationType.Unknown;
     }

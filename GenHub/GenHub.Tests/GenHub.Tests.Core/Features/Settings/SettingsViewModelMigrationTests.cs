@@ -222,14 +222,14 @@ public class SettingsViewModelMigrationTests
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,
         _mockUpdateManager.Object,
-        _mockSubscriptionStore.Object,
-        _mockCatalogRefreshService.Object,
-        _mockGitHubApiClient.Object,
         _mockNotificationService.Object,
         _mockConfigurationProvider.Object,
         _mockInstallationService.Object,
         _mockStorageLocationService.Object,
         _mockUserDataTracker.Object,
         _mockDialogService.Object,
-        _mockStorageMigrationService.Object);
+        _mockStorageMigrationService.Object,
+        gitHubApiClient: _mockGitHubApiClient.Object,
+        subscriptionStore: _mockSubscriptionStore.Object,
+        catalogRefreshService: _mockCatalogRefreshService.Object);
 }

@@ -63,10 +63,11 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
             return false;
         }
 
-        // Dependency-only packages (e.g. ContentBundle) have no remote files to fetch.
+        // Dependency-only packages (e.g. ContentBundle) have no remote files to fetch,
+        // but must declare dependencies to be deliverable.
         if (manifest.Files.Count == 0)
         {
-            return true;
+            return manifest.Dependencies is { Count: > 0 };
         }
 
         // Can deliver if files have HTTP download URLs

@@ -103,7 +103,6 @@ public static class CompositionRootAssertions
     [
         ("GenHub.Core.Interfaces.Content.IContentValidator", "GenHub.Core.Interfaces.Workspace.IFileOperationsService"),
         ("GenHub.Core.Interfaces.GameInstallations.IGameInstallationService", "GenHub.Core.Interfaces.Manifest.IManifestGenerationService"),
-
     ];
 
     private static readonly Regex CaptiveDependencyMessage = new(
@@ -202,70 +201,58 @@ public static class CompositionRootAssertions
     /// </summary>
     private static void AssertScopeValidationIsShrinkOnly(IServiceCollection services)
     {
-        var violations = MeasureCaptiveDependencies(services);
-
-        var newViolations = violations
-            .Except(KnownCaptiveDependencies)
-            .OrderBy(pair => pair, Comparer<(string Singleton, string Scoped)>.Default)
-            .ToList();
-
-        var newViolationsMessage =
-            "ValidateScopes found captive dependencies that are not in KnownCaptiveDependencies:\n"
-            + string.Join("\n", newViolations.Select(pair => $"  singleton '{pair.Singleton}' captures scoped '{pair.Scoped}'"))
-            + "\nA singleton pins any scoped service it consumes for the process lifetime. "
-            + "Fix the lifetime instead of extending the allowlist; it is shrink-only (see issue #320).";
-
-        Assert.True(newViolations.Count == 0, newViolationsMessage);
-
-        var staleEntries = KnownCaptiveDependencies
-            .Except(violations)
-            .OrderBy(pair => pair, Comparer<(string Singleton, string Scoped)>.Default)
-            .ToList();
-
-        var staleMessage =
-            "These KnownCaptiveDependencies entries are no longer reported — remove me:\n"
-            + string.Join("\n", staleEntries.Select(pair => $"  singleton '{pair.Singleton}' captures scoped '{pair.Scoped}'"))
-            + "\nDeleting fixed entries is what keeps the allowlist shrink-only (see issue #320).";
-
-        Assert.True(staleEntries.Count == 0, staleMessage);
-    }
-
-    /// <summary>
-    /// Runs the container's own build-time scope validation and returns every reported
-    /// captive dependency as a (singleton, scoped service) pair.
-    /// </summary>
-    private static HashSet<(string Singleton, string Scoped)> MeasureCaptiveDependencies(
-        IServiceCollection services)
-    {
-        var violations = new HashSet<(string Singleton, string Scoped)>();
+        var reportedCaptives = new List<(string Singleton, string Scoped)>();
 
         try
         {
-            using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+            using (services.BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateOnBuild = true,
                 ValidateScopes = true,
-            });
-            Assert.NotNull(provider);
-        }
-        catch (AggregateException aggregate)
-        {
-            foreach (var error in aggregate.InnerExceptions)
+            }))
             {
-                // ValidateOnBuild wraps each failure in "Error while validating the
-                // service descriptor '...'"; the scope-validation detail is the inner
-                // exception when present.
-                var message = error.InnerException?.Message ?? error.Message;
-                var match = CaptiveDependencyMessage.Match(message);
-
-                Assert.True(
-                    match.Success,
-                    $"Container validation failed for a reason other than a captive dependency: {error.Message}");
-
-                violations.Add((match.Groups["singleton"].Value, match.Groups["scoped"].Value));
+                // Validate container builds and scopes without capturing dependencies.
+            }
+        }
+        catch (AggregateException ex)
+        {
+            foreach (var inner in ex.InnerExceptions)
+            {
+                var match = CaptiveDependencyMessage.Match(inner.Message);
+                if (match.Success)
+                {
+                    reportedCaptives.Add((match.Groups["singleton"].Value, match.Groups["scoped"].Value));
+                }
+                else
+                {
+                    // Any error that is not a captive dependency is a real build
+                    // failure and should fail the test immediately.
+                    throw;
+                }
             }
         }
 
-        return violations;
+        var newCaptives = reportedCaptives
+            .Except(KnownCaptiveDependencies)
+            .ToList();
+
+        var newCaptivesMessage =
+            "New captive dependencies detected in the container: "
+            + $"{string.Join(", ", newCaptives.Select(c => $"{c.Singleton} captures {c.Scoped}"))}. "
+            + "Fix the service lifetime (singleton must not consume scoped service); "
+            + "do NOT add new entries to KnownCaptiveDependencies.";
+
+        Assert.True(newCaptives.Count == 0, newCaptivesMessage);
+
+        var fixedCaptives = KnownCaptiveDependencies
+            .Except(reportedCaptives)
+            .ToList();
+
+        var fixedCaptivesMessage =
+            "Captive dependencies have been fixed: "
+            + $"{string.Join(", ", fixedCaptives.Select(c => $"{c.Singleton} captures {c.Scoped}"))}. "
+            + "Remove these entries from KnownCaptiveDependencies to shrink the allowlist.";
+
+        Assert.True(fixedCaptives.Count == 0, fixedCaptivesMessage);
     }
 }

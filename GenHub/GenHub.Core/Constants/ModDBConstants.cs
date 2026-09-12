@@ -30,11 +30,20 @@ public static class ModDBConstants
     /// </summary>
     public const string IconUrl = "avares://GenHub/Assets/Icons/Publishers/moddb.png";
 
+    /// <summary>Game slug for C&amp;C Generals.</summary>
+    public const string GeneralsGameSlug = "cc-generals";
+
+    /// <summary>Game slug for C&amp;C Generals Zero Hour.</summary>
+    public const string ZeroHourGameSlug = "cc-generals-zero-hour";
+
+    /// <summary>Format URL template for ModDB RSS feed.</summary>
+    public const string RssFeedUrlTemplate = "https://rss.moddb.com/games/{0}/{1}/feed/rss.xml";
+
     /// <summary>Base URL for C&amp;C Generals content.</summary>
-    public const string GeneralsBaseUrl = BaseUrl + "/games/cc-generals";
+    public const string GeneralsBaseUrl = BaseUrl + "/games/" + GeneralsGameSlug;
 
     /// <summary>Base URL for C&amp;C Generals Zero Hour content.</summary>
-    public const string ZeroHourBaseUrl = BaseUrl + "/games/cc-generals-zero-hour";
+    public const string ZeroHourBaseUrl = BaseUrl + "/games/" + ZeroHourGameSlug;
 
     // ===== Section URLs =====
 
@@ -49,6 +58,15 @@ public static class ModDBConstants
 
     /// <summary>Downloads section for Zero Hour.</summary>
     public const string ZeroHourDownloadsUrl = ZeroHourBaseUrl + "/downloads";
+
+    /// <summary>Maps URL path segment.</summary>
+    public const string MapsSegment = "/maps/";
+
+    /// <summary>Tools URL path segment.</summary>
+    public const string ToolsSegment = "/tools/";
+
+    /// <summary>Patches URL path segment.</summary>
+    public const string PatchesSegment = "/patches/";
 
     /// <summary>Mods URL path segment.</summary>
     public const string ModsSegment = "/mods/";

@@ -76,7 +76,19 @@ public class ConfigurationProviderService(
                     return settings.WorkspacePath;
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
+            }
+            catch (NotSupportedException ex)
             {
                 _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
             }
@@ -106,7 +118,19 @@ public class ConfigurationProviderService(
                     return settings.CachePath;
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
+            }
+            catch (NotSupportedException ex)
             {
                 _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
             }
@@ -513,14 +537,22 @@ public class ConfigurationProviderService(
                     {
                         Directory.Delete(subDir);
                     }
-                    catch (Exception)
+                    catch (IOException)
+                    {
+                        // Ignore
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                         // Ignore
                     }
                 }
             }
         }
-        catch (Exception)
+        catch (IOException)
+        {
+            // Ignore
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore
         }

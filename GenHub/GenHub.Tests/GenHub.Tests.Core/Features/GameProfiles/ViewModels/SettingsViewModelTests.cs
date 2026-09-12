@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -376,6 +379,7 @@ public class SettingsViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<string?>()))
             .ReturnsAsync(true);
+
         var viewModel = CreateViewModel();
 
         // Act
@@ -924,6 +928,7 @@ public class SettingsViewModelTests
 
             // Lock logFile2 exclusively to simulate an in-use file held open during cleanup
             using var lockStream = new FileStream(logFile2, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
+            Assert.NotNull(lockStream);
 
             // Act
             await viewModel.ClearLogsCommand.ExecuteAsync(null);
@@ -1204,6 +1209,133 @@ public class SettingsViewModelTests
         _mockInstallationService.Verify(x => x.RemoveCustomInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that LoadSubscriptionsCommand populates subscriptions from the store.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task LoadSubscriptionsCommand_PopulatesSubscriptionsFromStoreAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var subs = new List<PublisherSubscription>
+        {
+            new() { PublisherId = "p2", PublisherName = "Beta Publisher", CatalogUrl = "https://example.com/2" },
+            new() { PublisherId = "p1", PublisherName = "Alpha Publisher", CatalogUrl = "https://example.com/1" },
+        };
+        mockSubStore.Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(subs));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        // Act
+        await viewModel.LoadSubscriptionsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(2, viewModel.Subscriptions.Count);
+        Assert.Equal("Alpha Publisher", viewModel.Subscriptions[0].PublisherName);
+        Assert.Equal("Beta Publisher", viewModel.Subscriptions[1].PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveSubscriptionCommand removes the subscription and shows notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_RemovesSubscriptionAndNotifiesAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
+        mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        viewModel.Subscriptions.Add(sub);
+
+        // Act
+        await viewModel.RemoveSubscriptionCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.DoesNotContain(sub, viewModel.Subscriptions);
+        _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ToggleSubscriptionTrustCommand toggles trust level and saves to store.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ToggleSubscriptionTrustCommand_TogglesTrustLevelAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher", TrustLevel = TrustLevel.Trusted };
+        mockSubStore.Setup(s => s.UpdateTrustLevelAsync("pub1", TrustLevel.Untrusted, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        viewModel.Subscriptions.Add(sub);
+
+        // Act
+        await viewModel.ToggleSubscriptionTrustCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.Equal(TrustLevel.Untrusted, sub.TrustLevel);
+        mockSubStore.Verify(s => s.UpdateTrustLevelAsync("pub1", TrustLevel.Untrusted, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshAllCatalogsCommand invokes catalog refresh service.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RefreshAllCatalogsCommand_InvokesRefreshServiceAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        mockSubStore.Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(new List<PublisherSubscription>()));
+
+        var mockRefresh = new Mock<IPublisherCatalogRefreshService>();
+        mockRefresh.Setup(r => r.RefreshAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object, catalogRefreshService: mockRefresh.Object);
+
+        // Act
+        await viewModel.RefreshAllCatalogsCommand.ExecuteAsync(null);
+
+        // Assert
+        mockRefresh.Verify(r => r.RefreshAllAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    private SettingsViewModel CreateViewModel(
+        IThemeService? themeService = null,
+        IPublisherSubscriptionStore? subscriptionStore = null,
+        IPublisherCatalogRefreshService? catalogRefreshService = null) => new(
+        _mockConfigService.Object,
+        _mockLogger.Object,
+        _mockCasService.Object,
+        _mockProfileManager.Object,
+        _mockWorkspaceManager.Object,
+        _mockManifestPool.Object,
+        _mockUpdateManager.Object,
+        _mockNotificationService.Object,
+        _mockConfigurationProvider.Object,
+        _mockInstallationService.Object,
+        _mockStorageLocationService.Object,
+        _mockUserDataTracker.Object,
+        _mockDialogService.Object,
+        _mockStorageMigrationService.Object,
+        themeService,
+        gitHubApiClient: _mockGitHubApiClient.Object,
+        subscriptionStore: subscriptionStore ?? _mockSubscriptionStore.Object,
+        catalogRefreshService: catalogRefreshService ?? _mockCatalogRefreshService.Object);
+
     private void SetupDeletableData()
     {
         _mockProfileManager
@@ -1216,24 +1348,4 @@ public class SettingsViewModelTests
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
-
-    private SettingsViewModel CreateViewModel(IThemeService? themeService = null) => new(
-        _mockConfigService.Object,
-        _mockLogger.Object,
-        _mockCasService.Object,
-        _mockProfileManager.Object,
-        _mockWorkspaceManager.Object,
-        _mockManifestPool.Object,
-        _mockUpdateManager.Object,
-        _mockSubscriptionStore.Object,
-        _mockCatalogRefreshService.Object,
-        _mockGitHubApiClient.Object,
-        _mockNotificationService.Object,
-        _mockConfigurationProvider.Object,
-        _mockInstallationService.Object,
-        _mockStorageLocationService.Object,
-        _mockUserDataTracker.Object,
-        _mockDialogService.Object,
-        _mockStorageMigrationService.Object,
-        themeService);
 }

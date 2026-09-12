@@ -687,13 +687,13 @@ public partial class ModDBDiscoverer(
 
         return section switch
         {
-            "mods" when !isDownloadUrl => ContentType.Mod,
-            ModDBConstants.DownloadsSection when url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) => ContentType.Map,
-            ModDBConstants.DownloadsSection when url.Contains("/tools/", StringComparison.OrdinalIgnoreCase) => ContentType.ModdingTool,
-            ModDBConstants.DownloadsSection when url.Contains("/patches/", StringComparison.OrdinalIgnoreCase) => ContentType.Patch,
+            ModDBConstants.ModsSection when !isDownloadUrl => ContentType.Mod,
+            ModDBConstants.DownloadsSection when url.Contains(ModDBConstants.MapsSegment, StringComparison.OrdinalIgnoreCase) => ContentType.Map,
+            ModDBConstants.DownloadsSection when url.Contains(ModDBConstants.ToolsSegment, StringComparison.OrdinalIgnoreCase) => ContentType.ModdingTool,
+            ModDBConstants.DownloadsSection when url.Contains(ModDBConstants.PatchesSegment, StringComparison.OrdinalIgnoreCase) => ContentType.Patch,
             ModDBConstants.DownloadsSection when isModUrl && !isAddonUrl => ContentType.Mod,
             ModDBConstants.DownloadsSection => ContentType.Addon,
-            ModDBConstants.AddonsSection => url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) ? ContentType.Map : ContentType.Addon,
+            ModDBConstants.AddonsSection => url.Contains(ModDBConstants.MapsSegment, StringComparison.OrdinalIgnoreCase) ? ContentType.Map : ContentType.Addon,
             _ => isModUrl && !isAddonUrl ? ContentType.Mod : ContentType.Addon,
         };
     }
@@ -912,7 +912,7 @@ public partial class ModDBDiscoverer(
         // Fall back to the public RSS feed so the grid is never empty on default browse. RSS cannot paginate, so
         // HasMoreItems is false regardless of what the scrape thought.
         logger.LogWarning("[ModDB] Scrape returned no items for '{Section}', falling back to RSS", section);
-        var rssSection = string.Equals(section, "mods", StringComparison.OrdinalIgnoreCase)
+        var rssSection = string.Equals(section, ModDBConstants.ModsSection, StringComparison.OrdinalIgnoreCase)
             ? ModDBConstants.DownloadsSection
             : section;
         var rssResults = await DiscoverFromRssFeedAsync(rssSection, gameType, cancellationToken);
@@ -1119,13 +1119,13 @@ public partial class ModDBDiscoverer(
 
         try
         {
-            var gameSlug = gameType == GameType.Generals ? "cc-generals" : "cc-generals-zero-hour";
-            var feedUrl = $"https://rss.moddb.com/games/{gameSlug}/{section}/feed/rss.xml";
+            var gameSlug = gameType == GameType.Generals ? ModDBConstants.GeneralsGameSlug : ModDBConstants.ZeroHourGameSlug;
+            var feedUrl = string.Format(CultureInfo.InvariantCulture, ModDBConstants.RssFeedUrlTemplate, gameSlug, section);
 
             using var client = httpClientFactory.CreateClient(ModDBConstants.PublisherPrefix);
             if (client.DefaultRequestHeaders.UserAgent.Count == 0)
             {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(ModDBConstants.BrowserUserAgent);
             }
 
             var xml = await client.GetStringAsync(feedUrl, cancellationToken);

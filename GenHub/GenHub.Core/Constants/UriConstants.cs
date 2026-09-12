@@ -43,6 +43,21 @@ public static class UriConstants
     /// </summary>
     public const string DefaultIconUri = "avares://GenHub/Assets/Icons/generalshub-icon.png";
 
+    /// <summary>
+    /// Icon URI for GenPatcher tool.
+    /// </summary>
+    public const string GenPatcherIconUri = "avares://GenHub/Assets/Icons/genpatcher-icon.png";
+
+    /// <summary>
+    /// Icon URI for Replay Manager tool.
+    /// </summary>
+    public const string ReplayManagerIconUri = "avares://GenHub/Assets/Icons/replaymanager-icon.png";
+
+    /// <summary>
+    /// Icon URI for Map Manager tool.
+    /// </summary>
+    public const string MapManagerIconUri = "avares://GenHub/Assets/Icons/mapmanager-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -74,6 +89,21 @@ public static class UriConstants
     /// Filename for EA App platform icon.
     /// </summary>
     public const string EaAppIconFilename = "eaapp-icon.png";
+
+    /// <summary>
+    /// Filename for GenPatcher icon.
+    /// </summary>
+    public const string GenPatcherIconFilename = "genpatcher-icon.png";
+
+    /// <summary>
+    /// Filename for Replay Manager icon.
+    /// </summary>
+    public const string ReplayManagerIconFilename = "replaymanager-icon.png";
+
+    /// <summary>
+    /// Filename for Map Manager icon.
+    /// </summary>
+    public const string MapManagerIconFilename = "mapmanager-icon.png";
 
     // Cover Path Constants
 

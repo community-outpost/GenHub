@@ -1,9 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Services.Providers.VersionSchemes;
 
 namespace GenHub.Core.Models.Providers;
 
@@ -13,6 +17,18 @@ namespace GenHub.Core.Models.Providers;
 /// </summary>
 public static class CatalogManifestIdentity
 {
+    private const string WeeklyPrefix = "weekly-";
+    private static readonly NumericVersionScheme VersionScheme = new();
+
+    /// <summary>
+    /// Compares two version strings numerically and semantically.
+    /// </summary>
+    /// <param name="version1">The first version string.</param>
+    /// <param name="version2">The second version string.</param>
+    /// <returns>A signed integer indicating relative order (-1, 0, or 1).</returns>
+    public static int CompareVersions(string? version1, string? version2) =>
+        VersionScheme.Compare(version1, version2);
+
     /// <summary>
     /// Builds a 5-segment publisher content ID from catalog coordinates.
     /// </summary>
@@ -128,6 +144,83 @@ public static class CatalogManifestIdentity
     }
 
     /// <summary>
+    /// Attempts to parse and normalize an exact version constraint token (e.g. "1.04", "=1.04", "v1.5").
+    /// Rejects range operators, non-version keywords, or malformed strings.
+    /// </summary>
+    /// <param name="token">The token to evaluate.</param>
+    /// <param name="cleanVersion">The normalized version string if successful.</param>
+    /// <returns><see langword="true"/> if the token represents a valid exact version; otherwise <see langword="false"/>.</returns>
+    public static bool TryParseExactVersion(string? token, out string cleanVersion)
+    {
+        cleanVersion = string.Empty;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        var trimmed = token.Trim();
+        if (trimmed.StartsWith('>') || trimmed.StartsWith('<') || trimmed.StartsWith('^') || trimmed.StartsWith('~'))
+        {
+            return false;
+        }
+
+        var stripped = StripVersionConstraint(trimmed);
+        if (string.IsNullOrWhiteSpace(stripped) || stripped == "0")
+        {
+            return false;
+        }
+
+        var candidate = stripped.TrimStart('v', 'V').Trim();
+        if (candidate.Length > 0 && char.IsDigit(candidate[0]) && IsValidVersion(candidate))
+        {
+            cleanVersion = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a normalized string represents a valid semantic, date, weekly, or QFE version format.
+    /// </summary>
+    /// <param name="candidate">The candidate version string.</param>
+    /// <returns><see langword="true"/> if the candidate is a recognized valid version format; otherwise <see langword="false"/>.</returns>
+    public static bool IsValidVersion(string? candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        var normalized = candidate.Trim();
+        normalized = normalized.StartsWith(WeeklyPrefix, StringComparison.OrdinalIgnoreCase)
+            ? normalized[WeeklyPrefix.Length..].Trim()
+            : normalized.TrimStart('v', 'V').Trim();
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        if (TryParseDelimitedVersion(normalized, out _))
+        {
+            return true;
+        }
+
+        if (normalized.Contains('_') && GameVersionHelper.GetGeneralsOnlineManifestIdComponent(normalized) > 0)
+        {
+            return true;
+        }
+
+        if (int.TryParse(normalized, out var intVer) && intVer >= 0)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Converts a version or constraint into the integer segment used by manifest IDs.
     /// Handles semantic versions (1.04 -> 104, 1.3 -> 103), date-based versions (2026.07.31 -> 20260731,
     /// 2026-08-02 -> 20260802), weekly tags (weekly-2026-07-31 -> 20260731), and direct integers.
@@ -142,8 +235,8 @@ public static class CatalogManifestIdentity
             return 0;
         }
 
-        cleanVersion = cleanVersion.StartsWith("weekly-", StringComparison.OrdinalIgnoreCase)
-            ? cleanVersion["weekly-".Length..].Trim()
+        cleanVersion = cleanVersion.StartsWith(WeeklyPrefix, StringComparison.OrdinalIgnoreCase)
+            ? cleanVersion[WeeklyPrefix.Length..].Trim()
             : cleanVersion.TrimStart('v', 'V').Trim();
 
         try
@@ -192,15 +285,15 @@ public static class CatalogManifestIdentity
 
         var publisher = dependency.PublisherId ?? string.Empty;
         var contentId = dependency.ContentId ?? string.Empty;
-        var isEaOrAny = publisher.Equals("ea", StringComparison.OrdinalIgnoreCase) ||
-                        publisher.Equals("any", StringComparison.OrdinalIgnoreCase);
+        var isEaOrAny = publisher.Equals(CatalogConstants.EaPublisherId, StringComparison.OrdinalIgnoreCase) ||
+                        publisher.Equals(CatalogConstants.AnyPublisherId, StringComparison.OrdinalIgnoreCase);
         if (!isEaOrAny)
         {
             return false;
         }
 
-        return contentId.Equals("zerohour", StringComparison.OrdinalIgnoreCase) ||
-               contentId.Equals("generals", StringComparison.OrdinalIgnoreCase);
+        return contentId.Equals(CatalogConstants.ZeroHourContentId, StringComparison.OrdinalIgnoreCase) ||
+               contentId.Equals(CatalogConstants.GeneralsContentId, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -270,6 +363,82 @@ public static class CatalogManifestIdentity
         return ContentType.Mod;
     }
 
+    /// <summary>
+    /// Extracts artifacts that belong to a multi-option variant axis (e.g. Resolution with 2+ choices).
+    /// </summary>
+    /// <param name="release">The content release containing artifacts.</param>
+    /// <returns>The list of variant artifacts matching multi-option axes, or empty list if single-option/no variants.</returns>
+    public static List<ReleaseArtifact> GetVariantArtifacts(ContentRelease release)
+    {
+        ArgumentNullException.ThrowIfNull(release);
+
+        if (release.Artifacts == null || release.Artifacts.Count == 0)
+        {
+            return [];
+        }
+
+        var hinted = release.Artifacts
+            .Where(a => !string.IsNullOrWhiteSpace(a.VariantAxis) && !string.IsNullOrWhiteSpace(a.Variant))
+            .ToList();
+
+        if (hinted.Count < 2)
+        {
+            return [];
+        }
+
+        var multiAxes = hinted
+            .Where(a => a.VariantAxis != null)
+            .GroupBy(a => a.VariantAxis!, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (multiAxes.Count == 0)
+        {
+            return [];
+        }
+
+        return hinted.Where(a => a.VariantAxis != null && multiAxes.Contains(a.VariantAxis)).ToList();
+    }
+
+    /// <summary>
+    /// Selects exactly one default variant among candidate items, adhering to:
+    /// 1. Declared default flag.
+    /// 2. 1080p / 1920x1080 naming heuristic.
+    /// 3. Resolution axis.
+    /// 4. First item.
+    /// </summary>
+    /// <typeparam name="T">The variant candidate type.</typeparam>
+    /// <param name="items">Candidate items.</param>
+    /// <param name="getLabel">Function to get item variant label.</param>
+    /// <param name="getAxis">Function to get item variant axis.</param>
+    /// <param name="getDeclaredDefault">Function to get item declared default state.</param>
+    /// <param name="setDefault">Action to set item default state.</param>
+    public static void SelectDefaultVariant<T>(
+        IList<T> items,
+        Func<T, string> getLabel,
+        Func<T, string?> getAxis,
+        Func<T, bool> getDeclaredDefault,
+        Action<T, bool> setDefault)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(getLabel);
+        ArgumentNullException.ThrowIfNull(getAxis);
+        ArgumentNullException.ThrowIfNull(getDeclaredDefault);
+        ArgumentNullException.ThrowIfNull(setDefault);
+
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var targetIdx = FindDefaultVariantIndex(items, getLabel, getAxis, getDeclaredDefault);
+        for (var i = 0; i < items.Count; i++)
+        {
+            setDefault(items[i], i == targetIdx);
+        }
+    }
+
     private static bool TryParseDelimitedVersion(string cleanVersion, out int result)
     {
         result = 0;
@@ -279,7 +448,11 @@ public static class CatalogManifestIdentity
         }
 
         var delims = new[] { '.', '-', '/' };
-        var parts = cleanVersion.Split(delims, StringSplitOptions.RemoveEmptyEntries);
+        var parts = cleanVersion.Split(delims, StringSplitOptions.None);
+        if (parts.Any(string.IsNullOrEmpty))
+        {
+            return false;
+        }
 
         return TryParseThreePartVersion(parts, out result) ||
                TryParseFourPartVersion(parts, out result) ||
@@ -365,5 +538,55 @@ public static class CatalogManifestIdentity
         }
 
         return false;
+    }
+
+    private static int FindDefaultVariantIndex<T>(
+        IList<T> items,
+        Func<T, string> getLabel,
+        Func<T, string?> getAxis,
+        Func<T, bool> getDeclaredDefault)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (getDeclaredDefault(items[i]))
+            {
+                return i;
+            }
+        }
+
+        var p1080Idx = -1;
+        var resolutionIdx = -1;
+        for (var i = 0; i < items.Count; i++)
+        {
+            var label = getLabel(items[i]);
+            if (p1080Idx == -1 && Is1080pLabel(label))
+            {
+                p1080Idx = i;
+            }
+
+            var axis = getAxis(items[i]);
+            if (resolutionIdx == -1 && string.Equals(axis, CatalogConstants.ResolutionVariantAxis, StringComparison.OrdinalIgnoreCase))
+            {
+                resolutionIdx = i;
+            }
+        }
+
+        if (p1080Idx >= 0)
+        {
+            return p1080Idx;
+        }
+
+        if (resolutionIdx >= 0)
+        {
+            return resolutionIdx;
+        }
+
+        return 0;
+    }
+
+    private static bool Is1080pLabel(string label)
+    {
+        return label.Contains("1080p", StringComparison.OrdinalIgnoreCase) ||
+               label.Contains("1920x1080", StringComparison.OrdinalIgnoreCase);
     }
 }
