@@ -299,42 +299,17 @@ public sealed class ReplayDirectoryService(
             var isRetailClient = isUnmappedReplay ||
                                  IsRetailClient(replay.MatchedClient?.Publisher, replay.MatchedClient?.ManifestId);
 
-            var isCustomRetail = customGameClient != null &&
-                (IsRetailClient(customGameClient.PublisherType, customClientManifestId) ||
-                 (customClientManifestId != null && customClientManifestId.Contains(".retail.gameclient.", StringComparison.OrdinalIgnoreCase)) ||
-                 (customGameClient.Id != null && customGameClient.Id.Contains(".retail.gameclient.", StringComparison.OrdinalIgnoreCase)) ||
-                 string.IsNullOrEmpty(customClientManifestId));
+            var (clientManifestId, gameClient) = await PrepareProfileGameClientAsync(
+                installation,
+                replay,
+                defaultVersion,
+                isRetailClient,
+                customGameClient,
+                customClientManifestId,
+                manifestPool,
+                contentOrchestrator,
+                ct);
 
-            var (clientManifestId, gameClient) = (customGameClient != null && !isCustomRetail)
-                ? (customClientManifestId ?? customGameClient.Id ?? string.Empty, customGameClient)
-                : await ResolveReplayGameClientAsync(
-                    installation, replay, defaultVersion, isRetailClient: isRetailClient || isCustomRetail, manifestPool, contentOrchestrator, ct);
-
-            if (customGameClient != null && isCustomRetail && !string.IsNullOrWhiteSpace(customGameClient.Name) && gameClient != null)
-            {
-                gameClient.Name = customGameClient.Name;
-            }
-
-            if (customGameClient != null && !isCustomRetail && gameClient != null)
-            {
-                var (_, installWorkingDir) = ResolveGameInstallationContext(installation, replay.GameVersion);
-                if (string.IsNullOrWhiteSpace(gameClient.WorkingDirectory))
-                {
-                    gameClient.WorkingDirectory = installWorkingDir;
-                }
-
-                if (string.IsNullOrWhiteSpace(gameClient.InstallationId))
-                {
-                    gameClient.InstallationId = installation.Id;
-                }
-
-                if (gameClient.GameType == GameType.Unknown)
-                {
-                    gameClient.GameType = replay.GameVersion;
-                }
-            }
-
-            gameClient = EnsureGameClientExecutable(gameClient, replay.GameVersion, isCustomRetail ? null : (customGameClient?.PublisherType ?? replay.MatchedClient?.Publisher));
             if (gameClient == null)
             {
                 logger.LogError("[ReplayManager] Could not determine executable path for {GameVersion} installation", replay.GameVersion);
@@ -1282,6 +1257,19 @@ public sealed class ReplayDirectoryService(
                manifestId.Contains(legacySuperHackersSegment, StringComparison.OrdinalIgnoreCase) ||
                manifestId.Contains(generalsOnlineSegment, StringComparison.OrdinalIgnoreCase) ||
                manifestId.Contains(communityOutpostSegment, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCustomRetailClient(GameClient? customGameClient, string? customClientManifestId)
+    {
+        if (customGameClient == null)
+        {
+            return false;
+        }
+
+        return IsRetailClient(customGameClient.PublisherType, customClientManifestId) ||
+               customClientManifestId?.Contains(".retail.gameclient.", StringComparison.OrdinalIgnoreCase) == true ||
+               customGameClient.Id?.Contains(".retail.gameclient.", StringComparison.OrdinalIgnoreCase) == true ||
+               string.IsNullOrEmpty(customClientManifestId);
     }
 
     private static bool IsRetailClient(string? publisher, string? manifestId)
@@ -2336,6 +2324,60 @@ public sealed class ReplayDirectoryService(
         }
 
         return replay;
+    }
+
+    private async Task<(string ClientManifestId, GameClient? GameClient)> PrepareProfileGameClientAsync(
+        GameInstallation installation,
+        ReplayFile replay,
+        string defaultVersion,
+        bool isRetailClient,
+        GameClient? customGameClient,
+        string? customClientManifestId,
+        IContentManifestPool manifestPool,
+        IContentOrchestrator? contentOrchestrator,
+        CancellationToken ct)
+    {
+        var isCustomRetail = IsCustomRetailClient(customGameClient, customClientManifestId);
+
+        var (clientManifestId, gameClient) = (customGameClient != null && !isCustomRetail)
+            ? (customClientManifestId ?? customGameClient.Id ?? string.Empty, customGameClient)
+            : await ResolveReplayGameClientAsync(
+                installation,
+                replay,
+                defaultVersion,
+                isRetailClient: isRetailClient || isCustomRetail,
+                manifestPool,
+                contentOrchestrator,
+                ct);
+
+        if (customGameClient != null && isCustomRetail && !string.IsNullOrWhiteSpace(customGameClient.Name) && gameClient != null)
+        {
+            gameClient.Name = customGameClient.Name;
+        }
+
+        if (customGameClient != null && !isCustomRetail && gameClient != null)
+        {
+            var (_, installWorkingDir) = ResolveGameInstallationContext(installation, replay.GameVersion);
+            if (string.IsNullOrWhiteSpace(gameClient.WorkingDirectory))
+            {
+                gameClient.WorkingDirectory = installWorkingDir;
+            }
+
+            if (string.IsNullOrWhiteSpace(gameClient.InstallationId))
+            {
+                gameClient.InstallationId = installation.Id;
+            }
+
+            if (gameClient.GameType == GameType.Unknown)
+            {
+                gameClient.GameType = replay.GameVersion;
+            }
+        }
+
+        var publisher = isCustomRetail ? null : (customGameClient?.PublisherType ?? replay.MatchedClient?.Publisher);
+        gameClient = EnsureGameClientExecutable(gameClient, replay.GameVersion, publisher);
+
+        return (clientManifestId, gameClient);
     }
 
     private GameClient? EnsureGameClientExecutable(GameClient? gameClient, GameType gameVersion, string? publisher)
