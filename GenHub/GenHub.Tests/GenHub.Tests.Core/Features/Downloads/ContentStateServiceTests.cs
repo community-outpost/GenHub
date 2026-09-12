@@ -1516,8 +1516,6 @@ public class ContentStateServiceTests
             Version = "032926",
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
-            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
-            OriginalContentId = "GeneralsOnline_032926",
             Publisher = new PublisherInfo
             {
                 PublisherType = PublisherTypeConstants.GeneralsOnline,
@@ -1532,8 +1530,6 @@ public class ContentStateServiceTests
             Version = "082826_QFE1",
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
-            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
-            OriginalContentId = "GeneralsOnline_082826_QFE1",
             Publisher = new PublisherInfo
             {
                 PublisherType = PublisherTypeConstants.GeneralsOnline,

@@ -2288,13 +2288,11 @@ public partial class ContentDetailViewModel(
             // If an update is available, the search result represents the newer prospective release; rewriting its ID
             // to the older locally installed manifest would corrupt the prospective item's identity and break update detection.
             if (state == ContentState.Downloaded &&
-                (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id, out _)))
+                (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id, out _)) &&
+                !string.IsNullOrEmpty(localManifestId))
             {
-                if (!string.IsNullOrEmpty(localManifestId))
-                {
-                    searchResult.UpdateId(localManifestId);
-                    idRewritten = true;
-                }
+                searchResult.UpdateId(localManifestId);
+                idRewritten = true;
             }
 
             await RunOnUiThreadAsync(() =>
@@ -2316,9 +2314,16 @@ public partial class ContentDetailViewModel(
                 {
                     Releases[0].IsDownloaded = true;
                     Releases[0].IsUpdateAvailable = IsUpdateAvailable;
-                    var manifestIdForRelease = !string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _)
-                        ? localManifestId
-                        : (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _) ? searchResult.Id : null);
+                    string? manifestIdForRelease = null;
+                    if (!string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _))
+                    {
+                        manifestIdForRelease = localManifestId;
+                    }
+                    else if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
+                    {
+                        manifestIdForRelease = searchResult.Id;
+                    }
+
                     if (!string.IsNullOrEmpty(manifestIdForRelease))
                     {
                         Releases[0].DownloadedManifestId = manifestIdForRelease;

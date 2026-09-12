@@ -1907,10 +1907,7 @@ public sealed partial class DownloadsBrowserViewModel(
                         if (match != null)
                         {
                             await match.RefreshVariantStatesAsync().ConfigureAwait(false);
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                            {
-                                ReconcileReleaseUpdateStates(ContentItems);
-                            });
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => ReconcileReleaseUpdateStates(ContentItems));
                         }
                     }
                     catch (Exception ex)

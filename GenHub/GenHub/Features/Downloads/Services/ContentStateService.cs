@@ -408,7 +408,11 @@ public sealed partial class ContentStateService(
         var prospectiveVersion = prospectiveSegments[1];
         var localVersion = localSegments[1];
 
-        if (TryDecodeGeneralsOnlineNumericVersion(prospectiveVersion, out var pDate, out var pQfe) &&
+        bool isGoPublisher = IsCompatiblePublisherAlias(prospectiveSegments[2], PublisherTypeConstants.GeneralsOnline) &&
+                             IsCompatiblePublisherAlias(localSegments[2], PublisherTypeConstants.GeneralsOnline);
+
+        if (isGoPublisher &&
+            TryDecodeGeneralsOnlineNumericVersion(prospectiveVersion, out var pDate, out var pQfe) &&
             TryDecodeGeneralsOnlineNumericVersion(localVersion, out var lDate, out var lQfe))
         {
             var dateCmp = pDate.CompareTo(lDate);
@@ -970,7 +974,9 @@ public sealed partial class ContentStateService(
         var segB = b.Id.Value.Split('.');
         if (segA.Length == 5 && segB.Length == 5)
         {
-            var idCmp = CompareManifestVersions(segA[1], segB[1]);
+            bool isGeneralsOnline = IsCompatiblePublisherAlias(segA[2], PublisherTypeConstants.GeneralsOnline) &&
+                                    IsCompatiblePublisherAlias(segB[2], PublisherTypeConstants.GeneralsOnline);
+            var idCmp = CompareManifestVersions(segA[1], segB[1], isGeneralsOnline);
             if (idCmp != 0)
             {
                 return idCmp;
@@ -1271,14 +1277,15 @@ public sealed partial class ContentStateService(
             rawManifestName.StartsWith(contentName + "-", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static int CompareManifestVersions(string existingVersion, string? bestMatchVersion)
+    private static int CompareManifestVersions(string existingVersion, string? bestMatchVersion, bool isGeneralsOnline = false)
     {
         if (bestMatchVersion == null)
         {
             return 1;
         }
 
-        if (TryDecodeGeneralsOnlineNumericVersion(existingVersion, out var dateE, out var qfeE) &&
+        if (isGeneralsOnline &&
+            TryDecodeGeneralsOnlineNumericVersion(existingVersion, out var dateE, out var qfeE) &&
             TryDecodeGeneralsOnlineNumericVersion(bestMatchVersion, out var dateB, out var qfeB))
         {
             var dateCmp = dateE.CompareTo(dateB);
