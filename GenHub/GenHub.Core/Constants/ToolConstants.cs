@@ -103,7 +103,7 @@ public static class ToolConstants
         /// <summary>
         /// The icon path for the ModBuilder tool.
         /// </summary>
-        public const string IconPath = "🔨";
+        public const string IconPath = UriConstants.ModBuilderIconUri;
 
         /// <summary>
         /// Whether the ModBuilder tool is bundled with the application.

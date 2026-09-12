@@ -2,11 +2,118 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
-             xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels;assembly=GenHub"
+             xmlns:models="clr-namespace:GenHub.Features.Tools.ModBuilder.Models;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectDashboardView"
-             x:DataType="vm:ModBuilderViewModel">
+             x:DataType="vm:ModBuilderViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!-- Dashboard Primary Button -->
+    <Style Selector="Button.dashboard-primary-btn">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="18,10"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button.dashboard-primary-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- Dashboard Secondary Button -->
+    <Style Selector="Button.dashboard-secondary-btn">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="18,10"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.dashboard-secondary-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
+    <!-- Action Cards -->
+    <Style Selector="Border.action-card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+    <Style Selector="Border.action-card:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
+    <!-- Card Action Button -->
+    <Style Selector="Button.card-action-btn">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="24,20"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.card-action-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
+    </Style>
+
+    <!-- Recent Project Row -->
+    <Style Selector="Border.recent-project-row">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="10"/>
+    </Style>
+    <Style Selector="Border.recent-project-row:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
+    <!-- Recent Project Button -->
+    <Style Selector="Button.recent-project-btn">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.recent-project-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
+    </Style>
+
+    <!-- Empty State -->
+    <Style Selector="Border.empty-recent-state">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+
+    <!-- Tips Card -->
+    <Style Selector="Border.tips-card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+  </UserControl.Styles>
 
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <StackPanel Spacing="24" Margin="32,24,32,32" MaxWidth="1100">
@@ -163,7 +270,7 @@
                         Background="#268B5CF6"
                         HorizontalAlignment="Left">
                   <Path Width="18" Height="18"
-                        Fill="{DynamicResource AccentSecondary}"
+                        Fill="{DynamicResource AccentSecondaryBrush}"
                         Data="{StaticResource IconPackage}"
                         Stretch="Uniform"
                         HorizontalAlignment="Center"
@@ -189,7 +296,7 @@
                          Text="Open Samples &#x2192;"
                          FontSize="12"
                          FontWeight="SemiBold"
-                         Foreground="{DynamicResource AccentSecondary}"/>
+                         Foreground="{DynamicResource AccentSecondaryBrush}"/>
             </Grid>
           </Button>
         </Border>
@@ -227,8 +334,8 @@
             <DataTemplate DataType="models:RecentProjectInfo">
               <Border Classes="recent-project-row"
                       Margin="0,0,0,6">
-                <Button Command="{Binding ((vm:ModBuilderViewModel)DataContext).SelectRecentProjectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                        CommandParameter="{Binding Path}"
+                <Button Command="{Binding #Root.((vm:ModBuilderViewModel)DataContext).OpenRecentProjectCommand}"
+                        CommandParameter="{Binding}"
                         Classes="recent-project-btn"
                         HorizontalContentAlignment="Stretch"
                         Padding="16,12">
