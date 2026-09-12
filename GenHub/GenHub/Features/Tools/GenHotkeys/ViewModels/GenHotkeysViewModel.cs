@@ -751,7 +751,7 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        var currentIndex = FindCurrentConflictIndex(allConflicts);
+        var currentIndex = FindCurrentConflictIndex(allConflicts, SelectedAction, SelectedGameObject, SelectedFaction);
         var nextIndex = (currentIndex + 1) % allConflicts.Count;
         var target = allConflicts[nextIndex];
 
@@ -1101,6 +1101,43 @@ public partial class GenHotkeysViewModel(
                 }
             }
         }
+    }
+
+    private static void CollectFactionConflicts(HotkeyFaction faction, HotkeyProfile? profile, List<HotkeyConflictTarget> targets)
+    {
+        foreach (var obj in faction.GameObjects)
+        {
+            foreach (var layout in obj.KeyboardLayouts)
+            {
+                CollectLayoutConflicts(faction, obj, layout, profile, targets);
+            }
+        }
+    }
+
+    private static int FindCurrentConflictIndex(
+        List<HotkeyConflictTarget> allConflicts,
+        HotkeyActionViewModel? selectedAction,
+        HotkeyGameObjectViewModel? selectedGameObject,
+        HotkeyFaction? selectedFaction)
+    {
+        if (selectedAction == null)
+        {
+            return -1;
+        }
+
+        var index = allConflicts.FindIndex(c => c.ActionVm != null && c.ActionVm == selectedAction);
+        if (index >= 0)
+        {
+            return index;
+        }
+
+        var currentActionKey = selectedAction.HotkeyString ?? selectedAction.IconName ?? selectedAction.DisplayName;
+        var currentObjName = selectedGameObject?.Name ?? selectedGameObject?.DisplayName;
+
+        return allConflicts.FindIndex(c =>
+            (selectedFaction == null || string.Equals(c.Faction.ShortName, selectedFaction.ShortName, StringComparison.OrdinalIgnoreCase)) &&
+            string.Equals(c.GameObjectName, currentObjName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase));
     }
 
     private int ApplyKeyToMatchingActionsInFactions(
@@ -1469,7 +1506,7 @@ public partial class GenHotkeysViewModel(
         {
             foreach (var faction in _allFactions)
             {
-                CollectFactionConflicts(faction, targets);
+                CollectFactionConflicts(faction, SelectedProfile, targets);
             }
         }
         else
@@ -1478,40 +1515,6 @@ public partial class GenHotkeysViewModel(
         }
 
         return targets;
-    }
-
-    private void CollectFactionConflicts(HotkeyFaction faction, List<HotkeyConflictTarget> targets)
-    {
-        foreach (var obj in faction.GameObjects)
-        {
-            foreach (var layout in obj.KeyboardLayouts)
-            {
-                CollectLayoutConflicts(faction, obj, layout, SelectedProfile, targets);
-            }
-        }
-    }
-
-    private int FindCurrentConflictIndex(List<HotkeyConflictTarget> allConflicts)
-    {
-        if (SelectedAction == null)
-        {
-            return -1;
-        }
-
-        var index = allConflicts.FindIndex(c => c.ActionVm != null && c.ActionVm == SelectedAction);
-        if (index >= 0)
-        {
-            return index;
-        }
-
-        var currentActionKey = SelectedAction.HotkeyString ?? SelectedAction.IconName ?? SelectedAction.DisplayName;
-        var currentObjName = SelectedGameObject?.Name ?? SelectedGameObject?.DisplayName;
-        var currentFaction = SelectedFaction;
-
-        return allConflicts.FindIndex(c =>
-            (currentFaction == null || string.Equals(c.Faction.ShortName, currentFaction.ShortName, StringComparison.OrdinalIgnoreCase)) &&
-            string.Equals(c.GameObjectName, currentObjName, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase));
     }
 
     private void NavigateToConflictTarget(HotkeyConflictTarget target)
