@@ -1266,4 +1266,202 @@ public class GameProfileSettingsViewModelDependencyTests
             x => x.ShowWarning(ProfileValidationConstants.CannotDeleteInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is allowed when the client only declares an optional dependency.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_AllowsGameInstallationRemoval_WhenClientInstallationDependencyIsOptionalAsync()
+    {
+        // Arrange
+        var clientId = new ManifestId("1.0.0.gameclient.optionalclient");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = clientId,
+            Name = "Optional Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = zeroHourInstallId,
+                    DependencyType = ContentType.GameInstallation,
+                    IsOptional = true,
+                },
+            ],
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = clientId,
+            DisplayName = "Optional Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            Manifest = clientManifest,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert - allowed because the dependency is optional
+        Assert.Null(_viewModel.SelectedGameInstallation);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.False(zeroHourInstall.IsEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is blocked when a publisher-agnostic GameClient
+    /// has empty CompatibleGameTypes but matching content-type and content-name segments.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_BlocksGameInstallationRemoval_WhenPublisherAgnosticClientMatchesEmptyCompatibleGameTypesAsync()
+    {
+        // Arrange
+        var agnosticClientId = new ManifestId("1.104.genhub.gameclient.zerohour");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = agnosticClientId,
+            Name = "SuperHackers ZH Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = new ManifestId("1.104.genhub.gameinstallation.zerohour"),
+                    DependencyType = ContentType.GameInstallation,
+                    StrictPublisher = false,
+                    CompatibleGameTypes = [],
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = agnosticClientId,
+            DisplayName = "SuperHackers ZH Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            Manifest = clientManifest,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert - blocked because segments 3 and 4 match (gameinstallation.zerohour)
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.True(zeroHourInstall.IsEnabled);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(ProfileValidationConstants.CannotRemoveInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is allowed when a publisher-agnostic GameClient
+    /// has empty CompatibleGameTypes and differing content-name segment.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_AllowsGameInstallationRemoval_WhenPublisherAgnosticClientWithEmptyCompatibleGameTypesDoesNotMatchNameAsync()
+    {
+        // Arrange
+        var agnosticClientId = new ManifestId("1.104.genhub.gameclient.generals");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = agnosticClientId,
+            Name = "Generals Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.Generals,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = new ManifestId("1.104.genhub.gameinstallation.generals"),
+                    DependencyType = ContentType.GameInstallation,
+                    StrictPublisher = false,
+                    CompatibleGameTypes = [],
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = agnosticClientId,
+            DisplayName = "Generals Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.Generals,
+            InstallationType = GameInstallationType.Unknown,
+            Manifest = clientManifest,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert - allowed because dependency requires 'generals' installation, not 'zerohour'
+        Assert.Null(_viewModel.SelectedGameInstallation);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.False(zeroHourInstall.IsEnabled);
+    }
 }

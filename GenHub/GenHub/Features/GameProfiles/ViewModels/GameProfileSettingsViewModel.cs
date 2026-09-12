@@ -946,12 +946,17 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         var manifest = await GetOrSynthesizeManifestForContentAsync(client, cancellationToken);
         var installDependencies = manifest?.Dependencies?
-            .Where(d => d.DependencyType == ContentType.GameInstallation)
+            .Where(d => d.DependencyType == ContentType.GameInstallation && !d.IsOptional)
             .ToList();
 
         if (installDependencies is { Count: > 0 })
         {
             return installDependencies.Any(dep => IsInstallationDependencySatisfiedBy(dep, installation, client.GameType));
+        }
+
+        if (manifest?.Dependencies?.Any(d => d.DependencyType == ContentType.GameInstallation) == true)
+        {
+            return false;
         }
 
         return client.GameType == installation.GameType ||
@@ -982,6 +987,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return fallbackGameType == installationGameType;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
     private bool MatchesInstallationDependencyId(string depId, ContentDisplayItem installation)
     {
         return string.Equals(depId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
@@ -989,6 +995,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                HasCompatibleCatalogMatch(depId, installation.ManifestId.Value);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
     private bool IsInstallationDependencySatisfiedBy(ContentDependency dep, ContentDisplayItem installation, GameType clientGameType)
     {
         var depId = dep.Id.ToString();
@@ -1003,9 +1010,25 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         // Publisher-agnostic dependencies (e.g. "1.104.genhub.gameinstallation.zerohour"
-        // with StrictPublisher = false) are satisfied by any installation of a
-        // compatible game type, mirroring FindCompatibleGameInstallation.
-        return !dep.StrictPublisher && MatchesDependencyGameType(dep, installation.GameType, clientGameType);
+        // with StrictPublisher = false) are satisfied by an installation of a compatible game type
+        // when CompatibleGameTypes is specified, or by matching content-type and content-name segments.
+        if (!dep.StrictPublisher)
+        {
+            if (dep.CompatibleGameTypes is { Count: > 0 })
+            {
+                return dep.CompatibleGameTypes.Contains(installation.GameType);
+            }
+
+            var depSegments = depId.Split('.');
+            var instSegments = installation.ManifestId.Value.Split('.');
+            if (depSegments.Length >= 5 && instSegments.Length >= 5)
+            {
+                return string.Equals(depSegments[3], instSegments[3], StringComparison.OrdinalIgnoreCase) &&
+                       string.Equals(depSegments[4], instSegments[4], StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        return false;
     }
 
     private void ResolveGameInstallationDependency(
