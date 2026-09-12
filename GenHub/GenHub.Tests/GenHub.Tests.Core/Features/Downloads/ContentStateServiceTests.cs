@@ -1500,6 +1500,86 @@ public class ContentStateServiceTests
         Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(cardSpanish));
     }
 
+    /// <summary>
+    /// Verifies that when both an older Generals Online release (e.g. 032926) and the current release (082826_QFE1)
+    /// exist in the manifest pool, ContentStateService correctly matches the current release, returns Downloaded,
+    /// and does not spuriously report UpdateAvailable due to selecting the older manifest.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GeneralsOnlineWithOlderAndCurrentInstalledManifests_ReturnsDownloadedAsync()
+    {
+        var olderManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.329260.generalsonline.gameclient.60hz"),
+            Name = "Generals Online 60Hz",
+            Version = "032926",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = "GeneralsOnline_032926",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = "https://www.playgenerals.online",
+            },
+        };
+
+        var currentManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
+            Name = "Generals Online 60Hz",
+            Version = "082826_QFE1",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = "GeneralsOnline_082826_QFE1",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = "https://www.playgenerals.online",
+            },
+        };
+
+        var item = new ContentSearchResult
+        {
+            Id = "GeneralsOnline_082826_QFE1",
+            Name = "Generals Online",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "082826_QFE1",
+            SourceUrl = "https://www.playgenerals.online",
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([olderManifest, currentManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken _) => OperationResult<bool>.CreateSuccess(id == olderManifest.Id || id == currentManifest.Id));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var state = await service.GetStateAsync(item);
+        var localManifestId = await service.GetLocalManifestIdAsync(item);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(currentManifest.Id.Value, localManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that CompareVersions correctly evaluates Generals Online MMddyy[_QFE#] versions.
+    /// </summary>
+    [Fact]
+    public void CompareVersions_GeneralsOnlineVersionScheme_OrdersChronologicallyAndByQfe()
+    {
+        Assert.True(ContentStateService.CompareVersions("082826_QFE1", "082826") > 0);
+        Assert.True(ContentStateService.CompareVersions("082826_QFE2", "082826_QFE1") > 0);
+        Assert.True(ContentStateService.CompareVersions("090126", "082826_QFE1") > 0);
+        Assert.True(ContentStateService.CompareVersions("032926", "082826_QFE1") < 0);
+        Assert.Equal(0, ContentStateService.CompareVersions("082826_QFE1", "082826_QFE1"));
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult
