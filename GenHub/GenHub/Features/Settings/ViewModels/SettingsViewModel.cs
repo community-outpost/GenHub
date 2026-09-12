@@ -306,10 +306,6 @@ public partial class SettingsViewModel(
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Major Code Smell",
-        "S2325:Methods and properties that don't access instance data should be static",
-        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
     public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
 
     private static ColorTheme ResolveInitialTheme(IThemeService? themeService, string themeId) =>
@@ -2571,6 +2567,10 @@ public partial class SettingsViewModel(
                     Subscriptions.Add(sub);
                 }
             }
+            else if (!result.Success)
+            {
+                notificationService.ShowError(ErrorTitle, $"Failed to load subscriptions: {result.FirstError}");
+            }
         }
         catch (OperationCanceledException ex)
         {
@@ -2579,6 +2579,7 @@ public partial class SettingsViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load subscriptions");
+            notificationService.ShowError(ErrorTitle, "Failed to load subscriptions");
         }
         finally
         {
@@ -2642,6 +2643,7 @@ public partial class SettingsViewModel(
             if (result.Success)
             {
                 subscription.TrustLevel = newTrust;
+                ToggleSubscriptionTrustCommand.NotifyCanExecuteChanged();
             }
             else
             {

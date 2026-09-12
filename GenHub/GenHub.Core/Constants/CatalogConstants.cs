@@ -54,6 +54,11 @@ public static class CatalogConstants
     public const long MaxCatalogSizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Default fallback filename for downloads when parsing or sanitizing fails.
+    /// </summary>
+    public const string DefaultDownloadFilename = "download.zip";
+
+    /// <summary>
     /// Maximum number of entries allowed when extracting publisher catalog archives.
     /// </summary>
     public const int MaxZipEntryCount = 50_000;
@@ -126,7 +131,7 @@ public static class CatalogConstants
     /// <summary>
     /// Publisher wildcard for base game installations satisfied by any publisher.
     /// </summary>
-    public const string AnyPublisherId = "any";
+    public const string AnyPublisherId = ManifestConstants.AnyPublisherToken;
 
     /// <summary>
     /// Variant axis name for target game discrimination (Generals vs Zero Hour).

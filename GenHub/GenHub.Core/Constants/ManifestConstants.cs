@@ -183,7 +183,7 @@ public static class ManifestConstants
     /// <summary>
     /// Type-only foundation requirement ID for Zero Hour game installations.
     /// </summary>
-    public const string ZeroHourFoundationDependencyId = "1.104.any.gameinstallation.zerohour";
+    public const string ZeroHourFoundationDependencyId = $"1.104.{AnyPublisherToken}.gameinstallation.zerohour";
 
     /// <summary>
     /// Manifest ID for the Zero Hour game installation dependency.
@@ -193,7 +193,7 @@ public static class ManifestConstants
     /// <summary>
     /// Type-only foundation requirement ID for Generals game installations.
     /// </summary>
-    public const string GeneralsFoundationDependencyId = "1.108.any.gameinstallation.generals";
+    public const string GeneralsFoundationDependencyId = $"1.108.{AnyPublisherToken}.gameinstallation.generals";
 
     /// <summary>
     /// Manifest ID for the Generals game installation dependency.

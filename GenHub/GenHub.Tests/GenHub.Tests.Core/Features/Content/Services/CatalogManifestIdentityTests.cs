@@ -240,6 +240,8 @@ public sealed class CatalogManifestIdentityTests
     [InlineData("vv1.5", true, "1.5")]
     [InlineData("vV1.5", true, "1.5")]
     [InlineData("V2.0.0", true, "2.0.0")]
+    [InlineData("v0", false, "")]
+    [InlineData("0", false, "")]
     [InlineData("1..0", false, "")]
     [InlineData(">=1.0.0", false, "")]
     [InlineData("<2.0.0", false, "")]

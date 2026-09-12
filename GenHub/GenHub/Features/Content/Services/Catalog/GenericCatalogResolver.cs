@@ -257,17 +257,17 @@ public partial class GenericCatalogResolver(
     /// Sanitizes a filename by replacing invalid filesystem characters with underscores.
     /// </summary>
     /// <param name="filename">The filename to sanitize.</param>
-    /// <returns>A sanitized filename, or <c>"download.zip"</c> if the input is null or whitespace.</returns>
+    /// <returns>A sanitized filename, or <see cref="CatalogConstants.DefaultDownloadFilename"/> if the input is null or whitespace.</returns>
     private static string SanitizeFileName(string? filename)
     {
         if (string.IsNullOrWhiteSpace(filename))
         {
-            return "download.zip";
+            return CatalogConstants.DefaultDownloadFilename;
         }
 
         var invalidChars = Path.GetInvalidFileNameChars();
         var sanitized = string.Concat(filename.Select(c => invalidChars.Contains(c) ? '_' : c));
-        return string.IsNullOrWhiteSpace(sanitized) ? "download.zip" : sanitized;
+        return string.IsNullOrWhiteSpace(sanitized) ? CatalogConstants.DefaultDownloadFilename : sanitized;
     }
 
     private static string? AddDependencies(
@@ -588,7 +588,7 @@ public partial class GenericCatalogResolver(
             }
 
             if (!string.IsNullOrWhiteSpace(matched.ContentType) &&
-                Enum.TryParse<ContentType>(matched.ContentType, true, out var matchedType))
+                CatalogManifestIdentity.TryParseDeclaredContentType(matched.ContentType, out var matchedType))
             {
                 dependencyType = matchedType;
             }
@@ -613,8 +613,18 @@ public partial class GenericCatalogResolver(
             return new(string.Empty, string.Empty, true, true, null);
         }
 
-        if (trimmed.Contains(',') || trimmed.Contains('|'))
+        if (trimmed.Contains('|'))
         {
+            return ParseListConstraint(trimmed);
+        }
+
+        if (trimmed.Contains(','))
+        {
+            if (trimmed.IndexOfAny(['>', '<', '^', '~']) >= 0)
+            {
+                return ParseRangedTokens(trimmed.Replace(',', ' '));
+            }
+
             return ParseListConstraint(trimmed);
         }
 
