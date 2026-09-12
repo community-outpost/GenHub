@@ -89,6 +89,23 @@ public class CNCLabsMapResolver(
                 logger.LogWarning("Download URL parsing failed. Constructed fallback URL: {FallbackUrl}", mapDetails.DownloadUrl);
             }
 
+            // Fallback: Use discovered item metadata if details page omitted author, description, or preview image
+            if (string.IsNullOrWhiteSpace(mapDetails.Description) && !string.IsNullOrWhiteSpace(discoveredItem.Description) && discoveredItem.Description != CNCLabsConstants.MapDescriptionTemplate)
+            {
+                mapDetails = mapDetails with { Description = discoveredItem.Description };
+            }
+
+            if ((string.IsNullOrWhiteSpace(mapDetails.Author) || mapDetails.Author == CNCLabsConstants.DefaultAuthorName)
+                && !string.IsNullOrWhiteSpace(discoveredItem.AuthorName))
+            {
+                mapDetails = mapDetails with { Author = discoveredItem.AuthorName };
+            }
+
+            if (string.IsNullOrWhiteSpace(mapDetails.PreviewImage) && !string.IsNullOrWhiteSpace(discoveredItem.IconUrl))
+            {
+                mapDetails = mapDetails with { PreviewImage = discoveredItem.IconUrl };
+            }
+
             if (string.IsNullOrEmpty(mapDetails.DownloadUrl))
             {
                 return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
