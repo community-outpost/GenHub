@@ -86,6 +86,11 @@ jobs:
               - '**/*.sln'
               - '**/*.props'
               - '**/*.targets'
+              - '**/*.ruleset'
+              - '**/.editorconfig'
+              - '**/NuGet.config'
+              - 'global.json'
+              - 'stylecop.json'
               - '.github/workflows/**'
 
       - name: Changes Summary
