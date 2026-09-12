@@ -253,6 +253,11 @@ public partial class GenericCatalogResolver(
         return filename;
     }
 
+    /// <summary>
+    /// Sanitizes a filename by replacing invalid filesystem characters with underscores.
+    /// </summary>
+    /// <param name="filename">The filename to sanitize.</param>
+    /// <returns>A sanitized filename, or <c>"download.zip"</c> if the input is null or whitespace.</returns>
     private static string SanitizeFileName(string? filename)
     {
         if (string.IsNullOrWhiteSpace(filename))

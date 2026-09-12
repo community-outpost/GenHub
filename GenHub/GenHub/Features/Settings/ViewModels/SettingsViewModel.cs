@@ -306,6 +306,10 @@ public partial class SettingsViewModel(
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
     public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
 
     private static ColorTheme ResolveInitialTheme(IThemeService? themeService, string themeId) =>
@@ -2535,7 +2539,11 @@ public partial class SettingsViewModel(
         value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
     }
 
-    private bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with subscription commands for cohesion.")]
+    private static bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
     {
         return subscription is { TrustLevel: not TrustLevel.Verified };
     }
