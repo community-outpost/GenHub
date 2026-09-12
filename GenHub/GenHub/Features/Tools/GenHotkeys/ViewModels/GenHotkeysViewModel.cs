@@ -432,7 +432,14 @@ public partial class GenHotkeysViewModel(
         var toDelete = SelectedProfile;
         try
         {
-            await profileStorageService.DeleteProfileAsync(toDelete.Id, cancellationToken);
+            var deleted = await profileStorageService.DeleteProfileAsync(toDelete.Id, cancellationToken);
+            if (!deleted)
+            {
+                logger.LogWarning("Failed to delete profile '{Name}' ({Id}) from disk", toDelete.Name, toDelete.Id);
+                StatusMessage = $"Failed to delete profile '{toDelete.Name}'.";
+                return;
+            }
+
             Profiles.Remove(toDelete);
             SelectedProfile = Profiles.FirstOrDefault();
 

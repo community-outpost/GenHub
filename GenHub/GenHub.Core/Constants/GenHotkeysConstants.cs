@@ -112,6 +112,9 @@ public static class GenHotkeysConstants
 
         /// <summary>Keyword identifying Stealth general.</summary>
         public const string KeywordStealth = "Stealth";
+
+        /// <summary>Keyword identifying Demolition general.</summary>
+        public const string KeywordDemo = "Demo";
     }
 
     /// <summary>Tool unique identifier.</summary>
@@ -134,9 +137,6 @@ public static class GenHotkeysConstants
 
     /// <summary>Leikeze preset name.</summary>
     public const string PresetLeikeze = "Leikeze";
-
-    /// <summary>Keyword indicating a default preset name.</summary>
-    public const string DefaultPresetKeyword = "Default";
 
     /// <summary>Game tag for Generals.</summary>
     public const string GameTagGenerals = "Gen";
