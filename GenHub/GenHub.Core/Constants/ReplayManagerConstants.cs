@@ -1,3 +1,5 @@
+using System;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -6,9 +8,24 @@ namespace GenHub.Core.Constants;
 public static class ReplayManagerConstants
 {
     /// <summary>
-    /// Maximum size for a single replay file in bytes (1 MB).
+    /// File extension for Command &amp; Conquer Generals replay files.
     /// </summary>
-    public const long MaxReplaySizeBytes = 1024 * 1024;
+    public const string ReplayFileExtension = FileTypes.ReplayFileExtension;
+
+    /// <summary>
+    /// File extension for ZIP archive files.
+    /// </summary>
+    public const string ZipFileExtension = FileTypes.ZipFileExtension;
+
+    /// <summary>
+    /// Environment variable name to override the default community CRC mapping catalog endpoint.
+    /// </summary>
+    public const string CrcCatalogUrlEnvironmentVariable = "GENHUB_CRC_CATALOG_URL";
+
+    /// <summary>
+    /// Maximum size for a single replay file in bytes (10 MB).
+    /// </summary>
+    public const long MaxReplaySizeBytes = 10 * ConversionConstants.BytesPerMegabyte;
 
     /// <summary>
     /// Maximum allowed entries in a replay ZIP archive.
@@ -18,7 +35,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Maximum aggregate uncompressed bytes for a replay ZIP archive (50 MB).
     /// </summary>
-    public const long MaxAggregateUncompressedBytes = 50 * 1024 * 1024;
+    public const long MaxAggregateUncompressedBytes = 50 * ConversionConstants.BytesPerMegabyte;
 
     /// <summary>
     /// Maximum compression ratio allowed for replay ZIP archives.
@@ -28,7 +45,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Maximum upload bytes per period (10 MB).
     /// </summary>
-    public const long MaxUploadBytesPerPeriod = 10 * 1024 * 1024;
+    public const long MaxUploadBytesPerPeriod = 10 * ConversionConstants.BytesPerMegabyte;
 
     /// <summary>
     /// Prefix for temporary import files.
@@ -74,4 +91,95 @@ public static class ReplayManagerConstants
     /// Mock path separator indicator for demo environments on Unix.
     /// </summary>
     public const string UnixMockPathSegment = ToolConstants.UnixMockPathSegment;
+
+    /// <summary>
+    /// Replay file magic header bytes ("GENREP").
+    /// </summary>
+    public const string ReplayHeaderMagic = "GENREP";
+
+    /// <summary>
+    /// Initial buffer size in bytes for reading replay headers (16 KB).
+    /// </summary>
+    public const int ReplayHeaderBufferSize = 16384;
+
+    /// <summary>
+    /// Minimum size in bytes required for a valid replay header (28 bytes).
+    /// </summary>
+    public const int MinReplayHeaderSizeBytes = 28;
+
+    /// <summary>
+    /// Fixed offset in bytes to skip the replay magic header and initial fixed metadata fields.
+    /// </summary>
+    public const int ReplayHeaderInitialOffsetBytes = 28;
+
+    /// <summary>
+    /// Size in bytes of the SYSTEMTIME timestamp structure embedded in the replay header (16 bytes).
+    /// </summary>
+    public const int ReplayHeaderSystemTimeSizeBytes = 16;
+
+    /// <summary>
+    /// Combined size in bytes of the numeric version, Exe CRC, and INI CRC fields (12 bytes: 3 * 4 bytes).
+    /// </summary>
+    public const int ReplayHeaderCrcBlockSizeBytes = 12;
+
+    /// <summary>
+    /// Size in bytes of a 32-bit unsigned integer field in the replay header (4 bytes).
+    /// </summary>
+    public const int ReplayHeaderUInt32SizeBytes = 4;
+
+    /// <summary>
+    /// The expected schema version of the CRC mapping catalog.
+    /// </summary>
+    public const int CrcCatalogSchemaVersion = 1;
+
+    /// <summary>
+    /// Default GitHub URL providing the authoritative community CRC mapping catalog.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]
+    public const string DefaultCrcCatalogUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/GenHub/GenHub/Resources/crc-mapping.json";
+
+    /// <summary>
+    /// Cache key for storing the parsed CRC catalog in the dynamic content cache.
+    /// </summary>
+    public const string CrcCatalogCacheKey = "ReplayManager:CrcCatalog";
+
+    /// <summary>
+    /// Local offline fallback file name for storing cached CRC mappings in app data directory.
+    /// </summary>
+    public const string CrcCatalogLocalFileName = "crc-mapping.json";
+
+    /// <summary>
+    /// Default integer version number for Command &amp; Conquer Generals: Zero Hour retail manifests (1.04).
+    /// </summary>
+    public const int DefaultZeroHourVersionNumber = 104;
+
+    /// <summary>
+    /// Default integer version number for Command &amp; Conquer Generals retail manifests (1.08).
+    /// </summary>
+    public const int DefaultGeneralsVersionNumber = 108;
+
+    /// <summary>
+    /// Hexadecimal CRC representing the English vanilla Zero Hour 1.04 INI.
+    /// </summary>
+    public const string VanillaZeroHourIniCrcEnglish = "FEAAE3F3";
+
+    /// <summary>
+    /// Hexadecimal CRC representing the German/European vanilla Zero Hour 1.04 INI.
+    /// </summary>
+    public const string VanillaZeroHourIniCrcGerman = "76B251A3";
+
+    /// <summary>
+    /// Hexadecimal CRC representing the German/European Generals 1.08 INI.
+    /// </summary>
+    public const string VanillaGeneralsIniCrcGerman = "5CB7992C";
+
+    /// <summary>
+    /// Display name for the default Vanilla 1.04 INI data patch.
+    /// </summary>
+    public const string Vanilla104IniName = "Vanilla 1.04 INI";
+
+    /// <summary>
+    /// Default update polling interval for checking new CRC catalog releases (24 hours).
+    /// </summary>
+    public static readonly TimeSpan DefaultCatalogUpdateInterval = TimeSpan.FromHours(24);
 }

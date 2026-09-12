@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -21,6 +22,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
@@ -53,7 +55,8 @@ public class ProfileLauncherFacade(
     IConfigurationProviderService configurationProvider,
     IGameProcessManager gameProcessManager,
     ISymlinkCapabilityProvider symlinkCapability,
-    ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
+    ILogger<ProfileLauncherFacade> logger,
+    IInstallationCasPoolService? installationCasPoolService = null) : IProfileLauncherFacade
 {
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
@@ -115,7 +118,7 @@ public class ProfileLauncherFacade(
         }
     }
 
-/// <inheritdoc/>
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<bool>> ValidateLaunchAsync(string profileId, CancellationToken cancellationToken = default)
     {
         try
@@ -152,7 +155,7 @@ public class ProfileLauncherFacade(
         }
     }
 
-/// <inheritdoc/>
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProcessInfo>> GetLaunchStatusAsync(string profileId, CancellationToken cancellationToken = default)
     {
         try
@@ -209,6 +212,7 @@ public class ProfileLauncherFacade(
             // 1. Profile is deleted
             // 2. Content changes require workspace refresh
             logger.LogInformation("Successfully stopped profile {ProfileId}", profileId);
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(profileId, launch.ProcessInfo.ProcessId));
             return ProfileOperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
@@ -247,20 +251,8 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation data is null");
             }
 
-            // Update the profile with the resolved installation if it changed
-            if (resolvedInstallation.Id != profile.GameInstallationId)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    GameInstallationId = resolvedInstallation.Id,
-                };
-                var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (updateResult.Success)
-                {
-                    profile.GameInstallationId = resolvedInstallation.Id;
-                    logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId} during workspace preparation", profileId, resolvedInstallation.Id);
-                }
-            }
+            await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
+            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
 
             // Build list of manifests from enabled content IDs only
             var manifests = new List<ContentManifest>();
@@ -299,7 +291,7 @@ public class ProfileLauncherFacade(
             {
                 Id = profileId,
                 Manifests = manifests,
-                GameClient = profile.GameClient!,
+                GameClient = profile.GameClient,
                 Strategy = ResolveSupportedWorkspaceStrategy(
                     profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy()),
                 ForceRecreate = false,
@@ -353,7 +345,7 @@ public class ProfileLauncherFacade(
         }
     }
 
-/// <inheritdoc/>
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
     {
         try
@@ -524,6 +516,11 @@ public class ProfileLauncherFacade(
                 ProfileValidationConstants.ToolLaunchSuccessTitle,
                 $"Successfully launched '{profile.Name}'",
                 NotificationDurations.Medium);
+
+            if (toolLaunchInfo.ProcessInfo.ProcessId > 0)
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, toolLaunchInfo.ProcessInfo.ProcessId));
+            }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
         }
@@ -731,31 +728,17 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(resolvedInstallationResult.FirstError ?? "Could not resolve game installation for profile");
             }
 
-            var resolvedInstallation = resolvedInstallationResult.Data;
-            if (resolvedInstallation == null)
-            {
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Resolved installation data is null");
-            }
-
+            var resolvedInstallation = resolvedInstallationResult.Data!;
             logger.LogDebug(
-                "[Launch] Installation resolved - ID: {InstallationId}, Path: {Path}",
+                "[Launch] Bound to game installation: {InstallationId} at {Path}",
                 resolvedInstallation.Id,
                 resolvedInstallation.InstallationPath);
 
             // Update the profile with the resolved installation if it changed
-            if (resolvedInstallation.Id != profile.GameInstallationId)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    GameInstallationId = resolvedInstallation.Id,
-                };
-                var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (updateResult.Success)
-                {
-                    profile.GameInstallationId = resolvedInstallation.Id;
-                    logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId}", profileId, resolvedInstallation.Id);
-                }
-            }
+            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+
+            // Ensure CAS pool is available before reconciliation may download artifacts
+            await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
 
             // Step 2.5: Check for game client updates before launching.
             var reconcileResult = await ReconcilePublisherClientAsync(profile, profileId, cancellationToken);
@@ -849,6 +832,11 @@ public class ProfileLauncherFacade(
                         "Exception while persisting active workspace ID for profile '{ProfileId}'",
                         profileId);
                 }
+            }
+
+            if (launchInfo.ProcessInfo.ProcessId > 0)
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, launchInfo.ProcessInfo.ProcessId));
             }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
@@ -1190,7 +1178,7 @@ public class ProfileLauncherFacade(
         return manifestSourcePaths;
     }
 
-/// <summary>
+    /// <summary>
     /// Checks if a version string is compatible with dependency requirements.
     /// </summary>
     /// <param name="version">The version to check.</param>
@@ -1605,6 +1593,7 @@ public class ProfileLauncherFacade(
             var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId ?? string.Empty, cancellationToken);
             if (installationResult.Success && installationResult.Data != null)
             {
+                await installationService.CreateAndRegisterInstallationManifestsAsync(installationResult.Data, cancellationToken);
                 return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(installationResult.Data);
             }
 
@@ -1623,7 +1612,8 @@ public class ProfileLauncherFacade(
 
                 if (exactPathMatches.Count == 1)
                 {
-                    var matchingInstallation = exactPathMatches.First();
+                    var matchingInstallation = exactPathMatches[0];
+                    await installationService.CreateAndRegisterInstallationManifestsAsync(matchingInstallation, cancellationToken);
                     logger.LogInformation(
                         "Rebound profile {ProfileId} from stale installation {OldId} to current installation {NewId} by path match ({Path})",
                         profile.Id,
@@ -1636,12 +1626,14 @@ public class ProfileLauncherFacade(
                 if (exactPathMatches.Count > 1)
                 {
                     // This should never happen - multiple installations with same path
+                    var firstMatch = exactPathMatches[0];
+                    await installationService.CreateAndRegisterInstallationManifestsAsync(firstMatch, cancellationToken);
                     logger.LogWarning(
                         "Profile {ProfileId} has {Count} installations with matching path {Path}, using first match",
                         profile.Id,
                         exactPathMatches.Count,
                         profile.GameClient?.WorkingDirectory);
-                    return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(exactPathMatches.First());
+                    return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(firstMatch);
                 }
 
                 // Fallback: Match by game type only (less specific, only if single match)
@@ -1653,7 +1645,8 @@ public class ProfileLauncherFacade(
 
                 if (gameTypeMatches.Count == 1)
                 {
-                    var matchingInstallation = gameTypeMatches.First();
+                    var matchingInstallation = gameTypeMatches[0];
+                    await installationService.CreateAndRegisterInstallationManifestsAsync(matchingInstallation, cancellationToken);
                     logger.LogInformation(
                         "Rebound profile {ProfileId} from stale installation {OldId} to current installation {NewId} by game type match (no path match found)",
                         profile.Id,
@@ -1833,12 +1826,45 @@ public class ProfileLauncherFacade(
             }
 
             var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-            if (manifestResult.Success && manifestResult.Data!.ContentType.IsStandalone())
+            if (manifestResult.Success && manifestResult.Data != null && manifestResult.Data.ContentType.IsStandalone())
             {
                 return idString;
             }
         }
 
         return null;
+    }
+
+    private async Task EnsureCasPoolAsync(GameInstallation? installation, CancellationToken cancellationToken)
+    {
+        if (installationCasPoolService != null && installation != null)
+        {
+            var ensured = await installationCasPoolService.EnsurePoolPathAsync([installation], cancellationToken);
+            if (!ensured)
+            {
+                logger.LogWarning("Failed to ensure CAS pool path for installation {InstallationId} ({InstallationPath})", installation.Id, installation.InstallationPath);
+            }
+        }
+    }
+
+    private async Task TryRebindProfileInstallationAsync(
+        string profileId,
+        GameProfile profile,
+        GameInstallation resolvedInstallation,
+        CancellationToken cancellationToken)
+    {
+        if (resolvedInstallation.Id != profile.GameInstallationId)
+        {
+            var updateRequest = new UpdateProfileRequest
+            {
+                GameInstallationId = resolvedInstallation.Id,
+            };
+            var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+            if (updateResult.Success)
+            {
+                profile.GameInstallationId = resolvedInstallation.Id;
+                logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId}", profileId, resolvedInstallation.Id);
+            }
+        }
     }
 }

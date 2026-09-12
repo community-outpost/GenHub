@@ -162,9 +162,54 @@ public static class ManifestConstants
     public const string AnyPublisherToken = "any";
 
     /// <summary>
+    /// Separator character for manifest ID segments.
+    /// </summary>
+    public const char ManifestIdSegmentSeparator = '.';
+
+    /// <summary>
     /// Separator used to append variant identifiers to content names.
     /// </summary>
     public const string VariantSeparator = "-";
+
+    /// <summary>
+    /// Content name for Generals game segment.
+    /// </summary>
+    public const string GeneralsContentName = "generals";
+
+    /// <summary>
+    /// Content name for Zero Hour game segment.
+    /// </summary>
+    public const string ZeroHourContentName = "zerohour";
+
+    /// <summary>
+    /// Content name for Zero Hour with hyphen (e.g. zero-hour).
+    /// </summary>
+    public const string ZeroHourHyphenContentName = "zero-hour";
+
+    /// <summary>
+    /// Content name for Zero Hour with space (e.g. zero hour).
+    /// </summary>
+    public const string ZeroHourSpacedContentName = "zero hour";
+
+    /// <summary>
+    /// Short content name for Zero Hour segment.
+    /// </summary>
+    public const string ZeroHourShortContentName = "zh";
+
+    /// <summary>
+    /// Content name for combined Generals Zero Hour segment.
+    /// </summary>
+    public const string GeneralsZeroHourContentName = "generalszh";
+
+    /// <summary>
+    /// Content type name for game client segment.
+    /// </summary>
+    public const string GameClientContentTypeName = "gameclient";
+
+    /// <summary>
+    /// Content type name for game data segment.
+    /// </summary>
+    public const string GameDataContentTypeName = "gamedata";
 
     /// <summary>
     /// Version string for Generals game installation manifests.
@@ -246,4 +291,35 @@ public static class ManifestConstants
 
     /// <summary>Tag for other content types.</summary>
     public const string OtherTag = "Other";
+
+    // ===== Content Keywords =====
+
+    /// <summary>Content keyword for quickmatch maps segment.</summary>
+    public const string QuickMatchMapsKeyword = "quickmatchmaps";
+
+    /// <summary>Content keyword for map pack segment.</summary>
+    public const string MapPackKeyword = "mappack";
+
+    /// <summary>Content keyword for 60Hz variant segment.</summary>
+    public const string SixtyHzKeyword = "60hz";
+
+    /// <summary>Content display title keyword for Game Data.</summary>
+    public const string GameDataDisplayKeyword = "Game Data";
+
+    // ===== Content Manifest Segments =====
+
+    /// <summary>Manifest ID segment for game installation content.</summary>
+    public const string GameInstallationManifestSegment = ".gameinstallation.";
+
+    /// <summary>Manifest ID segment for game data content.</summary>
+    public const string GameDataManifestSegment = ".gamedata.";
+
+    /// <summary>Manifest ID segment for data patch content.</summary>
+    public const string DataPatchManifestSegment = ".datapatch.";
+
+    /// <summary>Manifest ID segment for community content.</summary>
+    public const string CommunityManifestSegment = ".community.";
+
+    /// <summary>Manifest ID segment for mod content.</summary>
+    public const string ModManifestSegment = ".mod.";
 }

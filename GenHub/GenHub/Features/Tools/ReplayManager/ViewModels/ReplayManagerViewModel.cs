@@ -16,16 +16,24 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.UploadThing;
+using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.Downloads.Views;
+using GenHub.Features.Tools.ReplayManager.Views;
 using GenHub.Features.Tools.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
@@ -39,14 +47,28 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="uploadHistoryService">The upload history and rate limit service.</param>
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="serviceProvider">Optional service provider for resolving dialog viewmodels dynamically.</param>
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
     IReplayImportService importService,
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
-    ILogger<ReplayManagerViewModel> logger) : ObservableObject
+    ILogger<ReplayManagerViewModel> logger,
+    IServiceProvider? serviceProvider = null) : ObservableObject,
+    IRecipient<ProfileLaunchedMessage>,
+    IRecipient<ProfileStoppedMessage>,
+    IRecipient<ProfileDeletedMessage>,
+    IRecipient<ProfileListUpdatedMessage>,
+    IDisposable
 {
+    private readonly HashSet<string> _runningProfileIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private int _pendingReloadRequests;
+    private bool _messengerRegistered;
+
+    private IDialogService? DialogService => serviceProvider?.GetService<IDialogService>();
+
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
 
@@ -152,54 +174,109 @@ public partial class ReplayManagerViewModel(
 
     /// <summary>
     /// Loads replays for the selected game version.
+    /// Multiple concurrent reload requests are coalesced through a serialization lock.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
     public async Task LoadReplaysAsync()
     {
-        IsBusy = true;
-        IsIndeterminate = true;
-        StatusMessage = "Loading replays...";
         try
         {
-            var replays = await directoryService.GetReplaysAsync(SelectedTab);
-
-            // Marshall to UI thread for collection updates
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            Interlocked.Increment(ref _pendingReloadRequests);
+            await _reloadLock.WaitAsync();
+            try
             {
-                // Update the appropriate collection
-                if (SelectedTab == GameType.Generals)
+                while (Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
                 {
-                    GeneralsReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        GeneralsReplays.Add(r);
-                    }
+                    await LoadReplaysCoreAsync();
                 }
-                else
+            }
+            finally
+            {
+                try
                 {
-                    ZeroHourReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        ZeroHourReplays.Add(r);
-                    }
+                    _reloadLock.Release();
                 }
-
-                ApplyFilter();
-            });
-
-            StatusMessage = $"Loaded {replays.Count} replays.";
+                catch (ObjectDisposedException)
+                {
+                    // Suppress ObjectDisposedException when viewmodel is disposed during reload release
+                }
+            }
         }
-        catch (Exception ex)
+        catch (ObjectDisposedException)
         {
-            logger.LogError(ex, "Failed to load replays");
-            notificationService.ShowError("Load Error", "Failed to load replays.");
-            StatusMessage = "Error loading replays.";
+            // Suppress ObjectDisposedException when viewmodel is disposed while waiting on lock
         }
-        finally
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileLaunchedMessage message)
+    {
+        lock (_runningProfileIds)
         {
-            IsBusy = false;
+            _runningProfileIds.Add(message.ProfileId);
         }
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileStoppedMessage message)
+    {
+        lock (_runningProfileIds)
+        {
+            _runningProfileIds.Remove(message.ProfileId);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileDeletedMessage message)
+    {
+        lock (_runningProfileIds)
+        {
+            _runningProfileIds.Remove(message.ProfileId);
+        }
+
+        Dispatcher.UIThread.Post(async () =>
+        {
+            foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
+                         .Where(replay => string.Equals(replay.MatchingProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
+            {
+                replay.MatchingProfileId = null;
+                replay.MatchingProfileName = null;
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            }
+
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after profile deletion: {ProfileId}", message.ProfileId);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileListUpdatedMessage message)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after profile list update");
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -249,6 +326,20 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsBusy = false;
+            IsIndeterminate = false;
+        }
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+            _reloadLock.Dispose();
         }
     }
 
@@ -271,6 +362,15 @@ public partial class ReplayManagerViewModel(
         }
 
         return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
+    }
+
+    private void EnsureMessengerRegistered()
+    {
+        if (!_messengerRegistered)
+        {
+            WeakReferenceMessenger.Default.RegisterAll(this);
+            _messengerRegistered = true;
+        }
     }
 
     /// <summary>
@@ -401,6 +501,19 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        if (DialogService != null)
+        {
+            var confirmed = await DialogService.ShowConfirmationAsync(
+                "Delete Upload",
+                $"Are you sure you want to delete '{item.FileName}' from cloud storage and remove it from history?",
+                confirmText: "Delete",
+                cancelText: "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
         try
         {
             var success = await uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
@@ -437,6 +550,19 @@ public partial class ReplayManagerViewModel(
                 "Clear History",
                 "Permanently deletes all uploaded files from cloud storage and clears upload history.");
             return;
+        }
+
+        if (DialogService != null)
+        {
+            var confirmed = await DialogService.ShowConfirmationAsync(
+                "Clear Upload History",
+                "Are you sure you want to delete all uploaded replays from cloud storage and clear your upload history? This cannot be undone.",
+                confirmText: "Clear All",
+                cancelText: "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
         }
 
         try
@@ -598,6 +724,7 @@ public partial class ReplayManagerViewModel(
         SelectedReplays.Clear();
         await LoadReplaysAsync();
         IsBusy = false;
+        IsIndeterminate = false;
     }
 
     [RelayCommand]
@@ -879,6 +1006,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Uncompressing ZIP(s)...";
         int totalImported = 0;
 
@@ -921,6 +1049,392 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsBusy = false;
+            IsIndeterminate = false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a dedicated game profile configured for the selected replay file.
+    /// Opens the game client selection dialog so the user can choose from all available game clients.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    [RelayCommand]
+    private async Task CreateProfileForReplayAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
+        {
+            return;
+        }
+
+        if (serviceProvider != null)
+        {
+            await SelectClientAndCreateProfileAsync(replay);
+            return;
+        }
+
+        await ExecuteDirectProfileCreationAsync(replay);
+    }
+
+    /// <summary>
+    /// Opens the game client selection dialog allowing the user to choose an available game client
+    /// (e.g. Community Patch, MP Recovery, TheSuperHackers, detected installations) to create a profile.
+    /// </summary>
+    [RelayCommand]
+    private async Task<string?> SelectClientAndCreateProfileAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
+        {
+            return null;
+        }
+
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Select Game Client",
+                "Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.");
+            return null;
+        }
+
+        if (serviceProvider == null)
+        {
+            await ExecuteDirectProfileCreationAsync(replay);
+            return null;
+        }
+
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var clientVm = ActivatorUtilities.CreateInstance<GameClientSelectionViewModel>(scope.ServiceProvider);
+            var loadTask = clientVm.LoadClientsForReplayAsync(replay.GameVersion, replay);
+
+            var dialog = new GameClientSelectionView(clientVm);
+            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+                IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow
+                    : null;
+
+            if (mainWindow != null)
+            {
+                await dialog.ShowDialog(mainWindow);
+            }
+
+            await loadTask;
+            return await ApplySelectedClientToReplayAsync(replay, clientVm);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to display game client selection dialog for {FileName}", replay.FileName);
+            return null;
+        }
+    }
+
+    private async Task<string?> ApplySelectedClientToReplayAsync(ReplayFile replay, GameClientSelectionViewModel clientVm)
+    {
+        if (!clientVm.WasSuccessful || clientVm.SelectedClient == null)
+        {
+            return null;
+        }
+
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = $"Configuring profile for {replay.FileName}...";
+
+        try
+        {
+            var result = await directoryService.CreateProfileForReplayAsync(
+                replay,
+                clientVm.SelectedClient,
+                clientVm.SelectedManifestId);
+
+            if (result.Success && result.Data != null)
+            {
+                notificationService.ShowSuccess(
+                    "Profile Created",
+                    $"Created profile '{result.Data.Name}' with {clientVm.SelectedClient.Name}.");
+                StatusMessage = $"Created profile '{result.Data.Name}'.";
+                await LoadReplaysAsync();
+                return result.Data.Id;
+            }
+
+            var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
+            notificationService.ShowError("Profile Creation Failed", errorMsg);
+            StatusMessage = "Profile creation failed.";
+            return null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
+            notificationService.ShowError("Profile Creation Error", ex.Message);
+            StatusMessage = "Profile creation error.";
+            return null;
+        }
+        finally
+        {
+            IsBusy = false;
+            IsIndeterminate = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExecuteDirectProfileCreationAsync(ReplayFile replay)
+    {
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Create Profile for Replay",                "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.");
+            return;
+        }
+
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = $"Configuring profile for {replay.FileName}...";
+
+        try
+        {
+            var result = await directoryService.CreateProfileForReplayAsync(replay);
+            if (result.Success && result.Data != null)
+            {
+                notificationService.ShowSuccess(
+                    "Profile Created",                    $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
+                StatusMessage = $"Created profile '{result.Data.Name}'.";
+                await LoadReplaysAsync();
+            }
+            else
+            {
+                var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
+                notificationService.ShowError("Profile Creation Failed", errorMsg);
+                StatusMessage = "Profile creation failed.";
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
+            notificationService.ShowError("Profile Creation Error", ex.Message);
+            StatusMessage = "Profile creation error.";
+        }
+        finally
+        {
+            IsBusy = false;
+            IsIndeterminate = false;
+        }
+    }
+
+    /// <summary>
+    /// Launches the game profile matching the selected replay.
+    /// If no profile is associated, opens the profile selection view so the user can choose.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    [RelayCommand]
+    private async Task LaunchReplayAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
+        {
+            return;
+        }
+
+        // When multiple profiles exist for this game type or multiple profiles are compatible with this replay,
+        // prompt user to select which one to launch using the profile selection dialog
+        var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
+        var totalProfilesForGame = await GetProfileCountForGameAsync(replay.GameVersion);
+
+        if (compatibleProfiles.Count > 1 || totalProfilesForGame > 1)
+        {
+            await SelectProfileAndLaunchReplayAsync(replay);
+            return;
+        }
+
+        var targetProfileId = compatibleProfiles.Count == 1
+            ? compatibleProfiles[0].Id
+            : replay.MatchingProfileId;
+
+        if (string.IsNullOrEmpty(targetProfileId))
+        {
+            await SelectProfileAndLaunchReplayAsync(replay);
+            return;
+        }
+
+        await LaunchReplayWithProfileAsync(replay, targetProfileId);
+    }
+
+    private async Task<int> GetProfileCountForGameAsync(GameType gameType)
+    {
+        try
+        {
+            if (serviceProvider != null)
+            {
+                using var scope = serviceProvider.CreateScope();
+                var profileManager = scope.ServiceProvider.GetService<IGameProfileManager>();
+                if (profileManager != null)
+                {
+                    var result = await profileManager.GetAllProfilesAsync();
+                    if (result.Success && result.Data != null)
+                    {
+                        return result.Data.Count(p => p.GameClient?.GameType == gameType);
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Failed to retrieve profile count for {GameType}", gameType);
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Opens the profile selection dialog allowing the user to select which profile to run the replay with.
+    /// </summary>
+    [RelayCommand]
+    private async Task SelectProfileAndLaunchReplayAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
+        {
+            return;
+        }
+
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Select Profile to Run Replay",
+                "Choose a profile to watch this replay with.");
+            return;
+        }
+
+        if (serviceProvider == null)
+        {
+            await LaunchReplayWithProfileAsync(replay, replay.MatchingProfileId);
+            return;
+        }
+
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var profileVm = await ShowProfileSelectionDialogAsync(scope.ServiceProvider, replay);
+
+            if (profileVm.IsCreateNewRequested)
+            {
+                var createdProfileId = await SelectClientAndCreateProfileAsync(replay);
+                if (!string.IsNullOrEmpty(createdProfileId))
+                {
+                    await LaunchReplayWithProfileAsync(replay, createdProfileId);
+                }
+
+                return;
+            }
+
+            if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
+            {
+                await LaunchReplayWithProfileAsync(replay, profileVm.SelectedProfile.Id);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to display profile selection dialog for {FileName}", replay.FileName);
+        }
+    }
+
+    private async Task<ProfileSelectionViewModel> ShowProfileSelectionDialogAsync(
+        IServiceProvider sp,
+        ReplayFile replay)
+    {
+        logger.LogDebug("[ReplayManager] Displaying profile selection dialog for '{FileName}'", replay.FileName);
+        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
+        profileVm.DialogTitle = $"Select Profile - {replay.FileName}";
+        profileVm.HeaderTitle = "Select Profile to Run Replay";
+        profileVm.HeaderSubtitle = "Click a profile to launch this replay";
+        profileVm.ActionBadgeText = "Play";
+        profileVm.CreateProfileCardSubtitle = "Choose an available game client to create a fresh profile";
+
+        var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
+        var compatibleProfileIds = new HashSet<string>(compatibleProfiles.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+
+        await profileVm.LoadProfilesAsync(
+            replay.GameVersion,
+            contentManifestId: string.Empty,
+            contentName: replay.FileName,
+            additionalManifestIds: null,
+            compatibleProfileIds: compatibleProfileIds);
+
+        var dialog = new ProfileSelectionView(profileVm);
+        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+            IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+        if (mainWindow != null)
+        {
+            await dialog.ShowDialog(mainWindow);
+        }
+
+        return profileVm;
+    }
+
+    private async Task LaunchReplayWithProfileAsync(ReplayFile replay, string? profileId)
+    {
+        EnsureMessengerRegistered();
+
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Launch Replay Profile",                "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(profileId))
+        {
+            bool isRunning = false;
+            lock (_runningProfileIds)
+            {
+                isRunning = _runningProfileIds.Contains(profileId);
+            }
+
+            if (!isRunning)
+            {
+                isRunning = await directoryService.IsProfileRunningAsync(profileId);
+            }
+
+            if (isRunning)
+            {
+                notificationService.ShowWarning(
+                    "Game Running",                    "The game profile for this replay is already running.");
+                return;
+            }
+        }
+
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = $"Launching profile for {replay.FileName}...";
+
+        try
+        {
+            var result = await directoryService.LaunchReplayAsync(replay, profileId);
+            if (result.Success)
+            {
+                var profileName = !string.IsNullOrEmpty(replay.MatchingProfileName)
+                    ? replay.MatchingProfileName
+                    : (replay.MatchedClient?.Description ?? "Matching Profile");
+                notificationService.ShowSuccess(
+                    "Game Launched",                    $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
+                StatusMessage = $"Launched profile '{profileName}'.";
+            }
+            else
+            {
+                var errorMsg = result.FirstError ?? "Failed to launch game profile.";
+                notificationService.ShowError("Launch Failed", errorMsg);
+                StatusMessage = "Launch failed.";
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to launch replay profile for {FileName}", replay.FileName);
+            notificationService.ShowError("Launch Error", ex.Message);
+            StatusMessage = "Launch error.";
+        }
+        finally
+        {
+            IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 
@@ -942,5 +1456,54 @@ public partial class ReplayManagerViewModel(
     {
         ApplyFilter();
         _ = LoadReplaysAsync();
+    }
+
+    private async Task LoadReplaysCoreAsync()
+    {
+        EnsureMessengerRegistered();
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = "Loading replays...";
+        try
+        {
+            var replays = await directoryService.GetReplaysAsync(SelectedTab);
+
+            // Marshall to UI thread for collection updates
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                // Update the appropriate collection
+                if (SelectedTab == GameType.Generals)
+                {
+                    GeneralsReplays.Clear();
+                    foreach (var r in replays)
+                    {
+                        GeneralsReplays.Add(r);
+                    }
+                }
+                else
+                {
+                    ZeroHourReplays.Clear();
+                    foreach (var r in replays)
+                    {
+                        ZeroHourReplays.Add(r);
+                    }
+                }
+
+                ApplyFilter();
+            });
+
+            StatusMessage = $"Loaded {replays.Count} replays.";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load replays");
+            notificationService.ShowError("Load Error", "Failed to load replays.");
+            StatusMessage = "Error loading replays.";
+        }
+        finally
+        {
+            IsBusy = false;
+            IsIndeterminate = false;
+        }
     }
 }

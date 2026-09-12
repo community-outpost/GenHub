@@ -34,4 +34,24 @@ public static class SteamConstants
     /// The filename of the proxy launcher executable.
     /// </summary>
     public const string ProxyLauncherFileName = "GenHub.ProxyLauncher.exe";
+
+    /// <summary>
+    /// The filename of the proxy launcher assembly.
+    /// </summary>
+    public const string ProxyLauncherDllFileName = "GenHub.ProxyLauncher.dll";
+
+    /// <summary>
+    /// The product and internal name of the proxy launcher.
+    /// </summary>
+    public const string ProxyLauncherName = "GenHub.ProxyLauncher";
+
+    /// <summary>
+    /// The application name token used for identifying proxy launchers.
+    /// </summary>
+    public const string AppNameToken = "GenHub";
+
+    /// <summary>
+    /// The proxy description token used for identifying proxy launchers.
+    /// </summary>
+    public const string ProxyDescriptionToken = "Proxy";
 }

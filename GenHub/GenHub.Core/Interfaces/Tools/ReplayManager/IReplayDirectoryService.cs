@@ -1,13 +1,17 @@
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Tools.ReplayManager;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.ReplayManager;
 
 namespace GenHub.Core.Interfaces.Tools.ReplayManager;
 
 /// <summary>
-/// Manages replay directory operations.
+/// Manages replay directory operations, compatibility resolution, profile generation, and game replay execution.
 /// </summary>
 public interface IReplayDirectoryService
 {
@@ -51,4 +55,68 @@ public interface IReplayDirectoryService
     /// </summary>
     /// <param name="replay">The replay file to reveal.</param>
     void RevealInExplorer(ReplayFile replay);
+
+    /// <summary>
+    /// Gets all profiles compatible with the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of compatible profiles.</returns>
+    Task<IReadOnlyList<GameProfile>> GetCompatibleProfilesForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a dedicated game profile configured with the exact game client and INI settings matching the replay.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a dedicated game profile configured with the exact game client (or custom selected client) and INI settings matching the replay.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    /// <param name="customGameClient">Custom game client selected by the user.</param>
+    /// <param name="customClientManifestId">Optional custom client manifest ID if catalog-backed.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        GameClient? customGameClient,
+        string? customClientManifestId = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Launches the game with the profile matching the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the launch information.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Launches the game with the profile matching the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    /// <param name="profileId">Optional explicit profile ID to launch with.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the launch information.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        string? profileId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks whether the game profile with the specified ID is currently running.
+    /// </summary>
+    /// <param name="profileId">The profile ID to check.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns><c>true</c> if the profile is running; otherwise, <c>false</c>.</returns>
+    Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default);
 }

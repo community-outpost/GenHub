@@ -13,8 +13,11 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
+
+#pragma warning disable S6966 // OpenAsync is only available in .NET 10+; net8.0 target provides Open()
 
 /// <summary>
 /// Implementation of <see cref="IReplayImportService"/> for importing replay files.
@@ -26,6 +29,15 @@ public sealed class ReplayImportService(
     IZipValidationService zipValidationService,
     ILogger<ReplayImportService> logger) : IReplayImportService
 {
+    private sealed record ZipEntryImportContext(
+        string ZipPath,
+        string TargetDir,
+        List<string> Imported,
+        List<string> Errors,
+        Action<long> OnBytesExpanded,
+        Action OnEntrySkipped,
+        CancellationToken CancellationToken);
+
     /// <inheritdoc />
     public async Task<ImportResult> ImportFromUrlAsync(
         string url,
@@ -119,18 +131,18 @@ public sealed class ReplayImportService(
                     continue;
                 }
 
-                var isZip = path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+                var isArchive = IsArchiveFile(path);
                 var info = new FileInfo(path);
 
-                // Only enforce 1MB limit for individual .rep files, not for ZIP archives
-                if (!isZip && info.Length > ReplayManagerConstants.MaxReplaySizeBytes)
+                // Only enforce size limit for individual .rep files, not for archives
+                if (!isArchive && info.Length > ReplayManagerConstants.MaxReplaySizeBytes)
                 {
-                    errors.Add($"File {Path.GetFileName(path)} skipped: exceeds 1 MB.");
+                    errors.Add($"File {Path.GetFileName(path)} skipped: exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB.");
                     skipped++;
                     continue;
                 }
 
-                if (isZip)
+                if (isArchive)
                 {
                     var zipResult = await ImportFromZipAsync(path, targetVersion, null, ct);
                     imported.AddRange(zipResult.ImportedFiles);
@@ -195,13 +207,31 @@ public sealed class ReplayImportService(
         try
         {
             using var archive = ZipFile.OpenRead(zipPath);
-            var entries = archive.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToList();
+            var entries = archive.Entries
+                .Where(e => !string.IsNullOrEmpty(e.Name) && e.Name.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (entries.Count == 0)
+            {
+                // Fallback to SharpCompress to check for entries
+                return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
+            }
+
             int total = entries.Count;
             int count = 0;
             long expandedBytes = 0;
 
             directoryService.EnsureDirectoryExists(targetVersion);
             var targetDir = directoryService.GetReplayDirectory(targetVersion);
+
+            var entryContext = new ZipEntryImportContext(
+                zipPath,
+                targetDir,
+                imported,
+                errors,
+                bytes => expandedBytes += bytes,
+                () => skipped++,
+                ct);
 
             foreach (var entry in entries)
             {
@@ -210,27 +240,13 @@ public sealed class ReplayImportService(
                 count++;
                 progress?.Report((double)count / total);
 
-                var targetPath = GetUniquePath(Path.Combine(targetDir, Path.GetFileName(entry.Name)));
-
-                try
-                {
-                    await using var stream = entry.Open();
-                    expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                        stream,
-                        targetPath,
-                        entry.FullName,
-                        ReplayManagerConstants.MaxReplaySizeBytes,
-                        ReplayManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
-                        cancellationToken: ct);
-                    imported.Add(targetPath);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    logger.LogWarning(ex, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
-                    errors.Add(ex.Message);
-                    skipped++;
-                }
+                await ProcessZipEntryAsync(entry, entryContext, expandedBytes);
             }
+        }
+        catch (InvalidDataException ex)
+        {
+            logger.LogInformation(ex, "ZipFile.OpenRead failed for {ZipPath}, falling back to SharpCompress", zipPath);
+            return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -287,22 +303,50 @@ public sealed class ReplayImportService(
         return zipValidationService.ValidateZip(zipPath);
     }
 
-    private static bool IsZipFile(string filePath)
+    private static bool IsArchiveFile(string filePath)
     {
         try
         {
+            var ext = Path.GetExtension(filePath);
+            if (ext.Equals(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             using var stream = File.OpenRead(filePath);
             if (stream.Length < 4)
             {
                 return false;
             }
 
-            var buffer = new byte[4];
-            stream.ReadExactly(buffer);
+            var buffer = new byte[6];
+            var read = stream.Read(buffer, 0, 6);
+            if (read >= 4)
+            {
+                // ZIP magic bytes: 50 4B 03 04, 50 4B 05 06, 50 4B 07 08
+                if (buffer[0] == 0x50 && buffer[1] == 0x4B &&
+                    (buffer[2] == 0x03 || buffer[2] == 0x05 || buffer[2] == 0x07))
+                {
+                    return true;
+                }
 
-            // Check for ZIP magic bytes: 50 4B 03 04 (local file header) or 50 4B 05 06 (end of central directory)
-            return (buffer[0] == 0x50 && buffer[1] == 0x4B && buffer[2] == 0x03 && buffer[3] == 0x04) ||
-                   (buffer[0] == 0x50 && buffer[1] == 0x4B && buffer[2] == 0x05 && buffer[3] == 0x06);
+                // 7-Zip magic bytes: 37 7A BC AF 27 1C
+                if (read >= 6 && buffer[0] == 0x37 && buffer[1] == 0x7A && buffer[2] == 0xBC &&
+                    buffer[3] == 0xAF && buffer[4] == 0x27 && buffer[5] == 0x1C)
+                {
+                    return true;
+                }
+
+                // RAR magic bytes: 52 61 72 21
+                if (buffer[0] == 0x52 && buffer[1] == 0x61 && buffer[2] == 0x72 && buffer[3] == 0x21)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
         catch
         {
@@ -342,7 +386,9 @@ public sealed class ReplayImportService(
             }
 
             if (!fileName.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase) &&
-                !fileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
+                !fileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) &&
+                !fileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) &&
+                !fileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase))
             {
                 return $"{fileName}{FileTypes.ReplayFileExtension}";
             }
@@ -353,6 +399,37 @@ public sealed class ReplayImportService(
         {
             return ReplayManagerConstants.DefaultImportedReplayFileName;
         }
+    }
+
+    private static async Task<long?> TryExtractEntryWithSharpCompressAsync(
+        string archivePath,
+        string entryFullName,
+        string destinationPath,
+        long maxEntryBytes,
+        long remainingAggregateBytes,
+        CancellationToken ct)
+    {
+        using var archive = ArchiveFactory.OpenArchive(archivePath);
+        var entryName = Path.GetFileName(entryFullName);
+        var entry = archive.Entries.FirstOrDefault(e =>
+            !e.IsDirectory && string.Equals(e.Key, entryFullName, StringComparison.OrdinalIgnoreCase))
+            ?? archive.Entries.FirstOrDefault(e =>
+            !e.IsDirectory && string.Equals(Path.GetFileName(e.Key), entryName, StringComparison.OrdinalIgnoreCase));
+
+        if (entry == null)
+        {
+            return null;
+        }
+
+        using var entryStream = entry.OpenEntryStream();
+        return await BoundedArchiveExtractor.CopyEntryToFileAsync(
+            entryStream,
+            destinationPath,
+            entry.Key ?? entryFullName,
+            maxEntryBytes,
+            remainingAggregateBytes,
+            overwrite: true,
+            cancellationToken: ct);
     }
 
     private async Task<int> DownloadAndImportReplayUrlAsync(
@@ -382,8 +459,8 @@ public sealed class ReplayImportService(
                 return 1;
             }
 
-            var isZip = IsZipFile(tempPath);
-            var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
+            var isArchive = IsArchiveFile(tempPath);
+            var maxAllowedBytes = isArchive ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
             var info = new FileInfo(tempPath);
             if (info.Length > maxAllowedBytes)
             {
@@ -391,7 +468,7 @@ public sealed class ReplayImportService(
                 return 1;
             }
 
-            if (isZip)
+            if (isArchive)
             {
                 logger.LogInformation(LogMessages.DetectedZipFile);
                 var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
@@ -419,5 +496,147 @@ public sealed class ReplayImportService(
                 File.Delete(tempPath);
             }
         }
+    }
+
+    private async Task ProcessZipEntryAsync(
+        ZipArchiveEntry entry,
+        ZipEntryImportContext context,
+        long currentExpandedBytes)
+    {
+        var targetPath = GetUniquePath(Path.Combine(context.TargetDir, Path.GetFileName(entry.Name)));
+
+        try
+        {
+            await using var stream = entry.Open();
+            var written = await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                stream,
+                targetPath,
+                entry.FullName,
+                ReplayManagerConstants.MaxReplaySizeBytes,
+                ReplayManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes,
+                cancellationToken: context.CancellationToken);
+            context.OnBytesExpanded(written);
+            context.Imported.Add(targetPath);
+        }
+        catch (InvalidDataException ex)
+        {
+            logger.LogInformation(ex, "Decompression via ZipArchive failed for {Entry}, attempting SharpCompress fallback", entry.FullName);
+            await ProcessZipEntryWithSharpCompressFallbackAsync(
+                entry,
+                targetPath,
+                context,
+                currentExpandedBytes);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, context.ZipPath);
+            context.Errors.Add(ex.Message);
+            context.OnEntrySkipped();
+        }
+    }
+
+    private async Task ProcessZipEntryWithSharpCompressFallbackAsync(
+        ZipArchiveEntry entry,
+        string targetPath,
+        ZipEntryImportContext context,
+        long currentExpandedBytes)
+    {
+        try
+        {
+            var written = await TryExtractEntryWithSharpCompressAsync(
+                context.ZipPath,
+                entry.FullName,
+                targetPath,
+                ReplayManagerConstants.MaxReplaySizeBytes,
+                ReplayManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes,
+                context.CancellationToken);
+
+            if (written.HasValue)
+            {
+                context.OnBytesExpanded(written.Value);
+                context.Imported.Add(targetPath);
+            }
+            else
+            {
+                throw new InvalidDataException($"SharpCompress could not extract entry {entry.FullName}.");
+            }
+        }
+        catch (Exception sharpEx) when (sharpEx is not OperationCanceledException)
+        {
+            logger.LogWarning(sharpEx, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, context.ZipPath);
+            context.Errors.Add(sharpEx.Message);
+            context.OnEntrySkipped();
+        }
+    }
+
+    private async Task<ImportResult> ImportWithSharpCompressAsync(
+        string archivePath,
+        GameType targetVersion,
+        IProgress<double>? progress,
+        CancellationToken ct)
+    {
+        var imported = new List<string>();
+        var errors = new List<string>();
+        int skipped = 0;
+
+        try
+        {
+            using var archive = ArchiveFactory.OpenArchive(archivePath);
+            var entries = archive.Entries
+                .Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key) &&
+                            Path.GetFileName(e.Key).EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            int total = entries.Count;
+            int count = 0;
+            long expandedBytes = 0;
+
+            directoryService.EnsureDirectoryExists(targetVersion);
+            var targetDir = directoryService.GetReplayDirectory(targetVersion);
+
+            foreach (var entry in entries)
+            {
+                ct.ThrowIfCancellationRequested();
+                count++;
+                progress?.Report((double)count / Math.Max(1, total));
+
+                var fileName = Path.GetFileName(entry.Key ?? string.Empty);
+                var targetPath = GetUniquePath(Path.Combine(targetDir, fileName));
+
+                try
+                {
+                    using var stream = entry.OpenEntryStream();
+                    expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                        stream,
+                        targetPath,
+                        entry.Key ?? fileName,
+                        ReplayManagerConstants.MaxReplaySizeBytes,
+                        ReplayManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
+                        overwrite: true,
+                        cancellationToken: ct);
+                    imported.Add(targetPath);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Discarding replay entry {Entry} from {ArchivePath}", entry.Key, archivePath);
+                    errors.Add(ex.Message);
+                    skipped++;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, LogMessages.FailedToImportFromZip, archivePath);
+            errors.Add(string.Format(ErrorMessages.FailedToProcessZip, ex.Message));
+        }
+
+        return new ImportResult
+        {
+            Success = imported.Count > 0,
+            FilesImported = imported.Count,
+            FilesSkipped = skipped,
+            ImportedFiles = imported,
+            Errors = errors,
+        };
     }
 }

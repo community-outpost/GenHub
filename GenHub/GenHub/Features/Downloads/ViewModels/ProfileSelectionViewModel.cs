@@ -93,6 +93,30 @@ public sealed partial class ProfileSelectionViewModel(
     [ObservableProperty]
     private string? _selectedProfileName;
 
+    [ObservableProperty]
+    private string _dialogTitle = "Add to Profile";
+
+    [ObservableProperty]
+    private string _headerTitle = "Add to profile";
+
+    [ObservableProperty]
+    private string _headerSubtitle = "Click a profile to add it";
+
+    [ObservableProperty]
+    private string _actionBadgeText = "Add";
+
+    [ObservableProperty]
+    private string _createProfileCardSubtitle = "Add this content to a fresh profile";
+
+    [ObservableProperty]
+    private GameProfile? _selectedProfile;
+
+    [ObservableProperty]
+    private string? _selectedProfileId;
+
+    [ObservableProperty]
+    private bool _isCreateNewRequested;
+
     /// <summary>
     /// Event raised when the dialog should be closed.
     /// </summary>
@@ -166,11 +190,30 @@ public sealed partial class ProfileSelectionViewModel(
     /// <param name="additionalManifestIds">Additional acquired manifest IDs to enable with the primary item (bundle members).</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task LoadProfilesAsync(
+    public Task LoadProfilesAsync(
         GameType targetGame,
         string? contentManifestId = null,
         string? contentName = null,
         IReadOnlyList<string>? additionalManifestIds = null,
+        CancellationToken ct = default)
+        => LoadProfilesAsync(targetGame, contentManifestId, contentName, additionalManifestIds, compatibleProfileIds: null, ct);
+
+    /// <summary>
+    /// Filters profiles by compatibility with target game and optional explicit compatible profile IDs.
+    /// </summary>
+    /// <param name="targetGame">The target game type for compatibility.</param>
+    /// <param name="contentManifestId">The optional content manifest ID to be added.</param>
+    /// <param name="contentName">The optional content name for display.</param>
+    /// <param name="additionalManifestIds">Additional acquired manifest IDs to enable with the primary item (bundle members).</param>
+    /// <param name="compatibleProfileIds">Optional explicit set of compatible profile IDs.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task LoadProfilesAsync(
+        GameType targetGame,
+        string? contentManifestId,
+        string? contentName,
+        IReadOnlyList<string>? additionalManifestIds,
+        ISet<string>? compatibleProfileIds,
         CancellationToken ct = default)
     {
         TargetGame = targetGame;
@@ -195,46 +238,14 @@ public sealed partial class ProfileSelectionViewModel(
             CompatibleProfileCards.Clear();
             OtherProfiles.Clear();
 
-            // The picker needs names, rather than opaque manifest IDs, so people can tell
-            // exactly what is already in a profile before adding more content to it.
-            var contentNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
-            if (manifestsResult.Success && manifestsResult.Data != null)
-            {
-                foreach (var manifest in manifestsResult.Data)
-                {
-                    contentNames[manifest.Id.Value] = manifest.Name;
-                }
-            }
-
-            foreach (var profile in profilesResult.Data)
-            {
-                var option = new ProfileOptionViewModel(profile, contentNames);
-
-                // Check if profile's game type matches content's target game
-                if (IsCompatible(profile, targetGame))
-                {
-                    CompatibleProfiles.Add(option);
-                    CompatibleProfileCards.Add(option);
-                }
-                else
-                {
-                    option.ShowWarning = true;
-                    var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
-                    option.WarningMessage = $"This profile is for {profileGameType}, content is for {targetGame}";
-                    OtherProfiles.Add(option);
-                }
-            }
+            var contentNames = await LoadContentNamesAsync(ct);
+            PopulateProfileOptions(profilesResult.Data, contentNames, targetGame, compatibleProfileIds);
 
             // Keep creation in the same collection as profile cards so the card grid lays it
             // out in the next available slot instead of starting a separate row.
             CompatibleProfileCards.Add(new CreateProfileOptionViewModel());
 
-            OnPropertyChanged(nameof(HasAnyProfiles));
-            OnPropertyChanged(nameof(HasCompatibleProfiles));
-            OnPropertyChanged(nameof(HasOnlyIncompatibleProfiles));
-            OnPropertyChanged(nameof(HasOtherProfiles));
-            OnPropertyChanged(nameof(ProfileSummary));
+            NotifyProfilePropertiesChanged();
 
             logger.LogInformation(
                 "Loaded {CompatibleCount} compatible and {OtherCount} incompatible profiles for {TargetGame}",
@@ -276,6 +287,34 @@ public sealed partial class ProfileSelectionViewModel(
         }
 
         _cts.Dispose();
+    }
+
+    private static (bool IsMatch, string? WarningMessage) EvaluateCompatibility(
+        GameProfile profile,
+        GameType targetGame,
+        ISet<string>? compatibleProfileIds)
+    {
+        if (compatibleProfileIds != null)
+        {
+            if (compatibleProfileIds.Contains(profile.Id))
+            {
+                return (true, null);
+            }
+
+            var warning = profile.GameClient?.GameType != targetGame
+                ? $"This profile is for {profile.GameClient?.GameType.ToString() ?? "Tool"}, content is for {targetGame}"
+                : "Profile game client / patch does not match replay CRC requirements";
+
+            return (false, warning);
+        }
+
+        if (IsCompatible(profile, targetGame))
+        {
+            return (true, null);
+        }
+
+        var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
+        return (false, $"This profile is for {profileGameType}, content is for {targetGame}");
     }
 
     /// <summary>
@@ -320,6 +359,55 @@ public sealed partial class ProfileSelectionViewModel(
         return ids;
     }
 
+    private async Task<Dictionary<string, string>> LoadContentNamesAsync(CancellationToken ct)
+    {
+        var contentNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
+        if (manifestsResult.Success && manifestsResult.Data != null)
+        {
+            foreach (var manifest in manifestsResult.Data)
+            {
+                contentNames[manifest.Id.Value] = manifest.Name;
+            }
+        }
+
+        return contentNames;
+    }
+
+    private void PopulateProfileOptions(
+        IEnumerable<GameProfile> profiles,
+        IReadOnlyDictionary<string, string> contentNames,
+        GameType targetGame,
+        ISet<string>? compatibleProfileIds)
+    {
+        foreach (var profile in profiles)
+        {
+            var option = new ProfileOptionViewModel(profile, contentNames);
+            var (isMatch, warningMessage) = EvaluateCompatibility(profile, targetGame, compatibleProfileIds);
+
+            if (!isMatch)
+            {
+                option.ShowWarning = true;
+                option.WarningMessage = warningMessage;
+                OtherProfiles.Add(option);
+            }
+            else
+            {
+                CompatibleProfiles.Add(option);
+                CompatibleProfileCards.Add(option);
+            }
+        }
+    }
+
+    private void NotifyProfilePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(HasAnyProfiles));
+        OnPropertyChanged(nameof(HasCompatibleProfiles));
+        OnPropertyChanged(nameof(HasOnlyIncompatibleProfiles));
+        OnPropertyChanged(nameof(HasOtherProfiles));
+        OnPropertyChanged(nameof(ProfileSummary));
+    }
+
     /// <summary>
     /// Selects a profile and optionally adds content to it.
     /// </summary>
@@ -340,6 +428,8 @@ public sealed partial class ProfileSelectionViewModel(
             if (string.IsNullOrEmpty(ContentManifestId))
             {
                 logger.LogInformation("Profile '{ProfileName}' selected (no content to add)", profile.Name);
+                SelectedProfile = profile;
+                SelectedProfileId = profile.Id;
                 SelectedProfileName = profile.Name;
                 WasSuccessful = true;
                 RequestClose?.Invoke(this, EventArgs.Empty);
@@ -421,7 +511,10 @@ public sealed partial class ProfileSelectionViewModel(
     {
         if (string.IsNullOrEmpty(ContentManifestId))
         {
-            logger.LogWarning("Cannot create profile: no content manifest ID provided");
+            logger.LogInformation("Create new profile requested without content manifest ID");
+            IsCreateNewRequested = true;
+            WasSuccessful = false;
+            RequestClose?.Invoke(this, EventArgs.Empty);
             return;
         }
 

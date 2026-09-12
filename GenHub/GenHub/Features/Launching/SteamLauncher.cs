@@ -31,6 +31,9 @@ namespace GenHub.Features.Launching;
 public class SteamLauncher : ISteamLauncher
 {
     private const string ProxyConfigFileName = "proxy_config.json";
+    private const string ProxyLauncherName = SteamConstants.ProxyLauncherName;
+    private const string ProxyLauncherExeName = SteamConstants.ProxyLauncherFileName;
+    private const string ProxyLauncherDllName = SteamConstants.ProxyLauncherDllFileName;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
@@ -115,7 +118,7 @@ public class SteamLauncher : ISteamLauncher
             if (!File.Exists(proxySourcePath))
             {
                 return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Proxy Launcher binary not found at {proxySourcePath}. Please build GenHub.ProxyLauncher project.");
+                    $"Proxy Launcher binary not found at {proxySourcePath}. Please build {ProxyLauncherName} project.");
             }
 
             if (!Directory.Exists(gameInstallPath))
@@ -313,49 +316,14 @@ public class SteamLauncher : ISteamLauncher
 
             var targetExePath = Path.Combine(gameInstallPath, executableName);
             var backupPath = targetExePath + SteamConstants.BackupExtension;
-
-            if (File.Exists(backupPath))
-            {
-                if (File.Exists(targetExePath))
-                {
-                    var proxySourcePath = ResolveProxySourcePath();
-                    if (!File.Exists(proxySourcePath) ||
-                        !FilesAreEqual(targetExePath, proxySourcePath))
-                    {
-                        var error =
-                            $"Refusing to replace '{targetExePath}' from the unverified backup '{backupPath}'.";
-                        _logger.LogError("[SteamLauncher] {Error}", error);
-                        return OperationResult<bool>.CreateFailure(error);
-                    }
-                }
-
-                _logger.LogInformation(
-                    "[SteamLauncher] Restoring original {Exe} from backup",
-                    executableName);
-                File.Move(backupPath, targetExePath, overwrite: true);
-                _logger.LogInformation(
-                    "[SteamLauncher] Successfully restored original {Exe}",
-                    executableName);
-            }
-            else
-            {
-                var proxySourcePath = ResolveProxySourcePath();
-                if (File.Exists(targetExePath) &&
-                    File.Exists(proxySourcePath) &&
-                    FilesAreEqual(targetExePath, proxySourcePath))
-                {
-                    var error =
-                        $"Cannot restore '{targetExePath}' because its original backup is missing.";
-                    _logger.LogError("[SteamLauncher] {Error}", error);
-                    return OperationResult<bool>.CreateFailure(error);
-                }
-
-                _logger.LogDebug(
-                    "[SteamLauncher] No backup found for {Exe}, skipping restoration",
-                    executableName);
-            }
-
             var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
+
+            var restoreResult = RestoreOriginalExecutable(targetExePath, backupPath, executableName);
+            if (!restoreResult.Success)
+            {
+                return restoreResult;
+            }
+
             if (File.Exists(proxyConfigPath))
             {
                 _logger.LogDebug("[SteamLauncher] Removing proxy config: {Path}", proxyConfigPath);
@@ -383,6 +351,129 @@ public class SteamLauncher : ISteamLauncher
         {
             installationMutationLock?.Dispose();
         }
+    }
+
+    private static bool FilesAreEqual(string firstPath, string secondPath)
+    {
+        var firstInfo = new FileInfo(firstPath);
+        var secondInfo = new FileInfo(secondPath);
+        if (firstInfo.Length != secondInfo.Length)
+        {
+            return false;
+        }
+
+        using var firstStream = File.OpenRead(firstPath);
+        using var secondStream = File.OpenRead(secondPath);
+        return SHA256.HashData(firstStream).SequenceEqual(SHA256.HashData(secondStream));
+    }
+
+    private static bool IsProxyLauncher(string exePath, string proxySourcePath)
+    {
+        if (!File.Exists(exePath))
+        {
+            return false;
+        }
+
+        if (File.Exists(proxySourcePath) && FilesAreEqual(exePath, proxySourcePath))
+        {
+            return true;
+        }
+
+        try
+        {
+            var versionInfo = FileVersionInfo.GetVersionInfo(exePath);
+            if (string.Equals(versionInfo.ProductName, ProxyLauncherName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(versionInfo.InternalName, ProxyLauncherName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(versionInfo.OriginalFilename, ProxyLauncherExeName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(versionInfo.OriginalFilename, ProxyLauncherDllName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var description = versionInfo.FileDescription;
+            if (!string.IsNullOrEmpty(description) &&
+                description.Contains(SteamConstants.AppNameToken, StringComparison.OrdinalIgnoreCase) &&
+                description.Contains(SteamConstants.ProxyDescriptionToken, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        catch (FileNotFoundException)
+        {
+            // Ignore expected version info inspection errors for missing executables
+        }
+        catch (ArgumentException)
+        {
+            // Ignore expected version info inspection errors for invalid paths
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore expected version info inspection errors for inaccessible executables
+        }
+
+        return false;
+    }
+
+    private OperationResult<bool> RestoreOriginalExecutable(
+        string targetExePath,
+        string backupPath,
+        string executableName)
+    {
+        var proxySourcePath = ResolveProxySourcePath();
+
+        if (File.Exists(backupPath))
+        {
+            if (File.Exists(targetExePath))
+            {
+                if (FilesAreEqual(targetExePath, backupPath))
+                {
+                    _logger.LogInformation(
+                        "[SteamLauncher] Game executable is already identical to backup; removing duplicate backup {Backup}",
+                        backupPath);
+                    File.Delete(backupPath);
+                }
+                else if (IsProxyLauncher(targetExePath, proxySourcePath))
+                {
+                    _logger.LogInformation(
+                        "[SteamLauncher] Restoring original {Exe} from backup",
+                        executableName);
+                    File.Move(backupPath, targetExePath, overwrite: true);
+                    _logger.LogInformation(
+                        "[SteamLauncher] Successfully restored original {Exe}",
+                        executableName);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "[SteamLauncher] Target executable {Exe} is already genuine; removing stale backup {Backup}",
+                        executableName,
+                        backupPath);
+                    File.Delete(backupPath);
+                }
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[SteamLauncher] Restoring original {Exe} from backup into empty target slot",
+                    executableName);
+                File.Move(backupPath, targetExePath, overwrite: true);
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        if (File.Exists(targetExePath) && IsProxyLauncher(targetExePath, proxySourcePath))
+        {
+            var error =
+                $"Cannot restore '{targetExePath}' because its original backup is missing.";
+            _logger.LogError("[SteamLauncher] {Error}", error);
+            return OperationResult<bool>.CreateFailure(error);
+        }
+
+        _logger.LogDebug(
+            "[SteamLauncher] No backup found for {Exe}, skipping restoration",
+            executableName);
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task<IDisposable> AcquireInstallationMutationLockAsync(
@@ -450,9 +541,9 @@ public class SteamLauncher : ISteamLauncher
 
         var developmentPaths = new[]
         {
-            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Debug", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
-            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Release", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
-            Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0-windows", "GenHub.ProxyLauncher.exe")),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Debug", "net8.0-windows", "win-x64", ProxyLauncherExeName)),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Release", "net8.0-windows", "win-x64", ProxyLauncherExeName)),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0-windows", ProxyLauncherExeName)),
         };
 
         return developmentPaths.FirstOrDefault(File.Exists) ?? defaultPath;
@@ -525,20 +616,6 @@ public class SteamLauncher : ISteamLauncher
         return copies;
     }
 
-    private bool FilesAreEqual(string firstPath, string secondPath)
-    {
-        var firstInfo = new FileInfo(firstPath);
-        var secondInfo = new FileInfo(secondPath);
-        if (firstInfo.Length != secondInfo.Length)
-        {
-            return false;
-        }
-
-        using var firstStream = File.OpenRead(firstPath);
-        using var secondStream = File.OpenRead(secondPath);
-        return SHA256.HashData(firstStream).SequenceEqual(SHA256.HashData(secondStream));
-    }
-
     private sealed class SemaphoreReleaser(SemaphoreSlim semaphore) : IDisposable
     {
         private readonly SemaphoreSlim _semaphore = semaphore;
@@ -565,6 +642,7 @@ public class SteamLauncher : ISteamLauncher
         private readonly List<string> _mutatedFiles = [];
         private readonly HashSet<string> _temporaryFiles = new(PathComparer);
         private bool _backupCreated;
+        private bool _backupRefreshed;
         private bool _executableMutationStarted;
         private bool _targetInitiallyExisted;
         private string? _executableRestoreSource;
@@ -609,11 +687,18 @@ public class SteamLauncher : ISteamLauncher
 
             if (File.Exists(_backupPath))
             {
-                if (!FilesAreEqual(_targetExePath, _proxySourcePath))
+                var targetInfo = new FileInfo(_targetExePath);
+                if (!IsProxyLauncher(_targetExePath, _proxySourcePath) && targetInfo.Length > 0)
                 {
-                    throw new IOException(
-                        $"Refusing to use unverified pre-existing backup '{_backupPath}' while " +
-                        $"'{_targetExePath}' is not the GenHub proxy.");
+                    _executableRestoreSource = _executableSnapshotPath;
+                    var refreshStagingPath = CreateTemporaryPath(_backupPath);
+                    _temporaryFiles.Add(refreshStagingPath);
+                    File.Copy(_targetExePath, refreshStagingPath, overwrite: true);
+                    File.Move(refreshStagingPath, _backupPath, overwrite: true);
+                    _temporaryFiles.Remove(refreshStagingPath);
+                    _backupCreated = false;
+                    _backupRefreshed = true;
+                    return;
                 }
 
                 _executableRestoreSource = _backupPath;
@@ -764,7 +849,7 @@ public class SteamLauncher : ISteamLauncher
                     errors.Add($"Recovery file retained at '{path}'.");
                 }
 
-                if (_backupCreated && File.Exists(_backupPath))
+                if ((_backupCreated || _backupRefreshed) && File.Exists(_backupPath))
                 {
                     errors.Add($"Recovery backup retained at '{_backupPath}'.");
                 }
@@ -924,20 +1009,6 @@ public class SteamLauncher : ISteamLauncher
             File.Copy(sourcePath, stagingPath, overwrite: false);
             File.Move(stagingPath, destinationPath, overwrite: true);
             _temporaryFiles.Remove(stagingPath);
-        }
-
-        private bool FilesAreEqual(string firstPath, string secondPath)
-        {
-            var firstInfo = new FileInfo(firstPath);
-            var secondInfo = new FileInfo(secondPath);
-            if (firstInfo.Length != secondInfo.Length)
-            {
-                return false;
-            }
-
-            using var firstStream = File.OpenRead(firstPath);
-            using var secondStream = File.OpenRead(secondPath);
-            return SHA256.HashData(firstStream).SequenceEqual(SHA256.HashData(secondStream));
         }
 
         private string CreateTemporaryPath(string path)

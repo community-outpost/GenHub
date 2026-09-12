@@ -20,6 +20,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
@@ -170,6 +171,7 @@ public class MockUploadHistoryService : IUploadHistoryService
 /// <summary>
 /// Mock implementation of <see cref="IReplayDirectoryService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockReplayDirectoryService : IReplayDirectoryService
 {
     /// <inheritdoc/>
@@ -222,6 +224,69 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     public void RevealInExplorer(ReplayFile replay)
     {
     }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<GameProfile>> GetCompatibleProfilesForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default)
+    {
+        return Task.FromResult<IReadOnlyList<GameProfile>>(Array.Empty<GameProfile>());
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default)
+        => CreateProfileForReplayAsync(replay, customGameClient: null, customClientManifestId: null, ct);
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        GameClient? customGameClient,
+        string? customClientManifestId = null,
+        CancellationToken ct = default)
+    {
+        var mockProfile = new GameProfile
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = $"Demo Profile ({replay.FileName})",
+        };
+        return Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(mockProfile));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default)
+        => LaunchReplayAsync(replay, profileId: null, ct);
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        string? profileId,
+        CancellationToken ct = default)
+    {
+        var mockLaunchInfo = new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = profileId ?? replay.MatchingProfileId ?? Guid.NewGuid().ToString(),
+            WorkspaceId = Guid.NewGuid().ToString(),
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = "C:\\Mock\\generalszh.exe",
+                CommandLine = string.Empty,
+                WorkingDirectory = "C:\\Mock",
+            },
+        };
+        return Task.FromResult(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(mockLaunchInfo));
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default)
+    {
+        return Task.FromResult(false);
+    }
 }
 
 /// <summary>
@@ -263,6 +328,7 @@ public class MockReplayImportService : IReplayImportService
 /// <summary>
 /// Mock implementation of <see cref="IReplayExportService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockReplayExportService : IReplayExportService
 {
     /// <inheritdoc/>
@@ -281,6 +347,7 @@ public class MockReplayExportService : IReplayExportService
 /// <summary>
 /// Mock implementation of <see cref="IMapDirectoryService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockMapDirectoryService : IMapDirectoryService
 {
     /// <inheritdoc/>
@@ -412,6 +479,7 @@ public class MockMapImportService : IMapImportService
 /// <summary>
 /// Mock implementation of <see cref="IMapExportService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockMapExportService : IMapExportService
 {
     /// <inheritdoc/>
