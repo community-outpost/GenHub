@@ -29,7 +29,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
     private static readonly string[] IconExtensions = [".webp", ".png"];
 
     private readonly ConcurrentDictionary<GameType, IReadOnlyList<HotkeyFaction>> _cache = new();
-    private readonly ConcurrentDictionary<string, byte[]?> _iconCache = new();
+    private readonly ConcurrentDictionary<string, byte[]?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<HotkeyFaction>> LoadTechTreeAsync(
@@ -52,7 +52,17 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return [];
         }
 
-        var root = JsonSerializer.Deserialize<TechTreeRoot>(jsonString, JsonOptions);
+        TechTreeRoot? root;
+        try
+        {
+            root = JsonSerializer.Deserialize<TechTreeRoot>(jsonString, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to deserialize tech tree JSON for {GameType} from {Path}", gameType, relativePath);
+            return [];
+        }
+
         if (root?.TechTree == null)
         {
             return [];
@@ -93,7 +103,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return null;
         }
 
-        var profileDir = gameType == GameType.Generals ? "Generals" : "GeneralsZH";
+        var profileDir = GenHotkeysConstants.GetProfileDirectory(gameType);
         var cacheKey = $"{profileDir}/{iconName}";
 
         if (_iconCache.TryGetValue(cacheKey, out var cached))
@@ -104,7 +114,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         var searchDirs = new List<string> { profileDir };
         if (gameType == GameType.ZeroHour)
         {
-            searchDirs.Add("Generals");
+            searchDirs.Add(GenHotkeysConstants.ProfileDirectoryGenerals);
         }
 
         var candidateNames = BuildCandidateIconNames(iconName);
@@ -154,7 +164,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
                 {
                     foreach (var ext in IconExtensions)
                     {
-                        yield return $"Profiles/{dir}/Icons/{sub}{name}{ext}";
+                        yield return string.Format(GenHotkeysConstants.ProfileIconsPathPattern, dir, sub, name, ext);
                     }
                 }
             }
@@ -253,7 +263,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
     }
 
     private static string GetActionKey(TechTreeActionJson action) =>
-        action.HotkeyString ?? action.IconName;
+        string.IsNullOrEmpty(action.HotkeyString) ? action.IconName : action.HotkeyString;
 
     private static bool IsUpgradeVariant(HashSet<string> currentKeys, List<TechTreeActionJson> nextLayout)
     {

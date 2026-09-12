@@ -63,12 +63,13 @@ public class CommandMapFile
     }
 
     /// <summary>
-    /// Saves the CommandMap.ini to a stream.
+    /// Saves the CommandMap.ini to a stream without emitting a UTF-8 BOM,
+    /// as the SAGE INI parser does not support byte order marks.
     /// </summary>
     /// <param name="stream">The writable stream.</param>
     public void Save(Stream stream)
     {
-        using var writer = new StreamWriter(stream, Encoding.UTF8, leaveOpen: true);
+        using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), leaveOpen: true);
 
         foreach (var header in HeaderLines)
         {
@@ -88,21 +89,42 @@ public class CommandMapFile
         }
     }
 
+    /// <summary>
+    /// Finds or creates a CommandMap entry by its section name.
+    /// </summary>
+    /// <param name="name">The CommandMap section name.</param>
+    /// <returns>The matching or newly appended entry.</returns>
+    public CommandMapEntry GetOrCreateEntry(string name)
+    {
+        var existing = Entries.Find(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        var entry = new CommandMapEntry { Name = name };
+        Entries.Add(entry);
+        return entry;
+    }
+
     private static CommandMapEntry? ProcessLine(CommandMapFile map, CommandMapEntry? current, string line)
     {
         var trimmed = line.Trim();
 
         if (current == null)
         {
-            if (trimmed.StartsWith("CommandMap ", StringComparison.OrdinalIgnoreCase))
+            if (trimmed.StartsWith("CommandMap", StringComparison.OrdinalIgnoreCase))
             {
-                var name = trimmed[11..].Trim();
-                var entry = new CommandMapEntry { Name = name };
-                map.Entries.Add(entry);
-                return entry;
+                var parts = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                var name = parts.Length > 1 ? parts[1] : string.Empty;
+                return map.GetOrCreateEntry(name);
             }
 
-            map.HeaderLines.Add(line);
+            if (!string.IsNullOrWhiteSpace(line))
+            {
+                map.HeaderLines.Add(line);
+            }
+
             return null;
         }
 
@@ -111,12 +133,12 @@ public class CommandMapFile
             return null;
         }
 
-        var eqIdx = trimmed.IndexOf('=');
+        var eqIdx = line.IndexOf('=');
         if (eqIdx > 0)
         {
-            var propKey = trimmed[..eqIdx].Trim();
-            var propVal = trimmed[(eqIdx + 1)..].Trim();
-            current.Properties[propKey] = propVal;
+            var key = line[..eqIdx].Trim();
+            var val = line[(eqIdx + 1)..].Trim();
+            current.Properties[key] = val;
         }
 
         return current;

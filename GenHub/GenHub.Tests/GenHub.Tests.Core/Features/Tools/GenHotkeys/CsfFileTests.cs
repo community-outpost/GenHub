@@ -1,5 +1,4 @@
 using System.IO;
-using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Services.Tools.GenHotkeys;
 using Xunit;
@@ -56,6 +55,22 @@ public class CsfFileTests
         var result = CsfFile.StripHotkey(input);
         Assert.Equal(expected, result);
         Assert.Null(CsfFile.ExtractHotkey(result));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsfFile.SetHotkey"/> and <see cref="CsfFile.StripHotkey"/> preserve level suffixes such as "(3)".
+    /// </summary>
+    [Fact]
+    public void SetAndStripHotkey_PreservesLevelSuffixes()
+    {
+        const string input = "Artillery Barrage (3)";
+        var withHotkey = CsfFile.SetHotkey(input, 'A');
+        Assert.Equal("[&A] Artillery Barrage (3)", withHotkey);
+        Assert.Equal('A', CsfFile.ExtractHotkey(withHotkey));
+
+        var stripped = CsfFile.StripHotkey(withHotkey);
+        Assert.Equal("Artillery Barrage (3)", stripped);
+        Assert.Null(CsfFile.ExtractHotkey(stripped));
     }
 
     /// <summary>

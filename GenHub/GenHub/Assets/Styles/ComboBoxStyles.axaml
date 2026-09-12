@@ -14,7 +14,7 @@
 
     <!-- Base ComboBox Style -->
     <Style Selector="ComboBox">
-        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+        <Setter Property="Background" Value="{DynamicResource CardBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
@@ -58,7 +58,7 @@
                     <TextBlock x:Name="PlaceholderTextBlock"
                                Grid.Column="0"
                                Text="{TemplateBinding PlaceholderText}"
-                               Foreground="{DynamicResource TextTertiaryBrush}"
+                               Foreground="{DynamicResource TextMutedBrush}"
                                Margin="{TemplateBinding Padding}"
                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -68,7 +68,7 @@
                     <PathIcon x:Name="DropDownGlyph"
                               Grid.Column="1"
                               Data="M7 10l5 5 5-5z"
-                              Foreground="{DynamicResource TextTertiaryBrush}"
+                              Foreground="{DynamicResource TextMutedBrush}"
                               Width="14"
                               Height="14"
                               Margin="0,0,12,0"

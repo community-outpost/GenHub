@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
 /// <summary>
-/// Service for saving, loading, deleting, and managing persistent user hotkey profiles and presets.
+/// Service for persisting and managing user hotkey profiles and presets.
 /// </summary>
 public class HotkeyProfileStorageService(
     IAppConfiguration appConfig,
@@ -47,10 +47,15 @@ public class HotkeyProfileStorageService(
             {
                 var json = await File.ReadAllTextAsync(file, cancellationToken);
                 var profile = JsonSerializer.Deserialize<HotkeyProfile>(json, JsonOptions);
+                profile?.NormalizeComparers();
                 if (profile is { } p && p.TargetGame == gameType)
                 {
                     profiles.Add(p);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -85,7 +90,13 @@ public class HotkeyProfileStorageService(
         try
         {
             var json = await File.ReadAllTextAsync(filePath, cancellationToken);
-            return JsonSerializer.Deserialize<HotkeyProfile>(json, JsonOptions);
+            var profile = JsonSerializer.Deserialize<HotkeyProfile>(json, JsonOptions);
+            profile?.NormalizeComparers();
+            return profile;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -122,9 +133,17 @@ public class HotkeyProfileStorageService(
         var filePath = GetSafeProfilePath(profileId);
         if (File.Exists(filePath))
         {
-            File.Delete(filePath);
-            logger.LogInformation("Deleted hotkey profile {Id}", profileId);
-            return Task.FromResult(true);
+            try
+            {
+                File.Delete(filePath);
+                logger.LogInformation("Deleted hotkey profile {Id}", profileId);
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to delete hotkey profile {Id}", profileId);
+                return Task.FromResult(false);
+            }
         }
 
         return Task.FromResult(false);
@@ -136,38 +155,27 @@ public class HotkeyProfileStorageService(
         GameType gameType,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(presetName);
+
+        var profile = new HotkeyProfile
+        {
+            Name = $"{presetName} ({GenHotkeysConstants.GetGameDisplayName(gameType)})",
+            BasePreset = presetName,
+            TargetGame = gameType,
+            OverlayEnabled = true,
+            OverlayCorner = OverlayCorner.TopLeft,
+        };
+
+        // Determine preset CSF asset
+        var presetCsfPath = presetName.Equals(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
+            ? GenHotkeysConstants.PresetsLegionnaireRu
+            : GenHotkeysConstants.PresetsLeikezeEn;
+
         return await Task.Run(
             () =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var profile = new HotkeyProfile
-                {
-                    Name = $"{presetName} Preset",
-                    BasePreset = presetName,
-                    TargetGame = gameType,
-                    OverlayEnabled = true,
-                    OverlayCorner = OverlayCorner.TopLeft,
-                };
-
-                if (string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase) ||
-                    presetName.Contains(GenHotkeysConstants.DefaultPresetKeyword, StringComparison.OrdinalIgnoreCase))
-                {
-                    return profile;
-                }
-
-                var assetPath = presetName.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
-                    ? GenHotkeysConstants.PresetsLegionnaireRu
-                    : GenHotkeysConstants.PresetsLeikezeEn;
-
-                var stream = GenHotkeysAssetLoader.TryOpenAssetStream(assetPath);
-                if (stream == null)
-                {
-                    logger.LogWarning("Preset file not found: {Path}", assetPath);
-                    return profile;
-                }
-
-                using (stream)
+                using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetCsfPath);
+                if (stream != null)
                 {
                     var csf = CsfFile.Load(stream);
                     foreach (var (label, value) in csf.Strings)
@@ -191,10 +199,10 @@ public class HotkeyProfileStorageService(
 
     private static HotkeyProfile CreateDefaultProfile(GameType gameType)
     {
-        var gameTag = gameType == GameType.Generals ? "Generals" : "Zero Hour";
+        var gameDisplayName = GenHotkeysConstants.GetGameDisplayName(gameType);
         return new HotkeyProfile
         {
-            Name = $"Default ({gameTag})",
+            Name = $"Default ({gameDisplayName})",
             BasePreset = GenHotkeysConstants.PresetVanilla,
             TargetGame = gameType,
             OverlayEnabled = true,

@@ -2,8 +2,8 @@ using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Features.Tools.GenHotkeys.Services;
 
 namespace GenHub.Features.Tools.GenHotkeys.Converters;
 
@@ -49,10 +49,9 @@ public class FactionToImageConverter : IValueConverter
     {
         try
         {
-            var uri = new Uri($"avares://GenHub/Assets/Icons/Factions/{filename}");
-            if (AssetLoader.Exists(uri))
+            using var stream = GenHotkeysAssetLoader.TryOpenFactionIconStream(filename);
+            if (stream != null)
             {
-                using var stream = AssetLoader.Open(uri);
                 return new Bitmap(stream);
             }
         }
