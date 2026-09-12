@@ -94,6 +94,20 @@ public class Program
             bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
         }
 
+        // Check for duplicate installation collision: if running from default %LOCALAPPDATA%
+        // but a custom installation was previously registered or recorded.
+        var registeredCustom = Features.Storage.WindowsInstallationTracker.GetRegisteredCustomInstallPathStatic(bootstrapLogger);
+        if (Common.Services.StorageMigrationService.HasDuplicateInstallationConflict(registeredCustom, out var detectedCustomPath))
+        {
+            bootstrapLogger.LogWarning(
+                "Duplicate installation detected: GenHub is running from default location '{ProcessPath}', but a valid custom installation exists at '{CustomPath}'",
+                Environment.ProcessPath,
+                detectedCustomPath);
+        }
+
+        // Record custom installation location in registry if running outside default root
+        Features.Storage.WindowsInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
+
         // Register the genhub:// URI scheme with Windows so clicked links open this executable.
         // Registered for primary instance only; idempotent and per-user (HKCU).
         Features.Shortcuts.UriSchemeRegistrar.Register(bootstrapLogger);

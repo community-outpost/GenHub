@@ -14,6 +14,7 @@ using GenHub.Windows.Features.ActionSets.Infrastructure;
 using GenHub.Windows.Features.ActionSets.UI;
 using GenHub.Windows.Features.GitHub.Services;
 using GenHub.Windows.Features.Shortcuts;
+using GenHub.Windows.Features.Storage;
 using GenHub.Windows.Features.Workspace;
 using GenHub.Windows.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,6 +44,7 @@ public static class WindowsServicesModule
         services.AddSingleton<ISymlinkCapabilityProvider, WindowsSymlinkCapabilityProvider>();
         services.AddSingleton<IGitHubTokenStorage, WindowsGitHubTokenStorage>();
         services.AddSingleton<IShortcutService, WindowsShortcutService>();
+        services.AddSingleton<IInstallationLocationTracker, WindowsInstallationTracker>();
 
         // Register WindowsFileOperationsService with factory to avoid circular dependency
         services.AddScoped<IFileOperationsService>(serviceProvider =>

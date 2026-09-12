@@ -293,6 +293,178 @@ public class StorageMigrationService(
     }
 
     /// <summary>
+    /// Checks whether a duplicate installation conflict exists where the current instance is running
+    /// from the default install root, but a valid custom installation exists elsewhere.
+    /// </summary>
+    /// <param name="candidateCustomPath">The candidate custom installation directory.</param>
+    /// <param name="detectedCustomPath">The resolved valid custom installation path if detected.</param>
+    /// <returns><see langword="true"/> if a valid custom installation exists elsewhere while running from default; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasDuplicateInstallationConflict(string? candidateCustomPath, out string? detectedCustomPath)
+    {
+        detectedCustomPath = null;
+        if (IsCustomInstallRoot() || string.IsNullOrWhiteSpace(candidateCustomPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var currentRoot = GetSourceRootDirectory();
+            var normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(candidateCustomPath));
+
+            if (PathHelper.AreSamePath(currentRoot, normalizedCandidate))
+            {
+                return false;
+            }
+
+            if (Directory.Exists(normalizedCandidate) && IsVelopackRoot(normalizedCandidate))
+            {
+                detectedCustomPath = normalizedCandidate;
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if the specified root directory contains existing user configuration, game profiles, or workspaces.
+    /// </summary>
+    /// <param name="rootPath">The root directory to inspect.</param>
+    /// <returns><see langword="true"/> if existing user data is present; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasExistingUserData(string? rootPath)
+    {
+        if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (File.Exists(Path.Combine(rootPath, FileTypes.SettingsFileName)))
+            {
+                return true;
+            }
+
+            var profilesDir = Path.Combine(rootPath, DirectoryNames.Profiles);
+            if (Directory.Exists(profilesDir) && Directory.EnumerateFileSystemEntries(profilesDir).Any())
+            {
+                return true;
+            }
+
+            var casDir = Path.Combine(rootPath, DirectoryNames.CasPool);
+            if (Directory.Exists(casDir) && Directory.EnumerateFileSystemEntries(casDir).Any())
+            {
+                return true;
+            }
+
+            var workspacesDir = Path.Combine(rootPath, DirectoryNames.Workspaces);
+            if (Directory.Exists(workspacesDir) && Directory.EnumerateFileSystemEntries(workspacesDir).Any())
+            {
+                return true;
+            }
+
+            var manifestsDir = Path.Combine(rootPath, FileTypes.ManifestsDirectory);
+            if (Directory.Exists(manifestsDir) && Directory.EnumerateFileSystemEntries(manifestsDir).Any())
+            {
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Adopts user data from an existing custom directory installation into the current target installation root.
+    /// Copies settings.json, Profiles, Workspaces, and custom manifests if they do not already exist in the target.
+    /// </summary>
+    /// <param name="customRoot">The custom installation root directory to import from.</param>
+    /// <param name="targetRoot">The target installation root directory.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <returns><see langword="true"/> if data was imported; otherwise, <see langword="false"/>.</returns>
+    internal static bool TryImportUserDataFromCustomInstall(string customRoot, string targetRoot, ILogger? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
+            !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var importedAny = false;
+            var settingsSrc = Path.Combine(customRoot, FileTypes.SettingsFileName);
+            var settingsDest = Path.Combine(targetRoot, FileTypes.SettingsFileName);
+
+            if (File.Exists(settingsSrc) && !File.Exists(settingsDest))
+            {
+                File.Copy(settingsSrc, settingsDest, overwrite: false);
+                importedAny = true;
+                logger?.LogInformation("Imported settings from custom installation: {Src} -> {Dest}", settingsSrc, settingsDest);
+            }
+
+            var dirsToCopy = new[]
+            {
+                DirectoryNames.Profiles,
+                DirectoryNames.Workspaces,
+                FileTypes.ManifestsDirectory,
+                DirectoryNames.UserData,
+            };
+
+            foreach (var dirName in dirsToCopy)
+            {
+                var srcDir = Path.Combine(customRoot, dirName);
+                var destDir = Path.Combine(targetRoot, dirName);
+                if (Directory.Exists(srcDir) && (!Directory.Exists(destDir) || !Directory.EnumerateFileSystemEntries(destDir).Any()))
+                {
+                    CopyDirectoryRecursive(srcDir, destDir);
+                    importedAny = true;
+                    logger?.LogInformation("Imported {Directory} from custom installation: {Src} -> {Dest}", dirName, srcDir, destDir);
+                }
+            }
+
+            return importedAny;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Checks whether a path is equal to or contained within a parent directory.
     /// </summary>
     /// <param name="path">The path to test.</param>
