@@ -922,6 +922,50 @@ public class AddLocalContentViewModelTests : IDisposable
         Assert.Contains("Normalized 2 file(s)", vm.StatusMessage);
     }
 
+    /// <summary>
+    /// Verifies that when normalization succeeds with skipped files, the status message reports the skipped count.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenNormalizationHasSkippedFiles_ReportsSkippedCountInStatusMessageAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        var ctrFile = Path.Combine(tempDir, "unknown.ctr");
+        await File.WriteAllTextAsync(ctrFile, "dummy");
+
+        var detectionResult = new GenLauncherDetectionResult
+        {
+            HasGenLauncherFiles = true,
+            CtrFiles = [ctrFile],
+        };
+
+        _normalizationServiceMock
+            .Setup(x => x.DetectGenLauncherFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(detectionResult);
+
+        _dialogServiceMock
+            .Setup(x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey))
+            .ReturnsAsync(true);
+
+        _normalizationServiceMock
+            .Setup(x => x.NormalizeFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GenLauncherNormalizationResult>.CreateSuccess(new GenLauncherNormalizationResult
+            {
+                NormalizedCount = 0,
+                SkippedFiles = [ctrFile],
+            }));
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.Contains("0 file(s); 1 skipped. Import successful.", vm.StatusMessage);
+    }
+
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)
     {
         foreach (var item in items)

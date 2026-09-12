@@ -96,34 +96,7 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
             }
 
             // Remove symbolic links (both files and directories, including dangling links)
-            foreach (var symlink in detection.SymbolicLinks)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var attributes = File.GetAttributes(symlink);
-
-                    // Check if it's a directory symlink using reparse-point metadata rather than target existence
-                    if (attributes.HasFlag(FileAttributes.Directory))
-                    {
-                        Directory.Delete(symlink);
-                        result.SymbolicLinksRemoved++;
-                        logger.LogInformation("Removed directory symbolic link: {DirectoryPath}", symlink);
-                    }
-                    else
-                    {
-                        File.Delete(symlink);
-                        result.SymbolicLinksRemoved++;
-                        logger.LogInformation("Removed file symbolic link: {FilePath}", symlink);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to remove symbolic link: {FilePath}", symlink);
-                    result.FailedFiles.Add(symlink);
-                }
-            }
+            RemoveSymbolicLinks(detection.SymbolicLinks, result, cancellationToken);
 
             // Remove suffixes from .GLR, .GOF, .GLTC files and directories.
             var suffixItems = detection.GlrFiles
@@ -135,130 +108,16 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
             var suffixFiles = suffixItems.Where(File.Exists).ToList();
             var suffixDirectories = suffixItems.Where(Directory.Exists).OrderByDescending(d => d.Length).ToList();
 
-            foreach (var suffixFile in suffixFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var normalizedName = RemoveSuffix(suffixFile);
-                    if (normalizedName != suffixFile)
-                    {
-                        var ext = Path.GetExtension(normalizedName);
-                        if (ext.Equals(GenLauncherConstants.CtrExtension, StringComparison.OrdinalIgnoreCase))
-                        {
-                            string? targetDestination = null;
-                            if (ExecutableFileClassifier.HasExecutableMagicBytes(suffixFile))
-                            {
-                                targetDestination = Path.ChangeExtension(normalizedName, GenLauncherConstants.ExeExtension);
-                            }
-                            else if (BigArchiveClassifier.IsBigArchiveFile(suffixFile))
-                            {
-                                targetDestination = Path.ChangeExtension(normalizedName, GenLauncherConstants.BigExtension);
-                            }
-
-                            if (targetDestination != null && (File.Exists(targetDestination) || Directory.Exists(targetDestination)))
-                            {
-                                logger.LogWarning(
-                                    "Skipping .ctr normalization for {OriginalFile}: target {Destination} already exists. Manual resolution required.",
-                                    suffixFile,
-                                    targetDestination);
-                                result.FailedFiles.Add(suffixFile);
-                                continue;
-                            }
-                        }
-                        else if (ext.Equals(GenLauncherConstants.GibExtension, StringComparison.OrdinalIgnoreCase))
-                        {
-                            var targetBig = Path.ChangeExtension(normalizedName, GenLauncherConstants.BigExtension);
-                            if (File.Exists(targetBig) || Directory.Exists(targetBig))
-                            {
-                                logger.LogWarning(
-                                    "Skipping .gib → .big conversion for {OriginalFile}: target {BigFile} already exists. Manual resolution required.",
-                                    suffixFile,
-                                    targetBig);
-                                result.FailedFiles.Add(suffixFile);
-                                continue;
-                            }
-                        }
-
-                        // Check if destination exists (file or directory) - skip to avoid data loss
-                        if (File.Exists(normalizedName) || Directory.Exists(normalizedName))
-                        {
-                            logger.LogWarning(
-                                "Skipping suffix removal for {OriginalFile}: target {NormalizedFile} already exists. Manual resolution required.",
-                                suffixFile,
-                                normalizedName);
-                            result.FailedFiles.Add(suffixFile);
-                            continue;
-                        }
-
-                        File.Move(suffixFile, normalizedName);
-                        result.NormalizedCount++;
-                        logger.LogInformation("Normalized {OriginalFile} to {NormalizedFile}", suffixFile, normalizedName);
-
-                        if (Path.GetExtension(normalizedName).Equals(GenLauncherConstants.GibExtension, StringComparison.OrdinalIgnoreCase))
-                        {
-                            TryConvertGibToBig(normalizedName, result);
-                        }
-                        else if (Path.GetExtension(normalizedName).Equals(GenLauncherConstants.CtrExtension, StringComparison.OrdinalIgnoreCase))
-                        {
-                            TryNormalizeCtr(normalizedName, result);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to normalize file: {FilePath}", suffixFile);
-                    result.FailedFiles.Add(suffixFile);
-                }
-            }
+            NormalizeSuffixFiles(suffixFiles, result, cancellationToken);
 
             // Convert standalone .gib files to .big before directory moves so file paths remain valid during conversion
-            foreach (var gibFile in detection.GibFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                TryConvertGibToBig(gibFile, result);
-            }
+            ConvertGibFiles(detection.GibFiles, result, cancellationToken);
 
             // Normalize .ctr files by content before directory moves so file paths remain valid during conversion
-            foreach (var ctrFile in detection.CtrFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                TryNormalizeCtr(ctrFile, result);
-            }
+            NormalizeCtrFiles(detection.CtrFiles, result, cancellationToken);
 
             // Normalize matching directories after file conversions
-            foreach (var suffixDir in suffixDirectories)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var normalizedName = RemoveSuffix(suffixDir);
-                    if (normalizedName != suffixDir)
-                    {
-                        // Check if destination exists (directory or file) - skip to avoid data loss
-                        if (Directory.Exists(normalizedName) || File.Exists(normalizedName))
-                        {
-                            logger.LogWarning(
-                                "Skipping suffix removal for directory {OriginalDir}: target {NormalizedDir} already exists. Manual resolution required.",
-                                suffixDir,
-                                normalizedName);
-                            result.FailedFiles.Add(suffixDir);
-                            continue;
-                        }
-
-                        Directory.Move(suffixDir, normalizedName);
-                        result.NormalizedCount++;
-                        logger.LogInformation("Normalized directory {OriginalDir} to {NormalizedDir}", suffixDir, normalizedName);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to normalize directory: {DirectoryPath}", suffixDir);
-                    result.FailedFiles.Add(suffixDir);
-                }
-            }
+            NormalizeSuffixDirectories(suffixDirectories, result, cancellationToken);
 
             logger.LogInformation(
                 "Normalization complete. Normalized: {NormalizedCount}, Symlinks removed: {SymlinksRemoved}, Failed: {FailedCount}",
@@ -295,6 +154,204 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         }
 
         return filePath;
+    }
+
+    private void RemoveSymbolicLinks(
+        IEnumerable<string> symbolicLinks,
+        GenLauncherNormalizationResult result,
+        CancellationToken cancellationToken)
+    {
+        foreach (var symlink in symbolicLinks)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var attributes = File.GetAttributes(symlink);
+
+                // Check if it's a directory symlink using reparse-point metadata rather than target existence
+                if (attributes.HasFlag(FileAttributes.Directory))
+                {
+                    Directory.Delete(symlink);
+                    result.SymbolicLinksRemoved++;
+                    logger.LogInformation("Removed directory symbolic link: {DirectoryPath}", symlink);
+                }
+                else
+                {
+                    File.Delete(symlink);
+                    result.SymbolicLinksRemoved++;
+                    logger.LogInformation("Removed file symbolic link: {FilePath}", symlink);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to remove symbolic link: {FilePath}", symlink);
+                result.FailedFiles.Add(symlink);
+            }
+        }
+    }
+
+    private void NormalizeSuffixFiles(
+        IEnumerable<string> suffixFiles,
+        GenLauncherNormalizationResult result,
+        CancellationToken cancellationToken)
+    {
+        foreach (var suffixFile in suffixFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var normalizedName = RemoveSuffix(suffixFile);
+                if (normalizedName == suffixFile)
+                {
+                    continue;
+                }
+
+                if (HasSuffixedDestinationCollision(suffixFile, normalizedName, result))
+                {
+                    continue;
+                }
+
+                File.Move(suffixFile, normalizedName);
+                result.NormalizedCount++;
+                logger.LogInformation("Normalized {OriginalFile} to {NormalizedFile}", suffixFile, normalizedName);
+
+                if (Path.GetExtension(normalizedName).Equals(GenLauncherConstants.GibExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    TryConvertGibToBig(normalizedName, result);
+                }
+                else if (Path.GetExtension(normalizedName).Equals(GenLauncherConstants.CtrExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    TryNormalizeCtr(normalizedName, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to normalize file: {FilePath}", suffixFile);
+                result.FailedFiles.Add(suffixFile);
+            }
+        }
+    }
+
+    private bool HasSuffixedDestinationCollision(
+        string suffixFile,
+        string normalizedName,
+        GenLauncherNormalizationResult result)
+    {
+        var ext = Path.GetExtension(normalizedName);
+        if (ext.Equals(GenLauncherConstants.CtrExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            string? targetDestination = null;
+            if (ExecutableFileClassifier.HasExecutableMagicBytes(suffixFile))
+            {
+                targetDestination = Path.ChangeExtension(normalizedName, GenLauncherConstants.ExeExtension);
+            }
+            else if (BigArchiveClassifier.IsBigArchiveFile(suffixFile))
+            {
+                targetDestination = Path.ChangeExtension(normalizedName, GenLauncherConstants.BigExtension);
+            }
+
+            if (targetDestination != null && (File.Exists(targetDestination) || Directory.Exists(targetDestination)))
+            {
+                logger.LogWarning(
+                    "Skipping .ctr normalization for {OriginalFile}: target {Destination} already exists. Manual resolution required.",
+                    suffixFile,
+                    targetDestination);
+                result.FailedFiles.Add(suffixFile);
+                return true;
+            }
+        }
+        else if (ext.Equals(GenLauncherConstants.GibExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            var targetBig = Path.ChangeExtension(normalizedName, GenLauncherConstants.BigExtension);
+            if (File.Exists(targetBig) || Directory.Exists(targetBig))
+            {
+                logger.LogWarning(
+                    "Skipping .gib → .big conversion for {OriginalFile}: target {BigFile} already exists. Manual resolution required.",
+                    suffixFile,
+                    targetBig);
+                result.FailedFiles.Add(suffixFile);
+                return true;
+            }
+        }
+
+        // Check if destination exists (file or directory) - skip to avoid data loss
+        if (File.Exists(normalizedName) || Directory.Exists(normalizedName))
+        {
+            logger.LogWarning(
+                "Skipping suffix removal for {OriginalFile}: target {NormalizedFile} already exists. Manual resolution required.",
+                suffixFile,
+                normalizedName);
+            result.FailedFiles.Add(suffixFile);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ConvertGibFiles(
+        IEnumerable<string> gibFiles,
+        GenLauncherNormalizationResult result,
+        CancellationToken cancellationToken)
+    {
+        foreach (var gibFile in gibFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TryConvertGibToBig(gibFile, result);
+        }
+    }
+
+    private void NormalizeCtrFiles(
+        IEnumerable<string> ctrFiles,
+        GenLauncherNormalizationResult result,
+        CancellationToken cancellationToken)
+    {
+        foreach (var ctrFile in ctrFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TryNormalizeCtr(ctrFile, result);
+        }
+    }
+
+    private void NormalizeSuffixDirectories(
+        IEnumerable<string> suffixDirectories,
+        GenLauncherNormalizationResult result,
+        CancellationToken cancellationToken)
+    {
+        foreach (var suffixDir in suffixDirectories)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var normalizedName = RemoveSuffix(suffixDir);
+                if (normalizedName == suffixDir)
+                {
+                    continue;
+                }
+
+                // Check if destination exists (directory or file) - skip to avoid data loss
+                if (Directory.Exists(normalizedName) || File.Exists(normalizedName))
+                {
+                    logger.LogWarning(
+                        "Skipping suffix removal for directory {OriginalDir}: target {NormalizedDir} already exists. Manual resolution required.",
+                        suffixDir,
+                        normalizedName);
+                    result.FailedFiles.Add(suffixDir);
+                    continue;
+                }
+
+                Directory.Move(suffixDir, normalizedName);
+                result.NormalizedCount++;
+                logger.LogInformation("Normalized directory {OriginalDir} to {NormalizedDir}", suffixDir, normalizedName);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to normalize directory: {DirectoryPath}", suffixDir);
+                result.FailedFiles.Add(suffixDir);
+            }
+        }
     }
 
     private void ScanDirectory(string directoryPath, GenLauncherDetectionResult result, CancellationToken cancellationToken)

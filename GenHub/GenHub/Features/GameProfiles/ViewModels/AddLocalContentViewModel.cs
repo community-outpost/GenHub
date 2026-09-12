@@ -440,20 +440,43 @@ public partial class AddLocalContentViewModel(
                             if (normalizationResult.Success)
                             {
                                 var result = normalizationResult.Data;
-                                StatusMessage = result.IsFullySuccessful
-                                    ? $"Normalized {result.NormalizedCount} file(s). Import successful."
-                                    : $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+                                if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
+                                {
+                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import successful.";
+                                }
+                                else if (result.FailedFiles.Count > 0)
+                                {
+                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+                                }
+                                else if (result.SkippedFiles.Count > 0)
+                                {
+                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import successful.";
+                                }
+                                else
+                                {
+                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s). Import successful.";
+                                }
+
                                 normalizationSetStatus = true;
                                 logger?.LogInformation(
-                                    "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
+                                    "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed, {SkippedCount} skipped, {FailedCount} failed",
                                     result.NormalizedCount,
-                                    result.SymbolicLinksRemoved);
+                                    result.SymbolicLinksRemoved,
+                                    result.SkippedFiles.Count,
+                                    result.FailedFiles.Count);
 
                                 if (!result.IsFullySuccessful)
                                 {
                                     logger?.LogWarning(
                                         "Some files failed to normalize: {FailedFiles}",
                                         string.Join(", ", result.FailedFiles));
+                                }
+
+                                if (result.SkippedFiles.Count > 0)
+                                {
+                                    logger?.LogInformation(
+                                        "Some files were skipped during normalization: {SkippedFiles}",
+                                        string.Join(", ", result.SkippedFiles));
                                 }
                             }
                             else
