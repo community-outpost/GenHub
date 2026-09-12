@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -10,6 +11,7 @@ using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -17,7 +19,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 
@@ -28,16 +29,11 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "CNC Labs domain casing")]
 public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDiscoverer> logger) : IContentDiscoverer
 {
-    private static readonly char[] TagSeparator = [',', ';', ' '];
-
-    [GeneratedRegex(@"(?:Date submitted|Date reviewed|Date added|Date updated|Added|Updated|reviewed):\s*(\d{1,2}/\d{1,2}/\d{4})", RegexOptions.IgnoreCase)]
-    private static partial Regex DateRegex();
-
-    [GeneratedRegex(@"(?:File Size|Size):\s*([\d\.]+\s*[KMGT]?B)", RegexOptions.IgnoreCase)]
-    private static partial Regex FileSizeRegex();
-
-    [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex DownloadCountRegex();
+
+    [GeneratedRegex(@"/downloads/details/(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex DetailsIdRegex();
 
     /// <summary>
     /// Gets the source name for this discoverer.
@@ -86,9 +82,16 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var (discoveredMaps, hasMoreItems) = !string.IsNullOrWhiteSpace(query.SearchTerm)
-                       ? await SearchByTextAsync(query.SearchTerm, cancellationToken).ConfigureAwait(false)
-                       : await SearchByFiltersAsync(query, cancellationToken).ConfigureAwait(false);
+            var (discoveredMaps, hasMoreItems) = await SearchByFiltersAsync(query, cancellationToken).ConfigureAwait(false);
+
+            if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+            {
+                discoveredMaps = discoveredMaps
+                    .Where(m => (m.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true) ||
+                                (m.Description?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true) ||
+                                (m.Author?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true))
+                    .ToList();
+            }
 
             var results = discoveredMaps.Select(map => new ContentSearchResult
             {
@@ -126,6 +129,8 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                 {
                     res.Tags.Add(tag);
                 }
+
+                ContentCardBadgeHelper.PromoteFromTags(res);
             }
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
@@ -141,333 +146,79 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         }
     }
 
-    private static DateTime ParseLastUpdatedDate(IDocument document, string docText)
+    private static MapListItem? ParseMapListItem(IElement item, ContentSearchQuery query)
     {
-        var dateLabels = new[] { "Updated:", "Added:", "Submitted:", "reviewed:", "Date:" };
-        foreach (var label in dateLabels)
-        {
-            var dateEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
-            if (dateEl != null)
-            {
-                var dateText = CNCLabsHelper.GetNextNonEmptyTextSibling(dateEl);
-                if (!string.IsNullOrWhiteSpace(dateText) && DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
-                {
-                    return parsedDate;
-                }
-            }
-        }
-
-        var dateMatch = DateRegex().Match(docText);
-        if (dateMatch.Success && DateTime.TryParse(dateMatch.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-        {
-            return date;
-        }
-
-        return DateTime.MinValue;
-    }
-
-    private static string? ParseFileSize(IDocument document, string docText)
-    {
-        var sizeMatch = FileSizeRegex().Match(docText);
-        if (sizeMatch.Success)
-        {
-            return sizeMatch.Groups[1].Value.Trim();
-        }
-
-        var sizeLabels = new[] { "File Size:", "Size:" };
-        foreach (var label in sizeLabels)
-        {
-            var sizeEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
-            if (sizeEl != null)
-            {
-                var fileSize = CNCLabsHelper.GetNextNonEmptyTextSibling(sizeEl);
-                if (!string.IsNullOrEmpty(fileSize))
-                {
-                    return fileSize;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static long? ParseDownloadCount(string docText)
-    {
-        var downloadMatch = DownloadCountRegex().Match(docText);
-        if (downloadMatch.Success)
-        {
-            var valGroup = !string.IsNullOrEmpty(downloadMatch.Groups[1].Value) ? 1 : 2;
-            var val = downloadMatch.Groups[valGroup].Value;
-            if (long.TryParse(val.Replace(",", string.Empty, StringComparison.Ordinal), out var dl))
-            {
-                return dl;
-            }
-        }
-
-        return null;
-    }
-
-    private static string? ParsePreviewImage(IDocument document)
-    {
-        var mainImage = document.QuerySelector("#ctl00_MainContent_Image1") ?? document.QuerySelector(".screenshot img") ?? document.QuerySelector("img[src*='preview']");
-        if (mainImage != null)
-        {
-            var src = mainImage.GetAttribute("src");
-            if (!string.IsNullOrEmpty(src))
-            {
-                return src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                    ? src
-                    : new Uri(new Uri("https://www.cnclabs.com"), src).ToString();
-            }
-        }
-
-        return null;
-    }
-
-    private static List<string> ParseTags(string docText)
-    {
-        var tags = new List<string>();
-        var taggedAsIdx = docText.IndexOf("Tagged as:", StringComparison.OrdinalIgnoreCase);
-        if (taggedAsIdx != -1)
-        {
-            var tagLineEnd = docText.IndexOf('\n', taggedAsIdx);
-            if (tagLineEnd == -1)
-            {
-                tagLineEnd = docText.Length;
-            }
-
-            var tagLine = docText[(taggedAsIdx + "Tagged as:".Length)..tagLineEnd].Trim();
-            var parts = tagLine.Split(TagSeparator, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var part in parts)
-            {
-                var t = part.Trim();
-                if (!string.IsNullOrEmpty(t))
-                {
-                    tags.Add(t);
-                }
-            }
-        }
-
-        return tags;
-    }
-
-    private static (DateTime? LastUpdated, long? DlCount, string? FSize) ExtractSearchItemMetadata(IElement item)
-    {
-        var strongs = item.QuerySelectorAll("strong");
-        var lastUpdated = ExtractMetadataDate(strongs, item.TextContent);
-        var dlCount = ExtractMetadataDownloads(strongs);
-        var fSize = ExtractMetadataSize(strongs);
-        return (lastUpdated, dlCount, fSize);
-    }
-
-    private static DateTime? ExtractMetadataDate(IEnumerable<IElement> strongs, string textContent)
-    {
-        foreach (var s in strongs)
-        {
-            var label = s.TextContent?.Trim();
-            if (label is not null && (label.Contains("Updated:", StringComparison.OrdinalIgnoreCase) ||
-                                      label.Contains("Added:", StringComparison.OrdinalIgnoreCase) ||
-                                      label.Contains("Date:", StringComparison.OrdinalIgnoreCase)))
-            {
-                var val = CNCLabsHelper.GetNextNonEmptyTextSibling(s);
-                if (!string.IsNullOrWhiteSpace(val) && DateTime.TryParse(val, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
-                {
-                    return d;
-                }
-            }
-        }
-
-        if (!string.IsNullOrEmpty(textContent))
-        {
-            var match = DateRegex().Match(textContent);
-            if (match.Success && DateTime.TryParse(match.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fallbackDate))
-            {
-                return fallbackDate;
-            }
-        }
-
-        return null;
-    }
-
-    private static long? ExtractMetadataDownloads(IEnumerable<IElement> strongs)
-    {
-        foreach (var s in strongs)
-        {
-            var label = s.TextContent?.Trim();
-            if (label is not null && (label.Contains("Downloads:", StringComparison.OrdinalIgnoreCase) ||
-                                      label.Contains("Downloaded:", StringComparison.OrdinalIgnoreCase)))
-            {
-                var val = CNCLabsHelper.GetNextNonEmptyTextSibling(s);
-                if (!string.IsNullOrWhiteSpace(val))
-                {
-                    val = val.Replace(",", string.Empty, StringComparison.Ordinal).Trim();
-                    if (long.TryParse(val, out var dl))
-                    {
-                        return dl;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static string? ExtractMetadataSize(IEnumerable<IElement> strongs)
-    {
-        foreach (var s in strongs)
-        {
-            var label = s.TextContent?.Trim();
-            if (label is not null && label.Contains("Size:", StringComparison.OrdinalIgnoreCase))
-            {
-                var val = CNCLabsHelper.GetNextNonEmptyTextSibling(s);
-                if (!string.IsNullOrWhiteSpace(val))
-                {
-                    return val.Trim();
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static MapListItem? ParseSearchListItem(IElement item, ContentSearchQuery query)
-    {
-        var idValue = item.QuerySelector(CNCLabsConstants.FileIdHiddenSelector)?.GetAttribute(CNCLabsConstants.ValueAttribute);
-        if (string.IsNullOrWhiteSpace(idValue) || !int.TryParse(idValue, out var id))
+        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
+        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
+        var name = nameAnchor?.TextContent?.Trim();
+        if (string.IsNullOrWhiteSpace(detailsHref) || string.IsNullOrWhiteSpace(name))
         {
             return null;
         }
 
-        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
-        var name = nameAnchor?.TextContent?.Trim();
-        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
-
-        string? description = null;
-        var descEl = item.QuerySelector(CNCLabsConstants.DescriptionSelector);
-        if (descEl != null)
+        var idMatch = DetailsIdRegex().Match(detailsHref);
+        if (!idMatch.Success || !int.TryParse(idMatch.Groups[1].Value, out var id))
         {
-            description = CNCLabsHelper.NormalizeHtmlDescription(descEl.InnerHtml);
+            return null;
         }
 
-        var authorStrong = item.QuerySelectorAll(CNCLabsConstants.DescriptionCellStrongSelector)
-            .FirstOrDefault(s => string.Equals(
-                s.TextContent?.Trim(),
-                CNCLabsConstants.AuthorLabelText,
-                StringComparison.OrdinalIgnoreCase));
+        detailsHref = new Uri(new Uri(CNCLabsConstants.PublisherWebsite), detailsHref).ToString();
 
-        var author = CNCLabsHelper.GetNextNonEmptyTextSibling(authorStrong);
-        var (lastUpdated, dlCount, fSize) = ExtractSearchItemMetadata(item);
-        var imgUrl = ExtractScreenshotUrl(item);
+        var description = CNCLabsHelper.NormalizeHtmlDescription(
+            item.QuerySelector(CNCLabsConstants.DescriptionSelector)?.InnerHtml) ?? string.Empty;
 
-        return new MapListItem(
-            id,
-            name ?? string.Empty,
-            description ?? string.Empty,
-            author ?? CNCLabsConstants.DefaultAuthorName,
-            detailsHref ?? string.Empty,
-            query.TargetGame,
-            query.ContentType,
-            lastUpdated ?? DateTime.MinValue,
-            dlCount,
-            fSize,
-            imgUrl,
-            []);
+        var author = item.QuerySelectorAll("span")
+            .FirstOrDefault(s => s.QuerySelector(CNCLabsConstants.PersonIconSelector) != null)?
+            .TextContent?.Trim();
+
+        long? dlCount = null;
+        var dlSpan = item.QuerySelectorAll("span")
+            .FirstOrDefault(s => s.QuerySelector(CNCLabsConstants.DownloadIconSelector) != null);
+        var dlMatch = DownloadCountRegex().Match(dlSpan?.TextContent ?? string.Empty);
+        if (dlMatch.Success && long.TryParse(dlMatch.Groups[1].Value.Replace(",", string.Empty), out var dl))
+        {
+            dlCount = dl;
+        }
+
+        var fSize = item.QuerySelector(CNCLabsConstants.FileSizeSelector)?.TextContent?.Trim();
+
+        string? imgUrl = null;
+        var img = item.QuerySelector(CNCLabsConstants.ThumbnailSelector);
+        var src = img?.GetAttribute("src");
+        if (!string.IsNullOrEmpty(src))
+        {
+            imgUrl = src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? src
+                : new Uri(new Uri(CNCLabsConstants.PublisherWebsite), src).ToString();
+        }
+
+        var tags = item.QuerySelectorAll(CNCLabsConstants.BadgeSelector)
+            .Select(b => b.TextContent?.Trim())
+            .OfType<string>()
+            .Where(t => !string.IsNullOrEmpty(t))
+            .ToList();
+
+        return new MapListItem(id, name, description, author ?? CNCLabsConstants.DefaultAuthorName, detailsHref, query.TargetGame, query.ContentType, DateTime.MinValue, dlCount, fSize, imgUrl, tags);
     }
 
-    private static string? ExtractScreenshotUrl(IElement item)
+    private static bool CheckPaginationHasMore(IDocument document, int currentPage)
     {
-        var img = item.QuerySelector(".screenshot img") ?? item.QuerySelector("img");
-        if (img != null)
+        var pagingLinks = document.QuerySelectorAll(CNCLabsConstants.PaginationLinkSelector);
+        foreach (var link in pagingLinks)
         {
-            var src = img.GetAttribute("src");
-            if (!string.IsNullOrEmpty(src))
+            var text = link.TextContent?.Trim() ?? string.Empty;
+            if (text.Contains("Next", StringComparison.OrdinalIgnoreCase))
             {
-                return src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                    ? src
-                    : new Uri(new Uri("https://www.cnclabs.com"), src).ToString();
+                return true;
+            }
+
+            if (int.TryParse(text, out var pNum) && pNum > currentPage)
+            {
+                return true;
             }
         }
 
-        return null;
-    }
-
-    /// <summary>
-    /// Performs a text-based search using Playwright, parsing the results list for detail links and names.
-    /// </summary>
-    /// <param name="searchTerm">User-entered search term.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of minimally populated map list items and HasMoreItems flag.</returns>
-    private async Task<(List<MapListItem> Items, bool HasMoreItems)> SearchByTextAsync(
-        string searchTerm,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(searchTerm))
-        {
-            throw new ArgumentException(CNCLabsConstants.SearchTermEmptyErrorMessage, nameof(searchTerm));
-        }
-
-        var url = $"{CNCLabsConstants.SearchUrlBase}{Uri.EscapeDataString(searchTerm)}";
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out _))
-        {
-            throw new UriFormatException(CNCLabsConstants.InvalidAbsoluteUri);
-        }
-
-        var mapList = new List<MapListItem>();
-
-        // Playwright setup & navigation
-        using var playwright = await Playwright.CreateAsync().ConfigureAwait(false);
-        await using var browser = await playwright.Chromium.LaunchAsync(
-            new BrowserTypeLaunchOptions { Headless = true }).ConfigureAwait(false);
-
-        var context = await browser.NewContextAsync().ConfigureAwait(false);
-        var page = await context.NewPageAsync().ConfigureAwait(false);
-        page.SetDefaultNavigationTimeout(30_000);
-
-        await page.GotoAsync(url).ConfigureAwait(false);
-
-        var results = await page.QuerySelectorAllAsync(CNCLabsConstants.ResultSelector).ConfigureAwait(false);
-
-        foreach (var result in results)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var linkHandle = await result.QuerySelectorAsync(CNCLabsConstants.LinkSelector).ConfigureAwait(false);
-            if (linkHandle is null)
-            {
-                continue;
-            }
-
-            var detailUrl =
-                await linkHandle.GetAttributeAsync(CNCLabsConstants.CanonicalHrefAttr).ConfigureAwait(false)
-                ?? await linkHandle.GetAttributeAsync(CNCLabsConstants.HrefAttribute).ConfigureAwait(false);
-
-            if (string.IsNullOrWhiteSpace(detailUrl))
-            {
-                continue;
-            }
-
-            var checkName = (await linkHandle.InnerTextAsync().ConfigureAwait(false))?.Trim();
-            if (string.IsNullOrWhiteSpace(checkName))
-            {
-                continue;
-            }
-
-            // Try to extract numeric id from URLs like .../details.aspx?id=123
-            if (CNCLabsHelper.TryExtractMapIdFromUrl(detailUrl, CNCLabsConstants.DetailsPathMarker, out var id))
-            {
-                var map = await GetMapDetailsAsync(id, detailUrl, cancellationToken);
-                mapList.Add(map);
-            }
-            else
-            {
-                // Non-details results: preserve a hook for future handling (e.g., list pages).
-                var lower = detailUrl.ToLowerInvariant();
-                _ = lower.Contains(CNCLabsConstants.GeneralsPathMarker);
-            }
-        }
-
-        return (mapList, false);
+        return false;
     }
 
     /// <summary>
@@ -493,7 +244,24 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         }
 
         var mapList = new List<MapListItem>();
-        var html = await httpClient.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
+        var html = string.Empty;
+        try
+        {
+            using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                logger.LogInformation("[CNCLabs] URL returned 404 Not Found (no items or past last page): {Url}", url);
+                return (mapList, false);
+            }
+
+            response.EnsureSuccessStatusCode();
+            html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            logger.LogInformation(ex, "[CNCLabs] URL returned 404 Not Found (no items or past last page): {Url}", url);
+            return (mapList, false);
+        }
 
         var context = BrowsingContext.New(Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
@@ -502,149 +270,48 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         foreach (var item in results)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var parsedItem = ParseSearchListItem(item, query);
-            if (parsedItem != null)
+            var parsed = ParseMapListItem(item, query);
+            if (parsed != null)
             {
-                mapList.Add(parsedItem);
+                mapList.Add(parsed);
             }
         }
 
-        // Check for 'Next' button in pagination
-        var pagingLinks = document.QuerySelectorAll(".paging a, .pager a, #ctl00_MainContent_Pager1 a, #ctl00_Main_NextPageLink, #ctl00_MainContent_NextPageLink, a[id*='NextPageLink']");
-        bool hasMoreItems = ParseHasMorePagingLinks(pagingLinks, query);
+        var currentPage = query.Page ?? 1;
+        var hasMoreItems = CheckPaginationHasMore(document, currentPage);
 
-        logger.LogInformation("[CNCLabs] Search returned {Count} maps. HasMore: {HasMore}", mapList.Count, hasMoreItems);
         return (mapList, hasMoreItems);
     }
 
-    private bool ParseHasMorePagingLinks(IHtmlCollection<IElement> pagingLinks, ContentSearchQuery query)
+    private long? ParseFileSize(string size)
     {
-        if (pagingLinks.Length == 0)
+        if (string.IsNullOrEmpty(size))
         {
-            logger.LogInformation("[CNCLabs] No paging links found (single page result)");
-            return false;
+            return null;
         }
 
-        logger.LogInformation("[CNCLabs] Found {Count} paging links", pagingLinks.Length);
-        bool hasMoreItems = false;
-
-        foreach (var link in pagingLinks)
+        try
         {
-            var text = link.TextContent.Trim();
-            var href = link.GetAttribute("href");
-            logger.LogDebug("[CNCLabs] Paging link: Text='{Text}', Href='{Href}'", text, href);
-
-            if (text.Contains("Next", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains("...", StringComparison.Ordinal) ||
-                href?.Contains("page=" + (query.Page + 1)) == true)
+            var parts = size.Trim().Split(' ');
+            if (parts.Length >= 1 && double.TryParse(parts[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var val))
             {
-                logger.LogInformation("[CNCLabs] Found Next/Ellipsis link match: {Text} (href: {Href})", text, href);
-                hasMoreItems = true;
-            }
-
-            if (int.TryParse(text, out var pNum))
-            {
-                int currentPage = query.Page ?? 1;
-                if (pNum > currentPage)
+                var unit = parts.Length > 1 ? parts[1].Trim().ToUpperInvariant() : "B";
+                long multiplier = unit switch
                 {
-                    logger.LogInformation("[CNCLabs] Found page {PageNum} > current {CurrentPage}", pNum, currentPage);
-                    hasMoreItems = true;
-                }
+                    "GB" => ConversionConstants.BytesPerGigabyte,
+                    "MB" => ConversionConstants.BytesPerMegabyte,
+                    "KB" => ConversionConstants.BytesPerKilobyte,
+                    _ => 1,
+                };
+                return (long)(val * multiplier);
             }
         }
-
-        return hasMoreItems;
-    }
-
-    /// <summary>
-    /// Downloads a C&amp;C Labs map details page and extracts the map's
-    /// <c>Name</c>, <c>Description</c>, and <c>Author</c>.
-    /// </summary>
-    /// <param name="id">Map numeric identifier.</param>
-    /// <param name="detailsPageUrl">
-    /// Absolute (or resolvable) URL to the map details page,
-    /// e.g. <c>https://www.cnclabs.com/downloads/details.aspx?id=3238</c>.
-    /// </param>
-    /// <param name="cancellationToken">Cancellation token for the HTTP fetch and parsing work.</param>
-    /// <returns>
-    /// A tuple <c>(Name, Description, Author)</c>. If a field cannot be found,
-    /// an empty string is returned for that field (never <c>null</c>).
-    /// </returns>
-    /// <remarks>
-    /// Parsing strategy:
-    /// <list type="number">
-    /// <item><description>
-    /// Name: try <see cref="CNCLabsConstants.NameSelector"/>; if missing,
-    /// fall back to the last segment of <see cref="CNCLabsConstants.BreadcrumbHeaderSelector"/>
-    /// split by <see cref="CNCLabsConstants.BreadcrumbSeparator"/>.
-    /// </description></item>
-    /// <item><description>
-    /// Description: take the HTML from <see cref="CNCLabsConstants.DescriptionSelector"/>
-    /// and normalize it with <c>CNCLabsHelper.NormalizeHtmlDescription</c>.
-    /// </description></item>
-    /// <item><description>
-    /// Author: find a <c>&lt;strong&gt;</c> with text <see cref="CNCLabsConstants.AuthorLabelText"/>
-    /// inside <see cref="CNCLabsConstants.AuthorLabelContainerSelector"/>, then read the next
-    /// non-empty text node via <c>CNCLabsHelper.GetNextNonEmptyTextSibling</c>.
-    /// </description></item>
-    /// </list>
-    /// </remarks>
-    private async Task<MapListItem> GetMapDetailsAsync(int id, string detailsPageUrl, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(detailsPageUrl))
+        catch (Exception ex)
         {
-            throw new ArgumentException(CNCLabsConstants.UrlRequiredMessage, nameof(detailsPageUrl));
+            logger.LogWarning(ex, "Failed to parse file size '{Size}'", size);
         }
 
-        var html = await httpClient.GetStringAsync(detailsPageUrl, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var context = BrowsingContext.New(Configuration.Default);
-        var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
-
-        var name =
-            document.QuerySelector(CNCLabsConstants.NameSelector)?.TextContent?.Trim()
-            ?? document.QuerySelector(CNCLabsConstants.BreadcrumbHeaderSelector)
-                       ?.TextContent?
-                       .Split(CNCLabsConstants.BreadcrumbSeparator)
-                       .LastOrDefault()?
-                       .Trim()
-            ?? string.Empty;
-
-        var descEl = document.QuerySelector(CNCLabsConstants.DescriptionSelector);
-        var description = descEl is null
-            ? string.Empty
-            : CNCLabsHelper.NormalizeHtmlDescription(descEl.InnerHtml) ?? string.Empty;
-
-        var authorStrong = document.QuerySelectorAll(CNCLabsConstants.AuthorLabelContainerSelector)
-                                   .FirstOrDefault(s => string.Equals(
-                                       s.TextContent?.Trim(),
-                                       CNCLabsConstants.AuthorLabelText,
-                                       StringComparison.OrdinalIgnoreCase));
-
-        var author = CNCLabsHelper.GetNextNonEmptyTextSibling(authorStrong) ?? string.Empty;
-        var (gameType, contentType) = CNCLabsHelper.ExtractBreadcrumbCategory(document);
-
-        var docText = document.Body?.TextContent ?? string.Empty;
-        var lastUpdated = ParseLastUpdatedDate(document, docText);
-        var fileSize = ParseFileSize(document, docText);
-        var downloadCount = ParseDownloadCount(docText);
-        var iconUrl = ParsePreviewImage(document);
-        var tags = ParseTags(docText);
-
-        return new MapListItem(
-            id,
-            name,
-            description,
-            string.IsNullOrEmpty(author) ? CNCLabsConstants.DefaultAuthorName : author,
-            detailsPageUrl,
-            gameType,
-            contentType,
-            lastUpdated,
-            downloadCount,
-            fileSize,
-            iconUrl,
-            tags);
+        return null;
     }
 
     /// <summary>
@@ -675,41 +342,4 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         string? FileSize,
         string? IconUrl,
         IEnumerable<string> Tags);
-
-    private long? ParseFileSize(string size)
-    {
-        // Simple parser for "7.2 MB" etc if needed, or return generic
-        // For now just return null as the UI uses the formatted string usually,
-        // but ContentSearchResult.DownloadSize is Nullable<long> (bytes).
-        // Let's try to parse simple cases.
-        if (string.IsNullOrEmpty(size))
-        {
-            return null;
-        }
-
-        try
-        {
-            var parts = size.Trim().Split(' ');
-            if (parts.Length >= 1 && double.TryParse(parts[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var val))
-            {
-                var unit = parts.Length > 1 ? parts[1].Trim().ToUpperInvariant() : "B";
-                long multiplier = unit switch
-                {
-                    "GB" => ConversionConstants.BytesPerGigabyte,
-                    "MB" => ConversionConstants.BytesPerMegabyte,
-                    "KB" => ConversionConstants.BytesPerKilobyte,
-                    _ => 1,
-                };
-                return (long)(val * multiplier);
-            }
-        }
-        catch (Exception ex)
-        {
-            // Logging failure to parse file size, though it's acceptable to return null
-            // and fallback to the display string.
-            logger.LogWarning(ex, "Failed to parse file size '{Size}'", size);
-        }
-
-        return null;
-    }
 }

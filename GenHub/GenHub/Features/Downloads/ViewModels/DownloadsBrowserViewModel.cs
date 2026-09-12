@@ -220,7 +220,9 @@ public sealed partial class DownloadsBrowserViewModel(
     public bool CanSearch => SelectedPublisher?.PublisherId is not
         PublisherTypeConstants.GeneralsOnline and not
         CommunityOutpostConstants.PublisherType and not
-        PublisherTypeConstants.TheSuperHackers;
+        PublisherTypeConstants.TheSuperHackers and not
+        AODMapsConstants.PublisherType and not
+        CNCLabsConstants.PublisherType;
 
     /// <summary>
     /// Gets a value indicating whether search or filter UI controls are available for the current publisher.
@@ -831,6 +833,16 @@ public sealed partial class DownloadsBrowserViewModel(
                 GitHubTopicsConstants.PublisherType,
                 PublisherInfoConstants.GitHub.Name,
                 PublisherInfoConstants.GitHub.LogoSource,
+                ContentConstants.CategoryDynamic),
+            new PublisherItemViewModel(
+                CNCLabsConstants.PublisherType,
+                PublisherInfoConstants.CNCLabs.Name,
+                PublisherInfoConstants.CNCLabs.LogoSource,
+                ContentConstants.CategoryDynamic),
+            new PublisherItemViewModel(
+                AODMapsConstants.PublisherType,
+                PublisherInfoConstants.AODMaps.Name,
+                PublisherInfoConstants.AODMaps.LogoSource,
                 ContentConstants.CategoryDynamic),
         ];
     }
@@ -1619,7 +1631,17 @@ public sealed partial class DownloadsBrowserViewModel(
 
             await variantVm.RefreshVariantStatesAsync();
             variantVm.CurrentState = await contentStateService.GetStateAsync(defaultVariant, ct);
+            variantVm.IsDownloaded = variantVm.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(defaultVariant.Id) || !ManifestIdValidator.IsValid(defaultVariant.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(defaultVariant, ct);
+                if (!string.IsNullOrEmpty(manifestId))
+                {
+                    defaultVariant.UpdateId(manifestId);
+                }
+            }
 
+            variantVm.NotifyStateChanged();
             return variantVm;
         }
         catch
@@ -1636,6 +1658,18 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             var singletonState = await contentStateService.GetStateAsync(primaryItem, ct);
             vm.CurrentState = singletonState;
+            vm.IsDownloaded = singletonState is ContentState.Downloaded or ContentState.UpdateAvailable;
+
+            if (vm.IsDownloaded && (string.IsNullOrEmpty(primaryItem.Id) || !ManifestIdValidator.IsValid(primaryItem.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(primaryItem, ct);
+                if (!string.IsNullOrEmpty(manifestId))
+                {
+                    primaryItem.UpdateId(manifestId);
+                }
+            }
+
+            vm.NotifyStateChanged();
             return vm;
         }
         catch
@@ -1789,6 +1823,8 @@ public sealed partial class DownloadsBrowserViewModel(
             PublisherTypeConstants.TheSuperHackers => contentDiscoverers.OfType<GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer>().FirstOrDefault(),
             CommunityOutpostConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer>().FirstOrDefault(),
             GitHubTopicsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer>().FirstOrDefault(),
+            CNCLabsConstants.PublisherType => contentDiscoverers.OfType<CNCLabsMapDiscoverer>().FirstOrDefault(),
+            AODMapsConstants.PublisherType => contentDiscoverers.OfType<AODMapsDiscoverer>().FirstOrDefault(),
 
             // User-subscribed GenHub catalogs (and later definition-resolved endpoints)
             _ => _subscribedDiscoverers.TryGetValue(publisherId, out var subscribed) ? subscribed : null,
@@ -1907,7 +1943,22 @@ public sealed partial class DownloadsBrowserViewModel(
                         if (match != null)
                         {
                             var state = await contentStateService.GetStateAsync(match.SearchResult, _vmCts.Token);
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => match.CurrentState = state);
+                            var isDownloaded = state is ContentState.Downloaded or ContentState.UpdateAvailable;
+                            if (isDownloaded && (string.IsNullOrEmpty(match.SearchResult.Id) || !ManifestIdValidator.IsValid(match.SearchResult.Id, out _)))
+                            {
+                                var manifestId = await contentStateService.GetLocalManifestIdAsync(match.SearchResult, _vmCts.Token);
+                                if (!string.IsNullOrEmpty(manifestId))
+                                {
+                                    match.SearchResult.UpdateId(manifestId);
+                                }
+                            }
+
+                            RunOnUi(() =>
+                            {
+                                match.CurrentState = state;
+                                match.IsDownloaded = isDownloaded;
+                                match.NotifyStateChanged();
+                            });
                         }
                     }
                     catch (Exception ex)
@@ -2054,6 +2105,8 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         // Dynamic publisher filters
         _filterViewModels[GitHubTopicsConstants.PublisherType] = new GitHubFilterViewModel();
+        _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
+        _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
     }
 
     [RelayCommand]
@@ -2112,6 +2165,7 @@ public sealed partial class DownloadsBrowserViewModel(
             var errorMsg = result.FirstError ?? "Unknown error";
             logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
+            notificationService.ShowError("Download failed", errorMsg);
             return false;
         }
         catch (OperationCanceledException ex)
@@ -2124,6 +2178,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogError(ex, "Error downloading content: {Name}", item.Name);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
+            notificationService.ShowError("Download failed", ex.Message);
             return false;
         }
         finally

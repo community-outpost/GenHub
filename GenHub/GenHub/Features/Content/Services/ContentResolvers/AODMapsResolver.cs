@@ -8,13 +8,12 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Parsers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
-
-using File = GenHub.Core.Models.Parsers.File;
 using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
@@ -32,7 +31,7 @@ public class AODMapsResolver(
     /// <summary>
     /// Gets the unique resolver ID for AODMaps.
     /// </summary>
-    public string ResolverId => AODMapsConstants.PublisherType;
+    public string ResolverId => AODMapsConstants.ResolverId;
 
     /// <summary>
     /// Resolves the details of a discovered AODMaps content item.
@@ -51,28 +50,48 @@ public class AODMapsResolver(
 
         try
         {
-            logger.LogInformation("Resolving AODMaps content from {Url}", discoveredItem.SourceUrl);
-
-            // Parse the web page (which is likely a list/gallery page)
-            var parsedPage = await pageParser.ParseAsync(discoveredItem.SourceUrl, cancellationToken);
-
-            // Find the specific file section that corresponds to our discovered item
-            // We use the DownloadURL from metadata to identify it
-            if (!discoveredItem.ResolverMetadata.TryGetValue(AODMapsConstants.DownloadUrlMetadataKey, out var targetDownloadUrl))
+            string pageUrl;
+            if (discoveredItem.ResolverMetadata.TryGetValue(AODMapsConstants.ListPageUrlMetadataKey, out var listPageUrl))
             {
-                logger.LogWarning("No download URL found in metadata for {Name}", discoveredItem.Name);
-                return OperationResult<ContentManifest>.CreateFailure("Download URL not found in metadata");
+                pageUrl = listPageUrl;
+                logger.LogInformation("Resolving AODMaps content from list page: {Url}", pageUrl);
+            }
+            else
+            {
+                // Fallback to SourceUrl if ListPageUrl not available (backward compatibility)
+                pageUrl = discoveredItem.SourceUrl;
+                logger.LogWarning("ListPageUrl not found in metadata, falling back to SourceUrl: {Url}", pageUrl);
             }
 
-            // Fallback: If no download URL match, try Name match
-            var section = parsedPage.Sections.OfType<File>().FirstOrDefault(f =>
-                string.Equals(f.DownloadUrl, targetDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(f.Name, discoveredItem.Name, StringComparison.OrdinalIgnoreCase));
+            // Parse the web page (which is likely a list/gallery page)
+            var parsedPage = await pageParser.ParseAsync(pageUrl, cancellationToken);
+
+            // Find the specific file section that corresponds to our discovered item
+            // Prioritize exact download URL matching, then fall back to name matching
+            string? targetDownloadUrl = discoveredItem.SelectedDownloadUrl;
+            if (string.IsNullOrEmpty(targetDownloadUrl) &&
+                discoveredItem.ResolverMetadata.TryGetValue(AODMapsConstants.DownloadUrlMetadataKey, out var metaUrl))
+            {
+                targetDownloadUrl = metaUrl;
+            }
+
+            DownloadableFile? section = null;
+            if (!string.IsNullOrEmpty(targetDownloadUrl))
+            {
+                section = parsedPage.Sections.OfType<DownloadableFile>().FirstOrDefault(f =>
+                    string.Equals(f.DownloadUrl, targetDownloadUrl, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (section == null)
             {
-                 logger.LogWarning("Could not find content section for {Name} in parsed page {Url}", discoveredItem.Name, discoveredItem.SourceUrl);
-                 return OperationResult<ContentManifest>.CreateFailure("Content section not found on page");
+                section = parsedPage.Sections.OfType<DownloadableFile>().FirstOrDefault(f =>
+                    string.Equals(f.Name, discoveredItem.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (section == null)
+            {
+                logger.LogWarning("Could not find content section for {Name} in parsed page {Url}", discoveredItem.Name, pageUrl);
+                return OperationResult<ContentManifest>.CreateFailure("Content section not found on page");
             }
 
             // Convert to MapDetails
@@ -81,12 +100,27 @@ public class AODMapsResolver(
             // Use factory to create manifest
             var manifest = await manifestFactory.CreateManifestAsync(details);
 
+            if (string.IsNullOrEmpty(manifest.OriginalProviderName))
+            {
+                manifest.OriginalProviderName = AODMapsConstants.PublisherPrefix;
+            }
+
+            if (string.IsNullOrEmpty(manifest.OriginalContentId))
+            {
+                discoveredItem.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId);
+                manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : discoveredItem.Id;
+            }
+
             logger.LogInformation(
                 "Successfully resolved AODMaps content: {ManifestId} - {Name}",
                 manifest.Id.Value,
                 manifest.Name);
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -95,7 +129,7 @@ public class AODMapsResolver(
         }
     }
 
-    private static ParsedContentDetails ConvertToMapDetails(File file, GenHub.Core.Models.Parsers.GlobalContext context, ContentSearchResult item)
+    private static ParsedContentDetails ConvertToMapDetails(DownloadableFile file, GlobalContext context, ContentSearchResult item)
     {
         // Determine GameType and ContentType
         // AODMaps are mostly Zero Hour or Generals.
@@ -113,14 +147,40 @@ public class AODMapsResolver(
         var subDate = file.UploadDate ?? DateTime.MinValue;
 
         // Use Author as request
-        var author = file.Uploader ?? context.Developer ?? AODMapsConstants.DefaultAuthorName;
+        var author = context.Developer ?? AODMapsConstants.DefaultAuthorName;
+        if (!string.IsNullOrWhiteSpace(file.Uploader) && !file.Uploader.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase))
+        {
+            author = file.Uploader;
+        }
+        else if (!string.IsNullOrWhiteSpace(item.AuthorName) && !item.AuthorName.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase))
+        {
+            author = item.AuthorName;
+        }
+
+        var description = context.Title;
+        if (!string.IsNullOrWhiteSpace(file.Description))
+        {
+            description = file.Description;
+        }
+        else if (!string.IsNullOrWhiteSpace(file.SizeDisplay))
+        {
+            description = file.SizeDisplay;
+        }
+        else if (!string.IsNullOrWhiteSpace(item.Description))
+        {
+            description = item.Description;
+        }
+
+        var previewUrl = !string.IsNullOrWhiteSpace(file.ThumbnailUrl)
+            ? file.ThumbnailUrl
+            : item.IconUrl;
 
         return new ParsedContentDetails(
             Name: file.Name,
-            Description: file.SizeDisplay ?? context.Title, // Use SizeDisplay (where we stored info) or Title
+            Description: description,
             Author: author,
-            PreviewImage: file.ThumbnailUrl ?? string.Empty,
-            Screenshots: file.ThumbnailUrl != null ? [file.ThumbnailUrl] : [],
+            PreviewImage: previewUrl ?? string.Empty,
+            Screenshots: !string.IsNullOrWhiteSpace(previewUrl) ? [previewUrl] : [],
             FileSize: file.SizeBytes ?? 0,
             DownloadCount: file.DownloadCount ?? 0,
             SubmissionDate: subDate,

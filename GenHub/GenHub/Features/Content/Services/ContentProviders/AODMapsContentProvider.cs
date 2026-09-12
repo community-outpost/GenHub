@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentProviders;
@@ -22,6 +24,7 @@ public class AODMapsContentProvider(
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
+    AODMapsManifestFactory manifestFactory,
     ILogger<AODMapsContentProvider> logger,
     IContentValidator contentValidator,
     IInstallationInstructionsService installationInstructionsService)
@@ -40,7 +43,10 @@ public class AODMapsContentProvider(
         ?? throw new InvalidOperationException("HTTP deliverer not found");
 
     /// <inheritdoc />
-    public override string SourceName => AODMapsConstants.PublisherType;
+    /// <remarks>
+    /// Must match the ProviderName set by AODMapsDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => AODMapsConstants.DiscovererSourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides content from AODMaps";
@@ -66,7 +72,7 @@ public class AODMapsContentProvider(
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
         var searchResult = await SearchAsync(query, cancellationToken);
 
-        if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
+        if (!searchResult.Success || !searchResult.Data.Any())
         {
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
@@ -87,7 +93,14 @@ public class AODMapsContentProvider(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        Logger.LogDebug("Preparing AODMaps content for manifest {ManifestId}", manifest.Id);
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        Logger.LogInformation("Preparing AODMaps content: {ManifestId} ({Name})", manifest.Id, manifest.Name);
+
+        return DeliverAndEnrichContentAsync(
+            _httpDeliverer,
+            manifestFactory,
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken);
     }
 }

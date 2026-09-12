@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
@@ -16,39 +17,365 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 
 /// <summary>
-/// Discovers maps from AODMaps (Age of Defense Maps) website.
+/// Discovers maps from AODMaps (Art of Defense Maps) website.
 /// </summary>
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public partial class AODMapsDiscoverer(
     IHttpClientFactory httpClientFactory,
     ILogger<AODMapsDiscoverer> logger) : IContentDiscoverer
 {
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly ILogger<AODMapsDiscoverer> _logger = logger;
-
     [GeneratedRegex(@"(\d+(?:,\d{3})*)\s*downloads?", RegexOptions.IgnoreCase)]
     private static partial Regex DownloadCountRegex();
 
-    private static string? MakeAbsoluteUrl(string? url)
+    [GeneratedRegex(@"(?:^|[?&=])(?<players>[1-8])P(?:[_&]|$)", RegexOptions.IgnoreCase)]
+    private static partial Regex PlayerCountFromDownloadIdRegex();
+
+    [GeneratedRegex(@"\b(?<players>[1-8])\s*(?:players?|p)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex PlayerCountFromTextRegex();
+
+    [GeneratedRegex(@"/(?<players>[1-8])_players", RegexOptions.IgnoreCase)]
+    private static partial Regex PlayerCountFromPageUrlRegex();
+
+    /// <inheritdoc />
+    public string SourceName => AODMapsConstants.DiscovererSourceName;
+
+    /// <inheritdoc />
+    public string Description => AODMapsConstants.DiscovererDescription;
+
+    /// <inheritdoc />
+    public bool IsEnabled => true;
+
+    /// <inheritdoc />
+    public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
+
+    /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "AODMaps discovery iterates irregular legacy HTML pages and handles custom pagination.")]
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+        ContentSearchQuery query,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(url))
+        try
         {
-            return url;
+            // Allow discovery if there is a search term OR if it's a browsing query (game/content type set)
+            // If neither, return empty but success (or failure if strict)
+            if (query is null)
+            {
+               return OperationResult<ContentDiscoveryResult>.CreateFailure("Query cannot be null");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // The AODMaps site paginates irregularly (e.g. NEW/new.html has 3 items while
+            // NEW/new2.html holds the remaining archive), so site pages cannot be mapped 1:1
+            // onto UI pages. Fetch site pages sequentially, de-duplicate, and slice the
+            // aggregate list by the query's paging parameters instead.
+            int uiPage = query.Page ?? 1;
+            int take = query.Take > 0 ? query.Take : 24;
+            int skip = (uiPage - 1) * take;
+
+            var collected = new List<ContentSearchResult>();
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            const int maxSitePages = 30; // safety bound against runaway loops
+            int sitePage = 1;
+            var expectedPlayerCount = ParsePlayerCountFilter(query.AODMapsPlayerCount);
+
+            using var client = httpClientFactory.CreateClient(AODMapsConstants.PublisherType);
+            if (client.DefaultRequestHeaders.UserAgent.Count == 0)
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+            }
+
+            var context = BrowsingContext.New(Configuration.Default);
+
+            // Fetch one item past the requested window so HasMoreItems is exact.
+            // Player-count filtering is applied while collecting so combined category+players
+            // queries still fill a full UI page.
+            while (sitePage <= maxSitePages && collected.Count < skip + take + 1)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var url = BuildDiscoveryUrl(query, sitePage);
+                logger.LogInformation("Discovering AODMaps content from: {Url} (site page {SitePage})", url, sitePage);
+
+                string html = string.Empty;
+                try
+                {
+                    html = await client.GetStringAsync(url, cancellationToken);
+                }
+                catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+                {
+                    // 404: we ran past the last site page — not an error.
+                    logger.LogInformation(ex, "AODMaps site page {SitePage} not available ({Message}); stopping pagination", sitePage, ex.Message);
+                    break;
+                }
+
+                var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
+                var items = ExtractItems(document, url);
+
+                int rawAccepted = 0;
+                foreach (var item in items)
+                {
+                    if (!seenIds.Add(item.Id ?? string.Empty))
+                    {
+                        continue;
+                    }
+
+                    rawAccepted++;
+                    if (!MatchesSearchTerm(item, query.SearchTerm))
+                    {
+                        continue;
+                    }
+
+                    if (MatchesPlayerCountFilter(item, expectedPlayerCount))
+                    {
+                        collected.Add(item);
+                    }
+                }
+
+                // If this site page had no new unique items at all, we reached the end.
+                if (rawAccepted == 0)
+                {
+                    break;
+                }
+
+                sitePage++;
+            }
+
+            bool hasMore = collected.Count > skip + take;
+            var pageItems = collected.Skip(skip).Take(take).ToList();
+
+            logger.LogInformation(
+                "AODMaps discovery finished: collected {Collected}, returning page {Page} with {Count} items (hasMore={HasMore})",
+                collected.Count,
+                uiPage,
+                pageItems.Count,
+                hasMore);
+
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = pageItems,
+                HasMoreItems = hasMore,
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to discover AODMaps content");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"AODMaps discovery failed: {ex.Message}");
+        }
+    }
+
+    private static int? ExtractPlayerCountFromDownloadId(string? downloadUrl)
+    {
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            return null;
         }
 
-        if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        var match = PlayerCountFromDownloadIdRegex().Match(downloadUrl);
+        return match.Success && int.TryParse(match.Groups["players"].Value, out var players)
+            ? players
+            : null;
+    }
+
+    private static int? ExtractPlayerCountFromText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
         {
-            return url;
+            return null;
         }
 
-        // Handle ../ paths if necessary, but simple concatenation usually works if base is known
-        // Or specific cleaning
-        return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
+        var match = PlayerCountFromTextRegex().Match(text);
+        return match.Success && int.TryParse(match.Groups["players"].Value, out var players)
+            ? players
+            : null;
+    }
+
+    private static int? ExtractPlayerCountFromPageUrl(string? pageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(pageUrl))
+        {
+            return null;
+        }
+
+        var match = PlayerCountFromPageUrlRegex().Match(pageUrl);
+        return match.Success && int.TryParse(match.Groups["players"].Value, out var players)
+            ? players
+            : null;
+    }
+
+    private static int? ExtractPlayerCount(IElement? element, string? downloadUrl, string? pageUrl)
+    {
+        var fromId = ExtractPlayerCountFromDownloadId(downloadUrl);
+        if (fromId.HasValue)
+        {
+            return fromId;
+        }
+
+        var text = element?.TextContent;
+        var fromText = ExtractPlayerCountFromText(text);
+        if (fromText.HasValue)
+        {
+            return fromText;
+        }
+
+        return ExtractPlayerCountFromPageUrl(pageUrl);
+    }
+
+    private static string? InferCategoryFromUrl(string? pageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(pageUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(pageUrl, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var path = uri.AbsolutePath;
+        if (ContainsAny(path, "/AOA/", "aoamaps"))
+        {
+            return AODMapsConstants.CategoryAoa;
+        }
+
+        if (ContainsAny(path, "/race/", "racemaps"))
+        {
+            return AODMapsConstants.CategoryRace;
+        }
+
+        if (ContainsAny(path, "/air/", "airmaps"))
+        {
+            return AODMapsConstants.CategoryAir;
+        }
+
+        if (ContainsAny(path, "/ContraAOD/", "contraaod"))
+        {
+            return AODMapsConstants.CategoryContra;
+        }
+
+        if (path.Contains("/compstomp/", StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.CategoryCompstomp;
+        }
+
+        if (ContainsAny(path, "/packs/", "Map_Packs"))
+        {
+            return AODMapsConstants.CategoryMapPacks;
+        }
+
+        return null;
+    }
+
+    private static bool ContainsAny(string source, string text1, string text2) =>
+        source.Contains(text1, StringComparison.OrdinalIgnoreCase) ||
+        source.Contains(text2, StringComparison.OrdinalIgnoreCase);
+
+    private static string? NormalizeCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return null;
+        }
+
+        var trimmed = category.Trim();
+        if (trimmed.Equals("Contra AOD", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Equals(AODMapsConstants.CategoryContra, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.CategoryContra;
+        }
+
+        if (trimmed.Equals(AODMapsConstants.CategoryCompstomp, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.CategoryCompstomp;
+        }
+
+        if (trimmed.Equals(AODMapsConstants.CategoryMapPacks, StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Equals("MapPacks", StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.CategoryMapPacks;
+        }
+
+        if (trimmed.Equals(AODMapsConstants.CategoryAir, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.CategoryAir;
+        }
+
+        if (trimmed.Equals(AODMapsConstants.CategoryRace, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.CategoryRace;
+        }
+
+        if (trimmed.Equals(AODMapsConstants.CategoryAoa, StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Equals("Art of Attack", StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.CategoryAoa;
+        }
+
+        return trimmed;
+    }
+
+    private static int? ParsePlayerCountFilter(string? playerCountFilter)
+    {
+        if (string.IsNullOrWhiteSpace(playerCountFilter))
+        {
+            return null;
+        }
+
+        var numPart = playerCountFilter.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[0];
+        return int.TryParse(numPart, out var count) ? count : null;
+    }
+
+    private static bool MatchesPlayerCountFilter(ContentSearchResult item, int? expectedPlayerCount)
+    {
+        if (!expectedPlayerCount.HasValue)
+        {
+            return true;
+        }
+
+        if (!item.ResolverMetadata.TryGetValue(AODMapsConstants.PlayerCountMetadataKey, out var raw) &&
+            !item.Metadata.TryGetValue(AODMapsConstants.PlayerCountMetadataKey, out raw))
+        {
+            return false;
+        }
+
+        return int.TryParse(raw, out var actual) && actual == expectedPlayerCount.Value;
+    }
+
+    private static bool MatchesSearchTerm(ContentSearchResult item, string? searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return true;
+        }
+
+        return (item.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true)
+            || string.Equals(item.Id, searchTerm, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ApplyDiscoveryBadges(ContentSearchResult result, int? playerCount, string sourceUrl)
+    {
+        if (playerCount.HasValue)
+        {
+            ContentCardBadgeHelper.ApplyPlayerCount(result, playerCount.Value);
+        }
+
+        ContentCardBadgeHelper.ApplyCategory(result, InferCategoryFromUrl(sourceUrl));
+    }
+
+    private static string BuildMapDescription(string? title, int? playerCount, string sourceUrl, string? author)
+    {
+        return AODMapsHelper.BuildRichMapDescription(title, playerCount, InferCategoryFromUrl(sourceUrl), author);
     }
 
     private static ContentSearchResult? ParseGalleryItem(IElement item, string sourceUrl)
@@ -69,41 +396,37 @@ public partial class AODMapsDiscoverer(
             return null;
         }
 
-        downloadUrl = MakeAbsoluteUrl(downloadUrl);
+        downloadUrl = MakeAbsoluteUrl(downloadUrl, sourceUrl);
 
         // Thumbnail
         var imgEl = item.QuerySelector(AODMapsConstants.GalleryThumbnailSelector);
         var thumbnailUrl = imgEl?.GetAttribute(AODMapsConstants.SrcAttribute);
-        thumbnailUrl = MakeAbsoluteUrl(thumbnailUrl);
+        thumbnailUrl = MakeAbsoluteUrl(thumbnailUrl, sourceUrl);
 
-        // Downloads (parsed from script or text)
-        // Simply store it in metadata if needed for sorting?
-        // We really need it for the Manifest, but Discoverer just finds.
         string safeDownloadUrl = downloadUrl ?? string.Empty;
         string safeHashCode = ComputeStableHash(safeDownloadUrl);
+        var playerCount = ExtractPlayerCount(item, safeDownloadUrl, sourceUrl);
+        var author = AODMapsHelper.ExtractAuthor(name, sourceUrl) ?? AODMapsConstants.DefaultAuthorName;
+        var description = BuildMapDescription(name, playerCount, sourceUrl, author);
 
-        return new ContentSearchResult
+        var result = CreateAODMapSearchResult(
+            safeHashCode,
+            name,
+            description,
+            author,
+            safeDownloadUrl,
+            thumbnailUrl,
+            sourceUrl);
+
+        result.Tags.Add("AODMaps");
+        if (!string.IsNullOrWhiteSpace(author) && !author.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase))
         {
-            Id = safeHashCode,
-            Name = name,
-            Description = AODMapsConstants.MapDescriptionTemplate,
-            AuthorName = AODMapsConstants.DefaultAuthorName,
-            Version = "0",
-            ProviderName = AODMapsConstants.DiscovererSourceName,
-            SourceUrl = sourceUrl,
-            IconUrl = thumbnailUrl,
-            ContentType = ContentType.Map,
-            TargetGame = GameType.Generals,
-            RequiresResolution = true,
-            ResolverId = AODMapsConstants.ResolverId,
-            ResolverMetadata =
-            {
-                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
-                { AODMapsConstants.MapIdMetadataKey, safeHashCode },
-                { AODMapsConstants.ContentIdMetadataKey, safeHashCode },
-                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
-            },
-        };
+            result.Tags.Add($"author:{author.ToLowerInvariant()}");
+        }
+
+        ApplyDiscoveryBadges(result, playerCount, sourceUrl);
+
+        return result;
     }
 
     private static ContentSearchResult? ParseMapMakerItem(IElement content, string sourceUrl)
@@ -127,42 +450,37 @@ public partial class AODMapsDiscoverer(
             return null;
         }
 
-        downloadUrl = MakeAbsoluteUrl(downloadUrl);
+        downloadUrl = MakeAbsoluteUrl(downloadUrl, sourceUrl);
 
         // Image
         var imgEl = content.QuerySelector(AODMapsConstants.MapMakerImageSelector);
         var thumbnailUrl = imgEl?.GetAttribute(AODMapsConstants.SrcAttribute);
-        thumbnailUrl = MakeAbsoluteUrl(thumbnailUrl);
+        thumbnailUrl = MakeAbsoluteUrl(thumbnailUrl, sourceUrl);
 
-        // Description/Info
-        var p1 = content.QuerySelector(AODMapsConstants.MapMakerInfoSelector)?.TextContent;
-
-        // p1 contains "- Type: Survival - Difficultly: Hard ..."
         string safeDownloadUrl = downloadUrl ?? string.Empty;
         string safeHashCode = ComputeStableHash(safeDownloadUrl);
+        var playerCount = ExtractPlayerCount(content, safeDownloadUrl, sourceUrl);
+        var author = AODMapsHelper.ExtractAuthor(title, sourceUrl) ?? AODMapsConstants.DefaultAuthorName;
+        var description = AODMapsHelper.ExtractMapMakerDescription(content, playerCount, InferCategoryFromUrl(sourceUrl), author);
 
-        return new ContentSearchResult
+        var result = CreateAODMapSearchResult(
+            safeHashCode,
+            title,
+            description,
+            author,
+            safeDownloadUrl,
+            thumbnailUrl,
+            sourceUrl);
+
+        result.Tags.Add("AODMaps");
+        if (!string.IsNullOrWhiteSpace(author) && !author.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase))
         {
-            Id = safeHashCode,
-            Name = title,
-            Description = p1 ?? AODMapsConstants.MapDescriptionTemplate,
-            AuthorName = "MapMaker",
-            Version = "0",
-            ProviderName = AODMapsConstants.DiscovererSourceName,
-            SourceUrl = sourceUrl,
-            IconUrl = thumbnailUrl,
-            ContentType = ContentType.Map,
-            TargetGame = GameType.Generals,
-            RequiresResolution = true,
-            ResolverId = AODMapsConstants.ResolverId,
-            ResolverMetadata =
-            {
-                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
-                { AODMapsConstants.MapIdMetadataKey, safeHashCode },
-                { AODMapsConstants.ContentIdMetadataKey, safeHashCode },
-                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
-            },
-        };
+            result.Tags.Add($"author:{author.ToLowerInvariant()}");
+        }
+
+        ApplyDiscoveryBadges(result, playerCount, sourceUrl);
+
+        return result;
     }
 
     private static string ComputeStableHash(string input)
@@ -182,195 +500,156 @@ public partial class AODMapsDiscoverer(
         return builder.ToString();
     }
 
-    /// <inheritdoc />
-    public string SourceName => AODMapsConstants.DiscovererSourceName;
-
-    /// <inheritdoc />
-    public string Description => AODMapsConstants.DiscovererDescription;
-
-    /// <inheritdoc />
-    public bool IsEnabled => true;
-
-    /// <inheritdoc />
-    public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
-
-    /// <inheritdoc />
-    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
-        ContentSearchQuery query,
-        CancellationToken cancellationToken = default)
+    private static void ExtractGalleryItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
     {
-        try
-        {
-            // Allow discovery if there is a search term OR if it's a browsing query (game/content type set)
-            // If neither, return empty but success (or failure if strict)
-            if (query is null)
-            {
-               return OperationResult<ContentDiscoveryResult>.CreateFailure("Query cannot be null");
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var results = new List<ContentSearchResult>();
-
-            // Build the URL based on the query
-            var url = BuildDiscoveryUrl(query);
-
-            _logger.LogInformation("Discovering AODMaps content from: {Url}", url);
-
-            // Fetch HTML
-            using var client = _httpClientFactory.CreateClient("AODMaps"); // Should be registered or falls back
-
-            // Ensure we have a user agent just in case
-            if (client.DefaultRequestHeaders.UserAgent.Count == 0)
-            {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-            }
-
-            var html = await client.GetStringAsync(url, cancellationToken);
-
-            // Parse HTML
-            var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
-
-            // Extract items
-            var (items, hasMoreItems) = ExtractItems(document, url);
-            results.AddRange(items);
-
-            _logger.LogInformation(
-                "Discovered {Count} AODMaps items from {Url}",
-                results.Count,
-                url);
-
-            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
-            {
-                Items = results,
-                HasMoreItems = hasMoreItems,
-            });
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("AODMaps discovery was cancelled");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, AODMapsConstants.DiscoveryFailureLogMessage);
-            return OperationResult<ContentDiscoveryResult>.CreateFailure(
-                string.Format(AODMapsConstants.DiscoveryFailedErrorTemplate, ex.Message));
-        }
-    }
-
-    private static string BuildDiscoveryUrl(ContentSearchQuery query)
-    {
-        var page = query.Page ?? 1;
-
-        // Special case: Page 1 often has no suffix. Page 2 has '2'.
-        // Format {0} in patterns usually denotes the number suffix.
-        string suffix = page > 1 ? page.ToString() : string.Empty;
-
-        // 1. Check for specific map makers in query or tags
-        // If we want to browse a map maker
-        // Not implemented in basic browsing yet unless we parse "tags" containing "author:xxx"
-        if (query.CNCLabsMapTags?.Any(t => t.StartsWith("author:")) == true)
-        {
-            var authorTag = query.CNCLabsMapTags.First(t => t.StartsWith("author:"));
-            var authorName = authorTag.Replace("author:", string.Empty);
-
-            // Look up mapping if needed
-            // Try formatting
-            return string.Format(AODMapsConstants.MapMakerPagePattern, authorName);
-        }
-
-        // 2. Check Content Type
-        if (query.ContentType == ContentType.MapPack)
-        {
-            return string.Format(AODMapsConstants.MapPacksPagePattern, suffix);
-        }
-
-        // 3. Check Categories (Compstomp, Air, Race, etc - passed as Tags or specialized logic?)
-        // Assuming user might pass these as Tags or we map ContentType?
-        // Simplification: If "Compstomp" tag is present
-        if (query.CNCLabsMapTags?.Contains("Compstomp", StringComparer.OrdinalIgnoreCase) == true)
-        {
-            return string.Format(AODMapsConstants.CompstompPagePattern, suffix);
-        }
-
-        // 4. Browsing by Player Count (very common in AOD)
-        // If we have a tag "6 Players", "3 Players" etc.
-        if (query.CNCLabsMapTags != null)
-        {
-            var playerTag = query.CNCLabsMapTags.FirstOrDefault(t => t.EndsWith("Players", StringComparison.OrdinalIgnoreCase));
-            if (playerTag != null)
-            {
-                var numPart = playerTag.Split(' ')[0];
-                if (int.TryParse(numPart, out _))
-                {
-                    return string.Format(AODMapsConstants.PlayerPagePattern, numPart, suffix);
-                }
-            }
-        }
-
-        // 5. Default: New Maps (Last Uploaded)
-        // Note: Page 1 is new.html, Page 2 is new2.html, Page 3 is new3.html
-        return string.Format(AODMapsConstants.NewMapsPagePattern, suffix);
-    }
-
-    private (List<ContentSearchResult> Items, bool HasMoreItems) ExtractItems(IDocument document, string sourceUrl)
-    {
-        var results = new List<ContentSearchResult>();
-
-        // Strategy 1: Gallery Items (Common on Players, New, Packs pages)
         var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
-        if (galleryItems.Length > 0)
+        foreach (var item in galleryItems)
         {
-            foreach (var item in galleryItems)
+            var result = ParseGalleryItem(item, sourceUrl);
+            if (result != null)
             {
-                var result = ParseGalleryItem(item, sourceUrl);
+                results.Add(result);
+            }
+        }
+    }
+
+    private static void ExtractMapMakerItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
+    {
+        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
+        foreach (var item in mmItems)
+        {
+            var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
+            if (contentDiv != null)
+            {
+                var result = ParseMapMakerItem(contentDiv, sourceUrl);
                 if (result != null)
                 {
                     results.Add(result);
                 }
             }
         }
+    }
 
-        // Strategy 2: Map Maker Page Items (Vertical layout)
-        // Only if Gallery items were not found or we want to support mixed pages
-        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
-        if (mmItems.Length > 0)
+    private static ContentSearchResult CreateAODMapSearchResult(
+        string id,
+        string name,
+        string description,
+        string author,
+        string safeDownloadUrl,
+        string? thumbnailUrl,
+        string sourceUrl)
+    {
+        return new ContentSearchResult
         {
-            foreach (var item in mmItems)
+            Id = id,
+            Name = name,
+            Description = description,
+            AuthorName = author,
+            Version = string.Empty,
+            ProviderName = AODMapsConstants.DiscovererSourceName,
+            SourceUrl = safeDownloadUrl,
+            IconUrl = thumbnailUrl ?? PublisherInfoConstants.AODMaps.LogoSource,
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            RequiresResolution = true,
+            ResolverId = AODMapsConstants.ResolverId,
+            LastUpdated = null,
+            ResolverMetadata =
             {
-                // Each 'main' block is an item on map maker pages
-                // Need to go deeper into .content
-                var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
-                if (contentDiv != null)
-                {
-                    var result = ParseMapMakerItem(contentDiv, sourceUrl);
-                    if (result != null)
-                    {
-                        results.Add(result);
-                    }
-                }
-            }
-        }
+                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
+                { AODMapsConstants.MapIdMetadataKey, id },
+                { AODMapsConstants.ContentIdMetadataKey, id },
+                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
+                { AODMapsConstants.ListPageUrlMetadataKey, sourceUrl },
+            },
+        };
+    }
 
-        // Check for next page indicator to support progressive loading
-        bool hasMoreItems = false;
+    private static string BuildDiscoveryUrl(ContentSearchQuery query, int sitePage)
+    {
+        string suffix = sitePage > 1 ? sitePage.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
 
-        // AODMaps uses a ul at the bottom with page numbers and a 'Next' link
-        // AODMaps uses a ul at the bottom with page numbers and a 'Next' link
-        var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a => a.TextContent.Contains("Next", StringComparison.OrdinalIgnoreCase)) ??
-                       document.QuerySelector("a[href*='new']")?.ParentElement?.QuerySelectorAll("a").LastOrDefault(a => a.TextContent.Contains("Next", StringComparison.OrdinalIgnoreCase));
-
-        nextLink ??= document.QuerySelectorAll("a").FirstOrDefault(a => a.TextContent.Contains("Next", StringComparison.OrdinalIgnoreCase));
-
-        hasMoreItems = nextLink != null;
-
-        if (hasMoreItems)
+        // Category pages and player-count pages are separate axes on aodmaps.com.
+        // Prefer category when set; player count is applied as a post-fetch filter so the UI can
+        // AND both dimensions (for example AOA + 4 players).
+        var category = NormalizeCategory(query.AODMapsCategory);
+        if (!string.IsNullOrEmpty(category))
         {
-            _logger.LogInformation("[AODMaps] Found next link: {Url}", nextLink?.GetAttribute("href"));
+            return category switch
+            {
+                AODMapsConstants.CategoryCompstomp => string.Format(AODMapsConstants.CompstompPagePattern, suffix),
+                AODMapsConstants.CategoryMapPacks => string.Format(AODMapsConstants.MapPacksPagePattern, suffix),
+                AODMapsConstants.CategoryAir => AODMapsConstants.AirMapsUrl,
+                AODMapsConstants.CategoryRace => AODMapsConstants.RaceMapsUrl,
+                AODMapsConstants.CategoryAoa => AODMapsConstants.AoaMapsUrl,
+                AODMapsConstants.CategoryContra => AODMapsConstants.ContraAodUrl,
+                _ => string.Format(AODMapsConstants.NewMapsPagePattern, suffix),
+            };
         }
 
-        return (results, hasMoreItems);
+        var expectedPlayerCount = ParsePlayerCountFilter(query.AODMapsPlayerCount);
+        if (expectedPlayerCount.HasValue)
+        {
+            return string.Format(
+                AODMapsConstants.PlayerPagePattern,
+                expectedPlayerCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                suffix);
+        }
+
+        // Priority 3: Check AODMaps-specific map type filter (future enhancement)
+        if (!string.IsNullOrEmpty(query.AODMapsMapType))
+        {
+            // Map type URLs would go here when implemented
+            // e.g., "1v1" → /1v1-maps, "2v2" → /2v2-maps, "FFA" → /ffa-maps
+        }
+
+        // Priority 4: Check Content Type
+        if (query.ContentType == ContentType.MapPack)
+        {
+            return string.Format(AODMapsConstants.MapPacksPagePattern, suffix);
+        }
+
+        // Default: New Maps (Last Uploaded)
+        return string.Format(AODMapsConstants.NewMapsPagePattern, suffix);
+    }
+
+    private static List<ContentSearchResult> ExtractItems(IDocument document, string sourceUrl)
+    {
+        var results = new List<ContentSearchResult>();
+
+        ExtractGalleryItems(document, sourceUrl, results);
+        ExtractMapMakerItems(document, sourceUrl, results);
+
+        return results;
+    }
+
+    private static string? MakeAbsoluteUrl(string? url, string sourceUrl)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return null;
+        }
+
+        // PashaCNC links - they are dead, replace with current domain
+        if (url.Contains("pashacnc.com", StringComparison.OrdinalIgnoreCase))
+        {
+            url = url.Replace("pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
+            url = url.Replace("www.pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        try
+        {
+            var baseUri = new Uri(sourceUrl);
+            return new Uri(baseUri, url).ToString();
+        }
+        catch
+        {
+            return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
+        }
     }
 }

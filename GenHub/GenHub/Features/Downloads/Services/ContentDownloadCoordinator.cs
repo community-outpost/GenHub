@@ -453,6 +453,18 @@ public sealed class ContentDownloadCoordinator(
                 // so every subscriber can match regardless of which ID it currently holds.
                 contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value);
 
+                string? parentContentId = null;
+                if (searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var pid) == true)
+                {
+                    parentContentId = pid;
+                }
+
+                if (!string.IsNullOrWhiteSpace(parentContentId) &&
+                    !string.Equals(parentContentId, originalContentId, StringComparison.OrdinalIgnoreCase))
+                {
+                    contentStateService.NotifyStateChanged(parentContentId, ContentState.Downloaded, manifest.Id.Value);
+                }
+
                 // Notify other components
                 try
                 {

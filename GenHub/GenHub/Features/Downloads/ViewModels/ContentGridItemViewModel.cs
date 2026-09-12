@@ -17,6 +17,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
 using GenHub.Infrastructure.Services;
@@ -70,11 +71,14 @@ public sealed partial class ContentGridItemViewModel(
     public bool CanUpdate => !IsDownloading && !HasActiveDownloads;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveIsDownloaded))]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
     private bool _isDownloaded;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveCurrentState))]
+    [NotifyPropertyChangedFor(nameof(EffectiveIsDownloaded))]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
@@ -496,6 +500,18 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
+    private static void RunOnUi(Action action)
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        {
+            action();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(action);
+        }
+    }
+
     private bool IsMatchingDownloadMessage(
         string contentKey,
         string? contentId,
@@ -527,7 +543,7 @@ public sealed partial class ContentGridItemViewModel(
 
     private void OnDownloadStarted(ContentDownloadStartedMessage message)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        RunOnUi(() =>
         {
             HasActiveDownloads = true;
             if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
@@ -543,7 +559,7 @@ public sealed partial class ContentGridItemViewModel(
     {
         if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            RunOnUi(() =>
             {
                 IsDownloading = true;
                 var intPercent = (int)Math.Round(message.ProgressPercentage);
@@ -559,7 +575,7 @@ public sealed partial class ContentGridItemViewModel(
 
     private void OnDownloadCompleted(ContentDownloadCompletedMessage message)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        RunOnUi(() =>
         {
             HasActiveDownloads = downloadCoordinator?.HasActiveDownloads == true;
             if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
@@ -574,13 +590,57 @@ public sealed partial class ContentGridItemViewModel(
 
     private void ResetDownloadState()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        RunOnUi(() =>
         {
             CurrentState = ContentState.NotDownloaded;
             IsDownloaded = false;
             IsDownloading = false;
             DownloadStatus = string.Empty;
         });
+    }
+
+    private bool MatchesManifestOrMetadata(ContentStateChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.ManifestId))
+        {
+            return false;
+        }
+
+        var segments = e.ManifestId.Split('.');
+        if (segments.Length != 5 ||
+            (!string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+             !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)) ||
+            !string.Equals(segments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var manifestNormName = ContentStateService.NormalizeSegment(segments[4]);
+        var cardNormName = ContentStateService.NormalizeSegment(SearchResult.Name);
+        if (string.Equals(cardNormName, manifestNormName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return MatchesResolverMetadata(e);
+    }
+
+    private bool MatchesResolverMetadata(ContentStateChangedEventArgs e)
+    {
+        if (SearchResult.ResolverMetadata == null)
+        {
+            return false;
+        }
+
+        return (SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
+                !string.IsNullOrEmpty(cncMapId) &&
+                ((e.ManifestId != null && e.ManifestId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)))) ||
+               (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
+                !string.IsNullOrEmpty(aodMapId) &&
+                ((e.ManifestId != null && e.ManifestId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)))) ||
+               (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
+                !string.IsNullOrEmpty(modDbId) &&
+                ((e.ManifestId != null && e.ManifestId.Contains(modDbId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(modDbId, StringComparison.OrdinalIgnoreCase))));
     }
 
     /// <summary>
@@ -591,7 +651,8 @@ public sealed partial class ContentGridItemViewModel(
         // Match on either the catalog ID or the manifest ID: after a download the shared
         // ContentSearchResult's ID is rewritten to the manifest ID, so a single key is not enough.
         var isForThisContent = e.ContentId == Id ||
-                               (!string.IsNullOrEmpty(e.ManifestId) && e.ManifestId == Id);
+                               (!string.IsNullOrEmpty(e.ManifestId) && string.Equals(e.ManifestId, Id, StringComparison.OrdinalIgnoreCase)) ||
+                               MatchesManifestOrMetadata(e);
 
         // A variant matches the changed content when its catalog key equals the event's
         // content ID, or when the stored sibling snapshot's Id was rewritten to the
@@ -621,7 +682,7 @@ public sealed partial class ContentGridItemViewModel(
         {
             var segments = e.ManifestId.Split('.');
             if (segments.Length == 5 &&
-                !string.IsNullOrEmpty(SearchResult.ProviderName) &&
+                SearchResult != null && !string.IsNullOrEmpty(SearchResult.ProviderName) &&
                 (string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) ||
                  ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)) &&
                 string.Equals(segments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase))
@@ -637,7 +698,7 @@ public sealed partial class ContentGridItemViewModel(
             return;
         }
 
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        RunOnUi(() =>
         {
             _ = RefreshVariantStatesAsync();
 
@@ -717,6 +778,13 @@ public sealed partial class ContentGridItemViewModel(
                     case ContentState.UpdateAvailable:
                         IsDownloaded = true;
                         IsDownloading = false;
+                        if (!string.IsNullOrEmpty(e.ManifestId) &&
+                            SearchResult != null &&
+                            (string.IsNullOrEmpty(SearchResult.Id) || !ManifestIdValidator.IsValid(SearchResult.Id, out _)))
+                        {
+                            SearchResult.UpdateId(e.ManifestId);
+                        }
+
                         break;
                     case ContentState.NotDownloaded:
                         IsDownloaded = false;
@@ -727,6 +795,7 @@ public sealed partial class ContentGridItemViewModel(
                         break;
                 }
 
+                NotifyStateChanged();
                 logger.LogDebug("Content state updated for {ContentId}: {State}", e.ContentId, CurrentState);
             }
         });
@@ -943,7 +1012,7 @@ public sealed partial class ContentGridItemViewModel(
         var isTargetDownloaded = false;
         try
         {
-            if (UpdateTargetVm != null)
+            if (UpdateTargetVm?.SearchResult != null)
             {
                 var targetState = await contentStateService.GetStateAsync(UpdateTargetVm.SearchResult);
                 isTargetDownloaded = targetState is ContentState.Downloaded or ContentState.UpdateAvailable;
@@ -956,6 +1025,15 @@ public sealed partial class ContentGridItemViewModel(
                 : mainState;
 
             IsDownloaded = mainState is ContentState.Downloaded or ContentState.UpdateAvailable;
+
+            if (IsDownloaded && (string.IsNullOrEmpty(SearchResult.Id) || !ManifestIdValidator.IsValid(SearchResult.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(SearchResult);
+                if (!string.IsNullOrEmpty(manifestId))
+                {
+                    SearchResult.UpdateId(manifestId);
+                }
+            }
         }
         catch (Exception ex)
         {
