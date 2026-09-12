@@ -1,4 +1,3 @@
-using GenHub.Features.Content.Services.Common;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -13,6 +12,7 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 using System;

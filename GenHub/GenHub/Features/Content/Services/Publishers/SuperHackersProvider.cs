@@ -214,8 +214,6 @@ public partial class SuperHackersProvider(
         return _cachedProviderDefinition;
     }
 
-
-
     private static bool MatchesSearchTerm(GitHubRelease release, string repo, string displayName, string? searchTerm)
     {
         return string.IsNullOrWhiteSpace(searchTerm) ||

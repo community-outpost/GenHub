@@ -61,5 +61,4 @@ public class LocalFileSystemContentProvider(
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer => _fileSystemDeliverer;
-
 }

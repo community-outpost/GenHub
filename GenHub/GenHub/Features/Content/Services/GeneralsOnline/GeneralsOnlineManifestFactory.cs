@@ -321,6 +321,42 @@ public class GeneralsOnlineManifestFactory(
         return [];
     }
 
+    private static ContentManifest Create60HzManifest(
+        ManifestId manifestId,
+        string version,
+        PublisherInfo publisherInfo,
+        ContentManifest originalManifest,
+        int userVersion,
+        DateTime? releaseDate,
+        string iconUrl,
+        string changelogUrl)
+    {
+        return new ContentManifest
+        {
+            Id = manifestId,
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = version,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = publisherInfo,
+            OriginalProviderName = originalManifest.OriginalProviderName,
+            OriginalContentId = originalManifest.OriginalContentId,
+            Metadata = new ContentMetadata
+            {
+                Description = GeneralsOnlineConstants.ShortDescription,
+                ReleaseDate = releaseDate,
+                IconUrl = iconUrl,
+                ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
+                ChangelogUrl = changelogUrl,
+                CoverUrl = GeneralsOnlineConstants.CoverSource,
+            },
+            Files = [],
+            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
+        };
+    }
+
+
     /// <summary>
     /// Creates a content manifest for the GeneralsOnlineGameData data patch.
     /// This manifest contains game data files (community balance patch and core INI configuration).
@@ -824,39 +860,5 @@ public class GeneralsOnlineManifestFactory(
                 m.Dependencies = m.Dependencies.Where(d => d.DependencyType != ContentType.MapPack).ToList();
             }
         }
-    }
-    private static ContentManifest Create60HzManifest(
-        ManifestId manifestId,
-        string version,
-        PublisherInfo publisherInfo,
-        ContentManifest originalManifest,
-        string userVersion,
-        DateTimeOffset? releaseDate,
-        string iconUrl,
-        string changelogUrl)
-    {
-        return new ContentManifest
-        {
-            Id = manifestId,
-            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
-            Version = version,
-            ContentType = ContentType.GameClient,
-            TargetGame = GameType.ZeroHour,
-            Publisher = publisherInfo,
-            OriginalProviderName = originalManifest.OriginalProviderName,
-            OriginalContentId = originalManifest.OriginalContentId,
-            Metadata = new ContentMetadata
-            {
-                Description = GeneralsOnlineConstants.ShortDescription,
-                ReleaseDate = releaseDate,
-                IconUrl = iconUrl,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
-                ChangelogUrl = changelogUrl,
-                CoverUrl = GeneralsOnlineConstants.CoverSource,
-            },
-            Files = [],
-            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
-        };
     }
 }

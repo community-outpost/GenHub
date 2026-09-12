@@ -57,5 +57,4 @@ public class AODMapsContentProvider(
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer => _httpDeliverer;
-
 }

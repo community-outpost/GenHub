@@ -52,5 +52,4 @@ public class CNCLabsContentProvider(
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer => _httpDeliverer;
-
 }

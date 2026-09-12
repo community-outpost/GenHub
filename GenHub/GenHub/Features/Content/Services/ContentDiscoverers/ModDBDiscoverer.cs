@@ -1248,6 +1248,7 @@ public partial class ModDBDiscoverer(
             return ([], false, keepPageOpenForVerification, false);
         }
     }
+
     private async Task<(AngleSharp.Dom.IDocument? Document, bool KeepPageOpen, bool ChallengeObserved)> LoadPageDocumentAsync(
         IPage page,
         string url,
