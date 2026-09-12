@@ -959,7 +959,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 string.Equals(SelectedGameInstallation.ManifestId.Value, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool MatchesClientSourceId(ContentDisplayItem client, ContentDisplayItem installation)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
+    private bool MatchesClientSourceId(ContentDisplayItem client, ContentDisplayItem installation)
     {
         if (string.IsNullOrEmpty(client.SourceId))
         {
@@ -970,7 +971,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                string.Equals(client.SourceId, installation.SourceId, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool MatchesDependencyGameType(ContentDependency dep, GameType installationGameType, GameType fallbackGameType)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
+    private bool MatchesDependencyGameType(ContentDependency dep, GameType installationGameType, GameType fallbackGameType)
     {
         if (dep.CompatibleGameTypes is { Count: > 0 })
         {
