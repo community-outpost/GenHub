@@ -72,7 +72,7 @@ public class GenHotkeysViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ApplyToAllMatchingActionsAsync_PropagatesHotkeyToMatchingActionsAcrossFactions()
+    public async Task ApplyToAllMatchingActionsAsync_PropagatesHotkeyToMatchingActionsAcrossFactionsAsync()
     {
         var rangerUsa = new HotkeyAction
         {
@@ -183,7 +183,7 @@ public class GenHotkeysViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ApplyPresetAsync_Vanilla_SetsPresetAndResetsMappings()
+    public async Task ApplyPresetAsync_Vanilla_SetsPresetAndResetsMappingsAsync()
     {
         using var vm = new GenHotkeysViewModel(
             _mockTechTree.Object,

@@ -439,7 +439,7 @@ public partial class GenHotkeysViewModel(
             {
                 foreach (var layout in obj.KeyboardLayouts)
                 {
-                    matchingCount += ApplyKeyToMatchingLayoutActions(layout, targetName, targetHotkeyString, targetIconName, targetKey);
+                    matchingCount += ApplyKeyToMatchingLayoutActions(SelectedProfile, layout, targetName, targetHotkeyString, targetIconName, targetKey);
                 }
             }
         }
@@ -447,18 +447,14 @@ public partial class GenHotkeysViewModel(
         return matchingCount;
     }
 
-    private int ApplyKeyToMatchingLayoutActions(
+    private static int ApplyKeyToMatchingLayoutActions(
+        HotkeyProfile profile,
         List<HotkeyAction> layout,
         string? targetName,
         string? targetHotkeyString,
         string? targetIconName,
         char? targetKey)
     {
-        if (SelectedProfile == null)
-        {
-            return 0;
-        }
-
         var count = 0;
         foreach (var action in layout)
         {
@@ -470,13 +466,13 @@ public partial class GenHotkeysViewModel(
 
             if (targetKey.HasValue)
             {
-                SelectedProfile.KeyMappings[action.HotkeyString] = targetKey.Value;
-                SelectedProfile.ClearedKeys.Remove(action.HotkeyString);
+                profile.KeyMappings[action.HotkeyString] = targetKey.Value;
+                profile.ClearedKeys.Remove(action.HotkeyString);
             }
             else
             {
-                SelectedProfile.KeyMappings.Remove(action.HotkeyString);
-                SelectedProfile.ClearedKeys.Add(action.HotkeyString);
+                profile.KeyMappings.Remove(action.HotkeyString);
+                profile.ClearedKeys.Add(action.HotkeyString);
             }
 
             count++;
@@ -842,10 +838,6 @@ public partial class GenHotkeysViewModel(
         catch (ObjectDisposedException)
         {
             return false;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
 
         try
@@ -1367,10 +1359,10 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        if (SelectedCategory != HotkeyCategory.All && SelectedFaction != null && FactionHasConflicts(SelectedFaction))
+        if (SelectedCategory != HotkeyCategory.All && SelectedFaction != null && FactionHasConflicts(SelectedFaction, SelectedProfile))
         {
             SelectedCategory = HotkeyCategory.All;
-            FilterGameObjects();
+            FilterGameObjects(CancellationToken.None);
             SelectNextConflict();
             return;
         }
@@ -1379,7 +1371,7 @@ public partial class GenHotkeysViewModel(
         if (nextFaction != null)
         {
             SelectedFaction = nextFaction;
-            FilterGameObjects();
+            FilterGameObjects(CancellationToken.None);
             SelectNextConflict();
         }
     }
@@ -1426,7 +1418,7 @@ public partial class GenHotkeysViewModel(
         for (var i = 1; i <= _allFactions.Count; i++)
         {
             var candidate = _allFactions[(startIndex + i) % _allFactions.Count];
-            if (candidate != SelectedFaction && FactionHasConflicts(candidate))
+            if (candidate != SelectedFaction && FactionHasConflicts(candidate, SelectedProfile))
             {
                 return candidate;
             }
@@ -1442,20 +1434,12 @@ public partial class GenHotkeysViewModel(
             return false;
         }
 
-        foreach (var faction in _allFactions)
-        {
-            if (faction != SelectedFaction && FactionHasConflicts(faction))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return _allFactions.Any(faction => faction != SelectedFaction && FactionHasConflicts(faction, SelectedProfile));
     }
 
-    private bool FactionHasConflicts(HotkeyFaction faction)
+    private static bool FactionHasConflicts(HotkeyFaction faction, HotkeyProfile? profile)
     {
-        if (SelectedProfile == null)
+        if (profile == null)
         {
             return false;
         }
@@ -1465,9 +1449,9 @@ public partial class GenHotkeysViewModel(
             foreach (var layout in obj.KeyboardLayouts)
             {
                 var keysWithActions = layout
-                    .Select(a => (Action: a, Key: ResolveCurrentActionHotkey(a, SelectedProfile)))
+                    .Select(a => (Action: a, Key: ResolveCurrentActionHotkey(a, profile)))
                     .Where(x => x.Key.HasValue)
-                    .GroupBy(x => x.Key!.Value)
+                    .GroupBy(x => x.Key.Value)
                     .Where(g => g.Count() > 1);
 
                 foreach (var group in keysWithActions)
