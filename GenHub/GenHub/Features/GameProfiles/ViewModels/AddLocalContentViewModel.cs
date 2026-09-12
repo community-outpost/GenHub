@@ -390,6 +390,11 @@ public partial class AddLocalContentViewModel(
 
             Validate();
         }
+        catch (OperationCanceledException) when (_cts?.IsCancellationRequested == true)
+        {
+            logger?.LogInformation("Import was cancelled");
+            StatusMessage = "Import cancelled.";
+        }
         catch (Exception ex)
         {
             StatusMessage = $"Import Error: {ex.Message}";
@@ -506,17 +511,17 @@ public partial class AddLocalContentViewModel(
     {
         if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
         {
-            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import successful.";
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import completed.";
         }
 
         if (result.FailedFiles.Count > 0)
         {
-            return $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+            return $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import completed.";
         }
 
         if (result.SkippedFiles.Count > 0)
         {
-            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import successful.";
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import completed.";
         }
 
         return $"Normalized {result.NormalizedCount} file(s). Import successful.";
@@ -802,7 +807,7 @@ public partial class AddLocalContentViewModel(
         if (File.Exists(path))
         {
             var extension = Path.GetExtension(path);
-            if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+            if (extension.Equals(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
             {
                 await Task.Run(() => ZipFile.ExtractToDirectory(path, _stagingPath, true), cancellationToken);
             }

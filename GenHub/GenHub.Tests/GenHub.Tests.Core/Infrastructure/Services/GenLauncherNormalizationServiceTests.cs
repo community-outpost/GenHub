@@ -491,6 +491,78 @@ public class GenLauncherNormalizationServiceTests : IDisposable
         Assert.Contains(".ctr", detection.GetSummary());
     }
 
+    /// <summary>
+    /// Tests that a suffixed .ctr file with unrecognized content has its suffix removed and is recorded in SkippedFiles.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_SuffixedCtrWithUnrecognizedContent_StripsSuffixAndReportsSkippedAsync()
+    {
+        var suffixedCtrPath = Path.Combine(_tempDir, "patch.ctr" + GenLauncherConstants.OriginalFileSuffix);
+        await File.WriteAllTextAsync(suffixedCtrPath, "plain text content that is neither BIG nor executable");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data.NormalizedCount);
+        var strippedCtrPath = Path.Combine(_tempDir, "patch.ctr");
+        Assert.False(File.Exists(suffixedCtrPath));
+        Assert.True(File.Exists(strippedCtrPath));
+        Assert.Contains(strippedCtrPath, result.Data.SkippedFiles);
+        Assert.DoesNotContain(strippedCtrPath, result.Data.FailedFiles);
+    }
+
+    /// <summary>
+    /// Tests that a .ctr file with ELF or Mach-O executable magic bytes is normalized to .exe.
+    /// </summary>
+    /// <param name="header">Executable magic bytes to write to the file.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(new byte[] { 0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00 })]
+    [InlineData(new byte[] { 0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01 })]
+    public async Task NormalizeFilesAsync_ConvertsExecutableCtrWithElfOrMachOToExeAsync(byte[] header)
+    {
+        var ctrPath = Path.Combine(_tempDir, "generals.ctr");
+        var payload = new byte[16];
+        Array.Copy(header, payload, header.Length);
+        await File.WriteAllBytesAsync(ctrPath, payload);
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data.NormalizedCount);
+        Assert.False(File.Exists(ctrPath));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "generals.big")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "generals.exe")));
+    }
+
+    /// <summary>
+    /// Tests that a .ctr file inside a suffixed directory is normalized to .big and the directory suffix is subsequently stripped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_DetectsAndRenamesSuffixDirectory_NormalizingContainedCtrAsync()
+    {
+        var gltcDir = Path.Combine(_tempDir, "Maps.GLTC");
+        Directory.CreateDirectory(gltcDir);
+        var ctrPath = Path.Combine(gltcDir, "map1.ctr");
+        var bytes = new byte[16];
+        bytes[0] = (byte)'B';
+        bytes[1] = (byte)'I';
+        bytes[2] = (byte)'G';
+        bytes[3] = (byte)'F';
+        await File.WriteAllBytesAsync(ctrPath, bytes);
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data.NormalizedCount);
+        var targetDir = Path.Combine(_tempDir, "Maps");
+        Assert.True(Directory.Exists(targetDir));
+        Assert.False(Directory.Exists(gltcDir));
+        Assert.True(File.Exists(Path.Combine(targetDir, "map1.big")));
+    }
+
     private bool TryCreateFileSymlink(out string? skipReason)
     {
         skipReason = null;

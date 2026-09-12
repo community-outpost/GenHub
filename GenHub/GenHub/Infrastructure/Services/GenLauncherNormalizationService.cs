@@ -217,6 +217,8 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 result.NormalizedCount++;
                 logger.LogInformation("Normalized {OriginalFile} to {NormalizedFile}", suffixFile, normalizedName);
 
+                // Note: If this suffixed file is further converted (e.g. .gib -> .big or .ctr -> .exe/.big),
+                // the subsequent conversion operation also increments NormalizedCount.
                 if (Path.GetExtension(normalizedName).Equals(GenLauncherConstants.GibExtension, StringComparison.OrdinalIgnoreCase))
                 {
                     TryConvertGibToBig(normalizedName, result);
@@ -532,6 +534,9 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         try
         {
             string destination;
+
+            // Content-based classification: executables (Windows PE/MZ, Linux ELF, macOS Mach-O) convert to .exe,
+            // BIG archives convert to .big, and unrecognized formats remain untouched in SkippedFiles.
             if (ExecutableFileClassifier.HasExecutableMagicBytes(ctrFile))
             {
                 destination = Path.ChangeExtension(ctrFile, GenLauncherConstants.ExeExtension);

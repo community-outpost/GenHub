@@ -963,7 +963,118 @@ public class AddLocalContentViewModelTests : IDisposable
         var vm = CreateViewModel();
         await vm.ImportContentAsync(tempDir);
 
-        Assert.Contains("0 file(s); 1 skipped. Import successful.", vm.StatusMessage);
+        Assert.Contains("0 file(s); 1 skipped. Import completed.", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that when normalization produces both skipped and failed files, the status message reports both and ends with 'Import completed.'.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenNormalizationHasFailedAndSkippedFiles_ReportsCombinedStatusMessageAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        var ctrFile = Path.Combine(tempDir, "test.ctr");
+        File.WriteAllText(ctrFile, "dummy");
+
+        _normalizationServiceMock
+            .Setup(x => x.DetectGenLauncherFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GenLauncherDetectionResult { HasGenLauncherFiles = true, CtrFiles = [ctrFile] });
+
+        _dialogServiceMock
+            .Setup(x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey))
+            .ReturnsAsync(true);
+
+        _normalizationServiceMock
+            .Setup(x => x.NormalizeFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GenLauncherNormalizationResult>.CreateSuccess(new GenLauncherNormalizationResult
+            {
+                NormalizedCount = 0,
+                SkippedFiles = ["skipped.ctr"],
+                FailedFiles = ["failed.ctr"],
+            }));
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.Contains("0 file(s); 1 skipped, 1 failed. Import completed.", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that when normalization produces failed files only, the status message reports the failed count and ends with 'Import completed.'.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenNormalizationHasFailedFilesOnly_ReportsFailedCountInStatusMessageAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        var ctrFile = Path.Combine(tempDir, "test.ctr");
+        File.WriteAllText(ctrFile, "dummy");
+
+        _normalizationServiceMock
+            .Setup(x => x.DetectGenLauncherFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GenLauncherDetectionResult { HasGenLauncherFiles = true, CtrFiles = [ctrFile] });
+
+        _dialogServiceMock
+            .Setup(x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey))
+            .ReturnsAsync(true);
+
+        _normalizationServiceMock
+            .Setup(x => x.NormalizeFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GenLauncherNormalizationResult>.CreateSuccess(new GenLauncherNormalizationResult
+            {
+                NormalizedCount = 0,
+                FailedFiles = ["failed.ctr"],
+            }));
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.Contains("0 file(s); 1 failed. Import completed.", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that when normalization fails with an operation error, a warning is set and import continues.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenNormalizeFilesFails_ReportsWarningAndContinuesImportAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        var ctrFile = Path.Combine(tempDir, "test.ctr");
+        File.WriteAllText(ctrFile, "dummy");
+
+        _normalizationServiceMock
+            .Setup(x => x.DetectGenLauncherFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GenLauncherDetectionResult { HasGenLauncherFiles = true, CtrFiles = [ctrFile] });
+
+        _dialogServiceMock
+            .Setup(x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey))
+            .ReturnsAsync(true);
+
+        _normalizationServiceMock
+            .Setup(x => x.NormalizeFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GenLauncherNormalizationResult>.CreateFailure("Disk I/O error"));
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.Contains("Normalization warning: Disk I/O error. Import will continue.", vm.StatusMessage);
     }
 
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)

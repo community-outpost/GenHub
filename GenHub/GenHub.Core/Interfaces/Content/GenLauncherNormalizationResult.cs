@@ -8,7 +8,7 @@ namespace GenHub.Core.Interfaces.Content;
 public class GenLauncherNormalizationResult
 {
     /// <summary>
-    /// Gets or sets the number of files successfully normalized.
+    /// Gets or sets the number of normalization operations successfully completed (each stage, such as suffix stripping and subsequent .gib/.ctr format conversion, counts as an operation).
     /// </summary>
     public int NormalizedCount { get; set; }
 
