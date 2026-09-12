@@ -1003,9 +1003,9 @@ public class UserDataTrackerService(
     }
 
     private async Task<bool> DeactivateTrackedFileAsync(
-        TrackedUserFile file,
+        UserDataFileEntry file,
         UserDataManifest manifest,
-        UserDataTrackerIndex index,
+        UserDataIndex index,
         string userDataBasePath,
         CancellationToken cancellationToken)
     {
