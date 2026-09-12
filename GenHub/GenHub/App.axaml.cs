@@ -177,11 +177,12 @@ public partial class App : Application
                         defaultRoot,
                         detectedCustomPath);
 
+                    var shouldAdopt = !StorageMigrationService.HasExistingUserData(defaultRoot) &&
+                                      StorageMigrationService.HasExistingUserData(detectedCustomPath);
                     var imported = false;
 
                     // If the current default location has no user data (fresh installer run), adopt settings/profiles from custom location
-                    if (!StorageMigrationService.HasExistingUserData(defaultRoot) &&
-                        StorageMigrationService.HasExistingUserData(detectedCustomPath))
+                    if (shouldAdopt)
                     {
                         logger?.LogInformation(
                             "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
@@ -191,8 +192,12 @@ public partial class App : Application
                         imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
                     }
 
-                    // Clear custom install path from registry so subsequent launches do not repeatedly trigger this collision warning
-                    tracker?.ClearCustomInstallPath();
+                    // Clear custom install path from registry only when there is no pending adoption left to retry,
+                    // or when user already has existing data at default root (acknowledging collision without re-triggering warning).
+                    if (imported || !shouldAdopt)
+                    {
+                        tracker?.ClearCustomInstallPath();
+                    }
 
                     // Notify the user in the UI
                     var notificationService = _serviceProvider.GetService<INotificationService>();
