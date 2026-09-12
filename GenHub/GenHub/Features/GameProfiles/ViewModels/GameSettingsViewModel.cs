@@ -75,30 +75,26 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         return true;
     }
 
-    private static bool TryGetAnySetting(IniOptions options, string key, out string value)
+    private static string? GetAnySettingValue(IniOptions options, string key)
     {
         if (options.Video.AdditionalProperties.TryGetValue(key, out var vVal))
         {
-            value = vVal;
-            return true;
+            return vVal;
         }
 
         var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
             string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
         if (tshKvp.Value?.TryGetCaseInsensitive(key, out var tshVal) == true)
         {
-            value = tshVal!;
-            return true;
+            return tshVal;
         }
 
         if (options.Network.AdditionalProperties.TryGetValue(key, out var nVal))
         {
-            value = nVal;
-            return true;
+            return nVal;
         }
 
-        value = string.Empty;
-        return false;
+        return null;
     }
 
     private static string? GetFirstSettingValue(Dictionary<string, string>? primary, Dictionary<string, string>? fallback, string key)
@@ -730,7 +726,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             return;
         }
 
-        if (_gameSettingsService != null)
+        if (_gameSettingsService != null && _currentProfileIsGeneralsOnline)
         {
             var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
             if (goResult?.Success == true && goResult.Data != null)
@@ -1376,12 +1372,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (options.Video.AdditionalProperties.TryGetValue("UseCloudMap", out var ucm)) UseCloudMap = ParseBool(ucm);
         if (options.Video.AdditionalProperties.TryGetValue("UseLightMap", out var ulm)) UseLightMap = ParseBool(ulm);
 
-        if (TryGetAnySetting(options, GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey, out var draws)) DrawScrollAnchor = ParseBool(draws);
-        if (TryGetAnySetting(options, GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey, out var moves)) MoveScrollAnchor = ParseBool(moves);
-        if (TryGetAnySetting(options, GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey, out var gtfs) && int.TryParse(gtfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gtfsVal)) GameTimeFontSize = gtfsVal;
-        if (TryGetAnySetting(options, GameSettingsTheSuperHackersConstants.LanguageFilterKey, out var lf)) LanguageFilter = ParseBool(lf);
-        if (TryGetAnySetting(options, GameSettingsTheSuperHackersConstants.SendDelayKey, out var sd)) SendDelay = ParseBool(sd);
-        if (TryGetAnySetting(options, "SkipEALogo", out var sel)) SkipEALogo = ParseBool(sel);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey) is { } draws) DrawScrollAnchor = ParseBool(draws);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey) is { } moves) MoveScrollAnchor = ParseBool(moves);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey) is { } gtfs && int.TryParse(gtfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gtfsVal)) GameTimeFontSize = gtfsVal;
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.LanguageFilterKey) is { } lf) LanguageFilter = ParseBool(lf);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.SendDelayKey) is { } sd) SendDelay = ParseBool(sd);
+        if (GetAnySettingValue(options, "SkipEALogo") is { } sel) SkipEALogo = ParseBool(sel);
     }
 
     private void ApplyTshAdditionalProperties(IniOptions options)
