@@ -181,9 +181,9 @@ public class CrunchImageConversionService(
                 {
                     File.Delete(temporaryTgaFile);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore temporary file cleanup failure
+                    logger.LogDebug(ex, "Failed to delete temporary TGA file {Path}", temporaryTgaFile);
                 }
             }
         }
@@ -237,7 +237,7 @@ public class CrunchImageConversionService(
             return;
         }
 
-        foreach (var kvp in parameters.Where(p => p.Key.StartsWith('-')))
+        foreach (var kvp in parameters.Where(p => IsValidArgumentKey(p.Key)))
         {
             if (kvp.Value is bool b)
             {
@@ -256,6 +256,25 @@ public class CrunchImageConversionService(
                 }
             }
         }
+    }
+
+    private static bool IsValidArgumentKey(string key)
+    {
+        if (string.IsNullOrEmpty(key) || !key.StartsWith('-') || key.Length < 2)
+        {
+            return false;
+        }
+
+        for (var i = 1; i < key.Length; i++)
+        {
+            var c = key[i];
+            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string EscapeArgument(string arg)

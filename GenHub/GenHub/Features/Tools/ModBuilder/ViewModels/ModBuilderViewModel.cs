@@ -2276,7 +2276,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Counts total files to build.
     /// </summary>
-    private async Task<int> CountFilesToBuildAsync()
+    private async Task<int> CountFilesToBuildAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2292,17 +2292,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 var fileCount = await Task.Run(
                     () =>
                     {
-                        try
-                        {
-                            return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories)
-                                .Count(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase));
-                        }
-                        catch
-                        {
-                            return 0;
-                        }
+                        return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories)
+                            .Count(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase));
                     },
-                    CancellationToken.None).ConfigureAwait(false);
+                    cancellationToken).ConfigureAwait(false);
 
                 if (fileCount > 0)
                 {
@@ -2311,6 +2304,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             return Bundles.Sum(b => b.FileCount);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Counting files to build was cancelled");
+            return 0;
         }
         catch (Exception ex)
         {
@@ -2323,9 +2321,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Refreshes the file count.
     /// </summary>
     [RelayCommand]
-    private async Task RefreshFileCountAsync()
+    private async Task RefreshFileCountAsync(CancellationToken cancellationToken = default)
     {
-        FilesToBuildCount = await CountFilesToBuildAsync().ConfigureAwait(false);
+        FilesToBuildCount = await CountFilesToBuildAsync(cancellationToken).ConfigureAwait(false);
         StatusMessage = $"Files to build: {FilesToBuildCount}";
     }
 
