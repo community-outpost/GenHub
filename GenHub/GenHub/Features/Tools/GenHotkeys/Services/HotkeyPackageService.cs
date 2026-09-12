@@ -115,7 +115,7 @@ public class HotkeyPackageService(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var baseCsf = LoadBaseCsf();
+        var baseCsf = LoadBaseCsf(profile);
 
         // Strip explicitly cleared hotkeys (both primary label and linked shortcut aliases)
         foreach (var label in profile.ClearedKeys)
@@ -250,13 +250,17 @@ public class HotkeyPackageService(
 
     /// <summary>
     /// Loads the base CSF template for a given profile.
-    /// Always uses the English reference preset (Presets/LeikezeEN.csf) as the base string table
-    /// so the game language remains English in Data/English/generals.csf regardless of which
-    /// preset layout (Vanilla, Leikeze, or Legionnaire) was selected.
+    /// Always uses an English reference preset (Presets/LegionnaireEN.csf or Presets/LeikezeEN.csf)
+    /// as the base string table so the game language remains English in Data/English/generals.csf
+    /// regardless of which preset layout (Vanilla, Leikeze, or Legionnaire) was selected.
     /// </summary>
-    private static CsfFile LoadBaseCsf()
+    private static CsfFile LoadBaseCsf(HotkeyProfile profile)
     {
-        var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
+        var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
+            ? GenHotkeysConstants.PresetsLegionnaireEn
+            : GenHotkeysConstants.PresetsLeikezeEn;
+
+        var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetFile);
         if (stream != null)
         {
             using (stream)
@@ -265,7 +269,7 @@ public class HotkeyPackageService(
             }
         }
 
-        throw new FileNotFoundException($"Base CSF preset '{GenHotkeysConstants.PresetsLeikezeEn}' could not be loaded. Ensure GenHotkeys assets are present.");
+        throw new FileNotFoundException($"Base CSF preset '{presetFile}' could not be loaded. Ensure GenHotkeys assets are present.");
     }
 
     private static void TryDeleteDirectory(string path)

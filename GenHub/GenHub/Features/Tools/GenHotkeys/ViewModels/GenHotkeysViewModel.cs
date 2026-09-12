@@ -1277,7 +1277,7 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireRu);
+            using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireEn);
             if (stream != null)
             {
                 var csf = CsfFile.Load(stream);

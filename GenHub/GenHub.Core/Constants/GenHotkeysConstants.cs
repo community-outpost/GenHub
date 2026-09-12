@@ -181,11 +181,15 @@ public static class GenHotkeysConstants
     /// <summary>Standard CSF filename.</summary>
     public const string GeneralsCsfFileName = "generals.csf";
 
-    /// <summary>Preset path for English CSF.</summary>
+    /// <summary>Preset path for English CSF (Leikeze layout).</summary>
     public const string PresetsLeikezeEn = "Presets/LeikezeEN.csf";
 
-    /// <summary>Preset path for Russian CSF.</summary>
-    public const string PresetsLegionnaireRu = "Presets/LegionnaireRU.csf";
+    /// <summary>Preset path for English CSF (Legionnaire layout).</summary>
+    public const string PresetsLegionnaireEn = "Presets/LegionnaireEN.csf";
+
+    /// <summary>Preset path for Russian CSF (obsolete alias pointing to English preset).</summary>
+    [Obsolete("Use PresetsLegionnaireEn instead.")]
+    public const string PresetsLegionnaireRu = PresetsLegionnaireEn;
 
     /// <summary>Preset path for CommandMap.ini.</summary>
     public const string PresetsCommandMap = "Presets/CommandMap.ini";

@@ -170,7 +170,7 @@ public class HotkeyProfileStorageService(
 
         // Determine preset CSF asset
         var presetCsfPath = presetName.Equals(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
-            ? GenHotkeysConstants.PresetsLegionnaireRu
+            ? GenHotkeysConstants.PresetsLegionnaireEn
             : GenHotkeysConstants.PresetsLeikezeEn;
 
         return await Task.Run(
