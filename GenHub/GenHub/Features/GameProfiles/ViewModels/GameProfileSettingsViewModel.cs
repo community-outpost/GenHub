@@ -854,6 +854,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private async Task<ContentManifest?> GetOrSynthesizeManifestForContentAsync(ContentDisplayItem contentItem, CancellationToken cancellationToken = default)
     {
+        if (contentItem.Manifest != null)
+        {
+            return contentItem.Manifest;
+        }
+
         if (_manifestPool == null)
         {
             return null;
@@ -888,6 +893,106 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Gets all active game clients in <see cref="EnabledContent"/> that depend on the specified game installation.
+    /// </summary>
+    /// <param name="installation">The game installation item to check.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A list of active game client items that depend on the installation.</returns>
+    private async Task<List<ContentDisplayItem>> GetDependentActiveGameClientsAsync(
+        ContentDisplayItem installation,
+        CancellationToken cancellationToken = default)
+    {
+        var dependentClients = new List<ContentDisplayItem>();
+        var activeClients = EnabledContent
+            .Where(c => c.ContentType == ContentType.GameClient && c.IsEnabled)
+            .ToList();
+
+        if (activeClients.Count == 0)
+        {
+            return dependentClients;
+        }
+
+        foreach (var client in activeClients)
+        {
+            if (await DoesGameClientDependOnInstallationAsync(client, installation, cancellationToken))
+            {
+                dependentClients.Add(client);
+            }
+        }
+
+        return dependentClients;
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client depends on the given game installation.
+    /// </summary>
+    /// <param name="client">The game client content item.</param>
+    /// <param name="installation">The game installation content item.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns><c>true</c> if the game client depends on the game installation; otherwise, <c>false</c>.</returns>
+    private async Task<bool> DoesGameClientDependOnInstallationAsync(
+        ContentDisplayItem client,
+        ContentDisplayItem installation,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Direct SourceId match (standard GameClients point directly to the GameInstallation ID)
+        if (!string.IsNullOrEmpty(client.SourceId) &&
+            (string.Equals(client.SourceId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(client.SourceId, installation.SourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        // 2. Check manifest dependencies if available or synthesized
+        var manifest = await GetOrSynthesizeManifestForContentAsync(client, cancellationToken);
+        if (manifest?.Dependencies != null)
+        {
+            var installDependencies = manifest.Dependencies
+                .Where(d => d.DependencyType == ContentType.GameInstallation)
+                .ToList();
+
+            if (installDependencies.Count > 0)
+            {
+                foreach (var dep in installDependencies)
+                {
+                    var depId = dep.Id.ToString();
+                    if (depId != ManifestConstants.DefaultContentDependencyId)
+                    {
+                        if (string.Equals(depId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(depId, installation.SourceId, StringComparison.OrdinalIgnoreCase) ||
+                            HasCompatibleCatalogMatch(depId, installation.ManifestId.Value))
+                        {
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        if (dep.CompatibleGameTypes is { Count: > 0 })
+                        {
+                            if (dep.CompatibleGameTypes.Contains(installation.GameType))
+                            {
+                                return true;
+                            }
+                        }
+                        else if (client.GameType == installation.GameType)
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        // 3. Fallback: Any active GameClient targeting the same GameType depends on this GameInstallation,
+        // or if this installation is the currently selected profile installation.
+        return client.GameType == installation.GameType ||
+               (SelectedGameInstallation != null &&
+                string.Equals(SelectedGameInstallation.ManifestId.Value, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase));
     }
 
     private void ResolveGameInstallationDependency(

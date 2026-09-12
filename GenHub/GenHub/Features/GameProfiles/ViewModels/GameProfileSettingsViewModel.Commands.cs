@@ -190,6 +190,28 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        if (contentItem.ContentType == ContentType.GameInstallation)
+        {
+            var installation = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value) ?? contentItem;
+            var dependentClients = await GetDependentActiveGameClientsAsync(installation);
+            if (dependentClients.Count > 0)
+            {
+                var clientNames = string.Join(", ", dependentClients.Select(c => $"'{c.DisplayName}'"));
+                StatusMessage = $"Cannot remove {contentItem.DisplayName} while dependent game client {clientNames} is active";
+                _logger?.LogWarning(
+                    "DisableContent blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
+                    contentItem.DisplayName,
+                    clientNames);
+                _localNotificationService.ShowWarning(
+                    "Cannot Remove Installation",
+                    $"Cannot remove game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
+                _notificationService?.ShowWarning(
+                    "Cannot Remove Installation",
+                    $"Cannot remove game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
+                return;
+            }
+        }
+
         if (contentItem.IsLocked)
         {
             StatusMessage = "This content item is locked and cannot be modified";
@@ -202,6 +224,7 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = "This content item cannot be toggled";
             _logger?.LogWarning("DisableContent: Cannot disable non-toggleable item {DisplayName}", contentItem.DisplayName);
+            _localNotificationService.ShowWarning("Cannot Modify Content", $"'{contentItem.DisplayName}' cannot be modified in this mode.");
             return;
         }
 
@@ -274,6 +297,28 @@ public partial class GameProfileSettingsViewModel
             StatusMessage = "No content selected";
             _logger?.LogWarning("DeleteContent: contentItem parameter is null");
             return;
+        }
+
+        if (contentItem.ContentType == ContentType.GameInstallation)
+        {
+            var installation = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value) ?? contentItem;
+            var dependentClients = await GetDependentActiveGameClientsAsync(installation);
+            if (dependentClients.Count > 0)
+            {
+                var clientNames = string.Join(", ", dependentClients.Select(c => $"'{c.DisplayName}'"));
+                StatusMessage = $"Cannot delete {contentItem.DisplayName} while dependent game client {clientNames} is active";
+                _logger?.LogWarning(
+                    "DeleteContent blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
+                    contentItem.DisplayName,
+                    clientNames);
+                _localNotificationService.ShowWarning(
+                    "Cannot Delete Installation",
+                    $"Cannot delete game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
+                _notificationService?.ShowWarning(
+                    "Cannot Delete Installation",
+                    $"Cannot delete game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.");
+                return;
+            }
         }
 
         if (contentItem.IsLocked)
@@ -365,12 +410,23 @@ public partial class GameProfileSettingsViewModel
             if (SelectedGameInstallation == null && !isStandaloneProfile)
             {
                 StatusMessage = "Please select a game installation";
+                _localNotificationService.ShowError(
+                    "Missing Game Installation",
+                    "Please select a game installation before saving.");
+                _notificationService?.ShowError(
+                    "Missing Game Installation",
+                    "Please select a game installation before saving.");
+                _logger?.LogWarning("Profile save blocked: No game installation selected");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(Name))
             {
                 StatusMessage = "Please enter a profile name";
+                _localNotificationService.ShowWarning(
+                    "Missing Name",
+                    "Please enter a profile name before saving.");
+                _logger?.LogWarning("Profile save blocked: Profile name is empty");
                 return;
             }
 

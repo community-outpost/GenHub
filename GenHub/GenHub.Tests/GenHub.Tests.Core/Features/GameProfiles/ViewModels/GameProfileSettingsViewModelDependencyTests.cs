@@ -1012,4 +1012,140 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
         Assert.Equal("Standalone tool profiles do not require or support game installations", _viewModel.StatusMessage);
     }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is blocked when a dependent GameClient is active.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_BlocksGameInstallationRemoval_WhenDependentGameClientIsActiveAsync()
+    {
+        // Arrange
+        var standardClientId = new ManifestId("1.04.eaapp.gameclient.zerohour");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = standardClientId,
+            DisplayName = "Zero Hour 1.04 Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            SourceId = zeroHourInstallId.Value,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.True(zeroHourInstall.IsEnabled);
+        Assert.Contains("Cannot remove", _viewModel.StatusMessage);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning("Cannot Remove Installation", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is allowed after the dependent GameClient is removed first.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_AllowsGameInstallationRemoval_AfterDependentGameClientIsRemovedAsync()
+    {
+        // Arrange
+        var standardClientId = new ManifestId("1.04.eaapp.gameclient.zerohour");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = standardClientId,
+            DisplayName = "Zero Hour 1.04 Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            SourceId = zeroHourInstallId.Value,
+            IsEnabled = true,
+        };
+
+        var modDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.mod.test"),
+            DisplayName = "Test Mod",
+            ContentType = ContentType.Mod,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+        _viewModel.EnabledContent.Add(modDisplayItem);
+
+        // Act 1: Disable client first
+        await _viewModel.DisableContentCommand.ExecuteAsync(clientDisplayItem);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == standardClientId.Value);
+
+        // Act 2: Disable installation
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert
+        Assert.Null(_viewModel.SelectedGameInstallation);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.False(zeroHourInstall.IsEnabled);
+        Assert.Equal($"Disabled {zeroHourInstall.DisplayName}", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that saving fails with error message and notification when SelectedGameInstallation is null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Save_FailsWithNotification_WhenSelectedGameInstallationIsNullAsync()
+    {
+        // Arrange
+        _viewModel.Name = "Test Profile";
+        _viewModel.SelectedGameInstallation = null;
+
+        // Act
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal("Please select a game installation", _viewModel.StatusMessage);
+        _mockNotificationService.Verify(
+            x => x.ShowError("Missing Game Installation", "Please select a game installation before saving.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _mockGameProfileManager.Verify(
+            x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 }
