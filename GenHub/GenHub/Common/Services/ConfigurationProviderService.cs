@@ -23,6 +23,9 @@ public class ConfigurationProviderService(
     IUserSettingsService userSettings,
     ILogger<ConfigurationProviderService> logger) : IConfigurationProviderService
 {
+    private const string InvalidWorkspacePathLogMessage = "User-defined workspace path '{Path}' is invalid. Falling back to default.";
+    private const string InvalidCachePathLogMessage = "User-defined cache path '{Path}' is invalid. Falling back to default.";
+
     private static readonly string[] LegacyRootDirectories =
     [
         DirectoryNames.Profiles,
@@ -78,19 +81,19 @@ public class ConfigurationProviderService(
             }
             catch (IOException ex)
             {
-                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
+                _logger.LogWarning(ex, InvalidWorkspacePathLogMessage, settings.WorkspacePath);
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
+                _logger.LogWarning(ex, InvalidWorkspacePathLogMessage, settings.WorkspacePath);
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
+                _logger.LogWarning(ex, InvalidWorkspacePathLogMessage, settings.WorkspacePath);
             }
             catch (NotSupportedException ex)
             {
-                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
+                _logger.LogWarning(ex, InvalidWorkspacePathLogMessage, settings.WorkspacePath);
             }
         }
 
@@ -120,19 +123,19 @@ public class ConfigurationProviderService(
             }
             catch (IOException ex)
             {
-                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
+                _logger.LogWarning(ex, InvalidCachePathLogMessage, settings.CachePath);
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
+                _logger.LogWarning(ex, InvalidCachePathLogMessage, settings.CachePath);
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
+                _logger.LogWarning(ex, InvalidCachePathLogMessage, settings.CachePath);
             }
             catch (NotSupportedException ex)
             {
-                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
+                _logger.LogWarning(ex, InvalidCachePathLogMessage, settings.CachePath);
             }
         }
 

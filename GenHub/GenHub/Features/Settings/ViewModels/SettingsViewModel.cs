@@ -67,6 +67,7 @@ public partial class SettingsViewModel(
     IPublisherCatalogRefreshService? catalogRefreshService = null) : ObservableObject, IDisposable
 {
     private const string ErrorTitle = "Error";
+    private const string DeletionFailedTitle = "Deletion Failed";
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
     private enum CasCleanupOutcome
@@ -1604,7 +1605,7 @@ public partial class SettingsViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete all application data");
-            notificationService.ShowError("Deletion Failed", $"Failed to delete all application data: {ex.Message}", 5000);
+            notificationService.ShowError(DeletionFailedTitle, $"Failed to delete all application data: {ex.Message}", 5000);
         }
         finally
         {
@@ -1690,7 +1691,7 @@ public partial class SettingsViewModel(
                 logger.LogWarning("Failed to collect CAS storage: {Error}", result.FirstError);
                 if (showToast)
                 {
-                    notificationService.ShowError("Deletion Failed", result.FirstError ?? "Failed to collect CAS storage", 5000);
+                    notificationService.ShowError(DeletionFailedTitle, result.FirstError ?? "Failed to collect CAS storage", 5000);
                 }
 
                 return CasCleanupOutcome.Failed;
@@ -1713,7 +1714,7 @@ public partial class SettingsViewModel(
             logger.LogError(ex, "Failed to delete CAS storage");
             if (showToast)
             {
-                notificationService.ShowError("Deletion Failed", $"An error occurred: {ex.Message}", 5000);
+                notificationService.ShowError(DeletionFailedTitle, $"An error occurred: {ex.Message}", 5000);
             }
 
             return CasCleanupOutcome.Failed;
@@ -1792,7 +1793,7 @@ public partial class SettingsViewModel(
             logger.LogError(ex, "Failed to delete manifests");
             if (showToast)
             {
-                notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
+                notificationService.ShowError(DeletionFailedTitle, $"Failed to delete manifests: {ex.Message}", 5000);
             }
         }
     }
@@ -1867,7 +1868,7 @@ public partial class SettingsViewModel(
             logger.LogError(ex, "Failed to delete workspaces");
             if (showToast)
             {
-                notificationService.ShowError("Deletion Failed", $"Failed to delete workspaces: {ex.Message}", 5000);
+                notificationService.ShowError(DeletionFailedTitle, $"Failed to delete workspaces: {ex.Message}", 5000);
             }
         }
     }
@@ -2037,7 +2038,7 @@ public partial class SettingsViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete user data");
-            notificationService.ShowError("Deletion Failed", $"Failed to delete user data: {ex.Message}", 5000);
+            notificationService.ShowError(DeletionFailedTitle, $"Failed to delete user data: {ex.Message}", 5000);
             return false;
         }
     }
@@ -2165,7 +2166,7 @@ public partial class SettingsViewModel(
             logger.LogError(ex, "Failed to delete profiles");
             if (showToast)
             {
-                notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
+                notificationService.ShowError(DeletionFailedTitle, $"Failed to delete profiles: {ex.Message}", 5000);
             }
         }
     }
@@ -2563,9 +2564,9 @@ public partial class SettingsViewModel(
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Loading subscriptions was cancelled.");
+            logger.LogInformation(ex, "Loading subscriptions was cancelled.");
         }
         catch (Exception ex)
         {
@@ -2598,17 +2599,17 @@ public partial class SettingsViewModel(
             }
             else
             {
-                notificationService.ShowError("Error", $"Failed to remove subscription: {result.FirstError}");
+                notificationService.ShowError(ErrorTitle, $"Failed to remove subscription: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Removing subscription was cancelled.");
+            logger.LogInformation(ex, "Removing subscription was cancelled.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to remove subscription");
-            notificationService.ShowError("Error", "Failed to remove subscription");
+            notificationService.ShowError(ErrorTitle, "Failed to remove subscription");
         }
     }
 
@@ -2636,17 +2637,17 @@ public partial class SettingsViewModel(
             }
             else
             {
-                notificationService.ShowError("Error", $"Failed to update trust level: {result.FirstError}");
+                notificationService.ShowError(ErrorTitle, $"Failed to update trust level: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Toggling trust level was cancelled.");
+            logger.LogInformation(ex, "Toggling trust level was cancelled.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update trust level");
-            notificationService.ShowError("Error", "Failed to update trust level");
+            notificationService.ShowError(ErrorTitle, "Failed to update trust level");
         }
     }
 
@@ -2675,14 +2676,14 @@ public partial class SettingsViewModel(
                 notificationService.ShowError("Refresh Failed", result.FirstError ?? "Unknown error");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Refreshing catalogs was cancelled.");
+            logger.LogInformation(ex, "Refreshing catalogs was cancelled.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to refresh catalogs");
-            notificationService.ShowError("Error", "An unexpected error occurred during refresh.");
+            notificationService.ShowError(ErrorTitle, "An unexpected error occurred during refresh.");
         }
         finally
         {
