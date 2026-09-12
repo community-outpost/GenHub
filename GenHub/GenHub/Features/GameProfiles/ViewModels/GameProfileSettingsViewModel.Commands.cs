@@ -364,6 +364,15 @@ public partial class GameProfileSettingsViewModel
 
             var result = await _localContentService.DeleteLocalContentAsync(contentItem.ManifestId.Value, cancellationToken);
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger?.LogInformation(
+                    "Deletion canceled for content {ContentName}",
+                    contentItem.DisplayName);
+                StatusMessage = "Deletion canceled";
+                return;
+            }
+
             if (result.Success)
             {
                 var enabledItem = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value);
@@ -395,6 +404,13 @@ public partial class GameProfileSettingsViewModel
                     contentItem.DisplayName,
                     string.Join(", ", result.Errors));
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger?.LogInformation(
+                "Deletion canceled for content {ContentName}",
+                contentItem.DisplayName);
+            StatusMessage = "Deletion canceled";
         }
         catch (Exception ex)
         {

@@ -975,17 +975,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
-    private bool MatchesDependencyGameType(ContentDependency dep, GameType installationGameType, GameType fallbackGameType)
-    {
-        if (dep.CompatibleGameTypes is { Count: > 0 })
-        {
-            return dep.CompatibleGameTypes.Contains(installationGameType);
-        }
-
-        return fallbackGameType == installationGameType;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
     private bool MatchesInstallationDependencyId(string depId, ContentDisplayItem installation)
     {
         return string.Equals(depId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
@@ -993,13 +982,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                HasCompatibleCatalogMatch(depId, installation.ManifestId.Value);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
     private bool IsInstallationDependencySatisfiedBy(ContentDependency dep, ContentDisplayItem installation, GameType clientGameType)
     {
         var depId = dep.Id.ToString();
         if (depId == ManifestConstants.DefaultContentDependencyId)
         {
-            return MatchesDependencyGameType(dep, installation.GameType, clientGameType);
+            return dep.CompatibleGameTypes is { Count: > 0 }
+                ? dep.CompatibleGameTypes.Contains(installation.GameType)
+                : SelectedGameInstallation != null &&
+                  string.Equals(
+                      SelectedGameInstallation.ManifestId.Value,
+                      installation.ManifestId.Value,
+                      StringComparison.OrdinalIgnoreCase);
         }
 
         if (MatchesInstallationDependencyId(depId, installation))

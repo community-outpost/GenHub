@@ -284,6 +284,11 @@ public class LocalContentService(
             logger.LogInformation("Successfully deleted local content '{ManifestId}'", manifestId);
             return OperationResult.CreateSuccess();
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Deletion of local content '{ManifestId}' was canceled", manifestId);
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting local content '{ManifestId}'", manifestId);
