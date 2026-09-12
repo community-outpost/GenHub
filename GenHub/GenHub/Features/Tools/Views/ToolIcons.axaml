@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- Tools Vector Icons -->
+  <StreamGeometry x:Key="ToolIcon.AlertTriangle">M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z</StreamGeometry>
   <StreamGeometry x:Key="ToolIcon.Check">M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z</StreamGeometry>
   <StreamGeometry x:Key="ToolIcon.ChevronDown">M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z</StreamGeometry>
   <StreamGeometry x:Key="ToolIcon.ChevronRight">M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z</StreamGeometry>

@@ -157,20 +157,28 @@
                 </StackPanel>
                 <Button.Flyout>
                   <MenuFlyout Placement="Bottom">
+                    <MenuItem Header="Default (Vanilla Retail)"
+                              Command="{Binding ApplyPresetCommand}"
+                              CommandParameter="Vanilla"
+                              ToolTip.Tip="Reset to original retail game hotkeys">
+                      <MenuItem.Icon>
+                        <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="14" Height="14"/>
+                      </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Leikeze Layout"
+                              Command="{Binding ApplyPresetCommand}"
+                              CommandParameter="Leikeze"
+                              ToolTip.Tip="Apply Leikeze's reference layout hotkeys">
+                      <MenuItem.Icon>
+                        <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="14" Height="14"/>
+                      </MenuItem.Icon>
+                    </MenuItem>
                     <MenuItem Header="Legionnaire QWERTY Grid"
                               Command="{Binding ApplyPresetCommand}"
                               CommandParameter="Legionnaire"
                               ToolTip.Tip="Apply Legionnaire's standard QWERTY grid hotkeys">
                       <MenuItem.Icon>
                         <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="14" Height="14"/>
-                      </MenuItem.Icon>
-                    </MenuItem>
-                    <MenuItem Header="Default (Leikeze Layout)"
-                              Command="{Binding ApplyPresetCommand}"
-                              CommandParameter="Vanilla"
-                              ToolTip.Tip="Reset to default English hotkeys (Leikeze reference layout)">
-                      <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="14" Height="14"/>
                       </MenuItem.Icon>
                     </MenuItem>
                   </MenuFlyout>
@@ -530,21 +538,64 @@
               <Button Content="M" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="M" Width="30" Height="28" Padding="0"/>
             </StackPanel>
 
-            <!-- Row 4: Clear Hotkey Button -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
-              <Button Content="Clear Key [-]" Command="{Binding ClearHotkeyCommand}" Classes="Secondary" Width="120" Height="28"/>
+            <!-- Row 4: Action Reset, Clear, and Bulk Apply Controls -->
+            <StackPanel Spacing="6" HorizontalAlignment="Stretch" Margin="0,8,0,0">
+              <Grid ColumnDefinitions="*,*">
+                <Button Grid.Column="0"
+                        Content="Reset to Default"
+                        Command="{Binding ResetKeyToDefaultCommand}"
+                        Classes="Secondary"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Height="28"
+                        Margin="0,0,3,0"
+                        ToolTip.Tip="Reset this action to its original default hotkey"/>
+                <Button Grid.Column="1"
+                        Content="Clear Key [-]"
+                        Command="{Binding ClearHotkeyCommand}"
+                        Classes="Secondary"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Height="28"
+                        Margin="3,0,0,0"
+                        ToolTip.Tip="Clear hotkey assignment for this action"/>
+              </Grid>
+
+              <Button Content="{Binding ApplyToAllButtonText}"
+                      Command="{Binding ApplyToAllMatchingActionsCommand}"
+                      Classes="Secondary"
+                      IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Center"
+                      Height="28"
+                      ToolTip.Tip="Apply this hotkey to all matching actions across all armies"/>
             </StackPanel>
           </StackPanel>
 
-          <!-- Conflict Status Panel with Clear Explanation -->
-          <Border Grid.Row="4" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,12,0,0"
+          <!-- Conflict Status Panel with Quick Navigation -->
+          <Border Grid.Row="4" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,10,0,0"
                   IsVisible="{Binding HasConflicts}">
-            <StackPanel Spacing="6">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="⚠️ Hotkey Conflicts Detected!" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
+            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <PathIcon Data="{StaticResource ToolIcon.AlertTriangle}" Width="14" Height="14" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ConflictStatusText}"
+                           FontWeight="SemiBold"
+                           FontSize="12"
+                           Foreground="{DynamicResource ErrorBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock Text="{Binding ConflictSummary}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="16"/>
-            </StackPanel>
+              <Button Grid.Column="1"
+                      Command="{Binding SelectNextConflictCommand}"
+                      Classes="Secondary"
+                      Padding="8,4"
+                      ToolTip.Tip="Navigate to next conflicting hotkey">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="Next Conflict" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </Grid>
           </Border>
         </Grid>
       </Border>
