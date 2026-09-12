@@ -244,7 +244,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         }
 
         var mapList = new List<MapListItem>();
-        string html;
+        var html = string.Empty;
         try
         {
             using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);

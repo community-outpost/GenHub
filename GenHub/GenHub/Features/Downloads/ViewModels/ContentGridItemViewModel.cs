@@ -599,6 +599,50 @@ public sealed partial class ContentGridItemViewModel(
         });
     }
 
+    private bool MatchesManifestOrMetadata(ContentStateChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.ManifestId))
+        {
+            return false;
+        }
+
+        var segments = e.ManifestId.Split('.');
+        if (segments.Length != 5 ||
+            (!string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+             !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)) ||
+            !string.Equals(segments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var manifestNormName = ContentStateService.NormalizeSegment(segments[4]);
+        var cardNormName = ContentStateService.NormalizeSegment(SearchResult.Name);
+        if (string.Equals(cardNormName, manifestNormName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return MatchesResolverMetadata(e);
+    }
+
+    private bool MatchesResolverMetadata(ContentStateChangedEventArgs e)
+    {
+        if (SearchResult.ResolverMetadata == null)
+        {
+            return false;
+        }
+
+        return (SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
+                !string.IsNullOrEmpty(cncMapId) &&
+                ((e.ManifestId != null && e.ManifestId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)))) ||
+               (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
+                !string.IsNullOrEmpty(aodMapId) &&
+                ((e.ManifestId != null && e.ManifestId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)))) ||
+               (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
+                !string.IsNullOrEmpty(modDbId) &&
+                ((e.ManifestId != null && e.ManifestId.Contains(modDbId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(modDbId, StringComparison.OrdinalIgnoreCase))));
+    }
+
     /// <summary>
     /// Handles content state changes from the ContentStateService.
     /// </summary>
@@ -607,31 +651,8 @@ public sealed partial class ContentGridItemViewModel(
         // Match on either the catalog ID or the manifest ID: after a download the shared
         // ContentSearchResult's ID is rewritten to the manifest ID, so a single key is not enough.
         var isForThisContent = e.ContentId == Id ||
-                               (!string.IsNullOrEmpty(e.ManifestId) && string.Equals(e.ManifestId, Id, StringComparison.OrdinalIgnoreCase));
-
-        if (!isForThisContent && !string.IsNullOrEmpty(e.ManifestId))
-        {
-            var segments = e.ManifestId.Split('.');
-            if (segments.Length == 5 &&
-                (string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) ||
-                 ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)) &&
-                string.Equals(segments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase))
-            {
-                var manifestNormName = ContentStateService.NormalizeSegment(segments[4]);
-                var cardNormName = ContentStateService.NormalizeSegment(SearchResult.Name);
-                if (string.Equals(cardNormName, manifestNormName, StringComparison.OrdinalIgnoreCase) ||
-                    (SearchResult.ResolverMetadata != null &&
-                     ((SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
-                       (e.ManifestId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)))) ||
-                      (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
-                       (e.ManifestId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)))) ||
-                      (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
-                       (e.ManifestId.Contains(modDbId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(modDbId, StringComparison.OrdinalIgnoreCase)))))))
-                {
-                    isForThisContent = true;
-                }
-            }
-        }
+                               (!string.IsNullOrEmpty(e.ManifestId) && string.Equals(e.ManifestId, Id, StringComparison.OrdinalIgnoreCase)) ||
+                               MatchesManifestOrMetadata(e);
 
         // A variant matches the changed content when its catalog key equals the event's
         // content ID, or when the stored sibling snapshot's Id was rewritten to the

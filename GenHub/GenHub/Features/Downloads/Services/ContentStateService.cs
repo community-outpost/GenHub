@@ -1122,13 +1122,13 @@ public sealed partial class ContentStateService(
             string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
             (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
              string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
-            (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
+            (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) == true &&
              (manifest.OriginalContentId.EndsWith($".{cncMapId}", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(manifest.OriginalContentId, cncMapId, StringComparison.OrdinalIgnoreCase))) ||
-            (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
+            (item.ResolverMetadata?.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) == true &&
              (manifest.OriginalContentId.EndsWith($".{aodMapId}", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(manifest.OriginalContentId, aodMapId, StringComparison.OrdinalIgnoreCase))) ||
-            (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
+            (item.ResolverMetadata?.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) == true &&
              (manifest.OriginalContentId.EndsWith($".{modDbId}", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(manifest.OriginalContentId, modDbId, StringComparison.OrdinalIgnoreCase)))))
         {
@@ -1377,17 +1377,17 @@ public sealed partial class ContentStateService(
                 (string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
                  (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
                   string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
-                 (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
+                 (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) == true &&
                   (manifest.OriginalContentId.EndsWith($".{cncMapId}", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(manifest.OriginalContentId, cncMapId, StringComparison.OrdinalIgnoreCase))) ||
-                 (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
+                 (item.ResolverMetadata?.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) == true &&
                   (manifest.OriginalContentId.EndsWith($".{aodMapId}", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(manifest.OriginalContentId, aodMapId, StringComparison.OrdinalIgnoreCase))) ||
-                 (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
+                 (item.ResolverMetadata?.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) == true &&
                   (manifest.OriginalContentId.EndsWith($".{modDbId}", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(manifest.OriginalContentId, modDbId, StringComparison.OrdinalIgnoreCase))));
 
-            if (!contentIdMatches && item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapId))
+            if (!contentIdMatches && item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapId) == true)
             {
                 contentIdMatches = manifest.Publisher?.SupportUrl != null &&
                     (manifest.Publisher.SupportUrl.Contains($"/details/{mapId}/", StringComparison.OrdinalIgnoreCase) ||

@@ -264,7 +264,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_Http404NotFound_ReturnsSuccessWithEmptyResults()
+    public async Task DiscoverAsync_Http404NotFound_ReturnsSuccessWithEmptyResultsAsync()
     {
         // Arrange
         var query = new ContentSearchQuery
@@ -297,7 +297,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithSearchTerm_FiltersResultsInHttpClient()
+    public async Task DiscoverAsync_WithSearchTerm_FiltersResultsInHttpClientAsync()
     {
         // Arrange
         var query = new ContentSearchQuery
