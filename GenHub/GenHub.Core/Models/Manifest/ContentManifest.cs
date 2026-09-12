@@ -22,7 +22,8 @@ public class ContentManifest
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ContentManifest"/> class by copying another instance.
+    /// Initializes a new instance of the <see cref="ContentManifest"/> class by performing a shallow copy of collections.
+    /// Elements and complex nested models are shared by reference.
     /// </summary>
     /// <param name="other">The instance to copy from.</param>
     public ContentManifest(ContentManifest other)
@@ -51,6 +52,7 @@ public class ContentManifest
     }
 
     /// <summary>Gets or sets the manifest format version.</summary>
+    [JsonPropertyName("ManifestVersion")]
     public string ManifestVersion { get; set; } = ManifestConstants.DefaultManifestVersion;
 
     /// <summary>Gets or sets the manifest format/schema version (alias for ManifestVersion).</summary>
@@ -156,7 +158,7 @@ public class ContentManifest
     public InstallationInstructions InstallationInstructions { get; set; } = new();
 
     /// <summary>
-    /// Creates a copy of this manifest.
+    /// Creates a shallow clone of this manifest. Collections are copied but nested models are shared by reference.
     /// </summary>
     /// <returns>A clone of this manifest.</returns>
     public ContentManifest Clone() => new(this);

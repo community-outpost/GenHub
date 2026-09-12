@@ -2594,6 +2594,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     Subscriptions.Add(sub);
                 }
             }
+            else if (!result.Success)
+            {
+                _notificationService.ShowError(ErrorTitle, $"Failed to load subscriptions: {result.FirstError}");
+            }
         }
         catch (OperationCanceledException ex)
         {
@@ -2602,6 +2606,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load subscriptions");
+            _notificationService.ShowError(ErrorTitle, "Failed to load subscriptions");
         }
         finally
         {

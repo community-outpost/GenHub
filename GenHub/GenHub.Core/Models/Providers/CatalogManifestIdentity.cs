@@ -25,7 +25,7 @@ public static class CatalogManifestIdentity
     /// </summary>
     /// <param name="version1">The first version string.</param>
     /// <param name="version2">The second version string.</param>
-    /// <returns>A signed integer indicating relative order (-1, 0, or 1).</returns>
+    /// <returns>A signed integer indicating relative order (negative, zero, or positive).</returns>
     public static int CompareVersions(string? version1, string? version2) =>
         VersionScheme.Compare(version1, version2);
 
@@ -171,7 +171,7 @@ public static class CatalogManifestIdentity
         }
 
         var candidate = stripped.TrimStart('v', 'V').Trim();
-        if (candidate.Length > 0 && char.IsDigit(candidate[0]) && IsValidVersion(candidate))
+        if (candidate.Length > 0 && candidate != "0" && IsValidVersion(candidate))
         {
             cleanVersion = candidate;
             return true;
@@ -368,7 +368,7 @@ public static class CatalogManifestIdentity
     /// </summary>
     /// <param name="release">The content release containing artifacts.</param>
     /// <returns>The list of variant artifacts matching multi-option axes, or empty list if single-option/no variants.</returns>
-    public static List<ReleaseArtifact> GetVariantArtifacts(ContentRelease release)
+    public static IReadOnlyList<ReleaseArtifact> GetVariantArtifacts(ContentRelease release)
     {
         ArgumentNullException.ThrowIfNull(release);
 
@@ -387,7 +387,6 @@ public static class CatalogManifestIdentity
         }
 
         var multiAxes = hinted
-            .Where(a => a.VariantAxis != null)
             .GroupBy(a => a.VariantAxis!, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
@@ -398,7 +397,7 @@ public static class CatalogManifestIdentity
             return [];
         }
 
-        return hinted.Where(a => a.VariantAxis != null && multiAxes.Contains(a.VariantAxis)).ToList();
+        return hinted.Where(a => multiAxes.Contains(a.VariantAxis!)).ToList();
     }
 
     /// <summary>
@@ -584,9 +583,9 @@ public static class CatalogManifestIdentity
         return 0;
     }
 
-    private static bool Is1080pLabel(string label)
+    private static bool Is1080pLabel(string? label)
     {
-        return label.Contains("1080p", StringComparison.OrdinalIgnoreCase) ||
-               label.Contains("1920x1080", StringComparison.OrdinalIgnoreCase);
+        return label?.Contains("1080p", StringComparison.OrdinalIgnoreCase) == true ||
+               label?.Contains("1920x1080", StringComparison.OrdinalIgnoreCase) == true;
     }
 }

@@ -142,7 +142,9 @@ public static class CatalogBundleComponentBuilder
                 PublisherId = dependency.PublisherId ?? string.Empty,
                 ContentId = dependency.ContentId,
                 Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
-                ContentType = dependency.ContentType ?? ContentType.Mod.ToString(),
+                ContentType = CatalogManifestIdentity.TryParseDeclaredContentType(dependency.ContentType, out var parsedType)
+                    ? parsedType.ToString()
+                    : ContentType.Mod.ToString(),
                 IsOptional = dependency.IsOptional,
                 IsBaseGame = false,
                 IsAvailable = false,
@@ -202,8 +204,8 @@ public static class CatalogBundleComponentBuilder
         return descriptor;
     }
 
-    private static List<ReleaseArtifact> FilterVariantArtifactsByTargetGame(
-        List<ReleaseArtifact> variantArtifacts,
+    private static IReadOnlyList<ReleaseArtifact> FilterVariantArtifactsByTargetGame(
+        IReadOnlyList<ReleaseArtifact> variantArtifacts,
         GameType parentTargetGame)
     {
         if (parentTargetGame is not (GameType.Generals or GameType.ZeroHour))
@@ -234,11 +236,16 @@ public static class CatalogBundleComponentBuilder
         }).ToList();
     }
 
+    /// <summary>
+    /// Populates variants for a bundle component. Single-axis selection is intentional for bundle
+    /// component UI pickers: the primary axis is presented to the user, and secondary axes remain
+    /// fixed to their default.
+    /// </summary>
     private static void PopulateComponentVariants(
         CatalogBundleComponentDescriptor descriptor,
         CatalogContentItem sibling,
         ContentRelease resolvedSiblingRelease,
-        List<ReleaseArtifact> variantArtifacts)
+        IReadOnlyList<ReleaseArtifact> variantArtifacts)
     {
         if (variantArtifacts.Count > 0)
         {
@@ -323,7 +330,7 @@ public static class CatalogBundleComponentBuilder
         return item.Releases.FirstOrDefault(r => r.IsLatest) ?? item.Releases[0];
     }
 
-    private static ContentRelease CloneVariantRelease(ContentRelease release, ReleaseArtifact selectedArtifact, List<ReleaseArtifact> allArtifacts)
+    private static ContentRelease CloneVariantRelease(ContentRelease release, ReleaseArtifact selectedArtifact, IReadOnlyList<ReleaseArtifact> allArtifacts)
     {
         var selectedAxis = selectedArtifact.VariantAxis ?? string.Empty;
         var artifactsToInclude = new List<ReleaseArtifact> { selectedArtifact };

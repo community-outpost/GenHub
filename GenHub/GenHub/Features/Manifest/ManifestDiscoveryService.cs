@@ -194,6 +194,10 @@ public class ManifestDiscoveryService(
         return exception is UnauthorizedAccessException or IOException;
     }
 
+    /// <summary>
+    /// Checks whether an actual version satisfies min and max version constraints.
+    /// Unparseable version strings intentionally fail numeric min/max range checks by design.
+    /// </summary>
     private static bool IsVersionCompatible(
         string actualVersion,
         string minVersion,
