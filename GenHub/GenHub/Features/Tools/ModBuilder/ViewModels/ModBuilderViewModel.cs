@@ -1535,7 +1535,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     dialog.Show();
                 }
 
-                await RefreshFileCountAsync();
+                await RefreshFileCountAsync(CancellationToken.None);
             });
         }
         catch (Exception ex)
@@ -2051,7 +2051,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var fileCount = await CountFilesToBuildAsync().ConfigureAwait(false);
+        var fileCount = await CountFilesToBuildAsync(CancellationToken.None).ConfigureAwait(false);
         if (fileCount == 0)
         {
             await InvokeOnUIThreadAsync(() =>
@@ -2290,11 +2290,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             if (Directory.Exists(editFolder))
             {
                 var fileCount = await Task.Run(
-                    () =>
-                    {
-                        return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories)
-                            .Count(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase));
-                    },
+                    () => Directory.EnumerateFiles(editFolder, "*.*", SearchOption.AllDirectories)
+                        .Count(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase)),
                     cancellationToken).ConfigureAwait(false);
 
                 if (fileCount > 0)
@@ -2305,9 +2302,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             return Bundles.Sum(b => b.FileCount);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Counting files to build was cancelled");
+            _logger.LogInformation(ex, "Counting files to build was cancelled");
             return 0;
         }
         catch (Exception ex)
@@ -2613,7 +2610,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             await InvokeOnUIThreadAsync(() => PopulateProjectBundlesAndProperties(CurrentProject?.Configuration)).ConfigureAwait(false);
 
-            var countedFiles = await CountFilesToBuildAsync().ConfigureAwait(false);
+            var countedFiles = await CountFilesToBuildAsync(CancellationToken.None).ConfigureAwait(false);
             if (countedFiles > 0)
             {
                 await InvokeOnUIThreadAsync(() =>

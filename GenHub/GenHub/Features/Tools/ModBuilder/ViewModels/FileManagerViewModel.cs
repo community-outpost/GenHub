@@ -598,6 +598,60 @@ public partial class FileManagerViewModel(
         return [];
     }
 
+    private static List<FileTreeNode> CollectFilesToAdd(IReadOnlyList<FileTreeNode> targetNodes)
+    {
+        var filesToAdd = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in targetNodes)
+        {
+            if (node.IsDirectory)
+            {
+                foreach (var file in GetAllFiles([node]))
+                {
+                    filesToAdd[file.FullPath] = file;
+                }
+            }
+            else
+            {
+                filesToAdd[node.FullPath] = node;
+            }
+        }
+
+        return filesToAdd.Values.ToList();
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable properties via Dispatcher")]
+    private int CopyFilesToProject(IReadOnlyList<FileTreeNode> fileList, string gameFilesEditedPath, CancellationToken cancellationToken)
+    {
+        var count = 0;
+        var total = fileList.Count;
+        for (var i = 0; i < total; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var file = fileList[i];
+            var destPath = Path.Combine(gameFilesEditedPath, file.RelativePath);
+            var destDir = Path.GetDirectoryName(destPath);
+
+            if (!string.IsNullOrEmpty(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            File.Copy(file.FullPath, destPath, overwrite: true);
+            count++;
+
+            var current = i + 1;
+            var percent = (current / (double)total) * 100.0;
+            Dispatcher.UIThread.Post(() =>
+            {
+                ProgressPercentage = percent;
+                StatusMessage = $"Adding ({current}/{total}): {file.Name}";
+            });
+        }
+
+        return count;
+    }
+
     /// <summary>
     /// Adds selected files from game installation to project.
     /// </summary>
@@ -616,63 +670,21 @@ public partial class FileManagerViewModel(
             ProgressPercentage = 0;
             StatusMessage = "Preparing files to add...";
 
-            var filesToAdd = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
-            foreach (var node in targetNodes)
-            {
-                if (node.IsDirectory)
-                {
-                    foreach (var file in GetAllFiles([node]))
-                    {
-                        filesToAdd[file.FullPath] = file;
-                    }
-                }
-                else
-                {
-                    filesToAdd[node.FullPath] = node;
-                }
-            }
-
-            var fileList = filesToAdd.Values.ToList();
-            var total = fileList.Count;
+            var fileList = CollectFilesToAdd(targetNodes);
             var gameFilesEditedPath = GetGameFilesEditedPath();
 
-            var copiedCount = await Task.Run(() =>
-            {
-                var count = 0;
-                for (var i = 0; i < total; i++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var file = fileList[i];
-                    var destPath = Path.Combine(gameFilesEditedPath, file.RelativePath);
-                    var destDir = Path.GetDirectoryName(destPath);
-
-                    if (!string.IsNullOrEmpty(destDir))
-                        Directory.CreateDirectory(destDir);
-
-                    File.Copy(file.FullPath, destPath, overwrite: true);
-                    count++;
-
-                    var current = i + 1;
-                    var percent = (current / (double)total) * 100.0;
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        ProgressPercentage = percent;
-                        StatusMessage = $"Adding ({current}/{total}): {file.Name}";
-                    });
-                }
-
-                return count;
-            }, cancellationToken).ConfigureAwait(false);
+            var copiedCount = await Task.Run(
+                () => CopyFilesToProject(fileList, gameFilesEditedPath, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
 
             await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
 
             notificationService.ShowSuccess("Files Added", $"Added {copiedCount} file(s) to project");
             StatusMessage = $"Added {copiedCount} file(s)";
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Add files to project was cancelled");
+            logger.LogInformation(ex, "Add files to project was cancelled");
             StatusMessage = "Add files cancelled";
         }
         catch (Exception ex)
@@ -716,9 +728,9 @@ public partial class FileManagerViewModel(
 
             notificationService.ShowSuccess("Files Removed", $"Removed {fileList.Count} file(s) from project");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Remove files from project was cancelled");
+            logger.LogInformation(ex, "Remove files from project was cancelled");
             StatusMessage = "Remove files cancelled";
         }
         catch (Exception ex)
@@ -828,4 +840,3 @@ public partial class FileManagerViewModel(
         }
     }
 }
-
