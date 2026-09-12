@@ -331,22 +331,7 @@ public partial class AddLocalContentViewModel(
             return;
         }
 
-        // Only set SourcePath if not already set or empty (support multiple imports)
-        if (string.IsNullOrEmpty(SourcePath))
-        {
-            SourcePath = path;
-        }
-
-        if (string.IsNullOrWhiteSpace(ContentName) && string.IsNullOrEmpty(SourcePath))
-        {
-            // Use the folder name or first file name as default content name if not set
-            ContentName = Path.GetFileNameWithoutExtension(path);
-        }
-        else if (string.IsNullOrWhiteSpace(ContentName))
-        {
-            // If adding more files, don't overwrite name unless empty
-            ContentName = Path.GetFileNameWithoutExtension(path);
-        }
+        SetDefaultContentName(path);
 
         try
         {
@@ -354,46 +339,6 @@ public partial class AddLocalContentViewModel(
             StatusMessage = $"Importing {Path.GetFileName(path)}...";
             logger?.LogInformation("Importing content from {Path} to staging {Staging}", path, _stagingPath);
 
-            if (!Directory.Exists(_stagingPath))
-            {
-                Directory.CreateDirectory(_stagingPath);
-            }
-
-            if (File.Exists(path))
-            {
-                var extension = Path.GetExtension(path);
-                if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
-                {
-                    await Task.Run(() => ZipFile.ExtractToDirectory(path, _stagingPath, true), _cts?.Token ?? CancellationToken.None);
-                }
-                else
-                {
-                    var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
-                    File.Copy(path, destFile, true);
-                }
-            }
-            else if (Directory.Exists(path))
-            {
-                // Preserve directory structure by copying the folder itself into staging
-                var dirInfo = new DirectoryInfo(path);
-                var dirName = dirInfo.Name;
-
-                // Ensure we don't try to copy to the staging root itself if Name is somehow empty
-                if (string.IsNullOrWhiteSpace(dirName))
-                {
-                    dirName = "Imported_Folder";
-                }
-
-                var targetSubDir = Path.Combine(_stagingPath, dirName);
-                logger?.LogDebug("ImportContentAsync: Preserving directory structure. Source: {Source}, Target: {Target}", path, targetSubDir);
-
-                await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(targetSubDir)), _cts?.Token ?? CancellationToken.None);
-            }
-
-            // Auto-organization: If we have .map files at the root level, move them into subdirectories
-            CreateMapFoldersIfNeeded();
-
-            // Detect and normalize GenLauncher files
             _cts ??= new CancellationTokenSource();
             if (_cts.IsCancellationRequested)
             {
@@ -402,98 +347,15 @@ public partial class AddLocalContentViewModel(
             }
 
             var cancellationToken = _cts.Token;
+            await StageContentSourceAsync(path, cancellationToken);
+
+            // Auto-organization: If we have .map files at the root level, move them into subdirectories
+            CreateMapFoldersIfNeeded();
+
             var normalizationSetStatus = false;
             try
             {
-                if (genLauncherNormalizationService != null && dialogService != null)
-                {
-                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, cancellationToken);
-
-                    if (detectionResult.HasGenLauncherFiles)
-                    {
-                        logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
-
-                        var normalizationPrompt =
-                            $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
-                            "This will:\n" +
-                            $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
-                            $"• Convert {GenLauncherConstants.CtrExtension} files to {GenLauncherConstants.BigExtension} or {GenLauncherConstants.ExeExtension} based on content\n" +
-                            $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
-                            "• Remove symbolic links";
-
-                        var shouldNormalize = await dialogService.ShowConfirmationAsync(
-                            "GenLauncher Files Detected",
-                            normalizationPrompt,
-                            "Normalize",
-                            "Skip",
-                            sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
-
-                        if (shouldNormalize)
-                        {
-                            StatusMessage = "Normalizing GenLauncher files...";
-                            logger?.LogInformation("User confirmed normalization");
-
-                            var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
-                                _stagingPath,
-                                cancellationToken);
-
-                            if (normalizationResult.Success)
-                            {
-                                var result = normalizationResult.Data;
-                                if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
-                                {
-                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import successful.";
-                                }
-                                else if (result.FailedFiles.Count > 0)
-                                {
-                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
-                                }
-                                else if (result.SkippedFiles.Count > 0)
-                                {
-                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import successful.";
-                                }
-                                else
-                                {
-                                    StatusMessage = $"Normalized {result.NormalizedCount} file(s). Import successful.";
-                                }
-
-                                normalizationSetStatus = true;
-                                logger?.LogInformation(
-                                    "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed, {SkippedCount} skipped, {FailedCount} failed",
-                                    result.NormalizedCount,
-                                    result.SymbolicLinksRemoved,
-                                    result.SkippedFiles.Count,
-                                    result.FailedFiles.Count);
-
-                                if (!result.IsFullySuccessful)
-                                {
-                                    logger?.LogWarning(
-                                        "Some files failed to normalize: {FailedFiles}",
-                                        string.Join(", ", result.FailedFiles));
-                                }
-
-                                if (result.SkippedFiles.Count > 0)
-                                {
-                                    logger?.LogInformation(
-                                        "Some files were skipped during normalization: {SkippedFiles}",
-                                        string.Join(", ", result.SkippedFiles));
-                                }
-                            }
-                            else
-                            {
-                                StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
-                                normalizationSetStatus = true;
-                                logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
-                            }
-                        }
-                        else
-                        {
-                            logger?.LogInformation("User skipped normalization");
-                            StatusMessage = "Import successful (GenLauncher files not normalized).";
-                            normalizationSetStatus = true;
-                        }
-                    }
-                }
+                normalizationSetStatus = await ProcessGenLauncherNormalizationAsync(cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -898,6 +760,155 @@ public partial class AddLocalContentViewModel(
         {
             logger?.LogWarning(ex, "Failed to auto-organize map files");
         }
+    }
+
+    private void SetDefaultContentName(string path)
+    {
+        // Only set SourcePath if not already set or empty (support multiple imports)
+        if (string.IsNullOrEmpty(SourcePath))
+        {
+            SourcePath = path;
+        }
+
+        if (string.IsNullOrWhiteSpace(ContentName))
+        {
+            // Use the folder name or first file name as default content name if not set
+            ContentName = Path.GetFileNameWithoutExtension(path);
+        }
+    }
+
+    private async Task StageContentSourceAsync(string path, CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(_stagingPath))
+        {
+            Directory.CreateDirectory(_stagingPath);
+        }
+
+        if (File.Exists(path))
+        {
+            var extension = Path.GetExtension(path);
+            if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                await Task.Run(() => ZipFile.ExtractToDirectory(path, _stagingPath, true), cancellationToken);
+            }
+            else
+            {
+                var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
+                File.Copy(path, destFile, true);
+            }
+        }
+        else if (Directory.Exists(path))
+        {
+            // Preserve directory structure by copying the folder itself into staging
+            var dirInfo = new DirectoryInfo(path);
+            var dirName = dirInfo.Name;
+
+            // Ensure we don't try to copy to the staging root itself if Name is somehow empty
+            if (string.IsNullOrWhiteSpace(dirName))
+            {
+                dirName = "Imported_Folder";
+            }
+
+            var targetSubDir = Path.Combine(_stagingPath, dirName);
+            logger?.LogDebug("ImportContentAsync: Preserving directory structure. Source: {Source}, Target: {Target}", path, targetSubDir);
+
+            await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(targetSubDir)), cancellationToken);
+        }
+    }
+
+    private async Task<bool> ProcessGenLauncherNormalizationAsync(CancellationToken cancellationToken)
+    {
+        if (genLauncherNormalizationService == null || dialogService == null)
+        {
+            return false;
+        }
+
+        var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, cancellationToken);
+        if (!detectionResult.HasGenLauncherFiles)
+        {
+            return false;
+        }
+
+        logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
+
+        var normalizationPrompt =
+            $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
+            "This will:\n" +
+            $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
+            $"• Convert {GenLauncherConstants.CtrExtension} files to {GenLauncherConstants.BigExtension} or {GenLauncherConstants.ExeExtension} based on content\n" +
+            $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
+            "• Remove symbolic links";
+
+        var shouldNormalize = await dialogService.ShowConfirmationAsync(
+            "GenLauncher Files Detected",
+            normalizationPrompt,
+            "Normalize",
+            "Skip",
+            sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
+
+        if (!shouldNormalize)
+        {
+            logger?.LogInformation("User skipped normalization");
+            StatusMessage = "Import successful (GenLauncher files not normalized).";
+            return true;
+        }
+
+        StatusMessage = "Normalizing GenLauncher files...";
+        logger?.LogInformation("User confirmed normalization");
+
+        var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(_stagingPath, cancellationToken);
+        if (normalizationResult.Success)
+        {
+            var result = normalizationResult.Data;
+            StatusMessage = FormatNormalizationSuccessMessage(result);
+            logger?.LogInformation(
+                "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed, {SkippedCount} skipped, {FailedCount} failed",
+                result.NormalizedCount,
+                result.SymbolicLinksRemoved,
+                result.SkippedFiles.Count,
+                result.FailedFiles.Count);
+
+            if (!result.IsFullySuccessful)
+            {
+                logger?.LogWarning(
+                    "Some files failed to normalize: {FailedFiles}",
+                    string.Join(", ", result.FailedFiles));
+            }
+
+            if (result.SkippedFiles.Count > 0)
+            {
+                logger?.LogInformation(
+                    "Some files were skipped during normalization: {SkippedFiles}",
+                    string.Join(", ", result.SkippedFiles));
+            }
+        }
+        else
+        {
+            StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
+            logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
+        }
+
+        return true;
+    }
+
+    private string FormatNormalizationSuccessMessage(GenLauncherNormalizationResult result)
+    {
+        if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import successful.";
+        }
+
+        if (result.FailedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+        }
+
+        if (result.SkippedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import successful.";
+        }
+
+        return $"Normalized {result.NormalizedCount} file(s). Import successful.";
     }
 
     private FileTreeItem? FindFileItemByRelativePath(IEnumerable<FileTreeItem> items, string relativePath)
