@@ -3182,7 +3182,6 @@ public sealed class ReplayDirectoryServiceTests
         {
             HasZeroHour = true,
             ZeroHourPath = "/games/ZeroHour",
-            ZeroHourClient = steamClient,
             AvailableGameClients = [steamClient],
         };
 
@@ -3217,8 +3216,9 @@ public sealed class ReplayDirectoryServiceTests
         Assert.NotNull(capturedRequest!.GameClient);
         Assert.Equal("Zero Hour 1.04 (Oct 17 2005)", capturedRequest.GameClient!.Name);
         Assert.Equal("1.104.steam.gameclient.zerohour", capturedRequest.GameClient!.Id);
-        Assert.Contains("1.104.steam.gameclient.zerohour", capturedRequest.EnabledContentIds);
-        Assert.Contains("1.104.steam.gameinstallation.zerohour", capturedRequest.EnabledContentIds);
+        Assert.NotNull(capturedRequest.EnabledContentIds);
+        Assert.Contains("1.104.steam.gameclient.zerohour", capturedRequest.EnabledContentIds!);
+        Assert.Contains("1.104.steam.gameinstallation.zerohour", capturedRequest.EnabledContentIds!);
         Assert.Equal("created-oct17-profile-id", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
     }

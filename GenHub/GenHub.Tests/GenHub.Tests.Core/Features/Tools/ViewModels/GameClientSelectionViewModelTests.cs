@@ -180,7 +180,7 @@ public sealed class GameClientSelectionViewModelTests
 
         await vm.LoadClientsForReplayAsync(GameType.ZeroHour, replay);
 
-        Assert.DoesNotContain(vm.AllClients, c => c.Name.Contains("other_replay") || c.Description.Contains("other_replay"));
+        vm.ToggleShowAllCommand.Execute(null);
+        Assert.DoesNotContain(vm.FilteredClients, c => c.Name.Contains("other_replay") || c.Description.Contains("other_replay"));
     }
 }
-

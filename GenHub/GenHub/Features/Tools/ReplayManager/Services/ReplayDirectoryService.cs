@@ -2021,7 +2021,8 @@ public sealed class ReplayDirectoryService(
         {
             if (!string.IsNullOrWhiteSpace(client.WorkingDirectory))
             {
-                var candidate = Path.Combine(client.WorkingDirectory, "generals.exe");
+                var defaultExe = GetDefaultExecutableName(client.GameType, client.PublisherType);
+                var candidate = Path.Combine(client.WorkingDirectory, defaultExe);
                 if (File.Exists(candidate))
                 {
                     return candidate;
