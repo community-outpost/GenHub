@@ -729,7 +729,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (_gameSettingsService != null && _currentProfileIsGeneralsOnline)
         {
             var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-            if (goResult?.Success == true && goResult.Data != null)
+            if (goResult is { Success: true, Data: not null })
             {
                 ApplyGeneralsOnlineSettings(goResult.Data);
                 _generalsOnlineSettingsSeeded = true;
@@ -772,7 +772,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 return false;
             }
 
-            if (result?.Success == true && result.Data != null)
+            if (result is { Success: true, Data: not null })
             {
                 _currentOptions = result.Data;
                 ApplyOptionsToViewModel(_currentOptions);
@@ -848,7 +848,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 return;
             }
 
-            if (goResult?.Success == true && goResult.Data != null)
+            if (goResult is { Success: true, Data: not null })
             {
                 ApplyGeneralsOnlineSettings(goResult.Data);
                 _generalsOnlineSettingsSeeded = true;
@@ -892,7 +892,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
 
         var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-        if (goResult?.Success == true && goResult.Data != null)
+        if (goResult is { Success: true, Data: not null })
         {
             ApplyGeneralsOnlineSettings(goResult.Data);
             _generalsOnlineSettingsSeeded = true;
@@ -1205,7 +1205,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
 
         var goLoadResult = await _gameSettingsService!.LoadGeneralsOnlineSettingsAsync();
-        if (goLoadResult?.Success == true && goLoadResult.Data != null)
+        if (goLoadResult is { Success: true, Data: not null })
         {
             return goLoadResult;
         }
@@ -1262,6 +1262,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             return;
         }
 
+        if (value == GameType.Unknown)
+        {
+            _logger.LogInformation("GameType set to Unknown - skipping auto-load");
+            return;
+        }
+
         if (_isLoadingFromOptions)
         {
             _pendingGameTypeLoad = value;
@@ -1300,7 +1306,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             {
                 SelectedGameType = pending;
             }
-            else
+            else if (pending != GameType.Unknown)
             {
                 TriggerAutoLoadSettings(pending);
             }
@@ -1401,6 +1407,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated instance properties in partial view model")]
     private void ApplySharedEngineProperties(Dictionary<string, string>? tsh, Dictionary<string, string>? videoAdditional)
     {
         var doubleClick = GetFirstSettingValue(tsh, videoAdditional, GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey)
@@ -1425,6 +1432,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             MaxParticleCount = particleVal;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated instance properties in partial view model")]
     private void ApplyTshExclusiveGameplayProperties(Dictionary<string, string> tsh)
     {
         if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var ar)) TshArchiveReplays = ParseBool(ar);
