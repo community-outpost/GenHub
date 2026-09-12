@@ -145,6 +145,15 @@ public class CreateProfileRequest
     /// <summary>Gets or sets a value indicating whether to use light maps (yes/no).</summary>
     public bool? VideoUseLightMap { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether to use shadow decals.</summary>
+    public bool? VideoUseShadowDecals { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether building occlusion is enabled.</summary>
+    public bool? VideoBuildingOcclusion { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to show props.</summary>
+    public bool? VideoShowProps { get; set; }
+
     // ===== Audio Settings =====
 
     /// <summary>Gets or sets the sound volume.</summary>

@@ -1324,6 +1324,32 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
     }
 
+    private bool TryGetAnySetting(IniOptions options, string key, out string value)
+    {
+        if (options.Video.AdditionalProperties.TryGetValue(key, out var vVal))
+        {
+            value = vVal;
+            return true;
+        }
+
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
+            string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+        if (tshKvp.Value != null && tshKvp.Value.TryGetCaseInsensitive(key, out var tshVal))
+        {
+            value = tshVal;
+            return true;
+        }
+
+        if (options.Network.AdditionalProperties.TryGetValue(key, out var nVal))
+        {
+            value = nVal;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
     private void ApplyVideoAdditionalProperties(IniOptions options)
     {
         if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var particleEffects))
@@ -1341,49 +1367,71 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (options.Video.AdditionalProperties.TryGetValue("UseCloudMap", out var ucm)) UseCloudMap = ParseBool(ucm);
         if (options.Video.AdditionalProperties.TryGetValue("UseLightMap", out var ulm)) UseLightMap = ParseBool(ulm);
 
-        if (options.Video.AdditionalProperties.TryGetValue("DrawScrollAnchor", out var draws)) DrawScrollAnchor = ParseBool(draws);
-        if (options.Video.AdditionalProperties.TryGetValue("MoveScrollAnchor", out var moves)) MoveScrollAnchor = ParseBool(moves);
-        if (options.Video.AdditionalProperties.TryGetValue("GameTimeFontSize", out var gtfs) && int.TryParse(gtfs, out var gtfsVal)) GameTimeFontSize = gtfsVal;
-        if (options.Video.AdditionalProperties.TryGetValue("LanguageFilter", out var lf)) LanguageFilter = ParseBool(lf);
-        if (options.Video.AdditionalProperties.TryGetValue("SendDelay", out var sd)) SendDelay = ParseBool(sd);
-        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel)) SkipEALogo = ParseBool(sel);
+        if (TryGetAnySetting(options, "DrawScrollAnchor", out var draws)) DrawScrollAnchor = ParseBool(draws);
+        if (TryGetAnySetting(options, "MoveScrollAnchor", out var moves)) MoveScrollAnchor = ParseBool(moves);
+        if (TryGetAnySetting(options, "GameTimeFontSize", out var gtfs) && int.TryParse(gtfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gtfsVal)) GameTimeFontSize = gtfsVal;
+        if (TryGetAnySetting(options, "LanguageFilter", out var lf)) LanguageFilter = ParseBool(lf);
+        if (TryGetAnySetting(options, "SendDelay", out var sd)) SendDelay = ParseBool(sd);
+        if (TryGetAnySetting(options, "SkipEALogo", out var sel)) SkipEALogo = ParseBool(sel);
     }
 
     private void ApplyTshAdditionalProperties(IniOptions options)
     {
         var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
             string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
-        if (tshKvp.Value == null)
-        {
-            return;
-        }
 
-        ApplyTshGameplayProperties(tshKvp.Value);
-        ApplyTshUiCursorProperties(tshKvp.Value);
+        ApplyTshGameplayProperties(tshKvp.Value, options.Video.AdditionalProperties);
+        if (tshKvp.Value != null)
+        {
+            ApplyTshUiCursorProperties(tshKvp.Value);
+        }
     }
 
-    private void ApplyTshGameplayProperties(Dictionary<string, string> tsh)
+    private void ApplyTshGameplayProperties(Dictionary<string, string>? tsh, Dictionary<string, string>? videoAdditional)
     {
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey, out var doubleClick))
-            UseDoubleClickAttackMove = ParseBool(doubleClick);
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScrollFactorKey, out var scroll) && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
-            ScrollFactor = scrollVal;
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RetaliationKey, out var retaliation))
-            Retaliation = ParseBool(retaliation);
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.DynamicLODKey, out var dynLOD))
-            DynamicLOD = ParseBool(dynLOD);
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MaxParticleCountKey, out var particles) && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
-            MaxParticleCount = particleVal;
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var ar)) TshArchiveReplays = ParseBool(ar);
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey, out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey, out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey, out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
-        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
+        string? GetVal(string key)
         {
-            var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
-            if (parsed.HasValue)
+            if (tsh != null && tsh.TryGetCaseInsensitive(key, out var v))
+                return v;
+            if (videoAdditional != null && videoAdditional.TryGetCaseInsensitive(key, out var v2))
+                return v2;
+            return null;
+        }
+
+        var doubleClick = GetVal(GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey)
+            ?? GetVal(GameSettingsTheSuperHackersConstants.UseDoubleClickKey);
+        if (doubleClick != null)
+            UseDoubleClickAttackMove = ParseBool(doubleClick);
+
+        var scroll = GetVal(GameSettingsTheSuperHackersConstants.ScrollFactorKey);
+        if (scroll != null && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
+            ScrollFactor = scrollVal;
+
+        var retaliation = GetVal(GameSettingsTheSuperHackersConstants.RetaliationKey);
+        if (retaliation != null)
+            Retaliation = ParseBool(retaliation);
+
+        var dynLOD = GetVal(GameSettingsTheSuperHackersConstants.DynamicLODKey);
+        if (dynLOD != null)
+            DynamicLOD = ParseBool(dynLOD);
+
+        var particles = GetVal(GameSettingsTheSuperHackersConstants.MaxParticleCountKey);
+        if (particles != null && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
+            MaxParticleCount = particleVal;
+
+        if (tsh != null)
+        {
+            if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var ar)) TshArchiveReplays = ParseBool(ar);
+            if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey, out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
+            if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey, out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
+            if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey, out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+            if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
             {
-                TshGameWindowTransitionSpeedMultiplier = parsed.Value;
+                var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
+                if (parsed.HasValue)
+                {
+                    TshGameWindowTransitionSpeedMultiplier = parsed.Value;
+                }
             }
         }
     }
@@ -1472,6 +1520,28 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             tshDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             options.AdditionalSections[tshKey] = tshDict;
         }
+
+        // Synchronize settings if they already exist in tshDict to prevent desync/overwrites
+        if (tshDict.ContainsKey("GameTimeFontSize"))
+            tshDict["GameTimeFontSize"] = GameTimeFontSize.ToString(CultureInfo.InvariantCulture);
+        if (tshDict.ContainsKey("DrawScrollAnchor"))
+            tshDict["DrawScrollAnchor"] = BoolToString(DrawScrollAnchor);
+        if (tshDict.ContainsKey("MoveScrollAnchor"))
+            tshDict["MoveScrollAnchor"] = BoolToString(MoveScrollAnchor);
+        if (tshDict.ContainsKey("LanguageFilter"))
+            tshDict["LanguageFilter"] = BoolToString(LanguageFilter);
+        if (tshDict.ContainsKey("SendDelay"))
+            tshDict["SendDelay"] = BoolToString(SendDelay);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.ScrollFactorKey))
+            tshDict[GameSettingsTheSuperHackersConstants.ScrollFactorKey] = ScrollFactor.ToString(CultureInfo.InvariantCulture);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey))
+            tshDict[GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey] = BoolToString(UseDoubleClickAttackMove);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.RetaliationKey))
+            tshDict[GameSettingsTheSuperHackersConstants.RetaliationKey] = BoolToString(Retaliation);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.DynamicLODKey))
+            tshDict[GameSettingsTheSuperHackersConstants.DynamicLODKey] = BoolToString(DynamicLOD);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.MaxParticleCountKey))
+            tshDict[GameSettingsTheSuperHackersConstants.MaxParticleCountKey] = MaxParticleCount.ToString(CultureInfo.InvariantCulture);
 
         // Update only the remaining settings we know about in the ViewModel, preserve all others
         tshDict[GameSettingsTheSuperHackersConstants.ArchiveReplaysKey] = BoolToString(TshArchiveReplays);

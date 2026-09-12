@@ -562,4 +562,101 @@ public class GameSettingsMapperTests
             System.Globalization.CultureInfo.CurrentCulture = currentCulture;
         }
     }
+
+    /// <summary>
+    /// Verifies that GameTimeFontSize is loaded from flat Video properties or TheSuperHackers section.
+    /// </summary>
+    [Fact]
+    public void ApplyFromOptions_GameTimeFontSize_LoadsFromFlatOrSection()
+    {
+        // 1. From flat Video properties
+        var flatOptions = new IniOptions();
+        flatOptions.Video.AdditionalProperties["GameTimeFontSize"] = "14";
+        var flatProfile = new GameProfile();
+        GameSettingsMapper.ApplyFromOptions(flatOptions, flatProfile);
+        Assert.Equal(14, flatProfile.VideoGameTimeFontSize);
+
+        // 2. From TheSuperHackers section
+        var tshOptions = new IniOptions();
+        tshOptions.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["GameTimeFontSize"] = "16",
+        };
+        var tshProfile = new GameProfile();
+        GameSettingsMapper.ApplyFromOptions(tshOptions, tshProfile);
+        Assert.Equal(16, tshProfile.VideoGameTimeFontSize);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyToOptions writes VideoGameTimeFontSize to root properties and synchronizes TheSuperHackers.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_VideoGameTimeFontSize_WritesToRootAndSyncsSection()
+    {
+        var profile = new GameProfile
+        {
+            VideoGameTimeFontSize = 18,
+            VideoDrawScrollAnchor = true,
+            VideoMoveScrollAnchor = false,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["GameTimeFontSize"] = "10",
+        };
+
+        GameSettingsMapper.ApplyToOptions(profile, options);
+
+        Assert.Equal("18", options.Video.AdditionalProperties["GameTimeFontSize"]);
+        Assert.Equal("18", options.AdditionalSections["TheSuperHackers"]["GameTimeFontSize"]);
+        Assert.Equal("yes", options.Video.AdditionalProperties["DrawScrollAnchor"]);
+        Assert.Equal("no", options.Video.AdditionalProperties["MoveScrollAnchor"]);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateGameProfile and UpdateFromRequest preserve all additional video and engine settings.
+    /// </summary>
+    [Fact]
+    public void PopulateAndUpdate_PreservesGameTimeFontSizeAndAdditionalSettings()
+    {
+        var createRequest = new CreateProfileRequest
+        {
+            Name = "TestProfile",
+            VideoGameTimeFontSize = 16,
+            VideoDrawScrollAnchor = true,
+            VideoMoveScrollAnchor = false,
+            VideoUseShadowDecals = true,
+            VideoBuildingOcclusion = false,
+            VideoShowProps = true,
+            GameLanguageFilter = false,
+            NetworkSendDelay = false,
+        };
+        var profile = new GameProfile();
+
+        GameSettingsMapper.PopulateGameProfile(profile, createRequest);
+
+        Assert.Equal(16, profile.VideoGameTimeFontSize);
+        Assert.True(profile.VideoDrawScrollAnchor);
+        Assert.False(profile.VideoMoveScrollAnchor);
+        Assert.True(profile.VideoUseShadowDecals);
+        Assert.False(profile.VideoBuildingOcclusion);
+        Assert.True(profile.VideoShowProps);
+        Assert.False(profile.GameLanguageFilter);
+        Assert.False(profile.NetworkSendDelay);
+
+        var updateRequest = new UpdateProfileRequest
+        {
+            VideoGameTimeFontSize = 20,
+            VideoUseShadowDecals = false,
+        };
+
+        GameSettingsMapper.UpdateFromRequest(profile, updateRequest);
+
+        Assert.Equal(20, profile.VideoGameTimeFontSize);
+        Assert.False(profile.VideoUseShadowDecals);
+        // Untouched fields in update request retain original values
+        Assert.True(profile.VideoDrawScrollAnchor);
+        Assert.False(profile.VideoBuildingOcclusion);
+    }
 }

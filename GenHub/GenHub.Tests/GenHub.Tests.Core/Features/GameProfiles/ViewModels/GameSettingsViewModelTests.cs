@@ -1145,4 +1145,83 @@ public class GameSettingsViewModelTests
             },
         };
     }
+
+    /// <summary>
+    /// Should load GameTimeFontSize from Options.ini when placed in Video.AdditionalProperties or in TheSuperHackers section,
+    /// preventing reset to default 10.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_LoadGameTimeFontSize_FromVideoOrTheSuperHackersSectionAsync()
+    {
+        // Arrange - test loading when categorized into TheSuperHackers section
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["GameTimeFontSize"] = "15",
+            ["DrawScrollAnchor"] = "yes",
+            ["MoveScrollAnchor"] = "no",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+
+        // Assert - should be 15, NOT the default 10!
+        Assert.Equal(15, _viewModel.GameTimeFontSize);
+        Assert.True(_viewModel.DrawScrollAnchor);
+        Assert.False(_viewModel.MoveScrollAnchor);
+    }
+
+    /// <summary>
+    /// Should synchronize GameTimeFontSize and related properties to TheSuperHackers section on save when section exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_SynchronizeGameTimeFontSize_ToTheSuperHackersSectionAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        var initialOptions = new IniOptions();
+        initialOptions.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["GameTimeFontSize"] = "10",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(initialOptions));
+
+        IniOptions? savedOptions = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .Callback<GameType, IniOptions>((_, opt) => savedOptions = opt)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+        _viewModel.GameTimeFontSize = 18;
+
+        // Act
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedOptions);
+        Assert.Equal("18", savedOptions.Video.AdditionalProperties["GameTimeFontSize"]);
+        Assert.True(savedOptions.AdditionalSections.TryGetValue(GameSettingsTheSuperHackersConstants.SectionName, out var tsh));
+        Assert.True(tsh.TryGetValue("GameTimeFontSize", out var syncedFontSize));
+        Assert.Equal("18", syncedFontSize);
+    }
 }
