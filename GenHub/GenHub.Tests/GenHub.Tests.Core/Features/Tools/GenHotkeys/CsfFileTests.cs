@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using GenHub.Core.Constants;
 using GenHub.Core.Services.Tools.GenHotkeys;
@@ -155,5 +156,48 @@ public class CsfFileTests
 
         Assert.Contains("CONTROLBAR:RadarVanScan", GenHotkeysConstants.ShortcutLabelAliases.Keys);
         Assert.Contains("CONTROLBAR:RadarVanScanShortcut", GenHotkeysConstants.ShortcutLabelAliases["CONTROLBAR:RadarVanScan"]);
+    }
+
+    /// <summary>
+    /// Verifies that the bundled Legionnaire preset is strictly in English with no Cyrillic text.
+    /// </summary>
+    [Fact]
+    public void Presets_LegionnaireEn_IsEnglishAndFreeOfCyrillic()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
+        };
+
+        string? foundPath = null;
+        foreach (var c in candidates)
+        {
+            var full = Path.GetFullPath(c);
+            if (File.Exists(full))
+            {
+                foundPath = full;
+                break;
+            }
+        }
+
+        Assert.True(foundPath != null, $"Preset file '{GenHotkeysConstants.PresetsLegionnaireEn}' was not found.");
+
+        var csf = CsfFile.Load(foundPath);
+        Assert.Equal(0u, csf.LanguageCode);
+        Assert.Equal("SOLO PLAY", csf.GetString("GUI:SinglePlayer"));
+        Assert.Equal("OPTIONS", csf.GetString("GUI:Options"));
+
+        foreach (var (label, val) in csf.Strings)
+        {
+            foreach (var ch in val)
+            {
+                Assert.False(
+                    ch >= 0x0400 && ch <= 0x04FF,
+                    $"Label '{label}' contains Cyrillic character '{ch}' in English preset: {val}");
+            }
+        }
     }
 }
