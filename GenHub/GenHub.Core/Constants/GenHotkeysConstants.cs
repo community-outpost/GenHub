@@ -261,9 +261,9 @@ public static class GenHotkeysConstants
             ["CONTROLBAR:ScudStorm"] = ["CONTROLBAR:ScudStormShortcut"],
             ["CONTROLBAR:AnthraxBomb"] = ["OBJECT:AnthraxBomb"],
             ["CONTROLBAR:Ambush"] = ["GUI:SuperweaponRebelAmbush"],
-            ["CONTROLBAR:EmergencyRepairGLA"] = ["GUI:SuperweaponEmergencyRepairGLA"],
-            ["CONTROLBAR:SneakAttack"] = ["CONTROLBAR:SneakAttackShortcut"],
-            ["CONTROLBAR:GPSScrambler"] = ["CONTROLBAR:GPSScramblerShortcut"],
+            ["CONTROLBAR:SneakAttack"] = ["CONTROLBAR:SneakAttackShort"],
+            ["CONTROLBAR:GPSScrambler"] = ["GUI:SuperweaponGPSScrambler"],
+            ["CONTROLBAR:RadarVanScan"] = ["CONTROLBAR:RadarVanScanShortcut"],
         };
 
     /// <summary>

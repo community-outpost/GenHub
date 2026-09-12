@@ -53,17 +53,12 @@ public class HotkeyPackageService(
             Directory.CreateDirectory(stagingDir);
             Directory.CreateDirectory(packageDir);
 
-            // Step 1: Generate customized CommandMap.ini
-            progress?.Report("Generating CommandMap.ini...");
-            await GenerateCommandMapIniAsync(profile, stagingDir, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-
-            // Step 2: Generate customized generals.csf
+            // Step 1: Generate customized generals.csf
             progress?.Report("Generating localized strings (generals.csf)...");
             await GenerateGeneralsCsfAsync(profile, stagingDir, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Step 3: Render and stamp icon overlays (if enabled)
+            // Step 2: Render and stamp icon overlays (if enabled)
             if (profile.OverlayEnabled)
             {
                 await GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken);
@@ -71,12 +66,12 @@ public class HotkeyPackageService(
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Step 4: Pack staging folder into !Hotkeys_<ProfileName>_<Game>.big
+            // Step 3: Pack staging folder into !Hotkeys_<ProfileName>_<Game>.big
             progress?.Report("Packing SAGE .big archive...");
             var bigFilePath = await PackBigArchiveAsync(profile, stagingDir, packageDir, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Step 5: Register as an Addon ContentManifest in GenHub
+            // Step 4: Register as an Addon ContentManifest in GenHub
             progress?.Report("Registering addon in GenHub...");
             var manifestResult = await RegisterAddonManifestAsync(profile, packageDir, cancellationToken);
 
@@ -102,35 +97,6 @@ public class HotkeyPackageService(
             TryDeleteDirectory(stagingDir);
             TryDeleteDirectory(packageDir);
         }
-    }
-
-    private static async Task GenerateCommandMapIniAsync(
-        HotkeyProfile profile,
-        string stagingDir,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var map = LoadBaseCommandMap();
-
-        // Custom CommandMap entries from profile KeyMappings
-        foreach (var (key, val) in profile.KeyMappings)
-        {
-            if (key.StartsWith("CommandMap:", StringComparison.OrdinalIgnoreCase))
-            {
-                var entryName = key["CommandMap:".Length..];
-                var entry = map.GetOrCreateEntry(entryName);
-                entry.Properties["Key"] = $"KEY_{char.ToUpperInvariant(val)}";
-            }
-        }
-
-        var outputPath = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory, GenHotkeysConstants.CommandMapFileName);
-        var dir = Path.GetDirectoryName(outputPath);
-        if (!string.IsNullOrEmpty(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-
-        await Task.Run(() => map.Save(outputPath), cancellationToken);
     }
 
     private static async Task GenerateGeneralsCsfAsync(
@@ -293,20 +259,6 @@ public class HotkeyPackageService(
         }
 
         throw new FileNotFoundException($"Base CSF preset '{presetFile}' could not be loaded. Ensure GenHotkeys assets are present.");
-    }
-
-    private static CommandMapFile LoadBaseCommandMap()
-    {
-        var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsCommandMap);
-        if (stream != null)
-        {
-            using (stream)
-            {
-                return CommandMapFile.Load(stream);
-            }
-        }
-
-        return new CommandMapFile();
     }
 
     private static void TryDeleteDirectory(string path)

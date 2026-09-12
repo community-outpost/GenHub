@@ -145,5 +145,15 @@ public class CsfFileTests
 
         Assert.Contains("CONTROLBAR:A10ThunderboltMissileStrike", GenHotkeysConstants.ShortcutLabelAliases.Keys);
         Assert.Contains("GUI:SuperweaponA10ThunderboltMissileStrike", GenHotkeysConstants.ShortcutLabelAliases["CONTROLBAR:A10ThunderboltMissileStrike"]);
+
+        // Verify restored retail GLA shortcut aliases
+        Assert.Contains("CONTROLBAR:SneakAttack", GenHotkeysConstants.ShortcutLabelAliases.Keys);
+        Assert.Contains("CONTROLBAR:SneakAttackShort", GenHotkeysConstants.ShortcutLabelAliases["CONTROLBAR:SneakAttack"]);
+
+        Assert.Contains("CONTROLBAR:GPSScrambler", GenHotkeysConstants.ShortcutLabelAliases.Keys);
+        Assert.Contains("GUI:SuperweaponGPSScrambler", GenHotkeysConstants.ShortcutLabelAliases["CONTROLBAR:GPSScrambler"]);
+
+        Assert.Contains("CONTROLBAR:RadarVanScan", GenHotkeysConstants.ShortcutLabelAliases.Keys);
+        Assert.Contains("CONTROLBAR:RadarVanScanShortcut", GenHotkeysConstants.ShortcutLabelAliases["CONTROLBAR:RadarVanScan"]);
     }
 }
