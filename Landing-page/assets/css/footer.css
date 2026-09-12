@@ -1,12 +1,13 @@
-/* Footer */
+/* ==========================================================================
+   Footer Section
+   ========================================================================== */
 footer {
     border-top: 1px solid var(--glass-border);
-    padding: 3rem 1.5rem;
-    text-align: center;
+    padding: 5rem 1.5rem 3rem;
     color: var(--text-muted);
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--blur-sm));
-    -webkit-backdrop-filter: blur(var(--blur-sm));
+    background: rgba(10, 6, 20, 0.95);
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
     position: relative;
 }
 
@@ -17,72 +18,119 @@ footer::before {
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
-    opacity: 0.2;
+    background: linear-gradient(90deg, transparent, var(--primary-light), var(--accent-cyan), transparent);
+    opacity: 0.35;
 }
 
-.footer-content {
+.footer-container {
     max-width: 1200px;
     margin: 0 auto;
 }
 
-.footer-brand {
+.footer-top {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 3rem;
+    margin-bottom: 4rem;
+}
+
+.footer-brand-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 380px;
+}
+
+.footer-logo {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-
-.footer-brand img {
-    width: 24px;
-    height: 24px;
-    opacity: 0.7;
-}
-
-footer p {
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
-}
-
-.footer-links {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-}
-
-footer a {
-    color: var(--primary-light);
+    gap: 0.65rem;
+    font-weight: 800;
+    font-size: 1.35rem;
+    color: #ffffff;
     text-decoration: none;
-    font-weight: 500;
+}
+
+.footer-logo img {
+    width: 36px;
+    height: 36px;
+    filter: drop-shadow(0 0 8px var(--primary-glow));
+}
+
+.footer-tagline {
     font-size: 0.9rem;
-    transition: all 0.2s ease;
-    position: relative;
+    color: var(--text-secondary);
+    line-height: 1.6;
 }
 
-footer a::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 0;
-    height: 1px;
-    background: var(--primary-light);
-    transition: width 0.2s ease;
+.footer-community-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.775rem;
+    color: var(--primary-light);
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    padding: 0.3rem 0.7rem;
+    border-radius: 9999px;
+    width: fit-content;
+    margin-top: 0.25rem;
 }
 
-footer a:hover {
-    color: var(--text-main);
+.footer-col h4 {
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.25rem;
 }
 
-footer a:hover::after {
-    width: 100%;
+.footer-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
-.footer-divider {
+.footer-col a {
     color: var(--text-muted);
-    opacity: 0.3;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color var(--transition-fast), transform var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.footer-col a:hover {
+    color: #ffffff;
+    transform: translateX(2px);
+}
+
+.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.footer-bottom-links {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.footer-bottom-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer-bottom-links a:hover {
+    color: var(--text-main);
 }

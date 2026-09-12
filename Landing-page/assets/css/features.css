@@ -1,137 +1,271 @@
-/* Features Section */
+/* ==========================================================================
+   Features & Capabilities Section (Bento Grid)
+   ========================================================================== */
 .features-section {
-    margin-bottom: 5rem;
+    padding: 5rem 1.5rem;
+    max-width: 1240px;
+    margin: 0 auto;
 }
 
-.section-header {
-    text-align: center;
-    margin-bottom: 3rem;
-}
-
-.section-header h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-main);
-    margin-bottom: 0.75rem;
-    letter-spacing: -0.02em;
-}
-
-.section-header p {
-    color: var(--text-muted);
-    font-size: 1.1rem;
-}
-
-/* Features Grid */
-.features {
+/* Bento Grid Layout */
+.bento-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(12, 1fr);
     gap: 1.5rem;
-    margin-bottom: 5rem;
+    margin-top: 3rem;
 }
 
-.card {
-    background: var(--glass-bg);
+/* Base Bento Card */
+.bento-card {
+    background: var(--bg-card);
     backdrop-filter: blur(var(--blur-md));
     -webkit-backdrop-filter: blur(var(--blur-md));
     border: 1px solid var(--glass-border);
     border-radius: 1.25rem;
-    padding: 2rem;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 2.25rem;
+    transition: all var(--transition-base);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-.card::before {
+.bento-card::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
+    background: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.25), transparent);
 }
 
-.card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.4), transparent 60%);
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    pointer-events: none;
-}
-
-.card:hover {
-    transform: translateY(-8px);
-    border-color: var(--primary);
+.bento-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(168, 85, 247, 0.5);
     box-shadow: 
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 30px rgba(124, 58, 237, 0.25);
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        0 0 30px rgba(139, 92, 246, 0.2);
 }
 
-.card:hover::after {
-    opacity: 0.3;
+/* Card Column Spans */
+.col-span-8 { grid-column: span 8; }
+.col-span-6 { grid-column: span 6; }
+.col-span-4 { grid-column: span 4; }
+.col-span-12 { grid-column: span 12; }
+
+/* Card Spotlight Visual Variations */
+.spotlight-steam {
+    background: radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.16) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(56, 189, 248, 0.35);
 }
 
-.card-icon {
-    width: 56px;
-    height: 56px;
+.spotlight-steam:hover {
+    border-color: rgba(56, 189, 248, 0.65);
+    box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        0 0 35px rgba(14, 165, 233, 0.25);
+}
+
+.spotlight-local {
+    background: radial-gradient(circle at 90% 10%, rgba(168, 85, 247, 0.16) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(168, 85, 247, 0.35);
+}
+
+.spotlight-local:hover {
+    border-color: rgba(168, 85, 247, 0.65);
+    box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        0 0 35px rgba(168, 85, 247, 0.25);
+}
+
+.spotlight-genpatcher {
+    background: radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.14) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.spotlight-genpatcher:hover {
+    border-color: rgba(16, 185, 129, 0.65);
+    box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        0 0 35px rgba(16, 185, 129, 0.25);
+}
+
+.spotlight-updates {
+    background: radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.14) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+.spotlight-updates:hover {
+    border-color: rgba(56, 189, 248, 0.65);
+    box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        0 0 35px rgba(56, 189, 248, 0.25);
+}
+
+/* Card Header */
+.bento-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.card-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 0.85rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--gradient-glow);
-    border: 1px solid var(--glass-border);
-    border-radius: 1rem;
-    margin-bottom: 1.25rem;
-    transition: all 0.3s ease;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--primary-light);
+    transition: all var(--transition-fast);
 }
 
-.card-icon i,
-.card-icon svg {
+.card-icon-wrap svg,
+.card-icon-wrap img,
+.card-icon-wrap i {
     width: 24px;
     height: 24px;
-    color: var(--primary-light);
-    stroke-width: 2;
 }
 
-.card:hover .card-icon {
-    transform: scale(1.1);
-    border-color: var(--primary);
+.bento-card:hover .card-icon-wrap {
+    transform: scale(1.06);
+    background: var(--gradient-primary);
+    color: #ffffff;
     box-shadow: 0 0 20px var(--primary-glow);
 }
 
-.card h3 {
-    font-size: 1.2rem;
-    margin-bottom: 0.75rem;
+.icon-emerald {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: var(--accent-emerald);
+}
+
+.bento-card:hover .icon-emerald {
+    background: var(--gradient-emerald);
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.icon-cyan {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.35);
+    color: var(--accent-cyan);
+}
+
+.bento-card:hover .icon-cyan {
+    background: var(--gradient-cyan);
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+
+.icon-steam {
+    background: rgba(14, 165, 233, 0.15);
+    border-color: rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+}
+
+.bento-card:hover .icon-steam {
+    background: linear-gradient(135deg, #0284c7, #38bdf8);
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+
+.card-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+}
+
+.badge-emerald {
+    background: #064e3b;
+    color: #a7f3d0;
+    border: 1px solid #059669;
+}
+
+.badge-cyan {
+    background: #0c4a6e;
+    color: #bae6fd;
+    border: 1px solid #0284c7;
+}
+
+.badge-purple {
+    background: #2e1065;
+    color: #ddd6fe;
+    border: 1px solid #7c3aed;
+}
+
+/* Card Body */
+.bento-title {
+    font-size: 1.35rem;
+    font-weight: 700;
     color: var(--text-main);
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.015em;
 }
 
-.card p {
-    color: var(--text-muted);
+.bento-desc {
+    color: var(--text-secondary);
     font-size: 0.95rem;
-    line-height: 1.6;
+    line-height: 1.65;
+    margin-bottom: 1.5rem;
 }
 
-/* Feature Highlight Cards (for main features) */
-.card-highlight {
-    grid-column: span 2;
+.bento-desc code {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+}
+
+/* Feature Bullet Points */
+.feature-points {
+    list-style: none;
     display: flex;
-    gap: 2rem;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.card-highlight .card-content {
-    flex: 1;
-}
-
-.card-highlight .card-visual {
-    flex: 0 0 200px;
+.feature-points li {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 0.55rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
+
+.feature-points li svg {
+    width: 14px;
+    height: 14px;
+    color: var(--primary-light);
+    flex-shrink: 0;
+}
+
+.spotlight-steam .feature-points li svg {
+    color: #38bdf8;
+}
+
+.spotlight-local .feature-points li svg {
+    color: #c084fc;
+}
+
+.spotlight-genpatcher .feature-points li svg {
+    color: #34d399;
+}
+
+.spotlight-updates .feature-points li svg {
+    color: #38bdf8;
+}
+
+

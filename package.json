@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "vitepress dev docs",
     "build": "vitepress build docs",
-    "preview": "vitepress preview docs"
+    "preview": "vitepress preview docs",
+    "build:landing": "bash scripts/build-landing.sh",
+    "serve:landing": "python3 -m http.server 8080 --directory public"
   },
   "dependencies": {
     "mermaid": "^11.12.2"
