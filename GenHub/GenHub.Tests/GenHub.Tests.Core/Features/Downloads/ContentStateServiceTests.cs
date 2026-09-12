@@ -1500,6 +1500,120 @@ public class ContentStateServiceTests
         Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(cardSpanish));
     }
 
+    /// <summary>
+    /// Verifies that CNC Labs content downloaded in a previous session is correctly recognized
+    /// as Downloaded across application restarts when re-discovered in the browser.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CncLabsDownloadedContent_AfterRestart_ReturnsDownloadedAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.cnclabs.map.shipwarv1"),
+            Name = "ShipWar_V1",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "cnclabs",
+            OriginalContentId = "cnclabs.map.3380",
+            Publisher = new PublisherInfo
+            {
+                Name = "CNC Labs",
+                PublisherType = "cnclabs",
+                SupportUrl = "https://www.cnclabs.com/downloads/details/3380/",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3380",
+            Name = "ShipWar_V1",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3380/",
+        };
+        card.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3380";
+
+        var state = await service.GetStateAsync(card);
+        var manifestId = await service.GetLocalManifestIdAsync(card);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(storedManifest.Id.Value, manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that two distinct CNC Labs maps do not cross-match.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CncLabsDistinctMaps_DoNotCrossMatchAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.cnclabs.map.shipwarv1"),
+            Name = "ShipWar_V1",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "cnclabs",
+            OriginalContentId = "cnclabs.map.3380",
+            Publisher = new PublisherInfo
+            {
+                Name = "CNC Labs",
+                PublisherType = "cnclabs",
+                SupportUrl = "https://www.cnclabs.com/downloads/details/3380/",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var differentCard = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3381",
+            Name = "War of Pizza Deluxe",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3381/",
+        };
+        differentCard.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3381";
+
+        var state = await service.GetStateAsync(differentCard);
+        var manifestId = await service.GetLocalManifestIdAsync(differentCard);
+
+        Assert.Equal(ContentState.NotDownloaded, state);
+        Assert.Null(manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that CNC Labs publisher aliases are recognized as compatible.
+    /// </summary>
+    /// <param name="p1">The first publisher string to test.</param>
+    /// <param name="p2">The second publisher string to test.</param>
+    [Theory]
+    [InlineData("cnclabs", "CNC Labs Maps")]
+    [InlineData("CNC Labs", "cnclabsmaps")]
+    [InlineData("C&C Labs", "cnclabs")]
+    [InlineData("cnclab", "CNC Labs Maps")]
+    public void IsCompatiblePublisherAlias_CncLabsVariations_ReturnsTrue(string p1, string p2)
+    {
+        Assert.True(ContentStateService.IsCompatiblePublisherAlias(p1, p2));
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

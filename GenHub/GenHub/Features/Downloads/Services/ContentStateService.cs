@@ -252,7 +252,51 @@ public sealed partial class ContentStateService(
             return true;
         }
 
+        if (IsCncLabsPublisher(p1) && IsCncLabsPublisher(p2))
+        {
+            return true;
+        }
+
+        if (IsAodMapsPublisher(p1) && IsAodMapsPublisher(p2))
+        {
+            return true;
+        }
+
         return false;
+    }
+
+    /// <summary>
+    /// Checks whether the given publisher string corresponds to CNC Labs.
+    /// </summary>
+    /// <param name="publisher">The publisher string to inspect.</param>
+    /// <returns><see langword="true"/> if the publisher represents CNC Labs; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsCncLabsPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return false;
+        }
+
+        var p = NormalizeSegment(publisher);
+        return p.StartsWith("cnclab", StringComparison.OrdinalIgnoreCase) ||
+               p.StartsWith("cclab", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether the given publisher string corresponds to AODMaps.
+    /// </summary>
+    /// <param name="publisher">The publisher string to inspect.</param>
+    /// <returns><see langword="true"/> if the publisher represents AODMaps; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsAodMapsPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return false;
+        }
+
+        var p = NormalizeSegment(publisher);
+        return p.StartsWith("aodmap", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(p, "aod", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -312,7 +356,9 @@ public sealed partial class ContentStateService(
         }
 
         if (!string.Equals(segments[3], expectedContentType, StringComparison.OrdinalIgnoreCase) ||
-            manifest.TargetGame != expectedGame)
+            (expectedGame is GameType.Generals or GameType.ZeroHour &&
+             manifest.TargetGame is GameType.Generals or GameType.ZeroHour &&
+             manifest.TargetGame != expectedGame))
         {
             return false;
         }
@@ -704,6 +750,14 @@ public sealed partial class ContentStateService(
                     candidatePublishers.Add(idPub);
                 }
             }
+            else if (idSegments.Length >= 2)
+            {
+                var idPub = NormalizeSegment(idSegments[0]);
+                if (!IsGitHubPublisher(idPub) && !candidatePublishers.Contains(idPub, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidatePublishers.Add(idPub);
+                }
+            }
         }
 
         if (item.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) == true &&
@@ -714,6 +768,18 @@ public sealed partial class ContentStateService(
             {
                 candidatePublishers.Add(normalizedOwner);
             }
+        }
+
+        if (candidatePublishers.Any(IsCncLabsPublisher) &&
+            !candidatePublishers.Contains(CNCLabsConstants.PublisherPrefix, StringComparer.OrdinalIgnoreCase))
+        {
+            candidatePublishers.Add(CNCLabsConstants.PublisherPrefix);
+        }
+
+        if (candidatePublishers.Any(IsAodMapsPublisher) &&
+            !candidatePublishers.Contains(AODMapsConstants.PublisherPrefix, StringComparer.OrdinalIgnoreCase))
+        {
+            candidatePublishers.Add(AODMapsConstants.PublisherPrefix);
         }
 
         return candidatePublishers;
@@ -746,6 +812,8 @@ public sealed partial class ContentStateService(
         AddMetadataCandidate(item, CommunityOutpostCatalogConstants.ContentCodeKey, candidateNames);
         AddMetadataCandidate(item, GitHubConstants.RepoMetadataKey, candidateNames);
         AddMetadataCandidate(item, ModDBConstants.ContentIdMetadataKey, candidateNames);
+        AddMetadataCandidate(item, CNCLabsConstants.MapIdMetadataKey, candidateNames);
+        AddMetadataCandidate(item, AODMapsConstants.MapIdMetadataKey, candidateNames);
 
         if (!string.IsNullOrWhiteSpace(item.Name))
         {
@@ -1030,7 +1098,10 @@ public sealed partial class ContentStateService(
             !string.IsNullOrWhiteSpace(manifest.OriginalContentId) && (
             string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
             (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
-             string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase))))
+             string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
+            (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapId) == true &&
+             (manifest.OriginalContentId.EndsWith($".{mapId}", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(manifest.OriginalContentId, mapId, StringComparison.OrdinalIgnoreCase)))))
         {
             return true;
         }
@@ -1133,6 +1204,14 @@ public sealed partial class ContentStateService(
             {
                 providerName = SanitizeSegmentForManifest(item.AuthorName, providerName) ?? providerName;
             }
+        }
+        else if (IsCncLabsPublisher(providerName))
+        {
+            providerName = CNCLabsConstants.PublisherPrefix;
+        }
+        else if (IsAodMapsPublisher(providerName))
+        {
+            providerName = AODMapsConstants.PublisherPrefix;
         }
 
         var contentName = SanitizeSegmentForManifest(item.Name, null)
@@ -1241,10 +1320,36 @@ public sealed partial class ContentStateService(
         bool isGitHub = IsGitHubPublisher(item.ProviderName);
 
         return manifests.FirstOrDefault(manifest =>
-            (string.Equals(manifest.OriginalProviderName, item.ProviderName, StringComparison.OrdinalIgnoreCase) ||
-             IsCompatiblePublisherAlias(manifest.OriginalProviderName ?? string.Empty, item.ProviderName)) &&
-            (string.Equals(manifest.OriginalContentId, item.Id, StringComparison.Ordinal) ||
-             (!isGitHub && ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name))));
+        {
+            var manifestPublisher = manifest.OriginalProviderName;
+            if (string.IsNullOrEmpty(manifestPublisher))
+            {
+                manifestPublisher = manifest.Publisher?.PublisherType;
+            }
+
+            if (string.IsNullOrEmpty(manifestPublisher) && manifest.Id.Value.Split('.') is { Length: 5 } segs)
+            {
+                manifestPublisher = segs[2];
+            }
+
+            bool publisherMatches = string.Equals(manifestPublisher, item.ProviderName, StringComparison.OrdinalIgnoreCase) ||
+                IsCompatiblePublisherAlias(manifestPublisher ?? string.Empty, item.ProviderName);
+
+            if (!publisherMatches)
+            {
+                return false;
+            }
+
+            bool contentIdMatches = !string.IsNullOrEmpty(manifest.OriginalContentId) &&
+                (string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
+                 (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
+                  string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
+                 (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapId) == true &&
+                  (manifest.OriginalContentId.EndsWith($".{mapId}", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(manifest.OriginalContentId, mapId, StringComparison.OrdinalIgnoreCase))));
+
+            return contentIdMatches || (!isGitHub && ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name));
+        });
     }
 
     private static ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)

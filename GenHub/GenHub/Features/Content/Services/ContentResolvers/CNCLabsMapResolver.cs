@@ -93,6 +93,11 @@ public class CNCLabsMapResolver(
                 manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : discoveredItem.Id;
             }
 
+            if (!string.IsNullOrWhiteSpace(discoveredItem.SourceUrl) && manifest.Publisher != null)
+            {
+                manifest.Publisher.SupportUrl = discoveredItem.SourceUrl;
+            }
+
             logger.LogInformation(
                 "Successfully resolved CNC Labs content: {ManifestId} - {Name}",
                 manifest.Id.Value,
