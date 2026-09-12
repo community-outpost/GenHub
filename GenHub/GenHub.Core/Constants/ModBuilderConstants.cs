@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 
 namespace GenHub.Core.Constants;
 
@@ -157,10 +158,10 @@ public static class ModBuilderConstants
     /// </summary>
     public static readonly IReadOnlyList<string> CrunchExecutableCandidates =
     [
-        @".tools\crunch_x64.exe",
-        @"tools\crunch_x64.exe",
-        @".tools\crunch.exe",
-        @"tools\crunch.exe",
+        Path.Combine(".tools", CrunchExecutable),
+        Path.Combine("tools", CrunchExecutable),
+        Path.Combine(".tools", CrunchFallbackExecutable),
+        Path.Combine("tools", CrunchFallbackExecutable),
     ];
 
     /// <summary>

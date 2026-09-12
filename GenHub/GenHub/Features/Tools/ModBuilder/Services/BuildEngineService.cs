@@ -721,7 +721,7 @@ public sealed class BuildEngineService : IBuildEngineService
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
         var items = setup.Bundles?.Items;
-        var compressionLevel = System.IO.Compression.CompressionLevel.Optimal;
+        var compressionLevel = setup.ZipCompressionLevel;
 
         var packFileName = GetPackFileName(pack);
         var packFilePath = Path.Combine(releaseDir, packFileName);
@@ -1864,6 +1864,7 @@ public sealed class BuildEngineService : IBuildEngineService
             },
             Runner = new Runner(),
             RunnerConfig = configuration.Runner,
+            ZipCompressionLevel = configuration.ZipCompressionLevel,
         };
 
         var stageFiles = PopulateStageFiles(setup, configuration);
