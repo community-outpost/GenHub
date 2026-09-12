@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Constants;
@@ -289,4 +291,34 @@ public static class GenHotkeysConstants
     /// <returns>Asset directory name.</returns>
     public static string GetProfileDirectory(GameType gameType) =>
         gameType == GameType.Generals ? ProfileDirectoryGenerals : ProfileDirectoryGeneralsZh;
+
+    /// <summary>
+    /// Computes the standard .big filename for a hotkey profile.
+    /// </summary>
+    /// <param name="profileName">Profile name.</param>
+    /// <param name="targetGame">Target game.</param>
+    /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
+    public static string GetBigFileName(string? profileName, GameType targetGame)
+    {
+        var sanitizedName = Regex.Replace(profileName ?? "Hotkeys", @"[^a-zA-Z0-9_\-]", "_");
+        if (string.IsNullOrWhiteSpace(sanitizedName))
+        {
+            sanitizedName = "Hotkeys";
+        }
+
+        var gameTag = GetGameTag(targetGame);
+        return string.Format(CultureInfo.InvariantCulture, BigFileNamePattern, sanitizedName, gameTag);
+    }
+
+    /// <summary>
+    /// Computes the manifest display name for a hotkey profile addon.
+    /// </summary>
+    /// <param name="profileName">Profile name.</param>
+    /// <param name="targetGame">Target game.</param>
+    /// <returns>The manifest name, e.g. Hotkeys - MyProfile (ZH).</returns>
+    public static string GetManifestDisplayName(string? profileName, GameType targetGame)
+    {
+        var gameTag = GetGameTag(targetGame);
+        return $"Hotkeys - {profileName ?? "Default"} ({gameTag})";
+    }
 }
