@@ -56,7 +56,7 @@ public static class ActionSetConstants
         /// <summary>
         /// Gets the TheSuperHackers section name for Options.ini files.
         /// </summary>
-        public const string TheSuperHackersSection = "TheSuperHackers";
+        public const string TheSuperHackersSection = GameSettingsTheSuperHackersConstants.SectionName;
 
         // Keys
 
@@ -95,7 +95,7 @@ public static class ActionSetConstants
         /// <summary>
         /// Gets the ScrollFactor key name for edge scrolling settings.
         /// </summary>
-        public const string ScrollFactorKey = "ScrollFactor";
+        public const string ScrollFactorKey = GameSettingsTheSuperHackersConstants.ScrollFactorKey;
     }
 
     /// <summary>

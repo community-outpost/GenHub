@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
@@ -17,6 +18,12 @@ public class MockGameSettingsService : IGameSettingsService
 
     /// <inheritdoc/>
     public Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
+    {
+        return LoadGeneralsOnlineSettingsAsync(CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync(CancellationToken cancellationToken)
     {
         return Task.FromResult(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings
         {
@@ -56,6 +63,12 @@ public class MockGameSettingsService : IGameSettingsService
 
     /// <inheritdoc/>
     public Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
+    {
+        return SaveGeneralsOnlineSettingsAsync(settings, CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings, CancellationToken cancellationToken)
     {
         return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
     }

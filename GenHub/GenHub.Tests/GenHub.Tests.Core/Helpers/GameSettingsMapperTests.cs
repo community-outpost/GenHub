@@ -13,6 +13,8 @@ public class GameSettingsMapperTests
 {
     /// <summary>
     /// Verifies that all texture quality levels map to the correct engine values.
+    /// Note: In the retail engine, both High and VeryHigh map to TextureReduction 0 (no reduction).
+    /// VeryHigh exists in GenHub's enum to support modern renderers/mods, but Options.ini uses 0 for both.
     /// </summary>
     /// <param name="quality">The texture quality level.</param>
     /// <param name="expectedReduction">The expected texture reduction value in Options.ini.</param>
@@ -528,5 +530,36 @@ public class GameSettingsMapperTests
         Assert.Equal(1920, target.VideoResolutionWidth);
         Assert.Equal(1080, target.VideoResolutionHeight);
         Assert.Equal(2.5f, target.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that GameSettingsMapper uses InvariantCulture when formatting numeric values.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_NumericFormatting_UsesInvariantCulture()
+    {
+        var currentCulture = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            // Use German culture where comma is the decimal separator
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+
+            var profile = new GameProfile
+            {
+                TshGameWindowTransitionSpeedMultiplier = 2.5f,
+                TshSystemTimeFontSize = 14,
+            };
+            var options = new IniOptions();
+
+            GameSettingsMapper.ApplyToOptions(profile, options);
+
+            var tsh = options.AdditionalSections["TheSuperHackers"];
+            Assert.Equal("2.5", tsh["GameWindowTransitionSpeedMultiplier"]);
+            Assert.Equal("14", tsh["SystemTimeFontSize"]);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = currentCulture;
+        }
     }
 }

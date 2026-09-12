@@ -69,12 +69,7 @@ public partial class GameProfileSettingsViewModel
 
             GameSettingsViewModel.ColorValue = ColorValue;
 
-            if (SelectedGameInstallation != null)
-            {
-                GameSettingsViewModel.SelectedGameType = SelectedGameInstallation.GameType;
-            }
-
-            await GameSettingsViewModel.InitializeForProfileAsync(null, null);
+            await GameSettingsViewModel.InitializeForProfileAsync(null, null, SelectedGameInstallation?.GameType);
 
             StatusMessage = $"Found {AvailableGameInstallations.Count} installations and {AvailableContent.Count} content items";
         }

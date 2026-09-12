@@ -1799,3 +1799,22 @@ folder under `Documents`.
 
 - [Manifest ID System](manifest-id-system.md)
 - [Complete System Architecture](../architecture.md)
+
+---
+
+## GameSettingsTheSuperHackersConstants Class
+
+Constants for TheSuperHackers (TSH) client settings in `Options.ini`.
+
+| Constant | Value | Description |
+| --- | --- | --- |
+| `SectionName` | `"TheSuperHackers"` | Section name in `Options.ini` for TSH configuration |
+| `GameWindowTransitionSpeedMultiplierKey` | `"GameWindowTransitionSpeedMultiplier"` | Key for window transition animation speed multiplier |
+| `DefaultGameWindowTransitionSpeedMultiplier` | `1.0f` | Default transition speed multiplier |
+| `MinGameWindowTransitionSpeedMultiplier` | `1.0f` | Minimum allowed transition speed multiplier |
+| `MaxGameWindowTransitionSpeedMultiplier` | `4.0f` | Maximum allowed transition speed multiplier |
+| `ScrollFactorKey` | `"ScrollFactor"` | Key for scroll speed factor |
+| `MoneyTransactionVolumeKey` | `"MoneyTransactionVolume"` | Key for transaction sound volume |
+| `ArchiveReplaysKey` | `"ArchiveReplays"` | Key for automatic replay archiving |
+| `ShowMoneyPerMinuteKey` | `"ShowMoneyPerMinute"` | Key for displaying income rate |
+| `PlayerObserverEnabledKey` | `"PlayerObserverEnabled"` | Key for observer mode toggle |

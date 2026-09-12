@@ -237,11 +237,17 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
+    public Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
+    {
+        return LoadGeneralsOnlineSettingsAsync(CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync(CancellationToken cancellationToken)
     {
         using (_logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" }))
         {
-            await _generalsOnlineSettingsSemaphore.WaitAsync();
+            await _generalsOnlineSettingsSemaphore.WaitAsync(cancellationToken);
             try
             {
                 var settingsPath = GetGeneralsOnlineSettingsPath();
@@ -253,7 +259,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                     return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
                 }
 
-                var json = await File.ReadAllTextAsync(settingsPath);
+                var json = await File.ReadAllTextAsync(settingsPath, cancellationToken);
                 var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _jsonSerializerOptions);
 
                 if (settings == null)
@@ -280,12 +286,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
+    public Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
+    {
+        return SaveGeneralsOnlineSettingsAsync(settings, CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings, CancellationToken cancellationToken)
     {
         using (_logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" }))
         {
             string? temporaryPath = null;
-            await _generalsOnlineSettingsSemaphore.WaitAsync();
+            await _generalsOnlineSettingsSemaphore.WaitAsync(cancellationToken);
             try
             {
                 var settingsPath = GetGeneralsOnlineSettingsPath();
@@ -304,8 +316,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 // so a truncating write that is interrupted, or that overlaps a second launch writing
                 // the same path, would leave the client with a settings.json it cannot read.
                 temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}";
-                await File.WriteAllTextAsync(temporaryPath, json, Encoding.UTF8);
-                await ReplaceSettingsFileAsync(temporaryPath, settingsPath);
+                await File.WriteAllTextAsync(temporaryPath, json, Encoding.UTF8, cancellationToken);
+                await ReplaceSettingsFileAsync(temporaryPath, settingsPath, cancellationToken);
                 temporaryPath = null;
 
                 _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
@@ -400,24 +412,23 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
                 if (string.IsNullOrEmpty(currentSection))
                 {
-                    // Flat format - store in root dict
+                    // Flat format (no section header yet)
                     rootDict[key] = value;
                 }
                 else
                 {
-                    // Sectioned format - store in current section
                     currentDict[key] = value;
                 }
             }
         }
 
-        // Process last section if any
+        // Process the last section
         if (!string.IsNullOrEmpty(currentSection))
         {
             ProcessSection(options, currentSection, currentDict);
         }
 
-        // Process root dict (flat format) - categorize by key name
+        // Process root-level settings if any were found (flat format)
         if (rootDict.Count > 0)
         {
             CategorizeRootSettings(options, rootDict);
@@ -443,7 +454,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
             "IdealStaticGameLOD", "StaticGameLOD", "AlternateMouseSetup", "HeatEffects",
-            "BuildingOcclusion", "ShowProps",
+            "BuildingOcclusion", "ShowProps", "ShowSoftWaterEdge", "ShowTrees",
+            "UseCloudMap", "UseLightMap",
         };
 
         var networkKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -477,12 +489,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             GameSettingsTheSuperHackersConstants.ScrollFactorKey,
             "SendDelay",
             GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey,
-            "ShowSoftWaterEdge",
-            "ShowTrees",
             GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey,
-            "UseCloudMap",
             GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey,
-            "UseLightMap",
         };
 
         Dictionary<string, string> audioDict = new(StringComparer.OrdinalIgnoreCase);
@@ -542,7 +550,27 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         // Store TheSuperHackers settings in AdditionalSections to preserve them
         if (theSuperHackersDict.Count > 0)
-            options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(theSuperHackersDict, StringComparer.OrdinalIgnoreCase);
+        {
+            var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k =>
+                string.Equals(k, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+
+            if (tshKey != null && options.AdditionalSections.TryGetValue(tshKey, out var existingTshDict) && existingTshDict != null)
+            {
+                // Merge flat root settings; existing section values win on conflict
+                foreach (var kvp in theSuperHackersDict)
+                {
+                    if (!existingTshDict.ContainsKey(kvp.Key))
+                    {
+                        existingTshDict[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            else
+            {
+                options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] =
+                    new Dictionary<string, string>(theSuperHackersDict, StringComparer.OrdinalIgnoreCase);
+            }
+        }
     }
 
     private static void ProcessSection(IniOptions options, string sectionName, Dictionary<string, string> values)
@@ -845,15 +873,15 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
             [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
             [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(settings.GameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture),
-            [GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = settings.MoneyTransactionVolume.ToString(),
-            [GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = settings.NetworkLatencyFontSize.ToString(),
+            [GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = settings.MoneyTransactionVolume.ToString(CultureInfo.InvariantCulture),
+            [GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = settings.NetworkLatencyFontSize.ToString(CultureInfo.InvariantCulture),
             [GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey] = BoolToString(settings.PlayerObserverEnabled),
-            [GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = settings.RenderFpsFontSize.ToString(),
-            [GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = settings.ResolutionFontAdjustment.ToString(),
+            [GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = settings.RenderFpsFontSize.ToString(CultureInfo.InvariantCulture),
+            [GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = settings.ResolutionFontAdjustment.ToString(CultureInfo.InvariantCulture),
             [GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey] = BoolToString(settings.ScreenEdgeScrollEnabledInFullscreenApp),
             [GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey] = BoolToString(settings.ScreenEdgeScrollEnabledInWindowedApp),
             [GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey] = BoolToString(settings.ShowMoneyPerMinute),
-            [GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = settings.SystemTimeFontSize.ToString(),
+            [GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = settings.SystemTimeFontSize.ToString(CultureInfo.InvariantCulture),
         };
     }
 
@@ -885,8 +913,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// </remarks>
     /// <param name="temporaryPath">The completed file to move.</param>
     /// <param name="settingsPath">The settings.json path to replace.</param>
+    /// <param name="cancellationToken">Cancellation token for cancelling retry delays.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    private async Task ReplaceSettingsFileAsync(string temporaryPath, string settingsPath)
+    private async Task ReplaceSettingsFileAsync(string temporaryPath, string settingsPath, CancellationToken cancellationToken = default)
     {
         for (var attempt = 1; attempt < GameSettingsGeneralsOnlineConstants.SettingsReplaceAttemptLimit; attempt++)
         {
@@ -903,7 +932,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                     attempt,
                     GameSettingsGeneralsOnlineConstants.SettingsReplaceAttemptLimit,
                     settingsPath);
-                await Task.Delay(GameSettingsGeneralsOnlineConstants.SettingsReplaceRetryDelayMilliseconds);
+                await Task.Delay(GameSettingsGeneralsOnlineConstants.SettingsReplaceRetryDelayMilliseconds, cancellationToken);
             }
         }
 

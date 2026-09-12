@@ -416,7 +416,6 @@ public static class GameSettingsMapper
 
         target.UseSteamLaunch = source.UseSteamLaunch;
         target.GameSpyIPAddress = source.GameSpyIPAddress;
-        target.VideoSkipEALogo = source.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -511,7 +510,6 @@ public static class GameSettingsMapper
 
         target.UseSteamLaunch = source.UseSteamLaunch;
         target.GameSpyIPAddress = source.GameSpyIPAddress;
-        target.VideoSkipEALogo = source.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -1000,10 +998,10 @@ public static class GameSettingsMapper
         if (profile.TshArchiveReplays.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ArchiveReplaysKey] = BoolToString(profile.TshArchiveReplays.Value);
         if (profile.TshShowMoneyPerMinute.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey] = BoolToString(profile.TshShowMoneyPerMinute.Value);
         if (profile.TshPlayerObserverEnabled.HasValue) tshDict[GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey] = BoolToString(profile.TshPlayerObserverEnabled.Value);
-        if (profile.TshSystemTimeFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = profile.TshSystemTimeFontSize.Value.ToString();
-        if (profile.TshNetworkLatencyFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = profile.TshNetworkLatencyFontSize.Value.ToString();
-        if (profile.TshRenderFpsFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = profile.TshRenderFpsFontSize.Value.ToString();
-        if (profile.TshResolutionFontAdjustment.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = profile.TshResolutionFontAdjustment.Value.ToString();
+        if (profile.TshSystemTimeFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = profile.TshSystemTimeFontSize.Value.ToString(CultureInfo.InvariantCulture);
+        if (profile.TshNetworkLatencyFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = profile.TshNetworkLatencyFontSize.Value.ToString(CultureInfo.InvariantCulture);
+        if (profile.TshRenderFpsFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = profile.TshRenderFpsFontSize.Value.ToString(CultureInfo.InvariantCulture);
+        if (profile.TshResolutionFontAdjustment.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = profile.TshResolutionFontAdjustment.Value.ToString(CultureInfo.InvariantCulture);
     }
 
     private static void ApplyTshControlsSettingsToDict(GameProfile profile, Dictionary<string, string> tshDict)
@@ -1014,7 +1012,7 @@ public static class GameSettingsMapper
         if (profile.TshCursorCaptureEnabledInWindowedMenu.HasValue) tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey] = BoolToString(profile.TshCursorCaptureEnabledInWindowedMenu.Value);
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey] = BoolToString(profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value);
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey] = BoolToString(profile.TshScreenEdgeScrollEnabledInWindowedApp.Value);
-        if (profile.TshMoneyTransactionVolume.HasValue) tshDict[GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = profile.TshMoneyTransactionVolume.Value.ToString();
+        if (profile.TshMoneyTransactionVolume.HasValue) tshDict[GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = profile.TshMoneyTransactionVolume.Value.ToString(CultureInfo.InvariantCulture);
         if (NormalizeTransitionSpeedMultiplier(profile.TshGameWindowTransitionSpeedMultiplier) is { } speedMultiplier)
         {
             tshDict[GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = speedMultiplier.ToString(CultureInfo.InvariantCulture);
