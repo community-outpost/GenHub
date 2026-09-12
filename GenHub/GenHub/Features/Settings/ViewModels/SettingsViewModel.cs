@@ -278,10 +278,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
     private bool _isLoadingSubscriptions;
 
+#pragma warning disable S2325 // Bound by Avalonia XAML and notified of instance state changes
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
     /// </summary>
-    public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Minor Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
+    public bool ShowNoSubscriptions => !_isLoadingSubscriptions && _subscriptions.Count == 0;
+#pragma warning restore S2325
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
