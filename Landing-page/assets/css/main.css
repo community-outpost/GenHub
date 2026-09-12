@@ -898,8 +898,7 @@ main {
 }
 
 /* Tools Panel (GenPatcher, Map Manager & Replay Manager) */
-.tools-grid-layout,
-.tools-panel-split {
+.tools-grid-layout {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.25rem;
@@ -1095,7 +1094,7 @@ main {
     font-size: 0.825rem;
     color: #ffffff;
     margin-bottom: 0.2rem;
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .replay-info-col span {

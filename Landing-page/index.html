@@ -315,7 +315,7 @@
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
                     <div class="btn-primary-content">
                         <span class="btn-primary-title">Download for Windows</span>
-                        <span class="btn-primary-sub">Free & Open Source &bull; Windows, Linux & macOS Ready</span>
+                        <span class="btn-primary-sub">Free & Open Source &bull; Windows & Linux Ready (macOS Preview)</span>
                     </div>
                 </a>
 
@@ -342,7 +342,7 @@
                 </span>
                 <span class="platform-badge" title="macOS native & Wine compatibility">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 7.17c.61-.75 1.04-1.8 1.01-2.85-.94.04-2.04.63-2.69 1.38-.56.65-1.06 1.7-1 2.76 1.05.08 2.08-.54 2.68-1.29z"/></svg>
-                    macOS
+                    macOS (Preview)
                 </span>
                 <span class="platform-badge" title="Auto-detects Steam release, EA App / Origin, and original CD copies">
                     <img src="./assets/images/steam-icon.png" alt="Steam" width="14" height="14">
@@ -365,7 +365,7 @@
                         </div>
                     </button>
                     
-                    <div class="stats-tooltip" id="gh-stats-tooltip" aria-label="Release Metrics Breakdown">
+                    <div class="stats-tooltip" id="gh-stats-tooltip">
                         <div class="tooltip-header">
                             <span>Release Metrics Breakdown</span>
                         </div>
@@ -629,7 +629,7 @@
                                             <span>32 Competitive Maps &bull; Map Previews Included</span>
                                         </div>
                                     </div>
-                                    <p>Curated competitive map pool with GenTool-compatible CRC checks and map previews.</p>
+                                    <p>Curated competitive map pool with GenTool compatibility and map previews.</p>
                                     <div class="catalog-card-footer">
                                         <span class="catalog-badge">Map Collection</span>
                                         <button class="btn-catalog-action" type="button">1-Click Install</button>
@@ -1320,7 +1320,7 @@
                     const currentIndex = pillTabs.findIndex(btn => btn === document.activeElement);
                     if (currentIndex === -1) return;
 
-                    let newIndex = currentIndex;
+                    let newIndex;
                     if (e.key === 'ArrowRight') {
                         newIndex = (currentIndex + 1) % pillTabs.length;
                     } else if (e.key === 'ArrowLeft') {

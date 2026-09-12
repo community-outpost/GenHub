@@ -209,7 +209,6 @@
    App Window & Client Mockup Responsiveness
    ========================================================================== */
 @media (max-width: 1024px) {
-    .tools-panel-split,
     .tools-grid-layout {
         grid-template-columns: 1fr;
         gap: 1.25rem;
