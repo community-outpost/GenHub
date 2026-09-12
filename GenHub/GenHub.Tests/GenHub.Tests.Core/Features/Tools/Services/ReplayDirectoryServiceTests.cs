@@ -495,6 +495,137 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that FindCompatibleProfiles strictly excludes candidate profiles whose executable binary CRC does not match the replay executable CRC.
+    /// </summary>
+    [Fact]
+    public void FindCompatibleProfiles_WhenProfileExeCrcMismatchesReplayExeCrc_ExcludesProfile()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "genhub_test_crc_mismatch_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var fakeExePath = Path.Combine(tempDir, "generals.exe");
+        File.WriteAllText(fakeExePath, "fake-binary-content");
+
+        try
+        {
+            var replay = new ReplayFile
+            {
+                FileName = "Oct17Replay.rep",
+                FullPath = "/test/Oct17Replay.rep",
+                SizeInBytes = 2048,
+                LastModified = DateTime.UtcNow,
+                GameVersion = GameType.ZeroHour,
+                MatchedClient = new CrcMappingEntry
+                {
+                    ManifestId = "1.104.retail.gameclient.zerohour",
+                    ExeCrc = "0x887B0CAA",
+                },
+            };
+
+            var profile1 = new GameProfile
+            {
+                Id = "p1",
+                Name = "ZH Profile with 0xDA2B4B18",
+                GameClient = new GameClient
+                {
+                    Id = "1.104.retail.gameclient.zerohour",
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = fakeExePath,
+                },
+            };
+
+            var mockCrcCalc = new Mock<IGameCrcCalculatorService>();
+            mockCrcCalc
+                .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("0xDA2B4B18"));
+
+            var profiles = new List<GameProfile> { profile1 };
+            var results = ReplayDirectoryService.FindCompatibleProfiles(
+                profiles,
+                GameType.ZeroHour,
+                "1.104.retail.gameclient.zerohour",
+                null,
+                replay,
+                null,
+                mockCrcCalc.Object);
+
+            Assert.Empty(results);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that FindCompatibleProfiles includes candidate profiles when executable binary CRC matches target CRC.
+    /// </summary>
+    [Fact]
+    public void FindCompatibleProfiles_WhenProfileExeCrcMatchesReplayExeCrc_IncludesProfile()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "genhub_test_crc_match_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var fakeExePath = Path.Combine(tempDir, "generals.exe");
+        File.WriteAllText(fakeExePath, "fake-binary-content");
+
+        try
+        {
+            var replay = new ReplayFile
+            {
+                FileName = "ZH104Replay.rep",
+                FullPath = "/test/ZH104Replay.rep",
+                SizeInBytes = 2048,
+                LastModified = DateTime.UtcNow,
+                GameVersion = GameType.ZeroHour,
+                MatchedClient = new CrcMappingEntry
+                {
+                    ManifestId = "1.104.retail.gameclient.zerohour",
+                    ExeCrc = "0xDA2B4B18",
+                },
+            };
+
+            var profile1 = new GameProfile
+            {
+                Id = "p1",
+                Name = "ZH Profile 1.04",
+                GameClient = new GameClient
+                {
+                    Id = "1.104.retail.gameclient.zerohour",
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = fakeExePath,
+                },
+            };
+
+            var mockCrcCalc = new Mock<IGameCrcCalculatorService>();
+            mockCrcCalc
+                .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("0xDA2B4B18"));
+
+            var profiles = new List<GameProfile> { profile1 };
+            var results = ReplayDirectoryService.FindCompatibleProfiles(
+                profiles,
+                GameType.ZeroHour,
+                "1.104.retail.gameclient.zerohour",
+                null,
+                replay,
+                null,
+                mockCrcCalc.Object);
+
+            Assert.Single(results);
+            Assert.Equal(profile1, results[0]);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that replay compatibility resolves to Compatible when an existing profile is found.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

@@ -1,5 +1,9 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 using Xunit;
 
@@ -65,5 +69,52 @@ public sealed class GameClientSelectionViewModelTests
         var result = GameClientSelectionViewModel.ManifestMatchesGame(manifest, targetGame);
 
         Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that when a replay has zero compatible clients, ShowAllClients remains false
+    /// and FilteredClients is empty, rather than dumping all incompatible clients onto the user.
+    /// </summary>
+    [Fact]
+    public async Task LoadClientsForReplayAsync_WhenNoCompatibleClients_DoesNotAutoShowAllClients()
+    {
+        var mockProfileMgr = new Moq.Mock<GenHub.Core.Interfaces.GameProfiles.IGameProfileManager>();
+        var mockManifestPool = new Moq.Mock<GenHub.Core.Interfaces.Manifest.IContentManifestPool>();
+        var mockCrcRegistry = new Moq.Mock<GenHub.Core.Interfaces.Tools.ReplayManager.ICrcMappingRegistry>();
+        var mockLogger = new Moq.Mock<Microsoft.Extensions.Logging.ILogger<GameClientSelectionViewModel>>();
+
+        mockProfileMgr
+            .Setup(p => p.GetAllProfilesAsync(Moq.It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<IReadOnlyList<GenHub.Core.Models.GameProfile.GameProfile>>.CreateSuccess([]));
+
+        mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(Moq.It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess([]));
+
+        var vm = new GameClientSelectionViewModel(
+            mockProfileMgr.Object,
+            mockManifestPool.Object,
+            mockCrcRegistry.Object,
+            mockLogger.Object);
+
+        // Replay with unrecognized/unmapped CRC (e.g. i-fly.rep)
+        var replay = new ReplayFile
+        {
+            FileName = "i-fly.rep",
+            FullPath = "/replays/i-fly.rep",
+            ExeCrc = 0x88BEB180,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        await vm.LoadClientsForReplayAsync(GameType.ZeroHour, replay);
+
+        Assert.False(vm.ShowAllClients);
+        Assert.False(vm.HasCompatibleCrcClients);
+        Assert.Equal(0, vm.CompatibleCount);
+        Assert.Empty(vm.FilteredClients);
+
+        // User can explicitly toggle ShowAllClients
+        vm.ToggleShowAllCommand.Execute(null);
+        Assert.True(vm.ShowAllClients);
     }
 }

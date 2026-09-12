@@ -213,7 +213,8 @@ public sealed class ReplayDirectoryService(
             clientManifestId,
             dataPatchManifestId,
             replay,
-            logger);
+            logger,
+            crcCalculator);
 
         if (crcCalculator != null && !string.IsNullOrEmpty(replay.Metadata?.FormattedExeCrc))
         {
@@ -438,17 +439,40 @@ public sealed class ReplayDirectoryService(
         string clientManifestId,
         string? dataPatchManifestId = null,
         ReplayFile? replay = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IGameCrcCalculatorService? crcCalculator = null)
     {
         var profileList = profiles.ToList();
 
         var isRetailClient = IsRetailClient(null, clientManifestId);
+        var targetExeCrc = replay?.MatchedClient?.ExeCrc ?? replay?.Metadata?.FormattedExeCrc;
 
         var compatibleCandidates = profileList.Where(p =>
         {
             if (p.GameClient?.GameType != gameVersion)
             {
                 return false;
+            }
+
+            if (crcCalculator != null && !string.IsNullOrEmpty(targetExeCrc))
+            {
+                var exePath = ResolveProfileFullExePath(p.GameClient);
+                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+                {
+                    try
+                    {
+                        var calcRes = crcCalculator.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
+                        if (calcRes.Success && !string.IsNullOrEmpty(calcRes.Data) &&
+                            !string.Equals(calcRes.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return false;
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger?.LogWarning(ex, "[ReplayManager] Error verifying profile '{ProfileName}' EXE CRC for replay matching", p.Name);
+                    }
+                }
             }
 
             if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
@@ -498,9 +522,10 @@ public sealed class ReplayDirectoryService(
         string clientManifestId,
         string? dataPatchManifestId = null,
         ReplayFile? replay = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IGameCrcCalculatorService? crcCalculator = null)
     {
-        return FindCompatibleProfiles(profiles, gameVersion, clientManifestId, dataPatchManifestId, replay, logger).FirstOrDefault();
+        return FindCompatibleProfiles(profiles, gameVersion, clientManifestId, dataPatchManifestId, replay, logger, crcCalculator).FirstOrDefault();
     }
 
     /// <summary>
@@ -656,11 +681,12 @@ public sealed class ReplayDirectoryService(
         CrcMappingEntry match,
         HashSet<string> acquiredIds,
         IReadOnlyList<GameProfile> profiles,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IGameCrcCalculatorService? crcCalculator = null)
     {
         replay.MatchedClient = match;
 
-        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId, replay, logger);
+        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId, replay, logger, crcCalculator);
         if (matchingProfile != null)
         {
             replay.MatchingProfileId = matchingProfile.Id;
@@ -694,7 +720,7 @@ public sealed class ReplayDirectoryService(
 
         if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
         {
-            ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger);
+            ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger, crcCalculator);
             return;
         }
 
@@ -702,7 +728,7 @@ public sealed class ReplayDirectoryService(
         if (crcMappingRegistry.TryGetEntryByExeCrc(exeCrcStr, out var baseClient) && baseClient != null)
         {
             var resolvedEntry = ResolveSecondaryBaseClientEntry(baseClient, iniCrcStr, acquiredIds);
-            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
+            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger, crcCalculator);
             return;
         }
 
@@ -710,14 +736,14 @@ public sealed class ReplayDirectoryService(
         if (TryResolveGeneralsOnlineHeuristic(replay, out var heuristicClient) && heuristicClient != null)
         {
             var resolvedEntry = ResolveSecondaryHeuristicEntry(heuristicClient, exeCrcStr, iniCrcStr);
-            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
+            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger, crcCalculator);
             return;
         }
 
         // Step 6: Dynamic check for existing profile game clients matching the replay executable CRC
         if (TryResolveProfileByExeCrc(replay, profiles, out var dynamicEntry) && dynamicEntry != null)
         {
-            ResolveMatchedClientCompatibility(replay, dynamicEntry, acquiredIds, profiles, logger);
+            ResolveMatchedClientCompatibility(replay, dynamicEntry, acquiredIds, profiles, logger, crcCalculator);
             return;
         }
 
@@ -1902,12 +1928,26 @@ public sealed class ReplayDirectoryService(
 
     private static string? ResolveProfileFullExePath(GameClient? client)
     {
-        if (client == null || string.IsNullOrWhiteSpace(client.ExecutablePath))
+        if (client == null)
         {
             return null;
         }
 
         var exePath = client.ExecutablePath;
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            if (!string.IsNullOrWhiteSpace(client.WorkingDirectory))
+            {
+                var candidate = Path.Combine(client.WorkingDirectory, "generals.exe");
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
         if (!Path.IsPathRooted(exePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
         {
             exePath = Path.Combine(client.WorkingDirectory, exePath);

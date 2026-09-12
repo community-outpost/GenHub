@@ -379,10 +379,24 @@ public sealed partial class GameClientSelectionViewModel(
         {
             discoveredKeys.Add(matchedClient.ManifestId);
         }
+        if (matchedClient.ManifestId.Contains("retail", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(matchedClient.Publisher, "retail", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(matchedClient.Publisher, "ea", StringComparison.OrdinalIgnoreCase))
+        {
+            discoveredKeys.Add("retail-base-client");
+        }
     }
 
     private void AddRetailClientCard(GameType targetGame, ReplayFile? replay, ISet<string> discoveredKeys)
     {
+        if (discoveredKeys.Contains("retail-base-client") ||
+            _allClients.Any(c => c.IsCrcMatch && (c.Publisher.Contains("Retail", StringComparison.OrdinalIgnoreCase) ||
+                                                  c.Publisher.Contains("EA", StringComparison.OrdinalIgnoreCase) ||
+                                                  c.Name.Contains("Retail", StringComparison.OrdinalIgnoreCase))))
+        {
+            return;
+        }
+
         var exeCrc = replay?.ExeCrc ?? 0;
         var isRetailZeroHour = targetGame == GameType.ZeroHour &&
             (exeCrc == 0xDA2B4B18 || exeCrc == 0x401D89EA || exeCrc == 0x887B0CAA ||
@@ -426,6 +440,10 @@ public sealed partial class GameClientSelectionViewModel(
         if (discoveredKeys.Add(retailName))
         {
             _allClients.Add(retailCard);
+            if (isRetailMatch)
+            {
+                discoveredKeys.Add("retail-base-client");
+            }
         }
     }
 
@@ -433,7 +451,7 @@ public sealed partial class GameClientSelectionViewModel(
     {
         CompatibleCount = _allClients.Count(c => c.IsCrcMatch);
         HasCompatibleCrcClients = CompatibleCount > 0;
-        ShowAllClients = !HasCompatibleCrcClients;
+        ShowAllClients = false;
     }
 
     private async Task DiscoverManifestClientsAsync(
@@ -463,25 +481,89 @@ public sealed partial class GameClientSelectionViewModel(
                     continue;
                 }
 
-                var isCrcMatch = false;
-                if (matchedClient != null)
-                {
-                    var versionMatch = !string.IsNullOrEmpty(matchedClient.Version) &&
-                                       !string.IsNullOrEmpty(manifest.Version) &&
-                                       string.Equals(matchedClient.Version.TrimStart('0'), manifest.Version.TrimStart('0'), StringComparison.OrdinalIgnoreCase);
-
-                    var idMatch = string.Equals(manifest.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase);
-
-                    isCrcMatch = idMatch || (versionMatch && string.Equals(manifest.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase));
-                }
-
+                var isCrcMatch = await IsManifestCrcMatchAsync(manifest, matchedClient, ct);
                 _allClients.Add(CreateManifestGameClientCard(manifest, targetGame, isCrcMatch));
+                if (isCrcMatch && (manifest.Id.Value.Contains("retail", StringComparison.OrdinalIgnoreCase) ||
+                                   manifest.Publisher?.PublisherType?.Contains("retail", StringComparison.OrdinalIgnoreCase) == true))
+                {
+                    discoveredKeys.Add("retail-base-client");
+                }
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "[ReplayManager] Error querying manifests for game clients");
         }
+    }
+
+    private async Task<bool> IsManifestCrcMatchAsync(
+        ContentManifest manifest,
+        CrcMappingEntry? matchedClient,
+        CancellationToken ct)
+    {
+        if (matchedClient != null)
+        {
+            var idMatch = string.Equals(manifest.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase);
+            var versionMatch = !string.IsNullOrEmpty(matchedClient.Version) &&
+                               !string.IsNullOrEmpty(manifest.Version) &&
+                               string.Equals(matchedClient.Version.TrimStart('0'), manifest.Version.TrimStart('0'), StringComparison.OrdinalIgnoreCase);
+
+            if (idMatch || (versionMatch && string.Equals(manifest.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(ReplayExeCrc) && crcMappingRegistry != null)
+        {
+            var allEntries = crcMappingRegistry.GetAllEntries();
+            if (allEntries.Any(e => string.Equals(e.ExeCrc, ReplayExeCrc, StringComparison.OrdinalIgnoreCase) &&
+                                    (string.Equals(e.ManifestId, manifest.Id.Value, StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(e.DataPatchManifestId, manifest.Id.Value, StringComparison.OrdinalIgnoreCase))))
+            {
+                return true;
+            }
+        }
+
+        var isZh104Exe = string.Equals(ReplayExeCrc, "0xDA2B4B18", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(ReplayExeCrc, "0x401D89EA", StringComparison.OrdinalIgnoreCase);
+        if (isZh104Exe && manifest.TargetGame == GameType.ZeroHour)
+        {
+            var pub = manifest.Publisher?.PublisherType ?? string.Empty;
+            if (pub.Contains("community", StringComparison.OrdinalIgnoreCase) ||
+                pub.Contains("outpost", StringComparison.OrdinalIgnoreCase) ||
+                pub.Contains("retail", StringComparison.OrdinalIgnoreCase) ||
+                pub.Contains("ea", StringComparison.OrdinalIgnoreCase) ||
+                manifest.Id.Value.Contains("community-patch", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (manifestPool != null && !string.IsNullOrEmpty(ReplayExeCrc))
+        {
+            try
+            {
+                var contentDirResult = await manifestPool.GetContentDirectoryAsync(manifest.Id, ct);
+                if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data) && Directory.Exists(contentDirResult.Data))
+                {
+                    var exeFiles = Directory.GetFiles(contentDirResult.Data, "*.exe", SearchOption.AllDirectories);
+                    foreach (var exeFile in exeFiles)
+                    {
+                        if (await CheckExeCrcMatchAsync(exeFile, null, ct))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "[ReplayManager] Error checking manifest content directory for CRC match");
+            }
+        }
+
+        return false;
     }
 
     private GameClientCardViewModel CreateManifestGameClientCard(
@@ -577,6 +659,29 @@ public sealed partial class GameClientSelectionViewModel(
         {
             isCrcMatch = await CheckExeCrcMatchAsync(exePath, client.WorkingDirectory, ct);
         }
+        if (!isCrcMatch && !string.IsNullOrEmpty(matchedClient?.ManifestId) &&
+            string.Equals(client.Id, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            isCrcMatch = true;
+        }
+        if (!isCrcMatch && (string.Equals(ReplayExeCrc, "0xDA2B4B18", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(ReplayExeCrc, "0x401D89EA", StringComparison.OrdinalIgnoreCase)) &&
+            client.GameType == GameType.ZeroHour)
+        {
+            var pub = client.PublisherType ?? string.Empty;
+            if (pub.Contains("community", StringComparison.OrdinalIgnoreCase) ||
+                pub.Contains("retail", StringComparison.OrdinalIgnoreCase) ||
+                pub.Contains("ea", StringComparison.OrdinalIgnoreCase) ||
+                pub.Contains("steam", StringComparison.OrdinalIgnoreCase))
+            {
+                isCrcMatch = true;
+            }
+        }
+        if (isCrcMatch && (client.PublisherType?.Contains("retail", StringComparison.OrdinalIgnoreCase) == true ||
+                           client.Name.Contains("retail", StringComparison.OrdinalIgnoreCase)))
+        {
+            discoveredKeys.Add("retail-base-client");
+        }
 
         var description = isCrcMatch
             ? $"CRC match (EXE: {ReplayExeCrc}) from existing profile '{profile.Name}'"
@@ -650,7 +755,48 @@ public sealed partial class GameClientSelectionViewModel(
             return;
         }
 
-        var isCrcMatch = await CheckExeCrcMatchAsync(exePath, client.WorkingDirectory, ct);
+        var fullExePath = exePath;
+        if (!Path.IsPathRooted(fullExePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
+        {
+            fullExePath = Path.Combine(client.WorkingDirectory, fullExePath);
+        }
+
+        if (string.IsNullOrEmpty(exePath) || Directory.Exists(fullExePath))
+        {
+            var basePath = !string.IsNullOrEmpty(fullExePath) && Directory.Exists(fullExePath)
+                ? fullExePath
+                : (!string.IsNullOrWhiteSpace(client.WorkingDirectory)
+                    ? client.WorkingDirectory
+                    : (installation.InstallationPath ?? string.Empty));
+
+            if (!string.IsNullOrEmpty(basePath) && Directory.Exists(basePath))
+            {
+                var candidateExe = Path.Combine(basePath, "generals.exe");
+                if (File.Exists(candidateExe))
+                {
+                    fullExePath = candidateExe;
+                    exePath = candidateExe;
+                }
+            }
+        }
+
+        var isCrcMatch = await CheckExeCrcMatchAsync(fullExePath, client.WorkingDirectory, ct);
+        if (!isCrcMatch && (string.Equals(ReplayExeCrc, "0xDA2B4B18", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(ReplayExeCrc, "0x401D89EA", StringComparison.OrdinalIgnoreCase)) &&
+            client.GameType == GameType.ZeroHour)
+        {
+            var name = clientName.ToLowerInvariant();
+            if (name.Contains("community") || name.Contains("patch") || name.Contains("retail") || name.Contains("steam"))
+            {
+                isCrcMatch = true;
+            }
+        }
+        if (isCrcMatch && (installation.InstallationType == InstallationType.Retail ||
+                           installation.InstallationType == InstallationType.Steam ||
+                           installation.InstallationType == InstallationType.EaApp))
+        {
+            discoveredKeys.Add("retail-base-client");
+        }
 
         var description = isCrcMatch
             ? $"CRC match (EXE: {ReplayExeCrc}) from {installation.InstallationType} installation"
@@ -708,9 +854,11 @@ public sealed partial class GameClientSelectionViewModel(
         var query = SearchText?.Trim();
         IEnumerable<GameClientCardViewModel> candidates = _allClients;
 
-        if (!ShowAllClients && HasCompatibleCrcClients)
+        if (!ShowAllClients)
         {
-            candidates = candidates.Where(c => c.IsCrcMatch);
+            candidates = HasCompatibleCrcClients
+                ? candidates.Where(c => c.IsCrcMatch)
+                : Enumerable.Empty<GameClientCardViewModel>();
         }
 
         if (!string.IsNullOrWhiteSpace(query))

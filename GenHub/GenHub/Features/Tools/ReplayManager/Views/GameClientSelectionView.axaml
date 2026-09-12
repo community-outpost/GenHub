@@ -132,7 +132,7 @@
                     </StackPanel>
 
                     <!-- Toggle Filter on Right -->
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6" IsVisible="{Binding HasCompatibleCrcClients}">
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6" IsVisible="{Binding !IsLoading}">
                         <Button Command="{Binding ToggleShowAllCommand}"
                                 Padding="12,6"
                                 CornerRadius="6"
@@ -144,7 +144,11 @@
                             </StackPanel>
                         </Button>
                         <TextBlock Text="{Binding CompatibleCount, StringFormat='{}{0} compatible client(s) found'}"
-                                   FontSize="11" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right" />
+                                   FontSize="11" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"
+                                   IsVisible="{Binding HasCompatibleCrcClients}" />
+                        <TextBlock Text="0 compatible clients found"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right"
+                                   IsVisible="{Binding !HasCompatibleCrcClients}" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -175,9 +179,20 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="24,32">
-                            <StackPanel HorizontalAlignment="Center" Spacing="8">
-                                <TextBlock Text="No game clients found" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
-                                <TextBlock Text="No clients match your filter. Click 'Show All Clients' to view all registered game clients." Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center" />
+                            <StackPanel HorizontalAlignment="Center" Spacing="10">
+                                <TextBlock Text="No compatible game clients found" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ReplayExeCrc, StringFormat='No game client matches the replay executable CRC ({0}).'}"
+                                           Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center"
+                                           IsVisible="{Binding HasCrcInfo}" />
+                                <TextBlock Text="No game clients match the current filter criteria."
+                                           Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center"
+                                           IsVisible="{Binding !HasCrcInfo}" />
+                                <Button Command="{Binding ToggleShowAllCommand}"
+                                        Content="Show All Game Clients Anyway"
+                                        HorizontalAlignment="Center"
+                                        Padding="14,6"
+                                        CornerRadius="6"
+                                        IsVisible="{Binding !ShowAllClients}" />
                             </StackPanel>
                         </Border>
 
