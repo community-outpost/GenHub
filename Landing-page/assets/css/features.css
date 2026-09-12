@@ -184,21 +184,21 @@
 }
 
 .badge-emerald {
-    background: rgba(16, 185, 129, 0.2);
-    color: #6ee7b7;
-    border: 1px solid rgba(16, 185, 129, 0.45);
+    background: #064e3b;
+    color: #a7f3d0;
+    border: 1px solid #059669;
 }
 
 .badge-cyan {
-    background: rgba(56, 189, 248, 0.2);
-    color: #7dd3fc;
-    border: 1px solid rgba(56, 189, 248, 0.45);
+    background: #0c4a6e;
+    color: #bae6fd;
+    border: 1px solid #0284c7;
 }
 
 .badge-purple {
-    background: rgba(139, 92, 246, 0.2);
-    color: #c4b5fd;
-    border: 1px solid rgba(139, 92, 246, 0.45);
+    background: #2e1065;
+    color: #ddd6fe;
+    border: 1px solid #7c3aed;
 }
 
 /* Card Body */
@@ -268,31 +268,4 @@
     color: #38bdf8;
 }
 
-/* Mini visual previews inside cards */
-.card-mini-visual {
-    background: rgba(14, 9, 28, 0.85);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    border-radius: 0.75rem;
-    padding: 1rem;
-    margin-top: 1.25rem;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
 
-.mini-fix-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-.mini-fix-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.mini-fix-row span.applied {
-    color: #34d399;
-    font-weight: 600;
-}

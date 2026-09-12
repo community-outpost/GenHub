@@ -101,6 +101,18 @@
         padding: 1.5rem;
     }
 
+    .story-quote-card {
+        padding: 1.5rem;
+    }
+
+    .story-quote-text {
+        font-size: 0.95rem;
+    }
+
+    .hero-logo-backdrop {
+        opacity: 0.04;
+    }
+
     .steps-grid {
         grid-template-columns: 1fr;
         gap: 1.25rem;

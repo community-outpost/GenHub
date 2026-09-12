@@ -365,7 +365,7 @@
                         </div>
                     </button>
                     
-                    <div class="stats-tooltip" id="gh-stats-tooltip" role="region" aria-label="Release Metrics Breakdown">
+                    <div class="stats-tooltip" id="gh-stats-tooltip" aria-label="Release Metrics Breakdown">
                         <div class="tooltip-header">
                             <span>Release Metrics Breakdown</span>
                         </div>
@@ -387,8 +387,8 @@
                         <span class="window-dot dot-yellow"></span>
                         <span class="window-dot dot-green"></span>
                         <div class="window-brand">
-                            <img src="./assets/icon.png" alt="GenHub" width="16" height="16">
-                            <span>GenHub</span>
+                            <img src="./assets/icon.png" alt="GeneralsHub" width="16" height="16">
+                            <span>GeneralsHub</span>
                         </div>
                     </div>
 
@@ -734,7 +734,7 @@
 
                                 <!-- Replay Import Bar (Matches ReplayManagerView.axaml) -->
                                 <div class="replay-import-bar">
-                                    <input type="text" class="replay-input" placeholder="Paste Replay URL or Match ID (e.g. 151553)..." readonly>
+                                    <input type="text" id="replay-import-input" class="replay-input" placeholder="Paste Replay URL or Match ID (e.g. 151553)..." aria-label="Replay URL or Match ID" readonly>
                                     <button class="btn-replay-import" type="button">
                                         <i data-feather="download"></i>
                                         <span>Import</span>
@@ -1057,11 +1057,11 @@
                         <span>Does GeneralsHub modify or break my original game files?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer" id="faq-ans-1" role="region" aria-labelledby="faq-btn-1" aria-hidden="false">
+                    <section class="faq-answer" id="faq-ans-1" aria-labelledby="faq-btn-1" aria-hidden="false">
                         <p>
                             Never. GeneralsHub uses isolated workspace sandboxing powered by NTFS hardlinks. When you launch a mod or community patch, it runs inside its own isolated folder while leaving your base game installation completely read-only and untouched. You can switch between 10 mods and vanilla without ever having to reinstall.
                         </p>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="faq-item">
@@ -1069,11 +1069,11 @@
                         <span>How does native Steam integration work?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer" id="faq-ans-2" role="region" aria-labelledby="faq-btn-2" aria-hidden="true">
+                    <section class="faq-answer" id="faq-ans-2" aria-labelledby="faq-btn-2" aria-hidden="true">
                         <p>
                             When launching a profile, GeneralsHub routes the launch through Steam so your playtime records to your library, the in-game Steam Overlay (Shift+Tab) works, and friends can see your status. All of this runs from an isolated workspace without copying mod files over your base Steam installation.
                         </p>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="faq-item">
@@ -1081,11 +1081,11 @@
                         <span>Can I import local mods or custom game directories?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer" id="faq-ans-3" role="region" aria-labelledby="faq-btn-3" aria-hidden="true">
+                    <section class="faq-answer" id="faq-ans-3" aria-labelledby="faq-btn-3" aria-hidden="true">
                         <p>
                             Yes. The <strong>Add Local</strong> feature lets you import custom folders, ZIP archives, or standalone executables directly into GenHub. It creates an isolated profile without modifying your clean game files or risking file collisions.
                         </p>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="faq-item">
@@ -1093,11 +1093,11 @@
                         <span>How do Generals Online multiplayer and automatic updates work?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer" id="faq-ans-4" role="region" aria-labelledby="faq-btn-4" aria-hidden="true">
+                    <section class="faq-answer" id="faq-ans-4" aria-labelledby="faq-btn-4" aria-hidden="true">
                         <p>
                             Generals Online provides modern lobby matchmaking and peer-to-peer connections, so you can play online without third-party tools like GameRanger or Radmin. GenHub automatically monitors the Generals Online service and downloads client updates and community maps in the background.
                         </p>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="faq-item">
@@ -1105,11 +1105,11 @@
                         <span>What GenPatcher fixes are built in?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer" id="faq-ans-5" role="region" aria-labelledby="faq-btn-5" aria-hidden="true">
+                    <section class="faq-answer" id="faq-ans-5" aria-labelledby="faq-btn-5" aria-hidden="true">
                         <p>
                             GenHub integrates GenPatcher tools to resolve common startup crashes (like the Options.ini shadow volume crash), install DirectX and Visual C++ runtimes, configure firewall exceptions, and install GenTool v8.7.
                         </p>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="faq-item">
@@ -1117,11 +1117,11 @@
                         <span>Can I run GeneralsHub on Linux, Steam Deck, or macOS?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer" id="faq-ans-6" role="region" aria-labelledby="faq-btn-6" aria-hidden="true">
+                    <section class="faq-answer" id="faq-ans-6" aria-labelledby="faq-btn-6" aria-hidden="true">
                         <p>
                             Yes. GeneralsHub provides cross-platform support across Windows, Linux (including Proton / Wine compatibility and automatic Steam Flatpak detection on the Steam Deck), and macOS. You can install, configure, and manage your profiles seamlessly across all three platforms.
                         </p>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="faq-item">
@@ -1129,11 +1129,11 @@
                         <span>Is GeneralsHub free and open source?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer" id="faq-ans-7" role="region" aria-labelledby="faq-btn-7" aria-hidden="true">
+                    <section class="faq-answer" id="faq-ans-7" aria-labelledby="faq-btn-7" aria-hidden="true">
                         <p>
                             Yes, 100%. GeneralsHub is licensed under the GNU General Public License v3.0 (GPL-3.0) and developed by Community Outpost. The source code is publicly accessible on GitHub for community contributions and transparent development.
                         </p>
-                    </div>
+                    </section>
                 </div>
             </div>
         </section>
