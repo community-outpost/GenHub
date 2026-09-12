@@ -335,7 +335,7 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
-    /// Should not load settings when game type is set before initialization.
+    /// Should not load settings for pre-initialization game type when game type is set before initialization.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
@@ -345,7 +345,7 @@ public class GameSettingsViewModelTests
         var profile = new GameProfile
         {
             GameClient = new GameClient { GameType = GameType.ZeroHour },
-            VideoResolutionWidth = 1920, // Add settings so initialization loads from profile, not Options.ini
+            VideoResolutionWidth = 1920,
         };
 
         _viewModel.SelectedGameType = GameType.Generals; // Set before initialization
@@ -353,8 +353,8 @@ public class GameSettingsViewModelTests
         // Act - Start initialization
         await _viewModel.InitializeForProfileAsync("test", profile);
 
-        // Assert - Should have loaded from profile during initialization, not from Options.ini
-        _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(It.IsAny<GameType>()), Times.Never);
+        // Assert - Should not have loaded settings for the pre-initialization game type
+        _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(GameType.Generals), Times.Never);
     }
 
     /// <summary>
