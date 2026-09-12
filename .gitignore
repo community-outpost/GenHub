@@ -187,3 +187,6 @@ GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.url
 GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.desktop
 GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.command
 GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.webloc
+
+# Landing page build output
+public/
