@@ -2101,4 +2101,54 @@ public sealed class ContentDetailViewModelTests
         Assert.Equal(ContentConstants.Md5ChecksumTitle, item.ChecksumTitle);
         Assert.Equal("098f6bcd4621d373cade4e832627b4f6", item.ChecksumDisplay);
     }
+
+    /// <summary>
+    /// Verifies that when content has an update available and its search result ID is not a valid manifest ID
+    /// (e.g. Generals Online uninstalled prospective update "GeneralsOnline_082826_QFE1"),
+    /// LoadInitialStateAsync does not rewrite SearchResult.Id to the older local manifest ID,
+    /// preserving the prospective release's identity and update state.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Initialize_WhenUpdateAvailableAndSearchResultIdInvalidManifest_DoesNotRewriteSearchResultIdAsync()
+    {
+        // Arrange
+        const string prospectiveCatalogId = "GeneralsOnline_082826_QFE1";
+        const string oldLocalManifestId = "1.329260.generalsonline.gameclient.60hz";
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = prospectiveCatalogId,
+            Name = "Generals Online",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService
+            .Setup(s => s.GetStateAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.UpdateAvailable);
+        stateService
+            .Setup(s => s.GetLocalManifestIdAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(oldLocalManifestId);
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            coordinator.Object,
+            contentStateService: stateService.Object,
+            isUpdateAvailable: true);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.Equal(prospectiveCatalogId, searchResult.Id);
+        Assert.True(viewModel.IsUpdateAvailable);
+        Assert.True(viewModel.IsDownloaded);
+        Assert.True(viewModel.ShowUpdateButton);
+        Assert.True(viewModel.ShowAddToProfileButton);
+    }
 }

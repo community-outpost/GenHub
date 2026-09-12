@@ -2278,13 +2278,21 @@ public partial class ContentDetailViewModel(
             var state = await contentStateService.GetStateAsync(searchResult, _cts.Token);
 
             var idRewritten = false;
-            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) &&
+            string? localManifestId = null;
+            if (state is ContentState.Downloaded or ContentState.UpdateAvailable)
+            {
+                localManifestId = await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
+            }
+
+            // Only rewrite the search result ID when the content is already downloaded and does NOT have an update available.
+            // If an update is available, the search result represents the newer prospective release; rewriting its ID
+            // to the older locally installed manifest would corrupt the prospective item's identity and break update detection.
+            if (state == ContentState.Downloaded &&
                 (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id, out _)))
             {
-                var manifestId = await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
-                if (!string.IsNullOrEmpty(manifestId))
+                if (!string.IsNullOrEmpty(localManifestId))
                 {
-                    searchResult.UpdateId(manifestId);
+                    searchResult.UpdateId(localManifestId);
                     idRewritten = true;
                 }
             }
@@ -2308,9 +2316,12 @@ public partial class ContentDetailViewModel(
                 {
                     Releases[0].IsDownloaded = true;
                     Releases[0].IsUpdateAvailable = IsUpdateAvailable;
-                    if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
+                    var manifestIdForRelease = !string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _)
+                        ? localManifestId
+                        : (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _) ? searchResult.Id : null);
+                    if (!string.IsNullOrEmpty(manifestIdForRelease))
                     {
-                        Releases[0].DownloadedManifestId = searchResult.Id;
+                        Releases[0].DownloadedManifestId = manifestIdForRelease;
                     }
 
                     RefreshSelectedTargetProperties();
@@ -2323,9 +2334,13 @@ public partial class ContentDetailViewModel(
                 }
             });
 
-            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(searchResult.Id))
+            var dependencyManifestId = !string.IsNullOrEmpty(localManifestId)
+                ? localManifestId
+                : searchResult.Id;
+
+            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(dependencyManifestId))
             {
-                await LoadDependencySummaryAsync(searchResult.Id);
+                await LoadDependencySummaryAsync(dependencyManifestId);
             }
         }
         catch (Exception ex)

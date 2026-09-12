@@ -1501,6 +1501,94 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal("1.0.communityoutpost.addon.cbpx-1080p", item.SelectedVariant?.ManifestId);
     }
 
+    /// <summary>
+    /// Verifies that closing the detail view for content with an available update preserves
+    /// the grid item's UpdateAvailable state and ShowUpdateButton visibility.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CloseDetailCommand_WhenContentHasUpdateAvailable_PreservesUpdateAvailableStateAsync()
+    {
+        // Arrange
+        const string prospectiveCatalogId = "GeneralsOnline_082826_QFE1";
+        const string oldLocalManifestId = "1.329260.generalsonline.gameclient.60hz";
+
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerFactoryMock = new Mock<ILoggerFactory>();
+        loggerFactoryMock.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(new Mock<ILogger>().Object);
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(ILogger<ContentDetailViewModel>)))
+            .Returns(new Mock<ILogger<ContentDetailViewModel>>().Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(ITabProviderRegistry)))
+            .Returns(new Mock<ITabProviderRegistry>().Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContentDownloadCoordinator)))
+            .Returns(new Mock<IContentDownloadCoordinator>().Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContentManifestPool)))
+            .Returns(new Mock<IContentManifestPool>().Object);
+
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore
+            .Setup(store => store.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+
+        var viewModel = new DownloadsBrowserViewModel(
+            serviceProviderMock.Object,
+            new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
+            [],
+            stateServiceMock.Object,
+            new Mock<IContentOrchestrator>().Object,
+            new Mock<IProfileContentService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<INotificationService>().Object,
+            loggerFactoryMock.Object,
+            subscriptionStore.Object);
+
+        var sr = new ContentSearchResult
+        {
+            Id = prospectiveCatalogId,
+            Name = "Generals Online",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        stateServiceMock
+            .Setup(s => s.GetStateAsync(sr, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.UpdateAvailable);
+        stateServiceMock
+            .Setup(s => s.GetLocalManifestIdAsync(sr, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(oldLocalManifestId);
+
+        var item = new ContentGridItemViewModel(sr, stateServiceMock.Object, new Mock<ILogger<ContentGridItemViewModel>>().Object)
+        {
+            CurrentState = ContentState.UpdateAvailable,
+        };
+        viewModel.ContentItems.Add(item);
+
+        Assert.True(item.ShowUpdateButton);
+
+        // Act 1: open detail
+        viewModel.ViewContentCommand.Execute(item);
+        Assert.NotNull(viewModel.SelectedContent);
+        await viewModel.SelectedContent.WaitForInitializationAsync();
+
+        // SearchResult.Id must remain the prospective catalog ID, not overwritten with oldLocalManifestId
+        Assert.Equal(prospectiveCatalogId, sr.Id);
+        Assert.True(viewModel.SelectedContent.IsUpdateAvailable);
+
+        // Act 2: close detail
+        viewModel.CloseDetailCommand.Execute(null);
+
+        // Allow background refresh task to complete
+        await Task.Delay(100);
+
+        // Assert: detail is closed, grid item remains UpdateAvailable with ShowUpdateButton true
+        Assert.Null(viewModel.SelectedContent);
+        Assert.Equal(ContentState.UpdateAvailable, item.CurrentState);
+        Assert.True(item.ShowUpdateButton);
+    }
+
     private static DownloadsBrowserViewModel CreateViewModel(
         IContentOrchestrator? orchestrator = null,
         IPublisherReconcilerRegistry? reconcilerRegistry = null)
