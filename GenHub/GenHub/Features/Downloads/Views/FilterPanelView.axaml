@@ -160,6 +160,132 @@
                 </StackPanel>
             </DataTemplate>
 
+            <!-- CNCLabs Filter (Tag toggles) -->
+            <DataTemplate DataType="filters:CNCLabsFilterViewModel">
+                <StackPanel Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Content Type" Margin="0,0,0,4" />
+                            <ItemsControl ItemsSource="{Binding ContentTypeFilters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ToggleButton Classes="filter-toggle"
+                                                      Content="{Binding DisplayName}"
+                                                      IsChecked="{Binding IsSelected}"
+                                                      Command="{Binding $parent[ItemsControl].((filters:CNCLabsFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                                      CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Game" Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="Zero Hour"
+                                              IsChecked="{Binding IsZeroHourSelected}" />
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="Generals"
+                                              IsChecked="{Binding IsGeneralsSelected}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Players" Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <ToggleButton Classes="filter-toggle" Content="Any" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Null}}" Command="{Binding SetPlayerCountCommand}" CommandParameter="{x:Null}" />
+                                <ToggleButton Classes="filter-toggle" Content="2" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=2}" Command="{Binding SetPlayerCountCommand}" CommandParameter="2" />
+                                <ToggleButton Classes="filter-toggle" Content="3" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=3}" Command="{Binding SetPlayerCountCommand}" CommandParameter="3" />
+                                <ToggleButton Classes="filter-toggle" Content="4" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=4}" Command="{Binding SetPlayerCountCommand}" CommandParameter="4" />
+                                <ToggleButton Classes="filter-toggle" Content="5" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=5}" Command="{Binding SetPlayerCountCommand}" CommandParameter="5" />
+                                <ToggleButton Classes="filter-toggle" Content="6" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=6}" Command="{Binding SetPlayerCountCommand}" CommandParameter="6" />
+                                <ToggleButton Classes="filter-toggle" Content="7" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=7}" Command="{Binding SetPlayerCountCommand}" CommandParameter="7" />
+                                <ToggleButton Classes="filter-toggle" Content="8" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=8}" Command="{Binding SetPlayerCountCommand}" CommandParameter="8" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Classes="filter-label" Text="Map &amp; Mission Filters" Margin="0,0,0,4" />
+                        <ItemsControl ItemsSource="{Binding MapTagFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ToggleButton Classes="filter-toggle"
+                                                   Content="{Binding DisplayName}"
+                                                   IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                   Command="{Binding $parent[ItemsControl].((filters:CNCLabsFilterViewModel)DataContext).ToggleTagCommand}"
+                                                   CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Apply Filters"
+                                Command="{Binding ApplyFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="primary" />
+                        <Button Content="Clear Filters"
+                                Command="{Binding ClearFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="secondary" />
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- AODMaps Filter (Players + Categories) + Action Buttons -->
+            <DataTemplate DataType="filters:AODMapsFilterViewModel">
+                <StackPanel Spacing="16">
+                    <StackPanel>
+                        <TextBlock Classes="filter-label" Text="Player Count" />
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <ToggleButton Classes="filter-toggle" Content="All" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Null}}" Command="{Binding SetPlayerCountCommand}" CommandParameter="{x:Null}" />
+                            <ToggleButton Classes="filter-toggle" Content="2" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='2 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="2 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="3" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='3 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="3 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="4" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='4 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="4 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="5" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='5 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="5 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="6" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='6 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="6 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="7" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='7 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="7 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="8" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='8 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="8 Players" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Classes="filter-label" Text="Categories" />
+                        <WrapPanel Orientation="Horizontal">
+                            <ToggleButton Classes="filter-toggle" Content="Any" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Null}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Null}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryCompstomp}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryCompstomp}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryCompstomp}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryAoa}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryAoa}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryAoa}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryRace}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryRace}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryRace}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryAir}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryAir}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryAir}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryContra}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryContra}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryContra}" />
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Apply Filters"
+                                Command="{Binding ApplyFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="primary" />
+                        <Button Content="Clear Filters"
+                                Command="{Binding ClearFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="secondary" />
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+
             <!-- GitHub Filter (Authors dropdown) -->
             <DataTemplate DataType="filters:GitHubFilterViewModel">
                 <StackPanel Spacing="12">

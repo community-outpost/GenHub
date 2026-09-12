@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,10 @@ public class AODMapsContentProvider(
         ?? throw new InvalidOperationException("HTTP deliverer not found");
 
     /// <inheritdoc />
-    public override string SourceName => AODMapsConstants.PublisherType;
+    /// <remarks>
+    /// Must match the ProviderName set by AODMapsDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => AODMapsConstants.DiscovererSourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides content from AODMaps";
@@ -66,13 +70,13 @@ public class AODMapsContentProvider(
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
         var searchResult = await SearchAsync(query, cancellationToken);
 
-        if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
+        if (!searchResult.Success || !searchResult.Data!.Any())
         {
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
         }
 
-        var result = searchResult.Data.First();
+        var result = searchResult.Data!.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null

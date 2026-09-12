@@ -10,6 +10,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Parsers;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
 using IDocument = AngleSharp.Dom.IDocument;
@@ -142,7 +143,7 @@ public partial class AODMapsPageParser(
     /// <summary>
     /// Extracts a file from a gallery item element.
     /// </summary>
-    private File? ExtractFileFromGalleryItem(IElement item)
+    private DownloadableFile? ExtractFileFromGalleryItem(IElement item)
     {
         var linkEl = item.QuerySelector(AODMapsConstants.GalleryDownloadLinkSelector);
         if (linkEl == null)
@@ -166,15 +167,16 @@ public partial class AODMapsPageParser(
         }
 
         var downloadCount = ExtractDownloadCount(item);
+        var author = AODMapsHelper.ExtractAuthor(name, null) ?? AODMapsConstants.DefaultAuthorName;
 
-        return new File(
+        return new DownloadableFile(
             Name: name,
             Version: "0",
             SizeBytes: null,
             SizeDisplay: null,
             UploadDate: null,
             Category: "Map",
-            Uploader: AODMapsConstants.DefaultAuthorName,
+            Uploader: author,
             DownloadUrl: downloadUrl,
             Md5Hash: null,
             CommentCount: downloadCount);
@@ -183,7 +185,7 @@ public partial class AODMapsPageParser(
     /// <summary>
     /// Extracts a file from a map maker item element.
     /// </summary>
-    private File? ExtractFileFromMapMakerItem(IElement item)
+    private DownloadableFile? ExtractFileFromMapMakerItem(IElement item)
     {
         // Download URL
         var downloadEl = item.QuerySelector(AODMapsConstants.MapMakerDownloadSelector) ?? item.QuerySelector("a[href*='ccount/click.php']");
@@ -199,17 +201,18 @@ public partial class AODMapsPageParser(
         var titleEl = item.QuerySelector(AODMapsConstants.MapMakerTitleSelector);
         var name = titleEl?.TextContent?.Trim().TrimStart('-').Trim() ?? "Unknown Map";
 
-        // Description
-        var info = item.QuerySelector(AODMapsConstants.MapMakerInfoSelector)?.TextContent?.Trim();
+        // Description & Author
+        var author = AODMapsHelper.ExtractAuthor(name, null) ?? "MapMaker";
+        var description = AODMapsHelper.ExtractMapMakerDescription(item, null, null, author);
 
-        return new File(
+        return new DownloadableFile(
              Name: name,
              Version: "0",
              SizeBytes: null,
-             SizeDisplay: info,
+             SizeDisplay: description,
              UploadDate: null,
              Category: "Map",
-             Uploader: "MapMaker",
+             Uploader: author,
              DownloadUrl: downloadUrl,
              Md5Hash: null,
              CommentCount: null);
@@ -221,7 +224,11 @@ public partial class AODMapsPageParser(
     /// <inheritdoc />
     public bool CanParse(string url) =>
         url.Contains("aodmaps.com", StringComparison.OrdinalIgnoreCase) &&
-        !url.Contains("moddb.com", StringComparison.OrdinalIgnoreCase);
+        !url.Contains("moddb.com", StringComparison.OrdinalIgnoreCase) &&
+        !url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+        !url.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) &&
+        !url.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) &&
+        !url.Contains("ccount/click.php", StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public async Task<ParsedWebPage> ParseAsync(string url, CancellationToken cancellationToken = default)
