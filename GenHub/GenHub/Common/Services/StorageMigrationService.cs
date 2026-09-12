@@ -460,7 +460,27 @@ public class StorageMigrationService(
 
             return importedAny;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            return false;
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            return false;
+        }
+        catch (NotSupportedException ex)
         {
             logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
             return false;
@@ -509,7 +529,19 @@ public class StorageMigrationService(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }

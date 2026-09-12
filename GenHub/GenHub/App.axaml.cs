@@ -239,7 +239,15 @@ public partial class App : Application
                 File.WriteAllText(markerPath, customPath);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, "Failed to create adoption marker file at {MarkerPath}", markerPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Failed to create adoption marker file at {MarkerPath}", markerPath);
+        }
+        catch (System.Security.SecurityException ex)
         {
             logger?.LogWarning(ex, "Failed to create adoption marker file at {MarkerPath}", markerPath);
         }
@@ -254,7 +262,15 @@ public partial class App : Application
                 File.Delete(markerPath);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, "Failed to remove adoption marker file at {MarkerPath}", markerPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Failed to remove adoption marker file at {MarkerPath}", markerPath);
+        }
+        catch (System.Security.SecurityException ex)
         {
             logger?.LogWarning(ex, "Failed to remove adoption marker file at {MarkerPath}", markerPath);
         }
