@@ -315,7 +315,10 @@ public class GameProfileManager(
         }
     }
 
-    private static ProfileOperationResult<GameProfile>? ValidateRunningProfileImmutableSettings(GameProfile profile, UpdateProfileRequest request)
+    private static ProfileOperationResult<GameProfile>? ValidateRunningProfileImmutableSettings(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        string? runningWorkspaceId)
     {
         if ((request.WorkspaceStrategy.HasValue && request.WorkspaceStrategy.Value != profile.WorkspaceStrategy) ||
             (request.ClearWorkspaceStrategy && profile.WorkspaceStrategy.HasValue))
@@ -328,7 +331,9 @@ public class GameProfileManager(
             return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change game installation while profile is running.");
         }
 
-        if (request.ActiveWorkspaceId != null && !string.Equals(request.ActiveWorkspaceId, profile.ActiveWorkspaceId, StringComparison.OrdinalIgnoreCase))
+        if (request.ActiveWorkspaceId != null &&
+            !string.Equals(request.ActiveWorkspaceId, profile.ActiveWorkspaceId, StringComparison.OrdinalIgnoreCase) &&
+            !IsReconcilingWithRunningWorkspace(request.ActiveWorkspaceId, runningWorkspaceId))
         {
             return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change active workspace while profile is running.");
         }
@@ -349,6 +354,19 @@ public class GameProfileManager(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Determines whether an <see cref="UpdateProfileRequest"/> is recording the workspace that the
+    /// profile's own active launch already prepared, rather than pointing the profile at a different one.
+    /// </summary>
+    /// <param name="requestedWorkspaceId">The workspace id carried by the update request.</param>
+    /// <param name="runningWorkspaceId">The workspace id of the profile's active launch, if known.</param>
+    /// <returns><c>true</c> when the request matches the running workspace.</returns>
+    private static bool IsReconcilingWithRunningWorkspace(string requestedWorkspaceId, string? runningWorkspaceId)
+    {
+        return !string.IsNullOrEmpty(runningWorkspaceId)
+            && string.Equals(requestedWorkspaceId, runningWorkspaceId, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ProfileOperationResult<GameProfile>? ValidateRunningProfileGameClient(GameProfile profile, GameClient? requestedClient)
@@ -440,6 +458,24 @@ public class GameProfileManager(
         }
     }
 
+    /// <summary>
+    /// Gets the workspace id of the profile's active launch, if one is registered.
+    /// </summary>
+    /// <param name="profileId">The profile id to inspect.</param>
+    /// <returns>The active launch's workspace id, or <c>null</c> when none is available.</returns>
+    private async Task<string?> GetActiveLaunchWorkspaceIdAsync(string profileId)
+    {
+        if (launchRegistry == null)
+        {
+            return null;
+        }
+
+        var activeLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
+        var launch = activeLaunches.FirstOrDefault(l =>
+            string.Equals(l.ProfileId, profileId, StringComparison.OrdinalIgnoreCase) && !l.TerminatedAt.HasValue);
+        return string.IsNullOrEmpty(launch?.WorkspaceId) ? null : launch.WorkspaceId;
+    }
+
     private async Task<bool> CheckIsProfileRunningAsync(string profileId)
     {
         if (launchRegistry == null)
@@ -466,7 +502,8 @@ public class GameProfileManager(
             return null;
         }
 
-        return await ValidateRunningProfileUpdateRequestAsync(profile, request, previousEnabledContentIds, cancellationToken);
+        var runningWorkspaceId = await GetActiveLaunchWorkspaceIdAsync(profileId);
+        return await ValidateRunningProfileUpdateRequestAsync(profile, request, previousEnabledContentIds, runningWorkspaceId, cancellationToken);
     }
 
     private async Task<ProfileOperationResult<GameProfile>> SaveAndNotifyProfileUpdatedAsync(GameProfile profile, CancellationToken cancellationToken)
@@ -492,9 +529,10 @@ public class GameProfileManager(
         GameProfile profile,
         UpdateProfileRequest request,
         List<string> previousEnabledContentIds,
+        string? runningWorkspaceId,
         CancellationToken cancellationToken)
     {
-        var settingsError = ValidateRunningProfileImmutableSettings(profile, request);
+        var settingsError = ValidateRunningProfileImmutableSettings(profile, request, runningWorkspaceId);
         if (settingsError != null)
         {
             return settingsError;
