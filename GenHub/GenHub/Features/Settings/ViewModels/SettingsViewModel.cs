@@ -159,7 +159,7 @@ public partial class SettingsViewModel(
     [ObservableProperty]
     private string _downloadUserAgent = string.IsNullOrWhiteSpace(SafeGetSettings(userSettingsService).DownloadUserAgent)
         ? ApiConstants.DefaultUserAgent
-        : SafeGetSettings(userSettingsService).DownloadUserAgent;
+        : SafeGetSettings(userSettingsService).DownloadUserAgent!;
 
     [ObservableProperty]
     private string? _settingsFilePath = SafeGetSettings(userSettingsService).SettingsFilePath ?? string.Empty;
@@ -1226,7 +1226,7 @@ public partial class SettingsViewModel(
     {
         if (!_disposed)
         {
-            _memoryUpdateTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            _memoryUpdateTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         }
     }
 
@@ -1312,7 +1312,7 @@ public partial class SettingsViewModel(
     {
         if (!_disposed)
         {
-            _dangerZoneUpdateTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            _dangerZoneUpdateTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         }
     }
 

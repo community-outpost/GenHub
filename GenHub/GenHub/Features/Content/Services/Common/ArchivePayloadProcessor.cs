@@ -184,6 +184,111 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         await NormalizeDirectoryStructureAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives, cancellationToken);
     }
 
+    /// <summary>
+    /// Validates that an archive payload file exists, is non-empty, and does not contain HTML error text.
+    /// </summary>
+    /// <param name="archivePath">Path to the archive file.</param>
+    internal static void EnsureValidArchivePayload(string archivePath)
+    {
+        var info = new FileInfo(archivePath);
+        if (!info.Exists || info.Length == 0)
+        {
+            throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
+        }
+
+        Span<byte> header = stackalloc byte[16];
+        using (var stream = File.OpenRead(archivePath))
+        {
+            var read = stream.Read(header);
+            if (read == 0)
+            {
+                throw new InvalidDataException($"Archive file is empty: {archivePath}");
+            }
+
+            header = header[..read];
+        }
+
+        if (LooksLikeHtml(header))
+        {
+            var preview = ReadTextPreview(archivePath, maxChars: 120);
+            throw new InvalidDataException(
+                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the specified file matches the BIG archive file header format.
+    /// </summary>
+    /// <param name="filePath">Path to the file to inspect.</param>
+    /// <returns>True if the file is a BIG archive; otherwise, false.</returns>
+    internal static bool IsBigArchiveFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            if (stream.Length < 16)
+            {
+                return false;
+            }
+
+            Span<byte> header = stackalloc byte[4];
+            if (stream.Read(header) < 4)
+            {
+                return false;
+            }
+
+            return header[0] == (byte)'B' && header[1] == (byte)'I' && header[2] == (byte)'G' &&
+                   (header[3] == (byte)'4' || header[3] == (byte)'F' || header[3] == (byte)'E' || header[3] == 0);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Compares two files byte-by-byte to determine if their contents are identical.
+    /// </summary>
+    /// <param name="file1">First file path.</param>
+    /// <param name="file2">Second file path.</param>
+    /// <returns>True if contents are identical; otherwise, false.</returns>
+    internal static bool FilesHaveIdenticalContent(string file1, string file2)
+    {
+        const int bufferSize = 65536;
+        var buffer1 = new byte[bufferSize];
+        var buffer2 = new byte[bufferSize];
+
+        using var s1 = File.OpenRead(file1);
+        using var s2 = File.OpenRead(file2);
+
+        if (s1.Length != s2.Length)
+        {
+            return false;
+        }
+
+        var bytesRead1 = 0;
+        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
+        {
+            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
+            if (bytesRead1 != bytesRead2)
+            {
+                return false;
+            }
+
+            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool ShouldAttemptExecutableExtraction(ContentType? contentType)
     {
         if (!contentType.HasValue)
@@ -458,34 +563,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             .ToList();
     }
 
-    internal static void EnsureValidArchivePayload(string archivePath)
-    {
-        var info = new FileInfo(archivePath);
-        if (!info.Exists || info.Length == 0)
-        {
-            throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
-        }
-
-        Span<byte> header = stackalloc byte[16];
-        using (var stream = File.OpenRead(archivePath))
-        {
-            var read = stream.Read(header);
-            if (read == 0)
-            {
-                throw new InvalidDataException($"Archive file is empty: {archivePath}");
-            }
-
-            header = header[..read];
-        }
-
-        if (LooksLikeHtml(header))
-        {
-            var preview = ReadTextPreview(archivePath, maxChars: 120);
-            throw new InvalidDataException(
-                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
-        }
-    }
-
     private static bool LooksLikeHtml(ReadOnlySpan<byte> header)
     {
         if (header.Length >= 3 && header[0] == 0xEF && header[1] == 0xBB && header[2] == 0xBF)
@@ -648,36 +725,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             using var entryStream = entry.OpenEntryStream();
             CopyEntryWithCap(entryStream, destinationPath, ref totalUncompressedSize, cancellationToken);
             logger.LogInformation("Extracted archive entry {Current}/{Total}: {EntryName} ({Size} bytes)", i + 1, totalEntries, entryKey, entry.Size);
-        }
-    }
-
-    internal static bool IsBigArchiveFile(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(filePath);
-            if (stream.Length < 16)
-            {
-                return false;
-            }
-
-            Span<byte> header = stackalloc byte[4];
-            if (stream.Read(header) < 4)
-            {
-                return false;
-            }
-
-            return header[0] == (byte)'B' && header[1] == (byte)'I' && header[2] == (byte)'G' &&
-                   (header[3] == (byte)'4' || header[3] == (byte)'F' || header[3] == (byte)'E' || header[3] == 0);
-        }
-        catch
-        {
-            return false;
         }
     }
 
@@ -1939,38 +1986,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         while (File.Exists(newDestPath));
 
         return newDestPath;
-    }
-
-    internal static bool FilesHaveIdenticalContent(string file1, string file2)
-    {
-        const int bufferSize = 65536;
-        var buffer1 = new byte[bufferSize];
-        var buffer2 = new byte[bufferSize];
-
-        using var s1 = File.OpenRead(file1);
-        using var s2 = File.OpenRead(file2);
-
-        if (s1.Length != s2.Length)
-        {
-            return false;
-        }
-
-        var bytesRead1 = 0;
-        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
-        {
-            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
-            if (bytesRead1 != bytesRead2)
-            {
-                return false;
-            }
-
-            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static void CleanupEmptyDirectories(string rootDirectory)
