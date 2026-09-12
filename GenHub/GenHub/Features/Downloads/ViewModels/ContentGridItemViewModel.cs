@@ -609,7 +609,7 @@ public sealed partial class ContentGridItemViewModel(
         var isForThisContent = e.ContentId == Id ||
                                (!string.IsNullOrEmpty(e.ManifestId) && string.Equals(e.ManifestId, Id, StringComparison.OrdinalIgnoreCase));
 
-        if (!isForThisContent && !string.IsNullOrEmpty(e.ManifestId) && SearchResult != null)
+        if (!isForThisContent && !string.IsNullOrEmpty(e.ManifestId))
         {
             var segments = e.ManifestId.Split('.');
             if (segments.Length == 5 &&
@@ -619,17 +619,14 @@ public sealed partial class ContentGridItemViewModel(
             {
                 var manifestNormName = ContentStateService.NormalizeSegment(segments[4]);
                 var cardNormName = ContentStateService.NormalizeSegment(SearchResult.Name);
-                if (string.Equals(cardNormName, manifestNormName, StringComparison.OrdinalIgnoreCase))
-                {
-                    isForThisContent = true;
-                }
-                else if (SearchResult.ResolverMetadata != null &&
-                         ((SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
-                           (e.ManifestId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)))) ||
-                          (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
-                           (e.ManifestId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)))) ||
-                          (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
-                           (e.ManifestId.Contains(modDbId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(modDbId, StringComparison.OrdinalIgnoreCase))))))
+                if (string.Equals(cardNormName, manifestNormName, StringComparison.OrdinalIgnoreCase) ||
+                    (SearchResult.ResolverMetadata != null &&
+                     ((SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
+                       (e.ManifestId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)))) ||
+                      (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
+                       (e.ManifestId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)))) ||
+                      (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
+                       (e.ManifestId.Contains(modDbId, StringComparison.OrdinalIgnoreCase) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(modDbId, StringComparison.OrdinalIgnoreCase)))))))
                 {
                     isForThisContent = true;
                 }
@@ -994,7 +991,7 @@ public sealed partial class ContentGridItemViewModel(
         var isTargetDownloaded = false;
         try
         {
-            if (UpdateTargetVm != null)
+            if (UpdateTargetVm?.SearchResult != null)
             {
                 var targetState = await contentStateService.GetStateAsync(UpdateTargetVm.SearchResult);
                 isTargetDownloaded = targetState is ContentState.Downloaded or ContentState.UpdateAvailable;
@@ -1008,7 +1005,7 @@ public sealed partial class ContentGridItemViewModel(
 
             IsDownloaded = mainState is ContentState.Downloaded or ContentState.UpdateAvailable;
 
-            if (IsDownloaded && SearchResult != null && (string.IsNullOrEmpty(SearchResult.Id) || !ManifestIdValidator.IsValid(SearchResult.Id, out _)))
+            if (IsDownloaded && (string.IsNullOrEmpty(SearchResult.Id) || !ManifestIdValidator.IsValid(SearchResult.Id, out _)))
             {
                 var manifestId = await contentStateService.GetLocalManifestIdAsync(SearchResult);
                 if (!string.IsNullOrEmpty(manifestId))
