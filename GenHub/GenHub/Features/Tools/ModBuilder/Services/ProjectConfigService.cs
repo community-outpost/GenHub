@@ -480,19 +480,21 @@ public sealed class ProjectConfigService(
                 return ProjectOperationResult<List<string>>.CreateSuccess(new List<string>(), sw.Elapsed);
             }
 
-            await using var stream = new FileStream(
+            List<string>? recentProjects;
+            await using (var stream = new FileStream(
                 _recentProjectsPath,
                 FileMode.Open,
                 FileAccess.Read,
-                FileShare.Read,
+                FileShare.ReadWrite | FileShare.Delete,
                 IoConstants.DefaultFileBufferSize,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-            var recentProjects = await JsonSerializer.DeserializeAsync<List<string>>(
-                stream,
-                _jsonOptions,
-                cancellationToken)
-                .ConfigureAwait(false);
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                recentProjects = await JsonSerializer.DeserializeAsync<List<string>>(
+                    stream,
+                    _jsonOptions,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             recentProjects ??= new List<string>();
 
@@ -504,7 +506,14 @@ public sealed class ProjectConfigService(
             // If some projects were filtered out because they no longer exist on disk, update the file
             if (validProjects.Count != recentProjects.Count)
             {
-                await SaveRecentProjectsAsync(validProjects, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await SaveRecentProjectsAsync(validProjects, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to update recent projects cache after filtering non-existent projects");
+                }
             }
 
             var resultProjects = validProjects.Take(maxCount).ToList();
@@ -1757,7 +1766,16 @@ public sealed class ProjectConfigService(
                 stream.Flush(true);
             }
 
-            File.Move(tempPath, filePath, overwrite: true);
+            try
+            {
+                File.Move(tempPath, filePath, overwrite: true);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Fallback on Windows if file handle is momentarily held or locked
+                File.Copy(tempPath, filePath, overwrite: true);
+                File.Delete(tempPath);
+            }
         }
         finally
         {

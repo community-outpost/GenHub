@@ -46,6 +46,11 @@
   <SolidColorBrush x:Key="BorderHoverBrush" Color="{DynamicResource BorderHighlightDark}"/>
   <SolidColorBrush x:Key="BorderActiveBrush" Color="{DynamicResource AccentColor}"/>
 
+  <!-- Semantic Brush Aliases for Dashboard & Cards -->
+  <SolidColorBrush x:Key="SurfaceVariant" Color="{DynamicResource SurfaceElevatedDark}"/>
+  <SolidColorBrush x:Key="AccentPrimary" Color="{DynamicResource AccentColor}"/>
+  <SolidColorBrush x:Key="TextTertiary" Color="{DynamicResource TextMutedColor}"/>
+
   <SolidColorBrush x:Key="OverlayBrush" Color="#CC08080C"/>
   <SolidColorBrush x:Key="OverlayLightBrush" Color="#8008080C"/>
 

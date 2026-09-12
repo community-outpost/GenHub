@@ -998,6 +998,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Opens or selects a recent project. Alias for <see cref="OpenRecentProjectCommand"/>.
+    /// </summary>
+    /// <param name="parameter">The recent project info or path.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task SelectRecentProjectAsync(object? parameter)
+    {
+        await OpenRecentProjectAsync(parameter).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Removes a project from the recent projects list without deleting files.
     /// </summary>
     /// <param name="parameter">The file path or recent project info to remove.</param>
