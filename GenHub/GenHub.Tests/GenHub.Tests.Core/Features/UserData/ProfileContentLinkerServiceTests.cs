@@ -103,9 +103,6 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        _userDataTrackerMock.Verify(
-            t => t.DeactivateProfileUserDataAsync(oldProfileId, false, It.IsAny<CancellationToken>()),
-            Times.Once);
         _userDataTrackerMock.Verify(t => t.DeactivateProfileUserDataAsync(lingeringProfileId, It.IsAny<CancellationToken>()), Times.Once);
         _userDataTrackerMock.Verify(t => t.ActivateProfileUserDataAsync(newProfileId, It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -220,6 +217,9 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
+        _userDataTrackerMock.Verify(
+            t => t.DeactivateProfileUserDataAsync(oldProfileId, false, It.IsAny<CancellationToken>()),
+            Times.Once);
         _userDataTrackerMock.Verify(
             t => t.InstallUserDataAsync(
                 "1.0.0.map.zh-map",

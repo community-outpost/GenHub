@@ -268,44 +268,25 @@ public sealed partial class ProfileSelectionViewModel(
         }
     }
 
-    private async Task<Dictionary<string, string>> LoadContentNamesAsync(CancellationToken ct)
+    /// <inheritdoc />
+    public void Dispose()
     {
-        var contentNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
-        if (manifestsResult.Success && manifestsResult.Data != null)
+        if (_disposed)
         {
-            foreach (var manifest in manifestsResult.Data)
-            {
-                contentNames[manifest.Id.Value] = manifest.Name;
-            }
+            return;
         }
 
-        return contentNames;
-    }
-
-    private void PopulateProfileOptions(
-        IEnumerable<GameProfile> profiles,
-        IReadOnlyDictionary<string, string> contentNames,
-        GameType targetGame,
-        ISet<string>? compatibleProfileIds)
-    {
-        foreach (var profile in profiles)
+        _disposed = true;
+        try
         {
-            var option = new ProfileOptionViewModel(profile, contentNames);
-            var (isMatch, warningMessage) = EvaluateCompatibility(profile, targetGame, compatibleProfileIds);
-
-            if (!isMatch)
-            {
-                option.ShowWarning = true;
-                option.WarningMessage = warningMessage;
-                OtherProfiles.Add(option);
-            }
-            else
-            {
-                CompatibleProfiles.Add(option);
-                CompatibleProfileCards.Add(option);
-            }
+            _cts.Cancel();
         }
+        catch (ObjectDisposedException)
+        {
+            // Ignore if CTS is already disposed.
+        }
+
+        _cts.Dispose();
     }
 
     private static (bool IsMatch, string? WarningMessage) EvaluateCompatibility(
@@ -334,36 +315,6 @@ public sealed partial class ProfileSelectionViewModel(
 
         var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
         return (false, $"This profile is for {profileGameType}, content is for {targetGame}");
-    }
-
-    private void NotifyProfilePropertiesChanged()
-    {
-        OnPropertyChanged(nameof(HasAnyProfiles));
-        OnPropertyChanged(nameof(HasCompatibleProfiles));
-        OnPropertyChanged(nameof(HasOnlyIncompatibleProfiles));
-        OnPropertyChanged(nameof(HasOtherProfiles));
-        OnPropertyChanged(nameof(ProfileSummary));
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        try
-        {
-            _cts.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Ignore if CTS is already disposed.
-        }
-
-        _cts.Dispose();
     }
 
     /// <summary>
@@ -406,6 +357,55 @@ public sealed partial class ProfileSelectionViewModel(
         }
 
         return ids;
+    }
+
+    private async Task<Dictionary<string, string>> LoadContentNamesAsync(CancellationToken ct)
+    {
+        var contentNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
+        if (manifestsResult.Success && manifestsResult.Data != null)
+        {
+            foreach (var manifest in manifestsResult.Data)
+            {
+                contentNames[manifest.Id.Value] = manifest.Name;
+            }
+        }
+
+        return contentNames;
+    }
+
+    private void PopulateProfileOptions(
+        IEnumerable<GameProfile> profiles,
+        IReadOnlyDictionary<string, string> contentNames,
+        GameType targetGame,
+        ISet<string>? compatibleProfileIds)
+    {
+        foreach (var profile in profiles)
+        {
+            var option = new ProfileOptionViewModel(profile, contentNames);
+            var (isMatch, warningMessage) = EvaluateCompatibility(profile, targetGame, compatibleProfileIds);
+
+            if (!isMatch)
+            {
+                option.ShowWarning = true;
+                option.WarningMessage = warningMessage;
+                OtherProfiles.Add(option);
+            }
+            else
+            {
+                CompatibleProfiles.Add(option);
+                CompatibleProfileCards.Add(option);
+            }
+        }
+    }
+
+    private void NotifyProfilePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(HasAnyProfiles));
+        OnPropertyChanged(nameof(HasCompatibleProfiles));
+        OnPropertyChanged(nameof(HasOnlyIncompatibleProfiles));
+        OnPropertyChanged(nameof(HasOtherProfiles));
+        OnPropertyChanged(nameof(ProfileSummary));
     }
 
     /// <summary>

@@ -1183,7 +1183,7 @@ public class UserDataTrackerService(
                     SourceHash = file.Hash,
                     FileSize = file.Size,
                     InstallTarget = file.InstallTarget,
-                    WasOverwritten = priorEntry?.WasOverwritten ?? false,
+                    WasOverwritten = priorEntry?.WasOverwritten == true,
                     BackupPath = priorEntry?.BackupPath,
                     InstalledAt = DateTime.UtcNow,
                     IsHardLink = false,

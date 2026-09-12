@@ -700,77 +700,6 @@ public sealed class ReplayDirectoryService(
         ResolveUnmappedClientCompatibility(replay, profiles);
     }
 
-    private bool TryResolveProfileByExeCrc(
-        ReplayFile replay,
-        IReadOnlyList<GameProfile> profiles,
-        out CrcMappingEntry? matchedProfileEntry)
-    {
-        matchedProfileEntry = null;
-        if (crcCalculator == null || replay.Metadata == null || string.IsNullOrEmpty(replay.Metadata.FormattedExeCrc))
-        {
-            return false;
-        }
-
-        var targetExeCrc = replay.Metadata.FormattedExeCrc;
-        var targetIniCrc = replay.Metadata.FormattedIniCrc;
-
-        foreach (var profile in profiles.Where(p => p.GameClient?.GameType == replay.GameVersion))
-        {
-            var client = profile.GameClient;
-            if (client == null || string.IsNullOrWhiteSpace(client.ExecutablePath))
-            {
-                continue;
-            }
-
-            var exePath = client.ExecutablePath;
-            if (!Path.IsPathRooted(exePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
-            {
-                exePath = Path.Combine(client.WorkingDirectory, exePath);
-            }
-
-            if (!File.Exists(exePath))
-            {
-                continue;
-            }
-
-            try
-            {
-                var calcResult = crcCalculator.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
-                if (calcResult.Success && string.Equals(calcResult.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogInformation(
-                        "[ReplayManager] Discovered matching profile '{ProfileName}' for replay '{ReplayFile}' via executable CRC '{ExeCrc}' ({ExePath})",
-                        profile.Name,
-                        replay.FileName,
-                        targetExeCrc,
-                        exePath);
-
-                    var normalizedIni = !string.IsNullOrEmpty(targetIniCrc) ? NormalizeCrcHex(targetIniCrc) : string.Empty;
-                    var isVanillaIni = string.IsNullOrEmpty(normalizedIni) || IsVanillaZeroHourIni(normalizedIni);
-
-                    matchedProfileEntry = new CrcMappingEntry
-                    {
-                        ExeCrc = targetExeCrc,
-                        IniCrc = targetIniCrc,
-                        ManifestId = client.Id,
-                        Publisher = client.PublisherType ?? "Custom",
-                        GameType = replay.GameVersion.ToString(),
-                        Version = client.Version ?? replay.Metadata.VersionString ?? "1.04",
-                        Description = !string.IsNullOrWhiteSpace(client.Name) ? client.Name : profile.Name,
-                        DataPatchName = isVanillaIni ? ReplayManagerConstants.Vanilla104IniName : $"Custom INI ({normalizedIni})",
-                    };
-                    return true;
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning(ex, "[ReplayManager] Error calculating executable CRC for profile '{ProfileName}' ({ExePath})", profile.Name, exePath);
-            }
-        }
-
-        return false;
-    }
-
     private static CrcMappingEntry ResolveSecondaryHeuristicEntry(CrcMappingEntry heuristicClient, string exeCrcStr, string iniCrcStr)
     {
         var normalizedIni = NormalizeCrcHex(iniCrcStr);
@@ -1947,6 +1876,45 @@ public sealed class ReplayDirectoryService(
             (!string.IsNullOrEmpty(e.Version) && buildTime.Contains(e.Version, StringComparison.OrdinalIgnoreCase)));
     }
 
+    private static string? ResolveProfileFullExePath(GameClient? client)
+    {
+        if (client == null || string.IsNullOrWhiteSpace(client.ExecutablePath))
+        {
+            return null;
+        }
+
+        var exePath = client.ExecutablePath;
+        if (!Path.IsPathRooted(exePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
+        {
+            exePath = Path.Combine(client.WorkingDirectory, exePath);
+        }
+
+        return exePath;
+    }
+
+    private static CrcMappingEntry CreateMatchedProfileEntry(
+        GameProfile profile,
+        ReplayFile replay,
+        string targetExeCrc,
+        string? targetIniCrc)
+    {
+        var client = profile.GameClient;
+        var normalizedIni = !string.IsNullOrEmpty(targetIniCrc) ? NormalizeCrcHex(targetIniCrc) : string.Empty;
+        var isVanillaIni = string.IsNullOrEmpty(normalizedIni) || IsVanillaZeroHourIni(normalizedIni);
+
+        return new CrcMappingEntry
+        {
+            ExeCrc = targetExeCrc,
+            IniCrc = targetIniCrc ?? string.Empty,
+            ManifestId = client?.Id ?? string.Empty,
+            Publisher = client?.PublisherType ?? "Custom",
+            GameType = replay.GameVersion.ToString(),
+            Version = client?.Version ?? replay.Metadata?.VersionString ?? "1.04",
+            Description = !string.IsNullOrWhiteSpace(client?.Name) ? client.Name : profile.Name,
+            DataPatchName = isVanillaIni ? ReplayManagerConstants.Vanilla104IniName : $"Custom INI ({normalizedIni})",
+        };
+    }
+
     private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
@@ -2568,6 +2536,69 @@ public sealed class ReplayDirectoryService(
                 replay.FileName);
             ClearReplayProfileReference(replay);
         }
+    }
+
+    private bool TryResolveProfileByExeCrc(
+        ReplayFile replay,
+        IReadOnlyList<GameProfile> profiles,
+        out CrcMappingEntry? matchedProfileEntry)
+    {
+        matchedProfileEntry = null;
+        if (crcCalculator == null || replay.Metadata == null || string.IsNullOrEmpty(replay.Metadata.FormattedExeCrc))
+        {
+            return false;
+        }
+
+        var targetExeCrc = replay.Metadata.FormattedExeCrc;
+        var targetIniCrc = replay.Metadata.FormattedIniCrc;
+
+        foreach (var profile in profiles.Where(p => p.GameClient?.GameType == replay.GameVersion))
+        {
+            if (TryMatchProfileExeCrc(profile, replay, targetExeCrc, targetIniCrc, out matchedProfileEntry))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryMatchProfileExeCrc(
+        GameProfile profile,
+        ReplayFile replay,
+        string targetExeCrc,
+        string? targetIniCrc,
+        out CrcMappingEntry? matchedProfileEntry)
+    {
+        matchedProfileEntry = null;
+        var exePath = ResolveProfileFullExePath(profile.GameClient);
+        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var calcResult = crcCalculator!.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
+            if (calcResult.Success && string.Equals(calcResult.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation(
+                    "[ReplayManager] Discovered matching profile '{ProfileName}' for replay '{ReplayFile}' via executable CRC '{ExeCrc}' ({ExePath})",
+                    profile.Name,
+                    replay.FileName,
+                    targetExeCrc,
+                    exePath);
+
+                matchedProfileEntry = CreateMatchedProfileEntry(profile, replay, targetExeCrc, targetIniCrc);
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayManager] Error calculating executable CRC for profile '{ProfileName}' ({ExePath})", profile.Name, exePath);
+        }
+
+        return false;
     }
 
     private void ResolveUnmappedClientCompatibility(ReplayFile replay, IReadOnlyList<GameProfile> profiles)

@@ -1104,7 +1104,7 @@ public partial class ReplayManagerViewModel(
         {
             using var scope = serviceProvider.CreateScope();
             var clientVm = ActivatorUtilities.CreateInstance<GameClientSelectionViewModel>(scope.ServiceProvider);
-            var loadTask = clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName, replay);
+            var loadTask = clientVm.LoadClientsForReplayAsync(replay.GameVersion, replay);
 
             var dialog = new GameClientSelectionView(clientVm);
             var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
