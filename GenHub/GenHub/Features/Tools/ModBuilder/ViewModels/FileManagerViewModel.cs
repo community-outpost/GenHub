@@ -9,6 +9,7 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -27,6 +28,7 @@ public partial class FileManagerViewModel(
     INotificationService notificationService,
     ILogger<FileManagerViewModel> logger) : ObservableObject
 {
+    private readonly ConcurrentDictionary<string, (long Length, DateTime LastWriteTimeUtc, string Hash)> _fileHashCache = new(StringComparer.OrdinalIgnoreCase);
     private string? _projectPath;
     private string? _gameInstallationPath;
     private string? _gameFilesEditedDir;
@@ -484,8 +486,8 @@ public partial class FileManagerViewModel(
                 return FileStatus.Unchanged;
 
             // If sizes match but timestamps differ, check hash for accuracy
-            var projectHash = await ComputeFileHashAsync(node.FullPath, cancellationToken).ConfigureAwait(false);
-            var gameHash = await ComputeFileHashAsync(gameFilePath, cancellationToken).ConfigureAwait(false);
+            var projectHash = await GetOrComputeFileHashAsync(node.FullPath, projectInfo, cancellationToken).ConfigureAwait(false);
+            var gameHash = await GetOrComputeFileHashAsync(gameFilePath, gameInfo, cancellationToken).ConfigureAwait(false);
 
             return string.Equals(projectHash, gameHash, StringComparison.OrdinalIgnoreCase)
                 ? FileStatus.Unchanged
@@ -496,6 +498,20 @@ public partial class FileManagerViewModel(
             logger.LogWarning(ex, "Failed to compare file {Path}", node.FullPath);
             return FileStatus.Unknown;
         }
+    }
+
+    private async Task<string> GetOrComputeFileHashAsync(string filePath, FileInfo fileInfo, CancellationToken cancellationToken)
+    {
+        if (_fileHashCache.TryGetValue(filePath, out var cached) &&
+            cached.Length == fileInfo.Length &&
+            cached.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc)
+        {
+            return cached.Hash;
+        }
+
+        var hash = await ComputeFileHashAsync(filePath, cancellationToken).ConfigureAwait(false);
+        _fileHashCache[filePath] = (fileInfo.Length, fileInfo.LastWriteTimeUtc, hash);
+        return hash;
     }
 
     /// <summary>
@@ -586,7 +602,7 @@ public partial class FileManagerViewModel(
     /// Adds selected files from game installation to project.
     /// </summary>
     [RelayCommand]
-    private async Task AddFilesToProjectAsync()
+    private async Task AddFilesToProjectAsync(CancellationToken cancellationToken = default)
     {
         var targetNodes = GetSelectedGameFiles();
 
@@ -625,6 +641,8 @@ public partial class FileManagerViewModel(
                 var count = 0;
                 for (var i = 0; i < total; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var file = fileList[i];
                     var destPath = Path.Combine(gameFilesEditedPath, file.RelativePath);
                     var destDir = Path.GetDirectoryName(destPath);
@@ -645,12 +663,17 @@ public partial class FileManagerViewModel(
                 }
 
                 return count;
-            }).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
 
-            await LoadProjectFilesAsync(default).ConfigureAwait(false);
+            await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
 
             notificationService.ShowSuccess("Files Added", $"Added {copiedCount} file(s) to project");
             StatusMessage = $"Added {copiedCount} file(s)";
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Add files to project was cancelled");
+            StatusMessage = "Add files cancelled";
         }
         catch (Exception ex)
         {
@@ -669,7 +692,7 @@ public partial class FileManagerViewModel(
     /// Removes selected files from project.
     /// </summary>
     [RelayCommand]
-    private async Task RemoveFilesFromProjectAsync()
+    private async Task RemoveFilesFromProjectAsync(CancellationToken cancellationToken = default)
     {
         var targetNodes = GetSelectedProjectFiles();
 
@@ -686,12 +709,17 @@ public partial class FileManagerViewModel(
             var (filesToRemove, directoriesToRemove) = CollectItemsToRemove(targetNodes);
             var fileList = filesToRemove.Values.ToList();
 
-            await Task.Run(() => DeleteProjectFiles(fileList, directoriesToRemove)).ConfigureAwait(false);
+            await Task.Run(() => DeleteProjectFiles(fileList, directoriesToRemove, cancellationToken), cancellationToken).ConfigureAwait(false);
 
             Dispatcher.UIThread.Post(() => StatusMessage = $"Removed {fileList.Count} file(s) from project");
-            await LoadProjectFilesAsync(default).ConfigureAwait(false);
+            await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
 
             notificationService.ShowSuccess("Files Removed", $"Removed {fileList.Count} file(s) from project");
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Remove files from project was cancelled");
+            StatusMessage = "Remove files cancelled";
         }
         catch (Exception ex)
         {
@@ -730,11 +758,13 @@ public partial class FileManagerViewModel(
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable properties via Dispatcher")]
-    private void DeleteProjectFiles(IReadOnlyList<FileTreeNode> fileList, IEnumerable<string> directoriesToRemove)
+    private void DeleteProjectFiles(IReadOnlyList<FileTreeNode> fileList, IEnumerable<string> directoriesToRemove, CancellationToken cancellationToken = default)
     {
         var total = fileList.Count;
         for (var i = 0; i < total; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var file = fileList[i];
             if (File.Exists(file.FullPath))
             {
@@ -752,6 +782,7 @@ public partial class FileManagerViewModel(
 
         foreach (var dir in directoriesToRemove.Where(Directory.Exists))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 Directory.Delete(dir, recursive: true);
