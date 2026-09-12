@@ -1,15 +1,19 @@
-/* Header Navigation */
+/* ==========================================================================
+   Header & Navigation Component
+   ========================================================================== */
+
 header {
-    background: rgba(13, 8, 26, 0.78);
-    backdrop-filter: blur(var(--blur-md));
-    -webkit-backdrop-filter: blur(var(--blur-md));
-    border-bottom: 1px solid var(--glass-border);
-    padding: 0.85rem 1.75rem;
     position: fixed;
-    width: 100%;
     top: 0;
+    left: 0;
+    width: 100%;
     z-index: 1000;
-    transition: all 0.3s ease;
+    background: rgba(10, 6, 20, 0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--glass-border);
+    transition: all var(--transition-base);
+    padding: 0.85rem 1.5rem;
 }
 
 header::before {
@@ -23,14 +27,20 @@ header::before {
     opacity: 0.4;
 }
 
+header.scrolled {
+    background: rgba(10, 6, 20, 0.92);
+    border-bottom-color: rgba(139, 92, 246, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
 nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
     max-width: 1240px;
     margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     gap: 1.5rem;
-    flex-wrap: nowrap;
 }
 
 .logo-group {
@@ -163,4 +173,42 @@ nav {
 .mobile-menu-btn:hover {
     background: rgba(255, 255, 255, 0.12);
     border-color: var(--primary-light);
+}
+
+.mobile-drawer-discord {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .nav-links.mobile-open .mobile-drawer-discord {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        padding: 0.65rem 1rem;
+        background: rgba(88, 101, 242, 0.22);
+        border: 1px solid rgba(88, 101, 242, 0.5);
+        color: #ffffff;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+@media (max-width: 600px) {
+    .nav-btn-discord {
+        display: none;
+    }
+    .nav-actions {
+        gap: 0.4rem;
+    }
+    .nav-btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    .logo span {
+        font-size: 1.05rem;
+    }
 }

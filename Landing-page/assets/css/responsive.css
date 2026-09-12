@@ -197,12 +197,9 @@
    App Window & Client Mockup Responsiveness
    ========================================================================== */
 @media (max-width: 1024px) {
-    .tools-panel-split {
+    .tools-panel-split,
+    .tools-grid-layout {
         grid-template-columns: 1fr;
-        gap: 1.25rem;
-    }
-    .info-tab-panel {
-        grid-template-columns: 1fr 1fr;
         gap: 1.25rem;
     }
 }
@@ -210,7 +207,7 @@
 @media (max-width: 900px) {
     .app-titlebar {
         padding: 0.65rem 0.85rem;
-        gap: 0.75rem;
+        gap: 0.65rem;
         flex-wrap: wrap;
     }
     .window-meta-right {
@@ -222,13 +219,19 @@
         min-width: 0;
         max-width: 100%;
         box-sizing: border-box;
-        justify-content: flex-start;
-        padding: 4px;
+        justify-content: stretch;
+        display: flex;
+        padding: 3px;
+        gap: 3px;
         border-radius: 0.75rem;
     }
     .pill-tab {
-        padding: 0.4rem 0.75rem;
-        font-size: 0.775rem;
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0.45rem 0.4rem;
+        font-size: 0.78rem;
+        justify-content: center;
+        text-align: center;
     }
     .profile-grid-realistic {
         grid-template-columns: repeat(2, 1fr);
@@ -269,9 +272,6 @@
     .map-grid-mini {
         grid-template-columns: 1fr;
     }
-    .info-tab-panel {
-        grid-template-columns: 1fr;
-    }
     .catalog-grid {
         grid-template-columns: 1fr;
     }
@@ -284,5 +284,49 @@
     .btn-launch-primary {
         width: 100%;
         justify-content: center;
+    }
+    .replay-row-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .replay-action-col {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+    }
+    .replay-import-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .btn-replay-import {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: 1.95rem;
+    }
+    .pill-tab {
+        font-size: 0.72rem;
+        padding: 0.4rem 0.2rem;
+        gap: 0.25rem;
+    }
+    .pill-tab svg,
+    .pill-tab i {
+        width: 13px;
+        height: 13px;
+    }
+    .tool-box {
+        padding: 0.85rem;
+    }
+    .tool-box-header {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+    .stats-tooltip {
+        width: min(340px, calc(100vw - 32px)) !important;
     }
 }
