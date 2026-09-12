@@ -530,10 +530,10 @@ public partial class GenHotkeysViewModel(
                 m.ContentType == ContentType.Addon &&
                 (m.TargetGame == SelectedGame || m.TargetGame == GameType.Unknown) &&
                 (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase) ||
-                 (m.Files != null && m.Files.Any(f => f.RelativePath != null && f.RelativePath.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase)))));
+                 (m.Files?.Any(f => f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true)));
 
             ExistingAddonManifest = match;
-            HasExistingAddon = match != null;
+            HasExistingAddon = match is not null;
             AddonButtonText = HasExistingAddon ? AddToProfileText : CreateAddonText;
         }
         catch (OperationCanceledException)
@@ -555,7 +555,7 @@ public partial class GenHotkeysViewModel(
     [RelayCommand]
     public async Task HandleAddonActionAsync(CancellationToken cancellationToken = default)
     {
-        if (HasExistingAddon && ExistingAddonManifest != null)
+        if (HasExistingAddon && ExistingAddonManifest is not null)
         {
             await OpenProfileSelectionAsync(ExistingAddonManifest);
         }
@@ -617,7 +617,7 @@ public partial class GenHotkeysViewModel(
                     ? desktop.MainWindow
                     : null;
 
-            if (mainWindow != null)
+            if (mainWindow is not null)
             {
                 await dialog.ShowDialog(mainWindow);
             }
@@ -663,7 +663,7 @@ public partial class GenHotkeysViewModel(
                 AddonButtonText = AddToProfileText;
                 StatusMessage = $"Success! Addon '{result.Data.Name}' registered in GenHub!";
 
-                if (notificationService != null)
+                if (notificationService is not null)
                 {
                     var capturedManifest = result.Data;
                     var notification = new NotificationMessage(
@@ -672,13 +672,7 @@ public partial class GenHotkeysViewModel(
                         $"Created '{bigFileName}' successfully.",
                         autoDismissMilliseconds: NotificationDurations.Long,
                         actionText: AddToProfileText,
-                        action: () =>
-                        {
-                            Dispatcher.UIThread.Post(async () =>
-                            {
-                                await OpenProfileSelectionAsync(capturedManifest);
-                            });
-                        });
+                        action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(capturedManifest)));
 
                     notificationService.Show(notification);
                 }
