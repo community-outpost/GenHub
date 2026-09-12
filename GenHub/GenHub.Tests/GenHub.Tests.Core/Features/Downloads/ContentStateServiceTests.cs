@@ -1576,6 +1576,19 @@ public class ContentStateServiceTests
         Assert.Equal(0, ContentStateService.CompareVersions("082826_QFE1", "082826_QFE1"));
     }
 
+    /// <summary>
+    /// Verifies that non-Generals Online publisher content IDs retain standard integer comparisons
+    /// without falling into date-based sorting semantics.
+    /// </summary>
+    [Fact]
+    public void IsNewerVersion_NonGeneralsOnlinePublisher_RetainsIntegerSemantics()
+    {
+        // Under integer semantics: prospective 101099 < local 901010, so IsNewer is false.
+        // Under date semantics: 101099 (2009) > 901010 (2001), so without the publisher gate it would erroneously be true.
+        Assert.False(ContentStateService.IsNewerVersion("1.101099.communityoutpost.patch.name", "1.901010.communityoutpost.patch.name"));
+        Assert.True(ContentStateService.IsNewerVersion("1.901010.communityoutpost.patch.name", "1.101099.communityoutpost.patch.name"));
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

@@ -1691,6 +1691,7 @@ public sealed partial class DownloadsBrowserViewModel(
             if (!result.Success)
             {
                 logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
+                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? "Failed to update content"}";
             }
 
             return false;

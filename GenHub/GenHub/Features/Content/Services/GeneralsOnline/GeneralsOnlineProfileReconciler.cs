@@ -64,7 +64,7 @@ public class GeneralsOnlineProfileReconciler(
                 return OperationResult<bool>.CreateFailure(checkResult.FirstError ?? "Failed to check update availability");
             }
 
-            var (proceed, updateResult, strategy, subscription, shouldDeleteOldVersions) = checkResult.Data;
+            var (proceed, updateResult, strategy, _, shouldDeleteOldVersions) = checkResult.Data;
             if (!proceed || updateResult == null)
             {
                 return OperationResult<bool>.CreateSuccess(false);
