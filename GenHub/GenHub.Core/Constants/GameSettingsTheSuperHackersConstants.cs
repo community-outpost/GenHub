@@ -111,6 +111,31 @@ public static class GameSettingsTheSuperHackersConstants
     public const string MoneyTransactionVolumeKey = "MoneyTransactionVolume";
 
     /// <summary>
+    /// Configuration key for game time font size.
+    /// </summary>
+    public const string GameTimeFontSizeKey = "GameTimeFontSize";
+
+    /// <summary>
+    /// Configuration key for draw scroll anchor.
+    /// </summary>
+    public const string DrawScrollAnchorKey = "DrawScrollAnchor";
+
+    /// <summary>
+    /// Configuration key for move scroll anchor.
+    /// </summary>
+    public const string MoveScrollAnchorKey = "MoveScrollAnchor";
+
+    /// <summary>
+    /// Configuration key for language filter.
+    /// </summary>
+    public const string LanguageFilterKey = "LanguageFilter";
+
+    /// <summary>
+    /// Configuration key for send delay.
+    /// </summary>
+    public const string SendDelayKey = "SendDelay";
+
+    /// <summary>
     /// Minimum font size value.
     /// </summary>
     public const int MinFontSize = 0;

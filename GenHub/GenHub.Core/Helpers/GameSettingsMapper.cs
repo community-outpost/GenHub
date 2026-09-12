@@ -690,13 +690,13 @@ public static class GameSettingsMapper
             }
         }
 
-        if (tsh.TryGetCaseInsensitive("DrawScrollAnchor", out var dsa))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey, out var dsa))
             profile.VideoDrawScrollAnchor = ParseBool(dsa);
-        if (tsh.TryGetCaseInsensitive("MoveScrollAnchor", out var msa))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey, out var msa))
             profile.VideoMoveScrollAnchor = ParseBool(msa);
-        if (tsh.TryGetCaseInsensitive("LanguageFilter", out var lf))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.LanguageFilterKey, out var lf))
             profile.GameLanguageFilter = ParseBool(lf);
-        if (tsh.TryGetCaseInsensitive("SendDelay", out var sd))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.SendDelayKey, out var sd))
             profile.NetworkSendDelay = ParseBool(sd);
     }
 
@@ -720,7 +720,7 @@ public static class GameSettingsMapper
             profile.TshRenderFpsFontSize = ff;
         if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey, out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
             profile.TshResolutionFontAdjustment = rfa;
-        if (tsh.TryGetCaseInsensitive("GameTimeFontSize", out var gtfs) && int.TryParse(gtfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gtfVal))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey, out var gtfs) && int.TryParse(gtfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gtfVal))
             profile.VideoGameTimeFontSize = gtfVal;
     }
 
@@ -759,9 +759,9 @@ public static class GameSettingsMapper
     private static void ApplyNetworkFromOptions(IniOptions options, GameProfile profile)
     {
         profile.GameSpyIPAddress = options.Network.GameSpyIPAddress;
-        if (options.Network.AdditionalProperties.TryGetValue("SendDelay", out var sd))
+        if (options.Network.AdditionalProperties.TryGetValue(GameSettingsTheSuperHackersConstants.SendDelayKey, out var sd))
             profile.NetworkSendDelay = ParseBool(sd);
-        if (options.Network.AdditionalProperties.TryGetValue("LanguageFilter", out var lf))
+        if (options.Network.AdditionalProperties.TryGetValue(GameSettingsTheSuperHackersConstants.LanguageFilterKey, out var lf))
             profile.GameLanguageFilter = ParseBool(lf);
     }
 
@@ -860,6 +860,13 @@ public static class GameSettingsMapper
 
     private static void ApplyVideoAdditionalToOptions(GameProfile profile, IniOptions options, ILogger? logger)
     {
+        ApplyVideoVisualEffectsToOptions(profile, options, logger);
+        ApplyVideoGameplayToOptions(profile, options);
+        ApplyVideoRenderingTogglesToOptions(profile, options);
+    }
+
+    private static void ApplyVideoVisualEffectsToOptions(GameProfile profile, IniOptions options, ILogger? logger)
+    {
         if (profile.EnableVideoShadows.HasValue)
         {
             options.Video.UseShadowVolumes = profile.EnableVideoShadows.Value;
@@ -904,7 +911,10 @@ public static class GameSettingsMapper
 
         if (profile.VideoParticleEffects.HasValue)
             options.Video.AdditionalProperties["GenHubParticleEffects"] = profile.VideoParticleEffects.Value ? "yes" : "no";
+    }
 
+    private static void ApplyVideoGameplayToOptions(GameProfile profile, IniOptions options)
+    {
         if (profile.VideoStaticGameLOD != null)
             options.Video.AdditionalProperties["StaticGameLOD"] = profile.VideoStaticGameLOD;
 
@@ -936,19 +946,22 @@ public static class GameSettingsMapper
             options.Video.AdditionalProperties["SkipEALogo"] = profile.VideoSkipEALogo.Value ? "yes" : "no";
 
         if (profile.VideoGameTimeFontSize.HasValue)
-            options.Video.AdditionalProperties["GameTimeFontSize"] = profile.VideoGameTimeFontSize.Value.ToString(CultureInfo.InvariantCulture);
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey] = profile.VideoGameTimeFontSize.Value.ToString(CultureInfo.InvariantCulture);
+    }
 
+    private static void ApplyVideoRenderingTogglesToOptions(GameProfile profile, IniOptions options)
+    {
         if (profile.VideoDrawScrollAnchor.HasValue)
-            options.Video.AdditionalProperties["DrawScrollAnchor"] = profile.VideoDrawScrollAnchor.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey] = profile.VideoDrawScrollAnchor.Value ? "yes" : "no";
 
         if (profile.VideoMoveScrollAnchor.HasValue)
-            options.Video.AdditionalProperties["MoveScrollAnchor"] = profile.VideoMoveScrollAnchor.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey] = profile.VideoMoveScrollAnchor.Value ? "yes" : "no";
 
         if (profile.GameLanguageFilter.HasValue)
-            options.Video.AdditionalProperties["LanguageFilter"] = profile.GameLanguageFilter.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.LanguageFilterKey] = profile.GameLanguageFilter.Value ? "yes" : "no";
 
         if (profile.NetworkSendDelay.HasValue)
-            options.Video.AdditionalProperties["SendDelay"] = profile.NetworkSendDelay.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.SendDelayKey] = profile.NetworkSendDelay.Value ? "yes" : "no";
 
         if (profile.VideoShowSoftWaterEdge.HasValue)
             options.Video.AdditionalProperties["ShowSoftWaterEdge"] = profile.VideoShowSoftWaterEdge.Value ? "yes" : "no";
@@ -1089,16 +1102,16 @@ public static class GameSettingsMapper
         ApplyTshUiSettingsToDict(profile, tshDict);
         ApplyTshControlsSettingsToDict(profile, tshDict);
 
-        if (profile.VideoGameTimeFontSize.HasValue && tshDict.ContainsKey("GameTimeFontSize"))
-            tshDict["GameTimeFontSize"] = profile.VideoGameTimeFontSize.Value.ToString(CultureInfo.InvariantCulture);
-        if (profile.VideoDrawScrollAnchor.HasValue && tshDict.ContainsKey("DrawScrollAnchor"))
-            tshDict["DrawScrollAnchor"] = BoolToString(profile.VideoDrawScrollAnchor.Value);
-        if (profile.VideoMoveScrollAnchor.HasValue && tshDict.ContainsKey("MoveScrollAnchor"))
-            tshDict["MoveScrollAnchor"] = BoolToString(profile.VideoMoveScrollAnchor.Value);
-        if (profile.GameLanguageFilter.HasValue && tshDict.ContainsKey("LanguageFilter"))
-            tshDict["LanguageFilter"] = BoolToString(profile.GameLanguageFilter.Value);
-        if (profile.NetworkSendDelay.HasValue && tshDict.ContainsKey("SendDelay"))
-            tshDict["SendDelay"] = BoolToString(profile.NetworkSendDelay.Value);
+        if (profile.VideoGameTimeFontSize.HasValue && tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey))
+            tshDict[GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey] = profile.VideoGameTimeFontSize.Value.ToString(CultureInfo.InvariantCulture);
+        if (profile.VideoDrawScrollAnchor.HasValue && tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey))
+            tshDict[GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey] = BoolToString(profile.VideoDrawScrollAnchor.Value);
+        if (profile.VideoMoveScrollAnchor.HasValue && tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey))
+            tshDict[GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey] = BoolToString(profile.VideoMoveScrollAnchor.Value);
+        if (profile.GameLanguageFilter.HasValue && tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.LanguageFilterKey))
+            tshDict[GameSettingsTheSuperHackersConstants.LanguageFilterKey] = BoolToString(profile.GameLanguageFilter.Value);
+        if (profile.NetworkSendDelay.HasValue && tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.SendDelayKey))
+            tshDict[GameSettingsTheSuperHackersConstants.SendDelayKey] = BoolToString(profile.NetworkSendDelay.Value);
     }
 
     private static void ApplyTshUiSettingsToDict(GameProfile profile, Dictionary<string, string> tshDict)
@@ -1129,6 +1142,12 @@ public static class GameSettingsMapper
 
     private static void PatchVideoSettings(GameProfile profile, CreateProfileRequest request)
     {
+        PatchBasicVideoSettings(profile, request);
+        PatchAdvancedVideoSettings(profile, request);
+    }
+
+    private static void PatchBasicVideoSettings(GameProfile profile, CreateProfileRequest request)
+    {
         profile.VideoResolutionWidth = request.VideoResolutionWidth ?? profile.VideoResolutionWidth;
         profile.VideoResolutionHeight = request.VideoResolutionHeight ?? profile.VideoResolutionHeight;
         profile.VideoWindowed = request.VideoWindowed ?? profile.VideoWindowed;
@@ -1140,6 +1159,11 @@ public static class GameSettingsMapper
         profile.VideoGamma = request.VideoGamma ?? profile.VideoGamma;
         profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup ?? profile.VideoAlternateMouseSetup;
         profile.VideoHeatEffects = request.VideoHeatEffects ?? profile.VideoHeatEffects;
+        profile.VideoAntiAliasing = request.VideoAntiAliasing ?? profile.VideoAntiAliasing;
+    }
+
+    private static void PatchAdvancedVideoSettings(GameProfile profile, CreateProfileRequest request)
+    {
         profile.VideoStaticGameLOD = request.VideoStaticGameLOD ?? profile.VideoStaticGameLOD;
         profile.VideoIdealStaticGameLOD = request.VideoIdealStaticGameLOD ?? profile.VideoIdealStaticGameLOD;
         profile.VideoUseDoubleClickAttackMove = request.VideoUseDoubleClickAttackMove ?? profile.VideoUseDoubleClickAttackMove;
@@ -1147,7 +1171,6 @@ public static class GameSettingsMapper
         profile.VideoRetaliation = request.VideoRetaliation ?? profile.VideoRetaliation;
         profile.VideoDynamicLOD = request.VideoDynamicLOD ?? profile.VideoDynamicLOD;
         profile.VideoMaxParticleCount = request.VideoMaxParticleCount ?? profile.VideoMaxParticleCount;
-        profile.VideoAntiAliasing = request.VideoAntiAliasing ?? profile.VideoAntiAliasing;
         profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
         profile.VideoDrawScrollAnchor = request.VideoDrawScrollAnchor ?? profile.VideoDrawScrollAnchor;
         profile.VideoMoveScrollAnchor = request.VideoMoveScrollAnchor ?? profile.VideoMoveScrollAnchor;
@@ -1225,6 +1248,12 @@ public static class GameSettingsMapper
 
     private static void UpdateVideoFromRequest(GameProfile profile, UpdateProfileRequest request)
     {
+        UpdateBasicVideoFromRequest(profile, request);
+        UpdateAdvancedVideoFromRequest(profile, request);
+    }
+
+    private static void UpdateBasicVideoFromRequest(GameProfile profile, UpdateProfileRequest request)
+    {
         profile.VideoResolutionWidth = request.VideoResolutionWidth ?? profile.VideoResolutionWidth;
         profile.VideoResolutionHeight = request.VideoResolutionHeight ?? profile.VideoResolutionHeight;
         profile.VideoWindowed = request.VideoWindowed ?? profile.VideoWindowed;
@@ -1236,6 +1265,11 @@ public static class GameSettingsMapper
         profile.VideoGamma = request.VideoGamma ?? profile.VideoGamma;
         profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup ?? profile.VideoAlternateMouseSetup;
         profile.VideoHeatEffects = request.VideoHeatEffects ?? profile.VideoHeatEffects;
+        profile.VideoAntiAliasing = request.VideoAntiAliasing ?? profile.VideoAntiAliasing;
+    }
+
+    private static void UpdateAdvancedVideoFromRequest(GameProfile profile, UpdateProfileRequest request)
+    {
         profile.VideoStaticGameLOD = request.VideoStaticGameLOD ?? profile.VideoStaticGameLOD;
         profile.VideoIdealStaticGameLOD = request.VideoIdealStaticGameLOD ?? profile.VideoIdealStaticGameLOD;
         profile.VideoUseDoubleClickAttackMove = request.VideoUseDoubleClickAttackMove ?? profile.VideoUseDoubleClickAttackMove;
@@ -1243,7 +1277,6 @@ public static class GameSettingsMapper
         profile.VideoRetaliation = request.VideoRetaliation ?? profile.VideoRetaliation;
         profile.VideoDynamicLOD = request.VideoDynamicLOD ?? profile.VideoDynamicLOD;
         profile.VideoMaxParticleCount = request.VideoMaxParticleCount ?? profile.VideoMaxParticleCount;
-        profile.VideoAntiAliasing = request.VideoAntiAliasing ?? profile.VideoAntiAliasing;
         profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
         profile.VideoUseLightMap = request.VideoUseLightMap ?? profile.VideoUseLightMap;
         profile.VideoUseShadowDecals = request.VideoUseShadowDecals ?? profile.VideoUseShadowDecals;

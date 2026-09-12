@@ -655,6 +655,7 @@ public class GameSettingsMapperTests
 
         Assert.Equal(20, profile.VideoGameTimeFontSize);
         Assert.False(profile.VideoUseShadowDecals);
+
         // Untouched fields in update request retain original values
         Assert.True(profile.VideoDrawScrollAnchor);
         Assert.False(profile.VideoBuildingOcclusion);

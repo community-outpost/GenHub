@@ -1132,20 +1132,6 @@ public class GameSettingsViewModelTests
         Assert.Equal(1080, _viewModel.ResolutionHeight);
     }
 
-    private static GameProfile CreateGeneralsOnlineProfile()
-    {
-        return new GameProfile
-        {
-            Id = "go-profile",
-            Name = "GeneralsOnline Profile",
-            GameClient = new GameClient
-            {
-                GameType = GameType.ZeroHour,
-                PublisherType = PublisherTypeConstants.GeneralsOnline,
-            },
-        };
-    }
-
     /// <summary>
     /// Should load GameTimeFontSize from Options.ini when placed in Video.AdditionalProperties or in TheSuperHackers section,
     /// preventing reset to default 10.
@@ -1223,5 +1209,18 @@ public class GameSettingsViewModelTests
         Assert.True(savedOptions.AdditionalSections.TryGetValue(GameSettingsTheSuperHackersConstants.SectionName, out var tsh));
         Assert.True(tsh.TryGetValue("GameTimeFontSize", out var syncedFontSize));
         Assert.Equal("18", syncedFontSize);
+    }
+    private static GameProfile CreateGeneralsOnlineProfile()
+    {
+        return new GameProfile
+        {
+            Id = "go-profile",
+            Name = "GeneralsOnline Profile",
+            GameClient = new GameClient
+            {
+                GameType = GameType.ZeroHour,
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
+        };
     }
 }
