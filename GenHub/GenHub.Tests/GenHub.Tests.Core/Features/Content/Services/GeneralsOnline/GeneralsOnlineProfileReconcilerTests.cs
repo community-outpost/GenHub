@@ -322,9 +322,11 @@ public class GeneralsOnlineProfileReconcilerTests
             x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
     /// <summary>
     /// Verifies that when the user skips the update dialog, the reconciler returns false and does not acquire content.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_WhenUserSkipsDialog_ReturnsSuccessFalseAndDoesNotAcquireAsync()
     {
@@ -354,6 +356,7 @@ public class GeneralsOnlineProfileReconcilerTests
     /// <summary>
     /// Verifies that when the user specifies DeleteOldVersions is false, old manifests are not removed.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_WhenUserDisablesDeleteOldVersions_DoesNotDeleteOldManifestsAsync()
     {
@@ -398,6 +401,13 @@ public class GeneralsOnlineProfileReconcilerTests
 
         _contentOrchestratorMock.Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(newManifest));
+
+        _reconciliationServiceMock
+            .Setup(x => x.OrchestrateBulkUpdateAsync(
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(1, 0)));
 
         // Act
         var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1", CancellationToken.None);

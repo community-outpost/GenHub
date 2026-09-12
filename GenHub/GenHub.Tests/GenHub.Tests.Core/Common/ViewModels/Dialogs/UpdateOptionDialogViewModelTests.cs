@@ -4,8 +4,14 @@ using Xunit;
 
 namespace GenHub.Tests.Core.Common.ViewModels.Dialogs;
 
+/// <summary>
+/// Unit tests for <see cref="UpdateOptionDialogViewModel"/>.
+/// </summary>
 public class UpdateOptionDialogViewModelTests
 {
+    /// <summary>
+    /// Verifies that the default constructor initializes with ReplaceCurrent and DeleteOldVersions set to true.
+    /// </summary>
     [Fact]
     public void Constructor_DefaultsToReplaceCurrentWithDeleteOldVersionsTrue()
     {
@@ -18,6 +24,9 @@ public class UpdateOptionDialogViewModelTests
         Assert.True(vm.CanDeleteOldVersions);
     }
 
+    /// <summary>
+    /// Verifies that selecting CreateNewProfile disables and unchecks DeleteOldVersions.
+    /// </summary>
     [Fact]
     public void SetIsCreateNewProfile_DisablesAndUnchecksDeleteOldVersions()
     {
@@ -33,6 +42,9 @@ public class UpdateOptionDialogViewModelTests
         Assert.False(vm.CanDeleteOldVersions);
     }
 
+    /// <summary>
+    /// Verifies that switching back to ReplaceCurrentVersion re-enables and checks DeleteOldVersions.
+    /// </summary>
     [Fact]
     public void SetIsReplaceCurrentVersion_EnablesAndChecksDeleteOldVersions()
     {
@@ -50,6 +62,9 @@ public class UpdateOptionDialogViewModelTests
         Assert.True(vm.CanDeleteOldVersions);
     }
 
+    /// <summary>
+    /// Verifies that executing UpdateCommand with ReplaceCurrent preserves DeleteOldVersions.
+    /// </summary>
     [Fact]
     public void UpdateCommand_WithReplaceCurrent_PopulatesResultWithDeleteOldVersions()
     {
@@ -72,6 +87,9 @@ public class UpdateOptionDialogViewModelTests
         Assert.True(vm.Result.IsDoNotAskAgain);
     }
 
+    /// <summary>
+    /// Verifies that executing UpdateCommand with CreateNewProfile forces DeleteOldVersions to false.
+    /// </summary>
     [Fact]
     public void UpdateCommand_WithCreateNewProfile_ForcesDeleteOldVersionsFalse()
     {
@@ -91,6 +109,9 @@ public class UpdateOptionDialogViewModelTests
         Assert.False(vm.Result.DeleteOldVersions);
     }
 
+    /// <summary>
+    /// Verifies that executing SkipCommand populates result with Skip action and DeleteOldVersions as false.
+    /// </summary>
     [Fact]
     public void SkipCommand_PopulatesResultWithSkipActionAndDeleteOldVersionsFalse()
     {
