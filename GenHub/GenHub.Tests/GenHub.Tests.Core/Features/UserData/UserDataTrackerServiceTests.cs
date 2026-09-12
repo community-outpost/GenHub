@@ -1214,6 +1214,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.True(secondResult.Success);
         var conflictResult = await _trackerService.CheckFileConflictAsync(mapPath);
         Assert.True(conflictResult.Success);
+
         // Ownership transferred to new profile
         Assert.Equal($"{manifestId}_{newProfileId}", conflictResult.Data);
 
