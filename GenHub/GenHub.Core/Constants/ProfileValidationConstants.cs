@@ -101,6 +101,18 @@ public static class ProfileValidationConstants
     public const string CannotDeleteInstallationTitle = "Cannot Delete Installation";
 
     /// <summary>
+    /// Status message format when removing or deleting a game installation is blocked by active dependent clients.
+    /// Format arguments: {0} action verb (remove/delete), {1} installation display name, {2} comma-separated client names.
+    /// </summary>
+    public const string InstallationActionBlockedStatusFormat = "Cannot {0} {1} while dependent game client {2} is active";
+
+    /// <summary>
+    /// Notification message format when removing or deleting a game installation is blocked by active dependent clients.
+    /// Format arguments: {0} action verb (remove/delete), {1} installation display name, {2} comma-separated client names.
+    /// </summary>
+    public const string InstallationActionBlockedNotificationFormat = "Cannot {0} game installation '{1}' while dependent game client {2} is active. Please remove the game client first.";
+
+    /// <summary>
     /// Notification title when saving without a required game installation.
     /// </summary>
     public const string MissingGameInstallationTitle = "Missing Game Installation";

@@ -854,20 +854,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private async Task<ContentManifest?> GetOrSynthesizeManifestForContentAsync(ContentDisplayItem contentItem, CancellationToken cancellationToken = default)
     {
+        if (_manifestPool != null)
+        {
+            var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentItem.ManifestId.Value), cancellationToken);
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                return manifestResult.Data;
+            }
+        }
+
         if (contentItem.Manifest != null)
         {
             return contentItem.Manifest;
-        }
-
-        if (_manifestPool == null)
-        {
-            return null;
-        }
-
-        var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentItem.ManifestId.Value), cancellationToken);
-        if (manifestResult.Success && manifestResult.Data != null)
-        {
-            return manifestResult.Data;
         }
 
         if (contentItem.ContentType == ContentType.GameClient && !string.IsNullOrEmpty(contentItem.SourceId))
@@ -944,7 +942,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return true;
         }
 
-        var manifest = await GetOrSynthesizeManifestForContentAsync(client, cancellationToken);
+        var manifest = client.Manifest ?? await GetOrSynthesizeManifestForContentAsync(client, cancellationToken);
         var installDependencies = manifest?.Dependencies?
             .Where(d => d.DependencyType == ContentType.GameInstallation && !d.IsOptional)
             .ToList();

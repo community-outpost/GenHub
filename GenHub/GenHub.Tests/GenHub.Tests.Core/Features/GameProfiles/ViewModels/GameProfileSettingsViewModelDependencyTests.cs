@@ -1464,4 +1464,165 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
         Assert.False(zeroHourInstall.IsEnabled);
     }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is blocked by the fallback heuristic when an active GameClient
+    /// has no manifest or dependencies and an empty SourceId, but matches the installation's GameType.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_BlocksGameInstallationRemoval_WhenActiveClientHasNoDependenciesOrManifest_AndMatchesGameTypeAsync()
+    {
+        // Arrange
+        var clientId = new ManifestId("1.104.community.gameclient.zhclient");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = clientId,
+            DisplayName = "ZH Fallback Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            SourceId = string.Empty,
+            Manifest = null,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert - blocked by fallback heuristic (same GameType)
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.True(zeroHourInstall.IsEnabled);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(ProfileValidationConstants.CannotRemoveInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that disabling a GameInstallation is blocked by the fallback heuristic when an active GameClient
+    /// has a different GameType, but the installation matches SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_BlocksGameInstallationRemoval_WhenActiveClientHasNoDependenciesOrManifest_AndMatchesSelectedGameInstallationAsync()
+    {
+        // Arrange
+        var clientId = new ManifestId("1.104.community.gameclient.otherclient");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = clientId,
+            DisplayName = "Other Fallback Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.Generals,
+            InstallationType = GameInstallationType.Unknown,
+            SourceId = string.Empty,
+            Manifest = null,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DisableContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert - blocked because zeroHourInstall matches SelectedGameInstallation
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.True(zeroHourInstall.IsEnabled);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(ProfileValidationConstants.CannotRemoveInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that deleting a GameInstallation is allowed by the fallback heuristic when an active GameClient
+    /// has no manifest or dependencies and an empty SourceId, but differs in GameType and is not the SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteContent_AllowsGameInstallationDeletion_WhenActiveClientHasNoDependenciesOrManifest_AndDiffersInGameTypeAsync()
+    {
+        // Arrange
+        var clientId = new ManifestId("1.104.community.gameclient.generalsclient");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+        var generalsInstallId = new ManifestId("1.04.eaapp.gameinstallation.generals");
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = false,
+        };
+
+        var generalsInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = generalsInstallId,
+            DisplayName = "Generals 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.Generals,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = clientId,
+            DisplayName = "Generals Fallback Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.Generals,
+            InstallationType = GameInstallationType.Unknown,
+            SourceId = string.Empty,
+            Manifest = null,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall, generalsInstall];
+        _viewModel.SelectedGameInstallation = generalsInstall;
+        _viewModel.EnabledContent.Add(generalsInstall);
+        _viewModel.EnabledContent.Add(clientDisplayItem);
+
+        // Act
+        await _viewModel.DeleteContentCommand.ExecuteAsync(zeroHourInstall);
+
+        // Assert - deletion is not blocked by the Generals client
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(ProfileValidationConstants.CannotDeleteInstallationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
 }

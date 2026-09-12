@@ -182,6 +182,7 @@ public partial class GameProfileSettingsViewModel
 
     private async Task<bool> ValidateInstallationRemovalAsync(
         ContentDisplayItem contentItem,
+        string actionCommand,
         string actionVerb,
         string notificationTitle,
         CancellationToken cancellationToken = default)
@@ -199,14 +200,22 @@ public partial class GameProfileSettingsViewModel
         }
 
         var clientNames = string.Join(", ", dependentClients.Select(c => $"'{c.DisplayName}'"));
-        StatusMessage = $"Cannot {actionVerb} {contentItem.DisplayName} while dependent game client {clientNames} is active";
+        StatusMessage = string.Format(
+            ProfileValidationConstants.InstallationActionBlockedStatusFormat,
+            actionVerb,
+            contentItem.DisplayName,
+            clientNames);
         _logger?.LogWarning(
-            "{Action}Content blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
-            char.ToUpperInvariant(actionVerb[0]) + actionVerb[1..],
+            "{Action} blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
+            actionCommand,
             contentItem.DisplayName,
             clientNames);
 
-        var notificationMessage = $"Cannot {actionVerb} game installation '{contentItem.DisplayName}' while dependent game client {clientNames} is active. Please remove the game client first.";
+        var notificationMessage = string.Format(
+            ProfileValidationConstants.InstallationActionBlockedNotificationFormat,
+            actionVerb,
+            contentItem.DisplayName,
+            clientNames);
         _localNotificationService.ShowWarning(notificationTitle, notificationMessage);
         _notificationService?.ShowWarning(notificationTitle, notificationMessage);
         return false;
@@ -224,6 +233,7 @@ public partial class GameProfileSettingsViewModel
 
         if (!await ValidateInstallationRemovalAsync(
                 contentItem,
+                "DisableContent",
                 "remove",
                 ProfileValidationConstants.CannotRemoveInstallationTitle,
                 cancellationToken))
@@ -320,6 +330,7 @@ public partial class GameProfileSettingsViewModel
 
         if (!await ValidateInstallationRemovalAsync(
                 contentItem,
+                "DeleteContent",
                 "delete",
                 ProfileValidationConstants.CannotDeleteInstallationTitle,
                 cancellationToken))
