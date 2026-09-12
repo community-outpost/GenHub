@@ -421,88 +421,6 @@ public partial class GenHotkeysViewModel(
         StatusMessage = $"Applied hotkey '{keyDisplay}' to {matchingCount} '{targetName}' action{(matchingCount == 1 ? string.Empty : "s")}.";
     }
 
-    private int ApplyKeyToMatchingActionsInFactions(
-        string? targetName,
-        string? targetHotkeyString,
-        string? targetIconName,
-        char? targetKey)
-    {
-        if (SelectedProfile == null)
-        {
-            return 0;
-        }
-
-        var matchingCount = 0;
-        foreach (var faction in _allFactions)
-        {
-            foreach (var obj in faction.GameObjects)
-            {
-                foreach (var layout in obj.KeyboardLayouts)
-                {
-                    matchingCount += ApplyKeyToMatchingLayoutActions(SelectedProfile, layout, targetName, targetHotkeyString, targetIconName, targetKey);
-                }
-            }
-        }
-
-        return matchingCount;
-    }
-
-    private static int ApplyKeyToMatchingLayoutActions(
-        HotkeyProfile profile,
-        List<HotkeyAction> layout,
-        string? targetName,
-        string? targetHotkeyString,
-        string? targetIconName,
-        char? targetKey)
-    {
-        var count = 0;
-        foreach (var action in layout)
-        {
-            if (string.IsNullOrEmpty(action.HotkeyString) ||
-                !IsMatchingAction(action, targetName, targetHotkeyString, targetIconName))
-            {
-                continue;
-            }
-
-            if (targetKey.HasValue)
-            {
-                profile.KeyMappings[action.HotkeyString] = targetKey.Value;
-                profile.ClearedKeys.Remove(action.HotkeyString);
-            }
-            else
-            {
-                profile.KeyMappings.Remove(action.HotkeyString);
-                profile.ClearedKeys.Add(action.HotkeyString);
-            }
-
-            count++;
-        }
-
-        return count;
-    }
-
-    private static bool IsMatchingAction(
-        HotkeyAction action,
-        string? targetName,
-        string? targetHotkeyString,
-        string? targetIconName)
-    {
-        if (!string.IsNullOrEmpty(targetHotkeyString) &&
-            string.Equals(action.HotkeyString, targetHotkeyString, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(targetName) &&
-            string.Equals(action.DisplayName, targetName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return !string.IsNullOrEmpty(targetIconName) &&
-               string.Equals(action.IconName, targetIconName, StringComparison.OrdinalIgnoreCase);
-    }
-
     /// <summary>
     /// Creates a new hotkey profile for the current game.
     /// </summary>
@@ -820,6 +738,87 @@ public partial class GenHotkeysViewModel(
     }
 
     /// <summary>
+    /// Navigates to the next conflicting hotkey across all factions and game objects.
+    /// </summary>
+    [RelayCommand]
+    public void SelectNextConflict()
+    {
+        var allConflicts = CollectAllGlobalConflicts();
+        if (allConflicts.Count == 0)
+        {
+            StatusMessage = "No conflicts detected.";
+            return;
+        }
+
+        var currentActionKey = SelectedAction?.HotkeyString ?? SelectedAction?.IconName ?? SelectedAction?.DisplayName;
+        var currentObjName = SelectedGameObject?.Name ?? SelectedGameObject?.DisplayName;
+        var currentFaction = SelectedFaction;
+
+        var currentIndex = allConflicts.FindIndex(c =>
+            (c.ActionVm != null && SelectedAction != null && c.ActionVm == SelectedAction) ||
+            ((currentFaction == null || c.Faction == currentFaction) &&
+            string.Equals(c.GameObjectName, currentObjName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase)));
+
+        var nextIndex = (currentIndex + 1) % allConflicts.Count;
+        var target = allConflicts[nextIndex];
+
+        if (target.ActionVm != null)
+        {
+            var parentObj = FilteredGameObjects.FirstOrDefault(o =>
+                o.Layouts.Any(l => l.Contains(target.ActionVm)));
+            if (parentObj != null)
+            {
+                SelectedGameObject = parentObj;
+            }
+
+            SelectAction(target.ActionVm);
+            StatusMessage = $"Viewing conflict {nextIndex + 1} of {allConflicts.Count}: '{SelectedGameObject?.DisplayName ?? target.GameObjectName}' ({target.Faction.DisplayName}) - Hotkey '{target.Hotkey}'.";
+            return;
+        }
+
+        // 1. Switch faction if target is in a different faction
+        if (SelectedFaction != target.Faction && _allFactions.Contains(target.Faction))
+        {
+            SelectedFaction = target.Faction;
+        }
+
+        // 2. If target object is not currently visible in FilteredGameObjects, reset category filter
+        if (SelectedCategory != HotkeyCategory.All && !FilteredGameObjects.Any(o => string.Equals(o.Name ?? o.DisplayName, target.GameObjectName, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedCategory = HotkeyCategory.All;
+        }
+
+        // 3. Select target game object
+        var targetObj = FilteredGameObjects.FirstOrDefault(o => string.Equals(o.Name ?? o.DisplayName, target.GameObjectName, StringComparison.OrdinalIgnoreCase));
+        if (targetObj != null)
+        {
+            SelectedGameObject = targetObj;
+
+            // 4. Select target action
+            HotkeyActionViewModel? targetAction = null;
+            foreach (var layout in targetObj.Layouts)
+            {
+                targetAction = layout.FirstOrDefault(a =>
+                    string.Equals(a.HotkeyString, target.HotkeyString, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(a.IconName, target.HotkeyString, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(a.DisplayName, target.HotkeyString, StringComparison.OrdinalIgnoreCase));
+                if (targetAction != null)
+                {
+                    break;
+                }
+            }
+
+            if (targetAction != null)
+            {
+                SelectAction(targetAction);
+            }
+        }
+
+        StatusMessage = $"Viewing conflict {nextIndex + 1} of {allConflicts.Count}: '{SelectedGameObject?.DisplayName ?? target.GameObjectName}' ({target.Faction.DisplayName}) - Hotkey '{target.Hotkey}'.";
+    }
+
+    /// <summary>
     /// Persists the currently selected profile.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -1015,6 +1014,88 @@ public partial class GenHotkeysViewModel(
                 profile.KeyMappings[action.HotkeyString] = gridKey.Value;
             }
         }
+    }
+
+    private static int ApplyKeyToMatchingLayoutActions(
+        HotkeyProfile profile,
+        List<HotkeyAction> layout,
+        string? targetName,
+        string? targetHotkeyString,
+        string? targetIconName,
+        char? targetKey)
+    {
+        var count = 0;
+        foreach (var action in layout)
+        {
+            if (string.IsNullOrEmpty(action.HotkeyString) ||
+                !IsMatchingAction(action, targetName, targetHotkeyString, targetIconName))
+            {
+                continue;
+            }
+
+            if (targetKey.HasValue)
+            {
+                profile.KeyMappings[action.HotkeyString] = targetKey.Value;
+                profile.ClearedKeys.Remove(action.HotkeyString);
+            }
+            else
+            {
+                profile.KeyMappings.Remove(action.HotkeyString);
+                profile.ClearedKeys.Add(action.HotkeyString);
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private static bool IsMatchingAction(
+        HotkeyAction action,
+        string? targetName,
+        string? targetHotkeyString,
+        string? targetIconName)
+    {
+        if (!string.IsNullOrEmpty(targetHotkeyString) &&
+            string.Equals(action.HotkeyString, targetHotkeyString, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(targetName) &&
+            string.Equals(action.DisplayName, targetName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrEmpty(targetIconName) &&
+               string.Equals(action.IconName, targetIconName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int ApplyKeyToMatchingActionsInFactions(
+        string? targetName,
+        string? targetHotkeyString,
+        string? targetIconName,
+        char? targetKey)
+    {
+        if (SelectedProfile == null)
+        {
+            return 0;
+        }
+
+        var matchingCount = 0;
+        foreach (var faction in _allFactions)
+        {
+            foreach (var obj in faction.GameObjects)
+            {
+                foreach (var layout in obj.KeyboardLayouts)
+                {
+                    matchingCount += ApplyKeyToMatchingLayoutActions(SelectedProfile, layout, targetName, targetHotkeyString, targetIconName, targetKey);
+                }
+            }
+        }
+
+        return matchingCount;
     }
 
     private async Task ApplyLegionnaireGridPresetAsync(CancellationToken cancellationToken)
@@ -1345,158 +1426,95 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    /// <summary>
-    /// Navigates to the next conflicting hotkey action across units and armies.
-    /// </summary>
-    [RelayCommand]
-    public void SelectNextConflict()
+    private List<HotkeyConflictTarget> CollectAllGlobalConflicts()
     {
-        var conflictItems = CollectCurrentConflicts();
-
-        if (conflictItems.Count > 0)
+        var targets = new List<HotkeyConflictTarget>();
+        if (SelectedProfile == null)
         {
-            NavigateToNextLocalConflict(conflictItems);
-            return;
+            return targets;
         }
 
-        if (SelectedCategory != HotkeyCategory.All && SelectedFaction != null && FactionHasConflicts(SelectedFaction, SelectedProfile))
+        if (_allFactions.Count > 0)
         {
-            SelectedCategory = HotkeyCategory.All;
-            FilterGameObjects(CancellationToken.None);
-            SelectNextConflict();
-            return;
-        }
-
-        var nextFaction = FindNextFactionWithConflicts();
-        if (nextFaction != null)
-        {
-            SelectedFaction = nextFaction;
-            FilterGameObjects(CancellationToken.None);
-            SelectNextConflict();
-        }
-    }
-
-    private List<(HotkeyGameObjectViewModel Obj, HotkeyActionViewModel Action)> CollectCurrentConflicts()
-    {
-        var items = new List<(HotkeyGameObjectViewModel, HotkeyActionViewModel)>();
-        foreach (var obj in FilteredGameObjects)
-        {
-            foreach (var layout in obj.Layouts)
+            foreach (var faction in _allFactions)
             {
-                foreach (var act in layout)
+                foreach (var obj in faction.GameObjects)
                 {
-                    if (act.IsConflict)
+                    foreach (var layout in obj.KeyboardLayouts)
                     {
-                        items.Add((obj, act));
+                        var activeActions = layout
+                            .Select(a => (Action: a, Key: ResolveCurrentActionHotkey(a, SelectedProfile)))
+                            .Where(x => x.Key.HasValue)
+                            .GroupBy(x => x.Key!.Value)
+                            .Where(g => g.Count() > 1);
+
+                        foreach (var group in activeActions)
+                        {
+                            var dummyVms = group.Select(x => new HotkeyActionViewModel
+                            {
+                                DisplayName = x.Action.DisplayName,
+                                IconName = x.Action.IconName,
+                                HotkeyString = x.Action.HotkeyString,
+                                Hotkey = x.Key,
+                            }).ToList();
+
+                            if (!IsPermittedEngineOverlap(dummyVms))
+                            {
+                                foreach (var item in group)
+                                {
+                                    targets.Add(new HotkeyConflictTarget(
+                                        faction,
+                                        obj.Name ?? obj.DisplayName,
+                                        item.Action.HotkeyString ?? item.Action.IconName ?? item.Action.DisplayName,
+                                        item.Key,
+                                        null));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            foreach (var obj in FilteredGameObjects)
+            {
+                foreach (var layout in obj.Layouts)
+                {
+                    foreach (var act in layout)
+                    {
+                        if (act.IsConflict)
+                        {
+                            targets.Add(new HotkeyConflictTarget(
+                                SelectedFaction ?? new HotkeyFaction { ShortName = "DEFAULT", DisplayName = "Default" },
+                                obj.Name ?? obj.DisplayName,
+                                act.HotkeyString ?? act.IconName ?? act.DisplayName,
+                                act.Hotkey,
+                                act));
+                        }
                     }
                 }
             }
         }
 
-        return items;
-    }
-
-    private void NavigateToNextLocalConflict(List<(HotkeyGameObjectViewModel Obj, HotkeyActionViewModel Action)> conflictItems)
-    {
-        var currentIndex = conflictItems.FindIndex(x => x.Action == SelectedAction);
-        var nextIndex = (currentIndex + 1) % conflictItems.Count;
-        var (targetObj, targetAction) = conflictItems[nextIndex];
-
-        SelectedGameObject = targetObj;
-        SelectAction(targetAction);
-        StatusMessage = $"Viewing conflict in '{targetObj.DisplayName}': hotkey '{targetAction.Hotkey}' ({nextIndex + 1}/{conflictItems.Count}).";
-    }
-
-    private HotkeyFaction? FindNextFactionWithConflicts()
-    {
-        if (SelectedFaction == null || _allFactions.Count == 0 || SelectedProfile == null)
-        {
-            return null;
-        }
-
-        var startIndex = _allFactions.IndexOf(SelectedFaction);
-        for (var i = 1; i <= _allFactions.Count; i++)
-        {
-            var candidate = _allFactions[(startIndex + i) % _allFactions.Count];
-            if (candidate != SelectedFaction && FactionHasConflicts(candidate, SelectedProfile))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
-    }
-
-    private bool HasAnyOtherFactionConflicts()
-    {
-        if (_allFactions.Count <= 1 || SelectedProfile == null)
-        {
-            return false;
-        }
-
-        return _allFactions.Any(faction => faction != SelectedFaction && FactionHasConflicts(faction, SelectedProfile));
-    }
-
-    private static bool FactionHasConflicts(HotkeyFaction faction, HotkeyProfile? profile)
-    {
-        if (profile == null)
-        {
-            return false;
-        }
-
-        foreach (var obj in faction.GameObjects)
-        {
-            foreach (var layout in obj.KeyboardLayouts)
-            {
-                var keysWithActions = layout
-                    .Select(a => (Action: a, Key: ResolveCurrentActionHotkey(a, profile)))
-                    .Where(x => x.Key.HasValue)
-                    .GroupBy(x => x.Key.Value)
-                    .Where(g => g.Count() > 1);
-
-                foreach (var group in keysWithActions)
-                {
-                    var dummyVms = group.Select(x => new HotkeyActionViewModel
-                    {
-                        DisplayName = x.Action.DisplayName,
-                        IconName = x.Action.IconName,
-                        HotkeyString = x.Action.HotkeyString,
-                        Hotkey = x.Key,
-                    }).ToList();
-
-                    if (!IsPermittedEngineOverlap(dummyVms))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+        return targets;
     }
 
     private void ValidateConflicts()
     {
-        var conflictCount = 0;
         foreach (var obj in FilteredGameObjects)
         {
             var objConflicts = ValidateGameObjectConflicts(obj);
             obj.HasConflicts = objConflicts > 0;
-            conflictCount += objConflicts;
         }
 
-        TotalConflictsCount = conflictCount;
-        var otherArmiesHaveConflicts = HasAnyOtherFactionConflicts();
-        HasConflicts = conflictCount > 0 || otherArmiesHaveConflicts;
+        var allConflicts = CollectAllGlobalConflicts();
+        TotalConflictsCount = allConflicts.Count;
+        HasConflicts = allConflicts.Count > 0;
 
-        if (conflictCount > 0)
+        if (allConflicts.Count > 0)
         {
-            var factionName = SelectedFaction?.DisplayName ?? "Army";
-            ConflictStatusText = $"{conflictCount} Conflict{(conflictCount == 1 ? string.Empty : "s")} in {factionName}";
-        }
-        else if (otherArmiesHaveConflicts)
-        {
-            ConflictStatusText = "Conflicts in other armies";
+            ConflictStatusText = $"{allConflicts.Count} Conflict{(allConflicts.Count == 1 ? string.Empty : "s")} Detected";
         }
         else
         {
@@ -1505,4 +1523,11 @@ public partial class GenHotkeysViewModel(
 
         ConflictSummary = ConflictStatusText;
     }
+
+    private readonly record struct HotkeyConflictTarget(
+        HotkeyFaction Faction,
+        string GameObjectName,
+        string HotkeyString,
+        char? Hotkey,
+        HotkeyActionViewModel? ActionVm = null);
 }

@@ -53,6 +53,11 @@ public static class UriConstants
     /// </summary>
     public const string MapManagerIconUri = "avares://GenHub/Assets/Icons/mapmanager-icon.png";
 
+    /// <summary>
+    /// Icon URI for Hotkeys Editor tool.
+    /// </summary>
+    public const string HotkeysEditorIconUri = "avares://GenHub/Assets/Icons/hotkeyseditor-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -99,6 +104,11 @@ public static class UriConstants
     /// Filename for Map Manager icon.
     /// </summary>
     public const string MapManagerIconFilename = "mapmanager-icon.png";
+
+    /// <summary>
+    /// Filename for Hotkeys Editor icon.
+    /// </summary>
+    public const string HotkeysEditorIconFilename = "hotkeyseditor-icon.png";
 
     // Cover Path Constants
 

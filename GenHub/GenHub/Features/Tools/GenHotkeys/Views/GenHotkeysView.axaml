@@ -561,14 +561,22 @@
                         ToolTip.Tip="Clear hotkey assignment for this action"/>
               </Grid>
 
-              <Button Content="{Binding ApplyToAllButtonText}"
-                      Command="{Binding ApplyToAllMatchingActionsCommand}"
+              <Button Command="{Binding ApplyToAllMatchingActionsCommand}"
                       Classes="Secondary"
                       IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}"
                       HorizontalAlignment="Stretch"
                       HorizontalContentAlignment="Center"
-                      Height="28"
-                      ToolTip.Tip="Apply this hotkey to all matching actions across all armies"/>
+                      MinHeight="32"
+                      Margin="0,6,0,0"
+                      Padding="8,5"
+                      ToolTip.Tip="Apply this hotkey to all matching actions across all armies">
+                <TextBlock Text="{Binding ApplyToAllButtonText}"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           FontSize="11"
+                           MaxLines="2"
+                           TextTrimming="CharacterEllipsis"/>
+              </Button>
             </StackPanel>
           </StackPanel>
 

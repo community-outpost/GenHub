@@ -25,7 +25,7 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin, IDisposable
         Version = GenHotkeysConstants.PluginVersion,
         Author = AppConstants.AppName,
         Description = GenHotkeysConstants.ToolDescription,
-        IconPath = "⌨️",
+        IconPath = GenHotkeysConstants.ToolIconUri,
         IsBundled = true,
     };
 
