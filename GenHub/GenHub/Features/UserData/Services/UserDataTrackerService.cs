@@ -326,75 +326,17 @@ public class UserDataTrackerService(
                 // Remove hard links and copied files but keep tracking
                 foreach (var file in manifest.InstalledFiles)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    var fileDeactivated = await DeactivateTrackedFileAsync(
+                        file,
+                        manifest,
+                        index,
+                        userDataBasePath,
+                        cancellationToken);
 
-                    if (index.FileToInstallationMap.TryGetValue(file.AbsolutePath, out var currentOwnerKey) &&
-                        currentOwnerKey != manifest.InstallationKey)
+                    if (!fileDeactivated)
                     {
-                        logger.LogDebug(
-                            "[UserData] Skipping deactivation file deletion of {Path} for installation {Key}; currently owned by {OwnerKey}",
-                            file.AbsolutePath,
-                            manifest.InstallationKey,
-                            currentOwnerKey);
-                        continue;
-                    }
-
-                    if (File.Exists(file.AbsolutePath))
-                    {
-                        try
-                        {
-                            var isMatch = await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken);
-                            cancellationToken.ThrowIfCancellationRequested();
-
-                            if (isMatch)
-                            {
-                                File.Delete(file.AbsolutePath);
-                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
-                            }
-                            else
-                            {
-                                logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
-                            }
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            manifestHasErrors = true;
-                            allSuccess = false;
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
-                            manifestHasErrors = true;
-                            allSuccess = false;
-                        }
-                    }
-
-                    // If an original user file was backed up and the target file was removed or absent, restore it upon deactivation
-                    if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
-                    {
-                        try
-                        {
-                            var targetDir = Path.GetDirectoryName(file.AbsolutePath);
-                            if (!string.IsNullOrEmpty(targetDir))
-                            {
-                                Directory.CreateDirectory(targetDir);
-                            }
-
-                            var restoredFrom = file.BackupPath;
-                            RestoreAndConsumeBackup(file, logger);
-                            logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", restoredFrom, file.AbsolutePath);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
-                            manifestHasErrors = true;
-                            allSuccess = false;
-                        }
+                        manifestHasErrors = true;
+                        allSuccess = false;
                     }
                 }
 
@@ -1058,6 +1000,84 @@ public class UserDataTrackerService(
             CleanupSupersededBackups(supersededBackups, logger);
             throw;
         }
+    }
+
+    private async Task<bool> DeactivateTrackedFileAsync(
+        TrackedUserFile file,
+        UserDataManifest manifest,
+        UserDataTrackerIndex index,
+        string userDataBasePath,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (index.FileToInstallationMap.TryGetValue(file.AbsolutePath, out var currentOwnerKey) &&
+            currentOwnerKey != manifest.InstallationKey)
+        {
+            logger.LogDebug(
+                "[UserData] Skipping deactivation file deletion of {Path} for installation {Key}; currently owned by {OwnerKey}",
+                file.AbsolutePath,
+                manifest.InstallationKey,
+                currentOwnerKey);
+            return true;
+        }
+
+        var success = true;
+        if (File.Exists(file.AbsolutePath))
+        {
+            try
+            {
+                var isMatch = await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (isMatch)
+                {
+                    File.Delete(file.AbsolutePath);
+                    CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                }
+                else
+                {
+                    logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
+                success = false;
+            }
+        }
+
+        // If an original user file was backed up and the target file was removed or absent, restore it upon deactivation
+        if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
+        {
+            try
+            {
+                var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+                if (!string.IsNullOrEmpty(targetDir))
+                {
+                    Directory.CreateDirectory(targetDir);
+                }
+
+                var restoredFrom = file.BackupPath;
+                RestoreAndConsumeBackup(file, logger);
+                logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", restoredFrom, file.AbsolutePath);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
+                success = false;
+            }
+        }
+
+        return success;
     }
 
     private async Task<OperationResult<bool>> ActivateSingleFileAsync(
