@@ -94,7 +94,7 @@ public class PublisherCatalogRefreshService(
             if (!string.Equals(currentSubscription.CatalogUrl, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogInformation("Catalog URL changed for {PublisherId} during refresh; discarding stale fetch result", publisherId);
-                return OperationResult<bool>.CreateFailure("Catalog URL changed during refresh");
+                return OperationResult<bool>.CreateSuccess(true);
             }
 
             // Update subscription metadata

@@ -38,20 +38,22 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
     /// <inheritdoc />
     public bool CanDeliver(ContentManifest manifest)
     {
-        if (manifest?.Files == null)
+        if (manifest == null)
         {
             return false;
         }
 
+        var files = manifest.Files;
+
         // Dependency-only packages (e.g. ContentBundle) have no remote files to fetch,
         // but must declare dependencies to be deliverable.
-        if (manifest.Files.Count == 0)
+        if ((files?.Count ?? 0) == 0)
         {
             return manifest.Dependencies is { Count: > 0 };
         }
 
         // Can deliver if files have HTTP download URLs
-        return manifest.Files.Any(f =>
+        return files!.Any(f =>
             !string.IsNullOrEmpty(f.DownloadUrl) &&
             Uri.TryCreate(f.DownloadUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == "http" || uri.Scheme == "https"));

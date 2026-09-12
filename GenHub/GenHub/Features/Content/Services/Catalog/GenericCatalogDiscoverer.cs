@@ -199,7 +199,7 @@ public class GenericCatalogDiscoverer(
     /// least one axis has two or more artifacts. An empty list means the release should NOT be
     /// split (single card, original path).
     /// </summary>
-    private static List<ReleaseArtifact> GetVariantArtifacts(ContentRelease release) =>
+    private static IReadOnlyList<ReleaseArtifact> GetVariantArtifacts(ContentRelease release) =>
         CatalogManifestIdentity.GetVariantArtifacts(release);
 
     /// <summary>
@@ -535,10 +535,10 @@ public class GenericCatalogDiscoverer(
                 {
                     dep.VersionConstraint = $">={cleanTag}";
                 }
-                else
+                else if (!string.IsNullOrWhiteSpace(dep.VersionConstraint))
                 {
-                    var testConstraint = new VersionConstraint { ConstraintExpression = $">={cleanTag}" };
-                    if (testConstraint.IsSatisfiedBy(cleanTag))
+                    var existingConstraint = new VersionConstraint { ConstraintExpression = dep.VersionConstraint };
+                    if (existingConstraint.IsSatisfiedBy(cleanTag))
                     {
                         dep.VersionConstraint = $">={cleanTag}";
                     }

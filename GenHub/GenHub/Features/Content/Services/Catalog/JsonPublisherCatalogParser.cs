@@ -235,6 +235,11 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         catalog.Content ??= [];
         foreach (var content in catalog.Content)
         {
+            if (content == null)
+            {
+                continue;
+            }
+
             content.Description ??= string.Empty;
             content.Tags = content.Tags != null
                 ? content.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
@@ -247,6 +252,11 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             content.Releases ??= [];
             foreach (var release in content.Releases)
             {
+                if (release == null)
+                {
+                    continue;
+                }
+
                 release.Artifacts ??= [];
                 release.Dependencies ??= [];
             }

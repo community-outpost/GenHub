@@ -1190,8 +1190,10 @@ public class ProfileLauncherFacade(
         return manifestSourcePaths;
     }
 
-/// <summary>
+    /// <summary>
     /// Checks if a version string is compatible with dependency requirements.
+    /// Unparseable version strings that do not match <see cref="ContentDependency.CompatibleVersions"/>
+    /// intentionally fail numeric min/max range checks by design.
     /// </summary>
     /// <param name="version">The version to check.</param>
     /// <param name="dependency">The dependency with version requirements.</param>

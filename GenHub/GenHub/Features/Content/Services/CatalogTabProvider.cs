@@ -32,7 +32,8 @@ public class CatalogTabProvider(
     ILogger<CatalogTabProvider> logger) : ITabProvider
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
-    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, PublisherCatalog Catalog)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan NegativeCacheDuration = TimeSpan.FromMinutes(1);
+    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, string CatalogUrl, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc/>
     public string ProviderId => "catalog-tabs";
@@ -111,12 +112,6 @@ public class CatalogTabProvider(
         string publisherId,
         CancellationToken cancellationToken)
     {
-        if (_catalogCache.TryGetValue(publisherId, out var cached) &&
-            DateTime.UtcNow - cached.FetchedAt < CacheDuration)
-        {
-            return cached.Catalog;
-        }
-
         var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(
             publisherId,
             cancellationToken);
@@ -127,6 +122,16 @@ public class CatalogTabProvider(
         }
 
         var subscription = subscriptionResult.Data;
+        if (_catalogCache.TryGetValue(publisherId, out var cached) &&
+            string.Equals(cached.CatalogUrl, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            var ttl = cached.Catalog != null ? CacheDuration : NegativeCacheDuration;
+            if (DateTime.UtcNow - cached.FetchedAt < ttl)
+            {
+                return cached.Catalog;
+            }
+        }
+
         var httpClient = httpClientFactory.CreateClient();
         httpClient.Timeout = TimeSpan.FromSeconds(30);
 
@@ -137,18 +142,15 @@ public class CatalogTabProvider(
             cancellationToken: cancellationToken);
 
         var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
-        if (catalogResult.Success && catalogResult.Data != null)
-        {
-            _catalogCache[publisherId] = (DateTime.UtcNow, catalogResult.Data);
-            return catalogResult.Data;
-        }
-
-        return null;
+        var resolvedCatalog = catalogResult.Success && catalogResult.Data != null ? catalogResult.Data : null;
+        _catalogCache[publisherId] = (DateTime.UtcNow, subscription.CatalogUrl, resolvedCatalog);
+        return resolvedCatalog;
     }
 
     private CustomTabDefinition MapToTabDefinition(CatalogTabDefinition catalogTab, ContentSearchResult searchResult)
     {
-        if (!Enum.TryParse<TabContentType>(catalogTab.ContentType, true, out var contentType))
+        if (!Enum.TryParse<TabContentType>(catalogTab.ContentType, true, out var contentType) ||
+            !Enum.IsDefined(contentType))
         {
             logger.LogWarning("invalid content type '{ContentType}' for tab '{TabId}' in publisher '{Publisher}'", catalogTab.ContentType, catalogTab.TabId, searchResult.ProviderName);
             contentType = TabContentType.Custom;

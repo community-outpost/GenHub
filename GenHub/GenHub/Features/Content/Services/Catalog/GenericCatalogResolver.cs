@@ -588,7 +588,7 @@ public partial class GenericCatalogResolver(
             }
 
             if (!string.IsNullOrWhiteSpace(matched.ContentType) &&
-                Enum.TryParse<ContentType>(matched.ContentType, true, out var matchedType))
+                CatalogManifestIdentity.TryParseDeclaredContentType(matched.ContentType, out var matchedType))
             {
                 dependencyType = matchedType;
             }
@@ -613,8 +613,18 @@ public partial class GenericCatalogResolver(
             return new(string.Empty, string.Empty, true, true, null);
         }
 
-        if (trimmed.Contains(',') || trimmed.Contains('|'))
+        if (trimmed.Contains('|'))
         {
+            return ParseListConstraint(trimmed);
+        }
+
+        if (trimmed.Contains(','))
+        {
+            if (trimmed.IndexOfAny(['>', '<', '^', '~']) >= 0)
+            {
+                return ParseRangedTokens(trimmed.Replace(',', ' '));
+            }
+
             return ParseListConstraint(trimmed);
         }
 
