@@ -272,7 +272,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     }
 
     private readonly IGameProfileManager? _gameProfileManager;
-    private readonly IGameSettingsService? _gameSettingsService;
     private readonly IConfigurationProviderService? _configurationProvider;
     private readonly IProfileContentLoader? _profileContentLoader;
     private readonly Services.ProfileResourceService? _profileResourceService;
@@ -348,7 +347,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ILaunchRegistry? launchRegistry = null)
     {
         _gameProfileManager = gameProfileManager;
-        _gameSettingsService = gameSettingsService;
         _configurationProvider = configurationProvider;
         _profileContentLoader = profileContentLoader;
         _profileResourceService = profileResourceService;
@@ -636,6 +634,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             GameTypeFilter = value.GameType;
             _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", value.GameType);
+        }
+
+        if (GameSettingsViewModel.SelectedGameType != value.GameType)
+        {
+            GameSettingsViewModel.SelectedGameType = value.GameType;
         }
     }
 

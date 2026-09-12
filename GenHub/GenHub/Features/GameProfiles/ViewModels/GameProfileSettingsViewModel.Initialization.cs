@@ -69,39 +69,12 @@ public partial class GameProfileSettingsViewModel
 
             GameSettingsViewModel.ColorValue = ColorValue;
 
-            if (_gameSettingsService != null)
-            {
-                try
-                {
-                    var existingGoSettings = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-                    if (existingGoSettings.Success && existingGoSettings.Data != null)
-                    {
-                        _logger?.LogInformation("Pre-loading existing GeneralsOnline settings for new profile");
-                        var data = existingGoSettings.Data;
-                        var tempProfile = new GameProfile { Id = "temp_new" };
-                        GameSettingsMapper.ApplyFromGeneralsOnlineSettings(data, tempProfile);
-                        await GameSettingsViewModel.InitializeForProfileAsync(null, tempProfile);
-                    }
-                    else
-                    {
-                        await GameSettingsViewModel.InitializeForProfileAsync(null, null);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "Failed to pre-load existing settings for new profile, using defaults");
-                    await GameSettingsViewModel.InitializeForProfileAsync(null, null);
-                }
-            }
-            else
-            {
-                await GameSettingsViewModel.InitializeForProfileAsync(null, null);
-            }
-
             if (SelectedGameInstallation != null)
             {
                 GameSettingsViewModel.SelectedGameType = SelectedGameInstallation.GameType;
             }
+
+            await GameSettingsViewModel.InitializeForProfileAsync(null, null);
 
             StatusMessage = $"Found {AvailableGameInstallations.Count} installations and {AvailableContent.Count} content items";
         }

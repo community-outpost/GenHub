@@ -464,6 +464,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 _logger.LogInformation("Using pre-selected GameType {GameType} for new profile initialization", SelectedGameType);
             }
 
+            // Seed baseline settings and _currentOptions from Options.ini first so that
+            // options the profile does not declare show, and are saved back as, what the user
+            // configured in Options.ini rather than view model defaults, and unmanaged keys are preserved.
+            if (SelectedGameType != GameType.Unknown)
+            {
+                await LoadOptionsFromIniAsync(SelectedGameType);
+            }
+
             // If profile has settings, load them
             if (profile?.HasCustomSettings() == true)
             {
@@ -475,10 +483,17 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             }
             else
             {
-                // For new profiles or profiles without settings, load from Options.ini as defaults
-                _isLoadingFromOptions = true;
-                await LoadSettingsCommand.ExecuteAsync(null);
-                _isLoadingFromOptions = false;
+                // For new profiles or profiles without settings, also load GeneralsOnline settings
+                if (_gameSettingsService != null)
+                {
+                    var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+                    if (goResult?.Success == true && goResult.Data != null)
+                    {
+                        ApplyGeneralsOnlineSettings(goResult.Data);
+                        _generalsOnlineSettingsSeeded = true;
+                    }
+                }
+
                 StatusMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
             }
         }
@@ -653,6 +668,46 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _isLoadingFromOptions;
 
     /// <summary>
+    /// Reads Options.ini for the specified game type and populates the view model and baseline options.
+    /// </summary>
+    /// <remarks>
+    /// View model properties have no unset state, so all of them are written back on save.
+    /// Seeding them from disk is what keeps that from replacing options the profile does not declare with defaults.
+    /// Populating <see cref="_currentOptions"/> also preserves unmanaged sections and properties.
+    /// </remarks>
+    private async Task LoadOptionsFromIniAsync(GameType gameType)
+    {
+        if (_gameSettingsService == null || gameType == GameType.Unknown)
+        {
+            return;
+        }
+
+        try
+        {
+            OptionsFilePath = _gameSettingsService.GetOptionsFilePath(gameType);
+            OptionsFileExists = _gameSettingsService.OptionsFileExists(gameType);
+
+            var result = await _gameSettingsService.LoadOptionsAsync(gameType);
+            if (result?.Success == true && result.Data != null)
+            {
+                _currentOptions = result.Data;
+                ApplyOptionsToViewModel(_currentOptions);
+
+                _logger.LogInformation("Loaded settings from Options.ini for {GameType}", gameType);
+            }
+            else
+            {
+                var errors = result?.Errors ?? ["LoadOptions result was null"];
+                _logger.LogWarning("Failed to load Options.ini for {GameType}: {Errors}", gameType, string.Join(", ", errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading Options.ini for {GameType}", gameType);
+        }
+    }
+
+    /// <summary>
     /// Loads the options.ini settings for the selected game type.
     /// </summary>
     [RelayCommand]
@@ -678,28 +733,11 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
             StatusMessage = $"Loading {gameType} settings...";
 
-            OptionsFilePath = _gameSettingsService.GetOptionsFilePath(gameType);
-            OptionsFileExists = _gameSettingsService.OptionsFileExists(gameType);
+            await LoadOptionsFromIniAsync(gameType);
 
-            var result = await _gameSettingsService.LoadOptionsAsync(gameType);
-
-            if (result?.Success == true && result.Data != null)
-            {
-                _currentOptions = result.Data;
-                ApplyOptionsToViewModel(_currentOptions);
-
-                StatusMessage = OptionsFileExists
-                    ? $"Loaded {gameType} settings from {Path.GetFileName(OptionsFilePath)}"
-                    : $"Using default {gameType} settings (file not found)";
-
-                _logger.LogInformation("Loaded settings for {GameType}", gameType);
-            }
-            else
-            {
-                var errors = result?.Errors ?? ["LoadOptions result was null"];
-                StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
-                _logger.LogWarning("Failed to load settings for {GameType}: {Errors}", gameType, string.Join(", ", errors));
-            }
+            StatusMessage = OptionsFileExists
+                ? $"Loaded {gameType} settings from {Path.GetFileName(OptionsFilePath)}"
+                : $"Using default {gameType} settings (file not found)";
 
             // Load GeneralsOnline settings separately
             var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();

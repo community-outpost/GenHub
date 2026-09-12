@@ -951,6 +951,117 @@ public class GameSettingsViewModelTests
         Assert.Equal(3.55f, request.TshGameWindowTransitionSpeedMultiplier);
     }
 
+    /// <summary>
+    /// Should seed baseline values from Options.ini when profile has settings,
+    /// so that properties not declared on the profile retain their Options.ini values.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_SeedOptionsIniValues_WhenProfileHasSettingsAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "custom-profile",
+            Name = "Custom Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            VideoResolutionWidth = 2560,
+            VideoResolutionHeight = 1440,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = "1.5",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("custom-profile", profile);
+
+        // Assert
+        Assert.Equal(2560, _viewModel.ResolutionWidth);
+        Assert.Equal(1440, _viewModel.ResolutionHeight);
+        Assert.Equal(1.5f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should preserve Options.ini transition speed when saving a profile that does not override it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_PreserveOptionsIniTransitionSpeed_WhenProfileDoesNotOverrideItAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "custom-profile",
+            Name = "Custom Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            VideoResolutionWidth = 2560,
+            VideoResolutionHeight = 1440,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = "1.5",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        IniOptions? savedOptions = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .Callback<GameType, IniOptions>((_, opt) => savedOptions = opt)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("custom-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedOptions);
+        Assert.True(savedOptions.AdditionalSections.TryGetValue(GameSettingsTheSuperHackersConstants.SectionName, out var tsh));
+        Assert.True(tsh.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speed));
+        Assert.Equal("1.5", speed);
+    }
+
+    /// <summary>
+    /// Should override Options.ini transition speed with profile value when configured in profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_OverrideOptionsIni_WhenProfileConfiguresTransitionSpeedAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "custom-profile",
+            Name = "Custom Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            VideoResolutionWidth = 2560,
+            TshGameWindowTransitionSpeedMultiplier = 2.5f,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = "1.5",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("custom-profile", profile);
+
+        // Assert
+        Assert.Equal(2.5f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
     private static GameProfile CreateGeneralsOnlineProfile()
     {
         return new GameProfile
