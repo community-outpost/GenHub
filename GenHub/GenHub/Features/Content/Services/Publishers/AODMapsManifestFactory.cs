@@ -104,8 +104,8 @@ public partial class AODMapsManifestFactory(
 
         if (files.Count == 0)
         {
-            logger.LogWarning("AODMaps archive contained no files in directory {Directory}, returning original manifest", extractedDirectory);
-            return [originalManifest];
+            logger.LogWarning("AODMaps archive contained no files in directory {Directory}", extractedDirectory);
+            throw new InvalidDataException("AODMaps archive contained no files.");
         }
 
         return

@@ -103,6 +103,40 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an empty archive containing no files throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_EmptyArchive_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var zipPath = Path.Combine(_stagingDirectory, "empty.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            // Empty archive - no entries
+        }
+
+        var factory = new AODMapsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IManifestIdService>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            new Mock<IFileHashProvider>().Object,
+            new Mock<ILogger<AODMapsManifestFactory>>().Object);
+        var original = new ContentManifest
+        {
+            Id = "1.0.aodmaps.map.empty",
+            Name = "Empty Map",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+    }
+
+    /// <summary>
     /// Verifies that when the extracted directory does not exist, the original manifest is returned.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
