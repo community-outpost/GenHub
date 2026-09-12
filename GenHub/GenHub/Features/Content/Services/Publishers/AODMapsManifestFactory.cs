@@ -92,7 +92,7 @@ public partial class AODMapsManifestFactory(
             files.Add(new ManifestFile
             {
                 RelativePath = Path.GetRelativePath(extractedDirectory, filePath),
-                SourceType = ContentSourceType.ContentAddressable,
+                SourceType = ContentSourceType.ExtractedPackage,
                 Size = fileInfo.Length,
                 Hash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken),
 

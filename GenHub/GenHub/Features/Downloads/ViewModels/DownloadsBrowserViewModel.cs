@@ -2127,6 +2127,7 @@ public sealed partial class DownloadsBrowserViewModel(
             var errorMsg = result.FirstError ?? "Unknown error";
             logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
+            notificationService.ShowError("Download failed", errorMsg);
             return false;
         }
         catch (OperationCanceledException ex)
@@ -2139,6 +2140,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogError(ex, "Error downloading content: {Name}", item.Name);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
+            notificationService.ShowError("Download failed", ex.Message);
             return false;
         }
         finally

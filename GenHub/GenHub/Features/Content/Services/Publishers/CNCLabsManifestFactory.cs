@@ -190,7 +190,7 @@ public partial class CNCLabsManifestFactory(
                     var manifestFile = new ManifestFile
                     {
                         RelativePath = relativePath,
-                        SourceType = ContentSourceType.ContentAddressable,
+                        SourceType = ContentSourceType.ExtractedPackage,
                         InstallTarget = originalManifest.ContentType == ContentType.Map
                             ? ContentInstallTarget.UserMapsDirectory
                             : ContentInstallTarget.Workspace,
@@ -210,6 +210,10 @@ public partial class CNCLabsManifestFactory(
                 // Delete ZIP file after successful extraction
                 File.Delete(zipPath);
                 logger.LogInformation("Deleted ZIP file after extraction: {ZipPath}", zipPath);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

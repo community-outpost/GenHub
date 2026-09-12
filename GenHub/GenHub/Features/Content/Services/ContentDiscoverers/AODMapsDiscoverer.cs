@@ -157,6 +157,15 @@ public partial class AODMapsDiscoverer(
                 HasMoreItems = hasMore,
             });
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "HTTP error while discovering maps from AODMaps");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed due to network error: {ex.Message}");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to discover maps from AODMaps");

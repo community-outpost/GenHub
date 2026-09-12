@@ -9,6 +9,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentProviders;
@@ -21,6 +22,7 @@ public class CNCLabsContentProvider(
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
+    CNCLabsManifestFactory manifestFactory,
     ILogger<CNCLabsContentProvider> logger,
     IContentValidator contentValidator,
     IInstallationInstructionsService installationInstructionsService)
@@ -80,13 +82,58 @@ public class CNCLabsContentProvider(
     }
 
     /// <inheritdoc />
-    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        Logger.LogDebug("Preparing CNC Labs content for manifest {ManifestId}", manifest.Id);
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        Logger.LogInformation("Preparing CNC Labs content: {ManifestId} ({Name})", manifest.Id, manifest.Name);
+
+        try
+        {
+            if (!_httpDeliverer.CanDeliver(manifest))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Cannot deliver content for manifest {manifest.Id}");
+            }
+
+            var deliveryResult = await _httpDeliverer.DeliverContentAsync(
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+
+            if (!deliveryResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Content delivery failed: {deliveryResult.FirstError}");
+            }
+
+            var extractedManifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+
+            var resultManifest = extractedManifests.Count > 0 ? extractedManifests[0] : (deliveryResult.Data ?? manifest);
+
+            Logger.LogInformation(
+                "Successfully prepared CNC Labs content {ManifestId} with {FileCount} files",
+                resultManifest.Id,
+                resultManifest.Files.Count);
+
+            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to prepare CNC Labs content {ManifestId}", manifest.Id);
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content preparation failed: {ex.Message}");
+        }
     }
 }

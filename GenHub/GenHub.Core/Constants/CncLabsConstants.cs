@@ -248,7 +248,7 @@ public static class CNCLabsConstants
     /// CSS selector for the description span whose id ends with <c>_DescriptionLabel</c> or container.
     /// This is the raw HTML we pass to <c>CNCLabsHelper.FormatDescription</c> to normalize.
     /// </summary>
-    public const string DetailsPageDescriptionSelector = ".DownloadItem span[id$='DescriptionLabel'], #description, div.card-body";
+    public const string DetailsPageDescriptionSelector = ".DownloadItem span[id$='DescriptionLabel'], #description";
 
     /// <summary>
     /// CSS selector that finds all <c>&lt;strong&gt;</c> nodes within the description cell or page.

@@ -67,22 +67,31 @@ public class AODMapsResolver(
             var parsedPage = await pageParser.ParseAsync(pageUrl, cancellationToken);
 
             // Find the specific file section that corresponds to our discovered item
-            // We use the DownloadURL from metadata to identify it
-            if (!discoveredItem.ResolverMetadata.TryGetValue(AODMapsConstants.DownloadUrlMetadataKey, out var targetDownloadUrl))
+            // Prioritize exact download URL matching, then fall back to name matching
+            string? targetDownloadUrl = discoveredItem.SelectedDownloadUrl;
+            if (string.IsNullOrEmpty(targetDownloadUrl) &&
+                discoveredItem.ResolverMetadata.TryGetValue(AODMapsConstants.DownloadUrlMetadataKey, out var metaUrl))
             {
-                logger.LogWarning("No download URL found in metadata for {Name}", discoveredItem.Name);
-                return OperationResult<ContentManifest>.CreateFailure("Download URL not found in metadata");
+                targetDownloadUrl = metaUrl;
             }
 
-            // Fallback: If no download URL match, try Name match
-            var section = parsedPage.Sections.OfType<DownloadableFile>().FirstOrDefault(f =>
-                string.Equals(f.DownloadUrl, targetDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(f.Name, discoveredItem.Name, StringComparison.OrdinalIgnoreCase));
+            DownloadableFile? section = null;
+            if (!string.IsNullOrEmpty(targetDownloadUrl))
+            {
+                section = parsedPage.Sections.OfType<DownloadableFile>().FirstOrDefault(f =>
+                    string.Equals(f.DownloadUrl, targetDownloadUrl, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (section == null)
             {
-                 logger.LogWarning("Could not find content section for {Name} in parsed page {Url}", discoveredItem.Name, discoveredItem.SourceUrl);
-                 return OperationResult<ContentManifest>.CreateFailure("Content section not found on page");
+                section = parsedPage.Sections.OfType<DownloadableFile>().FirstOrDefault(f =>
+                    string.Equals(f.Name, discoveredItem.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (section == null)
+            {
+                logger.LogWarning("Could not find content section for {Name} in parsed page {Url}", discoveredItem.Name, pageUrl);
+                return OperationResult<ContentManifest>.CreateFailure("Content section not found on page");
             }
 
             // Convert to MapDetails
@@ -97,6 +106,10 @@ public class AODMapsResolver(
                 manifest.Name);
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -143,12 +156,16 @@ public class AODMapsResolver(
             description = item.Description;
         }
 
+        var previewUrl = !string.IsNullOrWhiteSpace(file.ThumbnailUrl)
+            ? file.ThumbnailUrl
+            : item.IconUrl;
+
         return new ParsedContentDetails(
             Name: file.Name,
             Description: description,
             Author: author,
-            PreviewImage: file.ThumbnailUrl ?? string.Empty,
-            Screenshots: file.ThumbnailUrl is not null ? [file.ThumbnailUrl] : [],
+            PreviewImage: previewUrl ?? string.Empty,
+            Screenshots: !string.IsNullOrWhiteSpace(previewUrl) ? [previewUrl] : [],
             FileSize: file.SizeBytes ?? 0,
             DownloadCount: file.DownloadCount ?? 0,
             SubmissionDate: subDate,

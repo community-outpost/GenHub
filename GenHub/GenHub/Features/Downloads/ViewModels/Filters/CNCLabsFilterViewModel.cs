@@ -49,6 +49,7 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     ];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasActiveFilters))]
     private ContentType? _selectedContentType = ContentType.Map; // Default to Map
 
     /// <summary>
@@ -69,6 +70,7 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         }
 
         SelectedPlayerCount = parsed;
+        NotifyFiltersChanged();
         OnPropertyChanged(nameof(HasActiveFilters));
     }
 
@@ -89,7 +91,11 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         .Select(t => t.Tag);
 
     /// <inheritdoc />
-    public override bool HasActiveFilters => MapTagFilters.Any(t => t.IsSelected) || (TargetGame.HasValue && TargetGame.Value != GameType.ZeroHour) || SelectedPlayerCount.HasValue;
+    public override bool HasActiveFilters =>
+        MapTagFilters.Any(t => t.IsSelected) ||
+        (TargetGame.HasValue && TargetGame.Value != GameType.ZeroHour) ||
+        SelectedPlayerCount.HasValue ||
+        (SelectedContentType.HasValue && SelectedContentType.Value != ContentType.Map);
 
     /// <inheritdoc />
     public override ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery)
@@ -158,6 +164,11 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
             yield return $"Tags: {string.Join(", ", activeTags)}";
         }
 
+        if (SelectedContentType.HasValue && SelectedContentType.Value != ContentType.Map)
+        {
+            yield return $"Type: {SelectedContentType}";
+        }
+
         if (SelectedPlayerCount.HasValue)
         {
             yield return $"{SelectedPlayerCount.Value} Players";
@@ -170,6 +181,8 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         TargetGame = game;
         OnPropertyChanged(nameof(IsZeroHourSelected));
         OnPropertyChanged(nameof(IsGeneralsSelected));
+        NotifyFiltersChanged();
+        OnPropertyChanged(nameof(HasActiveFilters));
     }
 
     /// <summary>
@@ -195,6 +208,8 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     {
         // Don't toggle IsSelected here - TwoWay binding on IsChecked already handles it
         OnPropertyChanged(nameof(ActiveTags));
+        NotifyFiltersChanged();
+        OnPropertyChanged(nameof(HasActiveFilters));
     }
 
     [RelayCommand]
@@ -209,5 +224,7 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         // Ensure current is selected (in case it was already selected, it stays selected)
         item.IsSelected = true;
         SelectedContentType = item.ContentType;
+        NotifyFiltersChanged();
+        OnPropertyChanged(nameof(HasActiveFilters));
     }
 }

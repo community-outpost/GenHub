@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,7 +9,6 @@ using AngleSharp;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Parsers;
-using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Parsers;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
@@ -22,7 +22,7 @@ namespace GenHub.Features.Content.Services.Parsers;
 /// </summary>
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public partial class AODMapsPageParser(
-    IPlaywrightService playwrightService,
+    IHttpClientFactory httpClientFactory,
     ILogger<AODMapsPageParser> logger) : IWebPageParser
 {
     /// <summary>
@@ -235,7 +235,15 @@ public partial class AODMapsPageParser(
     {
         logger.LogInformation("Parsing AODMaps page: {Url}", url);
 
-        var document = await playwrightService.FetchAndParseAsync(url, cancellationToken);
+        using var client = httpClientFactory.CreateClient(AODMapsConstants.PublisherType);
+        if (client.DefaultRequestHeaders.UserAgent.Count == 0)
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+        }
+
+        var html = await client.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
+        var browsingContext = BrowsingContext.New(Configuration.Default);
+        using var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
         return ParseInternal(url, document);
     }
 
