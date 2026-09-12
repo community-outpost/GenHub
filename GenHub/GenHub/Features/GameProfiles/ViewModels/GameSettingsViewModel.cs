@@ -615,14 +615,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private GameType? _pendingGameTypeLoad;
 
     /// <summary>
-    /// Reads Options.ini for the specified game type and populates the view model and baseline options.
-    /// </summary>
-    /// <remarks>
-    /// View model properties have no unset state, so all of them are written back on save.
-    /// Seeding them from disk is what keeps that from replacing options the profile does not declare with defaults.
-    /// Populating <see cref="_currentOptions"/> also preserves unmanaged sections and properties.
-    /// </remarks>
-    /// <summary>
     /// Determines and sets the initial game type during profile initialization.
     /// </summary>
     /// <param name="profile">The game profile.</param>
@@ -719,6 +711,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
     }
 
+    /// <summary>
+    /// Reads Options.ini for the specified game type and populates the view model and baseline options.
+    /// </summary>
+    /// <remarks>
+    /// View model properties have no unset state, so all of them are written back on save.
+    /// Seeding them from disk is what keeps that from replacing options the profile does not declare with defaults.
+    /// Populating <see cref="_currentOptions"/> also preserves unmanaged sections and properties.
+    /// </remarks>
     private async Task<bool> LoadOptionsFromIniAsync(GameType gameType)
     {
         if (_gameSettingsService == null || gameType == GameType.Unknown)
