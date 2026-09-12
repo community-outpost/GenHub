@@ -333,6 +333,69 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that DeactivateProfileUserDataAsync with removeFiles=false marks manifests inactive
+    /// while preserving physical files on disk, allowing another profile to adopt identical files without conflict.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeactivateProfileUserDataAsync_WhenRemoveFilesFalse_PreservesFilesOnDiskAndAllowsAdoptionAsync()
+    {
+        // Arrange
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/shared.big",
+                Hash = "hash-shared-big",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-first",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(installResult.Success);
+        var targetBigPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "shared.big");
+        Assert.True(File.Exists(targetBigPath));
+
+        // Act: Deactivate with removeFiles: false
+        var deactivateResult = await _trackerService.DeactivateProfileUserDataAsync(
+            "profile-first",
+            removeFiles: false,
+            CancellationToken.None);
+
+        // Assert: File is still on disk, manifest is inactive
+        Assert.True(deactivateResult.Success);
+        Assert.True(File.Exists(targetBigPath));
+
+        var manifestsResult = await _trackerService.GetProfileUserDataAsync("profile-first", CancellationToken.None);
+        Assert.True(manifestsResult.Success);
+        Assert.NotNull(manifestsResult.Data);
+        Assert.Single(manifestsResult.Data);
+        Assert.False(manifestsResult.Data[0].IsActive);
+
+        // Act 2: New profile installs identical manifest/file - should adopt without conflict
+        var secondInstallResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-second",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(secondInstallResult.Success);
+        Assert.True(File.Exists(targetBigPath));
+    }
+
+    /// <summary>
     /// Verifies that uninstall cleans up empty subdirectories without deleting the root game data folder.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

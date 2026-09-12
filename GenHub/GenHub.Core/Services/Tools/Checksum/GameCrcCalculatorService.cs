@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -15,6 +16,8 @@ namespace GenHub.Core.Services.Tools.Checksum;
 /// </summary>
 public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
 {
+    private readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, long FileLength, string Crc)> _exeCrcCache = new(StringComparer.OrdinalIgnoreCase);
+
     /// <inheritdoc/>
     public async Task<OperationResult<string>> CalculateExeCrcAsync(
         string executablePath,
@@ -28,32 +31,54 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return OperationResult<string>.CreateFailure($"Executable not found at '{executablePath}'.");
         }
 
-        return await Task.Run(
-            () =>
+        try
+        {
+            var fileInfo = new FileInfo(executablePath);
+            var cacheKey = $"{fileInfo.FullName}|{gameRootPath}|{major}|{minor}";
+            if (_exeCrcCache.TryGetValue(cacheKey, out var cached) &&
+                cached.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc &&
+                cached.FileLength == fileInfo.Length)
             {
-                ct.ThrowIfCancellationRequested();
+                return OperationResult<string>.CreateSuccess(cached.Crc);
+            }
 
-                var readResult = ReadExecutableBytes(executablePath);
-                if (!readResult.Success || readResult.Data == null)
+            return await Task.Run(
+                () =>
                 {
-                    var errorMessage = readResult.Errors.Count > 0 ? readResult.Errors[0] : "Failed to read executable.";
-                    return OperationResult<string>.CreateFailure(errorMessage);
-                }
+                    ct.ThrowIfCancellationRequested();
 
-                var exeBytes = readResult.Data;
+                    var readResult = ReadExecutableBytes(executablePath);
+                    if (!readResult.Success || readResult.Data == null)
+                    {
+                        var errorMessage = readResult.Errors.Count > 0 ? readResult.Errors[0] : "Failed to read executable.";
+                        return OperationResult<string>.CreateFailure(errorMessage);
+                    }
 
-                var crc = new LegacyChecksum();
-                crc.Add(exeBytes);
+                    var exeBytes = readResult.Data;
 
-                var (resolvedMajor, resolvedMinor) = ResolveVersion(exeBytes, executablePath, major, minor);
-                AddVersionBytes(crc, resolvedMajor, resolvedMinor);
+                    var crc = new LegacyChecksum();
+                    crc.Add(exeBytes);
 
-                string root = gameRootPath ?? Path.GetDirectoryName(executablePath) ?? string.Empty;
-                AddScriptFiles(crc, root);
+                    var (resolvedMajor, resolvedMinor) = ResolveVersion(exeBytes, executablePath, major, minor);
+                    AddVersionBytes(crc, resolvedMajor, resolvedMinor);
 
-                return OperationResult<string>.CreateSuccess($"0x{crc.Value:X8}");
-            },
-            ct);
+                    string root = gameRootPath ?? Path.GetDirectoryName(executablePath) ?? string.Empty;
+                    AddScriptFiles(crc, root);
+
+                    var calculatedCrc = $"0x{crc.Value:X8}";
+                    _exeCrcCache[cacheKey] = (fileInfo.LastWriteTimeUtc, fileInfo.Length, calculatedCrc);
+                    return OperationResult<string>.CreateSuccess(calculatedCrc);
+                },
+                ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<string>.CreateFailure($"Failed to calculate executable CRC: {ex.Message}");
+        }
     }
 
     /// <inheritdoc/>
@@ -230,19 +255,12 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
 
     private static (string DefaultPath, string OverridePath)[] BuildGeneralsOrder()
     {
-        var list = new List<(string DefaultPath, string OverridePath)>();
-        foreach (var step in SageChecksumConstants.GeneralsMdOrder)
-        {
-            if (step.OverridePath.Contains("INIZH", StringComparison.OrdinalIgnoreCase) ||
-                step.DefaultPath.Contains("INIZH", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            list.Add(step);
-        }
-
-        return [.. list];
+        // Vanilla Generals excludes Weather (indices 3 and 4 in GeneralsMdOrder)
+        return
+        [
+            .. SageChecksumConstants.GeneralsMdOrder[..3],
+            .. SageChecksumConstants.GeneralsMdOrder[5..],
+        ];
     }
 
     private static void LoadDirectory(SageVirtualFileSystem vfs, string path, XferChecksum crc)

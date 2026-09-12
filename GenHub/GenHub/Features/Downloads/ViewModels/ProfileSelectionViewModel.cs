@@ -238,71 +238,14 @@ public sealed partial class ProfileSelectionViewModel(
             CompatibleProfileCards.Clear();
             OtherProfiles.Clear();
 
-            // The picker needs names, rather than opaque manifest IDs, so people can tell
-            // exactly what is already in a profile before adding more content to it.
-            var contentNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
-            if (manifestsResult.Success && manifestsResult.Data != null)
-            {
-                foreach (var manifest in manifestsResult.Data)
-                {
-                    contentNames[manifest.Id.Value] = manifest.Name;
-                }
-            }
-
-            foreach (var profile in profilesResult.Data)
-            {
-                var option = new ProfileOptionViewModel(profile, contentNames);
-
-                bool isMatch;
-                if (compatibleProfileIds != null)
-                {
-                    isMatch = compatibleProfileIds.Contains(profile.Id);
-                    if (!isMatch)
-                    {
-                        option.ShowWarning = true;
-                        if (profile.GameClient?.GameType != targetGame)
-                        {
-                            var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
-                            option.WarningMessage = $"This profile is for {profileGameType}, content is for {targetGame}";
-                        }
-                        else
-                        {
-                            option.WarningMessage = "Profile game client / patch does not match replay CRC requirements";
-                        }
-                    }
-                }
-                else
-                {
-                    isMatch = IsCompatible(profile, targetGame);
-                    if (!isMatch)
-                    {
-                        option.ShowWarning = true;
-                        var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
-                        option.WarningMessage = $"This profile is for {profileGameType}, content is for {targetGame}";
-                    }
-                }
-
-                if (isMatch)
-                {
-                    CompatibleProfiles.Add(option);
-                    CompatibleProfileCards.Add(option);
-                }
-                else
-                {
-                    OtherProfiles.Add(option);
-                }
-            }
+            var contentNames = await LoadContentNamesAsync(ct);
+            PopulateProfileOptions(profilesResult.Data, contentNames, targetGame, compatibleProfileIds);
 
             // Keep creation in the same collection as profile cards so the card grid lays it
             // out in the next available slot instead of starting a separate row.
             CompatibleProfileCards.Add(new CreateProfileOptionViewModel());
 
-            OnPropertyChanged(nameof(HasAnyProfiles));
-            OnPropertyChanged(nameof(HasCompatibleProfiles));
-            OnPropertyChanged(nameof(HasOnlyIncompatibleProfiles));
-            OnPropertyChanged(nameof(HasOtherProfiles));
-            OnPropertyChanged(nameof(ProfileSummary));
+            NotifyProfilePropertiesChanged();
 
             logger.LogInformation(
                 "Loaded {CompatibleCount} compatible and {OtherCount} incompatible profiles for {TargetGame}",
@@ -323,6 +266,83 @@ public sealed partial class ProfileSelectionViewModel(
         {
             IsLoading = false;
         }
+    }
+
+    private async Task<Dictionary<string, string>> LoadContentNamesAsync(CancellationToken ct)
+    {
+        var contentNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
+        if (manifestsResult.Success && manifestsResult.Data != null)
+        {
+            foreach (var manifest in manifestsResult.Data)
+            {
+                contentNames[manifest.Id.Value] = manifest.Name;
+            }
+        }
+
+        return contentNames;
+    }
+
+    private void PopulateProfileOptions(
+        IEnumerable<GameProfile> profiles,
+        IReadOnlyDictionary<string, string> contentNames,
+        GameType targetGame,
+        ISet<string>? compatibleProfileIds)
+    {
+        foreach (var profile in profiles)
+        {
+            var option = new ProfileOptionViewModel(profile, contentNames);
+            var (isMatch, warningMessage) = EvaluateCompatibility(profile, targetGame, compatibleProfileIds);
+
+            if (!isMatch)
+            {
+                option.ShowWarning = true;
+                option.WarningMessage = warningMessage;
+                OtherProfiles.Add(option);
+            }
+            else
+            {
+                CompatibleProfiles.Add(option);
+                CompatibleProfileCards.Add(option);
+            }
+        }
+    }
+
+    private static (bool IsMatch, string? WarningMessage) EvaluateCompatibility(
+        GameProfile profile,
+        GameType targetGame,
+        ISet<string>? compatibleProfileIds)
+    {
+        if (compatibleProfileIds != null)
+        {
+            if (compatibleProfileIds.Contains(profile.Id))
+            {
+                return (true, null);
+            }
+
+            var warning = profile.GameClient?.GameType != targetGame
+                ? $"This profile is for {profile.GameClient?.GameType.ToString() ?? "Tool"}, content is for {targetGame}"
+                : "Profile game client / patch does not match replay CRC requirements";
+
+            return (false, warning);
+        }
+
+        if (IsCompatible(profile, targetGame))
+        {
+            return (true, null);
+        }
+
+        var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
+        return (false, $"This profile is for {profileGameType}, content is for {targetGame}");
+    }
+
+    private void NotifyProfilePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(HasAnyProfiles));
+        OnPropertyChanged(nameof(HasCompatibleProfiles));
+        OnPropertyChanged(nameof(HasOnlyIncompatibleProfiles));
+        OnPropertyChanged(nameof(HasOtherProfiles));
+        OnPropertyChanged(nameof(ProfileSummary));
     }
 
     /// <inheritdoc />

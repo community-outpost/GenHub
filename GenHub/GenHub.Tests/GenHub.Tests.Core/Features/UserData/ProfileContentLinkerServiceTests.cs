@@ -30,6 +30,8 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
     public ProfileContentLinkerServiceTests()
     {
         ProfileContentLinkerService.ResetActiveProfilesForTesting();
+        _userDataTrackerMock.Setup(t => t.DeactivateProfileUserDataAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _linkerService = new ProfileContentLinkerService(
             _userDataTrackerMock.Object,
             _loggerMock.Object);
@@ -101,6 +103,9 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
+        _userDataTrackerMock.Verify(
+            t => t.DeactivateProfileUserDataAsync(oldProfileId, false, It.IsAny<CancellationToken>()),
+            Times.Once);
         _userDataTrackerMock.Verify(t => t.DeactivateProfileUserDataAsync(lingeringProfileId, It.IsAny<CancellationToken>()), Times.Once);
         _userDataTrackerMock.Verify(t => t.ActivateProfileUserDataAsync(newProfileId, It.IsAny<CancellationToken>()), Times.Once);
     }

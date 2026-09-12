@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -26,8 +29,12 @@ public sealed partial class GameClientSelectionViewModel(
     IGameProfileManager profileManager,
     IContentManifestPool manifestPool,
     ICrcMappingRegistry crcMappingRegistry,
-    ILogger<GameClientSelectionViewModel> logger) : ObservableObject
+    ILogger<GameClientSelectionViewModel> logger,
+    IGameCrcCalculatorService? crcCalculator = null,
+    IGameInstallationService? installationService = null) : ObservableObject
 {
+    private const string CrcCompatibleCategory = "CRC Compatible";
+
     private readonly List<GameClientCardViewModel> _allClients = [];
 
     [ObservableProperty]
@@ -83,29 +90,11 @@ public sealed partial class GameClientSelectionViewModel(
     /// <param name="targetGame">The game type (Generals or Zero Hour).</param>
     /// <param name="replayFileName">The name of the replay file.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public Task LoadClientsAsync(GameType targetGame, string replayFileName, CancellationToken ct = default)
-        => LoadClientsAsync(targetGame, replayFileName, replay: null, ct);
-
-    /// <summary>
-    /// Loads available game clients for the specified game type and replay file.
-    /// </summary>
-    /// <param name="targetGame">The game type (Generals or Zero Hour).</param>
-    /// <param name="replayFileName">The name of the replay file.</param>
-    /// <param name="replay">The replay file containing CRC and matching info.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task LoadClientsAsync(
-        GameType targetGame,
-        string replayFileName,
-        ReplayFile? replay = null,
-        CancellationToken ct = default)
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task LoadClientsAsync(GameType targetGame, string replayFileName, CancellationToken ct = default)
     {
         TargetGame = targetGame;
         ReplayFileName = replayFileName;
-
-        InitializeCrcInfo(replay);
-
         IsLoading = true;
         _allClients.Clear();
         FilteredClients.Clear();
@@ -113,27 +102,39 @@ public sealed partial class GameClientSelectionViewModel(
         try
         {
             logger.LogInformation(
-                "[ReplayManager] Discovering game clients for {GameType} (Replay: '{ReplayFile}', ExeCrc: {ExeCrc}, IniCrc: {IniCrc})",
-                targetGame,
+                "[ReplayManager] Discovering available game clients for replay '{ReplayName}' (TargetGame: {TargetGame})",
                 replayFileName,
-                ReplayExeCrc,
-                ReplayIniCrc);
+                targetGame);
 
             var discoveredKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            var matchedClient = ResolveMatchedClient(replay);
-            if (matchedClient != null)
-            {
-                AddMatchedClientCard(matchedClient, targetGame, discoveredKeys);
-            }
+            // Step 1: Discover catalog manifests
+            await DiscoverManifestClientsAsync(targetGame, null, discoveredKeys, ct);
 
-            AddRetailClientCard(targetGame, replay, discoveredKeys);
+            // Step 2: Discover existing profile clients
+            await DiscoverProfileClientsAsync(targetGame, null, discoveredKeys, ct);
 
-            await DiscoverManifestClientsAsync(targetGame, matchedClient, discoveredKeys, ct);
-            await DiscoverProfileClientsAsync(targetGame, matchedClient, discoveredKeys, ct);
+            // Step 3: Discover base installations
+            await DiscoverInstallationClientsAsync(targetGame, null, discoveredKeys, ct);
+
+            // Step 4: Always add retail client card as fallback
+            AddRetailClientCard(targetGame, null, discoveredKeys);
 
             UpdateCompatibilityCounts();
             ApplyFilter();
+
+            logger.LogInformation(
+                "[ReplayManager] Discovered {TotalCount} clients for {TargetGame}",
+                _allClients.Count,
+                targetGame);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on cancellation
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[ReplayManager] Failed to discover game clients for replay '{ReplayName}'", replayFileName);
         }
         finally
         {
@@ -142,33 +143,88 @@ public sealed partial class GameClientSelectionViewModel(
     }
 
     /// <summary>
-    /// Determines whether the given manifest matches the specified target game.
-    /// Falls back to token matching in the manifest ID if TargetGame is Unknown.
+    /// Loads available game clients for the specified replay with CRC-aware matching.
     /// </summary>
-    /// <param name="manifest">The content manifest.</param>
-    /// <param name="targetGame">The target game.</param>
-    /// <returns><c>true</c> if the manifest matches the target game; otherwise, <c>false</c>.</returns>
-    internal static bool ManifestMatchesGame(ContentManifest manifest, GameType targetGame)
+    /// <param name="targetGame">The game type (Generals or Zero Hour).</param>
+    /// <param name="replay">The replay file with parsed CRC metadata.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task LoadClientsForReplayAsync(GameType targetGame, ReplayFile? replay, CancellationToken ct = default)
     {
-        if (manifest.TargetGame == targetGame)
+        TargetGame = targetGame;
+        ReplayFileName = replay?.FileName ?? string.Empty;
+        IsLoading = true;
+        _allClients.Clear();
+        FilteredClients.Clear();
+
+        InitializeCrcInfo(replay);
+
+        try
+        {
+            logger.LogInformation(
+                "[ReplayManager] Discovering game clients for replay '{ReplayName}' (Game: {TargetGame}, EXE CRC: {ExeCrc}, INI CRC: {IniCrc})",
+                ReplayFileName,
+                targetGame,
+                ReplayExeCrc,
+                ReplayIniCrc);
+
+            var matchedClient = ResolveMatchedClient(replay);
+            var discoveredKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Step 1: If CRC matched a known client, add it first as top-priority card
+            if (matchedClient != null)
+            {
+                AddMatchedClientCard(matchedClient, targetGame, discoveredKeys);
+            }
+
+            // Step 2: Discover catalog manifests
+            await DiscoverManifestClientsAsync(targetGame, matchedClient, discoveredKeys, ct);
+
+            // Step 3: Discover existing profile clients
+            await DiscoverProfileClientsAsync(targetGame, matchedClient, discoveredKeys, ct);
+
+            // Step 4: Discover base installations
+            await DiscoverInstallationClientsAsync(targetGame, matchedClient, discoveredKeys, ct);
+
+            // Step 5: Always add retail client card (compatible if replay matches retail CRC)
+            AddRetailClientCard(targetGame, replay, discoveredKeys);
+
+            UpdateCompatibilityCounts();
+            ApplyFilter();
+
+            logger.LogInformation(
+                "[ReplayManager] Discovered {TotalCount} clients ({CompatibleCount} CRC-compatible) for {TargetGame}",
+                _allClients.Count,
+                CompatibleCount,
+                targetGame);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on cancellation
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[ReplayManager] Failed to discover game clients for replay '{ReplayName}'", ReplayFileName);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private static bool ManifestMatchesGame(ContentManifest manifest, GameType targetGame)
+    {
+        if (manifest.TargetGame != GameType.Unknown && manifest.TargetGame == targetGame)
         {
             return true;
         }
 
-        if (manifest.TargetGame != GameType.Unknown)
-        {
-            return false;
-        }
+        var tokens = (manifest.Id.Value ?? string.Empty).ToLowerInvariant().Split('-', '_', '.');
 
-        var tokens = manifest.Id.Value.Split('.');
         if (targetGame == GameType.ZeroHour)
         {
-            return tokens.Any(t => string.Equals(t, "zerohour", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(t, "zh", StringComparison.OrdinalIgnoreCase) ||
-                                   t.StartsWith("zerohour-", StringComparison.OrdinalIgnoreCase) ||
-                                   t.StartsWith("zh-", StringComparison.OrdinalIgnoreCase) ||
-                                   t.EndsWith("-zerohour", StringComparison.OrdinalIgnoreCase) ||
-                                   t.EndsWith("-zh", StringComparison.OrdinalIgnoreCase));
+            return tokens.Any(t => string.Equals(t, "zh", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(t, "zerohour", StringComparison.OrdinalIgnoreCase));
         }
 
         if (targetGame == GameType.Generals)
@@ -214,6 +270,12 @@ public sealed partial class GameClientSelectionViewModel(
             ReplayIniCrc = string.Empty;
             HasCrcInfo = false;
         }
+
+        logger.LogDebug(
+            "[ReplayManager] Initialized CRC info: Exe={ExeCrc}, Ini={IniCrc}, HasInfo={HasInfo}",
+            ReplayExeCrc,
+            ReplayIniCrc,
+            HasCrcInfo);
     }
 
     private CrcMappingEntry? ResolveMatchedClient(ReplayFile? replay)
@@ -253,7 +315,7 @@ public sealed partial class GameClientSelectionViewModel(
             Name: matchedClient.Description ?? $"{matchedClient.Publisher} {matchedClient.Version}",
             Version: matchedClient.Version ?? "Unknown",
             Publisher: matchedClient.Publisher ?? "Unknown",
-            Category: "CRC Compatible",
+            Category: CrcCompatibleCategory,
             ExecutablePath: string.Empty,
             Description: $"Exact match for replay CRC (EXE: {ReplayExeCrc}, INI: {ReplayIniCrc})",
             OnSelect: OnClientSelected,
@@ -268,8 +330,18 @@ public sealed partial class GameClientSelectionViewModel(
 
     private void AddRetailClientCard(GameType targetGame, ReplayFile? replay, ISet<string> discoveredKeys)
     {
-        var isRetailZeroHour = targetGame == GameType.ZeroHour && replay?.ExeCrc == 0x76B66B82;
-        var isRetailGenerals = targetGame == GameType.Generals && replay?.ExeCrc == 0x36B86C82;
+        var exeCrc = replay?.ExeCrc ?? 0;
+        var isRetailZeroHour = targetGame == GameType.ZeroHour &&
+            (exeCrc == 0xDA2B4B18 || exeCrc == 0x401D89EA || exeCrc == 0x887B0CAA ||
+             string.Equals(ReplayExeCrc, "0xDA2B4B18", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(ReplayExeCrc, "0x401D89EA", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(ReplayExeCrc, "0x887B0CAA", StringComparison.OrdinalIgnoreCase));
+
+        var isRetailGenerals = targetGame == GameType.Generals &&
+            (exeCrc == 0x1C96366F || exeCrc == 0x27533BB0 ||
+             string.Equals(ReplayExeCrc, "0x1C96366F", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(ReplayExeCrc, "0x27533BB0", StringComparison.OrdinalIgnoreCase));
+
         var isRetailMatch = isRetailZeroHour || isRetailGenerals;
 
         var retailName = targetGame == GameType.ZeroHour ? "Retail 1.04" : "Retail 1.0";
@@ -292,7 +364,7 @@ public sealed partial class GameClientSelectionViewModel(
             Name: retailName,
             Version: retailClient.Version,
             Publisher: "EA / Retail",
-            Category: isRetailMatch ? "CRC Compatible" : "Retail Fallback",
+            Category: isRetailMatch ? CrcCompatibleCategory : "Retail Fallback",
             ExecutablePath: string.Empty,
             Description: retailDescription,
             OnSelect: OnClientSelected,
@@ -313,9 +385,13 @@ public sealed partial class GameClientSelectionViewModel(
         {
             ShowAllClients = true;
         }
+        else
+        {
+            ShowAllClients = false;
+        }
     }
 
-    private string GetPublisherDisplayName(PublisherInfo? publisher)
+    private static string GetPublisherDisplayName(PublisherInfo? publisher)
     {
         if (!string.IsNullOrWhiteSpace(publisher?.Name))
         {
@@ -401,7 +477,7 @@ public sealed partial class GameClientSelectionViewModel(
             ? manifest.Metadata.Description
             : $"Catalog manifest {manifest.Id.Value}";
 
-        var category = isCrcMatch ? "CRC Compatible" : "Catalog Manifest";
+        var category = isCrcMatch ? CrcCompatibleCategory : "Catalog Manifest";
 
         return new GameClientCardViewModel(new GameClientCardParameters(
             Client: client,
@@ -456,15 +532,45 @@ public sealed partial class GameClientSelectionViewModel(
                     isCrcMatch = string.Equals(matchedClient.Version.TrimStart('0'), client.Version.TrimStart('0'), StringComparison.OrdinalIgnoreCase);
                 }
 
+                // If not already matched by version/identity, check if the profile's executable CRC matches the replay's ExeCrc
+                if (!isCrcMatch && crcCalculator != null && !string.IsNullOrEmpty(exePath) && !string.IsNullOrEmpty(ReplayExeCrc))
+                {
+                    var fullExePath = exePath;
+                    if (!Path.IsPathRooted(fullExePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
+                    {
+                        fullExePath = Path.Combine(client.WorkingDirectory, fullExePath);
+                    }
+
+                    if (File.Exists(fullExePath))
+                    {
+                        try
+                        {
+                            var calcRes = await crcCalculator.CalculateExeCrcAsync(fullExePath, ct: ct);
+                            if (calcRes.Success && string.Equals(calcRes.Data, ReplayExeCrc, StringComparison.OrdinalIgnoreCase))
+                            {
+                                isCrcMatch = true;
+                            }
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            logger.LogDebug(ex, "[ReplayManager] Could not calculate CRC for profile executable: {ExePath}", fullExePath);
+                        }
+                    }
+                }
+
+                var description = isCrcMatch
+                    ? $"CRC match (EXE: {ReplayExeCrc}) from existing profile '{profile.Name}'"
+                    : $"Configured in existing profile '{profile.Name}'";
+
                 _allClients.Add(new GameClientCardViewModel(new GameClientCardParameters(
                     Client: client,
                     ManifestId: client.Id,
                     Name: clientName,
                     Version: client.Version ?? "Custom",
                     Publisher: client.PublisherType ?? "Local Profile",
-                    Category: isCrcMatch ? "CRC Compatible" : "Local Profile",
+                    Category: isCrcMatch ? CrcCompatibleCategory : "Local Profile",
                     ExecutablePath: exePath,
-                    Description: $"Configured in existing profile '{profile.Name}'",
+                    Description: description,
                     OnSelect: OnClientSelected,
                     IsCrcMatch: isCrcMatch)));
             }
@@ -472,6 +578,93 @@ public sealed partial class GameClientSelectionViewModel(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "[ReplayManager] Error querying profiles for game clients");
+        }
+    }
+
+    private async Task DiscoverInstallationClientsAsync(
+        GameType targetGame,
+        CrcMappingEntry? matchedClient,
+        HashSet<string> discoveredKeys,
+        CancellationToken ct)
+    {
+        if (installationService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var installationsResult = await installationService.GetAllInstallationsAsync(ct);
+            if (!installationsResult.Success || installationsResult.Data == null)
+            {
+                return;
+            }
+
+            foreach (var installation in installationsResult.Data)
+            {
+                if (installation.AvailableGameClients == null)
+                {
+                    continue;
+                }
+
+                foreach (var client in installation.AvailableGameClients.Where(c => c.GameType == targetGame))
+                {
+                    var clientName = !string.IsNullOrWhiteSpace(client.Name)
+                        ? client.Name
+                        : $"{installation.InstallationType} Client";
+
+                    var exePath = client.ExecutablePath ?? string.Empty;
+                    var dedupeKey = $"{clientName}|{exePath}";
+
+                    if (!discoveredKeys.Add(dedupeKey))
+                    {
+                        continue;
+                    }
+
+                    var isCrcMatch = false;
+                    var fullExePath = exePath;
+                    if (!Path.IsPathRooted(fullExePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
+                    {
+                        fullExePath = Path.Combine(client.WorkingDirectory, fullExePath);
+                    }
+
+                    if (File.Exists(fullExePath) && crcCalculator != null && !string.IsNullOrEmpty(ReplayExeCrc))
+                    {
+                        try
+                        {
+                            var calcRes = await crcCalculator.CalculateExeCrcAsync(fullExePath, ct: ct);
+                            if (calcRes.Success && string.Equals(calcRes.Data, ReplayExeCrc, StringComparison.OrdinalIgnoreCase))
+                            {
+                                isCrcMatch = true;
+                            }
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            logger.LogDebug(ex, "[ReplayManager] Could not calculate CRC for installation client: {ExePath}", fullExePath);
+                        }
+                    }
+
+                    var description = isCrcMatch
+                        ? $"CRC match (EXE: {ReplayExeCrc}) from {installation.InstallationType} installation"
+                        : $"Client from {installation.InstallationType} installation";
+
+                    _allClients.Add(new GameClientCardViewModel(new GameClientCardParameters(
+                        Client: client,
+                        ManifestId: client.Id,
+                        Name: clientName,
+                        Version: client.Version ?? "Base",
+                        Publisher: client.PublisherType ?? $"{installation.InstallationType}",
+                        Category: isCrcMatch ? CrcCompatibleCategory : "Base Installation",
+                        ExecutablePath: exePath,
+                        Description: description,
+                        OnSelect: OnClientSelected,
+                        IsCrcMatch: isCrcMatch)));
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayManager] Error querying game installations for clients");
         }
     }
 

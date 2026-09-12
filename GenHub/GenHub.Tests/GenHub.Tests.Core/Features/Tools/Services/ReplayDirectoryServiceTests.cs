@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -3101,6 +3102,90 @@ public sealed class ReplayDirectoryServiceTests
         Assert.False(result.Success);
         Assert.Null(replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Unknown, replay.CompatibilityStatus);
+    }
+
+    /// <summary>
+    /// Verifies that when replay CRC is not in registry, but an existing profile game client executable has matching CRC,
+    /// ResolveCompatibility resolves compatibility to that profile.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenCustomProfileExecutableCrcMatches_ResolvesToCompatibleProfile()
+    {
+        var tempExe = Path.GetTempFileName();
+        try
+        {
+            var replay = new ReplayFile
+            {
+                FileName = "CommunityMatch.rep",
+                FullPath = "/replays/CommunityMatch.rep",
+                SizeInBytes = 2048,
+                LastModified = DateTime.UtcNow,
+                GameVersion = GameType.ZeroHour,
+                Metadata = new ReplayMetadata
+                {
+                    ExeCrc = 0x88BEB180,
+                    IniCrc = 0xFEAAE3F3,
+                    BuildTimeString = "Oct 17 2005 17:31:25",
+                },
+            };
+
+            var profileClient = new GameClient
+            {
+                Id = "custom-cp-client",
+                Name = "Community Patch GameClient",
+                GameType = GameType.ZeroHour,
+                ExecutablePath = tempExe,
+                PublisherType = "community",
+                Version = "1.06",
+            };
+
+            var profile = new GameProfile
+            {
+                Id = "custom-cp-profile-id",
+                Name = "Community Patch Profile",
+                GameClient = profileClient,
+            };
+
+            var crcCalcMock = new Mock<IGameCrcCalculatorService>();
+            crcCalcMock
+                .Setup(c => c.CalculateExeCrcAsync(tempExe, It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("0x88BEB180"));
+
+            CrcMappingEntry? nullEntry = null;
+            _mockCrcRegistry
+                .Setup(r => r.TryGetEntry("0x88BEB180", "0xFEAAE3F3", out nullEntry))
+                .Returns(false);
+            _mockCrcRegistry
+                .Setup(r => r.TryGetEntryByExeCrc("0x88BEB180", out nullEntry))
+                .Returns(false);
+            _mockCrcRegistry
+                .Setup(r => r.GetAllEntries())
+                .Returns([]);
+
+            var service = new ReplayDirectoryService(
+                _mockHeaderParser.Object,
+                _mockCrcRegistry.Object,
+                _mockScopeFactory.Object,
+                NullLogger<ReplayDirectoryService>.Instance,
+                crcCalculator: crcCalcMock.Object);
+
+            var acquiredIds = new HashSet<string> { "custom-cp-client" };
+
+            service.ResolveCompatibility(replay, acquiredIds, [profile]);
+
+            Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+            Assert.Equal("custom-cp-profile-id", replay.MatchingProfileId);
+            Assert.Equal("Community Patch Profile", replay.MatchingProfileName);
+            Assert.NotNull(replay.MatchedClient);
+            Assert.Equal("0x88BEB180", replay.MatchedClient.ExeCrc);
+        }
+        finally
+        {
+            if (File.Exists(tempExe))
+            {
+                File.Delete(tempExe);
+            }
+        }
     }
 
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
