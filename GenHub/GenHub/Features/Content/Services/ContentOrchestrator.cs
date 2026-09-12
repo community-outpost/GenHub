@@ -683,6 +683,21 @@ public class ContentOrchestrator : IContentOrchestrator
         };
     }
 
+    private static void PopulateOriginalMetadata(ContentManifest manifest, ContentSearchResult searchResult)
+    {
+        if (string.IsNullOrEmpty(manifest.OriginalProviderName) && !string.IsNullOrEmpty(searchResult.ProviderName))
+        {
+            manifest.OriginalProviderName = searchResult.ProviderName;
+        }
+
+        if (string.IsNullOrEmpty(manifest.OriginalContentId))
+        {
+            string? parentId = null;
+            searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentId);
+            manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : searchResult.Id;
+        }
+    }
+
     private async Task<OperationResult<ContentManifest>> ObtainManifestAsync(
         IContentProvider provider,
         ContentSearchResult searchResult,
@@ -718,21 +733,6 @@ public class ContentOrchestrator : IContentOrchestrator
         }
 
         return OperationResult<ContentManifest>.CreateSuccess(manifestResult.Data);
-    }
-
-    private void PopulateOriginalMetadata(ContentManifest manifest, ContentSearchResult searchResult)
-    {
-        if (string.IsNullOrEmpty(manifest.OriginalProviderName) && !string.IsNullOrEmpty(searchResult.ProviderName))
-        {
-            manifest.OriginalProviderName = searchResult.ProviderName;
-        }
-
-        if (string.IsNullOrEmpty(manifest.OriginalContentId))
-        {
-            string? parentId = null;
-            searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentId);
-            manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : searchResult.Id;
-        }
     }
 
     /// <summary>

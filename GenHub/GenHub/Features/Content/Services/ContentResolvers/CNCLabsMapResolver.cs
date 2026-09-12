@@ -141,6 +141,16 @@ public class CNCLabsMapResolver(
         int? mapId,
         ILogger logger)
     {
+        mapDetails = EnrichDownloadAndIdentity(mapDetails, discoveredItem, mapId, logger);
+        return EnrichDisplayMetadata(mapDetails, discoveredItem);
+    }
+
+    private static ParsedContentDetails EnrichDownloadAndIdentity(
+        ParsedContentDetails mapDetails,
+        ContentSearchResult discoveredItem,
+        int? mapId,
+        ILogger logger)
+    {
         // Fallback: Construct download URL from Map ID if parsing failed
         if (string.IsNullOrEmpty(mapDetails.DownloadUrl) && mapId.HasValue)
         {
@@ -172,6 +182,13 @@ public class CNCLabsMapResolver(
             mapDetails = mapDetails with { TargetGame = fallbackGame };
         }
 
+        return mapDetails;
+    }
+
+    private static ParsedContentDetails EnrichDisplayMetadata(
+        ParsedContentDetails mapDetails,
+        ContentSearchResult discoveredItem)
+    {
         // Fallback: Use discovered item metadata if details page omitted author, description, or preview image
         if (string.IsNullOrWhiteSpace(mapDetails.Description)
             && !string.IsNullOrWhiteSpace(discoveredItem.Description)
