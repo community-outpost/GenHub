@@ -230,7 +230,7 @@ public partial class App : Application
         NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
     }
 
-    private static void SetAdoptionMarker(string markerPath, string customPath, ILogger? logger)
+    private void SetAdoptionMarker(string markerPath, string customPath, ILogger? logger)
     {
         try
         {
@@ -253,7 +253,7 @@ public partial class App : Application
         }
     }
 
-    private static void ClearAdoptionMarker(string markerPath, ILogger? logger)
+    private void ClearAdoptionMarker(string markerPath, ILogger? logger)
     {
         try
         {
