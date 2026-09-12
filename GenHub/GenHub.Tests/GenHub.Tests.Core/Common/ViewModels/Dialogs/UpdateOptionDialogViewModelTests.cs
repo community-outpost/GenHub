@@ -53,6 +53,9 @@ public class UpdateOptionDialogViewModelTests
             IsCreateNewProfile = true,
         };
 
+        Assert.False(vm.CanDeleteOldVersions);
+        Assert.False(vm.DeleteOldVersions);
+
         vm.IsReplaceCurrentVersion = true;
 
         Assert.Equal(UpdateStrategy.ReplaceCurrent, vm.Strategy);
@@ -68,14 +71,14 @@ public class UpdateOptionDialogViewModelTests
     [Fact]
     public void UpdateCommand_WithReplaceCurrent_PopulatesResultWithDeleteOldVersions()
     {
+        var closed = false;
         var vm = new UpdateOptionDialogViewModel
         {
             IsReplaceCurrentVersion = true,
             DeleteOldVersions = true,
             IsDoNotAskAgain = true,
+            CloseAction = _ => closed = true,
         };
-        var closed = false;
-        vm.CloseAction = r => closed = true;
 
         vm.UpdateCommand.Execute(null);
 
@@ -93,12 +96,12 @@ public class UpdateOptionDialogViewModelTests
     [Fact]
     public void UpdateCommand_WithCreateNewProfile_ForcesDeleteOldVersionsFalse()
     {
+        var closed = false;
         var vm = new UpdateOptionDialogViewModel
         {
             IsCreateNewProfile = true,
+            CloseAction = _ => closed = true,
         };
-        var closed = false;
-        vm.CloseAction = r => closed = true;
 
         vm.UpdateCommand.Execute(null);
 
@@ -115,12 +118,12 @@ public class UpdateOptionDialogViewModelTests
     [Fact]
     public void SkipCommand_PopulatesResultWithSkipActionAndDeleteOldVersionsFalse()
     {
+        var closed = false;
         var vm = new UpdateOptionDialogViewModel
         {
             IsDoNotAskAgain = true,
+            CloseAction = _ => closed = true,
         };
-        var closed = false;
-        vm.CloseAction = r => closed = true;
 
         vm.SkipCommand.Execute(null);
 
