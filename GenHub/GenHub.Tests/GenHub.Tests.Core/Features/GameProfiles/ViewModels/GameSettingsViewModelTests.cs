@@ -1062,6 +1062,76 @@ public class GameSettingsViewModelTests
         Assert.Equal(2.5f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
     }
 
+    /// <summary>
+    /// Should clear loading flags even when game settings service is null.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_ClearLoadingFlag_WhenGameSettingsServiceIsNullAsync()
+    {
+        // Arrange
+        var vm = new GameSettingsViewModel(null!, _loggerMock.Object);
+
+        // Act
+        await vm.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(vm.IsLoading);
+        Assert.Equal("Game settings service not available", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should clear loading flags even when selected game type is unknown.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_ClearLoadingFlag_WhenGameTypeIsUnknownAsync()
+    {
+        // Arrange
+        _viewModel.SelectedGameType = GameType.Unknown;
+
+        // Act
+        await _viewModel.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(_viewModel.IsLoading);
+        Assert.Contains("Game type is Unknown", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should discard loaded Options.ini settings if the selected game type changed concurrently before load completed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_DiscardResult_WhenGameTypeChangedConcurrentlyAsync()
+    {
+        // Arrange
+        var tcs = new TaskCompletionSource<OperationResult<IniOptions>>();
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
+            .Returns(tcs.Task);
+
+        var generalsOptions = new IniOptions
+        {
+            Video = new VideoSettings { ResolutionWidth = 1024, ResolutionHeight = 768 },
+        };
+
+        _viewModel.SelectedGameType = GameType.Generals;
+        var loadTask = _viewModel.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Simulate game type switch to ZeroHour before Generals load completes
+        _viewModel.SelectedGameType = GameType.ZeroHour;
+        _viewModel.ResolutionWidth = 1920;
+        _viewModel.ResolutionHeight = 1080;
+
+        // Complete Generals load
+        tcs.SetResult(OperationResult<IniOptions>.CreateSuccess(generalsOptions));
+        await loadTask;
+
+        // Assert: ResolutionWidth/Height should NOT have been overwritten by Generals options (1024x768)
+        Assert.Equal(1920, _viewModel.ResolutionWidth);
+        Assert.Equal(1080, _viewModel.ResolutionHeight);
+    }
+
     private static GameProfile CreateGeneralsOnlineProfile()
     {
         return new GameProfile

@@ -435,81 +435,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             _currentProfileIsGeneralsOnline = profile?.IsGeneralsOnlineProfile() == true;
             _generalsOnlineSettingsSeeded = false;
 
-            // Auto-select game type from profile
-            if (profile != null)
+            if (!ResolveInitialGameType(profile, initialGameType, profileId))
             {
-                if (profile.IsToolProfile)
-                {
-                    StatusMessage = ProfileValidationConstants.ToolProfileSettingsNotApplicable;
-                    _logger.LogInformation("Skipping settings load for Tool profile {ProfileId}", profileId);
-                    return;
-                }
-
-                if ((profile.GameClient?.GameType ?? GameType.Unknown) == GameType.Unknown)
-                {
-                    _logger.LogWarning("Cannot initialize settings for profile {Id} with Unknown game type", profile.Id);
-                    SelectedGameType = GameType.Unknown;
-                    StatusMessage = "Profile has an unknown game type. Settings cannot be loaded.";
-                    return;
-                }
-
-                SelectedGameType = profile.GameClient?.GameType ?? GameType.Unknown;
-                _logger.LogInformation(
-                    "Auto-selected game type {GameType} for profile {ProfileId}",
-                    SelectedGameType,
-                    profileId);
-            }
-            else if (initialGameType.HasValue && initialGameType.Value != GameType.Unknown)
-            {
-                SelectedGameType = initialGameType.Value;
-                _logger.LogInformation("Using initial GameType {GameType} for new profile initialization", SelectedGameType);
-            }
-            else
-            {
-                // Ensure we log what we're doing
-                _logger.LogInformation("Using pre-selected GameType {GameType} for new profile initialization", SelectedGameType);
+                return;
             }
 
-            // Seed baseline settings and _currentOptions from Options.ini first so that
-            // options the profile does not declare show, and are saved back as, what the user
-            // configured in Options.ini rather than view model defaults, and unmanaged keys are preserved.
-            var optionsLoaded = false;
-            if (SelectedGameType != GameType.Unknown)
-            {
-                optionsLoaded = await LoadOptionsFromIniAsync(SelectedGameType);
-                if (!optionsLoaded)
-                {
-                    _currentOptions = null;
-                }
-            }
-
-            // If profile has settings, load them
-            if (profile?.HasCustomSettings() == true)
-            {
-                // Seeded from settings.json first so that the options the profile does not declare
-                // show, and are saved back as, what the user configured inside the GeneralsOnline
-                // client rather than this view model's defaults.
-                await LoadGeneralsOnlineSettingsFromClientAsync();
-                LoadSettingsFromProfile(profile);
-            }
-            else
-            {
-                // For new profiles or profiles without settings, also load GeneralsOnline settings
-                if (_gameSettingsService != null)
-                {
-                    var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-                    if (goResult?.Success == true && goResult.Data != null)
-                    {
-                        ApplyGeneralsOnlineSettings(goResult.Data);
-                        _generalsOnlineSettingsSeeded = true;
-                    }
-                }
-
-                if (optionsLoaded)
-                {
-                    StatusMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
-                }
-            }
+            var optionsLoaded = await SeedBaselineOptionsAsync();
+            await SeedProfileOrDefaultsAsync(profile, optionsLoaded);
         }
         finally
         {
@@ -690,6 +622,103 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     /// Seeding them from disk is what keeps that from replacing options the profile does not declare with defaults.
     /// Populating <see cref="_currentOptions"/> also preserves unmanaged sections and properties.
     /// </remarks>
+    /// <summary>
+    /// Determines and sets the initial game type during profile initialization.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <param name="initialGameType">The initial game type override.</param>
+    /// <param name="profileId">The profile ID.</param>
+    /// <returns><see langword="true"/> if game type resolution succeeded and initialization can continue; otherwise, <see langword="false"/>.</returns>
+    private bool ResolveInitialGameType(Core.Models.GameProfile.GameProfile? profile, GameType? initialGameType, string? profileId)
+    {
+        if (profile != null)
+        {
+            if (profile.IsToolProfile)
+            {
+                StatusMessage = ProfileValidationConstants.ToolProfileSettingsNotApplicable;
+                _logger.LogInformation("Skipping settings load for Tool profile {ProfileId}", profileId);
+                return false;
+            }
+
+            var clientGameType = profile.GameClient?.GameType ?? GameType.Unknown;
+            if (clientGameType == GameType.Unknown)
+            {
+                _logger.LogWarning("Cannot initialize settings for profile {Id} with Unknown game type", profile.Id);
+                SelectedGameType = GameType.Unknown;
+                StatusMessage = "Profile has an unknown game type. Settings cannot be loaded.";
+                return false;
+            }
+
+            SelectedGameType = clientGameType;
+            _logger.LogInformation(
+                "Auto-selected game type {GameType} for profile {ProfileId}",
+                SelectedGameType,
+                profileId);
+            return true;
+        }
+
+        if (initialGameType.HasValue && initialGameType.Value != GameType.Unknown)
+        {
+            SelectedGameType = initialGameType.Value;
+            _logger.LogInformation("Using initial GameType {GameType} for new profile initialization", SelectedGameType);
+            return true;
+        }
+
+        _logger.LogInformation("Using pre-selected GameType {GameType} for new profile initialization", SelectedGameType);
+        return true;
+    }
+
+    /// <summary>
+    /// Seeds baseline settings and current options from Options.ini.
+    /// </summary>
+    /// <returns>A task returning <see langword="true"/> if options were loaded successfully; otherwise, <see langword="false"/>.</returns>
+    private async Task<bool> SeedBaselineOptionsAsync()
+    {
+        if (SelectedGameType == GameType.Unknown)
+        {
+            return false;
+        }
+
+        var optionsLoaded = await LoadOptionsFromIniAsync(SelectedGameType);
+        if (!optionsLoaded)
+        {
+            _currentOptions = null;
+        }
+
+        return optionsLoaded;
+    }
+
+    /// <summary>
+    /// Seeds profile custom settings or default GeneralsOnline settings.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <param name="optionsLoaded"><see langword="true"/> if Options.ini options were loaded; otherwise, <see langword="false"/>.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task SeedProfileOrDefaultsAsync(Core.Models.GameProfile.GameProfile? profile, bool optionsLoaded)
+    {
+        if (profile?.HasCustomSettings() == true)
+        {
+            await LoadGeneralsOnlineSettingsFromClientAsync();
+            LoadSettingsFromProfile(profile);
+            return;
+        }
+
+        if (_gameSettingsService != null)
+        {
+            var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+            if (goResult?.Success == true && goResult.Data != null)
+            {
+                ApplyGeneralsOnlineSettings(goResult.Data);
+                _generalsOnlineSettingsSeeded = true;
+            }
+        }
+
+        if (optionsLoaded)
+        {
+            StatusMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
+        }
+    }
+
     private async Task<bool> LoadOptionsFromIniAsync(GameType gameType)
     {
         if (_gameSettingsService == null || gameType == GameType.Unknown)
@@ -703,6 +732,15 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             OptionsFileExists = _gameSettingsService.OptionsFileExists(gameType);
 
             var result = await _gameSettingsService.LoadOptionsAsync(gameType);
+            if (gameType != SelectedGameType)
+            {
+                _logger.LogInformation(
+                    "Discarding Options.ini load for {GameType} because SelectedGameType changed to {SelectedType}",
+                    gameType,
+                    SelectedGameType);
+                return false;
+            }
+
             if (result?.Success == true && result.Data != null)
             {
                 _currentOptions = result.Data;
@@ -720,6 +758,11 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
         catch (Exception ex)
         {
+            if (gameType != SelectedGameType)
+            {
+                return false;
+            }
+
             _currentOptions = null;
             _logger.LogError(ex, "Error loading Options.ini for {GameType}", gameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
@@ -733,28 +776,33 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     [RelayCommand]
     private async Task LoadSettings()
     {
-        if (_gameSettingsService == null)
-        {
-            StatusMessage = "Game settings service not available";
-            return;
-        }
-
-        if (SelectedGameType == GameType.Unknown)
-        {
-             StatusMessage = "Cannot load settings: Game type is Unknown";
-             _logger.LogWarning("LoadSettings called with Unknown GameType");
-             return;
-        }
-
-        GameType gameType = SelectedGameType;
         try
         {
             IsLoading = true;
             _isLoadingFromOptions = true;
 
+            if (_gameSettingsService == null)
+            {
+                StatusMessage = "Game settings service not available";
+                return;
+            }
+
+            if (SelectedGameType == GameType.Unknown)
+            {
+                StatusMessage = "Cannot load settings: Game type is Unknown";
+                _logger.LogWarning("LoadSettings called with Unknown GameType");
+                return;
+            }
+
+            GameType gameType = SelectedGameType;
             StatusMessage = $"Loading {gameType} settings...";
 
             var loaded = await LoadOptionsFromIniAsync(gameType);
+            if (gameType != SelectedGameType)
+            {
+                return;
+            }
+
             if (loaded)
             {
                 StatusMessage = OptionsFileExists
@@ -764,6 +812,11 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
             // Load GeneralsOnline settings separately
             var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+            if (gameType != SelectedGameType)
+            {
+                return;
+            }
+
             if (goResult?.Success == true && goResult.Data != null)
             {
                 ApplyGeneralsOnlineSettings(goResult.Data);
@@ -779,7 +832,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading settings for {GameType}", gameType);
+            _logger.LogError(ex, "Error loading settings for {GameType}", SelectedGameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
         }
         finally

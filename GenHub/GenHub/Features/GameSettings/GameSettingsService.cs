@@ -557,12 +557,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             if (tshKey != null && options.AdditionalSections.TryGetValue(tshKey, out var existingTshDict) && existingTshDict != null)
             {
                 // Merge flat root settings; existing section values win on conflict
-                foreach (var kvp in theSuperHackersDict)
+                foreach (var kvp in theSuperHackersDict.Where(kvp => !existingTshDict.ContainsKey(kvp.Key)))
                 {
-                    if (!existingTshDict.ContainsKey(kvp.Key))
-                    {
-                        existingTshDict[kvp.Key] = kvp.Value;
-                    }
+                    existingTshDict[kvp.Key] = kvp.Value;
                 }
             }
             else
