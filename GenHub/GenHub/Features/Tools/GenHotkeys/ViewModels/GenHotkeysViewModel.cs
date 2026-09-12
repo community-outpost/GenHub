@@ -791,7 +791,8 @@ public partial class GenHotkeysViewModel(
         }
 
         // 2. If target object is not currently visible in FilteredGameObjects, reset category filter
-        if (SelectedCategory != HotkeyCategory.All && !FilteredGameObjects.Any(o => string.Equals(o.Name ?? o.DisplayName, target.GameObjectName, StringComparison.OrdinalIgnoreCase)))
+        if (SelectedCategory != HotkeyCategory.All &&
+            FilteredGameObjects.All(o => !string.Equals(o.Name ?? o.DisplayName, target.GameObjectName, StringComparison.OrdinalIgnoreCase)))
         {
             SelectedCategory = HotkeyCategory.All;
         }
