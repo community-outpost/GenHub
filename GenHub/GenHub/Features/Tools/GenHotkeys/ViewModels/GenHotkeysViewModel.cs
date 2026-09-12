@@ -926,13 +926,37 @@ public partial class GenHotkeysViewModel(
         if (actions.Count == 2 &&
             (actions.All(IsDaisyCutterOrMoab) ||
              actions.All(IsChinaMines) ||
-             actions.All(IsSatelliteHack)))
+             actions.All(IsSatelliteHack) ||
+             IsRadarAndCashHack(actions) ||
+             IsTimedAndRemoteDemo(actions) ||
+             IsGrangerCarpetBombAndCompositeArmor(actions)))
         {
             return true;
         }
 
         var nonSellActions = actions.Where(a => !string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)).ToList();
         return actions.Count > 1 && nonSellActions.Count <= 1;
+    }
+
+    private static bool IsRadarAndCashHack(List<HotkeyActionViewModel> actions)
+    {
+        return actions.Count == 2 &&
+               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeChinaRadar", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:StealCashHack", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsTimedAndRemoteDemo(List<HotkeyActionViewModel> actions)
+    {
+        return actions.Count == 2 &&
+               actions.Any(a => a.IconName.Contains("TimedDemo", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => a.IconName.Contains("Detonate", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsGrangerCarpetBombAndCompositeArmor(List<HotkeyActionViewModel> actions)
+    {
+        return actions.Count == 2 &&
+               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:CarpetBomb", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeAmericaCompositeArmor", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsDaisyCutterOrMoab(HotkeyActionViewModel action)
