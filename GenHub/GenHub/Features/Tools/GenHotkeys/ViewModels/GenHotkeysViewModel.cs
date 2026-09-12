@@ -256,7 +256,7 @@ public partial class GenHotkeysViewModel(
         }
 
         var upperKey = char.ToUpperInvariant(key);
-        if (upperKey is < 'A' or > 'Z')
+        if (upperKey is (< 'A' or > 'Z') and (< '0' or > '9'))
         {
             return;
         }

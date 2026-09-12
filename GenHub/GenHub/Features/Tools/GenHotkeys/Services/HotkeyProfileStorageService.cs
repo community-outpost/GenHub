@@ -117,7 +117,9 @@ public class HotkeyProfileStorageService(
         profile.UpdatedAt = DateTime.UtcNow;
         var filePath = GetSafeProfilePath(profile.Id);
         var json = JsonSerializer.Serialize(profile, JsonOptions);
-        await File.WriteAllTextAsync(filePath, json, cancellationToken);
+        var tempPath = $"{filePath}.tmp.{Guid.NewGuid():N}";
+        await File.WriteAllTextAsync(tempPath, json, cancellationToken);
+        File.Move(tempPath, filePath, overwrite: true);
         logger.LogInformation("Saved hotkey profile '{Name}' ({Id})", profile.Name, profile.Id);
 
         return profile;
