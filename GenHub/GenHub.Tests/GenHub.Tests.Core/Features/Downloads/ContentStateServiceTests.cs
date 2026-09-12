@@ -1614,6 +1614,119 @@ public class ContentStateServiceTests
         Assert.True(ContentStateService.IsCompatiblePublisherAlias(p1, p2));
     }
 
+    /// <summary>
+    /// Verifies that CNC Labs content with a tokenized download URL in the manifest support/content URL
+    /// matches the catalog card by MapId metadata even across restarts.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CncLabsDownloadedContent_WithTokenInManifestUrl_ReturnsDownloadedAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.cnclabs.map.defcon8"),
+            Name = "Defcon 8",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "cnclabs",
+            OriginalContentId = "cnclabs.map.3394",
+            Publisher = new PublisherInfo
+            {
+                Name = "CNC Labs",
+                PublisherType = "cnclabs",
+                SupportUrl = "https://www.cnclabs.com/downloads/file/3394/?token=9635e98d",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3394",
+            Name = "Defcon 8",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3394/",
+        };
+        card.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3394";
+
+        var state = await service.GetStateAsync(card);
+        var manifestId = await service.GetLocalManifestIdAsync(card);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(storedManifest.Id.Value, manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that ModDB content matches by ContentIdMetadataKey.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbDownloadedContent_MatchesByContentIdMetadataKeyAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260807.moddb.mod.generalsundonev101patch"),
+            Name = "Generals Undone v1.01 Patch",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "moddb",
+            OriginalContentId = "moddb.mod.314093",
+            Publisher = new PublisherInfo
+            {
+                Name = "ModDB",
+                PublisherType = "moddb",
+                SupportUrl = "https://www.moddb.com/mods/cc-generals-undone/downloads/cc-generals-undone-v101-patch",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "moddb.mod.314093",
+            Name = "Generals Undone v1.01 Patch",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.moddb.com/mods/cc-generals-undone/downloads/cc-generals-undone-v101-patch",
+        };
+        card.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "314093";
+
+        var state = await service.GetStateAsync(card);
+        var manifestId = await service.GetLocalManifestIdAsync(card);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(storedManifest.Id.Value, manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that ModDB publisher aliases are recognized as compatible.
+    /// </summary>
+    /// <param name="p1">The first publisher string to test.</param>
+    /// <param name="p2">The second publisher string to test.</param>
+    [Theory]
+    [InlineData("moddb", "ModDB")]
+    [InlineData("ModDB", "moddbmods")]
+    [InlineData("moddb", "ModDB Mods")]
+    public void IsCompatiblePublisherAlias_ModDbVariations_ReturnsTrue(string p1, string p2)
+    {
+        Assert.True(ContentStateService.IsCompatiblePublisherAlias(p1, p2));
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

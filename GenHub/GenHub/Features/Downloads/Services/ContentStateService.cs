@@ -262,7 +262,39 @@ public sealed partial class ContentStateService(
             return true;
         }
 
+        if (IsModDbPublisher(p1) && IsModDbPublisher(p2))
+        {
+            return true;
+        }
+
         return false;
+    }
+
+    /// <summary>
+    /// Lowercases a string and strips non-alphanumeric characters, mirroring the normalization
+    /// used by <c>ManifestIdGenerator</c> when building the publisher and content-name segments.
+    /// </summary>
+    /// <param name="input">The input string to normalize.</param>
+    /// <returns>The normalized segment string.</returns>
+    internal static string NormalizeSegment(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        var lower = input.ToLowerInvariant();
+        var normalized = SegmentNormalizer().Replace(lower, string.Empty);
+
+        // strip possessive 's' or trailing 's' if not 'ss' to align names like "legionnaires" and "legionnaire"
+        if (!normalized.EndsWith("ss", StringComparison.OrdinalIgnoreCase) &&
+            normalized.Length > 3 &&
+            normalized.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[..^1];
+        }
+
+        return normalized;
     }
 
     /// <summary>
@@ -297,6 +329,22 @@ public sealed partial class ContentStateService(
         var p = NormalizeSegment(publisher);
         return p.StartsWith("aodmap", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(p, "aod", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether the given publisher string corresponds to ModDB.
+    /// </summary>
+    /// <param name="publisher">The publisher string to inspect.</param>
+    /// <returns><see langword="true"/> if the publisher represents ModDB; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsModDbPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return false;
+        }
+
+        var p = NormalizeSegment(publisher);
+        return p.StartsWith("moddb", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -986,31 +1034,6 @@ public sealed partial class ContentStateService(
     }
 
     /// <summary>
-    /// Lowercases a string and strips non-alphanumeric characters, mirroring the normalization
-    /// used by <c>ManifestIdGenerator</c> when building the publisher and content-name segments.
-    /// </summary>
-    private static string NormalizeSegment(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return string.Empty;
-        }
-
-        var lower = input.ToLowerInvariant();
-        var normalized = SegmentNormalizer().Replace(lower, string.Empty);
-
-        // strip possessive 's' or trailing 's' if not 'ss' to align names like "legionnaires" and "legionnaire"
-        if (!normalized.EndsWith("ss", StringComparison.OrdinalIgnoreCase) &&
-            normalized.Length > 3 &&
-            normalized.EndsWith("s", StringComparison.OrdinalIgnoreCase))
-        {
-            return normalized[..^1];
-        }
-
-        return normalized;
-    }
-
-    /// <summary>
     /// Checks whether a URL points to a GitHub repository or release.
     /// </summary>
     private static bool IsGitHubUrl(string? url)
@@ -1099,9 +1122,15 @@ public sealed partial class ContentStateService(
             string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
             (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
              string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
-            (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapId) == true &&
-             (manifest.OriginalContentId.EndsWith($".{mapId}", StringComparison.OrdinalIgnoreCase) ||
-              string.Equals(manifest.OriginalContentId, mapId, StringComparison.OrdinalIgnoreCase)))))
+            (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
+             (manifest.OriginalContentId.EndsWith($".{cncMapId}", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(manifest.OriginalContentId, cncMapId, StringComparison.OrdinalIgnoreCase))) ||
+            (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
+             (manifest.OriginalContentId.EndsWith($".{aodMapId}", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(manifest.OriginalContentId, aodMapId, StringComparison.OrdinalIgnoreCase))) ||
+            (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
+             (manifest.OriginalContentId.EndsWith($".{modDbId}", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(manifest.OriginalContentId, modDbId, StringComparison.OrdinalIgnoreCase)))))
         {
             return true;
         }
@@ -1212,6 +1241,10 @@ public sealed partial class ContentStateService(
         else if (IsAodMapsPublisher(providerName))
         {
             providerName = AODMapsConstants.PublisherPrefix;
+        }
+        else if (IsModDbPublisher(providerName))
+        {
+            providerName = ModDBConstants.PublisherPrefix;
         }
 
         var contentName = SanitizeSegmentForManifest(item.Name, null)
@@ -1344,9 +1377,22 @@ public sealed partial class ContentStateService(
                 (string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
                  (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
                   string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
-                 (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapId) == true &&
-                  (manifest.OriginalContentId.EndsWith($".{mapId}", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(manifest.OriginalContentId, mapId, StringComparison.OrdinalIgnoreCase))));
+                 (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
+                  (manifest.OriginalContentId.EndsWith($".{cncMapId}", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(manifest.OriginalContentId, cncMapId, StringComparison.OrdinalIgnoreCase))) ||
+                 (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
+                  (manifest.OriginalContentId.EndsWith($".{aodMapId}", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(manifest.OriginalContentId, aodMapId, StringComparison.OrdinalIgnoreCase))) ||
+                 (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
+                  (manifest.OriginalContentId.EndsWith($".{modDbId}", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(manifest.OriginalContentId, modDbId, StringComparison.OrdinalIgnoreCase))));
+
+            if (!contentIdMatches && item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapId))
+            {
+                contentIdMatches = manifest.Publisher?.SupportUrl != null &&
+                    (manifest.Publisher.SupportUrl.Contains($"/details/{mapId}/", StringComparison.OrdinalIgnoreCase) ||
+                     manifest.Publisher.SupportUrl.Contains($"/file/{mapId}/", StringComparison.OrdinalIgnoreCase));
+            }
 
             return contentIdMatches || (!isGitHub && ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name));
         });

@@ -1501,6 +1501,94 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal("1.0.communityoutpost.addon.cbpx-1080p", item.SelectedVariant?.ManifestId);
     }
 
+    /// <summary>
+    /// Verifies that when CloseDetailCommand is executed, state and local manifest ID
+    /// are synchronized to the underlying ContentGridItemViewModel.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CloseDetailCommand_WhenContentAcquiredInDetailView_SynchronizesGridItemStateAndIdAsync()
+    {
+        // Arrange
+        var tabRegistryMock = new Mock<ITabProviderRegistry>();
+        var coordinatorMock = new Mock<IContentDownloadCoordinator>();
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerFactoryMock = new Mock<ILoggerFactory>();
+        var contentLoggerMock = new Mock<ILogger<ContentDetailViewModel>>();
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(ITabProviderRegistry))).Returns(tabRegistryMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContentDownloadCoordinator))).Returns(coordinatorMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContentManifestPool))).Returns(manifestPoolMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(ILogger<ContentDetailViewModel>))).Returns(contentLoggerMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(ILoggerFactory))).Returns(loggerFactoryMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContentStateService))).Returns(stateServiceMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEnumerable<IWebPageParser>))).Returns(Array.Empty<IWebPageParser>());
+
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore
+            .Setup(store => store.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+
+        using var viewModel = new DownloadsBrowserViewModel(
+            serviceProviderMock.Object,
+            new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
+            [],
+            stateServiceMock.Object,
+            new Mock<IContentOrchestrator>().Object,
+            new Mock<IProfileContentService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<INotificationService>().Object,
+            loggerFactoryMock.Object,
+            subscriptionStore.Object);
+
+        var sr = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3394",
+            Name = "Defcon 8",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "CNC Labs Maps",
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3394/",
+        };
+        sr.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3394";
+
+        var item = new ContentGridItemViewModel(sr, stateServiceMock.Object, new Mock<ILogger<ContentGridItemViewModel>>().Object)
+        {
+            CurrentState = ContentState.NotDownloaded,
+            IsDownloaded = false,
+        };
+
+        viewModel.ContentItems.Add(item);
+
+        // Act: Open detail
+        viewModel.ViewContentCommand.Execute(item);
+        Assert.NotNull(viewModel.SelectedContent);
+        await viewModel.SelectedContent.WaitForInitializationAsync();
+
+        // Simulate state change to Downloaded
+        stateServiceMock.Setup(s => s.GetStateAsync(sr, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+        stateServiceMock.Setup(s => s.GetLocalManifestIdAsync(sr, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.cnclabs.map.defcon8");
+
+        // Act: Close detail
+        viewModel.CloseDetailCommand.Execute(null);
+
+        // Allow UI thread dispatcher actions to execute
+        await Task.Delay(100);
+
+        // Assert: Detail is closed and grid item state and ID are synchronized
+        Assert.Null(viewModel.SelectedContent);
+        Assert.Equal(ContentState.Downloaded, item.CurrentState);
+        Assert.True(item.IsDownloaded);
+        Assert.True(item.EffectiveIsDownloaded);
+        Assert.Equal("1.0.cnclabs.map.defcon8", item.SearchResult.Id);
+        Assert.True(item.ShowAddToProfileButton);
+        Assert.False(item.ShowDownloadButton);
+    }
+
     private static DownloadsBrowserViewModel CreateViewModel(
         IContentOrchestrator? orchestrator = null,
         IPublisherReconcilerRegistry? reconcilerRegistry = null)

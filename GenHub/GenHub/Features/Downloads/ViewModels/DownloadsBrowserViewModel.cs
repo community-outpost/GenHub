@@ -1630,7 +1630,17 @@ public sealed partial class DownloadsBrowserViewModel(
 
             await variantVm.RefreshVariantStatesAsync();
             variantVm.CurrentState = await contentStateService.GetStateAsync(defaultVariant, ct);
+            variantVm.IsDownloaded = variantVm.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(defaultVariant.Id) || !ManifestIdValidator.IsValid(defaultVariant.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(defaultVariant, ct);
+                if (!string.IsNullOrEmpty(manifestId))
+                {
+                    defaultVariant.UpdateId(manifestId);
+                }
+            }
 
+            variantVm.NotifyStateChanged();
             return variantVm;
         }
         catch
@@ -1647,6 +1657,18 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             var singletonState = await contentStateService.GetStateAsync(primaryItem, ct);
             vm.CurrentState = singletonState;
+            vm.IsDownloaded = singletonState is ContentState.Downloaded or ContentState.UpdateAvailable;
+
+            if (vm.IsDownloaded && (string.IsNullOrEmpty(primaryItem.Id) || !ManifestIdValidator.IsValid(primaryItem.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(primaryItem, ct);
+                if (!string.IsNullOrEmpty(manifestId))
+                {
+                    primaryItem.UpdateId(manifestId);
+                }
+            }
+
+            vm.NotifyStateChanged();
             return vm;
         }
         catch
@@ -1920,7 +1942,22 @@ public sealed partial class DownloadsBrowserViewModel(
                         if (match != null)
                         {
                             var state = await contentStateService.GetStateAsync(match.SearchResult, _vmCts.Token);
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => match.CurrentState = state);
+                            var isDownloaded = state is ContentState.Downloaded or ContentState.UpdateAvailable;
+                            if (isDownloaded && (string.IsNullOrEmpty(match.SearchResult.Id) || !ManifestIdValidator.IsValid(match.SearchResult.Id, out _)))
+                            {
+                                var manifestId = await contentStateService.GetLocalManifestIdAsync(match.SearchResult, _vmCts.Token);
+                                if (!string.IsNullOrEmpty(manifestId))
+                                {
+                                    match.SearchResult.UpdateId(manifestId);
+                                }
+                            }
+
+                            RunOnUi(() =>
+                            {
+                                match.CurrentState = state;
+                                match.IsDownloaded = isDownloaded;
+                                match.NotifyStateChanged();
+                            });
                         }
                     }
                     catch (Exception ex)
