@@ -92,9 +92,6 @@ public static class ContentPipelineModule
         // Register HTTP client factory for content providers
         services.AddHttpClient();
 
-        // Register Playwright service for web page parsing
-        services.TryAddSingleton<IPlaywrightService, PlaywrightService>();
-
         // Register named HTTP client for Generals Online
         services.AddHttpClient(GeneralsOnlineConstants.PublisherType, static httpClient =>
         {

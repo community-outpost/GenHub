@@ -117,7 +117,6 @@ public partial class AODMapsDiscoverer(
                 var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
                 var items = ExtractItems(document, url);
 
-                int before = collected.Count;
                 int rawAccepted = 0;
                 foreach (var item in items)
                 {
