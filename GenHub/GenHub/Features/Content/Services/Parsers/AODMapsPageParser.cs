@@ -104,40 +104,41 @@ public partial class AODMapsPageParser(
     private List<ContentSection> ExtractSections(IDocument document, string pageUrl)
     {
         var sections = new List<ContentSection>();
-
-        // 1. Try Gallery Items (Standard List)
-        var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
-        if (galleryItems.Length > 0)
-        {
-            foreach (var item in galleryItems)
-            {
-                var file = ExtractFileFromGalleryItem(item, pageUrl);
-                if (file != null)
-                {
-                    sections.Add(file);
-                }
-            }
-        }
-
-        // 2. Try Map Maker Items (Vertical Layout)
-        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
-        if (mmItems.Length > 0)
-        {
-            foreach (var item in mmItems)
-            {
-                var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
-                if (contentDiv != null)
-                {
-                    var file = ExtractFileFromMapMakerItem(contentDiv, pageUrl);
-                    if (file != null)
-                    {
-                        sections.Add(file);
-                    }
-                }
-            }
-        }
-
+        ExtractGallerySections(document, pageUrl, sections);
+        ExtractMapMakerSections(document, pageUrl, sections);
         return sections;
+    }
+
+    private void ExtractGallerySections(IDocument document, string pageUrl, List<ContentSection> sections)
+    {
+        var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
+        foreach (var item in galleryItems)
+        {
+            var file = ExtractFileFromGalleryItem(item, pageUrl);
+            if (file != null)
+            {
+                sections.Add(file);
+            }
+        }
+    }
+
+    private void ExtractMapMakerSections(IDocument document, string pageUrl, List<ContentSection> sections)
+    {
+        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
+        foreach (var item in mmItems)
+        {
+            var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
+            if (contentDiv == null)
+            {
+                continue;
+            }
+
+            var file = ExtractFileFromMapMakerItem(contentDiv, pageUrl);
+            if (file != null)
+            {
+                sections.Add(file);
+            }
+        }
     }
 
     /// <summary>

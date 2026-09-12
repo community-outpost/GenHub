@@ -40,9 +40,9 @@ public class CNCLabsMapResolver(
     /// <summary>
     /// Resolves the details of a discovered CNC Labs map item.
     /// </summary>
-    /// <param name="discoveredItem">The discovered content item to resolve.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A <see cref="OperationResult{ContentManifest}"/> containing the resolved details.</returns>
+    /// <param name=\"discoveredItem\">The discovered content item to resolve.</param>
+    /// <param name=\"cancellationToken\">A cancellation token.</param>
+    /// <returns>A <see cref=\"OperationResult{ContentManifest}\"/> containing the resolved details.</returns>
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
@@ -54,21 +54,8 @@ public class CNCLabsMapResolver(
 
         try
         {
-            var sourceUrl = discoveredItem.SourceUrl;
-            if (!Uri.IsWellFormedUriString(sourceUrl, UriKind.Absolute))
-            {
-                // Ensure raw relative URLs are properly combined with base website URL
-                sourceUrl = $"{CNCLabsConstants.PublisherWebsite.TrimEnd('/')}/{sourceUrl.TrimStart('/')}";
-                logger.LogDebug("Converted relative URL to absolute: {AbsoluteUrl}", sourceUrl);
-            }
-
-            // Extract map ID from metadata early for fallback usage
-            int? mapId = null;
-            if (discoveredItem.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapIdStr)
-                && int.TryParse(mapIdStr, out var id))
-            {
-                mapId = id;
-            }
+            var sourceUrl = NormalizeSourceUrl(discoveredItem.SourceUrl, logger);
+            var mapId = ExtractMapId(discoveredItem);
 
             logger.LogInformation("Resolving CNC Labs content from {Url} (Map ID: {MapId})", sourceUrl, mapId);
 
@@ -78,33 +65,7 @@ public class CNCLabsMapResolver(
 
             // Parse details from HTML
             var mapDetails = await ParseMapDetailPageAsync(html, cancellationToken);
-
-            // Fallback: Construct download URL from Map ID if parsing failed
-            if (string.IsNullOrEmpty(mapDetails.DownloadUrl) && mapId.HasValue)
-            {
-                mapDetails = mapDetails with
-                {
-                    DownloadUrl = $"{CNCLabsConstants.PublisherWebsite}/downloads/fetch.aspx?id={mapId}",
-                };
-                logger.LogWarning("Download URL parsing failed. Constructed fallback URL: {FallbackUrl}", mapDetails.DownloadUrl);
-            }
-
-            // Fallback: Use discovered item metadata if details page omitted author, description, or preview image
-            if (string.IsNullOrWhiteSpace(mapDetails.Description) && !string.IsNullOrWhiteSpace(discoveredItem.Description) && discoveredItem.Description != CNCLabsConstants.MapDescriptionTemplate)
-            {
-                mapDetails = mapDetails with { Description = discoveredItem.Description };
-            }
-
-            if ((string.IsNullOrWhiteSpace(mapDetails.Author) || mapDetails.Author == CNCLabsConstants.DefaultAuthorName)
-                && !string.IsNullOrWhiteSpace(discoveredItem.AuthorName))
-            {
-                mapDetails = mapDetails with { Author = discoveredItem.AuthorName };
-            }
-
-            if (string.IsNullOrWhiteSpace(mapDetails.PreviewImage) && !string.IsNullOrWhiteSpace(discoveredItem.IconUrl))
-            {
-                mapDetails = mapDetails with { PreviewImage = discoveredItem.IconUrl };
-            }
+            mapDetails = EnrichMapDetailsWithFallbacks(mapDetails, discoveredItem, mapId, logger);
 
             if (string.IsNullOrEmpty(mapDetails.DownloadUrl))
             {
@@ -137,6 +98,67 @@ public class CNCLabsMapResolver(
             logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
             return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
+    }
+
+    private static string NormalizeSourceUrl(string sourceUrl, ILogger logger)
+    {
+        if (!Uri.IsWellFormedUriString(sourceUrl, UriKind.Absolute))
+        {
+            var absoluteUrl = $"{CNCLabsConstants.PublisherWebsite.TrimEnd('/')}/{sourceUrl.TrimStart('/')}";
+            logger.LogDebug("Converted relative URL to absolute: {AbsoluteUrl}", absoluteUrl);
+            return absoluteUrl;
+        }
+
+        return sourceUrl;
+    }
+
+    private static int? ExtractMapId(ContentSearchResult discoveredItem)
+    {
+        if (discoveredItem.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapIdStr)
+            && int.TryParse(mapIdStr, out var id))
+        {
+            return id;
+        }
+
+        return null;
+    }
+
+    private static ParsedContentDetails EnrichMapDetailsWithFallbacks(
+        ParsedContentDetails mapDetails,
+        ContentSearchResult discoveredItem,
+        int? mapId,
+        ILogger logger)
+    {
+        // Fallback: Construct download URL from Map ID if parsing failed
+        if (string.IsNullOrEmpty(mapDetails.DownloadUrl) && mapId.HasValue)
+        {
+            mapDetails = mapDetails with
+            {
+                DownloadUrl = $"{CNCLabsConstants.PublisherWebsite}/downloads/fetch.aspx?id={mapId}",
+            };
+            logger.LogWarning("Download URL parsing failed. Constructed fallback URL: {FallbackUrl}", mapDetails.DownloadUrl);
+        }
+
+        // Fallback: Use discovered item metadata if details page omitted author, description, or preview image
+        if (string.IsNullOrWhiteSpace(mapDetails.Description)
+            && !string.IsNullOrWhiteSpace(discoveredItem.Description)
+            && discoveredItem.Description != CNCLabsConstants.MapDescriptionTemplate)
+        {
+            mapDetails = mapDetails with { Description = discoveredItem.Description };
+        }
+
+        if ((string.IsNullOrWhiteSpace(mapDetails.Author) || mapDetails.Author == CNCLabsConstants.DefaultAuthorName)
+            && !string.IsNullOrWhiteSpace(discoveredItem.AuthorName))
+        {
+            mapDetails = mapDetails with { Author = discoveredItem.AuthorName };
+        }
+
+        if (string.IsNullOrWhiteSpace(mapDetails.PreviewImage) && !string.IsNullOrWhiteSpace(discoveredItem.IconUrl))
+        {
+            mapDetails = mapDetails with { PreviewImage = discoveredItem.IconUrl };
+        }
+
+        return mapDetails;
     }
 
     /// <summary>

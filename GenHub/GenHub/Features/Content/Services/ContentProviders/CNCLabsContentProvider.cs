@@ -67,13 +67,13 @@ public class CNCLabsContentProvider(
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
         var searchResult = await SearchAsync(query, cancellationToken);
 
-        if (!searchResult.Success || !searchResult.Data!.Any())
+        if (!searchResult.Success || !searchResult.Data.Any())
         {
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
         }
 
-        var result = searchResult.Data!.First();
+        var result = searchResult.Data.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null
