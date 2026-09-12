@@ -95,12 +95,11 @@ public partial class AODMapsPageParser(
             return url;
         }
 
-        if (!string.IsNullOrEmpty(pageUrl) && Uri.TryCreate(pageUrl, UriKind.Absolute, out var baseUri))
+        if (!string.IsNullOrEmpty(pageUrl)
+            && Uri.TryCreate(pageUrl, UriKind.Absolute, out var baseUri)
+            && Uri.TryCreate(baseUri, url, out var combinedUri))
         {
-            if (Uri.TryCreate(baseUri, url, out var combinedUri))
-            {
-                return combinedUri.ToString();
-            }
+            return combinedUri.ToString();
         }
 
         return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
