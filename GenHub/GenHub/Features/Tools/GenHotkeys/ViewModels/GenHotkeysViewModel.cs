@@ -6,15 +6,27 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GenHub.Features.Tools.GenHotkeys.ViewModels;
 
@@ -25,7 +37,12 @@ public partial class GenHotkeysViewModel(
     ITechTreeService techTreeService,
     IHotkeyProfileStorageService profileStorageService,
     IHotkeyPackageService packageService,
-    ILogger<GenHotkeysViewModel> logger) : ObservableObject, IDisposable
+    ILogger<GenHotkeysViewModel> logger,
+    INotificationService? notificationService = null,
+    IGameProfileManager? profileManager = null,
+    IProfileContentService? profileContentService = null,
+    IContentManifestPool? manifestPool = null,
+    ILoggerFactory? loggerFactory = null) : ObservableObject, IDisposable
 {
     private readonly ConcurrentDictionary<(GameType Game, string Icon), Bitmap> _bitmapCache = new();
     private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
@@ -83,6 +100,21 @@ public partial class GenHotkeysViewModel(
     [ObservableProperty]
     private string _renameProfileText = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AddonButtonToolTip))]
+    private bool _hasExistingAddon;
+
+    [ObservableProperty]
+    private ContentManifest? _existingAddonManifest;
+
+    [ObservableProperty]
+    private string _addonButtonText = "Create Addon";
+
+    /// <summary>Gets the tooltip for the addon button depending on state.</summary>
+    public string AddonButtonToolTip => HasExistingAddon
+        ? "Add this hotkeys addon to an existing game profile"
+        : "Packs customized hotkeys and icons into a new .big archive and registers as a GenHub Addon";
+
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
 
@@ -114,13 +146,69 @@ public partial class GenHotkeysViewModel(
         OverlayCorner.BottomRight,
     ];
 
-    /// <summary>Gets the available preset templates list.</summary>
-    public IReadOnlyList<string> AvailablePresets { get; } =
-    [
-        GenHotkeysConstants.PresetVanilla,
-        GenHotkeysConstants.PresetLegionnaire,
-        GenHotkeysConstants.PresetLeikeze,
-    ];
+    /// <summary>
+    /// Validates whether any command buttons within a single command card layout share the same hotkey,
+    /// accounting for mutual exclusion exceptions.
+    /// </summary>
+    /// <param name="layout">Collection of actions representing a command layout.</param>
+    /// <returns>The number of conflicting actions detected.</returns>
+    public static int ValidateLayoutConflicts(ObservableCollection<HotkeyActionViewModel> layout)
+    {
+        var activeWithHotkeys = layout
+            .Where(a => a.Hotkey.HasValue)
+            .ToList();
+
+        var conflictCount = 0;
+        foreach (var action in layout)
+        {
+            action.IsConflict = false;
+            action.ConflictReason = null;
+        }
+
+        var groups = activeWithHotkeys
+            .GroupBy(a => a.Hotkey!.Value)
+            .Where(g => g.Count() > 1);
+
+        foreach (var group in groups)
+        {
+            var actions = group.ToList();
+
+            // Special Engine Rule 1: Daisy Cutter & MOAB upgrade variant
+            if (actions.Count == 2 && actions.All(IsDaisyCutterOrMoab))
+            {
+                continue;
+            }
+
+            // Special Engine Rule 2: China Land Mines & EMP/Neutron Mines upgrade variant
+            if (actions.Count == 2 && actions.All(IsChinaMines))
+            {
+                continue;
+            }
+
+            // Special Engine Rule 3: China Satellite Hack 1 & Satellite Hack 2 upgrade variant
+            if (actions.Count == 2 && actions.All(IsSatelliteHack))
+            {
+                continue;
+            }
+
+            // Special Engine Rule 4: Structure Sell Command (can share key across different states)
+            var nonSellActions = actions.Where(a => !string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (actions.Count > 1 && nonSellActions.Count <= 1)
+            {
+                continue;
+            }
+
+            // Real hotkey collision: mark every colliding button in this group
+            foreach (var conflictingAction in actions)
+            {
+                conflictingAction.IsConflict = true;
+                conflictingAction.ConflictReason = $"Key '{group.Key}' is shared with '{string.Join(", ", actions.Where(x => x != conflictingAction).Select(x => x.DisplayName))}'.";
+                conflictCount++;
+            }
+        }
+
+        return conflictCount;
+    }
 
     /// <summary>
     /// Initializes the tool by loading available profiles and tech tree models.
@@ -165,117 +253,123 @@ public partial class GenHotkeysViewModel(
     }
 
     /// <summary>
-    /// Assigns a new hotkey character to the currently selected action.
+    /// Assigns a key character to the currently selected action.
     /// </summary>
-    /// <param name="key">The new key character.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task AssignHotkeyAsync(char key, CancellationToken cancellationToken = default)
+    /// <param name="key">The key character to assign.</param>
+    [RelayCommand]
+    public void AssignKey(char key)
     {
         if (SelectedAction == null || SelectedProfile == null)
         {
             return;
         }
 
-        var upper = char.ToUpperInvariant(key);
-        SelectedAction.Hotkey = upper;
-
-        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
+        var upperKey = char.ToUpperInvariant(key);
+        if (upperKey is < 'A' or > 'Z')
         {
-            SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
-            SelectedProfile.KeyMappings[SelectedAction.HotkeyString] = upper;
-            var saved = await SaveCurrentProfileAsync(cancellationToken);
-            if (!saved)
-            {
-                return;
-            }
+            return;
         }
 
+        if (string.IsNullOrEmpty(SelectedAction.HotkeyString))
+        {
+            return;
+        }
+
+        SelectedAction.Hotkey = upperKey;
+        SelectedProfile.KeyMappings[SelectedAction.HotkeyString] = upperKey;
+        SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
+
+        _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
-        StatusMessage = $"Assigned hotkey '{upper}' to '{SelectedAction.DisplayName}'.";
     }
 
     /// <summary>
-    /// Synchronously assigns a new hotkey character to the currently selected action.
+    /// Assigns a hotkey to the currently selected action.
     /// </summary>
-    /// <param name="key">The new key character.</param>
-    public void AssignHotkey(char key) => _ = AssignHotkeyAsync(key, CancellationToken.None);
+    /// <param name="key">The key character to assign.</param>
+    [RelayCommand]
+    public void AssignHotkey(char key) => AssignKey(key);
+
+    /// <summary>
+    /// Assigns a hotkey to the currently selected action asynchronously.
+    /// </summary>
+    /// <param name="key">The key character to assign.</param>
+    /// <returns>A completed task.</returns>
+    public Task AssignHotkeyAsync(char key)
+    {
+        AssignKey(key);
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// Clears the hotkey from the currently selected action.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task ClearHotkeyAsync(CancellationToken cancellationToken = default)
+    public void ClearKey()
     {
         if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(SelectedAction.HotkeyString))
         {
             return;
         }
 
         SelectedAction.Hotkey = null;
+        SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
+        SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
 
-        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
-        {
-            SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
-            SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
-            var saved = await SaveCurrentProfileAsync(cancellationToken);
-            if (!saved)
-            {
-                return;
-            }
-        }
-
+        _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
-        StatusMessage = $"Cleared hotkey from '{SelectedAction.DisplayName}'.";
     }
 
     /// <summary>
-    /// Synchronously clears the hotkey from the currently selected action.
+    /// Clears the hotkey from the currently selected action.
     /// </summary>
-    public void ClearHotkey() => _ = ClearHotkeyAsync(CancellationToken.None);
+    [RelayCommand]
+    public void ClearHotkey() => ClearKey();
 
     /// <summary>
-    /// Resets the currently selected action to its vanilla default hotkey.
+    /// Clears the hotkey from the currently selected action asynchronously.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <returns>A completed task.</returns>
+    public Task ClearHotkeyAsync()
+    {
+        ClearKey();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Resets the currently selected action to its default CSF hotkey.
+    /// </summary>
     [RelayCommand]
-    public async Task ResetToDefaultAsync(CancellationToken cancellationToken = default)
+    public void ResetKeyToDefault()
     {
         if (SelectedAction == null || SelectedProfile == null)
         {
             return;
         }
 
-        SelectedAction.Hotkey = SelectedAction.DefaultHotkey;
-
-        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
+        if (string.IsNullOrEmpty(SelectedAction.HotkeyString))
         {
-            SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
-            SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
-            var saved = await SaveCurrentProfileAsync(cancellationToken);
-            if (!saved)
-            {
-                return;
-            }
+            return;
         }
 
+        SelectedAction.Hotkey = SelectedAction.DefaultHotkey;
+        SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
+        SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
+
+        _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
-        StatusMessage = $"Reset '{SelectedAction.DisplayName}' to default hotkey.";
     }
 
     /// <summary>
-    /// Synchronously resets the currently selected action to its vanilla default hotkey.
+    /// Applies a standard preset layout to the current profile.
     /// </summary>
-    public void ResetToDefault() => _ = ResetToDefaultAsync(CancellationToken.None);
-
-    /// <summary>
-    /// Applies a preset configuration (e.g. Legionnaire, Leikeze, or Vanilla).
-    /// </summary>
-    /// <param name="presetName">The name of the preset to apply.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <param name="presetName">The preset identifier (e.g. "Vanilla" or "Legionnaire").</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
     public async Task ApplyPresetAsync(string presetName, CancellationToken cancellationToken = default)
@@ -285,67 +379,35 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        try
+        SelectedProfile.BasePreset = presetName;
+        SelectedProfile.KeyMappings.Clear();
+        SelectedProfile.ClearedKeys.Clear();
+
+        if (string.Equals(presetName, GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase))
         {
-            IsBusy = true;
-            BusyMessage = $"Applying '{presetName}' preset...";
-
-            var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame, cancellationToken);
-            if (preset == null)
-            {
-                StatusMessage = $"Failed to load preset '{presetName}'.";
-                return;
-            }
-
-            SelectedProfile.BasePreset = preset.BasePreset ?? presetName;
-            SelectedProfile.ClearedKeys.Clear();
-            foreach (var k in preset.ClearedKeys)
-            {
-                SelectedProfile.ClearedKeys.Add(k);
-            }
-
-            SelectedProfile.KeyMappings.Clear();
-            foreach (var (k, v) in preset.KeyMappings)
-            {
-                SelectedProfile.KeyMappings[k] = v;
-            }
-
+            await ApplyLegionnaireGridPresetAsync(cancellationToken);
+        }
+        else
+        {
+            await SaveCurrentProfileAsync(cancellationToken);
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            var saved = await SaveCurrentProfileAsync(cancellationToken);
-            if (saved)
-            {
-                StatusMessage = $"Applied '{presetName}' preset successfully.";
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to apply preset {Preset}", presetName);
-            StatusMessage = $"Failed to apply preset: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
+            StatusMessage = $"Applied '{presetName}' preset hotkeys.";
         }
     }
 
     /// <summary>
-    /// Creates a new profile with the given name.
+    /// Creates a new hotkey profile for the current game.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
     public async Task CreateNewProfileAsync(CancellationToken cancellationToken = default)
     {
-        var name = string.IsNullOrWhiteSpace(NewProfileName) ? "Custom Hotkeys" : NewProfileName.Trim();
-        var profile = new HotkeyProfile
+        var name = string.IsNullOrWhiteSpace(NewProfileName) ? $"Profile {Profiles.Count + 1}" : NewProfileName.Trim();
+        var newProfile = new HotkeyProfile
         {
             Name = name,
-            BasePreset = GenHotkeysConstants.PresetVanilla,
             TargetGame = SelectedGame,
             OverlayEnabled = OverlayEnabled,
             OverlayCorner = SelectedCorner,
@@ -353,11 +415,10 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            await profileStorageService.SaveProfileAsync(profile, cancellationToken);
-            Profiles.Add(profile);
-            SelectedProfile = profile;
+            await profileStorageService.SaveProfileAsync(newProfile, cancellationToken);
+            Profiles.Add(newProfile);
+            SelectedProfile = newProfile;
             NewProfileName = string.Empty;
-
             StatusMessage = $"Created profile '{name}'.";
         }
         catch (OperationCanceledException)
@@ -381,18 +442,11 @@ public partial class GenHotkeysViewModel(
     {
         if (SelectedProfile == null)
         {
-            StatusMessage = "No profile selected to rename.";
             return;
         }
 
         var newName = RenameProfileText?.Trim();
-        if (string.IsNullOrWhiteSpace(newName))
-        {
-            StatusMessage = "Profile name cannot be empty.";
-            return;
-        }
-
-        if (string.Equals(SelectedProfile.Name, newName, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(newName) || string.Equals(newName, SelectedProfile.Name, StringComparison.Ordinal))
         {
             return;
         }
@@ -412,6 +466,7 @@ public partial class GenHotkeysViewModel(
             Profiles[index] = SelectedProfile;
         }
 
+        await CheckExistingAddonAsync(cancellationToken);
         StatusMessage = $"Renamed profile '{oldName}' to '{newName}'.";
     }
 
@@ -457,6 +512,143 @@ public partial class GenHotkeysViewModel(
     }
 
     /// <summary>
+    /// Checks whether an addon manifest already exists for the currently selected profile and game.
+    /// Updates <see cref="HasExistingAddon"/> and <see cref="AddonButtonText"/> accordingly.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous check.</returns>
+    public async Task CheckExistingAddonAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedProfile == null || manifestPool == null)
+        {
+            HasExistingAddon = false;
+            ExistingAddonManifest = null;
+            AddonButtonText = "Create Addon";
+            return;
+        }
+
+        try
+        {
+            var expectedBigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
+            var expectedManifestName = GenHotkeysConstants.GetManifestDisplayName(SelectedProfile.Name, SelectedGame);
+
+            var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (manifestsResult is not { Success: true, Data: not null })
+            {
+                HasExistingAddon = false;
+                ExistingAddonManifest = null;
+                AddonButtonText = "Create Addon";
+                return;
+            }
+
+            var match = manifestsResult.Data.FirstOrDefault(m =>
+                m.ContentType == ContentType.Addon &&
+                (m.TargetGame == SelectedGame || m.TargetGame == GameType.Unknown) &&
+                (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase) ||
+                 (m.Files != null && m.Files.Any(f => f.RelativePath != null && f.RelativePath.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase)))));
+
+            ExistingAddonManifest = match;
+            HasExistingAddon = match != null;
+            AddonButtonText = HasExistingAddon ? "Add to Profile" : "Create Addon";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to check existing addon manifest for profile '{Name}'", SelectedProfile.Name);
+        }
+    }
+
+    /// <summary>
+    /// Handles the primary addon button click. If an addon already exists, opens the profile selection dialog.
+    /// Otherwise, creates the addon.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous action.</returns>
+    [RelayCommand]
+    public async Task HandleAddonActionAsync(CancellationToken cancellationToken = default)
+    {
+        if (HasExistingAddon && ExistingAddonManifest != null)
+        {
+            await OpenProfileSelectionAsync(ExistingAddonManifest);
+        }
+        else
+        {
+            await ExportAddonAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Opens the ProfileSelectionView dialog to add the specified hotkey addon to a game profile.
+    /// </summary>
+    /// <param name="manifest">Optional addon manifest; if null, uses ExistingAddonManifest.</param>
+    /// <returns>A task representing the asynchronous dialog presentation.</returns>
+    [RelayCommand]
+    public async Task OpenProfileSelectionAsync(ContentManifest? manifest = null)
+    {
+        var targetManifest = manifest ?? ExistingAddonManifest;
+        if (targetManifest == null)
+        {
+            StatusMessage = "No addon manifest found to add to profile.";
+            return;
+        }
+
+        if (profileManager == null || profileContentService == null || manifestPool == null || notificationService == null)
+        {
+            StatusMessage = "Profile management services are not available.";
+            return;
+        }
+
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => OpenProfileSelectionAsync(targetManifest));
+            return;
+        }
+
+        try
+        {
+            var loggerInstance = loggerFactory?.CreateLogger<ProfileSelectionViewModel>()
+                ?? NullLogger<ProfileSelectionViewModel>.Instance;
+
+            using var profileSelectionVm = new ProfileSelectionViewModel(
+                loggerInstance,
+                profileManager,
+                profileContentService,
+                manifestPool,
+                notificationService);
+
+            await profileSelectionVm.LoadProfilesAsync(
+                targetManifest.TargetGame,
+                targetManifest.Id.Value,
+                targetManifest.Name,
+                ct: CancellationToken.None);
+
+            var dialog = new ProfileSelectionView(profileSelectionVm);
+
+            var mainWindow = Application.Current?.ApplicationLifetime is
+                IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow
+                    : null;
+
+            if (mainWindow != null)
+            {
+                await dialog.ShowDialog(mainWindow);
+            }
+            else
+            {
+                logger.LogWarning("No main window found to show profile selection dialog");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to open profile selection dialog");
+            notificationService.ShowError("Profile Selection Error", $"Failed to open profile selection: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Exports the current hotkey configuration into a standalone .big addon and registers it with GenHub.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -478,9 +670,38 @@ public partial class GenHotkeysViewModel(
             var progress = new Progress<string>(msg => BusyMessage = msg);
             var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress, cancellationToken);
 
-            StatusMessage = result is { Success: true, Data: not null }
-                ? $"Success! Addon '{result.Data.Name}' ({result.Data.Id}) registered in GenHub!"
-                : $"Export failed: {string.Join(", ", result.Errors)}";
+            if (result is { Success: true, Data: not null })
+            {
+                var bigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
+                ExistingAddonManifest = result.Data;
+                HasExistingAddon = true;
+                AddonButtonText = "Add to Profile";
+                StatusMessage = $"Success! Addon '{result.Data.Name}' registered in GenHub!";
+
+                if (notificationService != null)
+                {
+                    var capturedManifest = result.Data;
+                    var notification = new NotificationMessage(
+                        NotificationType.Success,
+                        "Hotkey Addon Created",
+                        $"Created '{bigFileName}' successfully.",
+                        autoDismissMilliseconds: NotificationDurations.Long,
+                        actionText: "Add to Profile",
+                        action: () =>
+                        {
+                            Dispatcher.UIThread.Post(async () =>
+                            {
+                                await OpenProfileSelectionAsync(capturedManifest);
+                            });
+                        });
+
+                    notificationService.Show(notification);
+                }
+            }
+            else
+            {
+                StatusMessage = $"Export failed: {string.Join(", ", result.Errors)}";
+            }
         }
         catch (OperationCanceledException)
         {
@@ -535,8 +756,8 @@ public partial class GenHotkeysViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to save profile '{Name}'", SelectedProfile.Name);
-            StatusMessage = $"Failed to save profile: {ex.Message}";
+            logger.LogError(ex, "Failed to persist profile '{Name}'", SelectedProfile.Name);
+            StatusMessage = $"Failed to save: {ex.Message}";
             return false;
         }
         finally
@@ -547,7 +768,7 @@ public partial class GenHotkeysViewModel(
             }
             catch (ObjectDisposedException)
             {
-                // Ignored if disposed during release
+                // Ignored
             }
         }
     }
@@ -557,80 +778,6 @@ public partial class GenHotkeysViewModel(
     {
         Dispose(true);
         GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Validates hotkey conflicts within a single layout.
-    /// </summary>
-    /// <param name="layout">The collection of actions in the layout.</param>
-    /// <returns>The number of conflicting actions found.</returns>
-    internal static int ValidateLayoutConflicts(ObservableCollection<HotkeyActionViewModel> layout)
-    {
-        foreach (var action in layout)
-        {
-            action.IsConflict = false;
-            action.ConflictReason = null;
-        }
-
-        var assigned = layout.Where(a => a.Hotkey.HasValue).ToList();
-        var groups = assigned.GroupBy(a => char.ToUpperInvariant(a.Hotkey.GetValueOrDefault()));
-
-        var conflictCount = 0;
-        foreach (var grp in groups)
-        {
-            var actionsInGroup = grp.ToList();
-            if (actionsInGroup.Count <= 1)
-            {
-                continue;
-            }
-
-            foreach (var action in actionsInGroup)
-            {
-                var conflictingOthers = actionsInGroup
-                    .Where(other => other != action && !AreMutuallyExclusive(action, other))
-                    .ToList();
-
-                if (conflictingOthers.Count > 0)
-                {
-                    action.IsConflict = true;
-                    var names = string.Join(", ", conflictingOthers.Select(o => o.DisplayName));
-                    action.ConflictReason = $"Conflicts with: {names}";
-                    conflictCount++;
-                }
-            }
-        }
-
-        return conflictCount;
-    }
-
-    /// <summary>
-    /// Checks whether two actions are mutually exclusive (e.g. an upgrade replacing an earlier ability on the same slot)
-    /// and therefore do not conflict when sharing the same hotkey.
-    /// </summary>
-    /// <param name="a">The first action view model.</param>
-    /// <param name="b">The second action view model.</param>
-    /// <returns><c>true</c> if the actions are mutually exclusive; otherwise, <c>false</c>.</returns>
-    internal static bool AreMutuallyExclusive(HotkeyActionViewModel a, HotkeyActionViewModel b)
-    {
-        // Daisy Cutter (Fuel Air Bomb) is upgraded and replaced by MOAB (Mother of All Bombs)
-        if (IsDaisyCutterOrMoab(a) && IsDaisyCutterOrMoab(b))
-        {
-            return true;
-        }
-
-        // Land Mines are upgraded and replaced by Neutron Mines (EMP Mines) on the same command slot
-        if (IsChinaMines(a) && IsChinaMines(b))
-        {
-            return true;
-        }
-
-        // Satellite Hack 1 is upgraded and replaced by Satellite Hack 2 on the same command slot
-        if (IsSatelliteHack(a) && IsSatelliteHack(b))
-        {
-            return true;
-        }
-
-        return false;
     }
 
     /// <summary>
@@ -713,6 +860,73 @@ public partial class GenHotkeysViewModel(
         return action.DefaultHotkey;
     }
 
+    private async Task ApplyLegionnaireGridPresetAsync(CancellationToken cancellationToken)
+    {
+        if (SelectedProfile == null)
+        {
+            return;
+        }
+
+        try
+        {
+            char[] topRow = ['Q', 'W', 'E', 'R', 'T'];
+            char[] midRow = ['A', 'S', 'D', 'F', 'G'];
+            char[] botRow = ['Z', 'X', 'C', 'V', 'B'];
+
+            foreach (var faction in _allFactions)
+            {
+                foreach (var obj in faction.GameObjects)
+                {
+                    for (var layoutIndex = 0; layoutIndex < obj.KeyboardLayouts.Count; layoutIndex++)
+                    {
+                        var layout = obj.KeyboardLayouts[layoutIndex];
+                        for (var i = 0; i < layout.Count; i++)
+                        {
+                            var action = layout[i];
+                            if (string.IsNullOrEmpty(action.HotkeyString))
+                            {
+                                continue;
+                            }
+
+                            char? gridKey = null;
+                            if (i < 5)
+                            {
+                                gridKey = topRow[i];
+                            }
+                            else if (i < 10)
+                            {
+                                gridKey = midRow[i - 5];
+                            }
+                            else if (i < 14)
+                            {
+                                gridKey = botRow[i - 10];
+                            }
+
+                            if (gridKey.HasValue)
+                            {
+                                SelectedProfile.KeyMappings[action.HotkeyString] = gridKey.Value;
+                            }
+                        }
+                    }
+                }
+            }
+
+            await SaveCurrentProfileAsync(cancellationToken);
+            ApplyProfileMappingsToViewModels();
+            ValidateConflicts();
+            StatusMessage = "Applied Legionnaire QWERTY Grid preset layout.";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to apply Legionnaire preset");
+            StatusMessage = $"Failed to apply preset: {ex.Message}";
+        }
+    }
+
     partial void OnSelectedGameChanged(GameType value)
     {
         if (!_isInitializing)
@@ -739,10 +953,14 @@ public partial class GenHotkeysViewModel(
             SelectedCorner = value.OverlayCorner;
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
+            _ = CheckExistingAddonAsync();
         }
         else
         {
             RenameProfileText = string.Empty;
+            HasExistingAddon = false;
+            ExistingAddonManifest = null;
+            AddonButtonText = "Create Addon";
         }
     }
 
@@ -823,6 +1041,8 @@ public partial class GenHotkeysViewModel(
 
         SelectedFaction = Factions.FirstOrDefault();
         FilterGameObjects(cancellationToken);
+
+        await CheckExistingAddonAsync(cancellationToken);
     }
 
     private void FilterGameObjects(CancellationToken cancellationToken = default)
