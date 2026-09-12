@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -14,6 +15,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -88,6 +90,10 @@ public partial class App : Application
 
             // Clean any orphaned default AppData folders when running from a custom install location
             StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
+
+            // Detect duplicate installation collisions (e.g. user previously installed to a custom directory via --installto,
+            // and later ran Setup.exe normally which installed to default %LOCALAPPDATA%).
+            SafeFireAndForget(CheckForDuplicateInstallationConflictAsync(), nameof(CheckForDuplicateInstallationConflictAsync));
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -148,6 +154,65 @@ public partial class App : Application
                 }
             }
         }
+    }
+
+    private async Task CheckForDuplicateInstallationConflictAsync()
+    {
+        await Task.Run(() =>
+        {
+            try
+            {
+                var tracker = _serviceProvider.GetService<IInstallationLocationTracker>();
+                var customPath = tracker?.GetRegisteredCustomInstallPath();
+
+                if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var detectedCustomPath) &&
+                    !string.IsNullOrWhiteSpace(detectedCustomPath))
+                {
+                    var logger = _serviceProvider.GetService<ILogger<App>>();
+                    var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
+
+                    logger?.LogWarning(
+                        "Duplicate installation detected: GenHub is running from default location '{DefaultLocation}', " +
+                        "but an existing custom installation was found at '{CustomLocation}'.",
+                        defaultRoot,
+                        detectedCustomPath);
+
+                    var imported = false;
+
+                    // If the current default location has no user data (fresh installer run), adopt settings/profiles from custom location
+                    if (!StorageMigrationService.HasExistingUserData(defaultRoot) &&
+                        StorageMigrationService.HasExistingUserData(detectedCustomPath))
+                    {
+                        logger?.LogInformation(
+                            "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
+                            detectedCustomPath,
+                            defaultRoot);
+
+                        imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
+                    }
+
+                    // Clear custom install path from registry so subsequent launches do not repeatedly trigger this collision warning
+                    tracker?.ClearCustomInstallPath();
+
+                    // Notify the user in the UI
+                    var notificationService = _serviceProvider.GetService<INotificationService>();
+                    var message = imported
+                        ? $"GenHub was installed to the default location while another installation exists at '{detectedCustomPath}'. Your configurations and profiles have been preserved."
+                        : $"GenHub is running from the default location while another installation was detected at '{detectedCustomPath}'.";
+
+                    notificationService?.ShowWarning(
+                        StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+                        message,
+                        autoDismissMs: StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,
+                        showInBadge: true);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Security.SecurityException)
+            {
+                var logger = _serviceProvider.GetService<ILogger<App>>();
+                logger?.LogWarning(ex, "Error checking for duplicate installation conflict on startup");
+            }
+        });
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)

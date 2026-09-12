@@ -315,6 +315,15 @@ Any application arguments must follow a `--` separator if needed. When `--instal
 
 Existing installations on `C:` can also be migrated to a new location at any time using the in-app **Settings → Migrate Installation** workflow.
 
+> [!IMPORTANT]
+> **Re-running `GenHub-win-Setup.exe` on Custom Installations**
+> Velopack's precompiled `Setup.exe` bootstrapper always defaults its destination to `%LOCALAPPDATA%\GenHub` when run without command-line arguments. It does not inspect existing registry keys or detect custom paths on its own.
+>
+> If you installed GenHub to a custom path (e.g. `D:\Games\GenHub`):
+> - **In-App Updates (Preferred)**: GenHub updates seamlessly in-place within the custom directory without running `Setup.exe`.
+> - **Manual Re-installation / Upgrades via Installer**: You must specify `--installto "<custom-path>"` again when running `Setup.exe`.
+> - **Collision Resolution**: If `Setup.exe` is run without arguments, creating a duplicate install in `%LOCALAPPDATA%\GenHub`, GenHub's startup diagnostics detect the collision, record/preserve custom installation roots in the user registry (`HKCU\Software\GenHub\CustomInstallPath`), adopt existing user settings and profiles into the new install so no configuration is lost, and notify the user of the duplicate installation.
+
 ### Linux Installation
 
 - **Installation Directory**: `~/.local/share/GenHub/`

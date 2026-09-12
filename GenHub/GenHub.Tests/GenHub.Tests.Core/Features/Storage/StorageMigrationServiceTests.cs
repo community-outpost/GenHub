@@ -652,6 +652,166 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.False(StorageMigrationService.IsVelopackRoot(path));
     }
 
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when the current instance is already running from a custom root.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_ReturnsFalse_WhenRunningInCustomRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(true);
+        try
+        {
+            var candidate = Path.Combine(_tempRoot, "AnotherCustomRoot");
+            Directory.CreateDirectory(candidate);
+            File.WriteAllText(Path.Combine(candidate, "Update.exe"), "stub");
+
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(candidate, out var detected);
+            Assert.False(hasConflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when candidate is null or empty.
+    /// </summary>
+    /// <param name="candidate">Candidate path.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void HasDuplicateInstallationConflict_ReturnsFalse_WhenCandidateEmpty(string? candidate)
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(candidate, out var detected);
+            Assert.False(hasConflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict detects valid custom installation when running from default.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_DetectsCustomInstallation_WhenRunningFromDefault()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var customInstall = Path.Combine(_tempRoot, "CustomInstallRoot");
+            Directory.CreateDirectory(customInstall);
+            File.WriteAllText(Path.Combine(customInstall, "Update.exe"), "stub");
+
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(customInstall, out var detected);
+            Assert.True(hasConflict);
+            Assert.NotNull(detected);
+            Assert.Equal(Path.TrimEndingDirectorySeparator(Path.GetFullPath(customInstall)), detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasExistingUserData detects settings.json, profiles, and returns false for empty directory.
+    /// </summary>
+    [Fact]
+    public void HasExistingUserData_DetectsSettingsAndProfiles()
+    {
+        var emptyDir = Path.Combine(_tempRoot, "EmptyDir");
+        Directory.CreateDirectory(emptyDir);
+        Assert.False(StorageMigrationService.HasExistingUserData(emptyDir));
+
+        var settingsDir = Path.Combine(_tempRoot, "SettingsDir");
+        Directory.CreateDirectory(settingsDir);
+        File.WriteAllText(Path.Combine(settingsDir, FileTypes.SettingsFileName), "{}");
+        Assert.True(StorageMigrationService.HasExistingUserData(settingsDir));
+
+        var profilesDir = Path.Combine(_tempRoot, "ProfilesDir");
+        Directory.CreateDirectory(Path.Combine(profilesDir, DirectoryNames.Profiles));
+        File.WriteAllText(Path.Combine(profilesDir, DirectoryNames.Profiles, "profile.json"), "{}");
+        Assert.True(StorageMigrationService.HasExistingUserData(profilesDir));
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when candidate exists but is not a Velopack root.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_ReturnsFalse_WhenCandidateNotVelopackRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var notVelopack = Path.Combine(_tempRoot, "DirectoryWithoutVelopack");
+            Directory.CreateDirectory(notVelopack);
+            File.WriteAllText(Path.Combine(notVelopack, "readme.txt"), "some content");
+
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(notVelopack, out var detected);
+            Assert.False(hasConflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that GetDefaultInstallRoot returns a valid path ending with AppName.
+    /// </summary>
+    [Fact]
+    public void GetDefaultInstallRoot_ReturnsValidPathEndingWithAppName()
+    {
+        var root = StorageMigrationService.GetDefaultInstallRoot();
+        Assert.False(string.IsNullOrWhiteSpace(root));
+        Assert.EndsWith(AppConstants.AppName, root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests that TryImportUserDataFromCustomInstall imports settings and profiles without overwriting existing files,
+    /// and explicitly excludes derived state like Workspaces.
+    /// </summary>
+    [Fact]
+    public void TryImportUserDataFromCustomInstall_ImportsUserData_WithoutOverwritingExisting()
+    {
+        var customDir = Path.Combine(_tempRoot, "ImportSourceCustom");
+        var defaultDir = Path.Combine(_tempRoot, "ImportDestDefault");
+        Directory.CreateDirectory(customDir);
+        Directory.CreateDirectory(defaultDir);
+
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\": true}");
+        var customProfiles = Path.Combine(customDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(customProfiles);
+        File.WriteAllText(Path.Combine(customProfiles, "mod.json"), "profile-data");
+
+        // Workspaces should NOT be copied (derived hardlinks to CAS pool)
+        var customWorkspaces = Path.Combine(customDir, DirectoryNames.Workspaces);
+        Directory.CreateDirectory(customWorkspaces);
+        File.WriteAllText(Path.Combine(customWorkspaces, "workspace.dat"), "derived-content");
+
+        var imported = StorageMigrationService.TryImportUserDataFromCustomInstall(customDir, defaultDir);
+        Assert.True(imported);
+
+        Assert.True(File.Exists(Path.Combine(defaultDir, FileTypes.SettingsFileName)));
+        Assert.Equal("{\"custom\": true}", File.ReadAllText(Path.Combine(defaultDir, FileTypes.SettingsFileName)));
+        Assert.True(File.Exists(Path.Combine(defaultDir, DirectoryNames.Profiles, "mod.json")));
+        Assert.False(Directory.Exists(Path.Combine(defaultDir, DirectoryNames.Workspaces)));
+
+        // Calling again should not throw or overwrite if default now exists
+        var importedSecondTime = StorageMigrationService.TryImportUserDataFromCustomInstall(customDir, defaultDir);
+        Assert.False(importedSecondTime);
+    }
+
     private StorageMigrationService CreateService()
     {
         return new StorageMigrationService(

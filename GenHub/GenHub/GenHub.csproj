@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="GenHub.Tests.Core" />
+        <InternalsVisibleTo Include="GenHub.Windows" />
     </ItemGroup>
 
     <ItemGroup>
