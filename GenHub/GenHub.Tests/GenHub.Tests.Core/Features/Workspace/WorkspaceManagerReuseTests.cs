@@ -196,6 +196,83 @@ public class WorkspaceManagerReuseTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a workspace is recreated when the manifest files change even if the manifest version remains identical.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PrepareWorkspaceAsync_WhenManifestFilesChangeWithSameVersion_ShouldRecreateWorkspaceAsync()
+    {
+        // Arrange
+        var workspaceId = "test-workspace";
+        var manifestId = "1.20160316.moddb.mod.shockwaveversion1201";
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
+        Directory.CreateDirectory(workspacePath);
+
+        // Old workspace only had the unextracted installer file
+        File.WriteAllText(Path.Combine(workspacePath, "ShockWaveV1201.exe"), "old unextracted content");
+
+        // Cached metadata with version 20160316
+        var cachedWorkspace = new WorkspaceInfo
+        {
+            Id = workspaceId,
+            WorkspacePath = workspacePath,
+            ManifestIds = [manifestId],
+            ManifestVersions = new Dictionary<string, string> { { manifestId, "20160316" } },
+            Strategy = WorkspaceStrategy.HardLink,
+            IsPrepared = true,
+            FileCount = 1,
+            IsValid = true,
+        };
+        await File.WriteAllTextAsync(_metadataPath, System.Text.Json.JsonSerializer.Serialize(new[] { cachedWorkspace }));
+
+        // New manifest with SAME version 20160316, but now extracted with multiple .big files
+        var config = new WorkspaceConfiguration
+        {
+            Id = workspaceId,
+            Strategy = WorkspaceStrategy.HardLink,
+            Manifests =
+            [
+                new ContentManifest
+                {
+                    Id = ManifestId.Create(manifestId),
+                    Version = "20160316",
+                    Files =
+                    [
+                        new ManifestFile { RelativePath = "!ShockWave.big", Size = 100 },
+                        new ManifestFile { RelativePath = "!ShwAudio.big", Size = 200 },
+                    ],
+                },
+            ],
+            BaseInstallationPath = _tempPath,
+            WorkspaceRootPath = _tempPath,
+            ValidateAfterPreparation = false,
+        };
+
+        var successValidation = new ValidationResult(workspaceId, []);
+        _mockWorkspaceValidator.Setup(x => x.ValidateConfigurationAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successValidation);
+        _mockWorkspaceValidator.Setup(x => x.ValidatePrerequisitesAsync(It.IsAny<IWorkspaceStrategy>(), It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successValidation);
+
+        _mockStrategy.Setup(x => x.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WorkspaceInfo { Id = workspaceId, IsPrepared = true, WorkspacePath = workspacePath });
+
+        // Act
+        var result = await _manager.PrepareWorkspaceAsync(config);
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        // Must call strategy.PrepareAsync with ForceRecreate == true because manifest files changed
+        _mockStrategy.Verify(
+            x => x.PrepareAsync(
+                It.Is<WorkspaceConfiguration>(c => c.ForceRecreate == true),
+                It.IsAny<IProgress<WorkspacePreparationProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that a reusable workspace whose entry point cannot be made executable is recreated.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

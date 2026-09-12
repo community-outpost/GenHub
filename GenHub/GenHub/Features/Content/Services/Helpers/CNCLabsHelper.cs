@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 
@@ -149,29 +150,7 @@ public static partial class CNCLabsHelper
     /// <returns>Readable, normalized plain text using <see cref="Environment.NewLine"/> line separators.</returns>
     public static string NormalizeHtmlDescription(string? htmlFragment)
     {
-        if (string.IsNullOrWhiteSpace(htmlFragment))
-            return string.Empty;
-
-        // 1) Convert <br> tags to '\n' so we can normalize consistently
-        var text = BrTagRegex().Replace(htmlFragment, "\n");
-
-        // 2) Decode HTML entities (&nbsp;, &gt;, etc.)
-        text = WebUtility.HtmlDecode(text);
-
-        // 3) Normalize spaces/newlines
-        text = text.Replace('\u00A0', ' ');       // NBSP → regular space
-        text = text.Replace("\r\n", "\n")
-                   .Replace("\r", "\n");          // unify to '\n'
-
-        // 4) Tidy whitespace & collapse excessive blank lines
-        text = TrailingWhitespaceBeforeNewlineRegex().Replace(text, "\n");
-        text = ExcessBlankLinesRegex().Replace(text, "\n\n");
-
-        // 5) Trim and convert to platform newline
-        text = text.Trim();
-        text = text.Replace("\n", Environment.NewLine);
-
-        return text;
+        return HtmlTextHelper.NormalizeHtml(htmlFragment);
     }
 
     /// <summary>
@@ -217,25 +196,6 @@ public static partial class CNCLabsHelper
             _ => (GameType.Unknown, ContentType.UnknownContentType),
         };
     }
-
-    /// <summary>
-    /// Regex that matches HTML &lt;br&gt; tag variants (e.g., &lt;br&gt;, &lt;br/&gt;, &lt;br /&gt;).
-    /// Replaced with a single newline during normalization.
-    /// </summary>
-    [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex BrTagRegex();
-
-    /// <summary>
-    /// Regex that trims trailing spaces/tabs immediately before a newline to avoid ragged line ends.
-    /// </summary>
-    [GeneratedRegex(@"[ \t]+\r?\n", RegexOptions.CultureInvariant)]
-    private static partial Regex TrailingWhitespaceBeforeNewlineRegex();
-
-    /// <summary>
-    /// Regex that collapses runs of 3+ blank lines down to exactly two blank lines for readability.
-    /// </summary>
-    [GeneratedRegex(@"(?:\r?\n){3,}", RegexOptions.CultureInvariant)]
-    private static partial Regex ExcessBlankLinesRegex();
 
     /// <summary>
     /// Resolves the correct list page path for the given game and content type.

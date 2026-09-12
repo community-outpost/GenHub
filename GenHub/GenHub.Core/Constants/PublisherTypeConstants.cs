@@ -22,9 +22,6 @@ namespace GenHub.Core.Constants;
 /// </remarks>
 public static class PublisherTypeConstants
 {
-    /// <summary>Combined view of all publishers.</summary>
-    public const string All = "all";
-
     /// <summary>Unknown or unspecified publisher.</summary>
     public const string Unknown = "unknown";
 

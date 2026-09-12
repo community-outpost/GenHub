@@ -442,6 +442,7 @@
                                                FontSize="18"
                                                FontWeight="Bold"
                                                TextTrimming="CharacterEllipsis"
+                                               TextWrapping="NoWrap"
                                                ToolTip.Tip="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
                                                VerticalAlignment="Center" />
                                 </DockPanel>

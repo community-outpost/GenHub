@@ -6,10 +6,20 @@ using GenHub.Core.Models.Enums;
 namespace GenHub.Core.Models.Providers;
 
 /// <summary>
-/// Defines a content provider loaded from external JSON configuration.
-/// This model supports both "static" publishers (like GeneralsOnline, CommunityOutpost)
-/// and "dynamic" author-based publishers (like GitHub topics, ModDB authors).
+/// Defines a content provider's static configuration (Tier 1 — publisher metadata + endpoints).
 /// </summary>
+/// <remarks>
+/// <para>
+/// Loaded today from bundled <c>Providers/*.provider.json</c> (GeneralsOnline, CommunityOutpost, …)
+/// and drives built-in discoverers/parsers (catalog format, timeouts, version scheme).
+/// </para>
+/// <para>
+/// This is <b>not</b> what <c>genhub://subscribe</c> persists today — subscribe stores a
+/// <see cref="PublisherSubscription"/> to a <see cref="PublisherCatalog"/> URL. Publisher Studio
+/// will later publish user-hosted definitions so users subscribe to a stable definition URL that
+/// references catalog endpoint(s), keeping the same Downloads/generic-catalog pipeline for content.
+/// </para>
+/// </remarks>
 public class ProviderDefinition
 {
     /// <summary>

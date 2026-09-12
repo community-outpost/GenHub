@@ -275,6 +275,19 @@ public class UserDataTrackerService(
             }
 
             logger.LogInformation("[UserData] Activated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
+
+            await IndexLock.WaitAsync(cancellationToken);
+            try
+            {
+                var index = await LoadIndexUnlockedAsync(cancellationToken);
+                index.ActiveProfileId = profileId;
+                await SaveIndexAsync(index, cancellationToken);
+            }
+            finally
+            {
+                IndexLock.Release();
+            }
+
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
@@ -352,9 +365,9 @@ public class UserDataTrackerService(
                         }
                         catch (Exception ex)
                         {
-                            logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
                             manifestHasErrors = true;
                             allSuccess = false;
+                            logger.LogError(ex, "[UserData] Failed to remove file during deactivation: {Path}", file.AbsolutePath);
                         }
                     }
 
@@ -405,6 +418,22 @@ public class UserDataTrackerService(
             }
 
             logger.LogInformation("[UserData] Deactivated {Count} manifests for profile {ProfileId}", deactivatedCount, profileId);
+
+            await IndexLock.WaitAsync(cancellationToken);
+            try
+            {
+                var index = await LoadIndexUnlockedAsync(cancellationToken);
+                if (string.Equals(index.ActiveProfileId, profileId, StringComparison.OrdinalIgnoreCase))
+                {
+                    index.ActiveProfileId = null;
+                    await SaveIndexAsync(index, cancellationToken);
+                }
+            }
+            finally
+            {
+                IndexLock.Release();
+            }
+
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
@@ -415,6 +444,22 @@ public class UserDataTrackerService(
         {
             logger.LogError(ex, "[UserData] Failed to deactivate user data for profile {ProfileId}", profileId);
             return OperationResult<bool>.CreateFailure($"Failed to deactivate user data: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<string?>> GetActiveProfileIdAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var index = await LoadIndexAsync(cancellationToken);
+            return OperationResult<string?>.CreateSuccess(index.ActiveProfileId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[UserData] Failed to get active profile ID");
+            return OperationResult<string?>.CreateFailure($"Failed to get active profile ID: {ex.Message}");
         }
     }
 
@@ -1144,10 +1189,38 @@ public class UserDataTrackerService(
             return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to check file conflict for '{targetPath}': {conflictResult.FirstError}");
         }
 
+        var isSameManifest = false;
         if (!string.IsNullOrEmpty(conflictResult.Data) && conflictResult.Data != installationKey)
         {
-            logger.LogError("[UserData] File conflict with installation {Key}: {Path}; aborting installation", conflictResult.Data, targetPath);
-            return OperationResult<UserDataFileEntry>.CreateFailure($"File '{targetPath}' is already managed by installation '{conflictResult.Data}'. Installation aborted.");
+            var conflictingManifest = await LoadUserDataManifestByKeyAsync(conflictResult.Data, cancellationToken);
+            var lastUnderscoreIndex = installationKey.LastIndexOf('_');
+            var currentManifestId = lastUnderscoreIndex > 0 ? installationKey[..lastUnderscoreIndex] : installationKey;
+
+            if (conflictingManifest != null &&
+                string.Equals(conflictingManifest.ManifestId, currentManifestId, StringComparison.OrdinalIgnoreCase))
+            {
+                isSameManifest = true;
+                logger.LogDebug(
+                    "[UserData] File {Path} is already managed by manifest {ManifestId} under installation {Key}; sharing installation without conflict",
+                    targetPath,
+                    currentManifestId,
+                    conflictResult.Data);
+
+                if (priorEntry == null)
+                {
+                    var existingFile = conflictingManifest.InstalledFiles.FirstOrDefault(
+                        f => string.Equals(f.AbsolutePath, targetPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+                    if (existingFile != null)
+                    {
+                        priorEntry = existingFile;
+                    }
+                }
+            }
+            else
+            {
+                logger.LogError("[UserData] File conflict with installation {Key}: {Path}; aborting installation", conflictResult.Data, targetPath);
+                return OperationResult<UserDataFileEntry>.CreateFailure($"File '{targetPath}' is already managed by installation '{conflictResult.Data}'. Installation aborted.");
+            }
         }
 
         var wasOverwritten = false;
@@ -1167,7 +1240,7 @@ public class UserDataTrackerService(
                 wasOverwritten = true;
                 logger.LogInformation("[UserData] Backed up existing user file: {Path} -> {Backup}", targetPath, backupPath);
             }
-            else if (conflictResult.Data == installationKey && priorEntry != null)
+            else if ((conflictResult.Data == installationKey || isSameManifest) && priorEntry != null)
             {
                 wasOverwritten = priorEntry.WasOverwritten;
                 backupPath = priorEntry.BackupPath;
@@ -1175,7 +1248,7 @@ public class UserDataTrackerService(
 
             FileOperationsService.DeleteFileIfExists(targetPath);
         }
-        else if (conflictResult.Data == installationKey && priorEntry != null)
+        else if ((conflictResult.Data == installationKey || isSameManifest) && priorEntry != null)
         {
             wasOverwritten = priorEntry.WasOverwritten;
             backupPath = priorEntry.BackupPath;

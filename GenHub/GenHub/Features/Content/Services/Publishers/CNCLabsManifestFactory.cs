@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,9 +11,6 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Interfaces.Tools;
-using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
@@ -25,11 +24,9 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// Generates manifest IDs following the format: 1.0.cnclabs-{author}.{contentType}.{contentName}.
 /// </summary>
 public partial class CNCLabsManifestFactory(
-    IContentManifestBuilder manifestBuilder,
+    Func<IContentManifestBuilder> manifestBuilderFactory,
     IProviderDefinitionLoader providerLoader,
-    IDownloadService downloadService,
-    ICasService casService,
-    IConfigurationProviderService configurationProvider,
+    IFileHashProvider hashProvider,
     ILogger<CNCLabsManifestFactory> logger) : IPublisherManifestFactory
 {
     private static string SlugifyContentName(string title)
@@ -84,8 +81,13 @@ public partial class CNCLabsManifestFactory(
             try
             {
                 var uri = new Uri(details.DownloadUrl);
+
+                // Skip dynamic download scripts (fetch.aspx, download.php, etc.)
                 var filename = Path.GetFileName(uri.LocalPath);
-                if (!string.IsNullOrWhiteSpace(filename) && filename.Contains('.'))
+                if (!string.IsNullOrWhiteSpace(filename) &&
+                    filename.Contains('.') &&
+                    !filename.EndsWith(".aspx", StringComparison.OrdinalIgnoreCase) &&
+                    !filename.EndsWith(".php", StringComparison.OrdinalIgnoreCase))
                 {
                     return filename;
                 }
@@ -96,8 +98,10 @@ public partial class CNCLabsManifestFactory(
             }
         }
 
-        // Fallback: generate a generic filename
-        return CNCLabsConstants.DefaultDownloadFilename;
+        // Fallback: generate a filename based on content name, stripping all invalid filename
+        // characters (details.Name is parsed from a remote CNC Labs HTML page).
+        var safeName = string.Join("_", details.Name.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        return string.IsNullOrWhiteSpace(safeName) ? CNCLabsConstants.DefaultDownloadFilename : $"{safeName}.zip";
     }
 
     /// <inheritdoc/>
@@ -115,8 +119,132 @@ public partial class CNCLabsManifestFactory(
         string extractedDirectory,
         CancellationToken cancellationToken = default)
     {
-        // CNCLabs content is delivered directly, no extra processing needed post-extraction.
-        return Task.FromResult(new List<ContentManifest> { originalManifest });
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation(
+            "Processing CNC Labs extracted content for manifest {ManifestId} from directory {Directory}",
+            originalManifest.Id,
+            extractedDirectory);
+
+        // Check if directory contains ZIP files
+        if (!Directory.Exists(extractedDirectory))
+        {
+            logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
+            return new List<ContentManifest> { originalManifest };
+        }
+
+        var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
+        if (zipFiles.Length == 0)
+        {
+            logger.LogDebug("No ZIP files found in directory, returning original manifest");
+            return new List<ContentManifest> { originalManifest };
+        }
+
+        logger.LogDebug("Found {Count} ZIP files to extract", zipFiles.Length);
+
+        // Extract all ZIP files
+        var extractedFiles = new List<ManifestFile>();
+        foreach (var zipPath in zipFiles)
+        {
+            try
+            {
+                logger.LogDebug("Extracting ZIP file: {ZipPath}", zipPath);
+
+                // Extract ZIP to a subdirectory
+                var extractPath = Path.Combine(extractedDirectory, Path.GetFileNameWithoutExtension(zipPath));
+                if (Directory.Exists(extractPath))
+                {
+                    Directory.Delete(extractPath, true);
+                }
+
+                Directory.CreateDirectory(extractPath);
+
+                await Task.Run(() => ZipFile.ExtractToDirectory(zipPath, extractPath), cancellationToken);
+                logger.LogDebug("Extracted ZIP to: {ExtractPath}", extractPath);
+
+                // Scan extracted files
+                var files = Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories);
+                logger.LogDebug("Found {Count} files in extracted ZIP", files.Length);
+
+                foreach (var filePath in files)
+                {
+                    var relativePath = Path.GetRelativePath(extractedDirectory, filePath);
+                    var fileInfo = new FileInfo(filePath);
+                    var hash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
+
+                    var manifestFile = new ManifestFile
+                    {
+                        RelativePath = relativePath,
+                        SourceType = ContentSourceType.ContentAddressable,
+                        InstallTarget = originalManifest.ContentType == ContentType.Map
+                            ? ContentInstallTarget.UserMapsDirectory
+                            : ContentInstallTarget.Workspace,
+                        Size = fileInfo.Length,
+                        Hash = hash,
+                        IsExecutable = false,
+                    };
+
+                    extractedFiles.Add(manifestFile);
+                    logger.LogDebug(
+                        "Added file to manifest: {RelativePath}, Hash: {Hash}, Size: {Size}",
+                        relativePath,
+                        hash,
+                        fileInfo.Length);
+                }
+
+                // Delete ZIP file after successful extraction
+                File.Delete(zipPath);
+                logger.LogInformation("Deleted ZIP file after extraction: {ZipPath}", zipPath);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to extract ZIP file: {ZipPath}", zipPath);
+                throw new InvalidOperationException($"Failed to extract ZIP file '{zipPath}': {ex.Message}", ex);
+            }
+        }
+
+        if (extractedFiles.Count == 0)
+        {
+            logger.LogWarning("No files extracted from ZIP archives");
+            return new List<ContentManifest> { originalManifest };
+        }
+
+        // Create updated manifest with extracted files
+        var updatedManifest = new ContentManifest
+        {
+            SchemaVersion = originalManifest.SchemaVersion,
+            Id = originalManifest.Id,
+            Name = originalManifest.Name,
+            Version = originalManifest.Version,
+            ContentType = originalManifest.ContentType,
+            TargetGame = originalManifest.TargetGame,
+            Publisher = originalManifest.Publisher,
+            Metadata = originalManifest.Metadata,
+            OriginalProviderName = originalManifest.OriginalProviderName,
+            OriginalContentId = originalManifest.OriginalContentId,
+            SourcePath = originalManifest.SourcePath,
+            Dependencies = originalManifest.Dependencies,
+            ContentReferences = originalManifest.ContentReferences,
+            KnownAddons = originalManifest.KnownAddons,
+            Files = extractedFiles,
+            RequiredDirectories = originalManifest.RequiredDirectories,
+            InstallationInstructions = originalManifest.InstallationInstructions,
+        };
+
+        logger.LogInformation(
+            "Successfully extracted and processed {Count} files for manifest {ManifestId}",
+            extractedFiles.Count,
+            originalManifest.Id);
+
+        return new List<ContentManifest> { updatedManifest };
     }
 
     /// <inheritdoc/>
@@ -156,10 +284,9 @@ public partial class CNCLabsManifestFactory(
         // 3. Format submission date as YYYYMMDD for version
         var releaseDate = details.SubmissionDate.ToString(CNCLabsConstants.ReleaseDateFormat);
 
-        // 4. Use injected builder
-        // Note: Since the builder is stateful and injected as Transient (likely), we can use it directly.
-        // If it's Scoped/Singleton, we might need a factory. Assuming proper DI setup.
-        var builder = manifestBuilder;
+        // 4. Obtain a fresh builder for this operation: the shared builder's internal state is
+        // never reset, so a reused singleton would accumulate files/dependencies across calls.
+        var builder = manifestBuilderFactory();
 
         // 5. Configure manifest
         builder
@@ -178,69 +305,21 @@ public partial class CNCLabsManifestFactory(
                 details.Screenshots)
             .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy); // Default strategy
 
-        // 6. Add download file - Download and store in CAS
+        // 6. Add the archive for the staged HTTP deliverer. CAS storage belongs to Stage 5.
         var fileName = GetDownloadFilename(details);
+        logger.LogInformation(
+            "Preparing to download CNC Labs content: {Name}, URL: {Url}, Filename: {Filename}",
+            details.Name,
+            details.DownloadUrl,
+            fileName);
 
-        if (!string.IsNullOrEmpty(details.DownloadUrl))
+        if (string.IsNullOrEmpty(details.DownloadUrl))
         {
-            await DownloadAndAddFileAsync(
-                builder,
-                fileName,
-                details.DownloadUrl,
-                details.RefererUrl);
+            throw new InvalidOperationException($"Download URL is missing for {details.Name}");
         }
-        else
-        {
-            logger.LogWarning("Download URL is missing for {ContentName}", details.Name);
-        }
+
+        await builder.AddRemoteFileAsync(fileName, details.DownloadUrl);
 
         return builder.Build();
-    }
-
-    private async Task DownloadAndAddFileAsync(
-        IContentManifestBuilder builder,
-        string relativePath,
-        string downloadUrl,
-        string? refererUrl)
-    {
-        var tempDir = Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.Temp);
-        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
-
-        var tempFilePath = Path.Combine(tempDir, $"{Guid.NewGuid()}{Path.GetExtension(relativePath)}");
-
-        var downloadConfig = new DownloadConfiguration
-        {
-            Url = new Uri(downloadUrl),
-            DestinationPath = tempFilePath,
-            OverwriteExisting = true,
-        };
-
-        if (!string.IsNullOrEmpty(refererUrl))
-        {
-            downloadConfig.Headers.Add("Referer", refererUrl);
-        }
-
-        // Standard download for CNC Labs
-        var downloadResult = await downloadService.DownloadFileAsync(downloadConfig);
-        if (!downloadResult.Success)
-        {
-            throw new InvalidOperationException($"Failed to download file from {downloadUrl}: {downloadResult.FirstError}");
-        }
-
-        // Store in CAS
-        var storeResult = await casService.StoreContentAsync(tempFilePath, ContentType.Map);
-        if (!storeResult.Success)
-        {
-            if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-            throw new InvalidOperationException($"Failed to store content in CAS: {storeResult.FirstError}");
-        }
-
-        var hash = storeResult.Data;
-        var fileSize = new FileInfo(tempFilePath).Length;
-
-        // Cleanup temp file after successful store (ICasService might move it, but keeping it safe)
-        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-
-        await builder.AddContentAddressableFileAsync(relativePath, hash, fileSize);
     }
 }

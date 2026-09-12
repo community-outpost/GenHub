@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
@@ -60,6 +61,10 @@ public class ContentManifestPool(
             if (!string.IsNullOrEmpty(manifestDir))
                 Directory.CreateDirectory(manifestDir);
 
+            string? previousManifestJson = File.Exists(manifestPath)
+                ? await File.ReadAllTextAsync(manifestPath, cancellationToken)
+                : null;
+
             var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
             await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
 
@@ -69,8 +74,12 @@ public class ContentManifestPool(
             {
                 logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}. Rolling back manifest.", manifest.Id, trackResult.FirstError);
 
-                // Rollback: Delete metadata file only - content was pre-existing, do NOT remove it
-                if (File.Exists(manifestPath))
+                // Rollback: Restore previous metadata file or remove newly created file
+                if (previousManifestJson != null)
+                {
+                    await File.WriteAllTextAsync(manifestPath, previousManifestJson, cancellationToken);
+                }
+                else if (File.Exists(manifestPath))
                 {
                     File.Delete(manifestPath);
                 }
@@ -359,12 +368,15 @@ public class ContentManifestPool(
             foreach (var file in manifest.Files)
             {
                 if (string.IsNullOrEmpty(file.RelativePath))
-                    errors.Add("File entries must have a relative path");
-
-                // Check for path traversal attacks
-                if (file.RelativePath.Contains(".."))
                 {
-                    errors.Add($"File {file.RelativePath} contains illegal path traversal");
+                    errors.Add("File entries must have a relative path");
+                    continue;
+                }
+
+                // Check for path traversal attacks or rooted paths
+                if (Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
+                {
+                    errors.Add($"File {file.RelativePath} contains illegal path traversal or is rooted");
                 }
 
                 if (file.SourceType == ContentSourceType.Unknown)

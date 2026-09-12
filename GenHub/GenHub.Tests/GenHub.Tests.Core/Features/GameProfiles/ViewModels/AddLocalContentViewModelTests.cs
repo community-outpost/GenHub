@@ -500,8 +500,7 @@ public class AddLocalContentViewModelTests : IDisposable
 
         await vm.AddContentCommand.ExecuteAsync(null);
 
-        var dirName = Path.GetFileName(tempDir);
-        Assert.Equal($"{dirName}/bin/tool.exe", capturedEntryPoint);
+        Assert.Equal("bin/tool.exe", capturedEntryPoint);
     }
 
     /// <summary>
@@ -765,6 +764,112 @@ public class AddLocalContentViewModelTests : IDisposable
         Assert.Null(capturedEntryPoint);
     }
 
+    /// <summary>
+    /// Verifies that importing a directory places its files directly at the root of the staging file tree rather than nested in a subfolder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WithDirectory_CopiesFilesDirectlyToRoot()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), "big content");
+        File.WriteAllText(Path.Combine(tempDir, "generals.exe"), "exe content");
+        var subDir = Path.Combine(tempDir, "Data");
+        Directory.CreateDirectory(subDir);
+        File.WriteAllText(Path.Combine(subDir, "gamedata.ini"), "ini content");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.Mod;
+        vm.ContentName = "Direct Root Mod";
+
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.NotEmpty(vm.FileTree);
+        var iniBig = FindInTree(vm.FileTree, f => f.Name == "INIZH.big");
+        Assert.NotNull(iniBig);
+        Assert.True(iniBig.IsFile);
+
+        var dataFolder = FindInTree(vm.FileTree, f => f.Name == "Data");
+        Assert.NotNull(dataFolder);
+        Assert.False(dataFolder.IsFile);
+
+        var dirName = Path.GetFileName(tempDir);
+        var nestedWrapper = FindInTree(vm.FileTree, f => f.Name == dirName);
+        Assert.Null(nestedWrapper);
+    }
+
+    /// <summary>
+    /// Verifies that ImportContentAsync invokes IArchivePayloadProcessor when provided.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WithArchivePayloadProcessor_InvokesProcessor()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "mod.big"), "mod content");
+
+        var archiveProcessorMock = new Mock<IArchivePayloadProcessor>();
+        archiveProcessorMock
+            .Setup(x => x.ProcessPayloadAsync(
+                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var vm = new AddLocalContentViewModel(
+            _localContentServiceMock.Object,
+            _contentStorageServiceMock.Object,
+            _normalizationServiceMock.Object,
+            _dialogServiceMock.Object,
+            archiveProcessorMock.Object,
+            NullLogger<AddLocalContentViewModel>.Instance);
+        _viewModels.Add(vm);
+
+        vm.SelectedContentType = ContentType.Mod;
+        vm.ContentName = "Processor Test";
+
+        await vm.ImportContentAsync(tempDir);
+
+        archiveProcessorMock.Verify(
+            x => x.ProcessPayloadAsync(
+                It.IsAny<string>(),
+                ContentType.Mod,
+                GameType.ZeroHour,
+                false,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that importing content with .ctr files detects inactive archives, and executing NormalizeArchivesCommand converts them to .big.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeArchivesCommand_WithCtrFiles_ConvertsToBigAndUpdatesStateAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        var bigHeader = new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'F', 0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00 };
+        var mzHeader = new byte[] { (byte)'M', (byte)'Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00 };
+        await File.WriteAllBytesAsync(Path.Combine(tempDir, "!Contra_INI.ctr"), bigHeader);
+        await File.WriteAllBytesAsync(Path.Combine(tempDir, "generals.ctr"), mzHeader);
+        await File.WriteAllTextAsync(Path.Combine(tempDir, "Contra_Launcher.exe"), "Launcher binary");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.Mod;
+
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.True(vm.HasInactiveArchives);
+
+        await vm.NormalizeArchivesCommand.ExecuteAsync(null);
+
+        Assert.False(vm.HasInactiveArchives);
+        Assert.Contains(vm.FileTree, item => item.Name.Equals("!Contra_INI.big", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(vm.FileTree, item => item.Name.Equals("generals.exe", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(vm.FileTree, item => item.Name.Equals("generals.big", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)
     {
         foreach (var item in items)
@@ -792,6 +897,7 @@ public class AddLocalContentViewModelTests : IDisposable
             _contentStorageServiceMock.Object,
             _normalizationServiceMock.Object,
             _dialogServiceMock.Object,
+            null,
             NullLogger<AddLocalContentViewModel>.Instance);
         _viewModels.Add(vm);
         return vm;

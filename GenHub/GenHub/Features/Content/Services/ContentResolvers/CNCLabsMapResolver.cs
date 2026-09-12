@@ -18,7 +18,6 @@ using GenHub.Features.Content.Services.Helpers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 
-using File = GenHub.Core.Models.Parsers.File;
 using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;

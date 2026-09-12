@@ -358,14 +358,8 @@ public static class ContentPipelineModule
         services.AddSingleton<ModDBPageParser>();
         services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<ModDBPageParser>());
 
-        // Register ModDB discoverer (concrete and interface) with named HttpClient
-        services.AddSingleton<ModDBDiscoverer>(sp =>
-        {
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient(ModDBConstants.PublisherPrefix);
-            var logger = sp.GetRequiredService<ILogger<ModDBDiscoverer>>();
-            return new ModDBDiscoverer(httpClient, logger);
-        });
+        // Register ModDB discoverer (concrete and interface)
+        services.AddSingleton<ModDBDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<ModDBDiscoverer>());
 
         // Register ModDB resolver

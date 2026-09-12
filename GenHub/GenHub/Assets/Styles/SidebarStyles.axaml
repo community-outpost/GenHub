@@ -10,6 +10,7 @@
         <Setter Property="Padding" Value="12,0" />
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Margin" Value="0,2" />
+        <Setter Property="ClipToBounds" Value="True" />
     </Style>
     <Style Selector="Button.sidebar-btn StackPanel">
         <Setter Property="Spacing" Value="12" />
@@ -18,6 +19,11 @@
         <Setter Property="Width" Value="18" />
         <Setter Property="Height" Value="18" />
         <Setter Property="Foreground" Value="White" />
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <Style Selector="Button.sidebar-btn Image">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
         <Setter Property="Opacity" Value="0.6" />
     </Style>
     <Style Selector="Button.sidebar-btn TextBlock">
@@ -30,7 +36,7 @@
     <Style Selector="Button.sidebar-btn:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="#15FFFFFF" />
     </Style>
-    <Style Selector="Button.sidebar-btn:pointerover TextBlock, Button.sidebar-btn:pointerover PathIcon">
+    <Style Selector="Button.sidebar-btn:pointerover TextBlock, Button.sidebar-btn:pointerover PathIcon, Button.sidebar-btn:pointerover Image">
         <Setter Property="Opacity" Value="1" />
     </Style>
 
@@ -38,7 +44,7 @@
         <Setter Property="Background" Value="#25FFFFFF" />
         <Setter Property="BorderThickness" Value="0" />
     </Style>
-    <Style Selector="Button.sidebar-btn.selected TextBlock, Button.sidebar-btn.selected PathIcon">
+    <Style Selector="Button.sidebar-btn.selected TextBlock, Button.sidebar-btn.selected PathIcon, Button.sidebar-btn.selected Image">
         <Setter Property="Opacity" Value="1" />
     </Style>
 
@@ -50,13 +56,21 @@
     <!-- Settings Card Style -->
     <Style Selector="Border.settings-card">
         <Setter Property="Background" Value="#10FFFFFF" />
-        <Setter Property="BorderBrush" Value="#20FFFFFF" />
+        <Setter Property="BorderBrush" Value="#40FFFFFF" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="12" />
         <Setter Property="Padding" Value="24" />
         <Setter Property="Margin" Value="24,0,24,24" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Border.settings-card:pointerover">
+        <Setter Property="BorderBrush" Value="#50FFFFFF" />
     </Style>
     <Style Selector="TextBlock.section-header">
         <Setter Property="FontSize" Value="20" />

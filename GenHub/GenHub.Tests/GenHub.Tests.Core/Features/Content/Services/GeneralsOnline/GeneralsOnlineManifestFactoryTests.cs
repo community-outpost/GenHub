@@ -178,7 +178,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync"/> separates files
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync(ContentManifest, string, CancellationToken)"/> separates files
     /// correctly among GameClient, MapPack, and GameData Patch manifests.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test execution.</returns>
@@ -291,7 +291,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync"/> throws
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync(ContentManifest, string, CancellationToken)"/> throws
     /// <see cref="OperationCanceledException"/> when passed a cancelled token.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -344,7 +344,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync"/> throws
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync(ContentManifest, string, CancellationToken)"/> throws
     /// <see cref="InvalidDataException"/> when the GameClient manifest has zero files.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>

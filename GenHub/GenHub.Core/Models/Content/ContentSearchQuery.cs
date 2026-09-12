@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
@@ -126,6 +129,23 @@ public class ContentSearchQuery
     /// </summary>
     public Collection<string> CNCLabsMapTags { get; } = [];
 
+    // ===== AODMaps-specific filters =====
+
+    /// <summary>
+    /// Gets or sets the AODMaps player count filter (2, 3, 4, 6, 8 players).
+    /// </summary>
+    public string? AODMapsPlayerCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the AODMaps category filter (Compstomp, Air, Race, Map Packs).
+    /// </summary>
+    public string? AODMapsCategory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the AODMaps map type filter (1v1, 2v2, FFA).
+    /// </summary>
+    public string? AODMapsMapType { get; set; }
+
     // ===== GitHub-specific filters =====
 
     /// <summary>
@@ -149,6 +169,20 @@ public class ContentSearchQuery
     {
         get => _language;
         set => _language = NormalizeLanguage(value);
+    }
+
+    /// <summary>
+    /// Generates a deterministic cache key representing the query and all its active filters.
+    /// </summary>
+    /// <returns>A string cache key.</returns>
+    public string ToCacheKey()
+    {
+        static string Escape(string? value) => System.Uri.EscapeDataString(value ?? string.Empty);
+        var tags = Tags.Count > 0 ? string.Join(",", Tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).Select(Escape)) : string.Empty;
+        var cncTags = CNCLabsMapTags.Count > 0 ? string.Join(",", CNCLabsMapTags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).Select(Escape)) : string.Empty;
+        var minDate = MinDate?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+        var maxDate = MaxDate?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+        return $"search::{Escape(ProviderName)}::{Escape(SearchTerm)}::{Escape(AuthorName)}::{ContentType}::{TargetGame}::{Skip}::{Take}::{SortOrder}::{Escape(Sort)}::{IncludeInstalled}::{IncludeOlderVersions}::{NumberOfPlayers}::{Page}::{minDate}::{maxDate}::{Escape(ModDBCategory)}::{Escape(ModDBAddonCategory)}::{Escape(ModDBLicense)}::{Escape(ModDBTimeframe)}::{Escape(ModDBSection)}::{Escape(AODMapsPlayerCount)}::{Escape(AODMapsCategory)}::{Escape(AODMapsMapType)}::{Escape(GitHubTopic)}::{Escape(GitHubAuthor)}::{Escape(Language)}::{tags}::{cncTags}";
     }
 
     private static readonly Dictionary<string, string> LanguageMap =

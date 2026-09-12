@@ -427,6 +427,20 @@ public static class GenPatcherDependencyBuilder
         {
             AddHotkeyIndicatorDependency(dependencies);
         }
+
+        // Legionnaire's Hotkeys hooks through GenTool. This is an actual runtime
+        // requirement, so let the resolver acquire and reconcile it with the profile.
+        if (metadata.ContentCode.Equals("hleg", StringComparison.OrdinalIgnoreCase))
+        {
+            dependencies.Add(new ContentDependency
+            {
+                Id = ManifestId.Create($"1.{ManifestConstants.DefaultManifestVersion}.{CommunityOutpostConstants.PublisherType}.addon.gent"),
+                Name = "GenTool (required for Legionnaire's Hotkeys)",
+                DependencyType = ContentType.Addon,
+                InstallBehavior = DependencyInstallBehavior.AutoInstall,
+                IsOptional = false,
+            });
+        }
     }
 
     /// <summary>

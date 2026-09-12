@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -16,6 +17,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Publishers;
@@ -24,7 +26,7 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// Content provider for TheSuperHackers publisher.
 /// Discovers and delivers game client releases from TheSuperHackers GitHub repositories.
 /// </summary>
-public class SuperHackersProvider(
+public partial class SuperHackersProvider(
     IProviderDefinitionLoader providerDefinitionLoader,
     IGitHubApiClient gitHubApiClient,
     IEnumerable<IContentResolver> resolvers,
@@ -212,47 +214,6 @@ public class SuperHackersProvider(
         return _cachedProviderDefinition;
     }
 
-    /// <inheritdoc/>
-    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
-        ContentManifest manifest,
-        string workingDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        Logger.LogInformation("Preparing SuperHackers content: {Version}", manifest.Version);
-
-        try
-        {
-            if (!Deliverer.CanDeliver(manifest))
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await Deliverer.DeliverContentAsync(
-                manifest,
-                workingDirectory,
-                progress,
-                cancellationToken);
-
-            if (!deliveryResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Content delivery failed: {deliveryResult.FirstError}");
-            }
-
-            var resultManifest = deliveryResult.Data ?? manifest;
-            Logger.LogInformation("Successfully prepared SuperHackers content {ManifestId}", manifest.Id);
-            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to prepare SuperHackers content");
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Content preparation failed: {ex.Message}");
-        }
-    }
-
     private static bool MatchesSearchTerm(GitHubRelease release, string repo, string displayName, string? searchTerm)
     {
         return string.IsNullOrWhiteSpace(searchTerm) ||
@@ -291,6 +252,40 @@ public class SuperHackersProvider(
             _ => null,
         };
     }
+
+    private static string ResolveItemName(string? releaseName, string? tagName, string displayName)
+    {
+        if (string.IsNullOrWhiteSpace(releaseName))
+        {
+            return !string.IsNullOrWhiteSpace(tagName) ? $"{displayName} {tagName}" : displayName;
+        }
+
+        var trimmedName = releaseName.Trim();
+        if (!string.IsNullOrWhiteSpace(tagName) &&
+            (trimmedName.Equals(tagName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             trimmedName.Equals($"v{tagName.Trim()}", StringComparison.OrdinalIgnoreCase) ||
+             trimmedName.TrimStart('v', 'V').Equals(tagName.Trim().TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase)))
+        {
+            return !string.IsNullOrWhiteSpace(tagName) && !IsNumericVersion(tagName)
+                ? $"{displayName} {tagName}"
+                : displayName;
+        }
+
+        if (VersionPatternRegex().IsMatch(trimmedName))
+        {
+            return displayName;
+        }
+
+        return trimmedName;
+    }
+
+    private static bool IsNumericVersion(string tag)
+    {
+        return VersionPatternRegex().IsMatch(tag.Trim());
+    }
+
+    [GeneratedRegex(@"^v?\d+(\.\d+)*(-[a-zA-Z0-9\.\-_]+)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex VersionPatternRegex();
 
     private IEnumerable<ContentSearchResult> CreateGameClientCards(
         string owner,
@@ -414,8 +409,10 @@ public class SuperHackersProvider(
         var result = new ContentSearchResult
         {
             Id = manifestId,
-            Name = !string.IsNullOrWhiteSpace(latestRelease.Name) ? latestRelease.Name : $"{displayName} {latestRelease.TagName}",
-            Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
+            Name = ResolveItemName(latestRelease.Name, latestRelease.TagName, displayName),
+            Description = !string.IsNullOrWhiteSpace(latestRelease.Body)
+                ? ReleaseDescriptionHelper.ToFormattedText(latestRelease.Body)
+                : "SuperHackers release - details available after resolution",
             Version = latestRelease.TagName ?? LatestTagFallback,
             AuthorName = owner,
             ContentType = contentType,

@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -29,14 +30,16 @@ namespace GenHub.Features.GameInstallations;
 /// Integrates with <see cref="IManifestGenerationService"/> to automatically generate
 /// content manifests for detected installations and populate their AvailableClients.
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "GameInstallationService coordinates game installation detection, client discovery, manifest generation, CAS pooling, and user settings injected via dependency injection.")]
 public class GameInstallationService(
-IGameInstallationDetectionOrchestrator detectionOrchestrator,
-IGameClientDetectionOrchestrator clientOrchestrator,
-ILogger<GameInstallationService> logger,
-IManifestGenerationService? manifestGenerationService = null,
-IContentManifestPool? contentManifestPool = null,
-IInstallationPathResolver? pathResolver = null,
-IUserSettingsService? userSettingsService = null) : IGameInstallationService, IDisposable
+    IGameInstallationDetectionOrchestrator detectionOrchestrator,
+    IGameClientDetectionOrchestrator clientOrchestrator,
+    ILogger<GameInstallationService> logger,
+    IManifestGenerationService? manifestGenerationService = null,
+    IContentManifestPool? contentManifestPool = null,
+    IInstallationPathResolver? pathResolver = null,
+    IUserSettingsService? userSettingsService = null,
+    IInstallationCasPoolService? installationCasPoolService = null) : IGameInstallationService, IDisposable
 {
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
@@ -464,7 +467,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
             return GameInstallationType.Wine;
         if (idString.Contains(".lutris."))
             return GameInstallationType.Lutris;
-        if (idString.Contains(".genhublocal.") || idString.Contains(".custom."))
+        if (idString.Contains(".custom.") || idString.Contains(".genhublocal."))
             return GameInstallationType.Custom;
 
         return GameInstallationType.Unknown;
@@ -521,104 +524,6 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 customInstalls[i].DisplayName = $"{PublisherInfoConstants.GenHubLocal.Name} {i + 1}";
             }
         }
-    }
-
-    private async Task RemoveInstallationManifestsFromPoolAsync(string installationPath, CancellationToken cancellationToken)
-    {
-        if (contentManifestPool == null || string.IsNullOrEmpty(installationPath))
-        {
-            return;
-        }
-
-        try
-        {
-            var searchQuery = new ContentSearchQuery
-            {
-                ContentType = ContentType.GameInstallation,
-                Take = 1000,
-            };
-            var searchResult = await contentManifestPool.SearchManifestsAsync(searchQuery, cancellationToken);
-            if (searchResult?.Success == true && searchResult.Data != null)
-            {
-                var manifestIdsToRemove = searchResult.Data
-                    .Where(m => !string.IsNullOrEmpty(m.Metadata.SourcePath) && PathHelper.AreSamePath(m.Metadata.SourcePath, installationPath))
-                    .Select(m => m.Id)
-                    .ToList();
-
-                foreach (var manifestId in manifestIdsToRemove)
-                {
-                    await contentManifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
-                    logger.LogInformation("Removed custom installation manifest {Id} from pool", manifestId);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to remove manifests for installation path {Path} from pool", installationPath);
-        }
-    }
-
-    private async Task<bool> TryPersistRegistrationAsync(string normalizedPath, CancellationToken cancellationToken)
-    {
-        if (userSettingsService == null)
-        {
-            return true;
-        }
-
-        var saveSuccess = await userSettingsService.TryUpdateAndSaveAsync(settings =>
-        {
-            if (settings.CustomInstallationDirectories.All(d => !PathHelper.AreSamePath(d, normalizedPath)))
-            {
-                settings.CustomInstallationDirectories.Add(normalizedPath);
-            }
-
-            return true;
-        });
-
-        if (!saveSuccess)
-        {
-            RollbackRegistrationSettings(normalizedPath);
-            await RemoveInstallationManifestsFromPoolAsync(normalizedPath, cancellationToken);
-            return false;
-        }
-
-        return true;
-    }
-
-    private void RollbackRegistrationSettings(string normalizedPath)
-    {
-        userSettingsService?.Update(settings =>
-        {
-            settings.CustomInstallationDirectories.RemoveAll(d => PathHelper.AreSamePath(d, normalizedPath));
-        });
-    }
-
-    private async Task<bool> TryPersistRemovalAsync(string? targetPath)
-    {
-        if (userSettingsService == null || string.IsNullOrEmpty(targetPath))
-        {
-            return true;
-        }
-
-        var saveSuccess = await userSettingsService.TryUpdateAndSaveAsync(settings =>
-        {
-            settings.CustomInstallationDirectories.RemoveAll(d => PathHelper.AreSamePath(d, targetPath));
-            return true;
-        });
-
-        if (!saveSuccess)
-        {
-            userSettingsService.Update(settings =>
-            {
-                if (settings.CustomInstallationDirectories.All(d => !PathHelper.AreSamePath(d, targetPath)))
-                {
-                    settings.CustomInstallationDirectories.Add(targetPath);
-                }
-            });
-            return false;
-        }
-
-        return true;
     }
 
     /// <summary>
@@ -797,12 +702,24 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     gameType == GameType.ZeroHour ? "zerohour" : "generals",
                     normalizedVersion);
 
+                var resolution = ManifestVariantResolver.ResolveEntryPoint(matchingManifest);
+                var executablePath = string.Empty;
+                if (resolution.Success && !string.IsNullOrEmpty(resolution.RelativePath))
+                {
+                    var pathResult = ContentPathPolicy.ResolveContainedFile(gamePath, resolution.RelativePath);
+                    if (pathResult.Success)
+                    {
+                        executablePath = pathResult.Data ?? string.Empty;
+                    }
+                }
+
                 // Create a game client from the manifest
                 var gameClient = new GameClient
                 {
                     Id = clientId, // Use the proper gameclient ID format
                     Name = matchingManifest.Name,
                     WorkingDirectory = gamePath,
+                    ExecutablePath = executablePath,
                     GameType = gameType,
                     InstallationId = installation.Id,
                     Version = matchingManifest.Version,
@@ -999,6 +916,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 var sourcePath = group.Key;
                 if (string.IsNullOrEmpty(sourcePath))
                 {
+                    logger.LogWarning("Skipping manifest group with empty or null SourcePath key");
                     continue;
                 }
 
@@ -1060,29 +978,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
             }
 
             var detectionResult = await detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
-
-            // Start with auto-detected installations if successful, otherwise empty list
-            List<GameInstallation> installations = [];
-            bool detectionHadError = !detectionResult.Success;
-            if (detectionResult.Success)
-            {
-                installations = [.. detectionResult.Items];
-                logger.LogInformation(
-                    "[DIAGNOSTIC] Auto-detection found {Count} installations",
-                    installations.Count);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "[DIAGNOSTIC] Auto-detection failed: {Errors}. Starting with empty list.",
-                    string.Join(", ", detectionResult.Errors));
-                installations = [];
-            }
-
-            // A failed live scan cannot produce a cacheable result. Return before
-            // loading persisted manifests or resolving their paths, since that work
-            // would be discarded and repeated on every retry.
-            if (detectionHadError)
+            if (!detectionResult.Success)
             {
                 logger.LogWarning(
                     "Detection failed; leaving the cache uninitialized so a retry rescans");
@@ -1090,122 +986,25 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     $"Failed to detect game installations: {string.Join(", ", detectionResult.Errors)}");
             }
 
-            // Load installations from persisted manifests
+            var installations = detectionResult.Items.ToList();
+            logger.LogInformation("[DIAGNOSTIC] Auto-detection found {Count} installations", installations.Count);
+
             var manifestInstallations = await LoadInstallationsFromManifestsAsync(cancellationToken);
-            if (manifestInstallations.Count > 0)
-            {
-                logger.LogInformation(
-                    "[DIAGNOSTIC] Loaded {Count} installations from manifests",
-                    manifestInstallations.Count);
+            MergeManifestInstallations(installations, manifestInstallations);
 
-                // Merge manifest installations, avoiding duplicates by path
-                foreach (var manifestInstall in manifestInstallations)
-                {
-                    var existingByPath = installations.FirstOrDefault(i =>
-                        PathHelper.AreSamePath(i.InstallationPath, manifestInstall.InstallationPath));
+            installations = await ValidateAndResolveInstallationsAsync(installations, cancellationToken);
 
-                    if (existingByPath == null)
-                    {
-                        installations.Add(manifestInstall);
-                        logger.LogInformation(
-                            "[DIAGNOSTIC] Merged manifest installation into cache: {Path}",
-                            manifestInstall.InstallationPath);
-                    }
-                    else
-                    {
-                        logger.LogDebug(
-                            "[DIAGNOSTIC] Skipping manifest installation - path already exists from auto-detection: {Path}",
-                            manifestInstall.InstallationPath);
-                    }
-                }
-            }
-
-            // Validate and resolve paths for all installations
-            if (pathResolver != null && installations.Count > 0)
-            {
-                var validInstallations = new List<GameInstallation>();
-                var resolvedCount = 0;
-
-                foreach (var installation in installations)
-                {
-                    var validationResult = await pathResolver.ValidateInstallationPathAsync(installation, cancellationToken);
-                    if (validationResult.Success && validationResult.Data)
-                    {
-                        // Path is valid, keep as-is
-                        validInstallations.Add(installation);
-                    }
-                    else
-                    {
-                        // Path is invalid, try to resolve
-                        logger.LogWarning(
-                            "Installation path is invalid: {Path}. Attempting to resolve...",
-                            installation.InstallationPath);
-
-                        var resolveResult = await pathResolver.ResolveInstallationPathAsync(installation, cancellationToken);
-                        if (resolveResult.Success && resolveResult.Data != null)
-                        {
-                            validInstallations.Add(resolveResult.Data);
-                            resolvedCount++;
-                            logger.LogInformation(
-                                "Successfully resolved installation path from {OldPath} to {NewPath}",
-                                installation.InstallationPath,
-                                resolveResult.Data.InstallationPath);
-                        }
-                        else
-                        {
-                            logger.LogWarning(
-                                "Could not resolve installation path for {Id}, removing from cache",
-                                installation.Id);
-                        }
-                    }
-                }
-
-                installations = validInstallations;
-                if (resolvedCount > 0)
-                {
-                    logger.LogInformation(
-                        "Resolved {ResolvedCount} installation paths",
-                        resolvedCount);
-                }
-            }
-
-            if (userSettingsService != null)
-            {
-                var settings = userSettingsService.Get();
-                if (settings?.CustomInstallationDirectories != null)
-                {
-                    foreach (var customDir in settings.CustomInstallationDirectories)
-                    {
-                        if (string.IsNullOrWhiteSpace(customDir) || !Directory.Exists(customDir))
-                        {
-                            continue;
-                        }
-
-                        var existing = installations.FirstOrDefault(i => PathHelper.AreSamePath(i.InstallationPath, customDir));
-                        if (existing == null)
-                        {
-                            var customInstall = new GameInstallation(customDir, GameInstallationType.Custom)
-                            {
-                                Id = Guid.NewGuid().ToString(),
-                                DetectedAt = DateTime.UtcNow,
-                            };
-                            customInstall.Fetch();
-                            if (customInstall.HasGenerals || customInstall.HasZeroHour)
-                            {
-                                installations.Add(customInstall);
-                                logger.LogInformation("Loaded custom game installation from settings: {Path}", customDir);
-                            }
-                        }
-                    }
-                }
-            }
-
+            LoadCustomInstallationsFromSettings(installations);
             UpdateCustomInstallationDisplayNames(installations);
 
-            // Generate manifests and populate AvailableVersions for each installation
             await PopulateGameClientsAndManifestsAsync(installations, cancellationToken);
 
             UpdateCustomInstallationDisplayNames(installations);
+
+            if (installationCasPoolService != null)
+            {
+                await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
+            }
 
             Volatile.Write(ref _cachedInstallations, installations.AsReadOnly());
 
@@ -1219,6 +1018,74 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
         {
             _cacheLock.Release();
         }
+    }
+
+    private void MergeManifestInstallations(List<GameInstallation> installations, IReadOnlyList<GameInstallation> manifestInstallations)
+    {
+        if (manifestInstallations.Count == 0)
+        {
+            return;
+        }
+
+        logger.LogInformation("[DIAGNOSTIC] Loaded {Count} installations from manifests", manifestInstallations.Count);
+
+        foreach (var manifestInstall in manifestInstallations)
+        {
+            var existingByPath = installations.FirstOrDefault(i =>
+                PathHelper.AreSamePath(i.InstallationPath, manifestInstall.InstallationPath));
+
+            if (existingByPath == null)
+            {
+                installations.Add(manifestInstall);
+                logger.LogInformation("[DIAGNOSTIC] Merged manifest installation into cache: {Path}", manifestInstall.InstallationPath);
+            }
+            else
+            {
+                logger.LogDebug("[DIAGNOSTIC] Skipping manifest installation - path already exists from auto-detection: {Path}", manifestInstall.InstallationPath);
+            }
+        }
+    }
+
+    private async Task<List<GameInstallation>> ValidateAndResolveInstallationsAsync(List<GameInstallation> installations, CancellationToken cancellationToken)
+    {
+        if (pathResolver == null || installations.Count == 0)
+        {
+            return installations;
+        }
+
+        var validInstallations = new List<GameInstallation>();
+        var resolvedCount = 0;
+
+        foreach (var installation in installations)
+        {
+            var validationResult = await pathResolver.ValidateInstallationPathAsync(installation, cancellationToken);
+            if (validationResult.Success && validationResult.Data)
+            {
+                validInstallations.Add(installation);
+                continue;
+            }
+
+            logger.LogWarning("Installation path is invalid: {Path}. Attempting to resolve...", installation.InstallationPath);
+
+            var resolveResult = await pathResolver.ResolveInstallationPathAsync(installation, cancellationToken);
+            if (resolveResult.Success && resolveResult.Data != null)
+            {
+                validInstallations.Add(resolveResult.Data);
+                resolvedCount++;
+                logger.LogInformation("Successfully resolved installation path from {OldPath} to {NewPath}", installation.InstallationPath, resolveResult.Data.InstallationPath);
+            }
+            else
+            {
+                logger.LogWarning("Could not resolve installation path for {Id}, removing from cache", installation.Id);
+            }
+        }
+
+        if (resolvedCount > 0)
+        {
+            logger.LogInformation("Resolved {ResolvedCount} installation paths", resolvedCount);
+        }
+
+        return validInstallations;
     }
 
     /// <summary>
@@ -1360,6 +1227,142 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 "Error creating GameInstallation manifest for {GameType} in installation {InstallationId}",
                 gameType,
                 installation.Id);
+        }
+    }
+
+    private async Task RemoveInstallationManifestsFromPoolAsync(string installationPath, CancellationToken cancellationToken)
+    {
+        if (contentManifestPool == null || string.IsNullOrEmpty(installationPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var searchQuery = new ContentSearchQuery
+            {
+                ContentType = ContentType.GameInstallation,
+                Take = 1000,
+            };
+            var searchResult = await contentManifestPool.SearchManifestsAsync(searchQuery, cancellationToken);
+            if (searchResult?.Success == true && searchResult.Data != null)
+            {
+                var manifestIdsToRemove = searchResult.Data
+                    .Where(m => !string.IsNullOrEmpty(m.Metadata.SourcePath) && PathHelper.AreSamePath(m.Metadata.SourcePath, installationPath))
+                    .Select(m => m.Id)
+                    .ToList();
+
+                foreach (var manifestId in manifestIdsToRemove)
+                {
+                    await contentManifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
+                    logger.LogInformation("Removed custom installation manifest {Id} from pool", manifestId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to remove manifests for installation path {Path} from pool", installationPath);
+        }
+    }
+
+    private async Task<bool> TryPersistRegistrationAsync(string normalizedPath, CancellationToken cancellationToken)
+    {
+        if (userSettingsService == null)
+        {
+            return true;
+        }
+
+        var saveSuccess = await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        {
+            if (settings.CustomInstallationDirectories.All(d => !PathHelper.AreSamePath(d, normalizedPath)))
+            {
+                settings.CustomInstallationDirectories.Add(normalizedPath);
+            }
+
+            return true;
+        });
+
+        if (!saveSuccess)
+        {
+            RollbackRegistrationSettings(normalizedPath);
+            await RemoveInstallationManifestsFromPoolAsync(normalizedPath, cancellationToken);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void RollbackRegistrationSettings(string normalizedPath)
+    {
+        userSettingsService?.Update(settings =>
+        {
+            settings.CustomInstallationDirectories.RemoveAll(d => PathHelper.AreSamePath(d, normalizedPath));
+        });
+    }
+
+    private async Task<bool> TryPersistRemovalAsync(string? targetPath)
+    {
+        if (userSettingsService == null || string.IsNullOrEmpty(targetPath))
+        {
+            return true;
+        }
+
+        var saveSuccess = await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        {
+            settings.CustomInstallationDirectories.RemoveAll(d => PathHelper.AreSamePath(d, targetPath));
+            return true;
+        });
+
+        if (!saveSuccess)
+        {
+            userSettingsService.Update(settings =>
+            {
+                if (settings.CustomInstallationDirectories.All(d => !PathHelper.AreSamePath(d, targetPath)))
+                {
+                    settings.CustomInstallationDirectories.Add(targetPath);
+                }
+            });
+            return false;
+        }
+
+        return true;
+    }
+
+    private void LoadCustomInstallationsFromSettings(List<GameInstallation> installations)
+    {
+        if (userSettingsService == null)
+        {
+            return;
+        }
+
+        var settings = userSettingsService.Get();
+        if (settings?.CustomInstallationDirectories == null)
+        {
+            return;
+        }
+
+        foreach (var customDir in settings.CustomInstallationDirectories)
+        {
+            if (string.IsNullOrWhiteSpace(customDir) || !Directory.Exists(customDir))
+            {
+                continue;
+            }
+
+            var existing = installations.FirstOrDefault(i => PathHelper.AreSamePath(i.InstallationPath, customDir));
+            if (existing == null)
+            {
+                var customInstall = new GameInstallation(customDir, GameInstallationType.Custom)
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DetectedAt = DateTime.UtcNow,
+                };
+                customInstall.Fetch();
+                if (customInstall.HasGenerals || customInstall.HasZeroHour)
+                {
+                    installations.Add(customInstall);
+                    logger.LogInformation("Loaded custom game installation from settings: {Path}", customDir);
+                }
+            }
         }
     }
 }

@@ -28,8 +28,7 @@ namespace GenHub.Features.Content.Services.GitHub;
 /// </summary>
 public class GitHubContentDeliverer(
     IDownloadService downloadService,
-    IContentManifestPool manifestPool,
-    PublisherManifestFactoryResolver factoryResolver,
+    IFileHashProvider hashProvider,
     ILogger<GitHubContentDeliverer> logger) : IContentDeliverer
 {
     /// <inheritdoc />
@@ -104,12 +103,9 @@ public class GitHubContentDeliverer(
                 {
                     downloadProgress = new Progress<DownloadProgress>(dp =>
                     {
-                        // Map download progress (0-100) to the Downloading phase range (40-65%)
-                        // We start at 40 (ProgressStepDownloading) and use 25% of the range for downloads
-                        double downloadRange = 25.0; // 40% to 65%
-                        double fileProgressRange = downloadRange / totalFiles;
-                        double baseProgress = ContentConstants.ProgressStepDownloading + ((currentFileIndex - 1) * fileProgressRange);
-                        double currentProgress = baseProgress + (dp.Percentage / 100.0 * fileProgressRange);
+                        // The orchestrator owns the overall five-stage scale. Report only
+                        // relative delivery progress so it cannot regress the stage display.
+                        double currentProgress = ((currentFileIndex - 1) + (dp.Percentage / 100.0)) / totalFiles * 100;
 
                         progress.Report(new ContentAcquisitionProgress
                         {
@@ -173,21 +169,31 @@ public class GitHubContentDeliverer(
                     catch (Exception ex)
                     {
                         logger.LogError(ex, "Failed to extract {ArchiveFile}", Path.GetFileName(archiveFile));
-                        return OperationResult<ContentManifest>.CreateFailure(
-                            $"Failed to extract {Path.GetFileName(archiveFile)}: {ex.Message}");
+                        return OperationResult<ContentManifest>.CreateFailure($"Failed to extract archive: {ex.Message}");
                     }
                 }
 
                 logger.LogInformation(
-                    "Successfully extracted {Count} archive file(s) for {ManifestId}. Using publisher factory for manifest generation...",
+                    "Successfully extracted {Count} archive file(s) for {ManifestId}. Deferring manifest generation to the orchestrator.",
                     archiveFiles.Count,
                     packageManifest.Id);
 
-                // Use publisher-specific factory to create manifests
-                return await HandleExtractedContentAsync(packageManifest, targetDirectory, progress, cancellationToken);
+                return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
             }
 
-            // For content without archives, return original manifest
+            // For content without archives, compute hashes directly for downloaded files
+            foreach (var file in filesToDownload)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var localPath = Path.Combine(targetDirectory, file.RelativePath);
+                if (File.Exists(localPath))
+                {
+                    file.Hash = await hashProvider.ComputeFileHashAsync(localPath, cancellationToken);
+                    file.Size = new FileInfo(localPath).Length;
+                    file.SourceType = ContentSourceType.ContentAddressable;
+                }
+            }
+
             return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
         }
         catch (OperationCanceledException)
@@ -197,6 +203,18 @@ public class GitHubContentDeliverer(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to deliver GitHub content for manifest {ManifestId}", packageManifest.Id);
+            try
+            {
+                if (Directory.Exists(targetDirectory))
+                {
+                    Directory.Delete(targetDirectory, recursive: true);
+                }
+            }
+            catch
+            {
+                // Best-effort cleanup
+            }
+
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
@@ -255,114 +273,6 @@ public class GitHubContentDeliverer(
                ext == FileTypes.TarFileExtension ||
                ext == FileTypes.GzipFileExtension ||
                ext == FileTypes.RarFileExtension;
-    }
-
-    /// <summary>
-    /// Handles extracted content by using publisher-specific factories to create manifests.
-    /// May return multiple manifests if the publisher factory detects multi-variant content.
-    /// </summary>
-    private async Task<OperationResult<ContentManifest>> HandleExtractedContentAsync(
-        ContentManifest originalManifest,
-        string extractedDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            // Resolve the appropriate factory for this publisher/content type
-            logger.LogInformation(
-                "Resolving factory for manifest {ManifestId}, Publisher={PublisherType}, ContentType={ContentType}",
-                originalManifest.Id,
-                originalManifest.Publisher?.PublisherType,
-                originalManifest.ContentType);
-
-            var factory = factoryResolver.ResolveFactory(originalManifest);
-            if (factory == null)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"No factory found for manifest {originalManifest.Id} (Publisher: {originalManifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion})");
-            }
-
-            logger.LogInformation(
-                "Using factory {FactoryType} for manifest {ManifestId}",
-                factory.GetType().Name,
-                originalManifest.Id);
-
-            // Use the factory to create manifests from extracted content
-            var manifests = await factory.CreateManifestsFromExtractedContentAsync(
-                originalManifest,
-                extractedDirectory,
-                cancellationToken);
-
-            if (manifests.Count == 0)
-            {
-                logger.LogWarning("Factory produced no manifests for {ManifestId}", originalManifest.Id);
-                return OperationResult<ContentManifest>.CreateFailure("No manifests generated from extracted content");
-            }
-
-            logger.LogInformation(
-                "Factory generated {Count} manifest(s) from extracted content: {ManifestIds}",
-                manifests.Count,
-                string.Join(", ", manifests.Select(m => m.Id.Value)));
-
-            // Store all manifests to CAS via manifest pool
-            // This ensures files are available in CAS before validation runs
-            foreach (var manifest in manifests)
-            {
-                var manifestDirectory = factory.GetManifestDirectory(manifest, extractedDirectory);
-
-                logger.LogInformation(
-                    "Storing manifest {ManifestId} to pool from directory {Directory}",
-                    manifest.Id,
-                    manifestDirectory);
-
-                // Create adapter for storage progress
-                var storageProgress = new Progress<ContentStorageProgress>(p =>
-                {
-                    progress?.Report(new ContentAcquisitionProgress
-                    {
-                        Phase = ContentAcquisitionPhase.StoringInCas,
-                        ProgressPercentage = ContentConstants.ProgressStepStoring + (p.Percentage * 0.1), // Map to Storing phase
-                        CurrentOperation = $"Storing content: {p.CurrentFileName} ({p.ProcessedCount}/{p.TotalCount})",
-                        FilesProcessed = p.ProcessedCount,
-                        TotalFiles = p.TotalCount,
-                        CurrentFile = p.CurrentFileName ?? string.Empty,
-                    });
-                });
-
-                var addResult = await manifestPool.AddManifestAsync(manifest, manifestDirectory, progress: storageProgress, cancellationToken: cancellationToken);
-                if (!addResult.Success)
-                {
-                    logger.LogWarning(
-                        "Failed to store manifest {ManifestId} to pool: {Errors}",
-                        manifest.Id,
-                        string.Join(", ", addResult.Errors));
-                }
-                else
-                {
-                    logger.LogInformation(
-                        "Successfully stored manifest {ManifestId} to pool",
-                        manifest.Id);
-
-                    // Update file source types to ContentAddressable since files are now in CAS
-                    // This ensures validation checks CAS instead of filesystem paths
-                    foreach (var file in manifest.Files)
-                    {
-                        file.SourceType = ContentSourceType.ContentAddressable;
-                    }
-                }
-            }
-
-            // Return primary manifest
-            var primaryManifest = manifests[0];
-
-            return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to handle extracted content using factory");
-            return OperationResult<ContentManifest>.CreateFailure($"Factory content handling failed: {ex.Message}");
-        }
     }
 
     /// <summary>

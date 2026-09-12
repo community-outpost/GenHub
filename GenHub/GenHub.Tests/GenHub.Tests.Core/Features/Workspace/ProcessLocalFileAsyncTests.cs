@@ -313,7 +313,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
                     break;
 
                 default:
-                    // No assertions for other strategies
+                    // Other strategies not evaluated in this assertion block
                     break;
             }
 

@@ -39,6 +39,224 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
     [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex DownloadCountRegex();
 
+    [GeneratedRegex(@"/downloads/details/(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex DetailsIdRegex();
+
+    private static DateTime ExtractLastUpdatedDate(IDocument document, string docText)
+    {
+        var dateLabels = new[] { "Updated:", "Added:", "Submitted:", "reviewed:", "Date:" };
+        foreach (var label in dateLabels)
+        {
+            var dateEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
+            if (dateEl != null)
+            {
+                var dateText = CNCLabsHelper.GetNextNonEmptyTextSibling(dateEl);
+                if (!string.IsNullOrWhiteSpace(dateText) && DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+                {
+                    return parsedDate;
+                }
+            }
+        }
+
+        var dateMatch = DateRegex().Match(docText);
+        if (dateMatch.Success && DateTime.TryParse(dateMatch.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            return date;
+        }
+
+        return DateTime.MinValue;
+    }
+
+    private static MapListItem? ParseMapListItem(IElement item, ContentSearchQuery query)
+    {
+        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
+        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
+        var name = nameAnchor?.TextContent?.Trim();
+        if (string.IsNullOrWhiteSpace(detailsHref) || string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var idMatch = DetailsIdRegex().Match(detailsHref);
+        if (!idMatch.Success || !int.TryParse(idMatch.Groups[1].Value, out var id))
+        {
+            return null;
+        }
+
+        detailsHref = new Uri(new Uri(CNCLabsConstants.PublisherWebsite), detailsHref).ToString();
+
+        var description = CNCLabsHelper.NormalizeHtmlDescription(
+            item.QuerySelector(CNCLabsConstants.DescriptionSelector)?.InnerHtml) ?? string.Empty;
+
+        var author = item.QuerySelectorAll("span")
+            .FirstOrDefault(s => s.QuerySelector("i.bi-person") != null)?
+            .TextContent?.Trim();
+
+        long? dlCount = null;
+        var dlSpan = item.QuerySelectorAll("span")
+            .FirstOrDefault(s => s.QuerySelector("i.bi-download") != null);
+        var dlMatch = DownloadCountRegex().Match(dlSpan?.TextContent ?? string.Empty);
+        if (dlMatch.Success && long.TryParse(dlMatch.Groups[1].Value.Replace(",", string.Empty), out var dl))
+        {
+            dlCount = dl;
+        }
+
+        var fSize = item.QuerySelector("div.ms-3 div.small")?.TextContent?.Trim();
+
+        string? imgUrl = null;
+        var img = item.QuerySelector("img.download-list-thumbnail");
+        var src = img?.GetAttribute("src");
+        if (!string.IsNullOrEmpty(src))
+        {
+            imgUrl = src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? src
+                : new Uri(new Uri(CNCLabsConstants.PublisherWebsite), src).ToString();
+        }
+
+        var tags = item.QuerySelectorAll("span.badge")
+            .Select(b => b.TextContent?.Trim())
+            .OfType<string>()
+            .Where(t => !string.IsNullOrEmpty(t))
+            .ToList();
+
+        return new MapListItem(id, name, description, author ?? CNCLabsConstants.DefaultAuthorName, detailsHref, query.TargetGame, query.ContentType, DateTime.MinValue, dlCount, fSize, imgUrl, tags);
+    }
+
+    private static bool CheckPaginationHasMore(IDocument document, int currentPage)
+    {
+        var pagingLinks = document.QuerySelectorAll("ul.pagination a.page-link");
+        foreach (var link in pagingLinks)
+        {
+            var text = link.TextContent?.Trim() ?? string.Empty;
+            if (text.Contains("Next", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (int.TryParse(text, out var pNum) && pNum > currentPage)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? ExtractFileSize(IDocument document, string docText)
+    {
+        var sizeMatch = FileSizeRegex().Match(docText);
+        if (sizeMatch.Success)
+        {
+            return sizeMatch.Groups[1].Value.Trim();
+        }
+
+        var sizeLabels = new[] { "File Size:", "Size:" };
+        foreach (var label in sizeLabels)
+        {
+            var sizeEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
+            if (sizeEl != null)
+            {
+                var fileSize = CNCLabsHelper.GetNextNonEmptyTextSibling(sizeEl);
+                if (!string.IsNullOrEmpty(fileSize))
+                {
+                    return fileSize;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string ExtractMapName(IDocument document)
+    {
+        return document.QuerySelector(CNCLabsConstants.NameSelector)?.TextContent?.Trim()
+            ?? document.QuerySelector(CNCLabsConstants.BreadcrumbHeaderSelector)
+                       ?.TextContent?
+                       .Split(CNCLabsConstants.BreadcrumbSeparator)
+                       .LastOrDefault()?
+                       .Trim()
+            ?? string.Empty;
+    }
+
+    private static string ExtractMapDescription(IDocument document)
+    {
+        var descEl = document.QuerySelector(CNCLabsConstants.DescriptionSelector);
+        return descEl is null
+            ? string.Empty
+            : CNCLabsHelper.NormalizeHtmlDescription(descEl.InnerHtml) ?? string.Empty;
+    }
+
+    private static string ExtractMapAuthor(IDocument document)
+    {
+        var authorStrong = document.QuerySelectorAll(CNCLabsConstants.AuthorLabelContainerSelector)
+                                   .FirstOrDefault(s => string.Equals(
+                                       s.TextContent?.Trim(),
+                                       CNCLabsConstants.AuthorLabelText,
+                                       StringComparison.OrdinalIgnoreCase));
+
+        return CNCLabsHelper.GetNextNonEmptyTextSibling(authorStrong) ?? string.Empty;
+    }
+
+    private static long? ExtractDownloadCount(string docText)
+    {
+        var downloadMatch = DownloadCountRegex().Match(docText);
+        if (downloadMatch.Success)
+        {
+            var valGroup = !string.IsNullOrEmpty(downloadMatch.Groups[1].Value) ? 1 : 2;
+            var val = downloadMatch.Groups[valGroup].Value;
+            if (long.TryParse(val.Replace(",", string.Empty, StringComparison.Ordinal), out var dl))
+            {
+                return dl;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ExtractIconUrl(IDocument document)
+    {
+        var mainImage = document.QuerySelector("#ctl00_MainContent_Image1") ?? document.QuerySelector(".screenshot img") ?? document.QuerySelector("img[src*='preview']");
+        if (mainImage != null)
+        {
+            var src = mainImage.GetAttribute("src");
+            if (!string.IsNullOrEmpty(src))
+            {
+                return src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                    ? src
+                    : new Uri(new Uri("https://www.cnclabs.com"), src).ToString();
+            }
+        }
+
+        return null;
+    }
+
+    private static List<string> ExtractTags(string docText)
+    {
+        var tags = new List<string>();
+        var taggedAsIdx = docText.IndexOf("Tagged as:", StringComparison.OrdinalIgnoreCase);
+        if (taggedAsIdx != -1)
+        {
+            var tagLineEnd = docText.IndexOf('\n', taggedAsIdx);
+            if (tagLineEnd == -1)
+            {
+                tagLineEnd = docText.Length;
+            }
+
+            var tagLine = docText[(taggedAsIdx + "Tagged as:".Length)..tagLineEnd].Trim();
+            var parts = tagLine.Split(TagSeparator, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                var t = part.Trim();
+                if (!string.IsNullOrEmpty(t))
+                {
+                    tags.Add(t);
+                }
+            }
+        }
+
+        return tags;
+    }
+
     /// <summary>
     /// Gets the source name for this discoverer.
     /// </summary>
@@ -126,6 +344,8 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                 {
                     res.Tags.Add(tag);
                 }
+
+                ContentCardBadgeHelper.PromoteFromTags(res);
             }
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
@@ -139,116 +359,6 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
             logger.LogError(ex, CNCLabsConstants.DiscoveryFailureLogMessage);
             return OperationResult<ContentDiscoveryResult>.CreateFailure(string.Format(CNCLabsConstants.DiscoveryFailedErrorTemplate, ex.Message));
         }
-    }
-
-    private static DateTime ParseLastUpdatedDate(IDocument document, string docText)
-    {
-        var dateLabels = new[] { "Updated:", "Added:", "Submitted:", "reviewed:", "Date:" };
-        foreach (var label in dateLabels)
-        {
-            var dateEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
-            if (dateEl != null)
-            {
-                var dateText = CNCLabsHelper.GetNextNonEmptyTextSibling(dateEl);
-                if (!string.IsNullOrWhiteSpace(dateText) && DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
-                {
-                    return parsedDate;
-                }
-            }
-        }
-
-        var dateMatch = DateRegex().Match(docText);
-        if (dateMatch.Success && DateTime.TryParse(dateMatch.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-        {
-            return date;
-        }
-
-        return DateTime.MinValue;
-    }
-
-    private static string? ParseFileSize(IDocument document, string docText)
-    {
-        var sizeMatch = FileSizeRegex().Match(docText);
-        if (sizeMatch.Success)
-        {
-            return sizeMatch.Groups[1].Value.Trim();
-        }
-
-        var sizeLabels = new[] { "File Size:", "Size:" };
-        foreach (var label in sizeLabels)
-        {
-            var sizeEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
-            if (sizeEl != null)
-            {
-                var fileSize = CNCLabsHelper.GetNextNonEmptyTextSibling(sizeEl);
-                if (!string.IsNullOrEmpty(fileSize))
-                {
-                    return fileSize;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static long? ParseDownloadCount(string docText)
-    {
-        var downloadMatch = DownloadCountRegex().Match(docText);
-        if (downloadMatch.Success)
-        {
-            var valGroup = !string.IsNullOrEmpty(downloadMatch.Groups[1].Value) ? 1 : 2;
-            var val = downloadMatch.Groups[valGroup].Value;
-            if (long.TryParse(val.Replace(",", string.Empty, StringComparison.Ordinal), out var dl))
-            {
-                return dl;
-            }
-        }
-
-        return null;
-    }
-
-    private static string? ParsePreviewImage(IDocument document)
-    {
-        var mainImage = document.QuerySelector("#ctl00_MainContent_Image1") ?? document.QuerySelector(".screenshot img") ?? document.QuerySelector("img[src*='preview']");
-        if (mainImage != null)
-        {
-            var src = mainImage.GetAttribute("src");
-            if (!string.IsNullOrEmpty(src))
-            {
-                return src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                    ? src
-                    : new Uri(new Uri("https://www.cnclabs.com"), src).ToString();
-            }
-        }
-
-        return null;
-    }
-
-    private static List<string> ParseTags(string docText)
-    {
-        var tags = new List<string>();
-        var taggedAsIdx = docText.IndexOf("Tagged as:", StringComparison.OrdinalIgnoreCase);
-        if (taggedAsIdx != -1)
-        {
-            var tagLineEnd = docText.IndexOf('\n', taggedAsIdx);
-            if (tagLineEnd == -1)
-            {
-                tagLineEnd = docText.Length;
-            }
-
-            var tagLine = docText[(taggedAsIdx + "Tagged as:".Length)..tagLineEnd].Trim();
-            var parts = tagLine.Split(TagSeparator, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var part in parts)
-            {
-                var t = part.Trim();
-                if (!string.IsNullOrEmpty(t))
-                {
-                    tags.Add(t);
-                }
-            }
-        }
-
-        return tags;
     }
 
     private static (DateTime? LastUpdated, long? DlCount, string? FSize) ExtractSearchItemMetadata(IElement item)
@@ -332,15 +442,21 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
     private static MapListItem? ParseSearchListItem(IElement item, ContentSearchQuery query)
     {
-        var idValue = item.QuerySelector(CNCLabsConstants.FileIdHiddenSelector)?.GetAttribute(CNCLabsConstants.ValueAttribute);
-        if (string.IsNullOrWhiteSpace(idValue) || !int.TryParse(idValue, out var id))
+        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
+        var name = nameAnchor?.TextContent?.Trim();
+        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
+        if (string.IsNullOrWhiteSpace(detailsHref) || string.IsNullOrWhiteSpace(name))
         {
             return null;
         }
 
-        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
-        var name = nameAnchor?.TextContent?.Trim();
-        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
+        var idMatch = DetailsIdRegex().Match(detailsHref);
+        if (!idMatch.Success || !int.TryParse(idMatch.Groups[1].Value, out var id))
+        {
+            return null;
+        }
+
+        detailsHref = new Uri(new Uri(CNCLabsConstants.PublisherWebsite), detailsHref).ToString();
 
         string? description = null;
         var descEl = item.QuerySelector(CNCLabsConstants.DescriptionSelector);
@@ -361,10 +477,10 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
         return new MapListItem(
             id,
-            name ?? string.Empty,
+            name,
             description ?? string.Empty,
             author ?? CNCLabsConstants.DefaultAuthorName,
-            detailsHref ?? string.Empty,
+            detailsHref,
             query.TargetGame,
             query.ContentType,
             lastUpdated ?? DateTime.MinValue,
@@ -502,58 +618,17 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         foreach (var item in results)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var parsedItem = ParseSearchListItem(item, query);
-            if (parsedItem != null)
+            var parsed = ParseMapListItem(item, query);
+            if (parsed != null)
             {
-                mapList.Add(parsedItem);
+                mapList.Add(parsed);
             }
         }
 
-        // Check for 'Next' button in pagination
-        var pagingLinks = document.QuerySelectorAll(".paging a, .pager a, #ctl00_MainContent_Pager1 a, #ctl00_Main_NextPageLink, #ctl00_MainContent_NextPageLink, a[id*='NextPageLink']");
-        bool hasMoreItems = ParseHasMorePagingLinks(pagingLinks, query);
+        var currentPage = query.Page ?? 1;
+        var hasMoreItems = CheckPaginationHasMore(document, currentPage);
 
-        logger.LogInformation("[CNCLabs] Search returned {Count} maps. HasMore: {HasMore}", mapList.Count, hasMoreItems);
         return (mapList, hasMoreItems);
-    }
-
-    private bool ParseHasMorePagingLinks(IHtmlCollection<IElement> pagingLinks, ContentSearchQuery query)
-    {
-        if (pagingLinks.Length == 0)
-        {
-            logger.LogInformation("[CNCLabs] No paging links found (single page result)");
-            return false;
-        }
-
-        logger.LogInformation("[CNCLabs] Found {Count} paging links", pagingLinks.Length);
-        bool hasMoreItems = false;
-
-        foreach (var link in pagingLinks)
-        {
-            var text = link.TextContent.Trim();
-            var href = link.GetAttribute("href");
-            logger.LogDebug("[CNCLabs] Paging link: Text='{Text}', Href='{Href}'", text, href);
-
-            if (text.Contains("Next", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains("...", StringComparison.Ordinal) ||
-                href?.Contains("page=" + (query.Page + 1)) == true)
-            {
-                logger.LogInformation("[CNCLabs] Found Next/Ellipsis link match: {Text} (href: {Href})", text, href);
-                hasMoreItems = true;
-            }
-
-            if (int.TryParse(text, out var pNum))
-            {
-                int currentPage = query.Page ?? 1;
-                if (pNum > currentPage)
-                {
-                    logger.LogInformation("[CNCLabs] Found page {PageNum} > current {CurrentPage}", pNum, currentPage);
-                    hasMoreItems = true;
-                }
-            }
-        }
-
-        return hasMoreItems;
     }
 
     /// <summary>
@@ -602,35 +677,17 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         var context = BrowsingContext.New(Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
 
-        var name =
-            document.QuerySelector(CNCLabsConstants.NameSelector)?.TextContent?.Trim()
-            ?? document.QuerySelector(CNCLabsConstants.BreadcrumbHeaderSelector)
-                       ?.TextContent?
-                       .Split(CNCLabsConstants.BreadcrumbSeparator)
-                       .LastOrDefault()?
-                       .Trim()
-            ?? string.Empty;
-
-        var descEl = document.QuerySelector(CNCLabsConstants.DescriptionSelector);
-        var description = descEl is null
-            ? string.Empty
-            : CNCLabsHelper.NormalizeHtmlDescription(descEl.InnerHtml) ?? string.Empty;
-
-        var authorStrong = document.QuerySelectorAll(CNCLabsConstants.AuthorLabelContainerSelector)
-                                   .FirstOrDefault(s => string.Equals(
-                                       s.TextContent?.Trim(),
-                                       CNCLabsConstants.AuthorLabelText,
-                                       StringComparison.OrdinalIgnoreCase));
-
-        var author = CNCLabsHelper.GetNextNonEmptyTextSibling(authorStrong) ?? string.Empty;
+        var name = ExtractMapName(document);
+        var description = ExtractMapDescription(document);
+        var author = ExtractMapAuthor(document);
         var (gameType, contentType) = CNCLabsHelper.ExtractBreadcrumbCategory(document);
 
         var docText = document.Body?.TextContent ?? string.Empty;
-        var lastUpdated = ParseLastUpdatedDate(document, docText);
-        var fileSize = ParseFileSize(document, docText);
-        var downloadCount = ParseDownloadCount(docText);
-        var iconUrl = ParsePreviewImage(document);
-        var tags = ParseTags(docText);
+        var lastUpdated = ExtractLastUpdatedDate(document, docText);
+        var fileSize = ExtractFileSize(document, docText);
+        var downloadCount = ExtractDownloadCount(docText);
+        var iconUrl = ExtractIconUrl(document);
+        var tags = ExtractTags(docText);
 
         return new MapListItem(
             id,

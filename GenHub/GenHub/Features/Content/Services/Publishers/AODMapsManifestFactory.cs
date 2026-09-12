@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -9,16 +11,11 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Interfaces.Tools;
-using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
-using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Slugify;
-
-using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -27,12 +24,10 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// </summary>
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public partial class AODMapsManifestFactory(
-    IContentManifestBuilder manifestBuilder,
+    Func<IContentManifestBuilder> manifestBuilderFactory,
     IManifestIdService manifestIdService,
     IProviderDefinitionLoader providerLoader,
-    IDownloadService downloadService,
-    ICasService casService,
-    IConfigurationProviderService configurationProvider,
+    IFileHashProvider hashProvider,
     ILogger<AODMapsManifestFactory> logger) : IPublisherManifestFactory
 {
     /// <inheritdoc />
@@ -45,13 +40,82 @@ public partial class AODMapsManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
     {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken = default)
+    {
         logger.LogInformation("Processing AODMaps extracted content from: {Directory}", extractedDirectory);
-        return await Task.FromResult<List<ContentManifest>>([originalManifest]);
+
+        var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
+        if (zipFiles.Length == 0)
+        {
+            throw new InvalidDataException("AODMaps download did not produce a ZIP archive.");
+        }
+
+        foreach (var zipPath in zipFiles)
+        {
+            var extractPath = Path.Combine(extractedDirectory, Path.GetFileNameWithoutExtension(zipPath));
+            Directory.CreateDirectory(extractPath);
+            ExtractZipSafely(zipPath, extractPath);
+            File.Delete(zipPath);
+        }
+
+        var files = new List<ManifestFile>();
+        foreach (var filePath in Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories).OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+        {
+            var fileInfo = new FileInfo(filePath);
+            files.Add(new ManifestFile
+            {
+                RelativePath = Path.GetRelativePath(extractedDirectory, filePath),
+                SourceType = ContentSourceType.ContentAddressable,
+                Size = fileInfo.Length,
+                Hash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken),
+
+                // AODMaps is a map-only publisher. Maps must be linked into the user's Documents
+                // map directory rather than the profile workspace or they will never appear in-game.
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            });
+        }
+
+        if (files.Count == 0)
+        {
+            throw new InvalidDataException("AODMaps archive contained no files.");
+        }
+
+        return
+        [
+            new ContentManifest
+            {
+                SchemaVersion = originalManifest.SchemaVersion,
+                Id = originalManifest.Id,
+                Name = originalManifest.Name,
+                Version = originalManifest.Version,
+                ContentType = originalManifest.ContentType,
+                TargetGame = originalManifest.TargetGame,
+                Publisher = originalManifest.Publisher,
+                Metadata = originalManifest.Metadata,
+                OriginalProviderName = originalManifest.OriginalProviderName,
+                OriginalContentId = originalManifest.OriginalContentId,
+                SourcePath = originalManifest.SourcePath,
+                Dependencies = originalManifest.Dependencies,
+                ContentReferences = originalManifest.ContentReferences,
+                KnownAddons = originalManifest.KnownAddons,
+                Files = files,
+                RequiredDirectories = originalManifest.RequiredDirectories,
+                InstallationInstructions = originalManifest.InstallationInstructions,
+            },
+        ];
     }
 
     /// <inheritdoc />
@@ -74,18 +138,25 @@ public partial class AODMapsManifestFactory(
             throw new ArgumentException("Download URL is required to create a manifest", nameof(details));
         }
 
+        // Fresh builder per operation: the shared builder's internal state is never reset, so a
+        // reused singleton would accumulate files/dependencies across calls.
+        var manifestBuilder = manifestBuilderFactory();
+
         // 1. Normalize author
         var publisherId = AODMapsConstants.PublisherType;
 
         // 2. Slugify content name
         var contentName = SlugifyTitle(details.Name);
 
-        // 3. Format release date
-        var releaseDate = details.SubmissionDate.ToString("yyyyMMdd");
-        if (releaseDate == "00010101") releaseDate = DateTime.UtcNow.ToString("yyyyMMdd");
+        // 3. Format release date for display (YYYYMMDD). If no real date was available,
+        //    use a fixed epoch string so the display version is stable rather than changing daily.
+        //    The manifest ID always uses userVersion: 0 regardless of date (see step 4).
+        var releaseDate = details.SubmissionDate > DateTime.MinValue
+            ? details.SubmissionDate.ToString("yyyyMMdd")
+            : "00000000";
 
-        // 4. Generate manifest ID
-        // User requested Version 0 for downloaded content
+        // 4. Generate manifest ID — always uses version 0 for AODMaps content because
+        //    AODMaps does not expose semantic versioning and ContentStateService also
         var manifestIdResult = manifestIdService.GeneratePublisherContentId(
             publisherId,
             details.ContentType,
@@ -117,12 +188,10 @@ public partial class AODMapsManifestFactory(
                 screenshotUrls: details.Screenshots ?? []);
 
         // 6. Add download file - Download and store in CAS
-        var fileName = ExtractFileNameFromUrl(details.DownloadUrl);
-        await DownloadAndAddFileAsync(
-            manifestBuilder,
-            fileName,
-            details.DownloadUrl,
-            details.RefererUrl);
+        // AODMaps exposes a click-counter URL. The HTTP stack follows its redirect, while
+        // this stable ZIP name ensures Stage 3 recognizes and extracts the real archive.
+        var fileName = $"{contentName}.zip";
+        await manifestBuilder.AddRemoteFileAsync(fileName, details.DownloadUrl);
 
         // 7. Add dependencies
         manifest = AddGameDependencies(manifest, details.TargetGame);
@@ -156,75 +225,37 @@ public partial class AODMapsManifestFactory(
     {
         if (targetGame == GameType.ZeroHour)
         {
-            builder.AddDependency(id: ManifestId.Create("1.104.ea.gameinstallation.zerohour"), name: "Zero Hour Installation", dependencyType: ContentType.GameInstallation, installBehavior: DependencyInstallBehavior.RequireExisting, minVersion: ManifestConstants.ZeroHourManifestVersion);
+            // Type-only constraint: any platform's ZH installation satisfies this.
+            builder.AddDependency(id: ManifestId.Create(ManifestConstants.ZeroHourFoundationDependencyId), name: "Zero Hour Installation", dependencyType: ContentType.GameInstallation, installBehavior: DependencyInstallBehavior.RequireExisting, minVersion: ManifestConstants.ZeroHourManifestVersion);
         }
         else if (targetGame == GameType.Generals)
         {
-            builder.AddDependency(id: ManifestId.Create("1.108.ea.gameinstallation.generals"), name: "Generals Installation", dependencyType: ContentType.GameInstallation, installBehavior: DependencyInstallBehavior.RequireExisting, minVersion: ManifestConstants.GeneralsManifestVersion);
+            // Type-only constraint: any platform's Generals installation satisfies this.
+            builder.AddDependency(id: ManifestId.Create("1.108.any.gameinstallation.generals"), name: "Generals Installation", dependencyType: ContentType.GameInstallation, installBehavior: DependencyInstallBehavior.RequireExisting, minVersion: ManifestConstants.GeneralsManifestVersion);
         }
 
         return builder;
     }
 
-    private static string ExtractFileNameFromUrl(string downloadUrl)
+    private static void ExtractZipSafely(string zipPath, string extractPath)
     {
-        try
+        using var archive = ZipFile.OpenRead(zipPath);
+        var rootPath = Path.GetFullPath(extractPath) + Path.DirectorySeparatorChar;
+        foreach (var entry in archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)))
         {
-            var uri = new Uri(downloadUrl);
-            var fileName = Path.GetFileName(uri.LocalPath);
-            if (!string.IsNullOrWhiteSpace(fileName)) return fileName;
+            var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.FullName));
+            if (!destinationPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException($"ZIP entry has an unsafe path: {entry.FullName}");
+            }
+
+            var dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            entry.ExtractToFile(destinationPath, overwrite: true);
         }
-        catch (UriFormatException)
-        {
-        }
-
-        return "download.zip";
-    }
-
-    private async Task DownloadAndAddFileAsync(
-        IContentManifestBuilder builder,
-        string relativePath,
-        string downloadUrl,
-        string? refererUrl)
-    {
-        var tempDir = Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.Temp);
-        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
-
-        var tempFilePath = Path.Combine(tempDir, $"{Guid.NewGuid()}{Path.GetExtension(relativePath)}");
-
-        var downloadConfig = new DownloadConfiguration
-        {
-            Url = new Uri(downloadUrl),
-            DestinationPath = tempFilePath,
-            OverwriteExisting = true,
-        };
-
-        if (!string.IsNullOrEmpty(refererUrl))
-        {
-            downloadConfig.Headers.Add("Referer", refererUrl);
-        }
-
-        // Standard download for AODMaps
-        var downloadResult = await downloadService.DownloadFileAsync(downloadConfig);
-        if (!downloadResult.Success)
-        {
-            throw new InvalidOperationException($"Failed to download file from {downloadUrl}: {downloadResult.FirstError}");
-        }
-
-        // Store in CAS
-        var storeResult = await casService.StoreContentAsync(tempFilePath, ContentType.Map);
-        if (!storeResult.Success)
-        {
-            if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-            throw new InvalidOperationException($"Failed to store content in CAS: {storeResult.FirstError}");
-        }
-
-        var hash = storeResult.Data;
-        var fileSize = new FileInfo(tempFilePath).Length;
-
-        // Cleanup
-        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-
-        await builder.AddContentAddressableFileAsync(relativePath, hash, fileSize);
     }
 }

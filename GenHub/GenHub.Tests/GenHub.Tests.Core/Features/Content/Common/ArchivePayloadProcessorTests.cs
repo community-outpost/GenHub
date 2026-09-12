@@ -843,6 +843,44 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.Contains("cannot overwrite the archive itself", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies that modern Smart Install Maker payloads with raw uncompressed entries exceeding 64KB
+    /// are fully copied without truncation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_WithModernSimRawUncompressedStreamOver64KB_ExtractsFullPayload()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var largePayload = new byte[70000];
+        for (var i = 0; i < largePayload.Length; i++)
+        {
+            largePayload[i] = (byte)(i % 251);
+        }
+
+        var syntheticSimBytes = CreateSyntheticSmartInstallMakerExecutable(
+        [
+            ("LargeData.dat", largePayload, false),
+        ],
+        includeUninstallerEntry: false);
+
+        var installerPath = Path.Combine(_stagingDirectory, "SetupLarge.exe");
+        await File.WriteAllBytesAsync(installerPath, syntheticSimBytes);
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod);
+
+        // Assert
+        var extractedPath = Path.Combine(_stagingDirectory, "LargeData.dat");
+        Assert.True(File.Exists(extractedPath), "LargeData.dat should be extracted.");
+        var extractedBytes = await File.ReadAllBytesAsync(extractedPath);
+        Assert.Equal(largePayload.Length, extractedBytes.Length);
+        Assert.Equal(largePayload, extractedBytes);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

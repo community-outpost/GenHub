@@ -24,6 +24,7 @@ public class NotificationFeedViewModelTests
     private readonly Mock<ILogger<NotificationFeedViewModel>> _mockLogger;
     private readonly Mock<ILogger<NotificationFeedItemViewModel>> _mockItemLogger;
     private readonly Subject<NotificationMessage> _notificationSubject;
+    private readonly Subject<(Guid Id, string? Title, string Message)> _updateSubject;
     private readonly NotificationFeedViewModel _viewModel;
 
     /// <summary>
@@ -36,9 +37,12 @@ public class NotificationFeedViewModelTests
         _mockLogger = new Mock<ILogger<NotificationFeedViewModel>>();
         _mockItemLogger = new Mock<ILogger<NotificationFeedItemViewModel>>();
         _notificationSubject = new Subject<NotificationMessage>();
+        _updateSubject = new Subject<(Guid Id, string? Title, string Message)>();
 
         _mockNotificationService.Setup(s => s.NotificationHistory)
             .Returns(_notificationSubject);
+        _mockNotificationService.Setup(s => s.UpdateRequests)
+            .Returns(_updateSubject);
 
         _mockLoggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>()))
             .Returns(_mockItemLogger.Object);
@@ -171,6 +175,26 @@ public class NotificationFeedViewModelTests
 
         // Assert
         _mockNotificationService.Verify(x => x.Dismiss(notification.Id), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that notification updates update the corresponding feed item.
+    /// </summary>
+    [Fact]
+    public void NotificationUpdated_ShouldUpdateFeedItem()
+    {
+        // Arrange
+        var message = new NotificationMessage(NotificationType.Info, "Old Title", "Old Message");
+        _notificationSubject.OnNext(message);
+
+        // Act
+        _updateSubject.OnNext((message.Id, "New Title", "New Message"));
+
+        // Assert
+        var item = _viewModel.NotificationHistory.FirstOrDefault(n => n.Id == message.Id);
+        item.Should().NotBeNull();
+        item!.Title.Should().Be("New Title");
+        item.Message.Should().Be("New Message");
     }
 
     /// <summary>

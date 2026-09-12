@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -116,9 +117,31 @@ public abstract class BaseContentProvider : IContentProvider
     }
 
     /// <inheritdoc/>
-    public abstract Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
+    public virtual async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentId))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
+        }
+
+        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
+        var searchResult = await SearchAsync(query, cancellationToken);
+
+        if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
+        }
+
+        var result = searchResult.Data.First();
+        var manifest = result.GetData<ContentManifest>();
+
+        return manifest != null
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+    }
 
     /// <inheritdoc/>
     public virtual async Task<OperationResult<ContentManifest>> PrepareContentAsync(
@@ -345,11 +368,35 @@ public abstract class BaseContentProvider : IContentProvider
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The prepared manifest.</returns>
-    protected abstract Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected virtual async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            Logger.LogInformation("Preparing {SourceName} content for manifest {ManifestId}", SourceName, manifest.Id);
+
+            if (!Deliverer.CanDeliver(manifest))
+            {
+                return OperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
+            }
+
+            var deliveryResult = await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
+            if (!deliveryResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure($"{SourceName} content delivery failed: {deliveryResult.FirstError}");
+            }
+
+            return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data ?? manifest);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to prepare {SourceName} content for manifest {ManifestId}", SourceName, manifest.Id);
+            return OperationResult<ContentManifest>.CreateFailure($"{SourceName} content preparation failed: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Creates a resolved <see cref="ContentSearchResult"/> from a discovered item and manifest.

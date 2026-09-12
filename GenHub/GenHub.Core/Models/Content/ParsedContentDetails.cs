@@ -36,4 +36,4 @@ public record ParsedContentDetails(
     string? FileType = null,
     float? Rating = null,
     string? RefererUrl = null,
-    List<GenHub.Core.Models.Parsers.File>? AdditionalFiles = null);
+    List<DownloadableFile>? AdditionalFiles = null);

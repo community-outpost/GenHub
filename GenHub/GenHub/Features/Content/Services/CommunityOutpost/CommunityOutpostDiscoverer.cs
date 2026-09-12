@@ -191,7 +191,7 @@ public partial class CommunityOutpostDiscoverer(
     {
         return category switch
         {
-            GenPatcherContentCategory.CommunityPatch => ["community-patch", "thesuperhackers", "weekly", "game-client"],
+            GenPatcherContentCategory.CommunityPatch => [CommunityOutpostConstants.CommunityPatchTag, "thesuperhackers", "weekly", "game-client"],
             GenPatcherContentCategory.OfficialPatch => CommunityOutpostConstants.OfficialPatchTags,
             GenPatcherContentCategory.BaseGame => ["base-game", "vanilla"],
             GenPatcherContentCategory.ControlBar => ["addon", "control-bar", "ui"],
@@ -278,8 +278,8 @@ public partial class CommunityOutpostDiscoverer(
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
             var term = query.SearchTerm.ToLowerInvariant();
-            var nameMatches = result.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
-            var descMatches = result.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
+            var nameMatches = result.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
+            var descMatches = result.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
             var tagMatches = result.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase));
 
             if (!nameMatches && !descMatches && !tagMatches)
@@ -373,7 +373,11 @@ public partial class CommunityOutpostDiscoverer(
             // Use the standard 5-segment ID format expected by the manifest factory
             var result = new ContentSearchResult
             {
-                Id = $"1.{versionDate.Replace("-", string.Empty)}.{providerName.ToLowerInvariant()}.gameclient.community-patch",
+                Id = CatalogManifestIdentity.CreateContentId(
+                    providerName,
+                    ContentType.GameClient,
+                    CommunityOutpostConstants.CommunityPatchTag,
+                    versionDate),
                 Name = "Community Patch (TheSuperHackers Build)",
                 Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
                 Version = versionDate,
@@ -393,7 +397,7 @@ public partial class CommunityOutpostDiscoverer(
             }
 
             // Add tags
-            result.Tags.Add("community-patch");
+            result.Tags.Add(CommunityOutpostConstants.CommunityPatchTag);
             result.Tags.Add("thesuperhackers");
             result.Tags.Add("weekly");
             result.Tags.Add("game-client");
@@ -411,7 +415,7 @@ public partial class CommunityOutpostDiscoverer(
             }
 
             // Store metadata for resolver
-            result.ResolverMetadata["contentCode"] = "community-patch";
+            result.ResolverMetadata["contentCode"] = CommunityOutpostConstants.CommunityPatchTag;
             result.ResolverMetadata["downloadUrl"] = downloadUrl;
             result.ResolverMetadata["category"] = "CommunityPatch";
 
@@ -493,7 +497,7 @@ public partial class CommunityOutpostDiscoverer(
                 DownloadSize = item.FileSize,
                 RequiresResolution = true,
                 ResolverId = CommunityOutpostConstants.PublisherId,
-                LastUpdated = DateTime.Now, // dl.dat doesn't include timestamps
+                LastUpdated = DateTime.UtcNow, // dl.dat doesn't include timestamps
 
                 // Use publisher logo as default content icon
                 IconUrl = CommunityOutpostConstants.LogoSource,
@@ -517,6 +521,26 @@ public partial class CommunityOutpostDiscoverer(
             result.ResolverMetadata["catalogVersion"] = catalogVersion;
             result.ResolverMetadata["fileSize"] = item.FileSize.ToString();
             result.ResolverMetadata["category"] = metadata.Category.ToString();
+
+            // When this content supports variants (resolution/language), declare the variant
+            // group on the card so the downloads browser collapses sibling variants into one
+            // card with a variant picker instead of N separate cards.
+            if (metadata.SupportsVariants && metadata.Variants is { Count: > 0 } variants)
+            {
+                var publisherType = CommunityOutpostConstants.PublisherType.ToLowerInvariant();
+                var contentTypeString = metadata.ContentType.ToString().ToLowerInvariant();
+                result.VariantGroupId = $"{publisherType}.{contentTypeString}.{item.ContentCode.ToLowerInvariant()}";
+                result.VariantFamilyName = metadata.DisplayName;
+                result.Variants = [.. variants
+                    .Select(v => new ContentVariantInfo
+                    {
+                        Id = v.Id,
+                        Name = v.Name,
+                        VariantType = v.VariantType ?? string.Empty,
+                        ManifestId = $"1.0.{publisherType}.{contentTypeString}.{item.ContentCode.ToLowerInvariant()}-{v.Id}",
+                        IsDefault = v.IsDefault,
+                    })];
+            }
 
             // Store all mirror URLs as JSON for fallback support (absolute URLs)
             result.ResolverMetadata["mirrorUrls"] = JsonSerializer.Serialize(absoluteUrls);

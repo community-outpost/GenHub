@@ -11,6 +11,7 @@ namespace GenHub.Core.Models.CommunityOutpost;
 /// </summary>
 public static class GenPatcherContentRegistry
 {
+    private const string CommunityPatchCode = "community-patch";
     private const string ResolutionVariantType = "resolution";
     private const string LanguageVariantType = "language";
     private const string Pattern720 = "*720*";
@@ -65,9 +66,9 @@ public static class GenPatcherContentRegistry
     private static readonly Dictionary<string, GenPatcherContentMetadata> KnownContent = new(StringComparer.OrdinalIgnoreCase)
     {
         // Community Patch (TheSuperHackers Build from legi.cc/patch)
-        ["community-patch"] = new GenPatcherContentMetadata
+        [CommunityPatchCode] = new GenPatcherContentMetadata
         {
-            ContentCode = "community-patch",
+            ContentCode = CommunityPatchCode,
             DisplayName = "Community Patch (TheSuperHackers Build)",
             Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
             ContentType = ContentType.GameClient,
@@ -422,9 +423,61 @@ public static class GenPatcherContentRegistry
     };
 
     /// <summary>
+    /// Content code alias mappings for catalog items and legacy names.
+    /// </summary>
+    private static readonly Dictionary<string, string> ContentCodeAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["legionnaire-hotkeys"] = "hleg",
+        ["legionnairehotkeys"] = "hleg",
+        ["legionnaireshotkeys"] = "hleg",
+        ["gentool-suite-86"] = "gent",
+        ["gentoolsuite86"] = "gent",
+        ["gentool-suite-89"] = "gent",
+        ["gentoolsuite89"] = "gent",
+        ["gentool-89-suite"] = "gent",
+        ["gentool89suite"] = "gent",
+        ["gentool-suite"] = "gent",
+        ["gentoolsuite"] = "gent",
+        ["gentool"] = "gent",
+        ["leikezes-hotkeys"] = "hlei",
+        ["leikezeshotkeys"] = "hlei",
+        ["easy-win-hotkeys-advanced"] = "ewba",
+        ["easywinhotkeysadvanced"] = "ewba",
+        ["easy-win-hotkeys-international"] = "ewbi",
+        ["easywinhotkeysinternational"] = "ewbi",
+        ["standard-hotkeys-german"] = "hlde",
+        ["standardhotkeysgerman"] = "hlde",
+        ["hotkeys-indicators"] = "hlen",
+        ["hotkeysindicators"] = "hlen",
+        ["hlenenglish"] = "hlen",
+        ["hlen-english"] = "hlen",
+        ["communityoutpost-controlbar-pro"] = "cbpr",
+        ["controlbarproexile"] = "cbpr",
+        ["controlbarproxezon"] = "cbpx",
+        ["communitypatch"] = CommunityPatchCode,
+        ["communitypatchthesuperhackersbuild"] = CommunityPatchCode,
+        ["communityoutpostgameclientcommunitypatch"] = CommunityPatchCode,
+        ["community-patch-gameclient"] = CommunityPatchCode,
+        ["zerohour104"] = "10zh",
+        ["zerohour-104"] = "10zh",
+        ["generals108"] = "10gn",
+        ["generals-108"] = "10gn",
+        ["mapsartofdefense"] = "maod",
+        ["custommissionspack"] = "mmis",
+        ["mapscriptingresources"] = "mscr",
+        ["skirmishmappack"] = "mskr",
+        ["iconspack"] = "icon",
+        ["directxtextures"] = "drtx",
+        ["uncutcontent"] = "unct",
+        ["vc2005redistributable"] = "vc05",
+        ["vc2008redistributable"] = "vc08",
+        ["vc2010redistributable"] = "vc10",
+    };
+
+    /// <summary>
     /// Gets metadata for a content code.
     /// </summary>
-    /// <param name="contentCode">The 4-character content code.</param>
+    /// <param name="contentCode">The 4-character content code or catalog content id.</param>
     /// <returns>Content metadata, or a dynamically generated one if the code is unknown.</returns>
     public static GenPatcherContentMetadata GetMetadata(string contentCode)
     {
@@ -434,21 +487,25 @@ public static class GenPatcherContentRegistry
         }
 
         var normalizedCode = contentCode.Trim();
+        if (ContentCodeAliases.TryGetValue(normalizedCode, out var aliasCode))
+        {
+            normalizedCode = aliasCode;
+        }
 
-        // Check for known content first (case-insensitive due to dictionary comparer)
+        // check for known content first (case-insensitive due to dictionary comparer)
         if (KnownContent.TryGetValue(normalizedCode, out var metadata))
         {
             return metadata;
         }
 
-        // Try to parse as a patch code (e.g., "108e", "104b")
+        // try to parse as a patch code (e.g., "108e", "104b")
         var patchMetadata = TryParsePatchCode(normalizedCode);
         if (patchMetadata != null)
         {
             return patchMetadata;
         }
 
-        // Return unknown metadata
+        // return unknown metadata
         return CreateUnknownMetadata(contentCode);
     }
 

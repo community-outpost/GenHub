@@ -44,7 +44,6 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
             .Returns<string>(fileName =>
                 fileName.Equals(GameContentConstants.ControlBarProBaseFileName, StringComparison.OrdinalIgnoreCase) ||
                 fileName.Equals(GameContentConstants.ControlBarProLemonBaseFileName, StringComparison.OrdinalIgnoreCase));
-
         _factory = new CommunityOutpostManifestFactory(_loggerMock.Object, _hashProviderMock.Object, _controlBarProcessorMock.Object);
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);

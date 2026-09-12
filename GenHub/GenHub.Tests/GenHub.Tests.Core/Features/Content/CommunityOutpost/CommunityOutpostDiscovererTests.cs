@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;
 
@@ -67,7 +68,7 @@ public class CommunityOutpostDiscovererTests
         // Arrange
         var versionDate = "2026-01-28";
         var providerName = CommunityOutpostConstants.PublisherType;
-        var expectedId = $"1.{versionDate.Replace("-", string.Empty)}.{providerName}.gameclient.community-patch";
+        var expectedId = CatalogManifestIdentity.CreateContentId(providerName, ContentType.GameClient, "community-patch", versionDate);
 
         // Act
         var segments = expectedId.Split('.');
@@ -78,7 +79,7 @@ public class CommunityOutpostDiscovererTests
         Assert.Equal("20260128", segments[1]); // user version (date)
         Assert.Equal("communityoutpost", segments[2]); // publisher
         Assert.Equal("gameclient", segments[3]); // content type
-        Assert.Equal("community-patch", segments[4]); // content name
+        Assert.Equal("communitypatch", segments[4]); // content name
     }
 
     /// <summary>
@@ -137,13 +138,13 @@ public class CommunityOutpostDiscovererTests
         // Assert
         Assert.True(result.Success, $"Discovery failed: {result.FirstError}");
         Assert.NotEmpty(result.Data.Items);
-        var patch = result.Data.Items.FirstOrDefault(i => i.Id.Contains("community-patch"));
+        var patch = result.Data.Items.FirstOrDefault(i => i.Id.Contains("communitypatch") || i.Id.Contains("community-patch"));
         Assert.NotNull(patch);
         var idParts = patch.Id.Split('.');
         Assert.Equal(5, idParts.Length);
         Assert.Equal("1", idParts[0]);
         Assert.Equal("communityoutpost", idParts[2]);
         Assert.Equal("gameclient", idParts[3]);
-        Assert.Equal("community-patch", idParts[4]);
+        Assert.Equal("communitypatch", idParts[4]);
     }
 }

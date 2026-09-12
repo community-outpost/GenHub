@@ -17,7 +17,7 @@ namespace GenHub.Infrastructure.Services;
 /// <param name="logger">Logger instance.</param>
 public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationService> logger) : IGenLauncherNormalizationService
 {
-    private static readonly HashSet<string> GibExtensions = [GenLauncherConstants.GibExtension];
+    private static readonly HashSet<string> GibExtensions = [.. GenLauncherConstants.InactiveBigExtensions];
     private static readonly HashSet<string> SuffixesToRemove =
     [
         GenLauncherConstants.ReplaceSuffix,

@@ -140,4 +140,33 @@ public class GameProfileItemViewModelTests
         var exception = await Record.ExceptionAsync(() => vm.CopyProfileCommand.ExecuteAsync(null));
         Assert.Null(exception);
     }
+
+    /// <summary>
+    /// Verifies that SuperHackers 8-digit datecode versions are formatted cleanly as vYYYY.MM.DD.
+    /// </summary>
+    [Fact]
+    public void Construction_WithSuperHackersManifest_FormatsDatecodeVersionProperly()
+    {
+        // Arrange
+        var gameClient = new GenHub.Core.Models.GameClients.GameClient
+        {
+            Id = "1.20260807.thesuperhackers.gameclient.zerohour",
+            Version = "weekly-2026-08-07",
+            Name = "SuperHackers - Zero Hour",
+        };
+
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-sh",
+            Name = "SuperHackers - Zero Hour (weekly-2026-08-07)",
+            GameClient = gameClient,
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-profile-sh", profile, null!, null!);
+
+        // Assert
+        Assert.Equal("The Super Hackers", vm.Publisher);
+        Assert.Equal("v2026.08.07", vm.GameVersion);
+    }
 }

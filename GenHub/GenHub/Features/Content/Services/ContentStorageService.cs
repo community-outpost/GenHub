@@ -703,8 +703,16 @@ public class ContentStorageService : IContentStorageService
                 // Special handling for content already in CAS (e.g. pre-downloaded)
                 if (manifestFile.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(manifestFile.Hash))
                 {
-                    // Verify if it actually exists in CAS
+                    // Verify if it actually exists in CAS. Try the typed pool first, then fall back
+                    // to a pool-agnostic lookup: publisher factories may store under a content-type
+                    // pool that differs from the manifest's (e.g. a CNC Labs map stored under the Map
+                    // pool while the manifest type is still being inferred).
                     var casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+                    if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
+                    {
+                        casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, cancellationToken).ConfigureAwait(false);
+                    }
+
                     if (casPathResult.Success && !string.IsNullOrEmpty(casPathResult.Data))
                     {
                         _logger.LogDebug(

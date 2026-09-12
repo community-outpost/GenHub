@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -35,7 +36,10 @@ public class CNCLabsContentProvider(
         ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
 
     /// <inheritdoc />
-    public override string SourceName => "CNC Labs";
+    /// <remarks>
+    /// Must match the ProviderName set by CNCLabsMapDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => CNCLabsConstants.SourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides maps and content from CNC Labs";
@@ -48,52 +52,4 @@ public class CNCLabsContentProvider(
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer => _httpDeliverer;
-
-    /// <inheritdoc />
-    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
-        string contentId, CancellationToken cancellationToken = default)
-    {
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data!.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
-        }
-
-        var result = searchResult.Data!.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
-    }
-
-    /// <inheritdoc />
-    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
-        ContentManifest manifest,
-        string workingDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            Logger.LogDebug("Preparing CNC Labs content for manifest {ManifestId}", manifest.Id);
-
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Downloading,
-                CurrentOperation = "Preparing CNC Labs content...",
-            });
-
-            // For CNC Labs content, typically just return the manifest as content preparation
-            // is handled by the delivery pipeline
-            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to prepare CNC Labs content for manifest {ManifestId}", manifest.Id);
-            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure($"CNC Labs content preparation failed: {ex.Message}"));
-        }
-    }
 }

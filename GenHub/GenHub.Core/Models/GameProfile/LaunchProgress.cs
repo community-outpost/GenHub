@@ -24,4 +24,16 @@ public class LaunchProgress
 
     /// <summary>Gets or sets the workspace cleanup confirmation data when awaiting user decision.</summary>
     public WorkspaceCleanupConfirmation? CleanupConfirmation { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether workspace files are actively being initialized or materialized.</summary>
+    public bool IsInitializingWorkspace { get; set; }
+
+    /// <summary>Gets or sets the total number of files to process during workspace initialization.</summary>
+    public int? TotalFiles { get; set; }
+
+    /// <summary>Gets or sets the number of files processed so far during workspace initialization.</summary>
+    public int? FilesProcessed { get; set; }
+
+    /// <summary>Gets or sets the current file being processed during workspace initialization.</summary>
+    public string? CurrentFile { get; set; }
 }

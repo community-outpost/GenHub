@@ -261,6 +261,9 @@ public class MainViewModelTests
         return mock.Object;
     }
 
+    /// <summary>
+    /// Helper method to create a DownloadsBrowserViewModel with mocked dependencies.
+    /// </summary>
     private static DownloadsBrowserViewModel CreateDownloadsBrowserViewModel(IConfigurationProviderService configProvider)
     {
         var mockServiceProvider = new Mock<IServiceProvider>();

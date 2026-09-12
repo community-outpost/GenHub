@@ -223,6 +223,84 @@ public class WorkspaceReconcilerConflictTests : IDisposable
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that when EA_LOGO.BIK is missing from workspace (e.g. deleted by Skip EA Logo setting),
+    /// AnalyzeWorkspaceDeltaAsync treats it as a Skip operation instead of forcing a workspace rebuild.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_MissingEaLogo_ProducesSkipOperationAsync()
+    {
+        // Arrange
+        var logoFile = Path.Combine("Data", "English", "Movies", "EA_LOGO.BIK");
+        var manifest = CreateManifest(ContentType.GameInstallation, logoFile, "logo-hash");
+        var workspacePath = Path.Combine(_testDirectory, "ws1");
+        Directory.CreateDirectory(workspacePath);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "ws1",
+            WorkspacePath = workspacePath,
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws1",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(WorkspaceDeltaOperation.Skip, result[0].Operation);
+    }
+
+    /// <summary>
+    /// Verifies that runtime workspace files like receipts and log files are not flagged as orphan Remove operations.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_RuntimeWorkspaceFiles_IgnoredFromRemoveDeltasAsync()
+    {
+        // Arrange
+        var normalFile = "generals.exe";
+        var manifest = CreateManifest(ContentType.GameInstallation, normalFile, "exe-hash");
+        var workspacePath = Path.Combine(_testDirectory, "ws2");
+        Directory.CreateDirectory(workspacePath);
+
+        // Create runtime artifacts in the workspace directory
+        await File.WriteAllTextAsync(Path.Combine(workspacePath, normalFile), "exe content");
+        await File.WriteAllTextAsync(Path.Combine(workspacePath, "launch.receipt.json"), "{}");
+        await File.WriteAllTextAsync(Path.Combine(workspacePath, "game.log"), "log content");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "ws2",
+            WorkspacePath = workspacePath,
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws2",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Empty(removeDeltas);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
