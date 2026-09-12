@@ -100,6 +100,12 @@ public partial class GenHotkeysViewModel(
     private string _conflictSummary = string.Empty;
 
     [ObservableProperty]
+    private string _conflictStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _applyToAllButtonText = "Apply to All";
+
+    [ObservableProperty]
     private string _newProfileName = string.Empty;
 
     [ObservableProperty]
@@ -264,6 +270,7 @@ public partial class GenHotkeysViewModel(
         SelectedProfile.KeyMappings[SelectedAction.HotkeyString] = upperKey;
         SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
 
+        ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
     }
@@ -306,6 +313,7 @@ public partial class GenHotkeysViewModel(
         SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
         SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
 
+        ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
     }
@@ -346,14 +354,16 @@ public partial class GenHotkeysViewModel(
         SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
         SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
 
+        ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
+        StatusMessage = $"Reset '{SelectedAction.DisplayName}' to default hotkey ({(SelectedAction.DefaultHotkey.HasValue ? SelectedAction.DefaultHotkey.Value.ToString() : "None")}).";
     }
 
     /// <summary>
     /// Applies a standard preset layout to the current profile.
     /// </summary>
-    /// <param name="presetName">The preset identifier (e.g. "Vanilla" or "Legionnaire").</param>
+    /// <param name="presetName">The preset identifier (e.g. "Vanilla", "Leikeze", or "Legionnaire").</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
@@ -371,14 +381,130 @@ public partial class GenHotkeysViewModel(
         if (string.Equals(presetName, GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase))
         {
             await ApplyLegionnaireGridPresetAsync(cancellationToken);
+            StatusMessage = "Applied Legionnaire QWERTY grid preset hotkeys.";
         }
         else
         {
             await SaveCurrentProfileAsync(cancellationToken);
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            StatusMessage = $"Applied '{presetName}' preset hotkeys.";
+            var isVanilla = string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase);
+            StatusMessage = isVanilla ? "Applied default vanilla retail hotkeys." : $"Applied '{presetName}' preset hotkeys.";
         }
+    }
+
+    /// <summary>
+    /// Applies the hotkey of the currently selected action to all matching actions across all armies and units.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task ApplyToAllMatchingActionsAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        var targetName = SelectedAction.DisplayName;
+        var targetHotkeyString = SelectedAction.HotkeyString;
+        var targetIconName = SelectedAction.IconName;
+        var targetKey = SelectedAction.Hotkey;
+
+        var matchingCount = ApplyKeyToMatchingActionsInFactions(targetName, targetHotkeyString, targetIconName, targetKey);
+
+        ApplyProfileMappingsToViewModels();
+        await SaveCurrentProfileAsync(cancellationToken);
+        ValidateConflicts();
+
+        var keyDisplay = targetKey.HasValue ? targetKey.Value.ToString() : "None";
+        StatusMessage = $"Applied hotkey '{keyDisplay}' to {matchingCount} '{targetName}' action{(matchingCount == 1 ? string.Empty : "s")}.";
+    }
+
+    private int ApplyKeyToMatchingActionsInFactions(
+        string? targetName,
+        string? targetHotkeyString,
+        string? targetIconName,
+        char? targetKey)
+    {
+        if (SelectedProfile == null)
+        {
+            return 0;
+        }
+
+        var matchingCount = 0;
+        foreach (var faction in _allFactions)
+        {
+            foreach (var obj in faction.GameObjects)
+            {
+                foreach (var layout in obj.KeyboardLayouts)
+                {
+                    matchingCount += ApplyKeyToMatchingLayoutActions(layout, targetName, targetHotkeyString, targetIconName, targetKey);
+                }
+            }
+        }
+
+        return matchingCount;
+    }
+
+    private int ApplyKeyToMatchingLayoutActions(
+        List<HotkeyAction> layout,
+        string? targetName,
+        string? targetHotkeyString,
+        string? targetIconName,
+        char? targetKey)
+    {
+        if (SelectedProfile == null)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        foreach (var action in layout)
+        {
+            if (string.IsNullOrEmpty(action.HotkeyString) ||
+                !IsMatchingAction(action, targetName, targetHotkeyString, targetIconName))
+            {
+                continue;
+            }
+
+            if (targetKey.HasValue)
+            {
+                SelectedProfile.KeyMappings[action.HotkeyString] = targetKey.Value;
+                SelectedProfile.ClearedKeys.Remove(action.HotkeyString);
+            }
+            else
+            {
+                SelectedProfile.KeyMappings.Remove(action.HotkeyString);
+                SelectedProfile.ClearedKeys.Add(action.HotkeyString);
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private static bool IsMatchingAction(
+        HotkeyAction action,
+        string? targetName,
+        string? targetHotkeyString,
+        string? targetIconName)
+    {
+        if (!string.IsNullOrEmpty(targetHotkeyString) &&
+            string.Equals(action.HotkeyString, targetHotkeyString, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(targetName) &&
+            string.Equals(action.DisplayName, targetName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrEmpty(targetIconName) &&
+               string.Equals(action.IconName, targetIconName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -990,6 +1116,13 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    partial void OnSelectedActionChanged(HotkeyActionViewModel? value)
+    {
+        ApplyToAllButtonText = value != null && !string.IsNullOrWhiteSpace(value.DisplayName)
+            ? $"Apply to all {value.DisplayName}"
+            : "Apply to All";
+    }
+
     private async Task SafeReloadAllAsync(CancellationToken cancellationToken)
     {
         try
@@ -1220,6 +1353,144 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    /// <summary>
+    /// Navigates to the next conflicting hotkey action across units and armies.
+    /// </summary>
+    [RelayCommand]
+    public void SelectNextConflict()
+    {
+        var conflictItems = CollectCurrentConflicts();
+
+        if (conflictItems.Count > 0)
+        {
+            NavigateToNextLocalConflict(conflictItems);
+            return;
+        }
+
+        if (SelectedCategory != HotkeyCategory.All && SelectedFaction != null && FactionHasConflicts(SelectedFaction))
+        {
+            SelectedCategory = HotkeyCategory.All;
+            FilterGameObjects();
+            SelectNextConflict();
+            return;
+        }
+
+        var nextFaction = FindNextFactionWithConflicts();
+        if (nextFaction != null)
+        {
+            SelectedFaction = nextFaction;
+            FilterGameObjects();
+            SelectNextConflict();
+        }
+    }
+
+    private List<(HotkeyGameObjectViewModel Obj, HotkeyActionViewModel Action)> CollectCurrentConflicts()
+    {
+        var items = new List<(HotkeyGameObjectViewModel, HotkeyActionViewModel)>();
+        foreach (var obj in FilteredGameObjects)
+        {
+            foreach (var layout in obj.Layouts)
+            {
+                foreach (var act in layout)
+                {
+                    if (act.IsConflict)
+                    {
+                        items.Add((obj, act));
+                    }
+                }
+            }
+        }
+
+        return items;
+    }
+
+    private void NavigateToNextLocalConflict(List<(HotkeyGameObjectViewModel Obj, HotkeyActionViewModel Action)> conflictItems)
+    {
+        var currentIndex = conflictItems.FindIndex(x => x.Action == SelectedAction);
+        var nextIndex = (currentIndex + 1) % conflictItems.Count;
+        var (targetObj, targetAction) = conflictItems[nextIndex];
+
+        SelectedGameObject = targetObj;
+        SelectAction(targetAction);
+        StatusMessage = $"Viewing conflict in '{targetObj.DisplayName}': hotkey '{targetAction.Hotkey}' ({nextIndex + 1}/{conflictItems.Count}).";
+    }
+
+    private HotkeyFaction? FindNextFactionWithConflicts()
+    {
+        if (SelectedFaction == null || _allFactions.Count == 0 || SelectedProfile == null)
+        {
+            return null;
+        }
+
+        var startIndex = _allFactions.IndexOf(SelectedFaction);
+        for (var i = 1; i <= _allFactions.Count; i++)
+        {
+            var candidate = _allFactions[(startIndex + i) % _allFactions.Count];
+            if (candidate != SelectedFaction && FactionHasConflicts(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private bool HasAnyOtherFactionConflicts()
+    {
+        if (_allFactions.Count <= 1 || SelectedProfile == null)
+        {
+            return false;
+        }
+
+        foreach (var faction in _allFactions)
+        {
+            if (faction != SelectedFaction && FactionHasConflicts(faction))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool FactionHasConflicts(HotkeyFaction faction)
+    {
+        if (SelectedProfile == null)
+        {
+            return false;
+        }
+
+        foreach (var obj in faction.GameObjects)
+        {
+            foreach (var layout in obj.KeyboardLayouts)
+            {
+                var keysWithActions = layout
+                    .Select(a => (Action: a, Key: ResolveCurrentActionHotkey(a, SelectedProfile)))
+                    .Where(x => x.Key.HasValue)
+                    .GroupBy(x => x.Key!.Value)
+                    .Where(g => g.Count() > 1);
+
+                foreach (var group in keysWithActions)
+                {
+                    var dummyVms = group.Select(x => new HotkeyActionViewModel
+                    {
+                        DisplayName = x.Action.DisplayName,
+                        IconName = x.Action.IconName,
+                        HotkeyString = x.Action.HotkeyString,
+                        Hotkey = x.Key,
+                    }).ToList();
+
+                    if (!IsPermittedEngineOverlap(dummyVms))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     private void ValidateConflicts()
     {
         var conflictCount = 0;
@@ -1230,10 +1501,24 @@ public partial class GenHotkeysViewModel(
             conflictCount += objConflicts;
         }
 
-        HasConflicts = conflictCount > 0;
         TotalConflictsCount = conflictCount;
-        ConflictSummary = conflictCount > 0
-            ? $"{conflictCount} commands have overlapping hotkeys on the same unit/structure. In-game, the SAGE engine registers only the first command and ignores duplicate bindings, causing conflicting actions to become unresponsive. Conflicting buttons are highlighted with a red warning border."
-            : string.Empty;
+        var otherArmiesHaveConflicts = HasAnyOtherFactionConflicts();
+        HasConflicts = conflictCount > 0 || otherArmiesHaveConflicts;
+
+        if (conflictCount > 0)
+        {
+            var factionName = SelectedFaction?.DisplayName ?? "Army";
+            ConflictStatusText = $"{conflictCount} Conflict{(conflictCount == 1 ? string.Empty : "s")} in {factionName}";
+        }
+        else if (otherArmiesHaveConflicts)
+        {
+            ConflictStatusText = "Conflicts in other armies";
+        }
+        else
+        {
+            ConflictStatusText = string.Empty;
+        }
+
+        ConflictSummary = ConflictStatusText;
     }
 }
