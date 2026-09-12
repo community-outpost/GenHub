@@ -661,7 +661,7 @@ public class ConfigurationProviderService(
             if (remaining > 0)
             {
                 _logger.LogWarning(
-                    "{Count} profile(s) could not be recovered from {LegacyProfiles} and were left untouched because a profile file of the same name already exists in {CurrentProfiles}.",
+                    "{Count} profile(s) remain in {LegacyProfiles} and were left untouched. A profile of the same name may already exist in {CurrentProfiles}, or recovery failed for that file; see any errors logged above.",
                     remaining,
                     legacyProfiles,
                     currentProfiles);

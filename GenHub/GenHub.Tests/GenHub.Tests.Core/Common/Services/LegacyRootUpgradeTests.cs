@@ -359,18 +359,6 @@ public class LegacyRootUpgradeTests : IDisposable
         Assert.Equal(AppConstants.DefaultThemeName, service.Get().Theme);
     }
 
-    private static Mock<IAppConfiguration> CreateBaseAppConfigMock()
-    {
-        var appConfig = new Mock<IAppConfiguration>();
-        appConfig.Setup(config => config.GetMinConcurrentDownloads()).Returns(1);
-        appConfig.Setup(config => config.GetMaxConcurrentDownloads()).Returns(8);
-        appConfig.Setup(config => config.GetMinDownloadTimeoutSeconds()).Returns(30);
-        appConfig.Setup(config => config.GetMaxDownloadTimeoutSeconds()).Returns(600);
-        appConfig.Setup(config => config.GetMinDownloadBufferSizeBytes()).Returns(4096);
-        appConfig.Setup(config => config.GetMaxDownloadBufferSizeBytes()).Returns(1048576);
-        return appConfig;
-    }
-
     /// <summary>
     /// Verifies that profiles v0.0.3 wrote beside a custom data path, rather than inside it, are
     /// recovered into the directory this release reads from. v0.0.3 derived the profiles directory
@@ -475,6 +463,18 @@ public class LegacyRootUpgradeTests : IDisposable
 
         Assert.Equal("profile", File.ReadAllText(Path.Combine(provider.GetProfilesPath(), "profile.json")));
         Assert.Equal(Path.Combine(_newRoot, DirectoryNames.Profiles), provider.GetProfilesPath());
+    }
+
+    private static Mock<IAppConfiguration> CreateBaseAppConfigMock()
+    {
+        var appConfig = new Mock<IAppConfiguration>();
+        appConfig.Setup(config => config.GetMinConcurrentDownloads()).Returns(1);
+        appConfig.Setup(config => config.GetMaxConcurrentDownloads()).Returns(8);
+        appConfig.Setup(config => config.GetMinDownloadTimeoutSeconds()).Returns(30);
+        appConfig.Setup(config => config.GetMaxDownloadTimeoutSeconds()).Returns(600);
+        appConfig.Setup(config => config.GetMinDownloadBufferSizeBytes()).Returns(4096);
+        appConfig.Setup(config => config.GetMaxDownloadBufferSizeBytes()).Returns(1048576);
+        return appConfig;
     }
 
     private Mock<IAppConfiguration> CreateAppConfigMock()
