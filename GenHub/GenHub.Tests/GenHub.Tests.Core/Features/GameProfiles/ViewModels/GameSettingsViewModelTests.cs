@@ -421,8 +421,7 @@ public class GameSettingsViewModelTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        await InitializeAndSaveProfileAsync(CreateGeneralsOnlineProfile());
 
         // Assert
         Assert.NotNull(saved);
@@ -447,12 +446,9 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", profile);
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        await InitializeAndSaveProfileAsync(profile);
 
         // Assert
         _gameSettingsServiceMock.Verify(
@@ -477,17 +473,11 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
-        GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
         var profile = CreateGeneralsOnlineProfile();
         profile.GoCameraMinHeight = 200.0f;
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", profile);
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
 
         // Assert
         Assert.NotNull(saved);
@@ -508,14 +498,11 @@ public class GameSettingsViewModelTests
         profile.GoShowFps = true;
         _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", profile);
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        await InitializeAndSaveProfileAsync(profile);
 
         // Assert - once to seed the view model, once more as the baseline for the rewrite
         _gameSettingsServiceMock.Verify(x => x.LoadGeneralsOnlineSettingsAsync(), Times.Exactly(2));
@@ -545,17 +532,11 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
-        GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
         var profile = CreateGeneralsOnlineProfile();
         profile.GoShowFps = true;
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", profile);
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
 
         // Assert
         Assert.NotNull(saved);
@@ -576,15 +557,11 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
         var profile = CreateGeneralsOnlineProfile();
         profile.GoShowFps = true;
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", profile);
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        await InitializeAndSaveProfileAsync(profile);
 
         // Assert
         _gameSettingsServiceMock.Verify(
@@ -610,8 +587,7 @@ public class GameSettingsViewModelTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        await InitializeAndSaveProfileAsync(CreateGeneralsOnlineProfile());
 
         // Assert
         Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
@@ -637,8 +613,7 @@ public class GameSettingsViewModelTests
             .ReturnsAsync(OperationResult<bool>.CreateFailure("settings.json is read-only"));
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        await InitializeAndSaveProfileAsync(CreateGeneralsOnlineProfile());
 
         // Assert
         Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
@@ -756,17 +731,9 @@ public class GameSettingsViewModelTests
 
         _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
-        GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", profile);
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
 
         // Assert
         Assert.NotNull(saved);
@@ -793,17 +760,9 @@ public class GameSettingsViewModelTests
 
         _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
-        GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        await _viewModel.InitializeForProfileAsync("go-profile", profile);
-        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
 
         // Assert
         Assert.NotNull(saved);
@@ -1223,5 +1182,23 @@ public class GameSettingsViewModelTests
                 PublisherType = PublisherTypeConstants.GeneralsOnline,
             },
         };
+    }
+
+    private async Task InitializeAndSaveProfileAsync(GameProfile profile)
+    {
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+    }
+
+    private async Task<GeneralsOnlineSettings?> InitializeAndSaveGoProfileWithCaptureAsync(GameProfile profile)
+    {
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        await InitializeAndSaveProfileAsync(profile);
+        return saved;
     }
 }

@@ -222,6 +222,21 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         };
     }
 
+    /// <summary>
+    /// Updates the hotswap state for a sequence of content display items.
+    /// </summary>
+    /// <param name="items">The items to update.</param>
+    /// <param name="hotswapMode">Whether hotswap mode is currently active.</param>
+    private static void UpdateContentItemsHotswapState(IEnumerable<ContentDisplayItem> items, bool hotswapMode)
+    {
+        foreach (var item in items)
+        {
+            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
+            item.IsLocked = isLocked;
+            item.CanToggle = canToggle;
+        }
+    }
+
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
     {
         var (isLocked, canToggle) = GetItemHotswapState(IsHotswapMode, coreItem.ContentType, coreItem.Manifest);
@@ -250,19 +265,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private void UpdateAllItemsHotswapState()
     {
         var hotswapMode = IsHotswapMode;
-        foreach (var item in EnabledContent)
-        {
-            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
-            item.IsLocked = isLocked;
-            item.CanToggle = canToggle;
-        }
-
-        foreach (var item in AvailableContent)
-        {
-            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
-            item.IsLocked = isLocked;
-            item.CanToggle = canToggle;
-        }
+        UpdateContentItemsHotswapState(EnabledContent, hotswapMode);
+        UpdateContentItemsHotswapState(AvailableContent, hotswapMode);
 
         foreach (var item in AvailableGameInstallations)
         {
