@@ -24,8 +24,10 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.GenHotkeys;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
+using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -48,6 +50,32 @@ public partial class GenHotkeysViewModel(
 {
     private const string CreateAddonText = "Create Addon";
     private const string AddToProfileText = "Add to Profile";
+
+    private static readonly HashSet<string> GeneralsPowersActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CONTROLBAR:SpectreGunship",
+        "CONTROLBAR:LeafletDrop",
+        "CONTROLBAR:A10ThunderboltMissileStrike",
+        "CONTROLBAR:Paradrop",
+        "CONTROLBAR:TankParadrop",
+        "CONTROLBAR:SpyDrone",
+        "CONTROLBAR:EmergencyRepair",
+        "CONTROLBAR:DaisyCutter",
+        "CONTROLBAR:MOAB",
+        "CONTROLBAR:SpySatellite",
+        "CONTROLBAR:StealCashHack",
+        "CONTROLBAR:CarpetBomb",
+        "CONTROLBAR:Nuke_CarpetBomb",
+        "CONTROLBAR:ClusterMines",
+        "CONTROLBAR:ArtilleryBarrage",
+        "CONTROLBAR:EMPPulse",
+        "CONTROLBAR:Frenzy",
+        "CONTROLBAR:GPSScrambler",
+        "CONTROLBAR:Ambush",
+        "CONTROLBAR:AnthraxBomb",
+        "CONTROLBAR:SneakAttack",
+        "CONTROLBAR:CIAIntelligence",
+    };
 
     private readonly ConcurrentDictionary<(GameType Game, string Icon), Bitmap> _bitmapCache = new();
     private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
@@ -163,8 +191,13 @@ public partial class GenHotkeysViewModel(
     /// accounting for mutual exclusion exceptions.
     /// </summary>
     /// <param name="layout">Collection of actions representing a command layout.</param>
+    /// <param name="objectName">Optional game object name for context-specific overlap rules.</param>
+    /// <param name="factionCode">Optional faction code for faction-specific overlap rules.</param>
     /// <returns>The number of conflicting actions detected.</returns>
-    public static int ValidateLayoutConflicts(ObservableCollection<HotkeyActionViewModel> layout)
+    public static int ValidateLayoutConflicts(
+        ObservableCollection<HotkeyActionViewModel> layout,
+        string? objectName = null,
+        string? factionCode = null)
     {
         var activeWithHotkeys = layout
             .Where(a => a.Hotkey.HasValue)
@@ -184,7 +217,7 @@ public partial class GenHotkeysViewModel(
         foreach (var group in groups)
         {
             var actions = group.ToList();
-            if (IsPermittedEngineOverlap(actions))
+            if (IsPermittedEngineOverlap(actions, objectName, factionCode))
             {
                 continue;
             }
@@ -380,8 +413,7 @@ public partial class GenHotkeysViewModel(
 
         if (string.Equals(presetName, GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase))
         {
-            await ApplyLegionnaireGridPresetAsync(cancellationToken);
-            StatusMessage = "Applied Legionnaire QWERTY grid preset hotkeys.";
+            await ApplyLegionnairePresetAsync(cancellationToken);
         }
         else
         {
@@ -842,18 +874,22 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private static int ValidateGameObjectConflicts(HotkeyGameObjectViewModel obj)
+    private static int ValidateGameObjectConflicts(HotkeyGameObjectViewModel obj, string? factionCode = null)
     {
         var count = 0;
+        var objName = obj.Name ?? obj.DisplayName;
         foreach (var layout in obj.Layouts)
         {
-            count += ValidateLayoutConflicts(layout);
+            count += ValidateLayoutConflicts(layout, objName, factionCode);
         }
 
         return count;
     }
 
-    private static bool IsPermittedEngineOverlap(List<HotkeyActionViewModel> actions)
+    private static bool IsPermittedEngineOverlap(
+        List<HotkeyActionViewModel> actions,
+        string? objectName = null,
+        string? factionCode = null)
     {
         if (actions.Count == 2 &&
             (actions.All(IsDaisyCutterOrMoab) ||
@@ -867,7 +903,117 @@ public partial class GenHotkeysViewModel(
         }
 
         var nonSellActions = actions.Where(a => !string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)).ToList();
-        return actions.Count > 1 && nonSellActions.Count <= 1;
+        if (actions.Count > 1 && nonSellActions.Count <= 1)
+        {
+            return true;
+        }
+
+        var objName = objectName ?? string.Empty;
+        var faction = factionCode ?? string.Empty;
+
+        if (IsBlackLotusContextualOverlap(actions, objName))
+        {
+            return true;
+        }
+
+        if (IsBombTruckBioBombOverlap(actions, objName))
+        {
+            return true;
+        }
+
+        if (IsGeneralsPowersTrayOverlap(actions, objName))
+        {
+            return true;
+        }
+
+        if (IsGrangerAirfieldStealthOverlap(actions, objName, faction))
+        {
+            return true;
+        }
+
+        if (IsBlackMarketLegionnaireOverlap(actions, objName))
+        {
+            return true;
+        }
+
+        return IsStealthArmsDealerLegionnaireOverlap(actions, objName, faction);
+    }
+
+    private static bool IsBlackLotusContextualOverlap(List<HotkeyActionViewModel> actions, string objName)
+    {
+        if (!objName.Contains("BlackLotus", StringComparison.OrdinalIgnoreCase) &&
+            !objName.Contains("SuperLotus", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return actions.All(a =>
+            string.Equals(a.HotkeyString, "CONTROLBAR:CaptureBuilding", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.HotkeyString, "CONTROLBAR:CashHack", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.HotkeyString, "CONTROLBAR:StealCashHack", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsBombTruckBioBombOverlap(List<HotkeyActionViewModel> actions, string objName)
+    {
+        if (!objName.Contains("BombTruck", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return actions.Any(a => a.HotkeyString is not null && a.HotkeyString.Contains("BioBomb", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:Guard", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsGeneralsPowersTrayOverlap(List<HotkeyActionViewModel> actions, string objName)
+    {
+        if (!objName.Contains("CommandCenter", StringComparison.OrdinalIgnoreCase) &&
+            !objName.Contains("StrategyCenter", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var nonPowerActions = actions.Where(a =>
+            !GeneralsPowersActions.Contains(a.HotkeyString ?? string.Empty) &&
+            !string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        return nonPowerActions.Count <= 1;
+    }
+
+    private static bool IsGrangerAirfieldStealthOverlap(List<HotkeyActionViewModel> actions, string objName, string faction)
+    {
+        if ((!string.Equals(faction, "AIR", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(faction, "AirForce", StringComparison.OrdinalIgnoreCase)) ||
+            !objName.Contains("Airfield", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return actions.Any(a => a.HotkeyString is not null && a.HotkeyString.Contains("StealthFighter", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => a.HotkeyString is not null && a.HotkeyString.Contains("StealthComanche", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsBlackMarketLegionnaireOverlap(List<HotkeyActionViewModel> actions, string objName)
+    {
+        if (!objName.Contains("BlackMarket", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeGLAJunkRepair", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeGLAAPRockets", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsStealthArmsDealerLegionnaireOverlap(List<HotkeyActionViewModel> actions, string objName, string faction)
+    {
+        if ((!string.Equals(faction, "STL", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(faction, "Stealth", StringComparison.OrdinalIgnoreCase)) ||
+            !objName.Contains("ArmsDealer", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:ConstructGLAVehicleRadarVan", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeGLACamoNetting", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsRadarAndCashHack(List<HotkeyActionViewModel> actions)
@@ -933,52 +1079,6 @@ public partial class GenHotkeysViewModel(
         }
 
         return action.DefaultHotkey;
-    }
-
-    private static void ApplyGridMappingsToProfile(HotkeyProfile profile, IEnumerable<HotkeyFaction> factions)
-    {
-        char[] topRow = ['Q', 'W', 'E', 'R', 'T'];
-        char[] midRow = ['A', 'S', 'D', 'F', 'G'];
-        char[] botRow = ['Z', 'X', 'C', 'V', 'B'];
-
-        var allLayouts = factions
-            .SelectMany(f => f.GameObjects)
-            .SelectMany(o => o.KeyboardLayouts);
-
-        foreach (var layout in allLayouts)
-        {
-            ApplyGridToLayout(profile, layout, topRow, midRow, botRow);
-        }
-    }
-
-    private static void ApplyGridToLayout(
-        HotkeyProfile profile,
-        IReadOnlyList<HotkeyAction> layout,
-        char[] topRow,
-        char[] midRow,
-        char[] botRow)
-    {
-        for (var i = 0; i < layout.Count; i++)
-        {
-            var action = layout[i];
-            if (string.IsNullOrEmpty(action.HotkeyString))
-            {
-                continue;
-            }
-
-            char? gridKey = i switch
-            {
-                < 5 => topRow[i],
-                < 10 => midRow[i - 5],
-                < 14 => botRow[i - 10],
-                _ => null,
-            };
-
-            if (gridKey.HasValue)
-            {
-                profile.KeyMappings[action.HotkeyString] = gridKey.Value;
-            }
-        }
     }
 
     private static int ApplyKeyToMatchingLayoutActions(
@@ -1088,7 +1188,9 @@ public partial class GenHotkeysViewModel(
                 Hotkey = x.Key,
             }).ToList();
 
-            if (!IsPermittedEngineOverlap(dummyVms))
+            var objName = obj.Name ?? obj.DisplayName;
+            var factionCode = faction.ShortName ?? faction.DisplayName;
+            if (!IsPermittedEngineOverlap(dummyVms, objName, factionCode))
             {
                 foreach (var item in group)
                 {
@@ -1166,7 +1268,7 @@ public partial class GenHotkeysViewModel(
         return matchingCount;
     }
 
-    private async Task ApplyLegionnaireGridPresetAsync(CancellationToken cancellationToken)
+    private async Task ApplyLegionnairePresetAsync(CancellationToken cancellationToken)
     {
         if (SelectedProfile == null)
         {
@@ -1175,11 +1277,30 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            ApplyGridMappingsToProfile(SelectedProfile, _allFactions);
+            using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireRu);
+            if (stream != null)
+            {
+                var csf = CsfFile.Load(stream);
+                var validActionKeys = new HashSet<string>(
+                    _allFactions.SelectMany(f => f.GameObjects).SelectMany(o => o.KeyboardLayouts).SelectMany(l => l)
+                        .Where(a => !string.IsNullOrEmpty(a.HotkeyString))
+                        .Select(a => a.HotkeyString),
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var kvp in csf.Strings.Where(k => validActionKeys.Contains(k.Key)))
+                {
+                    var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+                    if (hotkey.HasValue)
+                    {
+                        SelectedProfile.KeyMappings[kvp.Key] = hotkey.Value;
+                    }
+                }
+            }
+
             await SaveCurrentProfileAsync(cancellationToken);
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            StatusMessage = "Applied Legionnaire QWERTY Grid preset layout.";
+            StatusMessage = "Applied Legionnaire preset hotkeys.";
         }
         catch (OperationCanceledException)
         {
@@ -1584,9 +1705,10 @@ public partial class GenHotkeysViewModel(
 
     private void ValidateConflicts()
     {
+        var factionCode = SelectedFaction?.ShortName ?? SelectedFaction?.DisplayName;
         foreach (var obj in FilteredGameObjects)
         {
-            var objConflicts = ValidateGameObjectConflicts(obj);
+            var objConflicts = ValidateGameObjectConflicts(obj, factionCode);
             obj.HasConflicts = objConflicts > 0;
         }
 

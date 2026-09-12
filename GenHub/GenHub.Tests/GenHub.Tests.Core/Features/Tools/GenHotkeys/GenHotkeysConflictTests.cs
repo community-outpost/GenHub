@@ -274,4 +274,128 @@ public class GenHotkeysConflictTests
         Assert.True(capture.IsConflict);
         Assert.True(cashHack.IsConflict);
     }
+
+    /// <summary>
+    /// Verifies that Black Lotus Capture Building and Cash Hack sharing 'C' on Black Lotus are permitted engine overlaps.
+    /// </summary>
+    [Fact]
+    public void BlackLotus_Capture_And_CashHack_OnBlackLotus_ArePermittedEngineOverlap()
+    {
+        var capture = new HotkeyActionViewModel
+        {
+            DisplayName = "Capture Building",
+            IconName = "PRCBlackLotusCaptureBuilding",
+            HotkeyString = "CONTROLBAR:CaptureBuilding",
+            Hotkey = 'C',
+        };
+
+        var cashHack = new HotkeyActionViewModel
+        {
+            DisplayName = "Cash Hack",
+            IconName = "PRCBlackLotusCashHack",
+            HotkeyString = "CONTROLBAR:CashHack",
+            Hotkey = 'C',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { capture, cashHack };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "PRCBlackLotus", "CHINA");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(capture.IsConflict);
+        Assert.False(cashHack.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that GLA Bomb Truck Bio Bomb upgrade and Guard sharing 'G' on Bomb Truck are permitted engine overlaps.
+    /// </summary>
+    [Fact]
+    public void BombTruck_BioBomb_And_Guard_OnBombTruck_ArePermittedEngineOverlap()
+    {
+        var bioBomb = new HotkeyActionViewModel
+        {
+            DisplayName = "Bio Bomb",
+            IconName = "GLABioBomb",
+            HotkeyString = "CONTROLBAR:UpgradeGLABombTruckBioBomb",
+            Hotkey = 'G',
+        };
+
+        var guard = new HotkeyActionViewModel
+        {
+            DisplayName = "Guard",
+            IconName = "Guard",
+            HotkeyString = "CONTROLBAR:Guard",
+            Hotkey = 'G',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { bioBomb, guard };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "GLABombTruck", "GLA");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(bioBomb.IsConflict);
+        Assert.False(guard.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that USA Command Center Dozer and Daisy Cutter sharing 'F' are permitted due to SpecialPower tray separation.
+    /// </summary>
+    [Fact]
+    public void CommandCenter_Dozer_And_GeneralsPower_ArePermittedTrayOverlap()
+    {
+        var dozer = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaDozer",
+            Hotkey = 'F',
+        };
+
+        var daisyCutter = new HotkeyActionViewModel
+        {
+            DisplayName = "Daisy Cutter",
+            IconName = "USADaisyCutter",
+            HotkeyString = "CONTROLBAR:DaisyCutter",
+            Hotkey = 'F',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { dozer, daisyCutter };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USACommandCenter", "USA");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(dozer.IsConflict);
+        Assert.False(daisyCutter.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that genuine collisions between production units/upgrades on the same building are detected as real conflicts.
+    /// </summary>
+    [Fact]
+    public void RealConflict_Ranger_And_Flashbang_OnBarracks_DetectedAsConflict()
+    {
+        var ranger = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            IconName = "USARanger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            Hotkey = 'F',
+        };
+
+        var flashbang = new HotkeyActionViewModel
+        {
+            DisplayName = "Flashbang Grenades",
+            IconName = "USAFlashbangs",
+            HotkeyString = "CONTROLBAR:UpgradeAmericaFlashBangGrenades",
+            Hotkey = 'F',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { ranger, flashbang };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USABarracks", "USA");
+
+        Assert.Equal(2, conflictCount);
+        Assert.True(ranger.IsConflict);
+        Assert.True(flashbang.IsConflict);
+    }
 }
