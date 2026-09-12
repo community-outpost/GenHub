@@ -586,20 +586,30 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        qfe = raw[^1] - '0';
+        if (!int.TryParse(raw.AsSpan(raw.Length - 1, 1), NumberStyles.None, CultureInfo.InvariantCulture, out qfe))
+        {
+            return false;
+        }
+
         var datePart = raw[..^1];
         int month, day, year;
         if (datePart.Length == 5)
         {
-            month = datePart[0] - '0';
-            day = int.Parse(datePart.Substring(1, 2), CultureInfo.InvariantCulture);
-            year = int.Parse(datePart.Substring(3, 2), CultureInfo.InvariantCulture);
+            if (!int.TryParse(datePart.AsSpan(0, 1), NumberStyles.None, CultureInfo.InvariantCulture, out month) ||
+                !int.TryParse(datePart.AsSpan(1, 2), NumberStyles.None, CultureInfo.InvariantCulture, out day) ||
+                !int.TryParse(datePart.AsSpan(3, 2), NumberStyles.None, CultureInfo.InvariantCulture, out year))
+            {
+                return false;
+            }
         }
         else
         {
-            month = int.Parse(datePart.Substring(0, 2), CultureInfo.InvariantCulture);
-            day = int.Parse(datePart.Substring(2, 2), CultureInfo.InvariantCulture);
-            year = int.Parse(datePart.Substring(4, 2), CultureInfo.InvariantCulture);
+            if (!int.TryParse(datePart.AsSpan(0, 2), NumberStyles.None, CultureInfo.InvariantCulture, out month) ||
+                !int.TryParse(datePart.AsSpan(2, 2), NumberStyles.None, CultureInfo.InvariantCulture, out day) ||
+                !int.TryParse(datePart.AsSpan(4, 2), NumberStyles.None, CultureInfo.InvariantCulture, out year))
+            {
+                return false;
+            }
         }
 
         if (month < 1 || month > 12 || day < 1 || day > 31)
@@ -609,10 +619,10 @@ public sealed partial class ContentStateService(
 
         try
         {
-            date = new DateTime(2000 + year, month, day, 0, 0, 0, DateTimeKind.Utc);
+            date = new DateTime(2000, month, day, 0, 0, 0, DateTimeKind.Utc).AddYears(year);
             return true;
         }
-        catch
+        catch (ArgumentOutOfRangeException)
         {
             return false;
         }
