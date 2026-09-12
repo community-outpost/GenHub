@@ -632,15 +632,34 @@ public sealed partial class ContentGridItemViewModel(
             return false;
         }
 
-        return (SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) &&
-                !string.IsNullOrEmpty(cncMapId) &&
-                ((e.ManifestId != null && e.ManifestId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(cncMapId, StringComparison.OrdinalIgnoreCase)))) ||
-               (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) &&
-                !string.IsNullOrEmpty(aodMapId) &&
-                ((e.ManifestId != null && e.ManifestId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(aodMapId, StringComparison.OrdinalIgnoreCase)))) ||
-               (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) &&
-                !string.IsNullOrEmpty(modDbId) &&
-                ((e.ManifestId != null && e.ManifestId.Contains(modDbId, StringComparison.OrdinalIgnoreCase)) || (!string.IsNullOrEmpty(e.ContentId) && e.ContentId.Contains(modDbId, StringComparison.OrdinalIgnoreCase))));
+        if (SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) && !string.IsNullOrEmpty(cncMapId))
+        {
+            if (e.ManifestId?.Contains(cncMapId, StringComparison.OrdinalIgnoreCase) == true ||
+                e.ContentId?.Contains(cncMapId, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return true;
+            }
+        }
+
+        if (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) && !string.IsNullOrEmpty(aodMapId))
+        {
+            if (e.ManifestId?.Contains(aodMapId, StringComparison.OrdinalIgnoreCase) == true ||
+                e.ContentId?.Contains(aodMapId, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return true;
+            }
+        }
+
+        if (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) && !string.IsNullOrEmpty(modDbId))
+        {
+            if (e.ManifestId?.Contains(modDbId, StringComparison.OrdinalIgnoreCase) == true ||
+                e.ContentId?.Contains(modDbId, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
