@@ -331,7 +331,17 @@ public partial class AddLocalContentViewModel(
             return;
         }
 
-        SetDefaultContentName(path);
+        // Only set SourcePath if not already set or empty (support multiple imports)
+        if (string.IsNullOrEmpty(SourcePath))
+        {
+            SourcePath = path;
+        }
+
+        if (string.IsNullOrWhiteSpace(ContentName))
+        {
+            // Use the folder name or first file name as default content name if not set
+            ContentName = Path.GetFileNameWithoutExtension(path);
+        }
 
         try
         {
@@ -490,6 +500,26 @@ public partial class AddLocalContentViewModel(
             var nextTargetSubDir = target.CreateSubdirectory(subDirectory.Name);
             CopyDirectory(subDirectory, nextTargetSubDir);
         }
+    }
+
+    private static string FormatNormalizationSuccessMessage(GenLauncherNormalizationResult result)
+    {
+        if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import successful.";
+        }
+
+        if (result.FailedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+        }
+
+        if (result.SkippedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import successful.";
+        }
+
+        return $"Normalized {result.NormalizedCount} file(s). Import successful.";
     }
 
     [RelayCommand]
@@ -762,21 +792,6 @@ public partial class AddLocalContentViewModel(
         }
     }
 
-    private void SetDefaultContentName(string path)
-    {
-        // Only set SourcePath if not already set or empty (support multiple imports)
-        if (string.IsNullOrEmpty(SourcePath))
-        {
-            SourcePath = path;
-        }
-
-        if (string.IsNullOrWhiteSpace(ContentName))
-        {
-            // Use the folder name or first file name as default content name if not set
-            ContentName = Path.GetFileNameWithoutExtension(path);
-        }
-    }
-
     private async Task StageContentSourceAsync(string path, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(_stagingPath))
@@ -889,26 +904,6 @@ public partial class AddLocalContentViewModel(
         }
 
         return true;
-    }
-
-    private string FormatNormalizationSuccessMessage(GenLauncherNormalizationResult result)
-    {
-        if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
-        {
-            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import successful.";
-        }
-
-        if (result.FailedFiles.Count > 0)
-        {
-            return $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
-        }
-
-        if (result.SkippedFiles.Count > 0)
-        {
-            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import successful.";
-        }
-
-        return $"Normalized {result.NormalizedCount} file(s). Import successful.";
     }
 
     private FileTreeItem? FindFileItemByRelativePath(IEnumerable<FileTreeItem> items, string relativePath)

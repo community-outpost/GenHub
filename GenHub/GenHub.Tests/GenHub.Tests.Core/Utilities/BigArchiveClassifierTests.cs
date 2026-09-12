@@ -1,9 +1,9 @@
-namespace GenHub.Tests.Core.Utilities;
-
 using System;
 using System.IO;
 using GenHub.Core.Utilities;
 using Xunit;
+
+namespace GenHub.Tests.Core.Utilities;
 
 /// <summary>
 /// Unit tests for <see cref="BigArchiveClassifier"/>.
