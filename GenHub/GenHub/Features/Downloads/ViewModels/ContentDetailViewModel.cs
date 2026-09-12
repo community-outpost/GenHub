@@ -2343,7 +2343,7 @@ public partial class ContentDetailViewModel(
                 ? localManifestId
                 : searchResult.Id;
 
-            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(dependencyManifestId) && ManifestIdValidator.IsValid(dependencyManifestId))
+            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(dependencyManifestId) && ManifestIdValidator.IsValid(dependencyManifestId, out _))
             {
                 await LoadDependencySummaryAsync(dependencyManifestId);
             }
@@ -4163,7 +4163,7 @@ public partial class ContentDetailViewModel(
 
     private async Task LoadDependencySummaryAsync(string manifestId)
     {
-        if (!ManifestIdValidator.IsValid(manifestId))
+        if (!ManifestIdValidator.IsValid(manifestId, out _))
         {
             return;
         }
