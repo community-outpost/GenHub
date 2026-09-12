@@ -129,6 +129,9 @@ public static class GenHotkeysConstants
     /// <summary>Tool description.</summary>
     public const string ToolDescription = "Visual hotkey editor for C&C Generals & Zero Hour with icon overlays and direct .big addon integration.";
 
+    /// <summary>Tool icon URI.</summary>
+    public const string ToolIconUri = UriConstants.HotkeysEditorIconUri;
+
     /// <summary>Tool plugin version.</summary>
     public const string PluginVersion = "1.0.0";
 
