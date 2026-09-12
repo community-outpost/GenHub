@@ -162,7 +162,7 @@ public static class CNCLabsConstants
     public const string PaginationLinkSelector = "ul.pagination a.page-link";
 
     /// <summary>
-    /// CSS selector for bold labels inside the item description cell (used to locate the "Author:" label).
+    /// CSS selector for bold labels inside the item description cell (used to locate the \"Author:\" label).
     /// </summary>
     public const string DescriptionCellStrongSelector = ".DescriptionCell strong";
 
@@ -228,7 +228,7 @@ public static class CNCLabsConstants
 
     /// <summary>
     /// CSS selector for the map title on the details page.
-    /// Example element: <c>&lt;span class=\"DisplayName\"&gt;…&lt;/span&gt;</c>.
+    /// Example element: <c>&lt;span class="DisplayName"&gt;…&lt;/span&gt;</c>.
     /// </summary>
     public const string NameSelector = ".DownloadItem .DisplayName";
 
@@ -237,6 +237,11 @@ public static class CNCLabsConstants
     /// (used as a fallback source for the name if <see cref="NameSelector"/> is missing).
     /// </summary>
     public const string BreadcrumbHeaderSelector = "h1";
+
+    /// <summary>
+    /// CSS selector for modern breadcrumb navigation items on CNC Labs pages.
+    /// </summary>
+    public const string BreadcrumbItemsSelector = ".breadcrumb-item, .breadcrumb li, nav[aria-label='breadcrumb'] li";
 
     /// <summary>
     /// The character used by the site to separate parts of the breadcrumb trail in the

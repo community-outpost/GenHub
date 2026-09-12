@@ -100,6 +100,17 @@ public class AODMapsResolver(
             // Use factory to create manifest
             var manifest = await manifestFactory.CreateManifestAsync(details);
 
+            if (string.IsNullOrEmpty(manifest.OriginalProviderName))
+            {
+                manifest.OriginalProviderName = AODMapsConstants.PublisherPrefix;
+            }
+
+            if (string.IsNullOrEmpty(manifest.OriginalContentId))
+            {
+                discoveredItem.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId);
+                manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : discoveredItem.Id;
+            }
+
             logger.LogInformation(
                 "Successfully resolved AODMaps content: {ManifestId} - {Name}",
                 manifest.Id.Value,

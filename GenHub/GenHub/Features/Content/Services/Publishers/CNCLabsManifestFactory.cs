@@ -295,6 +295,13 @@ public partial class CNCLabsManifestFactory(
         // 3. Format submission date as YYYYMMDD for version
         var releaseDate = details.SubmissionDate.ToString(CNCLabsConstants.ReleaseDateFormat);
 
+        var contentType = details.ContentType != ContentType.UnknownContentType
+            ? details.ContentType
+            : ContentType.Map;
+        var targetGame = details.TargetGame != GameType.Unknown
+            ? details.TargetGame
+            : GameType.ZeroHour;
+
         // 4. Obtain a fresh builder for this operation: the shared builder's internal state is
         // never reset, so a reused singleton would accumulate files/dependencies across calls.
         var builder = manifestBuilderFactory();
@@ -302,7 +309,7 @@ public partial class CNCLabsManifestFactory(
         // 5. Configure manifest
         builder
             .WithBasicInfo(publisherId, contentName, releaseDate)
-            .WithContentType(details.ContentType, details.TargetGame)
+            .WithContentType(contentType, targetGame)
             .WithPublisher(
                 CNCLabsConstants.PublisherName,
                 websiteUrl,
@@ -311,7 +318,7 @@ public partial class CNCLabsManifestFactory(
                 CNCLabsConstants.PublisherId)
             .WithMetadata(
                 details.Description,
-                GetTags(details),
+                GetTags(details with { ContentType = contentType, TargetGame = targetGame }),
                 details.PreviewImage,
                 details.Screenshots)
             .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy); // Default strategy

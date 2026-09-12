@@ -11,6 +11,7 @@ using AngleSharp.Dom;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
@@ -81,6 +82,17 @@ public class CNCLabsMapResolver(
             // Use factory to create manifest
             var manifest = await manifestFactory.CreateManifestAsync(mapDetails);
 
+            if (string.IsNullOrEmpty(manifest.OriginalProviderName))
+            {
+                manifest.OriginalProviderName = CNCLabsConstants.PublisherPrefix;
+            }
+
+            if (string.IsNullOrEmpty(manifest.OriginalContentId))
+            {
+                discoveredItem.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId);
+                manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : discoveredItem.Id;
+            }
+
             logger.LogInformation(
                 "Successfully resolved CNC Labs content: {ManifestId} - {Name}",
                 manifest.Id.Value,
@@ -137,6 +149,27 @@ public class CNCLabsMapResolver(
                 DownloadUrl = $"{CNCLabsConstants.PublisherWebsite}/downloads/fetch.aspx?id={mapId}",
             };
             logger.LogWarning("Download URL parsing failed. Constructed fallback URL: {FallbackUrl}", mapDetails.DownloadUrl);
+        }
+
+        if (string.IsNullOrWhiteSpace(mapDetails.Name) && !string.IsNullOrWhiteSpace(discoveredItem.Name))
+        {
+            mapDetails = mapDetails with { Name = discoveredItem.Name };
+        }
+
+        if (mapDetails.ContentType == ContentType.UnknownContentType)
+        {
+            var fallbackContentType = discoveredItem.ContentType != ContentType.UnknownContentType
+                ? discoveredItem.ContentType
+                : ContentType.Map;
+            mapDetails = mapDetails with { ContentType = fallbackContentType };
+        }
+
+        if (mapDetails.TargetGame == GameType.Unknown)
+        {
+            var fallbackGame = discoveredItem.TargetGame != GameType.Unknown
+                ? discoveredItem.TargetGame
+                : GameType.ZeroHour;
+            mapDetails = mapDetails with { TargetGame = fallbackGame };
         }
 
         // Fallback: Use discovered item metadata if details page omitted author, description, or preview image
