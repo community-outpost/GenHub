@@ -60,8 +60,8 @@ public sealed class ReplayDirectoryService(
         string? DataPatchManifestId,
         string? TargetExeCrc,
         bool IsRetailClient,
-        ILogger? Logger,
-        IGameCrcCalculatorService? CrcCalculator);
+        ILogger? TargetLogger,
+        IGameCrcCalculatorService? CrcCalc);
 
     private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
     private static readonly Regex GeneralsOnlineFileNameRegex = new(
@@ -753,7 +753,7 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
-        if (!IsProfileExeCrcMatching(p, ctx.TargetExeCrc, ctx.CrcCalculator, ctx.Logger))
+        if (!IsProfileExeCrcMatching(p, ctx.TargetExeCrc, ctx.CrcCalc, ctx.TargetLogger))
         {
             return false;
         }
@@ -764,7 +764,7 @@ public sealed class ReplayDirectoryService(
             return true;
         }
 
-        if (IsDedicatedToThisReplay(p, replay, ctx.Logger))
+        if (IsDedicatedToThisReplay(p, replay, ctx.TargetLogger))
         {
             return true;
         }
