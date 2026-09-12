@@ -221,7 +221,8 @@ public sealed partial class DownloadsBrowserViewModel(
         PublisherTypeConstants.GeneralsOnline and not
         CommunityOutpostConstants.PublisherType and not
         PublisherTypeConstants.TheSuperHackers and not
-        AODMapsConstants.PublisherType;
+        AODMapsConstants.PublisherType and not
+        CNCLabsConstants.PublisherType;
 
     /// <summary>
     /// Gets a value indicating whether search or filter UI controls are available for the current publisher.

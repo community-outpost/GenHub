@@ -258,6 +258,89 @@ public class CNCLabsMapDiscovererTests
         Assert.True(result.Data!.HasMoreItems);
     }
 
+    /// <summary>
+    /// Verifies that when the server returns 404 Not Found (e.g. 0 results or past the last page),
+    /// discovery succeeds with empty items and HasMoreItems false, rather than failing or throwing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_Http404NotFound_ReturnsSuccessWithEmptyResults()
+    {
+        // Arrange
+        var query = new ContentSearchQuery
+        {
+            TargetGame = GameType.ZeroHour,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mission,
+            Page = 1,
+            NumberOfPlayers = 2,
+        };
+        query.CNCLabsMapTags.Add("19");
+
+        using var http = CreateHttpClient(_ =>
+            new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        var sut = CreateSut(http);
+
+        // Act
+        var result = await sut.DiscoverAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data.Items);
+        Assert.False(result.Data.HasMoreItems);
+    }
+
+    /// <summary>
+    /// Verifies that when a search term is provided, results returned from the page
+    /// are filtered in-memory without launching Playwright.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithSearchTerm_FiltersResultsInHttpClient()
+    {
+        // Arrange
+        var query = new ContentSearchQuery
+        {
+            TargetGame = GameType.Generals,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Map,
+            SearchTerm = "Dragon",
+        };
+
+        var html = @"
+<html><body>
+  <div class=""list-group-item"">
+    <div class=""flex-grow-1"">
+      <h5 class=""mb-0""><a href=""/downloads/details/101/"">Dragon Valley</a></h5>
+      <p class=""text-muted small mb-1"">A classic battle in the valley.</p>
+    </div>
+  </div>
+  <div class=""list-group-item"">
+    <div class=""flex-grow-1"">
+      <h5 class=""mb-0""><a href=""/downloads/details/102/"">Desert Storm</a></h5>
+      <p class=""text-muted small mb-1"">Tanks fighting in the sands.</p>
+    </div>
+  </div>
+</body></html>";
+
+        using var http = CreateHttpClient(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(html),
+            });
+
+        var sut = CreateSut(http);
+
+        // Act
+        var result = await sut.DiscoverAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Single(result.Data.Items);
+        Assert.Equal("Dragon Valley", result.Data.Items.First().Name);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     /// <summary>

@@ -371,10 +371,9 @@ public static partial class CNCLabsHelper
     {
         return contentType switch
         {
-            ContentType.Map => CNCLabsConstants.SearchMapsUrlBase,
-            ContentType.Mission => CNCLabsConstants.SearchMapsUrlBase,
             ContentType.Mod => CNCLabsConstants.SearchModsUrlBase,
-            _ => CNCLabsConstants.SearchDownloadsUrlBase,
+            ContentType.Patch or ContentType.Skin or ContentType.Screensaver or ContentType.Video or ContentType.ModdingTool => CNCLabsConstants.SearchDownloadsUrlBase,
+            _ => CNCLabsConstants.SearchMapsUrlBase,
         };
     }
 

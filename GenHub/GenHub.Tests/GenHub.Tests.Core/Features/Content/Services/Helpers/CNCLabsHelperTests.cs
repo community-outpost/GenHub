@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using AngleSharp;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.Services.Helpers;
 using Xunit;
@@ -130,5 +131,43 @@ public class CNCLabsHelperTests
 
         Assert.Equal(GameType.Unknown, game);
         Assert.Equal(ContentType.UnknownContentType, type);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CNCLabsHelper.BuildSearchUrl"/> correctly builds URL for Zero Hour missions with filters.
+    /// </summary>
+    [Fact]
+    public void BuildSearchUrl_ZeroHourMissionsWithFilters_BuildsExpectedUrl()
+    {
+        var query = new ContentSearchQuery
+        {
+            TargetGame = GameType.ZeroHour,
+            ContentType = ContentType.Mission,
+            Page = 1,
+            NumberOfPlayers = 2,
+        };
+        query.CNCLabsMapTags.Add("19");
+
+        var url = CNCLabsHelper.BuildSearchUrl(query);
+
+        Assert.Equal("https://www.cnclabs.com/maps/generals/zerohour-missions.aspx?page=1&players=2&tags=19", url);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CNCLabsHelper.BuildSearchUrl"/> uses maps base URL when ContentType is null.
+    /// </summary>
+    [Fact]
+    public void BuildSearchUrl_NullContentType_UsesMapsBaseUrl()
+    {
+        var query = new ContentSearchQuery
+        {
+            TargetGame = GameType.Generals,
+            ContentType = null,
+            Page = 1,
+        };
+
+        var url = CNCLabsHelper.BuildSearchUrl(query);
+
+        Assert.Equal("https://www.cnclabs.com/maps/generals/maps.aspx?page=1", url);
     }
 }
