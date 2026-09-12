@@ -481,10 +481,8 @@ public class ContentOrchestrator : IContentOrchestrator
 
             if (string.IsNullOrEmpty(manifest.OriginalContentId))
             {
-                var parentId = searchResult.ResolverMetadata != null &&
-                    searchResult.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var pid)
-                    ? pid
-                    : null;
+                string? parentId = null;
+                searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentId);
                 manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : searchResult.Id;
             }
 
