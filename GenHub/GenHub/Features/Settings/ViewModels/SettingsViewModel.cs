@@ -281,6 +281,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
     public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
 
     /// <summary>
@@ -2558,9 +2562,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
     }
 
-    private bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with subscription commands for cohesion.")]
+    private static bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
     {
-        return subscription != null && subscription.TrustLevel != TrustLevel.Verified;
+        return subscription is { TrustLevel: not TrustLevel.Verified };
     }
 
     /// <summary>
@@ -2587,9 +2595,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Loading subscriptions was cancelled.");
+            _logger.LogInformation(ex, "Loading subscriptions was cancelled.");
         }
         catch (Exception ex)
         {
@@ -2622,17 +2630,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _notificationService.ShowError("Error", $"Failed to remove subscription: {result.FirstError}");
+                _notificationService.ShowError(ErrorTitle, $"Failed to remove subscription: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Removing subscription was cancelled.");
+            _logger.LogInformation(ex, "Removing subscription was cancelled.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to remove subscription");
-            _notificationService.ShowError("Error", "Failed to remove subscription");
+            _notificationService.ShowError(ErrorTitle, "Failed to remove subscription");
         }
     }
 
@@ -2660,17 +2668,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _notificationService.ShowError("Error", $"Failed to update trust level: {result.FirstError}");
+                _notificationService.ShowError(ErrorTitle, $"Failed to update trust level: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Toggling trust level was cancelled.");
+            _logger.LogInformation(ex, "Toggling trust level was cancelled.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update trust level");
-            _notificationService.ShowError("Error", "Failed to update trust level");
+            _notificationService.ShowError(ErrorTitle, "Failed to update trust level");
         }
     }
 
@@ -2699,14 +2707,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError("Refresh Failed", result.FirstError ?? "Unknown error");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Refreshing catalogs was cancelled.");
+            _logger.LogInformation(ex, "Refreshing catalogs was cancelled.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to refresh catalogs");
-            _notificationService.ShowError("Error", "An unexpected error occurred during refresh.");
+            _notificationService.ShowError(ErrorTitle, "An unexpected error occurred during refresh.");
         }
         finally
         {
