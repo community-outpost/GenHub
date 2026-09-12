@@ -662,7 +662,70 @@ public sealed class ReplayDirectoryService(
         replay.CompatibilityStatus = DetermineUnconfiguredStatus(match, isInstalled);
     }
 
-private static bool IsProfileCandidateCompatible(
+    /// <summary>
+    /// Resolves the compatibility status and matching profile for the specified replay file.
+    /// </summary>
+    /// <param name="replay">The replay file.</param>
+    /// <param name="acquiredIds">The set of acquired manifest IDs.</param>
+    /// <param name="profiles">The list of existing profiles.</param>
+    internal void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
+    {
+        if (replay.Metadata == null || string.IsNullOrEmpty(replay.Metadata.FormattedExeCrc) || string.IsNullOrEmpty(replay.Metadata.FormattedIniCrc))
+        {
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            return;
+        }
+
+        var exeCrcStr = replay.Metadata.FormattedExeCrc;
+        var iniCrcStr = replay.Metadata.FormattedIniCrc;
+
+        if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
+        {
+            ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger, crcCalculator);
+            return;
+        }
+
+        // Secondary resolution: When exact (exeCRC, iniCRC) pair is not in catalog, check if base client matches
+        if (crcMappingRegistry.TryGetEntryByExeCrc(exeCrcStr, out var baseClient) && baseClient != null)
+        {
+            var resolvedEntry = ResolveSecondaryBaseClientEntry(baseClient, iniCrcStr, acquiredIds);
+            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger, crcCalculator);
+            return;
+        }
+
+        // Step 5: Heuristic fallback for third-party / GeneralsOnline replays by filename pattern or build timestamp
+        if (TryResolveGeneralsOnlineHeuristic(replay, out var heuristicClient) && heuristicClient != null)
+        {
+            var resolvedEntry = ResolveSecondaryHeuristicEntry(heuristicClient, exeCrcStr, iniCrcStr);
+            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger, crcCalculator);
+            return;
+        }
+
+        // Step 6: Dynamic check for existing profile game clients matching the replay executable CRC
+        if (TryResolveProfileByExeCrc(replay, profiles, out var dynamicEntry) && dynamicEntry != null)
+        {
+            ResolveMatchedClientCompatibility(replay, dynamicEntry, acquiredIds, profiles, logger, crcCalculator);
+            return;
+        }
+
+        ResolveUnmappedClientCompatibility(replay, profiles);
+    }
+
+    private static CrcMappingEntry ResolveSecondaryHeuristicEntry(CrcMappingEntry heuristicClient, string exeCrcStr, string iniCrcStr)
+    {
+        var normalizedIni = NormalizeCrcHex(iniCrcStr);
+        var isVanillaIni = IsVanillaZeroHourIni(normalizedIni);
+
+        return heuristicClient with
+        {
+            ExeCrc = exeCrcStr,
+            IniCrc = iniCrcStr,
+            DataPatchManifestId = isVanillaIni ? null : heuristicClient.DataPatchManifestId,
+            DataPatchName = isVanillaIni ? ReplayManagerConstants.Vanilla104IniName : (heuristicClient.DataPatchName ?? $"Custom INI ({normalizedIni})"),
+        };
+    }
+
+    private static bool IsProfileCandidateCompatible(
         GameProfile p,
         GameType gameVersion,
         string clientManifestId,
@@ -733,69 +796,6 @@ private static bool IsProfileCandidateCompatible(
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Resolves the compatibility status and matching profile for the specified replay file.
-    /// </summary>
-    /// <param name="replay">The replay file.</param>
-    /// <param name="acquiredIds">The set of acquired manifest IDs.</param>
-    /// <param name="profiles">The list of existing profiles.</param>
-    internal void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
-    {
-        if (replay.Metadata == null || string.IsNullOrEmpty(replay.Metadata.FormattedExeCrc) || string.IsNullOrEmpty(replay.Metadata.FormattedIniCrc))
-        {
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
-            return;
-        }
-
-        var exeCrcStr = replay.Metadata.FormattedExeCrc;
-        var iniCrcStr = replay.Metadata.FormattedIniCrc;
-
-        if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
-        {
-            ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger, crcCalculator);
-            return;
-        }
-
-        // Secondary resolution: When exact (exeCRC, iniCRC) pair is not in catalog, check if base client matches
-        if (crcMappingRegistry.TryGetEntryByExeCrc(exeCrcStr, out var baseClient) && baseClient != null)
-        {
-            var resolvedEntry = ResolveSecondaryBaseClientEntry(baseClient, iniCrcStr, acquiredIds);
-            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger, crcCalculator);
-            return;
-        }
-
-        // Step 5: Heuristic fallback for third-party / GeneralsOnline replays by filename pattern or build timestamp
-        if (TryResolveGeneralsOnlineHeuristic(replay, out var heuristicClient) && heuristicClient != null)
-        {
-            var resolvedEntry = ResolveSecondaryHeuristicEntry(heuristicClient, exeCrcStr, iniCrcStr);
-            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger, crcCalculator);
-            return;
-        }
-
-        // Step 6: Dynamic check for existing profile game clients matching the replay executable CRC
-        if (TryResolveProfileByExeCrc(replay, profiles, out var dynamicEntry) && dynamicEntry != null)
-        {
-            ResolveMatchedClientCompatibility(replay, dynamicEntry, acquiredIds, profiles, logger, crcCalculator);
-            return;
-        }
-
-        ResolveUnmappedClientCompatibility(replay, profiles);
-    }
-
-    private static CrcMappingEntry ResolveSecondaryHeuristicEntry(CrcMappingEntry heuristicClient, string exeCrcStr, string iniCrcStr)
-    {
-        var normalizedIni = NormalizeCrcHex(iniCrcStr);
-        var isVanillaIni = IsVanillaZeroHourIni(normalizedIni);
-
-        return heuristicClient with
-        {
-            ExeCrc = exeCrcStr,
-            IniCrc = iniCrcStr,
-            DataPatchManifestId = isVanillaIni ? null : heuristicClient.DataPatchManifestId,
-            DataPatchName = isVanillaIni ? ReplayManagerConstants.Vanilla104IniName : (heuristicClient.DataPatchName ?? $"Custom INI ({normalizedIni})"),
-        };
     }
 
     /// <summary>
