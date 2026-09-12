@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
@@ -32,9 +33,14 @@ public static class BigFilePacker
     /// </summary>
     /// <param name="sourceDirectory">The directory containing files to pack.</param>
     /// <param name="destinationPath">The output .big file path.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public static async Task PackAsync(string sourceDirectory, string destinationPath)
+    public static async Task PackAsync(
+        string sourceDirectory,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var destinationFullPath = Path.GetFullPath(destinationPath);
         var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
             .Where(f => !Path.GetFullPath(f).Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
@@ -53,6 +59,7 @@ public static class BigFilePacker
 
         foreach (var file in files)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var relativePath = file.RelativePath;
 
             // Validate components are ASCII-only
@@ -109,13 +116,14 @@ public static class BigFilePacker
         writer.Flush();
         foreach (var entry in entries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             using var fileStream = File.OpenRead(entry.FullPath);
             if (fileStream.Length != entry.Size)
             {
                 throw new IOException($"File size changed during packing for {entry.RelativePath}. Expected {entry.Size} bytes, found {fileStream.Length} bytes.");
             }
 
-            await fileStream.CopyToAsync(fs);
+            await fileStream.CopyToAsync(fs, cancellationToken);
         }
     }
 

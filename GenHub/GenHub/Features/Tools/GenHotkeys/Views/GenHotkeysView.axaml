@@ -1,0 +1,623 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.GenHotkeys.ViewModels"
+             xmlns:enums="using:GenHub.Core.Models.Enums"
+             xmlns:hotkeyModels="using:GenHub.Core.Models.Tools.GenHotkeys"
+             xmlns:converters="using:GenHub.Infrastructure.Converters"
+             xmlns:hotkeyConverters="using:GenHub.Features.Tools.GenHotkeys.Converters"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="750"
+             x:Class="GenHub.Features.Tools.GenHotkeys.Views.GenHotkeysView"
+             x:DataType="vm:GenHotkeysViewModel"
+             Focusable="True">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Features/Tools/Views/ToolIcons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
+      <converters:EqualityConverter x:Key="EqualsToConverter" />
+      <converters:NotNullConverter x:Key="NotNullConverter" />
+      <converters:BoolToBorderConverter x:Key="BoolToBorderConverter" />
+      <converters:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
+      <hotkeyConverters:CornerToHorizontalAlignmentConverter x:Key="CornerToHorizontalAlignmentConverter" />
+      <hotkeyConverters:CornerToVerticalAlignmentConverter x:Key="CornerToVerticalAlignmentConverter" />
+      <hotkeyConverters:FactionToImageConverter x:Key="FactionToImageConverter" />
+      <hotkeyConverters:FactionToBrushConverter x:Key="FactionToBrushConverter" />
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Button.KeyButton">
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.KeyButton:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+    </Style>
+
+    <!-- Action card button styling and hover retention -->
+    <Style Selector="Button.action-card">
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+      <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+      <Setter Property="Padding" Value="4" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button.action-card:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+    </Style>
+    <Style Selector="Button.action-card.selected">
+      <Setter Property="BorderBrush" Value="{DynamicResource GeneralsAccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+    </Style>
+    <Style Selector="Button.action-card.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource GeneralsAccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+    </Style>
+    <Style Selector="Button.action-card.conflict">
+      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+    </Style>
+    <Style Selector="Button.action-card.conflict:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <!-- Keyboard navigation handlers for hotkey input -->
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+
+    <!-- TOP BAR: PROFILE & PRESETS & EXPORT ACTIONS -->
+    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="14,10" Margin="0,0,0,10">
+      <StackPanel Spacing="10">
+        <!-- Row 1: Profile Selection + Presets + Export Addon Button -->
+        <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+          <!-- Profiles & Presets Selector in a WrapPanel for Small Resolutions -->
+          <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+            <!-- Game Switcher -->
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
+              <TextBlock Text="Game:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+              <ComboBox ItemsSource="{Binding AvailableGames}"
+                        SelectedItem="{Binding SelectedGame}"
+                        Width="110"/>
+            </StackPanel>
+
+            <!-- Profile Switcher & Actions -->
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
+              <TextBlock Text="Profile:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+              <ComboBox ItemsSource="{Binding Profiles}"
+                        SelectedItem="{Binding SelectedProfile}"
+                        Width="150">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="hotkeyModels:HotkeyProfile">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+
+              <!-- Compact New Profile Button + Flyout -->
+              <Button Classes="Secondary" Padding="8,6" ToolTip.Tip="Create New Profile" AutomationProperties.Name="New Profile">
+                <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" VerticalAlignment="Center"/>
+                <Button.Flyout>
+                  <Flyout>
+                    <StackPanel Spacing="8" Width="220">
+                      <TextBlock Text="New Profile" FontWeight="SemiBold"/>
+                      <TextBox Text="{Binding NewProfileName, Mode=TwoWay}" Watermark="Enter profile name..."/>
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button Content="Create" Command="{Binding CreateNewProfileCommand}" Classes="Primary" Padding="12,4"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Flyout>
+                </Button.Flyout>
+              </Button>
+
+              <!-- Rename Profile Button + Flyout -->
+              <Button Classes="Secondary" Padding="8,6" ToolTip.Tip="Rename Current Profile" AutomationProperties.Name="Rename Profile">
+                <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
+                <Button.Flyout>
+                  <Flyout>
+                    <StackPanel Spacing="8" Width="220">
+                      <TextBlock Text="Rename Profile" FontWeight="SemiBold"/>
+                      <TextBox Text="{Binding RenameProfileText, Mode=TwoWay}" Watermark="Enter new profile name..."/>
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button Content="Save" Command="{Binding RenameCurrentProfileCommand}" Classes="Primary" Padding="12,4"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Flyout>
+                </Button.Flyout>
+              </Button>
+
+              <!-- Delete Profile Button -->
+              <Button Command="{Binding DeleteCurrentProfileCommand}" Classes="Secondary" Padding="8,6" ToolTip.Tip="Delete Profile" AutomationProperties.Name="Delete Profile">
+                <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
+              </Button>
+            </StackPanel>
+
+            <Rectangle Width="1" Height="20" Fill="{DynamicResource BorderSubtleBrush}" VerticalAlignment="Center" Margin="0,3,10,3"/>
+
+            <!-- Compact Presets Dropdown Menu -->
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
+              <Button Classes="Secondary" Padding="10,6" ToolTip.Tip="Apply Hotkey Presets">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
+                  <TextBlock Text="Presets" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="9" Height="9" VerticalAlignment="Center" Opacity="0.7"/>
+                </StackPanel>
+                <Button.Flyout>
+                  <MenuFlyout Placement="Bottom">
+                    <MenuItem Header="Default (Vanilla Retail)"
+                              Command="{Binding ApplyPresetCommand}"
+                              CommandParameter="Vanilla"
+                              ToolTip.Tip="Reset to original retail game hotkeys">
+                      <MenuItem.Icon>
+                        <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="14" Height="14"/>
+                      </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Leikeze Layout"
+                              Command="{Binding ApplyPresetCommand}"
+                              CommandParameter="Leikeze"
+                              ToolTip.Tip="Apply Leikeze's reference layout hotkeys">
+                      <MenuItem.Icon>
+                        <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="14" Height="14"/>
+                      </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Legionnaire QWERTY Grid"
+                              Command="{Binding ApplyPresetCommand}"
+                              CommandParameter="Legionnaire"
+                              ToolTip.Tip="Apply Legionnaire's standard QWERTY grid hotkeys">
+                      <MenuItem.Icon>
+                        <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="14" Height="14"/>
+                      </MenuItem.Icon>
+                    </MenuItem>
+                  </MenuFlyout>
+                </Button.Flyout>
+              </Button>
+            </StackPanel>
+          </WrapPanel>
+
+          <!-- Dynamic Addon Action Button: Create Addon or Add to Profile -->
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <Button Command="{Binding HandleAddonActionCommand}"
+                    Classes="Primary"
+                    IsEnabled="{Binding !IsBusy}"
+                    Padding="12,7"
+                    ToolTip.Tip="{Binding AddonButtonToolTip}">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" IsVisible="{Binding HasExistingAddon}" Width="14" Height="14" VerticalAlignment="Center"/>
+                <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" IsVisible="{Binding !HasExistingAddon}" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding AddonButtonText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+
+            <!-- Re-create Addon Options Flyout when Addon already exists -->
+            <Button Classes="Secondary"
+                    Padding="6,7"
+                    IsVisible="{Binding HasExistingAddon}"
+                    IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Addon Options (Re-create / Re-export)">
+              <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="10" Height="10" VerticalAlignment="Center"/>
+              <Button.Flyout>
+                <MenuFlyout Placement="Bottom">
+                  <MenuItem Header="Re-create Addon (.BIG)"
+                            Command="{Binding ExportAddonCommand}"
+                            ToolTip.Tip="Rebuild .big archive and update manifest">
+                    <MenuItem.Icon>
+                      <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="14" Height="14"/>
+                    </MenuItem.Icon>
+                  </MenuItem>
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
+          </StackPanel>
+        </Grid>
+
+        <!-- Row 2: Icon Overlay Settings & Category Filters -->
+        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+          <!-- Icon Overlay Options -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <CheckBox IsChecked="{Binding OverlayEnabled}"
+                      Content="Overlay Hotkey Badge on Icons (TGA)"
+                      FontWeight="SemiBold"
+                      ToolTip.Tip="Generates in-game icon textures with the hotkey stamped directly on them (similar to Legionnaire &amp; Leikeze indicators)"/>
+            <TextBlock Text="Position:" VerticalAlignment="Center" IsVisible="{Binding OverlayEnabled}"/>
+            <ComboBox ItemsSource="{Binding AvailableCorners}"
+                      SelectedItem="{Binding SelectedCorner}"
+                      IsVisible="{Binding OverlayEnabled}"
+                      Width="130"/>
+          </StackPanel>
+
+          <!-- Faction & Category Filters -->
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Text="Category:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,4,0"/>
+            <ComboBox ItemsSource="{Binding AvailableCategories}"
+                      SelectedItem="{Binding SelectedCategory}"
+                      Width="120"/>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- MAIN BODY: FACTIONS + ENTITIES + COMMAND CARDS + KEYBOARD ASSIGNMENT -->
+    <Grid Grid.Row="1" ColumnDefinitions="250,*,320" Margin="0,0,0,8">
+      <!-- LEFT: Factions & GameObjects List with Faction Icons -->
+      <Border Grid.Column="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="8" Margin="0,0,8,0">
+        <Grid RowDefinitions="Auto,*">
+          <!-- Faction Selector with Icons for USA, GLA, China -->
+          <ComboBox Grid.Row="0"
+                    ItemsSource="{Binding Factions}"
+                    SelectedItem="{Binding SelectedFaction}"
+                    HorizontalAlignment="Stretch"
+                    Margin="0,0,0,8">
+            <ComboBox.Styles>
+              <Style Selector="ComboBoxItem">
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Margin" Value="0,2" />
+                <Setter Property="Padding" Value="8,6" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+              </Style>
+              <Style Selector="ComboBoxItem:pointerover /template/ Border#ItemBorder">
+                <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+              </Style>
+              <Style Selector="ComboBoxItem:selected /template/ Border#ItemBorder">
+                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+              </Style>
+              <Style Selector="ComboBoxItem:selected:pointerover /template/ Border#ItemBorder">
+                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+              </Style>
+            </ComboBox.Styles>
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="hotkeyModels:HotkeyFaction">
+                <DockPanel Margin="2,3">
+                  <Border DockPanel.Dock="Left"
+                          Width="26" Height="26"
+                          CornerRadius="6"
+                          Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                          BorderBrush="{Binding Converter={StaticResource FactionToBrushConverter}}"
+                          BorderThickness="1.5"
+                          Margin="0,0,8,0"
+                          ClipToBounds="True">
+                    <Image Source="{Binding Converter={StaticResource FactionToImageConverter}}"
+                           Width="20" Height="20"
+                           Stretch="Uniform"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding FormattedTitle}" FontWeight="SemiBold" FontSize="12"/>
+                    <TextBlock Text="{Binding DisplayNameDescription}" FontSize="10" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                </DockPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <!-- Structures & Units List: Clean transparent background with consistent hover/selection feel -->
+          <ListBox Grid.Row="1"
+                   ItemsSource="{Binding FilteredGameObjects}"
+                   SelectedItem="{Binding SelectedGameObject}"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="Padding" Value="8,6" />
+                <Setter Property="Margin" Value="0,2" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Transitions">
+                  <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                  </Transitions>
+                </Setter>
+              </Style>
+              <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+              </Style>
+              <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+              </Style>
+              <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:HotkeyGameObjectViewModel">
+                <DockPanel Margin="2,4">
+                  <Border DockPanel.Dock="Right"
+                          IsVisible="{Binding HasConflicts}"
+                          Background="{DynamicResource SurfaceHoverBrush}"
+                          CornerRadius="4"
+                          Padding="4,2"
+                          Margin="4,0,0,0"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="This unit/building contains overlapping hotkeys!">
+                    <TextBlock Text="⚠️" FontSize="10" Foreground="{DynamicResource ErrorBrush}" FontWeight="Bold"/>
+                  </Border>
+                  <Image DockPanel.Dock="Left" Source="{Binding IconBitmap}" Width="46" Height="36" Stretch="Uniform" Margin="0,0,8,0"/>
+                  <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- CENTER: In-Game Command Bar Simulation (Command Cards Grid) -->
+      <Border Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="12" Margin="0,0,8,0">
+        <Grid RowDefinitions="Auto,*">
+          <!-- Responsive Header Layout to prevent text collisions -->
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding SelectedGameObject.DisplayName, FallbackValue='Command Layout'}"
+                       FontSize="16" FontWeight="Bold"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="300"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="2"
+                       Text="Click an action button to assign or customize its hotkey"
+                       FontSize="11" Opacity="0.6"
+                       TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center"
+                       Margin="8,0,0,0"/>
+          </Grid>
+
+          <!-- Command Cards Grid Layout -->
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding SelectedGameObject.Layouts}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                    <Grid>
+                      <ItemsControl ItemsSource="{Binding}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:HotkeyActionViewModel">
+                            <!-- Clickable Action Button -->
+                            <Button Command="{Binding $parent[UserControl].((vm:GenHotkeysViewModel)DataContext).SelectActionCommand}"
+                                    CommandParameter="{Binding}"
+                                    Classes="action-card"
+                                    Classes.selected="{Binding IsSelected}"
+                                    Classes.conflict="{Binding IsConflict}"
+                                    ToolTip.Tip="{Binding ConflictReason}"
+                                    Width="125" Height="125"
+                                    Margin="4">
+                              <Grid RowDefinitions="*,Auto" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Grid Grid.Row="0" Width="105" Height="84" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                  <!-- Cameo Image -->
+                                  <Image Source="{Binding IconBitmap}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                  <!-- Superimposed Hotkey Badge directly on icon with live alignment -->
+                                  <Border IsVisible="{Binding $parent[UserControl].((vm:GenHotkeysViewModel)DataContext).OverlayEnabled}"
+                                          HorizontalAlignment="{Binding $parent[UserControl].((vm:GenHotkeysViewModel)DataContext).SelectedCorner, Converter={StaticResource CornerToHorizontalAlignmentConverter}}"
+                                          VerticalAlignment="{Binding $parent[UserControl].((vm:GenHotkeysViewModel)DataContext).SelectedCorner, Converter={StaticResource CornerToVerticalAlignmentConverter}}"
+                                          Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                                          BorderBrush="{Binding IsConflict, Converter={StaticResource BoolToBorderConverter}}"
+                                          BorderThickness="1.5"
+                                          CornerRadius="4"
+                                          Padding="5,1"
+                                          Margin="3">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                      <TextBlock Text="⚠️" FontSize="10" IsVisible="{Binding IsConflict}" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                                      <TextBlock Text="{Binding HotkeyBadge}" FontSize="12" FontWeight="ExtraBold" Foreground="{DynamicResource GeneralsAccentBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                  </Border>
+                                </Grid>
+
+                                <!-- Action Label -->
+                                <TextBlock Grid.Row="1" Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120" Margin="0,6,0,0"/>
+                              </Grid>
+                            </Button>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+
+      <!-- RIGHT: Interactive Virtual Keyboard & Hotkey Assignment Bar -->
+      <Border Grid.Column="2" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="12">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+          <TextBlock Grid.Row="0" Text="Hotkey Assignment" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+
+          <!-- Selected Action Summary Box with Larger Cameo -->
+          <Border Grid.Row="1" Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="8" Margin="0,0,0,12"
+                  IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <!-- Live Preview Cameo with superimposed hotkey -->
+              <Grid Grid.Column="0" Width="72" Height="58" Margin="0,0,8,0">
+                <Image Source="{Binding SelectedAction.IconBitmap}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Border IsVisible="{Binding OverlayEnabled}"
+                        HorizontalAlignment="{Binding SelectedCorner, Converter={StaticResource CornerToHorizontalAlignmentConverter}}"
+                        VerticalAlignment="{Binding SelectedCorner, Converter={StaticResource CornerToVerticalAlignmentConverter}}"
+                        Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                        BorderBrush="{Binding SelectedAction.IsConflict, Converter={StaticResource BoolToBorderConverter}}"
+                        BorderThickness="1.5"
+                        CornerRadius="4"
+                        Padding="4,1"
+                        Margin="2">
+                  <TextBlock Text="{Binding SelectedAction.HotkeyBadge}" FontSize="11" FontWeight="ExtraBold" Foreground="{DynamicResource GeneralsAccentBrush}"/>
+                </Border>
+              </Grid>
+
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SelectedAction.DisplayName}" FontWeight="Bold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding SelectedAction.HotkeyString}" FontSize="10" Opacity="0.5" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding SelectedAction.DefaultHotkey, StringFormat='Default: {0}'}" FontSize="10" Opacity="0.6"/>
+              </StackPanel>
+
+              <!-- Current Key Indicator -->
+              <Border Grid.Column="2"
+                      Background="{DynamicResource GeneralsAccentBrush}"
+                      CornerRadius="8"
+                      Width="44" Height="44"
+                      VerticalAlignment="Center">
+                <TextBlock Text="{Binding SelectedAction.HotkeyBadge}"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="{DynamicResource WindowBackground}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+            </Grid>
+          </Border>
+
+          <!-- Instructions -->
+          <TextBlock Grid.Row="2" Text="Type on your physical keyboard, or click a key below:" FontSize="11" Opacity="0.7" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+          <!-- Virtual Keyboard Layout (QWERTY) -->
+          <StackPanel Grid.Row="3" Spacing="4" VerticalAlignment="Top">
+            <!-- Row 1: Q W E R T Y U I O P -->
+            <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+              <Button Content="Q" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Q" Width="26" Height="28" Padding="0"/>
+              <Button Content="W" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="W" Width="26" Height="28" Padding="0"/>
+              <Button Content="E" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="E" Width="26" Height="28" Padding="0"/>
+              <Button Content="R" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="R" Width="26" Height="28" Padding="0"/>
+              <Button Content="T" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="T" Width="26" Height="28" Padding="0"/>
+              <Button Content="Y" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Y" Width="26" Height="28" Padding="0"/>
+              <Button Content="U" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="U" Width="26" Height="28" Padding="0"/>
+              <Button Content="I" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="I" Width="26" Height="28" Padding="0"/>
+              <Button Content="O" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="O" Width="26" Height="28" Padding="0"/>
+              <Button Content="P" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="P" Width="26" Height="28" Padding="0"/>
+            </StackPanel>
+
+            <!-- Row 2: A S D F G H J K L -->
+            <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+              <Button Content="A" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="A" Width="28" Height="28" Padding="0"/>
+              <Button Content="S" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="S" Width="28" Height="28" Padding="0"/>
+              <Button Content="D" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="D" Width="28" Height="28" Padding="0"/>
+              <Button Content="F" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="F" Width="28" Height="28" Padding="0"/>
+              <Button Content="G" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="G" Width="28" Height="28" Padding="0"/>
+              <Button Content="H" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="H" Width="28" Height="28" Padding="0"/>
+              <Button Content="J" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="J" Width="28" Height="28" Padding="0"/>
+              <Button Content="K" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="K" Width="28" Height="28" Padding="0"/>
+              <Button Content="L" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="L" Width="28" Height="28" Padding="0"/>
+            </StackPanel>
+
+            <!-- Row 3: Z X C V B N M -->
+            <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+              <Button Content="Z" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Z" Width="30" Height="28" Padding="0"/>
+              <Button Content="X" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="X" Width="30" Height="28" Padding="0"/>
+              <Button Content="C" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="C" Width="30" Height="28" Padding="0"/>
+              <Button Content="V" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="V" Width="30" Height="28" Padding="0"/>
+              <Button Content="B" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="B" Width="30" Height="28" Padding="0"/>
+              <Button Content="N" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="N" Width="30" Height="28" Padding="0"/>
+              <Button Content="M" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="M" Width="30" Height="28" Padding="0"/>
+            </StackPanel>
+
+            <!-- Row 4: Action Reset, Clear, and Bulk Apply Controls -->
+            <StackPanel Spacing="6" HorizontalAlignment="Stretch" Margin="0,8,0,0">
+              <Grid ColumnDefinitions="*,*">
+                <Button Grid.Column="0"
+                        Content="Reset to Default"
+                        Command="{Binding ResetKeyToDefaultCommand}"
+                        Classes="Secondary"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Height="28"
+                        Margin="0,0,3,0"
+                        ToolTip.Tip="Reset this action to its original default hotkey"/>
+                <Button Grid.Column="1"
+                        Content="Clear Key [-]"
+                        Command="{Binding ClearHotkeyCommand}"
+                        Classes="Secondary"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Height="28"
+                        Margin="3,0,0,0"
+                        ToolTip.Tip="Clear hotkey assignment for this action"/>
+              </Grid>
+
+              <Button Command="{Binding ApplyToAllMatchingActionsCommand}"
+                      Classes="Secondary"
+                      IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Center"
+                      MinHeight="38"
+                      Margin="0,6,0,0"
+                      Padding="10,6"
+                      ToolTip.Tip="Apply this hotkey to all matching actions across all armies">
+                <TextBlock Text="{Binding ApplyToAllButtonText}"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           FontSize="11"
+                           FontWeight="Medium"
+                           LineHeight="15"
+                           Margin="6,2"
+                           MaxLines="2"
+                           TextTrimming="CharacterEllipsis"/>
+              </Button>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- Conflict Status Panel with Quick Navigation -->
+          <Border Grid.Row="4" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,10,0,0"
+                  IsVisible="{Binding HasConflicts}">
+            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <PathIcon Data="{StaticResource ToolIcon.AlertTriangle}" Width="14" Height="14" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ConflictStatusText}"
+                           FontWeight="SemiBold"
+                           FontSize="12"
+                           Foreground="{DynamicResource ErrorBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Command="{Binding SelectNextConflictCommand}"
+                      Classes="Secondary"
+                      Padding="8,4"
+                      ToolTip.Tip="Navigate to next conflicting hotkey">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="Next Conflict" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- STATUS BAR -->
+    <Border Grid.Row="2" Background="{DynamicResource CardBackground}" CornerRadius="6" Padding="10,6" Margin="0,4,0,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Center" FontSize="11" Opacity="0.8"/>
+        <TextBlock Grid.Column="1" Text="Changes auto-saved to profile" VerticalAlignment="Center" FontSize="10" Opacity="0.5"/>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>
