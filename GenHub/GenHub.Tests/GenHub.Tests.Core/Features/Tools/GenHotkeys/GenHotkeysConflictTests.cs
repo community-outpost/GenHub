@@ -178,4 +178,100 @@ public class GenHotkeysConflictTests
         Assert.True(ranger.IsConflict);
         Assert.True(pathfinder.IsConflict);
     }
+
+    /// <summary>
+    /// Verifies that China Radar and Steal Cash Hack sharing hotkey 'D' are not treated as conflicts
+    /// because Radar vanishes upon research in early-game and Cash Hack is a Rank 3 General Power.
+    /// </summary>
+    [Fact]
+    public void ChinaRadar_And_CashHack_SharingHotkey_AreNotConflicts()
+    {
+        var radar = new HotkeyActionViewModel
+        {
+            DisplayName = "Radar",
+            IconName = "PRCRadarUpgrade",
+            HotkeyString = "CONTROLBAR:UpgradeChinaRadar",
+            Hotkey = 'D',
+        };
+
+        var cashHack = new HotkeyActionViewModel
+        {
+            DisplayName = "Cash Hack",
+            IconName = "PRCBlackLotusCashHack",
+            HotkeyString = "CONTROLBAR:StealCashHack",
+            Hotkey = 'D',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { radar, cashHack };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(radar.IsConflict);
+        Assert.False(cashHack.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Timed Demo Charge and Detonate Charges sharing hotkey 'D' are not treated as conflicts
+    /// because Detonate is inactive until remote charges are placed.
+    /// </summary>
+    [Fact]
+    public void TimedDemo_And_DetonateCharges_SharingHotkey_AreNotConflicts()
+    {
+        var timed = new HotkeyActionViewModel
+        {
+            DisplayName = "Timed Demo Charge",
+            IconName = "USATimedDemoCharge",
+            HotkeyString = "CONTROLBAR:TimedDemoCharge",
+            Hotkey = 'D',
+        };
+
+        var detonate = new HotkeyActionViewModel
+        {
+            DisplayName = "Detonate Charges",
+            IconName = "USADetonateCharges",
+            HotkeyString = "CONTROLBAR:DetonateCharges",
+            Hotkey = 'D',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { timed, detonate };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(timed.IsConflict);
+        Assert.False(detonate.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Black Lotus Capture Building and Cash Hack sharing 'C' are detected as real conflicts
+    /// (the 2003 retail EA bug where Cash Hack is shadowed on the keyboard).
+    /// </summary>
+    [Fact]
+    public void BlackLotus_Capture_And_CashHack_AreRealConflicts()
+    {
+        var capture = new HotkeyActionViewModel
+        {
+            DisplayName = "Capture Building",
+            IconName = "PRCBlackLotusCaptureBuilding",
+            HotkeyString = "CONTROLBAR:CaptureBuilding",
+            Hotkey = 'C',
+        };
+
+        var cashHack = new HotkeyActionViewModel
+        {
+            DisplayName = "Cash Hack",
+            IconName = "PRCBlackLotusCashHack",
+            HotkeyString = "CONTROLBAR:CashHack",
+            Hotkey = 'C',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { capture, cashHack };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(2, conflictCount);
+        Assert.True(capture.IsConflict);
+        Assert.True(cashHack.IsConflict);
+    }
 }
