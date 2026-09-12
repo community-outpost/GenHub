@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -33,6 +34,7 @@ namespace GenHub.Features.Tools.GenHotkeys.ViewModels;
 /// <summary>
 /// Main ViewModel for the GenHotkeys visual hotkey editor tool.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ViewModel dependency injection for tool operations, UI notifications, and profile dialogs")]
 public partial class GenHotkeysViewModel(
     ITechTreeService techTreeService,
     IHotkeyProfileStorageService profileStorageService,
@@ -44,6 +46,9 @@ public partial class GenHotkeysViewModel(
     IContentManifestPool? manifestPool = null,
     ILoggerFactory? loggerFactory = null) : ObservableObject, IDisposable
 {
+    private const string CreateAddonText = "Create Addon";
+    private const string AddToProfileText = "Add to Profile";
+
     private readonly ConcurrentDictionary<(GameType Game, string Icon), Bitmap> _bitmapCache = new();
     private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
 
@@ -108,9 +113,10 @@ public partial class GenHotkeysViewModel(
     private ContentManifest? _existingAddonManifest;
 
     [ObservableProperty]
-    private string _addonButtonText = "Create Addon";
+    private string _addonButtonText = CreateAddonText;
 
     /// <summary>Gets the tooltip for the addon button depending on state.</summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated instance property HasExistingAddon")]
     public string AddonButtonToolTip => HasExistingAddon
         ? "Add this hotkeys addon to an existing game profile"
         : "Packs customized hotkeys and icons into a new .big archive and registers as a GenHub Addon";
@@ -166,34 +172,13 @@ public partial class GenHotkeysViewModel(
         }
 
         var groups = activeWithHotkeys
-            .GroupBy(a => a.Hotkey!.Value)
+            .GroupBy(a => a.Hotkey ?? '\0')
             .Where(g => g.Count() > 1);
 
         foreach (var group in groups)
         {
             var actions = group.ToList();
-
-            // Special Engine Rule 1: Daisy Cutter & MOAB upgrade variant
-            if (actions.Count == 2 && actions.All(IsDaisyCutterOrMoab))
-            {
-                continue;
-            }
-
-            // Special Engine Rule 2: China Land Mines & EMP/Neutron Mines upgrade variant
-            if (actions.Count == 2 && actions.All(IsChinaMines))
-            {
-                continue;
-            }
-
-            // Special Engine Rule 3: China Satellite Hack 1 & Satellite Hack 2 upgrade variant
-            if (actions.Count == 2 && actions.All(IsSatelliteHack))
-            {
-                continue;
-            }
-
-            // Special Engine Rule 4: Structure Sell Command (can share key across different states)
-            var nonSellActions = actions.Where(a => !string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (actions.Count > 1 && nonSellActions.Count <= 1)
+            if (IsPermittedEngineOverlap(actions))
             {
                 continue;
             }
@@ -523,7 +508,7 @@ public partial class GenHotkeysViewModel(
         {
             HasExistingAddon = false;
             ExistingAddonManifest = null;
-            AddonButtonText = "Create Addon";
+            AddonButtonText = CreateAddonText;
             return;
         }
 
@@ -537,7 +522,7 @@ public partial class GenHotkeysViewModel(
             {
                 HasExistingAddon = false;
                 ExistingAddonManifest = null;
-                AddonButtonText = "Create Addon";
+                AddonButtonText = CreateAddonText;
                 return;
             }
 
@@ -549,7 +534,7 @@ public partial class GenHotkeysViewModel(
 
             ExistingAddonManifest = match;
             HasExistingAddon = match != null;
-            AddonButtonText = HasExistingAddon ? "Add to Profile" : "Create Addon";
+            AddonButtonText = HasExistingAddon ? AddToProfileText : CreateAddonText;
         }
         catch (OperationCanceledException)
         {
@@ -675,7 +660,7 @@ public partial class GenHotkeysViewModel(
                 var bigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
                 ExistingAddonManifest = result.Data;
                 HasExistingAddon = true;
-                AddonButtonText = "Add to Profile";
+                AddonButtonText = AddToProfileText;
                 StatusMessage = $"Success! Addon '{result.Data.Name}' registered in GenHub!";
 
                 if (notificationService != null)
@@ -686,7 +671,7 @@ public partial class GenHotkeysViewModel(
                         "Hotkey Addon Created",
                         $"Created '{bigFileName}' successfully.",
                         autoDismissMilliseconds: NotificationDurations.Long,
-                        actionText: "Add to Profile",
+                        actionText: AddToProfileText,
                         action: () =>
                         {
                             Dispatcher.UIThread.Post(async () =>
@@ -766,9 +751,9 @@ public partial class GenHotkeysViewModel(
             {
                 _saveSemaphore.Release();
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // Ignored
+                logger.LogDebug(ex, "Save semaphore was disposed before release");
             }
         }
     }
@@ -816,6 +801,20 @@ public partial class GenHotkeysViewModel(
         return count;
     }
 
+    private static bool IsPermittedEngineOverlap(List<HotkeyActionViewModel> actions)
+    {
+        if (actions.Count == 2 &&
+            (actions.All(IsDaisyCutterOrMoab) ||
+             actions.All(IsChinaMines) ||
+             actions.All(IsSatelliteHack)))
+        {
+            return true;
+        }
+
+        var nonSellActions = actions.Where(a => !string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)).ToList();
+        return actions.Count > 1 && nonSellActions.Count <= 1;
+    }
+
     private static bool IsDaisyCutterOrMoab(HotkeyActionViewModel action)
     {
         return string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.DaisyCutter, StringComparison.OrdinalIgnoreCase) ||
@@ -860,6 +859,52 @@ public partial class GenHotkeysViewModel(
         return action.DefaultHotkey;
     }
 
+    private static void ApplyGridMappingsToProfile(HotkeyProfile profile, IEnumerable<HotkeyFaction> factions)
+    {
+        char[] topRow = ['Q', 'W', 'E', 'R', 'T'];
+        char[] midRow = ['A', 'S', 'D', 'F', 'G'];
+        char[] botRow = ['Z', 'X', 'C', 'V', 'B'];
+
+        var allLayouts = factions
+            .SelectMany(f => f.GameObjects)
+            .SelectMany(o => o.KeyboardLayouts);
+
+        foreach (var layout in allLayouts)
+        {
+            ApplyGridToLayout(profile, layout, topRow, midRow, botRow);
+        }
+    }
+
+    private static void ApplyGridToLayout(
+        HotkeyProfile profile,
+        IReadOnlyList<HotkeyAction> layout,
+        char[] topRow,
+        char[] midRow,
+        char[] botRow)
+    {
+        for (var i = 0; i < layout.Count; i++)
+        {
+            var action = layout[i];
+            if (string.IsNullOrEmpty(action.HotkeyString))
+            {
+                continue;
+            }
+
+            char? gridKey = i switch
+            {
+                < 5 => topRow[i],
+                < 10 => midRow[i - 5],
+                < 14 => botRow[i - 10],
+                _ => null,
+            };
+
+            if (gridKey.HasValue)
+            {
+                profile.KeyMappings[action.HotkeyString] = gridKey.Value;
+            }
+        }
+    }
+
     private async Task ApplyLegionnaireGridPresetAsync(CancellationToken cancellationToken)
     {
         if (SelectedProfile == null)
@@ -869,48 +914,7 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            char[] topRow = ['Q', 'W', 'E', 'R', 'T'];
-            char[] midRow = ['A', 'S', 'D', 'F', 'G'];
-            char[] botRow = ['Z', 'X', 'C', 'V', 'B'];
-
-            foreach (var faction in _allFactions)
-            {
-                foreach (var obj in faction.GameObjects)
-                {
-                    for (var layoutIndex = 0; layoutIndex < obj.KeyboardLayouts.Count; layoutIndex++)
-                    {
-                        var layout = obj.KeyboardLayouts[layoutIndex];
-                        for (var i = 0; i < layout.Count; i++)
-                        {
-                            var action = layout[i];
-                            if (string.IsNullOrEmpty(action.HotkeyString))
-                            {
-                                continue;
-                            }
-
-                            char? gridKey = null;
-                            if (i < 5)
-                            {
-                                gridKey = topRow[i];
-                            }
-                            else if (i < 10)
-                            {
-                                gridKey = midRow[i - 5];
-                            }
-                            else if (i < 14)
-                            {
-                                gridKey = botRow[i - 10];
-                            }
-
-                            if (gridKey.HasValue)
-                            {
-                                SelectedProfile.KeyMappings[action.HotkeyString] = gridKey.Value;
-                            }
-                        }
-                    }
-                }
-            }
-
+            ApplyGridMappingsToProfile(SelectedProfile, _allFactions);
             await SaveCurrentProfileAsync(cancellationToken);
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
@@ -953,14 +957,14 @@ public partial class GenHotkeysViewModel(
             SelectedCorner = value.OverlayCorner;
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            _ = CheckExistingAddonAsync();
+            _ = CheckExistingAddonAsync(CancellationToken.None);
         }
         else
         {
             RenameProfileText = string.Empty;
             HasExistingAddon = false;
             ExistingAddonManifest = null;
-            AddonButtonText = "Create Addon";
+            AddonButtonText = CreateAddonText;
         }
     }
 
