@@ -40,9 +40,9 @@ public class CNCLabsMapResolver(
     /// <summary>
     /// Resolves the details of a discovered CNC Labs map item.
     /// </summary>
-    /// <param name=\"discoveredItem\">The discovered content item to resolve.</param>
-    /// <param name=\"cancellationToken\">A cancellation token.</param>
-    /// <returns>A <see cref=\"OperationResult{ContentManifest}\"/> containing the resolved details.</returns>
+    /// <param name="discoveredItem">The discovered content item to resolve.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="OperationResult{ContentManifest}"/> containing the resolved details.</returns>
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
