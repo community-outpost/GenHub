@@ -175,8 +175,7 @@ public static class GameClientConstants
     public const string Direct3D8WrapperDll = "d3d8.dll";
 
     /// <summary>
-    /// DLLs required for standard game installations.
-    /// </summary>
+    /// DLLs required for standard game installations.</summary>
     public static readonly string[] RequiredDlls =
     [
         "steam_api.dll",      // Steam integration
@@ -276,6 +275,54 @@ public static class GameClientConstants
 
         /// <summary>No action taken.</summary>
         public const string None = "None";
+    }
+
+    /// <summary>
+    /// Status strings displayed in the Setup Wizard.
+    /// </summary>
+    public static class WizardStatuses
+    {
+        /// <summary>Installed status.</summary>
+        public const string Installed = "Installed";
+
+        /// <summary>Downloaded status.</summary>
+        public const string Downloaded = "Downloaded";
+
+        /// <summary>Detected status.</summary>
+        public const string Detected = "Detected";
+
+        /// <summary>Missing status.</summary>
+        public const string Missing = "Missing";
+    }
+
+    /// <summary>
+    /// Action button and toggle labels displayed in the Setup Wizard.
+    /// </summary>
+    public static class WizardActionLabels
+    {
+        /// <summary>Update or reinstall action label.</summary>
+        public const string UpdateReinstall = "Update / Reinstall";
+
+        /// <summary>Create profile action label.</summary>
+        public const string CreateProfile = "Create Profile";
+
+        /// <summary>Download and install action label.</summary>
+        public const string DownloadAndInstall = "Download & Install";
+    }
+
+    /// <summary>
+    /// Description format templates used in the Setup Wizard.
+    /// </summary>
+    public static class WizardDescriptionTemplates
+    {
+        /// <summary>Format string for creating a game profile: "Create game profile for {0} {1}.".</summary>
+        public const string CreateProfileFormat = "Create game profile for {0} {1}.";
+
+        /// <summary>Format string for updating existing profiles: "Update existing {0} profiles to {1}.".</summary>
+        public const string UpdateProfileFormat = "Update existing {0} profiles to {1}.";
+
+        /// <summary>Format string for detected installed component: "Detected installed {0}. Install managed {1} and create profiles?".</summary>
+        public const string DetectedInstallFormat = "Detected installed {0}. Install managed {1} and create profiles?";
     }
 
     /// <summary>

@@ -654,6 +654,12 @@ public partial class GameProfileLauncherViewModel(
         }
 
         var client = installation.AvailableGameClients?.FirstOrDefault(c => string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase));
+        if (client == null &&
+            decision != GameClientConstants.WizardActionTypes.Install &&
+            decision != GameClientConstants.WizardActionTypes.CreateProfile)
+        {
+            return (false, 0);
+        }
 
         var clientToUse = client ?? new GameClient
         {

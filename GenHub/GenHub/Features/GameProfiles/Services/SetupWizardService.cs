@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -104,9 +105,9 @@ public class SetupWizardService(
                 var downloadedItem = new SetupWizardItemViewModel
                 {
                     Title = title,
-                    Status = "Downloaded",
-                    Description = $"Create game profile for {title} {latestVersion}.",
-                    ActionLabel = "Create Profile",
+                    Status = GameClientConstants.WizardStatuses.Downloaded,
+                    Description = FormatCreateProfileDescription(title, latestVersion),
+                    ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                     ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
                     IsSelected = true,
                     IconPath = iconPath,
@@ -138,9 +139,9 @@ public class SetupWizardService(
                 var detectedItem = new SetupWizardItemViewModel
                 {
                     Title = title,
-                    Status = "Detected",
-                    Description = $"Create game profile for {title} {latestVersion}.",
-                    ActionLabel = "Create Profile",
+                    Status = GameClientConstants.WizardStatuses.Detected,
+                    Description = FormatCreateProfileDescription(title, latestVersion),
+                    ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                     ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
                     IsSelected = true,
                     IconPath = iconPath,
@@ -193,36 +194,36 @@ public class SetupWizardService(
             if (anyProfileExists)
             {
                 // Profile exists, but it is not the latest managed version
-                item.Status = "Installed";
-                item.Description = $"Update existing {title} profiles to {displayVersion}.";
-                item.ActionLabel = "Update / Reinstall";
+                item.Status = GameClientConstants.WizardStatuses.Installed;
+                item.Description = FormatUpdateProfileDescription(title, displayVersion);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.UpdateReinstall;
                 item.ActionType = GameClientConstants.WizardActionTypes.Update;
                 item.IsSelected = false;
             }
             else if (managedManifests.Count > 0)
             {
                 // Content downloaded in pool, but no profile exists
-                item.Status = "Downloaded";
-                item.Description = $"Create game profile for {title} {displayVersion}.";
-                item.ActionLabel = "Create Profile";
+                item.Status = GameClientConstants.WizardStatuses.Downloaded;
+                item.Description = FormatCreateProfileDescription(title, displayVersion);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
                 item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
                 item.IsSelected = true;
             }
             else if (isDetected)
             {
                 // Unmanaged files detected but no profile
-                item.Status = "Detected";
-                item.Description = $"Detected installed {title}. Create game profile?";
-                item.ActionLabel = "Create Profile";
-                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
+                item.Status = GameClientConstants.WizardStatuses.Detected;
+                item.Description = FormatDetectedInstallDescription(title, latestVersion);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.DownloadAndInstall;
+                item.ActionType = GameClientConstants.WizardActionTypes.Install;
                 item.IsSelected = true;
             }
             else
             {
                 // Nothing found at all
-                item.Status = "Missing";
+                item.Status = GameClientConstants.WizardStatuses.Missing;
                 item.Description = missingDescription;
-                item.ActionLabel = "Download & Install";
+                item.ActionLabel = GameClientConstants.WizardActionLabels.DownloadAndInstall;
                 item.ActionType = GameClientConstants.WizardActionTypes.Install;
                 item.IsSelected = title == "Community Patch"; // Defaults
             }
@@ -319,6 +320,15 @@ public class SetupWizardService(
 
         return result;
     }
+
+    private static string FormatCreateProfileDescription(string title, string version) =>
+        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.CreateProfileFormat, title, version);
+
+    private static string FormatUpdateProfileDescription(string title, string version) =>
+        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.UpdateProfileFormat, title, version);
+
+    private static string FormatDetectedInstallDescription(string title, string version) =>
+        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.DetectedInstallFormat, title, version);
 
     private static Window? GetMainWindow()
     {
