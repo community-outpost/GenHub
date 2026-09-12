@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using GenHub.Core.Models.Enums;
@@ -162,6 +163,7 @@ public static class GenHotkeysConstants
     public const string ProfileIconsPathPattern = "Profiles/{0}/Icons/{1}{2}{3}";
 
     /// <summary>URI pattern for Avalonia faction icons.</summary>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Avalonia resource URI pattern")]
     public const string FactionIconUriPattern = "avares://GenHub/Assets/Icons/Factions/{0}";
 
     /// <summary>Minimum overlap ratio threshold between layout actions to consider an upgrade variant.</summary>
@@ -300,7 +302,7 @@ public static class GenHotkeysConstants
     /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
     public static string GetBigFileName(string? profileName, GameType targetGame)
     {
-        var sanitizedName = Regex.Replace(profileName ?? "Hotkeys", @"[^a-zA-Z0-9_\-]", "_");
+        var sanitizedName = Regex.Replace(profileName ?? "Hotkeys", @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
         if (string.IsNullOrWhiteSpace(sanitizedName))
         {
             sanitizedName = "Hotkeys";
