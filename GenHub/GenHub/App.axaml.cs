@@ -158,53 +158,61 @@ public partial class App : Application
 
     private async Task CheckForDuplicateInstallationConflictAsync()
     {
-        try
+        await Task.Run(() =>
         {
-            var tracker = _serviceProvider.GetService<IInstallationLocationTracker>();
-            var customPath = tracker?.GetRegisteredCustomInstallPath();
+            try
+            {
+                var tracker = _serviceProvider.GetService<IInstallationLocationTracker>();
+                var customPath = tracker?.GetRegisteredCustomInstallPath();
 
-            if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var detectedCustomPath) &&
-                !string.IsNullOrWhiteSpace(detectedCustomPath))
+                if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var detectedCustomPath) &&
+                    !string.IsNullOrWhiteSpace(detectedCustomPath))
+                {
+                    var logger = _serviceProvider.GetService<ILogger<App>>();
+                    var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
+
+                    logger?.LogWarning(
+                        "Duplicate installation detected: GenHub is running from default location '{DefaultLocation}', " +
+                        "but an existing custom installation was found at '{CustomLocation}'.",
+                        defaultRoot,
+                        detectedCustomPath);
+
+                    var imported = false;
+
+                    // If the current default location has no user data (fresh installer run), adopt settings/profiles from custom location
+                    if (!StorageMigrationService.HasExistingUserData(defaultRoot) &&
+                        StorageMigrationService.HasExistingUserData(detectedCustomPath))
+                    {
+                        logger?.LogInformation(
+                            "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
+                            detectedCustomPath,
+                            defaultRoot);
+
+                        imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
+                    }
+
+                    // Clear custom install path from registry so subsequent launches do not repeatedly trigger this collision warning
+                    tracker?.ClearCustomInstallPath();
+
+                    // Notify the user in the UI
+                    var notificationService = _serviceProvider.GetService<INotificationService>();
+                    var message = imported
+                        ? $"GenHub was installed to the default location while another installation exists at '{detectedCustomPath}'. Your configurations and profiles have been preserved."
+                        : $"GenHub is running from the default location while another installation was detected at '{detectedCustomPath}'.";
+
+                    notificationService?.ShowWarning(
+                        StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+                        message,
+                        autoDismissMs: StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,
+                        showInBadge: true);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Security.SecurityException)
             {
                 var logger = _serviceProvider.GetService<ILogger<App>>();
-                var defaultRoot = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    AppConstants.AppName);
-
-                logger?.LogWarning(
-                    "Duplicate installation detected: GenHub is running from default location '{DefaultLocation}', " +
-                    "but an existing custom installation was found at '{CustomLocation}'.",
-                    defaultRoot,
-                    detectedCustomPath);
-
-                // If the current default location has no user data (fresh installer run), adopt settings/profiles from custom location
-                if (!StorageMigrationService.HasExistingUserData(defaultRoot) &&
-                    StorageMigrationService.HasExistingUserData(detectedCustomPath))
-                {
-                    logger?.LogInformation(
-                        "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
-                        detectedCustomPath,
-                        defaultRoot);
-
-                    StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
-                }
-
-                // Notify the user in the UI
-                var notificationService = _serviceProvider.GetService<INotificationService>();
-                notificationService?.ShowWarning(
-                    "Duplicate Installation Detected",
-                    $"GenHub was installed to the default location while another installation exists at '{detectedCustomPath}'. Your configurations and profiles have been preserved.",
-                    autoDismissMs: 12000,
-                    showInBadge: true);
+                logger?.LogWarning(ex, "Error checking for duplicate installation conflict on startup");
             }
-        }
-        catch (Exception ex)
-        {
-            var logger = _serviceProvider.GetService<ILogger<App>>();
-            logger?.LogWarning(ex, "Error checking for duplicate installation conflict on startup");
-        }
-
-        await Task.CompletedTask;
+        });
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)

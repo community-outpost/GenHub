@@ -129,4 +129,14 @@ public static class StorageMigrationConstants
     /// CAS directory marker name.
     /// </summary>
     public const string DotGenHubCasDirectoryName = ".genhub-cas";
+
+    /// <summary>
+    /// Title for the duplicate installation detected notification.
+    /// </summary>
+    public const string DuplicateInstallationDetectedTitle = "Duplicate Installation Detected";
+
+    /// <summary>
+    /// Auto-dismiss duration in milliseconds for the duplicate installation notification (12 seconds).
+    /// </summary>
+    public const int DuplicateInstallationNotificationDismissMs = 12000;
 }

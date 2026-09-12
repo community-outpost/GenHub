@@ -11,13 +11,12 @@ namespace GenHub.Windows.Features.Storage;
 /// <summary>
 /// Tracks Windows registry installation markers and detects duplicate or orphaned installations.
 /// </summary>
-public sealed class WindowsInstallationTracker : IInstallationLocationTracker
+/// <param name="logger">Optional logger for diagnostics.</param>
+public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracker>? logger = null) : IInstallationLocationTracker
 {
     private const string GenHubSubKey = RegistryConstants.GenHubSubKey;
     private const string CustomInstallPathValueName = RegistryConstants.CustomInstallPathValueName;
-    private const string UriSchemeCommandKey = @"Software\Classes\" + CommandLineConstants.SchemeName + @"\shell\open\command";
-
-    private readonly ILogger<WindowsInstallationTracker>? _logger;
+    private const string UriSchemeCommandKey = RegistryConstants.ClassesSubKeyPrefix + @"\" + CommandLineConstants.SchemeName + @"\" + RegistryConstants.ShellOpenCommandSubKey;
 
     /// <summary>
     /// Records the current installation directory in the user registry when running from a custom install root.
@@ -61,33 +60,29 @@ public sealed class WindowsInstallationTracker : IInstallationLocationTracker
         try
         {
             // 1. Direct GenHub registry key
-            using (var key = Registry.CurrentUser.OpenSubKey(GenHubSubKey, writable: false))
+            using var key = Registry.CurrentUser.OpenSubKey(GenHubSubKey, writable: false);
+            if (key != null)
             {
-                if (key != null)
+                var customPath = key.GetValue(CustomInstallPathValueName) as string;
+                if (!string.IsNullOrWhiteSpace(customPath) && Directory.Exists(customPath))
                 {
-                    var customPath = key.GetValue(CustomInstallPathValueName) as string;
-                    if (!string.IsNullOrWhiteSpace(customPath) && Directory.Exists(customPath))
-                    {
-                        return customPath;
-                    }
+                    return customPath;
                 }
             }
 
             // 2. Fallback: inspect URI scheme handler command to see where genhub:// previously pointed
-            using (var uriCommandKey = Registry.CurrentUser.OpenSubKey(UriSchemeCommandKey, writable: false))
+            using var uriCommandKey = Registry.CurrentUser.OpenSubKey(UriSchemeCommandKey, writable: false);
+            if (uriCommandKey != null)
             {
-                if (uriCommandKey != null)
+                var command = uriCommandKey.GetValue(string.Empty) as string;
+                if (!string.IsNullOrWhiteSpace(command))
                 {
-                    var command = uriCommandKey.GetValue(string.Empty) as string;
-                    if (!string.IsNullOrWhiteSpace(command))
+                    var candidate = ExtractDirectoryFromCommand(command);
+                    if (!string.IsNullOrWhiteSpace(candidate) &&
+                        Directory.Exists(candidate) &&
+                        StorageMigrationService.IsVelopackRoot(candidate))
                     {
-                        var candidate = ExtractDirectoryFromCommand(command);
-                        if (!string.IsNullOrWhiteSpace(candidate) &&
-                            Directory.Exists(candidate) &&
-                            StorageMigrationService.IsVelopackRoot(candidate))
-                        {
-                            return candidate;
-                        }
+                        return candidate;
                     }
                 }
             }
@@ -123,16 +118,25 @@ public sealed class WindowsInstallationTracker : IInstallationLocationTracker
         }
     }
 
+    /// <inheritdoc />
+    public void RecordInstallLocation() => RecordInstallLocationStatic(logger);
+
+    /// <inheritdoc />
+    public string? GetRegisteredCustomInstallPath() => GetRegisteredCustomInstallPathStatic(logger);
+
+    /// <inheritdoc />
+    public void ClearCustomInstallPath() => ClearCustomInstallPathStatic(logger);
+
     private static string? ExtractDirectoryFromCommand(string command)
     {
-        // Format typically: "C:\\path\\to\\GenHub.Windows.exe" "%1"
+        // Format typically: "C:\path\to\GenHub.Windows.exe" "%1"
         var trimmed = command.Trim();
         if (trimmed.StartsWith('"'))
         {
             var endQuote = trimmed.IndexOf('"', 1);
             if (endQuote > 1)
             {
-                var exePath = trimmed.Substring(1, endQuote - 1);
+                var exePath = trimmed[1..endQuote];
                 var dir = Path.GetDirectoryName(exePath);
                 if (string.Equals(Path.GetFileName(dir), "current", StringComparison.OrdinalIgnoreCase))
                 {
@@ -145,22 +149,4 @@ public sealed class WindowsInstallationTracker : IInstallationLocationTracker
 
         return null;
     }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="WindowsInstallationTracker"/> class.
-    /// </summary>
-    /// <param name="logger">Optional logger for diagnostics.</param>
-    public WindowsInstallationTracker(ILogger<WindowsInstallationTracker>? logger = null)
-    {
-        _logger = logger;
-    }
-
-    /// <inheritdoc />
-    public void RecordInstallLocation() => RecordInstallLocationStatic(_logger);
-
-    /// <inheritdoc />
-    public string? GetRegisteredCustomInstallPath() => GetRegisteredCustomInstallPathStatic(_logger);
-
-    /// <inheritdoc />
-    public void ClearCustomInstallPath() => ClearCustomInstallPathStatic(_logger);
 }

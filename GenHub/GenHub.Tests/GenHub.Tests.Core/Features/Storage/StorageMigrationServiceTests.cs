@@ -744,7 +744,42 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that TryImportUserDataFromCustomInstall imports settings and profiles without overwriting existing files.
+    /// Tests that HasDuplicateInstallationConflict returns false when candidate exists but is not a Velopack root.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_ReturnsFalse_WhenCandidateNotVelopackRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var notVelopack = Path.Combine(_tempRoot, "DirectoryWithoutVelopack");
+            Directory.CreateDirectory(notVelopack);
+            File.WriteAllText(Path.Combine(notVelopack, "readme.txt"), "some content");
+
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(notVelopack, out var detected);
+            Assert.False(hasConflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that GetDefaultInstallRoot returns a valid path ending with AppName.
+    /// </summary>
+    [Fact]
+    public void GetDefaultInstallRoot_ReturnsValidPathEndingWithAppName()
+    {
+        var root = StorageMigrationService.GetDefaultInstallRoot();
+        Assert.False(string.IsNullOrWhiteSpace(root));
+        Assert.EndsWith(AppConstants.AppName, root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests that TryImportUserDataFromCustomInstall imports settings and profiles without overwriting existing files,
+    /// and explicitly excludes derived state like Workspaces.
     /// </summary>
     [Fact]
     public void TryImportUserDataFromCustomInstall_ImportsUserData_WithoutOverwritingExisting()
@@ -759,12 +794,18 @@ public class StorageMigrationServiceTests : IDisposable
         Directory.CreateDirectory(customProfiles);
         File.WriteAllText(Path.Combine(customProfiles, "mod.json"), "profile-data");
 
+        // Workspaces should NOT be copied (derived hardlinks to CAS pool)
+        var customWorkspaces = Path.Combine(customDir, DirectoryNames.Workspaces);
+        Directory.CreateDirectory(customWorkspaces);
+        File.WriteAllText(Path.Combine(customWorkspaces, "workspace.dat"), "derived-content");
+
         var imported = StorageMigrationService.TryImportUserDataFromCustomInstall(customDir, defaultDir);
         Assert.True(imported);
 
         Assert.True(File.Exists(Path.Combine(defaultDir, FileTypes.SettingsFileName)));
         Assert.Equal("{\"custom\": true}", File.ReadAllText(Path.Combine(defaultDir, FileTypes.SettingsFileName)));
         Assert.True(File.Exists(Path.Combine(defaultDir, DirectoryNames.Profiles, "mod.json")));
+        Assert.False(Directory.Exists(Path.Combine(defaultDir, DirectoryNames.Workspaces)));
 
         // Calling again should not throw or overwrite if default now exists
         var importedSecondTime = StorageMigrationService.TryImportUserDataFromCustomInstall(customDir, defaultDir);

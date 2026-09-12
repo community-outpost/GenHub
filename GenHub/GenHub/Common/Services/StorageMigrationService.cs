@@ -273,6 +273,17 @@ public class StorageMigrationService(
     internal static void SetCustomInstallRootOverrideForTesting(bool? isCustom) => _customInstallRootOverride = isCustom;
 
     /// <summary>
+    /// Gets the default Velopack installation root directory in LocalApplicationData.
+    /// </summary>
+    /// <returns>The path to the default installation root.</returns>
+    internal static string GetDefaultInstallRoot()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName);
+    }
+
+    /// <summary>
     /// If running from a custom install location, removes empty %LOCALAPPDATA%\GenHub and %APPDATA%\GenHub folders
     /// if they were created during bootstrap or leftover from default paths.
     /// </summary>
@@ -283,9 +294,7 @@ public class StorageMigrationService(
             return;
         }
 
-        CleanIfEmpty(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName));
+        CleanIfEmpty(GetDefaultInstallRoot());
 
         CleanIfEmpty(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -344,7 +353,7 @@ public class StorageMigrationService(
     }
 
     /// <summary>
-    /// Checks if the specified root directory contains existing user configuration, game profiles, or workspaces.
+    /// Checks if the specified root directory contains existing user configuration, game profiles, or manifests.
     /// </summary>
     /// <param name="rootPath">The root directory to inspect.</param>
     /// <returns><see langword="true"/> if existing user data is present; otherwise, <see langword="false"/>.</returns>
@@ -368,20 +377,14 @@ public class StorageMigrationService(
                 return true;
             }
 
-            var casDir = Path.Combine(rootPath, DirectoryNames.CasPool);
-            if (Directory.Exists(casDir) && Directory.EnumerateFileSystemEntries(casDir).Any())
-            {
-                return true;
-            }
-
-            var workspacesDir = Path.Combine(rootPath, DirectoryNames.Workspaces);
-            if (Directory.Exists(workspacesDir) && Directory.EnumerateFileSystemEntries(workspacesDir).Any())
-            {
-                return true;
-            }
-
             var manifestsDir = Path.Combine(rootPath, FileTypes.ManifestsDirectory);
             if (Directory.Exists(manifestsDir) && Directory.EnumerateFileSystemEntries(manifestsDir).Any())
+            {
+                return true;
+            }
+
+            var userDataDir = Path.Combine(rootPath, DirectoryNames.UserData);
+            if (Directory.Exists(userDataDir) && Directory.EnumerateFileSystemEntries(userDataDir).Any())
             {
                 return true;
             }
@@ -408,7 +411,8 @@ public class StorageMigrationService(
 
     /// <summary>
     /// Adopts user data from an existing custom directory installation into the current target installation root.
-    /// Copies settings.json, Profiles, Workspaces, and custom manifests if they do not already exist in the target.
+    /// Copies settings.json, Profiles, UserData, and custom manifests if they do not already exist in the target.
+    /// Derived states such as Workspaces and CAS storage are intentionally excluded so they can be cleanly rebuilt.
     /// </summary>
     /// <param name="customRoot">The custom installation root directory to import from.</param>
     /// <param name="targetRoot">The target installation root directory.</param>
@@ -438,7 +442,6 @@ public class StorageMigrationService(
             var dirsToCopy = new[]
             {
                 DirectoryNames.Profiles,
-                DirectoryNames.Workspaces,
                 FileTypes.ManifestsDirectory,
                 DirectoryNames.UserData,
             };
@@ -609,9 +612,7 @@ public class StorageMigrationService(
         try
         {
             var sourceRoot = GetSourceRootDirectory();
-            var defaultInstallRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName);
+            var defaultInstallRoot = GetDefaultInstallRoot();
 
             if (string.Equals(sourceRoot, defaultInstallRoot, PathHelper.PathComparison))
             {
