@@ -6,14 +6,15 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${ROOT_DIR}"
 
-LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName // ""' 2>/dev/null || echo "v0.0.3")
+LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName // ""' 2>/dev/null || true)
 if [[ -z "${LATEST_TAG}" || "${LATEST_TAG}" = "null" ]]; then
-    LATEST_TAG="v0.0.3"
+    DISPLAY_NAME="Alpha"
+    DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases"
+else
+    BUILD_NUM=$(echo "${LATEST_TAG}" | cut -d'.' -f3)
+    DISPLAY_NAME="Alpha ${BUILD_NUM}"
+    DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${LATEST_TAG}/GenHub-win-Setup.exe"
 fi
-
-BUILD_NUM=$(echo "${LATEST_TAG}" | cut -d'.' -f3)
-DISPLAY_NAME="Alpha ${BUILD_NUM}"
-DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${LATEST_TAG}/GenHub-win-Setup.exe"
 
 echo "Building Landing Page..."
 echo "  Tag: ${LATEST_TAG}"

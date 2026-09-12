@@ -24,8 +24,8 @@
     }
 }
 
-/* Tablets (<= 768px) */
-@media (max-width: 768px) {
+/* Navigation Collapse (<= 880px) */
+@media (max-width: 880px) {
     header {
         padding: 0.75rem 1rem;
     }
@@ -51,6 +51,10 @@
         background: #110924;
         border-top: 1px solid var(--glass-border);
     }
+}
+
+/* Tablets (<= 768px) */
+@media (max-width: 768px) {
 
     main {
         padding: 5.5rem 0 3rem;

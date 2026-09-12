@@ -8,7 +8,7 @@ html {
     scroll-behavior: smooth;
     scroll-padding-top: 5.5rem;
     color-scheme: dark;
-    background-color: #07040d;
+    background-color: var(--bg-deep, #07040d);
 }
 
 body {
