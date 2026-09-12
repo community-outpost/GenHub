@@ -48,7 +48,7 @@ public partial class GeneralsOnlineProfileReconciler(
 {
     private readonly SemaphoreSlim _reconcileLock = new(1, 1);
 
-    [GeneratedRegex(@"\s*(?:\([vV]?[\w\.\-]+(?:\s*QFE\d+)?\)|[vV]\d+[\w\.\-]*)\s*$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\s*(?:\([vV]?[\w\.\-]+(?:\s*QFE\d+)?\)|[vV]\d+[\w\.\-]*)\s*$", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 2000)]
     private static partial Regex VersionSuffixRegex();
 
     /// <summary>

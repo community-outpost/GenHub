@@ -2343,7 +2343,7 @@ public partial class ContentDetailViewModel(
                 ? localManifestId
                 : searchResult.Id;
 
-            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(dependencyManifestId))
+            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(dependencyManifestId) && ManifestIdValidator.IsValid(dependencyManifestId))
             {
                 await LoadDependencySummaryAsync(dependencyManifestId);
             }
@@ -3409,6 +3409,11 @@ public partial class ContentDetailViewModel(
 
             if (_disposed || !success)
             {
+                if (!success && !_disposed)
+                {
+                    DownloadStatusMessage = "Update was canceled or failed.";
+                }
+
                 return;
             }
 
@@ -3430,6 +3435,11 @@ public partial class ContentDetailViewModel(
             var success = await ExecuteDownloadFlowAsync(_updateTargetSearchResult, cancellationToken);
             if (_disposed || !success)
             {
+                if (!success && !_disposed)
+                {
+                    DownloadStatusMessage = "Update was canceled or failed.";
+                }
+
                 return;
             }
 
@@ -4153,6 +4163,11 @@ public partial class ContentDetailViewModel(
 
     private async Task LoadDependencySummaryAsync(string manifestId)
     {
+        if (!ManifestIdValidator.IsValid(manifestId))
+        {
+            return;
+        }
+
         var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
         if (manifestResult.Success && manifestResult.Data != null)
         {
