@@ -113,6 +113,7 @@
     <Color x:Key="SuccessColor">#10B981</Color>
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
     <SolidColorBrush x:Key="StatusSuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="StatusSuccessBadgeBackgroundBrush" Color="#2010B981" />
 
     <!-- Status Tokens: Warning -->
     <Color x:Key="WarningColor">#FFA500</Color>
@@ -120,11 +121,18 @@
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
     <SolidColorBrush x:Key="WarningHighlightBrush" Color="{StaticResource WarningHighlightColor}" />
     <SolidColorBrush x:Key="WarningForegroundBrush" Color="{StaticResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="StatusWarningBadgeBackgroundBrush" Color="#20FFA500" />
 
     <!-- Status Tokens: Error -->
     <Color x:Key="ErrorColor">#EF4444</Color>
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="StatusErrorBadgeBackgroundBrush" Color="#20EF4444" />
+
+    <!-- Status Tokens: Info -->
+    <Color x:Key="StatusInfoColor">#3B82F6</Color>
+    <SolidColorBrush x:Key="StatusInfoBrush" Color="{StaticResource StatusInfoColor}" />
+    <SolidColorBrush x:Key="StatusInfoBadgeBackgroundBrush" Color="#203B82F6" />
 
     <!-- Gradients and UI Elements -->
     <Color x:Key="PrimaryGradientStart">#E040FB</Color>
@@ -134,57 +142,72 @@
         <GradientStop Color="{StaticResource PrimaryGradientEnd}" Offset="1" />
     </LinearGradientBrush>
 
-    <Color x:Key="CheckBoxCheckedColor">#AA00FF</Color>
-    <SolidColorBrush x:Key="CheckBoxCheckedBrush" Color="{StaticResource CheckBoxCheckedColor}" />
-
-    <!-- ==================================================================== -->
-    <!-- 5. Compatibility / Legacy Colors & Brushes                           -->
-    <!-- ==================================================================== -->
-    <!-- Light theme colors -->
-    <Color x:Key="WindowBackgroundLight">#F7F7F9</Color>
-    <Color x:Key="TitleBarBackgroundLight">#EAEAEF</Color>
-    <Color x:Key="SidebarBackgroundLight">#F0F0F4</Color>
-    <Color x:Key="DetailsBackgroundLight">#FFFFFF</Color>
+    <!-- Unified Status Bar Colors -->
+    <!-- Light Mode: Subtle light grey background with refined border -->
     <Color x:Key="StatusBarBackgroundLight">#EAEAEF</Color>
-    <Color x:Key="TreeViewBackgroundLight">#FFFFFF</Color>
-    <Color x:Key="BorderBrushLight">#D0D0D8</Color>
-    <Color x:Key="ComboBoxBackgroundLight">#FFFFFF</Color>
-    <Color x:Key="TextBoxBackgroundLight">#FFFFFF</Color>
-    <Color x:Key="ButtonBackgroundLight">#F0F0F4</Color>
-    <Color x:Key="PrimaryButtonBackgroundLight">#A855F7</Color>
+    <Color x:Key="StatusBarBorderLight">#D5D5E0</Color>
+    <Color x:Key="StatusBarTextLight">#3C3C46</Color>
+    <Color x:Key="StatusBarTextMutedLight">#767682</Color>
+    <SolidColorBrush x:Key="StatusBarBackgroundLightBrush" Color="{StaticResource StatusBarBackgroundLight}" />
+    <SolidColorBrush x:Key="StatusBarBorderLightBrush" Color="{StaticResource StatusBarBorderLight}" />
+    <SolidColorBrush x:Key="StatusBarTextLightBrush" Color="{StaticResource StatusBarTextLight}" />
+    <SolidColorBrush x:Key="StatusBarTextMutedLightBrush" Color="{StaticResource StatusBarTextMutedLight}" />
 
-    <!-- Dark theme colors -->
-    <Color x:Key="WindowBackgroundDark">#08080C</Color>
-    <Color x:Key="TitleBarBackgroundDark">#08080C</Color>
-    <Color x:Key="SidebarBackgroundDark">#08080C</Color>
-    <Color x:Key="DetailsBackgroundDark">#181822</Color>
+    <!-- Dark Mode: Match SurfaceBackgroundDark for a borderless, grounded look -->
     <Color x:Key="StatusBarBackgroundDark">#08080C</Color>
-    <Color x:Key="TreeViewBackgroundDark">#111118</Color>
-    <Color x:Key="BorderBrushDark">#282838</Color>
-    <Color x:Key="ComboBoxBackgroundDark">#181822</Color>
-    <Color x:Key="TextBoxBackgroundDark">#181822</Color>
-    <Color x:Key="ButtonBackgroundDark">#181822</Color>
+    <Color x:Key="StatusBarBorderDark">#1A1A26</Color>
+    <Color x:Key="StatusBarTextDark">#CCCCCC</Color>
+    <Color x:Key="StatusBarTextMutedDark">#888896</Color>
+    <SolidColorBrush x:Key="StatusBarBackgroundDarkBrush" Color="{StaticResource StatusBarBackgroundDark}" />
+    <SolidColorBrush x:Key="StatusBarBorderDarkBrush" Color="{StaticResource StatusBarBorderDark}" />
+    <SolidColorBrush x:Key="StatusBarTextDarkBrush" Color="{StaticResource StatusBarTextDark}" />
+    <SolidColorBrush x:Key="StatusBarTextMutedDarkBrush" Color="{StaticResource StatusBarTextMutedDark}" />
 
-    <!-- Component Brushes -->
-    <SolidColorBrush x:Key="TitleBarBackground" Color="{DynamicResource TitleBarBackgroundDark}" />
-    <SolidColorBrush x:Key="TitleBarForeground" Color="#F0F0F8" />
-    <SolidColorBrush x:Key="SidebarBackground" Color="{DynamicResource SidebarBackgroundDark}" />
+    <!-- Semantic aliases (resolve to Dark values in dark theme context) -->
     <SolidColorBrush x:Key="StatusBarBackground" Color="{DynamicResource StatusBarBackgroundDark}" />
     <SolidColorBrush x:Key="StatusBarForeground" Color="#9A9AB0" />
-    <SolidColorBrush x:Key="EmptyStateForeground" Color="#9A9AB0" />
-    <SolidColorBrush x:Key="TreeViewBackground" Color="{DynamicResource TreeViewBackgroundDark}" />
-    <SolidColorBrush x:Key="ComboBoxBackground" Color="{DynamicResource ComboBoxBackgroundDark}" />
-    <SolidColorBrush x:Key="TextBoxBackground" Color="{DynamicResource TextBoxBackgroundDark}" />
-    <SolidColorBrush x:Key="ButtonBackground" Color="{DynamicResource ButtonBackgroundDark}" />
-    <SolidColorBrush x:Key="PrimaryButtonForeground" Color="White" />
+    <SolidColorBrush x:Key="StatusBarBorder" Color="{DynamicResource StatusBarBorderDark}" />
+    <SolidColorBrush x:Key="StatusBarItemHover" Color="#15FFFFFF" />
+
+    <!-- ==================================================================== -->
+    <!-- 5. Component Dimensions and Radii                                    -->
+    <!-- ==================================================================== -->
+    <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
+    <CornerRadius x:Key="InputCornerRadius">8</CornerRadius>
+    <CornerRadius x:Key="BadgeCornerRadius">6</CornerRadius>
+    <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
+    <Thickness x:Key="CardPadding">16</Thickness>
 
     <!-- ==================================================================== -->
     <!-- 6. StreamGeometry Icons                                              -->
     <!-- ==================================================================== -->
     <StreamGeometry x:Key="CheckmarkIcon">M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z</StreamGeometry>
-    <StreamGeometry x:Key="WarningIcon">M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z</StreamGeometry>
+    <StreamGeometry x:Key="WarningIcon">M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 12,2Z</StreamGeometry>
+    <StreamGeometry x:Key="InfoIcon">M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M13,17H11V11H13V17M13,9H11V7H13V9Z</StreamGeometry>
     <StreamGeometry x:Key="ConfirmationCheckIcon">M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z</StreamGeometry>
+    <StreamGeometry x:Key="CloudStorageIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04Z</StreamGeometry>
     <StreamGeometry x:Key="WrenchIcon">M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12.1,3C10.1,1 7.1,0.6 4.7,1.7L9,6L6,9L1.7,4.7C0.6,7.1 1,10.1 3,12.1C4.9,14 7.6,14.5 9.9,13.6L19,22.7L22.7,19Z</StreamGeometry>
+    <StreamGeometry x:Key="PersonIcon">M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z</StreamGeometry>
+    <StreamGeometry x:Key="PublishIcon">M5,4V6H19V4H5M5,14H9V20H15V14H19L12,7L5,14Z</StreamGeometry>
+    <StreamGeometry x:Key="SaveIcon">M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z</StreamGeometry>
+    <StreamGeometry x:Key="AddIcon">M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z</StreamGeometry>
+    <StreamGeometry x:Key="DeleteIcon">M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z</StreamGeometry>
+    <StreamGeometry x:Key="ContentIcon">M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19M17,17H7V15H17V17M17,13H7V11H17V13M17,9H7V7H17V9Z</StreamGeometry>
+    <StreamGeometry x:Key="EditIcon">M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z</StreamGeometry>
+    <StreamGeometry x:Key="DownloadIcon">M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z</StreamGeometry>
+    <StreamGeometry x:Key="CopyIcon">M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z</StreamGeometry>
+    <StreamGeometry x:Key="ErrorIcon">M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z</StreamGeometry>
+    <StreamGeometry x:Key="LinkIcon">M3.9,12C3.9,10.29 5.29,8.9 7,8.9H11V7H7A5,5 0 0,0 2,12A5,5 0 0,0 7,17H11V15.1H7C5.29,15.1 3.9,13.71 3.9,12M8,13H16V11H8V13M17,7H13V8.9H17C18.71,8.9 20.1,10.29 20.1,12C20.1,13.71 18.71,15.1 17,15.1H13V17H17A5,5 0 0,0 22,12A5,5 0 0,0 17,7Z</StreamGeometry>
+    <StreamGeometry x:Key="ExternalLinkIcon">M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z</StreamGeometry>
+    <StreamGeometry x:Key="FolderOpenIcon">M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21.85C22.6,8 23.16,8.74 22.95,9.46L20.85,16.5C20.57,17.43 19.74,18.06 18.77,18.06H19V20M4,6V18H18.77L21.36,9.5H12L10,7.5H4Z</StreamGeometry>
+    <StreamGeometry x:Key="CheckmarkCircleIcon">M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z</StreamGeometry>
+    <StreamGeometry x:Key="GamepadIcon">M17,6H7C4.79,6 3,7.79 3,10V14C3,16.21 4.79,18 7,18H17C19.21,18 21,16.21 21,14V10C21,7.79 19.21,6 17,6M6,13V11H8V9H10V11H12V13H10V15H8V13H6M16.5,14A1.5,1.5 0 0,1 15,12.5A1.5,1.5 0 0,1 16.5,11A1.5,1.5 0 0,1 18,12.5A1.5,1.5 0 0,1 16.5,14M18.5,11A1.5,1.5 0 0,1 17,9.5A1.5,1.5 0 0,1 18.5,8A1.5,1.5 0 0,1 20,9.5A1.5,1.5 0 0,1 18.5,11Z</StreamGeometry>
+    <StreamGeometry x:Key="PackageIcon">M12,2L3,6.5V17.5L12,22L21,17.5V6.5L12,2M12,4.3L18.8,7.7L16.2,9L9.4,5.6L12,4.3M5,8L11,11V19.3L5,16.3V8M13,19.3V11L19,8V16.3L13,19.3Z</StreamGeometry>
+    <StreamGeometry x:Key="CloseIcon">M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z</StreamGeometry>
+    <StreamGeometry x:Key="WebIcon">M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.05,19.44 4,16.08 4,12C4,11.38 4.08,10.79 4.21,10.21L9,15V16A2,2 0 0,0 11,18V19.93M17.9,17.39C17.64,16.58 16.9,16 16,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.78 20,8.65 20,12C20,14.08 19.2,15.97 17.9,17.39Z</StreamGeometry>
+    <StreamGeometry x:Key="ChatIcon">M12,3C6.5,3 2,6.58 2,11C2.05,13.15 3.06,15.17 4.8,16.54L3,22L8.6,20.24C9.7,20.75 10.85,21 12,21C17.5,21 22,16.58 22,11C22,6.58 17.5,3 12,3Z</StreamGeometry>
+    <StreamGeometry x:Key="EmailIcon">M20,8L12,13L4,8V6L12,11L20,6M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4Z</StreamGeometry>
+    <StreamGeometry x:Key="RefreshIcon">M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z</StreamGeometry>
 
     <!-- ==================================================================== -->
     <!-- 7. Glassmorphic Sidebar & Accent Definitions                         -->
@@ -210,6 +233,12 @@
     <LinearGradientBrush x:Key="PurpleAccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Color="#311B92" Offset="0" />   <!-- Deep Dark Purple -->
         <GradientStop Color="#673AB7" Offset="1" />   <!-- Medium Purple -->
+    </LinearGradientBrush>
+
+    <!-- Publisher Studio Primary Gradient -->
+    <LinearGradientBrush x:Key="PSPrimaryGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8B5CF6" Offset="0" />
+        <GradientStop Color="#6366F1" Offset="1" />
     </LinearGradientBrush>
 
     <!-- Hover and Selection States -->

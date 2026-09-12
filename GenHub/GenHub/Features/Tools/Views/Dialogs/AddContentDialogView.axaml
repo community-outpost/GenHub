@@ -1,0 +1,247 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="720"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddContentDialogView"
+             x:DataType="vm:AddContentDialogViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+            <TextBlock Text="{Binding DialogTitle}"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimary}"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="{DynamicResource TextMuted}"/>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,20">
+            <StackPanel Spacing="16">
+                <!-- Name -->
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Content Name" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding ContentName}" Watermark="e.g. Generals Online, Modern Wars"/>
+                    <Button Content="Use Suggested ID"
+                            Command="{Binding ApplySuggestedIdCommand}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Foreground="{DynamicResource AccentColorBrush}"
+                            HorizontalAlignment="Right"
+                            FontSize="12"
+                            Cursor="Hand"
+                            IsVisible="{Binding !!ContentName.Length}"/>
+                </StackPanel>
+
+                <!-- ID -->
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Content ID" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding ContentId}" Watermark="e.g. generals-online"
+                             IsReadOnly="{Binding IsEditMode}"/>
+                    <TextBlock Text="Unique identifier for this content (lowercase, alphanumeric, hyphens)."
+                               Classes="hint"/>
+                </StackPanel>
+
+                <!-- Type & Target -->
+                <Grid ColumnDefinitions="*,16,*">
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="Content Type" Classes="label"/>
+                        <ComboBox ItemsSource="{Binding AvailableContentTypes}"
+                                  SelectedItem="{Binding SelectedContentType}"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="6">
+                        <TextBlock Text="Target Game" Classes="label"/>
+                        <ComboBox ItemsSource="{Binding AvailableTargetGames}"
+                                  SelectedItem="{Binding SelectedTargetGame}"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Addon Parent Selection (only visible when ContentType is Addon) -->
+                <StackPanel Spacing="6" IsVisible="{Binding ShowAddonParentSelection}">
+                    <TextBlock Text="Extends Content" Classes="label"/>
+                    <TextBox Text="{Binding ExtendsContentId}"
+                             Watermark="e.g. my-mod or publisher-id/content-id"/>
+                    <TextBlock Text="The content ID this addon extends. Use 'content-id' for same catalog, or 'publisher-id/content-id' for cross-publisher."
+                               Classes="hint"/>
+                </StackPanel>
+
+                <!-- Description -->
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Description" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding Description}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             Height="80"
+                             Watermark="Describe your content..."/>
+                </StackPanel>
+
+                <!-- Tags -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Tags (Comma Separated)" Classes="label"/>
+                    <TextBox Text="{Binding TagsInput}" Watermark="strategy, overhaul, patch, map"/>
+                </StackPanel>
+
+                <!-- ==================== INITIAL RELEASE & ARTIFACT (Create Mode Only) ==================== -->
+                <Border Background="#0DFFFFFF"
+                        BorderBrush="#20FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16"
+                        IsVisible="{Binding !IsEditMode}">
+                    <StackPanel Spacing="12">
+                        <CheckBox IsChecked="{Binding IncludeInitialRelease}"
+                                  Content="Include initial release and package artifact"
+                                  FontWeight="SemiBold"
+                                  Foreground="{DynamicResource TextPrimary}"/>
+
+                        <StackPanel Spacing="12" IsVisible="{Binding IncludeInitialRelease}">
+                            <!-- Version and Filename -->
+                            <Grid ColumnDefinitions="*,16,*">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Release Version" Classes="label"/>
+                                    <TextBox Text="{Binding InitialVersion}" Watermark="1.0.0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="Package Filename" Classes="label"/>
+                                    <TextBox Text="{Binding PackageFilename}" Watermark="e.g. GeneralsOnline.zip"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- GameClient CDN Recommendation Banner -->
+                            <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusInfoBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" IsVisible="{Binding IsGameClientType}">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <PathIcon Data="{StaticResource GamepadIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="Game clients and standalone base packages are typically large and distributed via external CDNs or high-speed mirrors. Use Direct Download URL to point players to your CDN without re-uploading."
+                                               FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Hosting Mode Radio Buttons -->
+                            <TextBlock Text="Download / Distribution Source" Classes="label" Margin="0,4,0,0"/>
+                            <StackPanel Orientation="Horizontal" Spacing="24">
+                                <RadioButton Content="Direct Download URL (hosted/CDN)"
+                                             IsChecked="{Binding UseDirectUrl, Mode=TwoWay}"
+                                             Foreground="#E0E0E0"/>
+                                <RadioButton Content="Local File (for cloud upload)"
+                                             IsChecked="{Binding !UseDirectUrl, Mode=TwoWay}"
+                                             Foreground="#E0E0E0"/>
+                            </StackPanel>
+
+                            <!-- Direct URL Mode -->
+                            <StackPanel Spacing="4" IsVisible="{Binding UseDirectUrl}">
+                                <TextBlock Text="Download URL" Classes="label"/>
+                                <TextBox Text="{Binding DownloadUrl, Mode=TwoWay}"
+                                         AutomationProperties.Name="Download URL"
+                                         Watermark="https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"/>
+                                <TextBlock Text="Direct URL where players download this package (Google Drive, CDN, GitHub, etc.)" Classes="hint"/>
+                            </StackPanel>
+
+                            <!-- Local File Mode -->
+                            <StackPanel Spacing="4" IsVisible="{Binding !UseDirectUrl}">
+                                <TextBlock Text="Local Archive File (.zip, .big, .rar, .7z)" Classes="label"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox Text="{Binding LocalFilePath, Mode=TwoWay}"
+                                             Watermark="Select a local zip or big file..."
+                                             IsReadOnly="True"/>
+                                    <Button Grid.Column="1"
+                                            Content="Browse..."
+                                            Command="{Binding BrowseLocalFileCommand}"
+                                            Margin="8,0,0,0"
+                                            Padding="16,8"
+                                            Background="#20FFFFFF"
+                                            CornerRadius="6"
+                                            Foreground="{DynamicResource TextPrimary}"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <TextBlock Text="{Binding FileSizeDisplay}" FontSize="12" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Sha256Hash, StringFormat='SHA256: {0}'}" FontSize="11" Foreground="{DynamicResource TextMuted}" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                                <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+            <TextBlock Text="{Binding ValidationError}"
+                       Foreground="{DynamicResource StatusErrorBrush}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       MaxWidth="300"/>
+
+            <Button Content="{Binding SubmitButtonText}"
+                    Command="{Binding CreateContentCommand}"
+                    Background="{DynamicResource PrimaryGradientBrush}"
+                    Foreground="{DynamicResource TextPrimary}"
+                    CornerRadius="8"
+                    Padding="36,12"
+                    FontWeight="Bold"
+                    BorderThickness="0"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

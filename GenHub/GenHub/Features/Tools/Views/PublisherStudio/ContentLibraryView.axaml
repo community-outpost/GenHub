@@ -1,0 +1,612 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:models="using:GenHub.Core.Models.Providers"
+             xmlns:enums="using:GenHub.Core.Models.Enums"
+             xmlns:converters="using:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d"
+             d:DesignWidth="800" d:DesignHeight="500"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.ContentLibraryView"
+             x:DataType="vm:ContentLibraryViewModel"
+             x:Name="RootView">
+
+        <UserControl.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter"/>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+        </Style>
+        <!-- Selection indicator -->
+        <Style Selector="ListBoxItem:selected Border#CardRoot">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+        </Style>
+
+        <Style Selector="Button.glass-icon-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.glass-icon-btn:pointerover">
+            <Setter Property="Background" Value="#20FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.accent-glass-btn">
+             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+             <Setter Property="BorderThickness" Value="1"/>
+             <Setter Property="CornerRadius" Value="6"/>
+             <Setter Property="Padding" Value="12,8"/>
+        </Style>
+        <Style Selector="Button.accent-glass-btn:pointerover">
+             <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="320,*" Margin="0">
+        <!-- Content List Panel -->
+        <Border Background="#10000000"
+                BorderThickness="0,0,1,0"
+                BorderBrush="#15FFFFFF">
+            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                <!-- Active Catalog Indicator -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                        BorderThickness="0,0,0,1"
+                        BorderBrush="{DynamicResource AccentBrush}"
+                        Padding="16,10">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource ContentIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="{DynamicResource AccentColorBrush}"
+                                      VerticalAlignment="Center"/>
+                            <TextBlock Text="Catalog:"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding ActiveCatalogName}"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColorBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                Command="{Binding RenameCatalogCommand}"
+                                ToolTip.Tip="Rename this catalog"
+                                Background="Transparent"
+                                Padding="6,4"
+                                CornerRadius="4"
+                                BorderThickness="0"
+                                VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Search and Add Content Bar -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="16,16,16,12">
+                    <TextBox Text="{Binding SearchText, Mode=TwoWay}"
+                             Watermark="Search content..."
+                             VerticalAlignment="Center"
+                             Padding="12,8"
+                             CornerRadius="8"
+                             Background="#15FFFFFF"
+                             BorderBrush="#25FFFFFF"/>
+
+                    <Button Grid.Column="1"
+                            Command="{Binding AddContentCommand}"
+                            ToolTip.Tip="Add Content Item"
+                            Classes="accent-glass-btn"
+                            Margin="8,0,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                            <TextBlock Text="Add" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Content Items List -->
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding FilteredContent}"
+                         SelectedItem="{Binding SelectedContent}"
+                         Background="Transparent"
+                         Margin="8,0"
+                         Padding="4">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="models:CatalogContentItem">
+                            <Border Name="CardRoot"
+                                    Background="#08FFFFFF"
+                                    BorderBrush="#15FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12"
+                                    Transitions="{x:Null}">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <!-- Type Icon Box -->
+                                    <Border Width="40" Height="40"
+                                            CornerRadius="8"
+                                            Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                            Margin="0,0,12,0"
+                                            VerticalAlignment="Center">
+                                        <PathIcon Data="{StaticResource ContentIcon}"
+                                                  Width="18" Height="18"
+                                                  Foreground="{DynamicResource AccentColorBrush}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Content Info -->
+                                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14"
+                                                   Foreground="White"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock FontSize="12"
+                                                   Foreground="#888888"
+                                                   TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding ContentType}"/>
+                                            <Run Text=" • "/>
+                                            <Run Text="{Binding Releases.Count, Mode=OneWay}"/>
+                                            <Run Text=" releases"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Clean Empty State (Row 2, only visible when list is empty) -->
+                <StackPanel Grid.Row="2"
+                            IsVisible="{Binding !FilteredContent.Count}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12"
+                            Margin="16">
+                    <PathIcon Data="{StaticResource ContentIcon}"
+                              Width="36" Height="36"
+                              Foreground="#40FFFFFF"
+                              HorizontalAlignment="Center"/>
+                    <TextBlock Text="No content items yet"
+                               FontSize="13"
+                               Foreground="#666666"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Summary Footer -->
+                <Border Grid.Row="3"
+                        Background="#08FFFFFF"
+                        BorderThickness="0,1,0,0"
+                        BorderBrush="#15FFFFFF"
+                        Padding="16,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding ContentItems.Count, StringFormat='{}{0} items in catalog'}"
+                                   FontSize="12"
+                                   Foreground="#666666"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Content Detail Panel -->
+        <ScrollViewer Grid.Column="1"
+                      IsVisible="{Binding SelectedContent, Converter={x:Static ObjectConverters.IsNotNull}}"
+                      Padding="32">
+            <ContentControl Content="{Binding SelectedContent}">
+                <ContentControl.ContentTemplate>
+                    <DataTemplate DataType="models:CatalogContentItem">
+                        <StackPanel Spacing="24" MaxWidth="800" HorizontalAlignment="Left">
+                            <!-- Header / Actions -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="24"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"/>
+                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                CornerRadius="4"
+                                                Padding="8,2"
+                                                VerticalAlignment="Center">
+                                             <TextBlock Text="{Binding ContentType, FallbackValue=''}"
+                                                        FontSize="11"
+                                                        FontWeight="Bold"
+                                                        Foreground="{DynamicResource AccentColorBrush}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Id, StringFormat='Manifest ID: {0}'}"
+                                               FontSize="13"
+                                               Foreground="#888888"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                                    <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditContentCommand}"
+                                            CommandParameter="{Binding}"
+                                            Classes="glass-icon-btn"
+                                            ToolTip.Tip="Edit Content Details">
+                                        <PathIcon Data="{StaticResource EditIcon}"
+                                                  Width="20" Height="20"
+                                                  Foreground="{DynamicResource AccentColorBrush}"/>
+                                    </Button>
+                                    <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteContentCommand}"
+                                            CommandParameter="{Binding}"
+                                            Classes="glass-icon-btn"
+                                            ToolTip.Tip="Delete Content Item">
+                                        <PathIcon Data="{StaticResource DeleteIcon}"
+                                                  Width="20" Height="20"
+                                                  Foreground="#FF6060"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <Rectangle Height="1" Fill="#15FFFFFF"/>
+
+                            <!-- Description -->
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Description"
+                                           FontWeight="SemiBold"
+                                           Foreground="#D0D0E0"
+                                           FontSize="14"/>
+                                <TextBlock Text="{Binding Description, FallbackValue=''}"
+                                           TextWrapping="Wrap"
+                                           Foreground="#DDDDDD"
+                                           FontSize="14"
+                                           LineHeight="20"/>
+                            </StackPanel>
+
+                            <!-- ID & Metadata Grid -->
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,0,16">
+                                    <TextBlock Text="Content ID" Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding Id}" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,0,16">
+                                    <TextBlock Text="Target Game" Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding TargetGame}" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4" IsVisible="{Binding ExtendsContentId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <TextBlock Text="Extends Content" Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding ExtendsContentId}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Tags -->
+                            <StackPanel Spacing="10" IsVisible="{Binding Tags.Count}">
+                                <TextBlock Text="Tags"
+                                           FontWeight="SemiBold"
+                                           Foreground="#D0D0E0"
+                                           FontSize="14"/>
+                                <ItemsControl ItemsSource="{Binding Tags}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#10FFFFFF"
+                                                    BorderBrush="#20FFFFFF"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="8,4"
+                                                    Margin="0,0,8,8">
+                                                <TextBlock Text="{Binding}"
+                                                           FontSize="12"
+                                                           Foreground="#CCCCCC"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Bundled Items (for ContentBundle) -->
+                            <Border Background="#08FFFFFF"
+                                    BorderBrush="#15FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="24"
+                                    Margin="0,8,0,0"
+                                    IsVisible="{Binding ContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:ContentType.ContentBundle}}">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Bundled Content Items"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"/>
+                                            <TextBlock Text="Items included in this bundle that will be installed together"
+                                                       FontSize="12"
+                                                       Foreground="#888888"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddBundledItemCommand}"
+                                                Classes="accent-glass-btn">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                <TextBlock Text="Add Item" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+
+                                    <ItemsControl ItemsSource="{Binding BundledItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="models:CatalogDependency">
+                                                <Border Background="#08FFFFFF"
+                                                        BorderBrush="#15FFFFFF"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="16,12"
+                                                        Margin="0,0,0,8">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                        <Border Width="32" Height="32"
+                                                                CornerRadius="6"
+                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                Margin="0,0,12,0"
+                                                                VerticalAlignment="Center">
+                                                            <PathIcon Data="{StaticResource ContentIcon}"
+                                                                      Width="16" Height="16"
+                                                                      Foreground="{DynamicResource AccentColorBrush}"
+                                                                      HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ContentId}"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="White"
+                                                                       FontSize="14"/>
+                                                            <TextBlock FontSize="11" Foreground="#888888">
+                                                                <Run Text="Publisher: "/>
+                                                                <Run Text="{Binding PublisherId, TargetNullValue='(same)'}"/>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                        <Border Grid.Column="2"
+                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                CornerRadius="4"
+                                                                Padding="8,3"
+                                                                Margin="0,0,12,0"
+                                                                VerticalAlignment="Center"
+                                                                IsVisible="{Binding VersionConstraint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding VersionConstraint}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource AccentColorBrush}"/>
+                                                        </Border>
+                                                        <Button Grid.Column="3"
+                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveBundledItemCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                Classes="glass-icon-btn"
+                                                                ToolTip.Tip="Remove from bundle">
+                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="16" Height="16" Foreground="#FF6060"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="No bundled items yet. Click 'Add Item' to bundle existing content."
+                                               FontSize="13"
+                                               Foreground="#666666"
+                                               IsVisible="{Binding !BundledItems.Count}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Releases Section -->
+                            <Border Background="#08FFFFFF"
+                                    BorderBrush="#15FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="24"
+                                    Margin="0,8,0,0">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Releases &amp; Artifacts"
+                                                   FontSize="18"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"/>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddReleaseCommand}"
+                                                Classes="accent-glass-btn">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                <TextBlock Text="Add Release" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Releases List -->
+                                    <ItemsControl ItemsSource="{Binding Releases}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="models:ContentRelease">
+                                                <Expander Background="#08FFFFFF"
+                                                          BorderBrush="#15FFFFFF"
+                                                          BorderThickness="1"
+                                                          CornerRadius="8"
+                                                          Margin="0,0,0,8"
+                                                          Padding="16"
+                                                          IsExpanded="True">
+                                                    <Expander.Header>
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                                                                           FontWeight="Bold"
+                                                                           FontSize="16"
+                                                                           Foreground="White"/>
+                                                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                        CornerRadius="4"
+                                                                        Padding="6,2"
+                                                                        IsVisible="{Binding IsLatest}">
+                                                                    <TextBlock Text="LATEST" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                </Border>
+                                                                <Border Background="#20FFB300"
+                                                                        CornerRadius="4"
+                                                                        Padding="6,2"
+                                                                        IsVisible="{Binding IsPrerelease}">
+                                                                    <TextBlock Text="PRE-RELEASE" FontSize="10" FontWeight="Bold" Foreground="#FFB300"/>
+                                                                </Border>
+                                                                <TextBlock Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}"
+                                                                           FontSize="12"
+                                                                           Foreground="#888888"
+                                                                           VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditReleaseCommand}"
+                                                                        CommandParameter="{Binding}"
+                                                                        ToolTip.Tip="Edit Release"
+                                                                        Background="Transparent"
+                                                                        Padding="8"
+                                                                        CornerRadius="6">
+                                                                    <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                </Button>
+                                                                <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteReleaseCommand}"
+                                                                        CommandParameter="{Binding}"
+                                                                        ToolTip.Tip="Delete Release"
+                                                                        Background="Transparent"
+                                                                        Padding="8"
+                                                                        CornerRadius="6">
+                                                                    <PathIcon Data="{StaticResource DeleteIcon}" Width="16" Height="16" Foreground="#FF6060"/>
+                                                                </Button>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Expander.Header>
+                                                    <StackPanel Margin="0,12,0,0" Spacing="16">
+                                                        <!-- Changelog -->
+                                                        <StackPanel Spacing="4" IsVisible="{Binding Changelog, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="Changelog" FontWeight="SemiBold" FontSize="12" Foreground="#888888"/>
+                                                            <TextBlock Text="{Binding Changelog}" TextWrapping="Wrap" Foreground="#CCCCCC" FontSize="13"/>
+                                                        </StackPanel>
+
+                                                        <!-- Artifacts List -->
+                                                        <StackPanel Spacing="8">
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <TextBlock Text="Artifacts" FontWeight="SemiBold" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                                                                <Button Grid.Column="1"
+                                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddArtifactToReleaseCommand}"
+                                                                        CommandParameter="{Binding}"
+                                                                        ToolTip.Tip="Add Artifact"
+                                                                        Background="Transparent"
+                                                                        Padding="4,2"
+                                                                        CornerRadius="4">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                        <TextBlock Text="Add" FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
+                                                                    </StackPanel>
+                                                                </Button>
+                                                            </Grid>
+                                                            <ItemsControl ItemsSource="{Binding Artifacts}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <Border Background="#08FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,6">
+                                                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                                <PathIcon Data="{StaticResource DownloadIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                                                <StackPanel Grid.Column="1" Spacing="4">
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                                                        <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="White" FontSize="13"/>
+                                                                                        <Border Background="#201976D2" CornerRadius="3" Padding="4,1" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                                            <TextBlock Text="CDN / DIRECT LINK" FontSize="9" FontWeight="Bold" Foreground="#64B5F6"/>
+                                                                                        </Border>
+                                                                                        <Border Background="#25FFA000" CornerRadius="3" Padding="4,1" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                                            <TextBlock Text="PENDING CLOUD UPLOAD" FontSize="9" FontWeight="Bold" Foreground="#FFB300"/>
+                                                                                        </Border>
+                                                                                    </StackPanel>
+                                                                                    <TextBlock Text="{Binding DownloadUrl}" FontSize="11" Foreground="#8888AA" TextTrimming="CharacterEllipsis" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                                                    <TextBlock Text="{Binding LocalFilePath}" FontSize="11" Foreground="#FFBB00" TextTrimming="CharacterEllipsis" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                                                </StackPanel>
+                                                                                <TextBlock Grid.Column="2" Text="{Binding Size, Converter={StaticResource FileSizeConverter}}" FontSize="11" Foreground="#8888AA" VerticalAlignment="Center"/>
+                                                                            </Grid>
+                                                                        </Border>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                            <TextBlock Text="No artifacts added" FontSize="12" Foreground="#555555" IsVisible="{Binding !Artifacts.Count}"/>
+                                                        </StackPanel>
+
+                                                        <!-- Dependencies List -->
+                                                        <StackPanel Spacing="8">
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <TextBlock Text="Dependencies" FontWeight="SemiBold" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                                                                <Button Grid.Column="1"
+                                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddDependencyToReleaseCommand}"
+                                                                        CommandParameter="{Binding}"
+                                                                        ToolTip.Tip="Add Dependency"
+                                                                        Background="Transparent"
+                                                                        Padding="4,2"
+                                                                        CornerRadius="4">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                        <TextBlock Text="Add" FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
+                                                                    </StackPanel>
+                                                                </Button>
+                                                            </Grid>
+                                                            <ItemsControl ItemsSource="{Binding Dependencies}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <Border Background="#08FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,4">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                                <TextBlock Text="{Binding PublisherId}" Foreground="#888888" FontSize="12"/>
+                                                                                <TextBlock Text="/" Foreground="#444444"/>
+                                                                                <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
+                                                                                <TextBlock Text="{Binding VersionConstraint}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                            <TextBlock Text="No dependencies" FontSize="12" Foreground="#555555" IsVisible="{Binding !Dependencies.Count}"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Expander>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
+        </ScrollViewer>
+
+        <!-- No Selection State -->
+        <StackPanel Grid.Column="1"
+                    IsVisible="{Binding SelectedContent, Converter={x:Static ObjectConverters.IsNull}}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="24">
+            <Border Width="100" Height="100" CornerRadius="50" Background="#08FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
+                <PathIcon Data="{StaticResource ContentIcon}"
+                          Width="50" Height="50"
+                          Foreground="#20FFFFFF"
+                          VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="Select a content item to view details"
+                       FontSize="18"
+                       Foreground="#40FFFFFF"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

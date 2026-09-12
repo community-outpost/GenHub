@@ -1,0 +1,464 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:views="using:GenHub.Features.Tools.Views.PublisherStudio"
+             mc:Ignorable="d"
+             d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherStudioView"
+             x:DataType="vm:PublisherStudioViewModel"
+             x:Name="RootView">
+
+    <UserControl.Styles>
+        <!-- ==================== SURFACE & PANEL STYLES ==================== -->
+        <Style Selector="Border.studio-header-panel">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+        </Style>
+
+        <!-- ==================== NAVIGATION PILL STYLES ==================== -->
+        <Style Selector="Button.nav-pill">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.nav-pill:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.nav-pill.active">
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <!-- Glass Action Button (Header Top Right) -->
+        <Style Selector="Button.glass-btn-icon">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.glass-btn-icon:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+
+        <!-- Primary Gradient Button -->
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PSPrimaryGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn:disabled">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+
+        <!-- Status Badges -->
+        <Style Selector="Border.status-badge-warning">
+            <Setter Property="Background" Value="#20F59E0B"/>
+            <Setter Property="BorderBrush" Value="#40F59E0B"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+
+        <Style Selector="Border.status-badge-saved">
+            <Setter Property="Background" Value="#1522C55E"/>
+            <Setter Property="BorderBrush" Value="#3022C55E"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!-- Background radial glow overlay -->
+        <Canvas IsHitTestVisible="False">
+            <Ellipse Width="600" Height="600" Canvas.Left="-100" Canvas.Top="-100" Opacity="0.04"
+                     Fill="{DynamicResource AccentBrush}"/>
+        </Canvas>
+
+        <!-- Main Studio Shell: 3-row layout (Header, Content View Host, Status Bar) -->
+        <Grid RowDefinitions="Auto,*,Auto" Margin="24,16,24,16">
+
+            <!-- ==================== TOP NAVIGATION HEADER ==================== -->
+            <Border Grid.Row="0" Classes="studio-header-panel" Padding="14,10" Margin="0,0,0,16">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Left: Studio Branding & Title -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Border Width="34" Height="34" CornerRadius="8"
+                                Background="{DynamicResource PSPrimaryGradient}">
+                            <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="White"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Publisher Studio" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundColor}"
+                                        CornerRadius="4" Padding="5,1">
+                                    <TextBlock Text="CREATOR" FontSize="9" FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentLightColor}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Create, package, and distribute your mods" FontSize="11" Foreground="#6B7280"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Center: Navigation Pills -->
+                    <Border Grid.Column="1"
+                            HorizontalAlignment="Center"
+                            Background="#0DFFFFFF"
+                            BorderBrush="#1AFFFFFF"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="4">
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                            <!-- Publisher Profile -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="0"
+                                    ToolTip.Tip="Configure your publisher identity, branding, and contact links">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource PersonIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="Profile"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Content Library -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=1}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="1"
+                                    IsEnabled="{Binding IsSetupComplete}"
+                                    ToolTip.Tip="Manage mods, patches, maps, and downloadable content items">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource ContentIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="Content Library"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Hosting & Storage -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=2}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="2"
+                                    IsEnabled="{Binding IsSetupComplete}"
+                                    ToolTip.Tip="Configure cloud hosting providers and inspect storage usage">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="Hosting &amp; Storage"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Referrals -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=3}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="3"
+                                    IsEnabled="{Binding IsSetupComplete}"
+                                    ToolTip.Tip="Recommend other community publishers">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource LinkIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="Referrals"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Publish & Share -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=4}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="4"
+                                    IsEnabled="{Binding IsSetupComplete}"
+                                    ToolTip.Tip="Export, host, and publish your catalog">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource PublishIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="Publish &amp; Share"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Right: Catalog Selector + Project Actions -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <!-- Unsaved Changes Badge -->
+                        <Border IsVisible="{Binding HasUnsavedChanges}"
+                                Classes="status-badge-warning"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Ellipse Width="6" Height="6" Fill="#F59E0B"/>
+                                <TextBlock Text="Unsaved"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="#F59E0B"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Catalog Selector Dropdown with Rename, Add, Delete -->
+                        <Border Background="#10FFFFFF"
+                                BorderBrush="#20FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="8,4"
+                                IsVisible="{Binding IsSetupComplete}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource ContentIcon}"
+                                          Width="13" Height="13"
+                                          Foreground="{DynamicResource AccentColorBrush}"
+                                          VerticalAlignment="Center"/>
+                                <ComboBox SelectedItem="{Binding SelectedCatalog}"
+                                          ItemsSource="{Binding Catalogs}"
+                                          MinWidth="140"
+                                          Background="Transparent"
+                                          BorderThickness="0">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"/>
+                                                <TextBlock Text="{Binding Catalog.Content.Count, StringFormat='({0})'}"
+                                                           FontSize="11"
+                                                           Foreground="#888888"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <!-- Rename Catalog Button -->
+                                <Button Classes="glass-btn-icon"
+                                        Command="{Binding RenameCatalogCommand}"
+                                        ToolTip.Tip="Rename Selected Catalog"
+                                        Padding="5">
+                                    <PathIcon Data="{StaticResource EditIcon}"
+                                              Width="12" Height="12"
+                                              Foreground="{DynamicResource AccentColorBrush}"/>
+                                </Button>
+                                <!-- Add Catalog Button -->
+                                <Button Classes="glass-btn-icon"
+                                        Command="{Binding AddCatalogCommand}"
+                                        ToolTip.Tip="Add New Catalog"
+                                        Padding="5">
+                                    <PathIcon Data="{StaticResource AddIcon}"
+                                              Width="12" Height="12"
+                                              Foreground="{DynamicResource AccentColorBrush}"/>
+                                </Button>
+                                <!-- Delete Catalog Button -->
+                                <Button Classes="glass-btn-icon"
+                                        Command="{Binding RemoveCatalogCommand}"
+                                        CommandParameter="{Binding SelectedCatalog}"
+                                        IsEnabled="{Binding CanRemoveCatalog}"
+                                        ToolTip.Tip="Remove Catalog"
+                                        Padding="5">
+                                    <PathIcon Data="{StaticResource DeleteIcon}"
+                                              Width="12" Height="12"
+                                              Foreground="#FF6060"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <Rectangle Width="1" Height="22" Fill="#20FFFFFF" Margin="4,0" VerticalAlignment="Center"/>
+
+                        <!-- New Project Button -->
+                        <Button Classes="glass-btn-icon"
+                                Command="{Binding CreateNewProjectCommand}"
+                                ToolTip.Tip="Create New Project">
+                            <PathIcon Data="{StaticResource AddIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="#9CA3AF"/>
+                        </Button>
+
+                        <!-- Load Project Button -->
+                        <Button Classes="glass-btn-icon"
+                                Command="{Binding LoadProjectCommand}"
+                                ToolTip.Tip="Load Existing Project">
+                            <PathIcon Data="{StaticResource FolderOpenIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="#9CA3AF"/>
+                        </Button>
+
+                        <!-- Save Button -->
+                        <Button Classes="glass-btn-icon"
+                                Command="{Binding SaveProjectCommand}"
+                                IsEnabled="{Binding HasUnsavedChanges}"
+                                ToolTip.Tip="Save Project">
+                            <PathIcon Data="{StaticResource SaveIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="#9CA3AF"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ==================== MAIN CONTENT VIEW HOST ==================== -->
+            <Grid Grid.Row="1">
+                <!-- TabControl with hidden headers (controlled via top unified header pills) -->
+                <TabControl SelectedIndex="{Binding SelectedTabIndex}"
+                            Padding="0"
+                            Margin="0">
+                    <TabControl.Styles>
+                        <Style Selector="TabControl /template/ ItemsPresenter#PART_ItemsPresenter">
+                            <Setter Property="IsVisible" Value="False"/>
+                        </Style>
+                    </TabControl.Styles>
+                    <!-- Tab 0: Profile -->
+                    <TabItem>
+                        <views:PublisherProfileView DataContext="{Binding PublisherProfileViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 1: Content Library -->
+                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                        <views:ContentLibraryView DataContext="{Binding ContentLibraryViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 2: Hosting & Storage -->
+                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                        <views:HostingStorageView DataContext="{Binding PublishShareViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 3: Referrals -->
+                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                        <views:ReferralsView DataContext="{Binding ReferralsViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 4: Publish & Share -->
+                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                        <views:PublishShareView DataContext="{Binding PublishShareViewModel}"/>
+                    </TabItem>
+                </TabControl>
+
+                <!-- Setup Required Overlay (when navigating to other tabs before profile is saved) -->
+                <Border IsVisible="{Binding ShouldShowSetupOverlay}"
+                        Background="#E00F172A"
+                        IsHitTestVisible="{Binding ShouldShowSetupOverlay}">
+                    <Border Classes="studio-header-panel"
+                            Padding="36"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            MaxWidth="480">
+                        <StackPanel Spacing="20" HorizontalAlignment="Center">
+                            <Border Width="64" Height="64"
+                                    CornerRadius="16"
+                                    Background="{DynamicResource PrimaryGradientBrush}"
+                                    HorizontalAlignment="Center">
+                                <PathIcon Data="{StaticResource PersonIcon}"
+                                          Width="32" Height="32"
+                                          Foreground="White"/>
+                            </Border>
+
+                            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                <TextBlock Text="Publisher Setup Required"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="Configure your Publisher ID and Name in the Profile tab to unlock the content library and publishing features."
+                                           FontSize="13"
+                                           Foreground="#9CA3AF"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           MaxWidth="340"/>
+                            </StackPanel>
+
+                            <Button Classes="primary-btn"
+                                    HorizontalAlignment="Center"
+                                    Command="{Binding GoToProfileTabCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource PersonIcon}"
+                                              Width="14" Height="14"
+                                              Foreground="White"/>
+                                    <TextBlock Text="Configure Profile" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Border>
+            </Grid>
+
+            <!-- ==================== BOTTOM STATUS BAR ==================== -->
+            <Border Grid.Row="2"
+                    Background="{DynamicResource CardBackground}"
+                    CornerRadius="8,8,0,0"
+                    Padding="16,8"
+                    Margin="0,8,0,0"
+                    BorderThickness="1,1,1,0"
+                    BorderBrush="{DynamicResource BorderBrush}">
+                <Grid ColumnDefinitions="*,Auto,*">
+                    <!-- Left: Project Info -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Panel Width="8" Height="8">
+                            <!-- Green dot: shown when saved -->
+                            <Border Width="8" Height="8"
+                                    CornerRadius="4"
+                                    Background="#22C55E"
+                                    IsVisible="{Binding !HasUnsavedChanges}"/>
+                            <!-- Yellow dot with pulse: shown when unsaved -->
+                            <Border Width="8" Height="8"
+                                    CornerRadius="4"
+                                    Background="#F59E0B"
+                                    Classes.unsaved-pulse="{Binding HasUnsavedChanges}"
+                                    IsVisible="{Binding HasUnsavedChanges}"/>
+                        </Panel>
+                        <TextBlock Text="{Binding CurrentProject.ProjectName, FallbackValue='No project loaded'}"
+                                   FontSize="11"
+                                   FontWeight="Medium"
+                                   Foreground="#D1D5DB"/>
+                    </StackPanel>
+
+                    <!-- Center: Catalog Summary -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource ContentIcon}"
+                                      Width="12" Height="12"
+                                      Foreground="#6B7280"/>
+                            <TextBlock Text="{Binding Catalogs.Count, StringFormat='{}{0} catalogs'}"
+                                       FontSize="11"
+                                       Foreground="#9CA3AF"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Right: Status Message -->
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding StatusMessage}"
+                               FontSize="11"
+                               Foreground="#888899"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

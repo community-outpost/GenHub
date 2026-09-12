@@ -8,12 +8,12 @@ namespace GenHub.Core.Models.Tools;
 /// </summary>
 public class ToolMetadata
 {
+    private string _version = string.Empty;
+
     /// <summary>
     /// Gets or sets the unique identifier for the tool.
     /// </summary>
     public required string Id { get; set; }
-
-    private string _version = string.Empty;
 
     /// <summary>
     /// Gets or sets the display name of the tool.
@@ -48,6 +48,11 @@ public class ToolMetadata
     /// Gets or sets a value indicating whether the tool is bundled with the application and cannot be removed.
     /// </summary>
     public bool IsBundled { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the tool should be displayed in full screen mode (hiding default headers/margins).
+    /// </summary>
+    public bool IsFullScreen { get; set; }
 
     /// <summary>
     /// Gets or sets the tags/categories for the tool.

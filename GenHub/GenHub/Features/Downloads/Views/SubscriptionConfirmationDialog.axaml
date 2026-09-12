@@ -51,7 +51,6 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
         <Style Selector="Button.filter-chip:pointerover">
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
@@ -59,31 +58,30 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="Button.filter-chip-selected">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,0,6,4"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="Bold"/>
         </Style>
         <Style Selector="Button.filter-chip-selected:pointerover">
-            <Setter Property="Opacity" Value="0.9"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
     </Window.Styles>
 
-    <!-- Main Window Root with Acrylic Backdrop and Seamless Edge -->
-    <Border Background="{DynamicResource CardBackground}"
-            BorderBrush="{DynamicResource BorderBrush}"
+    <Border BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1"
             CornerRadius="16"
             ClipToBounds="True">
         <Panel>
-            <!-- Background Overlay for Glassmorphism -->
-            <ExperimentalAcrylicBorder IsHitTestVisible="False" CornerRadius="16">
+            <!-- Background Acrylic -->
+            <ExperimentalAcrylicBorder IsHitTestVisible="False">
                 <ExperimentalAcrylicBorder.Material>
                     <ExperimentalAcrylicMaterial
                         BackgroundSource="Digger"
@@ -117,8 +115,8 @@
                                     VerticalAlignment="Center"
                                     IsVisible="{Binding IsAlreadySubscribed}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <TextBlock Text="✓" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="Bold" />
-                                    <TextBlock Text="Already in Library" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                                    <PathIcon Data="{StaticResource CheckmarkIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="Already in Library" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Border>
 
@@ -129,7 +127,10 @@
                                     Padding="8,2"
                                     VerticalAlignment="Center"
                                     IsVisible="{Binding !IsAlreadySubscribed}">
-                                <TextBlock Text="+ New Catalog" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="New Catalog" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </StackPanel>
                             </Border>
                         </StackPanel>
                         <TextBlock Text="Review publisher identity and offered content before adding to your library"
@@ -147,12 +148,11 @@
                             Padding="0"
                             Width="32" Height="32"
                             Click="CloseButton_Click">
-                        <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                              Fill="{Binding $parent[Button].Foreground}"
-                              Width="12" Height="12"
-                              Stretch="Uniform"
-                              VerticalAlignment="Center"
-                              HorizontalAlignment="Center" />
+                        <PathIcon Data="{StaticResource CloseIcon}"
+                                  Foreground="{Binding $parent[Button].Foreground}"
+                                  Width="12" Height="12"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center" />
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
                                 <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
@@ -189,7 +189,7 @@
                             HorizontalAlignment="Center"
                             MaxWidth="540">
                         <StackPanel Spacing="14" HorizontalAlignment="Center">
-                            <TextBlock Text="⚠" Foreground="{DynamicResource ErrorBrush}" FontSize="36" HorizontalAlignment="Center" />
+                            <PathIcon Data="{StaticResource ErrorIcon}" Foreground="{DynamicResource ErrorBrush}" Width="36" Height="36" HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding ErrorTitle}"
                                        Foreground="{DynamicResource ErrorBrush}"
                                        FontWeight="Bold"
@@ -201,57 +201,52 @@
                                        TextAlignment="Center"
                                        FontSize="13"
                                        LineHeight="18" />
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="0,8,0,0">
-                                <Button Content="Retry"
-                                        Command="{Binding InitializeCommand}"
-                                        Background="{DynamicResource AccentBrush}"
-                                        Foreground="White"
-                                        FontWeight="Bold"
-                                        Padding="20,8"
-                                        CornerRadius="8" />
-                                <Button Content="Close"
-                                        Command="{Binding CancelCommand}"
-                                        Background="{DynamicResource SurfaceElevatedBrush}"
-                                        Foreground="{DynamicResource TextPrimary}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        Padding="20,8"
-                                        CornerRadius="8" />
-                            </StackPanel>
+                            <Button Content="Close"
+                                    Command="{Binding CancelCommand}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}"
+                                    Foreground="{DynamicResource TextPrimary}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    Padding="24,8"
+                                    CornerRadius="8"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,8,0,0" />
                         </StackPanel>
                     </Border>
 
-                    <!-- State C: Catalog Loaded Successfully (Grid expands dynamically) -->
+                    <!-- State C: Ready / Loaded Preview Grid -->
                     <Grid IsVisible="{Binding ShowDetails}" RowDefinitions="Auto, Auto, *, Auto">
-                        <!-- Section 0: Publisher Profile Card -->
+                        <!-- Section 0: Publisher Overview Header Card -->
                         <Border Grid.Row="0"
-                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                Background="{DynamicResource CardBackground}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="12"
-                                Padding="14,12"
+                                Padding="16"
                                 Margin="0,0,0,10">
                             <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto">
-                                <!-- Publisher Avatar (Column 0) -->
+                                <!-- Publisher Avatar (Column 0, RowSpan 2) -->
                                 <Border Grid.Column="0" Grid.RowSpan="2"
-                                        Width="64" Height="64"
-                                        CornerRadius="32"
-                                        BorderBrush="{DynamicResource AccentBrush}"
-                                        BorderThickness="2"
+                                        Width="52" Height="52"
+                                        CornerRadius="26"
                                         ClipToBounds="True"
+                                        BorderBrush="{DynamicResource BorderHighlightBrush}"
+                                        BorderThickness="1.5"
+                                        Background="{DynamicResource SurfaceElevatedBrush}"
                                         Margin="0,0,14,0"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource CardBackground}">
+                                        VerticalAlignment="Top">
                                     <Panel>
-                                        <!-- Fallback Initial Text -->
-                                        <TextBlock Text="{Binding PublisherInitial}"
-                                                   FontSize="26"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource AccentBrush}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" />
-
-                                        <!-- Loaded Avatar Image -->
+                                        <!-- Placeholder when no avatar -->
+                                        <Border Background="{DynamicResource PrimaryGradientBrush}"
+                                                IsVisible="{Binding PublisherAvatarUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                            <TextBlock Text="{Binding PublisherInitial}"
+                                                       FontSize="22"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <!-- Remote Avatar Image via ImageLoader -->
                                         <Image infraControls:ImageLoader.Source="{Binding PublisherAvatarUrl}"
                                                Stretch="UniformToFill" />
                                     </Panel>
@@ -273,7 +268,7 @@
                                                 ToolTip.Tip="{Binding PublisherWebsite}"
                                                 IsVisible="{Binding PublisherWebsite, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <TextBlock Text="🌐" FontSize="11" />
+                                                <PathIcon Data="{StaticResource WebIcon}" Width="11" Height="11" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                 <TextBlock Text="Website" FontWeight="SemiBold" />
                                             </StackPanel>
                                         </Button>
@@ -285,7 +280,7 @@
                                                 ToolTip.Tip="{Binding PublisherSupportUrl}"
                                                 IsVisible="{Binding PublisherSupportUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <TextBlock Text="💬" FontSize="11" />
+                                                <PathIcon Data="{StaticResource ChatIcon}" Width="11" Height="11" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                 <TextBlock Text="Support &amp; Issues" FontWeight="SemiBold" />
                                             </StackPanel>
                                         </Button>
@@ -297,7 +292,7 @@
                                                 ToolTip.Tip="{Binding PublisherContactEmail}"
                                                 IsVisible="{Binding PublisherContactEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <TextBlock Text="✉" FontSize="11" />
+                                                <PathIcon Data="{StaticResource EmailIcon}" Width="11" Height="11" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                 <TextBlock Text="Contact" FontWeight="SemiBold" />
                                             </StackPanel>
                                         </Button>
@@ -311,7 +306,7 @@
                                             BorderThickness="1"
                                             CornerRadius="10" Padding="8,3" Margin="0,0,6,4">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="📦" FontSize="10" />
+                                            <PathIcon Data="{StaticResource PackageIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding ContentCount, StringFormat='{}{0} Offered Items'}"
                                                        FontSize="11"
                                                        FontWeight="Bold"
@@ -355,7 +350,7 @@
                                             BorderBrush="{DynamicResource AccentBrush}"
                                             BorderThickness="1"
                                             CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding FilteredContentItems.Count, StringFormat='Showing {0} items'}"
+                                        <TextBlock Text="{Binding FilteredContentItems.Count, StringFormat='Showing {0} items'}\"
                                                    FontSize="11"
                                                    FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextPrimary}" />
@@ -471,7 +466,7 @@
                                 Margin="0,8,0,0">
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                    <TextBlock Text="⚠" Foreground="{DynamicResource WarningBrush}" FontSize="13" VerticalAlignment="Center" />
+                                    <PathIcon Data="{StaticResource WarningIcon}" Foreground="{DynamicResource WarningBrush}" Width="13" Height="13" VerticalAlignment="Center" />
                                     <TextBlock Text="Community Source: Only subscribe to publishers you trust."
                                                Foreground="{DynamicResource TextPrimary}"
                                                FontSize="11"
@@ -502,7 +497,7 @@
                         Padding="14,10"
                         Margin="0,10,0,0">
                     <Grid ColumnDefinitions="Auto, *, Auto">
-                        <TextBlock Grid.Column="0" Text="⚠" Foreground="{DynamicResource ErrorBrush}" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <PathIcon Grid.Column="0" Data="{StaticResource ErrorIcon}" Foreground="{DynamicResource ErrorBrush}" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="{Binding ErrorTitle}" Foreground="{DynamicResource ErrorBrush}" FontWeight="Bold" FontSize="12" />
                             <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" />
@@ -510,13 +505,12 @@
                         <Button Grid.Column="2"
                                 Command="{Binding DismissErrorCommand}"
                                 Background="Transparent"
-                                Foreground="{DynamicResource TextSecondary}"
                                 BorderThickness="0"
                                 Padding="6,2"
                                 Margin="8,0,0,0"
                                 VerticalAlignment="Top"
                                 Cursor="Hand">
-                            <TextBlock Text="✕" FontSize="12" FontWeight="Bold" />
+                            <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                         </Button>
                     </Grid>
                 </Border>

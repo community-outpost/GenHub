@@ -21,10 +21,26 @@ public class PublisherProfile
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the publisher's description.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
     /// Gets or sets the publisher's website URL.
     /// </summary>
     [JsonPropertyName("website")]
     public string? Website { get; set; }
+
+    /// <summary>
+    /// Gets or sets the publisher's website URL (alias for <see cref="Website"/>).
+    /// </summary>
+    [JsonIgnore]
+    public string? WebsiteUrl
+    {
+        get => Website;
+        set => Website = value;
+    }
 
     /// <summary>
     /// Gets or sets the publisher's avatar/logo URL.

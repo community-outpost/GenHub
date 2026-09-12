@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Helpers;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -69,7 +70,9 @@ public static class CatalogDocumentReader
             return await ReadStreamWithLimitAsync(localStream, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
         }
 
-        if (!Uri.TryCreate(catalogLocation, UriKind.Absolute, out var uri) ||
+        var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogLocation);
+
+        if (!Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps)
         {
             throw new ArgumentException(
@@ -94,7 +97,7 @@ public static class CatalogDocumentReader
         if (Path.IsPathFullyQualified(catalogLocation))
         {
             // Reject UNC paths (\\server\share or //server/share) to prevent SSRF / SMB access
-            if (catalogLocation.StartsWith(@"\\", StringComparison.Ordinal) ||
+            if (catalogLocation.StartsWith(@"\", StringComparison.Ordinal) ||
                 catalogLocation.StartsWith("//", StringComparison.Ordinal))
             {
                 return null;

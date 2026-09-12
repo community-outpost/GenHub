@@ -1,0 +1,204 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             mc:Ignorable="d"
+             d:DesignWidth="900" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherProfileView"
+             x:DataType="vm:PublisherProfileViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="SelectionForegroundBrush" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#35FFFFFF"/>
+        </Style>
+
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#D1D5DB"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="TextBlock.field-hint">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+        </Style>
+        <Style Selector="TextBlock.required">
+            <Setter Property="Foreground" Value="#EF4444"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style Selector="Border.glass-card">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="24,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <Border Classes="glass-card"
+                Padding="24"
+                Margin="16"
+                HorizontalAlignment="Center"
+                MaxWidth="840">
+            <StackPanel Spacing="16">
+                <!-- Compact Header -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Border Width="36" Height="36"
+                                CornerRadius="10"
+                                Background="{DynamicResource PrimaryGradientBrush}"
+                                VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource PersonIcon}"
+                                      Width="18" Height="18"
+                                      Foreground="White"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="Publisher Profile &amp; Identity"
+                                       FontSize="16" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Configure public identity, support links, and metadata"
+                                       FontSize="11" Foreground="#9CA3AF"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Save Profile Button in Header / Top Right -->
+                    <Button Grid.Column="2"
+                            Classes="primary-btn"
+                            Command="{Binding SaveProfileCommand}"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource SaveIcon}" Width="14" Height="14" Foreground="White"/>
+                            <TextBlock Text="Save Profile" FontWeight="SemiBold" FontSize="13"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Status Feedback Banner (if any) -->
+                <Border Background="#1522C55E"
+                        BorderBrush="#3022C55E"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12,6"
+                        IsVisible="{Binding IsSavedSuccessfully}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource CheckmarkIcon}" Width="14" Height="14" Foreground="#22C55E"/>
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#22C55E" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <Rectangle Height="1" Fill="#15FFFFFF"/>
+
+                <!-- 2-Column Fields Grid -->
+                <Grid ColumnDefinitions="*,16,*" RowDefinitions="Auto,12,Auto,12,Auto">
+                    <!-- Row 0: Publisher ID & Display Name -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Publisher ID" Classes="field-label"/>
+                            <TextBlock Text="*" Classes="required"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding PublisherId, Mode=TwoWay}"
+                                 Watermark="e.g. community-outpost"/>
+                        <TextBlock Text="Lowercase letters, numbers, and hyphens" Classes="field-hint"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Display Name" Classes="field-label"/>
+                            <TextBlock Text="*" Classes="required"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding PublisherName, Mode=TwoWay}"
+                                 Watermark="e.g. Community-Outpost"/>
+                        <TextBlock Text="Public display name shown in GenHub" Classes="field-hint"/>
+                    </StackPanel>
+
+                    <!-- Row 2: Website & Contact Email -->
+                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
+                        <TextBlock Text="Website URL" Classes="field-label"/>
+                        <TextBox Text="{Binding WebsiteUrl, Mode=TwoWay}"
+                                 Watermark="https://community-outpost.org"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.Column="2" Spacing="4">
+                        <TextBlock Text="Contact Email" Classes="field-label"/>
+                        <TextBox Text="{Binding ContactEmail, Mode=TwoWay}"
+                                 Watermark="contact@community-outpost.org"/>
+                    </StackPanel>
+
+                    <!-- Row 4: Support URL & Avatar URL -->
+                    <StackPanel Grid.Row="4" Grid.Column="0" Spacing="4">
+                        <TextBlock Text="Support / Discord URL" Classes="field-label"/>
+                        <TextBox Text="{Binding SupportUrl, Mode=TwoWay}"
+                                 Watermark="https://discord.gg/yourserver"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Grid.Column="2" Spacing="4">
+                        <TextBlock Text="Avatar URL" Classes="field-label"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding AvatarUrl, Mode=TwoWay}"
+                                     Watermark="https://example.com/logo.png"/>
+                            <Border Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    Width="34" Height="34"
+                                    CornerRadius="17"
+                                    Background="#15FFFFFF"
+                                    BorderBrush="#25FFFFFF"
+                                    BorderThickness="1"
+                                    ClipToBounds="True">
+                                <Image Source="{Binding AvatarUrl, Converter={StaticResource StringToImageConverter}}"
+                                       Stretch="UniformToFill"/>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+
+                <Rectangle Height="1" Fill="#15FFFFFF"/>
+
+                <!-- Tags & Description -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Tags (Comma Separated)" Classes="field-label"/>
+                    <TextBox Text="{Binding TagsString, Mode=TwoWay}"
+                             Watermark="maps, zero-hour, mods, patches"/>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Publisher Description" Classes="field-label"/>
+                    <TextBox Text="{Binding Description, Mode=TwoWay}"
+                             Watermark="Describe your team, community, or mods..."
+                             AcceptsReturn="True"
+                             Height="70"
+                             TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>
