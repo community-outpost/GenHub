@@ -115,7 +115,7 @@ public class HotkeyPackageService(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var baseCsf = LoadBaseCsf(profile);
+        var baseCsf = LoadBaseCsf();
 
         // Strip explicitly cleared hotkeys (both primary label and linked shortcut aliases)
         foreach (var label in profile.ClearedKeys)
@@ -250,16 +250,13 @@ public class HotkeyPackageService(
 
     /// <summary>
     /// Loads the base CSF template for a given profile.
-    /// Prefers the Leikeze English reference preset (Presets/LeikezeEN.csf),
-    /// which provides the reference English layout used across the editor.
+    /// Always uses the English reference preset (Presets/LeikezeEN.csf) as the base string table
+    /// so the game language remains English in Data/English/generals.csf regardless of which
+    /// preset layout (Vanilla, Leikeze, or Legionnaire) was selected.
     /// </summary>
-    private static CsfFile LoadBaseCsf(HotkeyProfile profile)
+    private static CsfFile LoadBaseCsf()
     {
-        var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
-            ? GenHotkeysConstants.PresetsLegionnaireRu
-            : GenHotkeysConstants.PresetsLeikezeEn;
-
-        var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetFile);
+        var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
         if (stream != null)
         {
             using (stream)
@@ -268,7 +265,7 @@ public class HotkeyPackageService(
             }
         }
 
-        throw new FileNotFoundException($"Base CSF preset '{presetFile}' could not be loaded. Ensure GenHotkeys assets are present.");
+        throw new FileNotFoundException($"Base CSF preset '{GenHotkeysConstants.PresetsLeikezeEn}' could not be loaded. Ensure GenHotkeys assets are present.");
     }
 
     private static void TryDeleteDirectory(string path)
