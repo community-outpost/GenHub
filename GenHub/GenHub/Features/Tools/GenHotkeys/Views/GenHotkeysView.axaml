@@ -566,14 +566,17 @@
                       IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}"
                       HorizontalAlignment="Stretch"
                       HorizontalContentAlignment="Center"
-                      MinHeight="32"
+                      MinHeight="38"
                       Margin="0,6,0,0"
-                      Padding="8,5"
+                      Padding="10,6"
                       ToolTip.Tip="Apply this hotkey to all matching actions across all armies">
                 <TextBlock Text="{Binding ApplyToAllButtonText}"
                            TextWrapping="Wrap"
                            TextAlignment="Center"
                            FontSize="11"
+                           FontWeight="Medium"
+                           LineHeight="15"
+                           Margin="6,2"
                            MaxLines="2"
                            TextTrimming="CharacterEllipsis"/>
               </Button>

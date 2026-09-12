@@ -761,7 +761,7 @@ public partial class GenHotkeysViewModel(
             if (currentIndex < 0)
             {
                 currentIndex = allConflicts.FindIndex(c =>
-                    (currentFaction == null || c.Faction == currentFaction) &&
+                    (currentFaction == null || string.Equals(c.Faction.ShortName, currentFaction.ShortName, StringComparison.OrdinalIgnoreCase)) &&
                     string.Equals(c.GameObjectName, currentObjName, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase));
             }
@@ -785,9 +785,10 @@ public partial class GenHotkeysViewModel(
         }
 
         // 1. Switch faction if target is in a different faction
-        if (SelectedFaction != target.Faction && _allFactions.Contains(target.Faction))
+        if (!string.Equals(SelectedFaction?.ShortName, target.Faction.ShortName, StringComparison.OrdinalIgnoreCase))
         {
-            SelectedFaction = target.Faction;
+            var matchingFaction = _allFactions.FirstOrDefault(f => string.Equals(f.ShortName, target.Faction.ShortName, StringComparison.OrdinalIgnoreCase)) ?? target.Faction;
+            SelectedFaction = matchingFaction;
         }
 
         // 2. If target object is not currently visible in FilteredGameObjects, reset category filter
