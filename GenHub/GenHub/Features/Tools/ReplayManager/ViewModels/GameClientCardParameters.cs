@@ -15,6 +15,7 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="ExecutablePath">The executable path.</param>
 /// <param name="Description">The description.</param>
 /// <param name="OnSelect">Callback when the client card is selected.</param>
+/// <param name="IsCrcMatch">Whether this client matches the replay CRC requirements.</param>
 public sealed record GameClientCardParameters(
     GameClient Client,
     string? ManifestId,
@@ -24,4 +25,5 @@ public sealed record GameClientCardParameters(
     string Category,
     string ExecutablePath,
     string Description,
-    Action<GameClientCardViewModel> OnSelect);
+    Action<GameClientCardViewModel> OnSelect,
+    bool IsCrcMatch = false);

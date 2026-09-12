@@ -190,11 +190,30 @@ public sealed partial class ProfileSelectionViewModel(
     /// <param name="additionalManifestIds">Additional acquired manifest IDs to enable with the primary item (bundle members).</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task LoadProfilesAsync(
+    public Task LoadProfilesAsync(
         GameType targetGame,
         string? contentManifestId = null,
         string? contentName = null,
         IReadOnlyList<string>? additionalManifestIds = null,
+        CancellationToken ct = default)
+        => LoadProfilesAsync(targetGame, contentManifestId, contentName, additionalManifestIds, compatibleProfileIds: null, ct);
+
+    /// <summary>
+    /// Filters profiles by compatibility with target game and optional explicit compatible profile IDs.
+    /// </summary>
+    /// <param name="targetGame">The target game type for compatibility.</param>
+    /// <param name="contentManifestId">The optional content manifest ID to be added.</param>
+    /// <param name="contentName">The optional content name for display.</param>
+    /// <param name="additionalManifestIds">Additional acquired manifest IDs to enable with the primary item (bundle members).</param>
+    /// <param name="compatibleProfileIds">Optional explicit set of compatible profile IDs.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task LoadProfilesAsync(
+        GameType targetGame,
+        string? contentManifestId,
+        string? contentName,
+        IReadOnlyList<string>? additionalManifestIds,
+        ISet<string>? compatibleProfileIds,
         CancellationToken ct = default)
     {
         TargetGame = targetGame;
@@ -235,17 +254,42 @@ public sealed partial class ProfileSelectionViewModel(
             {
                 var option = new ProfileOptionViewModel(profile, contentNames);
 
-                // Check if profile's game type matches content's target game
-                if (IsCompatible(profile, targetGame))
+                bool isMatch;
+                if (compatibleProfileIds != null)
+                {
+                    isMatch = compatibleProfileIds.Contains(profile.Id);
+                    if (!isMatch)
+                    {
+                        option.ShowWarning = true;
+                        if (profile.GameClient?.GameType != targetGame)
+                        {
+                            var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
+                            option.WarningMessage = $"This profile is for {profileGameType}, content is for {targetGame}";
+                        }
+                        else
+                        {
+                            option.WarningMessage = "Profile game client / patch does not match replay CRC requirements";
+                        }
+                    }
+                }
+                else
+                {
+                    isMatch = IsCompatible(profile, targetGame);
+                    if (!isMatch)
+                    {
+                        option.ShowWarning = true;
+                        var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
+                        option.WarningMessage = $"This profile is for {profileGameType}, content is for {targetGame}";
+                    }
+                }
+
+                if (isMatch)
                 {
                     CompatibleProfiles.Add(option);
                     CompatibleProfileCards.Add(option);
                 }
                 else
                 {
-                    option.ShowWarning = true;
-                    var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
-                    option.WarningMessage = $"This profile is for {profileGameType}, content is for {targetGame}";
                     OtherProfiles.Add(option);
                 }
             }

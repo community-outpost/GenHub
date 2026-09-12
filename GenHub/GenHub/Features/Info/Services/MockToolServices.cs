@@ -226,6 +226,14 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     }
 
     /// <inheritdoc/>
+    public Task<IReadOnlyList<GameProfile>> GetCompatibleProfilesForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default)
+    {
+        return Task.FromResult<IReadOnlyList<GameProfile>>(Array.Empty<GameProfile>());
+    }
+
+    /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
         ReplayFile replay,
         CancellationToken ct = default)

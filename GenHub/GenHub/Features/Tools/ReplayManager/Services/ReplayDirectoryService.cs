@@ -183,6 +183,38 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<GameProfile>> GetCompatibleProfilesForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+
+        using var scope = scopeFactory.CreateScope();
+        var profileManager = scope.ServiceProvider.GetService<IGameProfileManager>();
+        if (profileManager == null)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        var profilesResult = await profileManager.GetAllProfilesAsync(ct);
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
+        var dataPatchManifestId = replay.MatchedClient?.DataPatchManifestId;
+
+        return FindCompatibleProfiles(
+            profilesResult.Data,
+            replay.GameVersion,
+            clientManifestId,
+            dataPatchManifestId,
+            replay,
+            logger);
+    }
+
+    /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
         ReplayFile replay,
         CancellationToken ct = default)
@@ -371,13 +403,7 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
-    /// Finds the best matching profile for a replay file from a list of profiles based on game version, client manifest ID, and patch ID.
-    /// Uses deterministic scoring and tie-breaking:
-    /// 1. Dedicated replay profile (description or name matches current replay filename) gets highest priority (+1000).
-    /// 2. General profiles get next priority (+500) over auto-created profiles dedicated to other replays.
-    /// 3. Exact client manifest match gets +50.
-    /// 4. Exact data patch match gets +25.
-    /// 5. Ties are broken alphabetically by profile Name, then by profile Id.
+    /// Finds all compatible game profiles for the specified replay criteria, sorted by candidate score descending.
     /// </summary>
     /// <param name="profiles">The candidate game profiles.</param>
     /// <param name="gameVersion">The game version required by the replay.</param>
@@ -385,8 +411,8 @@ public sealed class ReplayDirectoryService(
     /// <param name="dataPatchManifestId">The data patch manifest ID if any.</param>
     /// <param name="replay">The replay file being matched, if available.</param>
     /// <param name="logger">Optional logger for diagnostic warnings.</param>
-    /// <returns>The best matching <see cref="GameProfile"/> if found; otherwise, <c>null</c>.</returns>
-    internal static GameProfile? FindMatchingProfile(
+    /// <returns>A sorted list of compatible <see cref="GameProfile"/> instances.</returns>
+    internal static List<GameProfile> FindCompatibleProfiles(
         IEnumerable<GameProfile> profiles,
         GameType gameVersion,
         string clientManifestId,
@@ -421,18 +447,40 @@ public sealed class ReplayDirectoryService(
                 : IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId, replay?.MatchedClient?.Version);
         }).ToList();
 
-        if (compatibleCandidates.Count == 0)
-        {
-            return null;
-        }
-
         return compatibleCandidates
             .Select(p => new { Profile = p, Score = ScoreCandidateProfile(p, clientManifestId, dataPatchManifestId, replay, logger) })
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.Profile.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.Profile.Id, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.Profile)
-            .First();
+            .ToList();
+    }
+
+    /// <summary>
+    /// Finds the best matching profile for a replay file from a list of profiles based on game version, client manifest ID, and patch ID.
+    /// Uses deterministic scoring and tie-breaking:
+    /// 1. Dedicated replay profile (description or name matches current replay filename) gets highest priority (+1000).
+    /// 2. General profiles get next priority (+500) over auto-created profiles dedicated to other replays.
+    /// 3. Exact client manifest match gets +50.
+    /// 4. Exact data patch match gets +25.
+    /// 5. Ties are broken alphabetically by profile Name, then by profile Id.
+    /// </summary>
+    /// <param name="profiles">The candidate game profiles.</param>
+    /// <param name="gameVersion">The game version required by the replay.</param>
+    /// <param name="clientManifestId">The client manifest ID.</param>
+    /// <param name="dataPatchManifestId">The data patch manifest ID if any.</param>
+    /// <param name="replay">The replay file being matched, if available.</param>
+    /// <param name="logger">Optional logger for diagnostic warnings.</param>
+    /// <returns>The best matching <see cref="GameProfile"/> if found; otherwise, <c>null</c>.</returns>
+    internal static GameProfile? FindMatchingProfile(
+        IEnumerable<GameProfile> profiles,
+        GameType gameVersion,
+        string clientManifestId,
+        string? dataPatchManifestId = null,
+        ReplayFile? replay = null,
+        ILogger? logger = null)
+    {
+        return FindCompatibleProfiles(profiles, gameVersion, clientManifestId, dataPatchManifestId, replay, logger).FirstOrDefault();
     }
 
     /// <summary>
@@ -1927,6 +1975,8 @@ public sealed class ReplayDirectoryService(
         CancellationToken ct)
     {
         logger.LogInformation("Downloading and acquiring client manifest {ManifestId} from {Publisher}...", matchedClient.ManifestId, matchedClient.Publisher);
+        ContentSearchResult? match = null;
+
         var searchQuery = new ContentSearchQuery
         {
             ProviderName = matchedClient.Publisher,
@@ -1934,14 +1984,54 @@ public sealed class ReplayDirectoryService(
             TargetGame = gameVersion,
         };
         var searchResult = await contentOrchestrator.SearchAsync(searchQuery, ct);
-        if (searchResult?.Success != true || searchResult.Data == null)
+        if (searchResult?.Success == true && searchResult.Data != null)
         {
-            return;
+            match = FindBestMatchingContentSearchResult(searchResult.Data, matchedClient);
         }
 
-        var match = FindBestMatchingContentSearchResult(searchResult.Data, matchedClient);
+        if (match == null && !string.IsNullOrWhiteSpace(matchedClient.CdnUrl))
+        {
+            var isGeneralsOnline = string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
+            string contentId;
+            if (isGeneralsOnline)
+            {
+                contentId = $"GeneralsOnline_{matchedClient.Version}";
+            }
+            else if (!string.IsNullOrWhiteSpace(matchedClient.ManifestId))
+            {
+                contentId = matchedClient.ManifestId;
+            }
+            else
+            {
+                contentId = $"Client_{matchedClient.Publisher}_{matchedClient.Version}";
+            }
+
+            match = new ContentSearchResult
+            {
+                Id = contentId,
+                Name = matchedClient.Description ?? $"{matchedClient.Publisher} {matchedClient.Version}",
+                Version = matchedClient.Version ?? string.Empty,
+                ProviderName = matchedClient.Publisher,
+                ContentType = ContentType.GameClient,
+                TargetGame = gameVersion,
+                RequiresResolution = isGeneralsOnline,
+                ResolverId = isGeneralsOnline ? GeneralsOnlineConstants.ResolverId : string.Empty,
+                SelectedDownloadUrl = matchedClient.CdnUrl,
+            };
+
+            logger.LogInformation(
+                "[ReplayManager] Synthesized acquisition search result for {Publisher} {Version} using CDN URL: {CdnUrl}",
+                matchedClient.Publisher,
+                matchedClient.Version,
+                matchedClient.CdnUrl);
+        }
+
         if (match == null)
         {
+            logger.LogWarning(
+                "[ReplayManager] Could not find or synthesize downloadable content result for {Publisher} {Version}",
+                matchedClient.Publisher,
+                matchedClient.Version);
             return;
         }
 

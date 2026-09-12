@@ -43,6 +43,16 @@ public sealed class ReplayFile : IExportableFile
     public ReplayMetadata? Metadata { get; set; }
 
     /// <summary>
+    /// Gets the executable CRC from the replay metadata, if available.
+    /// </summary>
+    public uint? ExeCrc => Metadata?.ExeCrc;
+
+    /// <summary>
+    /// Gets the INI configuration CRC from the replay metadata, if available.
+    /// </summary>
+    public uint? IniCrc => Metadata?.IniCrc;
+
+    /// <summary>
     /// Gets or sets the compatibility status against known and installed game clients.
     /// </summary>
     public ReplayCompatibilityStatus CompatibilityStatus { get; set; } = ReplayCompatibilityStatus.Unknown;
@@ -66,6 +76,26 @@ public sealed class ReplayFile : IExportableFile
     /// Gets the formatted file size string.
     /// </summary>
     public string FormattedSize => FormatFileSize(SizeInBytes);
+
+    /// <summary>
+    /// Gets a value indicating whether this replay is ready to play with an existing compatible profile.
+    /// </summary>
+    public bool CanPlay => CompatibilityStatus == ReplayCompatibilityStatus.Compatible && !string.IsNullOrEmpty(MatchingProfileId);
+
+    /// <summary>
+    /// Gets a value indicating whether this replay requires downloading game content before it can be played.
+    /// </summary>
+    public bool IsDownloadRequired => CompatibilityStatus == ReplayCompatibilityStatus.Downloadable;
+
+    /// <summary>
+    /// Gets a value indicating whether a game client is installed, but a profile needs to be created.
+    /// </summary>
+    public bool IsProfileNeeded => CompatibilityStatus == ReplayCompatibilityStatus.RequiresProfile;
+
+    /// <summary>
+    /// Gets a value indicating whether this replay is unmapped or custom.
+    /// </summary>
+    public bool IsOrphaned => CompatibilityStatus == ReplayCompatibilityStatus.Orphaned;
 
     /// <summary>
     /// Gets the user-facing display text for the game client and data patch version.

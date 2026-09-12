@@ -194,7 +194,7 @@ public sealed class CrcMappingRegistryTests
                     ExeCrc = "0xAAAAAAAA",
                     IniCrc = "0x33333333",
                     ManifestId = "1.0.retail.gameclient.zerohour",
-                    Publisher = "retail",
+                    Publisher = PublisherTypeConstants.Retail,
                     GameType = "ZeroHour",
                     BuildDate = "2026-09-01",
                     Version = "1.0",
@@ -233,6 +233,8 @@ public sealed class CrcMappingRegistryTests
         };
 
         registry.LoadCatalog(catalog);
+
+        Assert.Equal(6, registry.GetAllEntries().Count);
 
         Assert.True(registry.TryGetEntryByExeCrc("0xB9DB8815", out var found));
         Assert.NotNull(found);

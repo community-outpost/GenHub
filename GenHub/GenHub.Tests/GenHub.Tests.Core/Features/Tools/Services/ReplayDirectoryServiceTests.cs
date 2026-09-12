@@ -355,6 +355,7 @@ public sealed class ReplayDirectoryServiceTests
             LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
             CompatibilityStatus = ReplayCompatibilityStatus.Compatible,
+            MatchingProfileId = "zh-sh",
             MatchingProfileName = "ZH SuperHackers",
         };
         Assert.Equal("Ready to Play", compatibleReplay.CompatibilityBadgeText);
@@ -410,6 +411,86 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.Unknown,
         };
         Assert.Equal("Unknown", unknownReplay.CompatibilityBadgeText);
+
+        // Verify computed convenience properties
+        Assert.True(compatibleReplay.CanPlay);
+        Assert.False(compatibleReplay.IsDownloadRequired);
+        Assert.False(compatibleReplay.IsProfileNeeded);
+        Assert.False(compatibleReplay.IsOrphaned);
+
+        Assert.False(requiresProfileReplay.CanPlay);
+        Assert.False(requiresProfileReplay.IsDownloadRequired);
+        Assert.True(requiresProfileReplay.IsProfileNeeded);
+        Assert.False(requiresProfileReplay.IsOrphaned);
+
+        Assert.False(downloadableReplay.CanPlay);
+        Assert.True(downloadableReplay.IsDownloadRequired);
+        Assert.False(downloadableReplay.IsProfileNeeded);
+        Assert.False(downloadableReplay.IsOrphaned);
+
+        Assert.False(orphanedReplay.CanPlay);
+        Assert.False(orphanedReplay.IsDownloadRequired);
+        Assert.False(orphanedReplay.IsProfileNeeded);
+        Assert.True(orphanedReplay.IsOrphaned);
+
+        var replayWithMetadata = new ReplayFile
+        {
+            FileName = "CrcTest.rep",
+            FullPath = "/test/CrcTest.rep",
+            SizeInBytes = 100,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata { ExeCrc = 0x27533BB0, IniCrc = 0x76B251A3 },
+        };
+        Assert.Equal(0x27533BB0u, replayWithMetadata.ExeCrc);
+        Assert.Equal(0x76B251A3u, replayWithMetadata.IniCrc);
+    }
+
+    /// <summary>
+    /// Verifies that FindCompatibleProfiles returns profiles matching client and patch sorted by score.
+    /// </summary>
+    [Fact]
+    public void FindCompatibleProfiles_MatchesAndSortsByScore()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Match1.rep",
+            FullPath = "/test/Match1.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                ManifestId = "1.104.steam.gameclient.zerohour",
+                DataPatchManifestId = "1.04.patch.data",
+            },
+        };
+
+        var profile1 = new GameProfile
+        {
+            Id = "p1",
+            Name = "ZH Profile 1",
+            GameClient = new GameClient { Id = "1.104.steam.gameclient.zerohour", GameType = GameType.ZeroHour },
+            EnabledContentIds = ["1.04.patch.data"],
+        };
+
+        var profile2 = new GameProfile
+        {
+            Id = "p2",
+            Name = "ZH Profile 2",
+            GameClient = new GameClient { Id = "1.104.retail.gameclient.zerohour", GameType = GameType.ZeroHour },
+        };
+
+        var profiles = new List<GameProfile> { profile2, profile1 };
+        var results = ReplayDirectoryService.FindCompatibleProfiles(
+            profiles,
+            GameType.ZeroHour,
+            "1.104.steam.gameclient.zerohour",
+            "1.04.patch.data",
+            replay);
+
+        Assert.Contains(profile1, results);
+        Assert.Equal(profile1, results[0]);
     }
 
     /// <summary>

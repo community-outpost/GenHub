@@ -36,7 +36,7 @@ public sealed partial class GameClientCardViewModel : ObservableObject
     public string Publisher { get; }
 
     /// <summary>
-    /// Gets the category (e.g. "Detected Installation", "Local Profile / Custom", "Catalog Manifest").
+    /// Gets the category (e.g. "CRC Compatible", "Catalog Manifest", "Local Profile").
     /// </summary>
     public string Category { get; }
 
@@ -49,6 +49,11 @@ public sealed partial class GameClientCardViewModel : ObservableObject
     /// Gets the description of this client candidate.
     /// </summary>
     public string Description { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether this client matches the replay's CRC requirements.
+    /// </summary>
+    public bool IsCrcMatch { get; }
 
     /// <summary>
     /// Gets the command executed to select this client.
@@ -70,6 +75,7 @@ public sealed partial class GameClientCardViewModel : ObservableObject
         Category = parameters.Category;
         ExecutablePath = parameters.ExecutablePath;
         Description = parameters.Description;
+        IsCrcMatch = parameters.IsCrcMatch;
         SelectCommand = new RelayCommand(() => parameters.OnSelect(this));
     }
 }

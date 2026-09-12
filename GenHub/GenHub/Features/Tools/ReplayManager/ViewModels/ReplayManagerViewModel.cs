@@ -1079,11 +1079,11 @@ public partial class ReplayManagerViewModel(
     /// (e.g. Community Patch, MP Recovery, TheSuperHackers, detected installations) to create a profile.
     /// </summary>
     [RelayCommand]
-    private async Task SelectClientAndCreateProfileAsync(ReplayFile replay)
+    private async Task<string?> SelectClientAndCreateProfileAsync(ReplayFile replay)
     {
         if (replay == null || IsBusy)
         {
-            return;
+            return null;
         }
 
         if (IsDemoPath(replay.FullPath))
@@ -1091,20 +1091,20 @@ public partial class ReplayManagerViewModel(
             notificationService.ShowInfo(
                 "Select Game Client",
                 "Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.");
-            return;
+            return null;
         }
 
         if (serviceProvider == null)
         {
             await ExecuteDirectProfileCreationAsync(replay);
-            return;
+            return null;
         }
 
         try
         {
             using var scope = serviceProvider.CreateScope();
             var clientVm = ActivatorUtilities.CreateInstance<GameClientSelectionViewModel>(scope.ServiceProvider);
-            var loadTask = clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName);
+            var loadTask = clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName, replay);
 
             var dialog = new GameClientSelectionView(clientVm);
             var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
@@ -1118,19 +1118,20 @@ public partial class ReplayManagerViewModel(
             }
 
             await loadTask;
-            await ApplySelectedClientToReplayAsync(replay, clientVm);
+            return await ApplySelectedClientToReplayAsync(replay, clientVm);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to display game client selection dialog for {FileName}", replay.FileName);
+            return null;
         }
     }
 
-    private async Task ApplySelectedClientToReplayAsync(ReplayFile replay, GameClientSelectionViewModel clientVm)
+    private async Task<string?> ApplySelectedClientToReplayAsync(ReplayFile replay, GameClientSelectionViewModel clientVm)
     {
         if (!clientVm.WasSuccessful || clientVm.SelectedClient == null)
         {
-            return;
+            return null;
         }
 
         IsBusy = true;
@@ -1151,19 +1152,20 @@ public partial class ReplayManagerViewModel(
                     $"Created profile '{result.Data.Name}' with {clientVm.SelectedClient.Name}.");
                 StatusMessage = $"Created profile '{result.Data.Name}'.";
                 await LoadReplaysAsync();
+                return result.Data.Id;
             }
-            else
-            {
-                var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
-                notificationService.ShowError("Profile Creation Failed", errorMsg);
-                StatusMessage = "Profile creation failed.";
-            }
+
+            var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
+            notificationService.ShowError("Profile Creation Failed", errorMsg);
+            StatusMessage = "Profile creation failed.";
+            return null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
             notificationService.ShowError("Profile Creation Error", ex.Message);
             StatusMessage = "Profile creation error.";
+            return null;
         }
         finally
         {
@@ -1229,13 +1231,25 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        if (string.IsNullOrEmpty(replay.MatchingProfileId))
+        // When multiple profiles are compatible with this replay, prompt user to select which one to launch
+        var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
+        if (compatibleProfiles.Count > 1)
         {
             await SelectProfileAndLaunchReplayAsync(replay);
             return;
         }
 
-        await LaunchReplayWithProfileAsync(replay, replay.MatchingProfileId);
+        var targetProfileId = compatibleProfiles.Count == 1
+            ? compatibleProfiles[0].Id
+            : replay.MatchingProfileId;
+
+        if (string.IsNullOrEmpty(targetProfileId))
+        {
+            await SelectProfileAndLaunchReplayAsync(replay);
+            return;
+        }
+
+        await LaunchReplayWithProfileAsync(replay, targetProfileId);
     }
 
     /// <summary>
@@ -1270,7 +1284,12 @@ public partial class ReplayManagerViewModel(
 
             if (profileVm.IsCreateNewRequested)
             {
-                await SelectClientAndCreateProfileAsync(replay);
+                var createdProfileId = await SelectClientAndCreateProfileAsync(replay);
+                if (!string.IsNullOrEmpty(createdProfileId))
+                {
+                    await LaunchReplayWithProfileAsync(replay, createdProfileId);
+                }
+
                 return;
             }
 
@@ -1297,7 +1316,15 @@ public partial class ReplayManagerViewModel(
         profileVm.ActionBadgeText = "Play";
         profileVm.CreateProfileCardSubtitle = "Choose an available game client to create a fresh profile";
 
-        await profileVm.LoadProfilesAsync(replay.GameVersion, contentManifestId: string.Empty, contentName: replay.FileName);
+        var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
+        var compatibleProfileIds = new HashSet<string>(compatibleProfiles.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+
+        await profileVm.LoadProfilesAsync(
+            replay.GameVersion,
+            contentManifestId: string.Empty,
+            contentName: replay.FileName,
+            additionalManifestIds: null,
+            compatibleProfileIds: compatibleProfileIds);
 
         var dialog = new ProfileSelectionView(profileVm);
         var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is

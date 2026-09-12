@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -233,8 +234,8 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
 
         for (int i = 0; i < len; i++)
         {
-            bool aIsNum = int.TryParse(partsA[i], out int numA);
-            bool bIsNum = int.TryParse(partsB[i], out int numB);
+            bool aIsNum = int.TryParse(partsA[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int numA);
+            bool bIsNum = int.TryParse(partsB[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int numB);
 
             if (aIsNum && bIsNum)
             {

@@ -57,6 +57,16 @@ public interface IReplayDirectoryService
     void RevealInExplorer(ReplayFile replay);
 
     /// <summary>
+    /// Gets all profiles compatible with the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of compatible profiles.</returns>
+    Task<IReadOnlyList<GameProfile>> GetCompatibleProfilesForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Creates a dedicated game profile configured with the exact game client and INI settings matching the replay.
     /// </summary>
     /// <param name="replay">The replay file to create a profile for.</param>
