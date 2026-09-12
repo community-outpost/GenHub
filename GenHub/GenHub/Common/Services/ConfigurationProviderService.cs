@@ -419,8 +419,10 @@ public class ConfigurationProviderService(
     /// Releases up to v0.0.3 nested the manifests, tracked user data and workspace metadata under a
     /// <c>Content</c> directory, so both that layout and the flat one are probed and flattened into
     /// the destination. Data that a v0.0.3 install kept outside the legacy root, because an
-    /// <see cref="UserSettings.ApplicationDataPath"/> override pointed elsewhere, is out of scope and
-    /// stays where it is.
+    /// <see cref="UserSettings.ApplicationDataPath"/> override pointed elsewhere, is out of scope
+    /// here. Profiles are the exception and are recovered separately by
+    /// <see cref="MigrateLegacyCustomPathProfiles()"/>, because v0.0.3 wrote them beside the
+    /// override rather than inside it.
     /// </para>
     /// <para>
     /// The CAS pool is migrated alongside profiles, manifests, and user data so that no files are
@@ -550,6 +552,7 @@ public class ConfigurationProviderService(
 
             MigrateLegacyDataRoot();
             MigrateContentDirectory();
+            MigrateLegacyCustomPathProfiles();
             _migrated = true;
         }
     }
@@ -580,6 +583,97 @@ public class ConfigurationProviderService(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             _logger.LogError(ex, "Failed to migrate legacy data root");
+        }
+    }
+
+    /// <summary>
+    /// Recovers profiles that releases up to v0.0.3 wrote beside an explicit
+    /// <see cref="UserSettings.ApplicationDataPath"/> rather than inside it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// v0.0.3 derived its profiles directory from the <em>parent</em> of the application data path.
+    /// With the default path that landed correctly, because the value it resolved carried a trailing
+    /// <c>Content</c> segment. With an explicit override there is no such segment, so the parent sits one
+    /// level above the data root: an override of <c>D:\GenHub\Data</c> put profiles in
+    /// <c>D:\GenHub\Profiles</c>, and an override of <c>C:\GenHubData</c> put them at the drive root.
+    /// This release reads profiles from inside the data root, so those files are invisible and the
+    /// profile list comes up empty after upgrading.
+    /// </para>
+    /// <para>
+    /// Only <c>*.json</c> files are taken, and only into a destination that does not already hold a file
+    /// of that name, so an unrelated <c>Profiles</c> directory that happens to sit beside the override is
+    /// never emptied and an existing profile is never overwritten. Anything left behind is reported.
+    /// </para>
+    /// </remarks>
+    private void MigrateLegacyCustomPathProfiles()
+    {
+        try
+        {
+            var settings = _userSettings.Get();
+            if (!settings.IsExplicitlySet(nameof(UserSettings.ApplicationDataPath)) ||
+                string.IsNullOrWhiteSpace(settings.ApplicationDataPath))
+            {
+                return;
+            }
+
+            var overrideParent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(settings.ApplicationDataPath));
+            if (string.IsNullOrEmpty(overrideParent))
+            {
+                return;
+            }
+
+            var legacyProfiles = Path.Combine(overrideParent, DirectoryNames.Profiles);
+            var currentProfiles = Path.Combine(ResolveApplicationDataPath(), DirectoryNames.Profiles);
+
+            if (!Directory.Exists(legacyProfiles) || PathHelper.AreSamePath(legacyProfiles, currentProfiles))
+            {
+                return;
+            }
+
+            var candidates = Directory.GetFiles(legacyProfiles, "*.json");
+            if (candidates.Length == 0)
+            {
+                return;
+            }
+
+            _logger.LogInformation(
+                "Recovering {Count} v0.0.3 profile(s) from {LegacyProfiles} into {CurrentProfiles}",
+                candidates.Length,
+                legacyProfiles,
+                currentProfiles);
+
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    MigrateFile(candidate, Path.Combine(currentProfiles, Path.GetFileName(candidate)));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+                {
+                    _logger.LogError(ex, "Failed to recover legacy profile {Source}, leaving it in place", candidate);
+                }
+            }
+
+            var remaining = Directory.Exists(legacyProfiles)
+                ? Directory.GetFiles(legacyProfiles, "*.json").Length
+                : 0;
+            if (remaining > 0)
+            {
+                _logger.LogWarning(
+                    "{Count} profile(s) could not be recovered from {LegacyProfiles} and were left untouched because a profile file of the same name already exists in {CurrentProfiles}.",
+                    remaining,
+                    legacyProfiles,
+                    currentProfiles);
+            }
+            else
+            {
+                TryDeleteEmptyDirectory(legacyProfiles);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to recover v0.0.3 profiles stored beside a custom data path");
         }
     }
 

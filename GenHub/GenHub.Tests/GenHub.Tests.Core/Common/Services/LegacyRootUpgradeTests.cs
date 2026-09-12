@@ -371,6 +371,112 @@ public class LegacyRootUpgradeTests : IDisposable
         return appConfig;
     }
 
+    /// <summary>
+    /// Verifies that profiles v0.0.3 wrote beside a custom data path, rather than inside it, are
+    /// recovered into the directory this release reads from. v0.0.3 derived the profiles directory
+    /// from the parent of the application data path, so an override left them one level too high and
+    /// the profile list came up empty after upgrading.
+    /// </summary>
+    [Fact]
+    public void FirstLaunch_WithOverride_RecoversProfilesStoredBesideTheDataPath()
+    {
+        var overridePath = Path.Combine(_testRoot, "custom", "Data");
+        var strandedProfiles = Path.Combine(_testRoot, "custom", DirectoryNames.Profiles);
+        WriteLegacySettings($$"""
+        {
+          "applicationDataPath": "{{overridePath.Replace("\\", "\\\\")}}"
+        }
+        """);
+        WriteLegacyFile(Path.Combine(strandedProfiles, "stranded.json"), "stranded-profile");
+
+        var appConfig = CreateAppConfig();
+        var provider = new ConfigurationProviderService(
+            appConfig,
+            CreateSettingsService(appConfig),
+            Mock.Of<ILogger<ConfigurationProviderService>>());
+
+        var recovered = Path.Combine(provider.GetProfilesPath(), "stranded.json");
+        Assert.True(File.Exists(recovered));
+        Assert.Equal("stranded-profile", File.ReadAllText(recovered));
+        Assert.False(Directory.Exists(strandedProfiles));
+    }
+
+    /// <summary>
+    /// Verifies that recovery never overwrites a profile that already exists under the current data
+    /// path, and leaves the conflicting file where it is so nothing is lost.
+    /// </summary>
+    [Fact]
+    public void FirstLaunch_WithOverride_DoesNotOverwriteExistingProfileOnRecovery()
+    {
+        var overridePath = Path.Combine(_testRoot, "custom", "Data");
+        var strandedProfiles = Path.Combine(_testRoot, "custom", DirectoryNames.Profiles);
+        WriteLegacySettings($$"""
+        {
+          "applicationDataPath": "{{overridePath.Replace("\\", "\\\\")}}"
+        }
+        """);
+        WriteLegacyFile(Path.Combine(strandedProfiles, "same.json"), "stranded-version");
+        WriteLegacyFile(Path.Combine(overridePath, DirectoryNames.Profiles, "same.json"), "current-version");
+
+        var appConfig = CreateAppConfig();
+        var provider = new ConfigurationProviderService(
+            appConfig,
+            CreateSettingsService(appConfig),
+            Mock.Of<ILogger<ConfigurationProviderService>>());
+
+        Assert.Equal("current-version", File.ReadAllText(Path.Combine(provider.GetProfilesPath(), "same.json")));
+        Assert.Equal("stranded-version", File.ReadAllText(Path.Combine(strandedProfiles, "same.json")));
+    }
+
+    /// <summary>
+    /// Verifies that recovery is idempotent, so a second launch neither fails nor disturbs the
+    /// profiles the first launch already moved.
+    /// </summary>
+    [Fact]
+    public void FirstLaunch_WithOverride_ProfileRecoveryIsIdempotent()
+    {
+        var overridePath = Path.Combine(_testRoot, "custom", "Data");
+        var strandedProfiles = Path.Combine(_testRoot, "custom", DirectoryNames.Profiles);
+        WriteLegacySettings($$"""
+        {
+          "applicationDataPath": "{{overridePath.Replace("\\", "\\\\")}}"
+        }
+        """);
+        WriteLegacyFile(Path.Combine(strandedProfiles, "stranded.json"), "stranded-profile");
+
+        var appConfig = CreateAppConfig();
+        var first = new ConfigurationProviderService(appConfig, CreateSettingsService(appConfig), Mock.Of<ILogger<ConfigurationProviderService>>());
+        var profilesPath = first.GetProfilesPath();
+
+        var second = new ConfigurationProviderService(appConfig, CreateSettingsService(appConfig), Mock.Of<ILogger<ConfigurationProviderService>>());
+        second.GetApplicationDataPath();
+
+        Assert.Equal("stranded-profile", File.ReadAllText(Path.Combine(profilesPath, "stranded.json")));
+        Assert.Single(Directory.GetFiles(profilesPath, "*.json"));
+    }
+
+    /// <summary>
+    /// Verifies that an upgrade without an application data path override is untouched by the
+    /// recovery, so the ordinary migration path keeps behaving exactly as before.
+    /// </summary>
+    [Fact]
+    public void FirstLaunch_WithoutOverride_LeavesDefaultPathMigrationUnchanged()
+    {
+        WriteLegacySettings("""
+        { "theme": "Light" }
+        """);
+        SeedLegacyDataDirectories();
+
+        var appConfig = CreateAppConfig();
+        var provider = new ConfigurationProviderService(
+            appConfig,
+            CreateSettingsService(appConfig),
+            Mock.Of<ILogger<ConfigurationProviderService>>());
+
+        Assert.Equal("profile", File.ReadAllText(Path.Combine(provider.GetProfilesPath(), "profile.json")));
+        Assert.Equal(Path.Combine(_newRoot, DirectoryNames.Profiles), provider.GetProfilesPath());
+    }
+
     private Mock<IAppConfiguration> CreateAppConfigMock()
     {
         var appConfig = CreateBaseAppConfigMock();
