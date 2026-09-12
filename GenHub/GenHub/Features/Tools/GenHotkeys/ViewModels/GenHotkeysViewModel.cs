@@ -754,11 +754,18 @@ public partial class GenHotkeysViewModel(
         var currentObjName = SelectedGameObject?.Name ?? SelectedGameObject?.DisplayName;
         var currentFaction = SelectedFaction;
 
-        var currentIndex = allConflicts.FindIndex(c =>
-            (c.ActionVm != null && SelectedAction != null && c.ActionVm == SelectedAction) ||
-            ((currentFaction == null || c.Faction == currentFaction) &&
-            string.Equals(c.GameObjectName, currentObjName, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase)));
+        var currentIndex = -1;
+        if (SelectedAction != null)
+        {
+            currentIndex = allConflicts.FindIndex(c => c.ActionVm != null && c.ActionVm == SelectedAction);
+            if (currentIndex < 0)
+            {
+                currentIndex = allConflicts.FindIndex(c =>
+                    (currentFaction == null || c.Faction == currentFaction) &&
+                    string.Equals(c.GameObjectName, currentObjName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase));
+            }
+        }
 
         var nextIndex = (currentIndex + 1) % allConflicts.Count;
         var target = allConflicts[nextIndex];
