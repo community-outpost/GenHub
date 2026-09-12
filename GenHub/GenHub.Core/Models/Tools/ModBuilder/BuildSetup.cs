@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO.Compression;
 
 namespace GenHub.Core.Models.Tools.ModBuilder;
 
@@ -67,4 +68,9 @@ public sealed class BuildSetup
     /// Gets or sets the list of selected pack names to build or release. If null or empty, all enabled packs are processed.
     /// </summary>
     public List<string>? SelectedPacks { get; set; }
+
+    /// <summary>
+    /// Gets or sets the zip compression level for release bundles.
+    /// </summary>
+    public CompressionLevel ZipCompressionLevel { get; set; } = CompressionLevel.Optimal;
 }
