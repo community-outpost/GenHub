@@ -1022,62 +1022,78 @@ public class UserDataTrackerService(
             return true;
         }
 
-        var success = true;
-        if (File.Exists(file.AbsolutePath))
-        {
-            try
-            {
-                var isMatch = await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
+        var success = await TryRemoveTrackedFileAsync(file, userDataBasePath, cancellationToken);
 
-                if (isMatch)
-                {
-                    File.Delete(file.AbsolutePath);
-                    CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
-                }
-                else
-                {
-                    logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
-                success = false;
-            }
-        }
-
-        // If an original user file was backed up and the target file was removed or absent, restore it upon deactivation
         if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
         {
-            try
-            {
-                var targetDir = Path.GetDirectoryName(file.AbsolutePath);
-                if (!string.IsNullOrEmpty(targetDir))
-                {
-                    Directory.CreateDirectory(targetDir);
-                }
-
-                var restoredFrom = file.BackupPath;
-                RestoreAndConsumeBackup(file, logger);
-                logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", restoredFrom, file.AbsolutePath);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
-                success = false;
-            }
+            success = TryRestoreTrackedFileBackup(file) && success;
         }
 
         return success;
+    }
+
+    private async Task<bool> TryRemoveTrackedFileAsync(
+        UserDataFileEntry file,
+        string userDataBasePath,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(file.AbsolutePath))
+        {
+            return true;
+        }
+
+        try
+        {
+            var isMatch = await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (isMatch)
+            {
+                File.Delete(file.AbsolutePath);
+                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+            }
+            else
+            {
+                logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
+            }
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
+            return false;
+        }
+    }
+
+    private bool TryRestoreTrackedFileBackup(UserDataFileEntry file)
+    {
+        try
+        {
+            var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+            if (!string.IsNullOrEmpty(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
+
+            var restoredFrom = file.BackupPath;
+            RestoreAndConsumeBackup(file, logger);
+            logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", restoredFrom, file.AbsolutePath);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
+            return false;
+        }
     }
 
     private async Task<OperationResult<bool>> ActivateSingleFileAsync(
