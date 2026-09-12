@@ -454,6 +454,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         // TheSuperHackers / GeneralsOnline specific keys that appear in flat format
         var theSuperHackersKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            GameSettingsTheSuperHackersConstants.ArchiveReplaysKey,
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey,
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey,
             GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey,
             GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey,
             "DrawScrollAnchor",

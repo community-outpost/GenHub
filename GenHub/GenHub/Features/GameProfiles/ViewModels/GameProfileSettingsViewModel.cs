@@ -636,10 +636,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", value.GameType);
         }
 
-        if (GameSettingsViewModel.SelectedGameType != value.GameType)
-        {
-            GameSettingsViewModel.SelectedGameType = value.GameType;
-        }
+        GameSettingsViewModel.SelectedGameType = value.GameType;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]

@@ -696,13 +696,11 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 _logger.LogInformation("Loaded settings from Options.ini for {GameType}", gameType);
                 return true;
             }
-            else
-            {
-                var errors = result?.Errors ?? ["LoadOptions result was null"];
-                StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
-                _logger.LogWarning("Failed to load Options.ini for {GameType}: {Errors}", gameType, string.Join(", ", errors));
-                return false;
-            }
+
+            var errors = result?.Errors ?? ["LoadOptions result was null"];
+            StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
+            _logger.LogWarning("Failed to load Options.ini for {GameType}: {Errors}", gameType, string.Join(", ", errors));
+            return false;
         }
         catch (Exception ex)
         {
