@@ -192,3 +192,97 @@
         font-size: 1.75rem;
     }
 }
+
+/* ==========================================================================
+   App Window & Client Mockup Responsiveness
+   ========================================================================== */
+@media (max-width: 1024px) {
+    .tools-panel-split {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    .info-tab-panel {
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 900px) {
+    .app-titlebar {
+        padding: 0.65rem 0.85rem;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .window-meta-right {
+        display: none;
+    }
+    .pill-container {
+        order: 3;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+        justify-content: flex-start;
+        padding: 4px;
+        border-radius: 0.75rem;
+    }
+    .pill-tab {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.775rem;
+    }
+    .profile-grid-realistic {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .profiles-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    .toolbar-left {
+        width: 100%;
+        display: flex;
+        gap: 0.5rem;
+    }
+    .toolbar-search {
+        flex: 1;
+        width: auto;
+    }
+    .toolbar-right-badge {
+        justify-content: flex-start;
+        font-size: 0.72rem;
+    }
+    .hero-logo-backdrop {
+        width: 96vw;
+        top: -10px;
+        opacity: 0.2;
+    }
+}
+
+@media (max-width: 620px) {
+    .profile-grid-realistic {
+        grid-template-columns: 1fr;
+    }
+    .map-grid-mini {
+        grid-template-columns: 1fr;
+    }
+    .info-tab-panel {
+        grid-template-columns: 1fr;
+    }
+    .catalog-grid {
+        grid-template-columns: 1fr;
+    }
+    .pill-tab-badge {
+        display: none;
+    }
+    .profile-action-row {
+        flex-wrap: wrap;
+    }
+    .btn-launch-primary {
+        width: 100%;
+        justify-content: center;
+    }
+}
