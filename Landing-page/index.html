@@ -625,7 +625,7 @@
                                             <span>32 Competitive Maps &bull; Map Previews Included</span>
                                         </div>
                                     </div>
-                                    <p>Curated competitive map pool with GenTool compatibility and map previews.</p>
+                                    <p>Curated competitive map pool with extracted map previews, balanced starting positions, and 1-click installation.</p>
                                     <div class="catalog-card-footer">
                                         <span class="catalog-badge">Map Collection</span>
                                         <button class="btn-catalog-action" type="button">1-Click Install</button>
@@ -719,7 +719,7 @@
                                         <i data-feather="film"></i>
                                         <div>
                                             <h4>Replay Manager</h4>
-                                            <span>Match import & file organizer</span>
+                                            <span>CRC version matching & import</span>
                                         </div>
                                     </div>
                                     <button class="btn-header-action" type="button" title="Open replay directory">
@@ -741,9 +741,10 @@
                                     <div class="replay-row-item">
                                         <div class="replay-info-col">
                                             <h5>Tournament_Desert_AF_vs_Stealth.rep</h5>
-                                            <span>Tournament Desert &bull; 22:45 &bull; 184 KB</span>
+                                            <span>Tournament Desert &bull; Generals Online 60Hz &bull; CRC: 0x3F2A1B8C</span>
                                         </div>
                                         <div class="replay-action-col">
+                                            <span class="replay-compat-badge compat-green" title="Matches active client">Compatible</span>
                                             <button class="btn-mini-reveal" type="button" title="Reveal replay in Explorer">
                                                 <i data-feather="folder"></i>
                                                 <span>Reveal</span>
@@ -753,9 +754,10 @@
                                     <div class="replay-row-item">
                                         <div class="replay-info-col">
                                             <h5>Flash_Fire_Tank_vs_Laser.rep</h5>
-                                            <span>Flash Fire &bull; 18:12 &bull; Match #1940 &bull; 142 KB</span>
+                                            <span>Flash Fire &bull; Generals Online 30Hz &bull; CRC: 0x82A1C904</span>
                                         </div>
                                         <div class="replay-action-col">
+                                            <span class="replay-compat-badge compat-blue" title="Mapped CRC requires client switch">Requires Profile</span>
                                             <button class="btn-mini-reveal" type="button" title="Reveal replay in Explorer">
                                                 <i data-feather="folder"></i>
                                                 <span>Reveal</span>
@@ -825,7 +827,7 @@
                         </li>
                         <li>
                             <i data-feather="alert-octagon"></i>
-                            <span><strong>Scattered Maps and Replays:</strong> Managing custom maps and sharing match replays means digging through obscure folders in Documents and guessing file versions.</span>
+                            <span><strong>Incompatible Replays & Manual Maps:</strong> Older match replays desync or fail to load when recorded on previous client patches, while custom maps require manual folder extraction into Documents.</span>
                         </li>
                     </ul>
                 </div>
@@ -853,7 +855,7 @@
                         </li>
                         <li>
                             <i data-feather="check-circle"></i>
-                            <span><strong>One-Click Maps and Replays:</strong> Drag and drop map folders to install them instantly with map previews, and open matching tournament replays directly.</span>
+                            <span><strong>Map Tools & CRC Replay Matching:</strong> Drag and drop custom maps with instant previews or bundle them into MapPacks. Replay Manager maps Generals Online CRCs so older match replays run with their matching client versions.</span>
                         </li>
                     </ul>
                 </div>
@@ -929,7 +931,7 @@
                     <ul class="feature-points">
                         <li><i data-feather="check"></i> <strong>GenPatcher Fixes:</strong> Resolves startup crashes by patching missing Options.ini settings, installing required runtimes, and adding GenTool v8.9.</li>
                         <li><i data-feather="check"></i> <strong>Map Manager:</strong> Drag and drop custom map folders or ZIPs with map previews and 1-click MapPack bundling.</li>
-                        <li><i data-feather="check"></i> <strong>Replay Manager:</strong> Import replays directly from Generals Online URLs or match IDs, search matches, and reveal files in Explorer.</li>
+                        <li><i data-feather="check"></i> <strong>Replay Manager:</strong> Parses binary replay headers and maps Generals Online CRCs so older match replays run with their matching client builds, with URL and match ID imports.</li>
                     </ul>
                 </div>
 
@@ -1203,11 +1205,11 @@
                 <div class="footer-col">
                     <h4>Features</h4>
                     <ul>
-                        <li><a href="#steam">Steam & EA Integration</a></li>
-                        <li><a href="#local-import">Local Content Import</a></li>
-                        <li><a href="#generals-online">Generals Online</a></li>
-                        <li><a href="#genpatcher">GenPatcher Tools</a></li>
-                        <li><a href="#workspaces">Isolated Workspaces</a></li>
+                        <li><a href="#profiles">Game Profiles & Steam</a></li>
+                        <li><a href="#downloads">Community Catalog</a></li>
+                        <li><a href="#tools">Diagnostics & Tools</a></li>
+                        <li><a href="#why-genhub">Why GenHub</a></li>
+                        <li><a href="#how-it-works">Quick Start</a></li>
                     </ul>
                 </div>
 

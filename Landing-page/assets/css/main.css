@@ -1103,7 +1103,34 @@ main {
 }
 
 .replay-action-col {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     flex-shrink: 0;
+}
+
+.replay-compat-badge {
+    font-size: 0.675rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.replay-compat-badge.compat-green {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #34d399;
+}
+
+.replay-compat-badge.compat-blue {
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
 }
 
 .btn-mini-reveal {
