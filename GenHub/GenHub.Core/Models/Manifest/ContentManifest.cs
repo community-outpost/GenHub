@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using GenHub.Core.Constants;
@@ -13,16 +14,53 @@ public class ContentManifest
 {
     private List<ArtifactVariant> _variants = [];
 
-    /// <summary>Gets or sets the manifest format/schema version.</summary>
-    [JsonPropertyName("ManifestVersion")]
-    public string SchemaVersion { get; set; } = ManifestConstants.DefaultManifestVersion;
-
-    /// <summary>Gets or sets the manifest format version (alias for SchemaVersion).</summary>
-    [JsonIgnore]
-    public string ManifestVersion
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContentManifest"/> class.
+    /// </summary>
+    public ContentManifest()
     {
-        get => SchemaVersion;
-        set => SchemaVersion = value;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContentManifest"/> class by performing a shallow copy of collections.
+    /// Elements and complex nested models are shared by reference.
+    /// </summary>
+    /// <param name="other">The instance to copy from.</param>
+    public ContentManifest(ContentManifest other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+
+        ManifestVersion = other.ManifestVersion;
+        Id = other.Id;
+        Name = other.Name;
+        Version = other.Version;
+        ContentType = other.ContentType;
+        TargetGame = other.TargetGame;
+        Publisher = other.Publisher;
+        Metadata = other.Metadata;
+        OriginalProviderName = other.OriginalProviderName;
+        OriginalContentId = other.OriginalContentId;
+        SourcePath = other.SourcePath;
+        Dependencies = [.. other.Dependencies];
+        ContentReferences = [.. other.ContentReferences];
+        KnownAddons = [.. other.KnownAddons];
+        Files = [.. other.Files];
+        Variants = [.. other.Variants];
+        EntryPoint = other.EntryPoint;
+        RequiredDirectories = [.. other.RequiredDirectories];
+        InstallationInstructions = other.InstallationInstructions;
+    }
+
+    /// <summary>Gets or sets the manifest format version.</summary>
+    [JsonPropertyName("ManifestVersion")]
+    public string ManifestVersion { get; set; } = ManifestConstants.DefaultManifestVersion;
+
+    /// <summary>Gets or sets the manifest format/schema version (alias for ManifestVersion).</summary>
+    [JsonIgnore]
+    public string SchemaVersion
+    {
+        get => ManifestVersion;
+        set => ManifestVersion = value;
     }
 
     /// <summary>Gets or sets the unique identifier for this content package.</summary>
@@ -118,4 +156,10 @@ public class ContentManifest
 
     /// <summary>Gets or sets the installation instructions and hooks.</summary>
     public InstallationInstructions InstallationInstructions { get; set; } = new();
+
+    /// <summary>
+    /// Creates a shallow clone of this manifest. Collections are copied but nested models are shared by reference.
+    /// </summary>
+    /// <returns>A clone of this manifest.</returns>
+    public ContentManifest Clone() => new(this);
 }

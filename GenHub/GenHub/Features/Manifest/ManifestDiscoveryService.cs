@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Manifest;
@@ -155,10 +156,25 @@ public class ManifestDiscoveryService(
                 return false;
             }
 
+            if (dependency.CompatibleVersions.Count > 0 &&
+                dependency.CompatibleVersions.All(cv =>
+                    !string.Equals(cv, dependencyManifest.Version, StringComparison.OrdinalIgnoreCase) &&
+                    CatalogManifestIdentity.CompareVersions(cv, dependencyManifest.Version) != 0))
+            {
+                logger.LogWarning(
+                    "Dependency {DependencyId} version {Version} is not in compatible versions list [{CompatibleVersions}]",
+                    dependency.Id,
+                    dependencyManifest.Version,
+                    string.Join(", ", dependency.CompatibleVersions));
+                return false;
+            }
+
             if (!IsVersionCompatible(
                 dependencyManifest.Version,
                 dependency.MinVersion ?? string.Empty,
-                dependency.MaxVersion ?? string.Empty))
+                dependency.MaxVersion ?? string.Empty,
+                dependency.MinInclusive,
+                dependency.MaxInclusive))
             {
                 logger.LogWarning(
                     "Dependency {DependencyId} version {Version} is not compatible with required range {MinVersion}-{MaxVersion}",
@@ -178,16 +194,33 @@ public class ManifestDiscoveryService(
         return exception is UnauthorizedAccessException or IOException;
     }
 
-    private static bool IsVersionCompatible(string actualVersion, string minVersion, string maxVersion)
+    /// <summary>
+    /// Checks whether an actual version satisfies min and max version constraints.
+    /// Unparseable version strings intentionally fail numeric min/max range checks by design.
+    /// </summary>
+    private static bool IsVersionCompatible(
+        string actualVersion,
+        string minVersion,
+        string maxVersion,
+        bool minInclusive = true,
+        bool maxInclusive = true)
     {
-        if (!string.IsNullOrEmpty(minVersion) && string.Compare(actualVersion, minVersion, StringComparison.OrdinalIgnoreCase) < 0)
+        if (!string.IsNullOrEmpty(minVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(actualVersion, minVersion);
+            if (minInclusive ? comparison < 0 : comparison <= 0)
+            {
+                return false;
+            }
         }
 
-        if (!string.IsNullOrEmpty(maxVersion) && string.Compare(actualVersion, maxVersion, StringComparison.OrdinalIgnoreCase) > 0)
+        if (!string.IsNullOrEmpty(maxVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(actualVersion, maxVersion);
+            if (maxInclusive ? comparison > 0 : comparison >= 0)
+            {
+                return false;
+            }
         }
 
         return true;

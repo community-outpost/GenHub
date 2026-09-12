@@ -39,6 +39,7 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = true;
+            _ = vm.LoadSubscriptionsCommand.ExecuteAsync(null);
             HookViewModel(vm);
             if (vm.SelectedSection != null)
             {
@@ -127,6 +128,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionLocalContent => "Expander_LocalContent",
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
+            SettingsConstants.SectionSubscriptions => "Expander_Subscriptions",
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };

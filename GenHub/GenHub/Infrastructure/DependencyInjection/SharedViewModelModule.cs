@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -59,7 +60,9 @@ public static class SharedViewModelModule
             sp.GetService<IThemeService>(),
             /* Optional dependencies that can be null if GitHub integration is not configured */
             sp.GetService<IGitHubTokenStorage>(),
-            sp.GetService<IGitHubApiClient>()));
+            sp.GetService<IGitHubApiClient>(),
+            sp.GetService<IPublisherSubscriptionStore>(),
+            sp.GetService<IPublisherCatalogRefreshService>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register ProfileSelectionViewModel as transient for profile selection scenarios
