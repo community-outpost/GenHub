@@ -322,6 +322,175 @@ public class GenLauncherNormalizationServiceTests : IDisposable
         Assert.True(ExecutableFileClassifier.IsLegacyLaunchCandidate("generals", normalizedPath));
     }
 
+    /// <summary>
+    /// Tests that a .ctr file with BIG archive magic bytes is normalized to .big.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_ConvertsBigCtrToBigAsync()
+    {
+        var ctrPath = Path.Combine(_tempDir, "!Contra.ctr");
+        var bytes = new byte[16];
+        bytes[0] = (byte)'B';
+        bytes[1] = (byte)'I';
+        bytes[2] = (byte)'G';
+        bytes[3] = (byte)'F';
+        await File.WriteAllBytesAsync(ctrPath, bytes);
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data.NormalizedCount);
+        Assert.False(File.Exists(ctrPath));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "!Contra.big")));
+    }
+
+    /// <summary>
+    /// Tests that a .ctr file with MZ executable magic bytes is normalized to .exe and never to .big.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_ConvertsExecutableCtrToExeAsync()
+    {
+        var ctrPath = Path.Combine(_tempDir, "generals.ctr");
+        var bytes = new byte[16];
+        bytes[0] = 0x4D; // 'M'
+        bytes[1] = 0x5A; // 'Z'
+        bytes[2] = 0x90;
+        bytes[3] = 0x00;
+        await File.WriteAllBytesAsync(ctrPath, bytes);
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data.NormalizedCount);
+        Assert.False(File.Exists(ctrPath));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "generals.big")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "generals.exe")));
+    }
+
+    /// <summary>
+    /// Tests that a .ctr file with unknown format is left untouched and reported in SkippedFiles.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_LeavesUnknownCtrUntouchedAndReportsSkippedAsync()
+    {
+        var ctrPath = Path.Combine(_tempDir, "unknown.ctr");
+        await File.WriteAllTextAsync(ctrPath, "plain text content that is neither BIG nor MZ");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data.NormalizedCount);
+        Assert.True(result.Data.IsFullySuccessful);
+        Assert.Contains(ctrPath, result.Data.SkippedFiles);
+        Assert.DoesNotContain(ctrPath, result.Data.FailedFiles);
+        Assert.True(File.Exists(ctrPath));
+    }
+
+    /// <summary>
+    /// Tests that .ctr normalization skips and marks failed when destination file already exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_SkipsWhenCtrDestinationExistsAsync()
+    {
+        var ctrPath = Path.Combine(_tempDir, "!Contra.ctr");
+        var bigPath = Path.Combine(_tempDir, "!Contra.big");
+        var bytes = new byte[16];
+        bytes[0] = (byte)'B';
+        bytes[1] = (byte)'I';
+        bytes[2] = (byte)'G';
+        bytes[3] = (byte)'F';
+        await File.WriteAllBytesAsync(ctrPath, bytes);
+        await File.WriteAllTextAsync(bigPath, "existing-big-content");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data.NormalizedCount);
+        Assert.False(result.Data.IsFullySuccessful);
+        Assert.Contains(ctrPath, result.Data.FailedFiles);
+        Assert.True(File.Exists(ctrPath));
+        Assert.Equal("existing-big-content", await File.ReadAllTextAsync(bigPath));
+    }
+
+    /// <summary>
+    /// Tests that a suffixed .ctr file whose final normalized destination already exists is preserved without creating intermediate files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_SkipsWhenSuffixedCtrFinalDestinationExistsAsync()
+    {
+        var suffixedCtrPath = Path.Combine(_tempDir, "generals.ctr" + GenLauncherConstants.OriginalFileSuffix);
+        var existingExePath = Path.Combine(_tempDir, "generals.exe");
+        var intermediateCtrPath = Path.Combine(_tempDir, "generals.ctr");
+
+        var bytes = new byte[16];
+        bytes[0] = 0x4D; // 'M'
+        bytes[1] = 0x5A; // 'Z'
+        bytes[2] = 0x90;
+        bytes[3] = 0x00;
+        await File.WriteAllBytesAsync(suffixedCtrPath, bytes);
+        await File.WriteAllTextAsync(existingExePath, "existing-exe-content");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data.NormalizedCount);
+        Assert.False(result.Data.IsFullySuccessful);
+        Assert.Contains(suffixedCtrPath, result.Data.FailedFiles);
+        Assert.True(File.Exists(suffixedCtrPath));
+        Assert.False(File.Exists(intermediateCtrPath));
+        Assert.Equal("existing-exe-content", await File.ReadAllTextAsync(existingExePath));
+    }
+
+    /// <summary>
+    /// Tests that a suffixed .gib file whose final .big destination already exists is preserved without creating intermediate files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_SkipsWhenSuffixedGibFinalDestinationExistsAsync()
+    {
+        var suffixedGibPath = Path.Combine(_tempDir, "sound.gib" + GenLauncherConstants.ReplaceSuffix);
+        var existingBigPath = Path.Combine(_tempDir, "sound.big");
+        var intermediateGibPath = Path.Combine(_tempDir, "sound.gib");
+
+        await File.WriteAllTextAsync(suffixedGibPath, "new-gib-content");
+        await File.WriteAllTextAsync(existingBigPath, "existing-big-content");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data.NormalizedCount);
+        Assert.False(result.Data.IsFullySuccessful);
+        Assert.Contains(suffixedGibPath, result.Data.FailedFiles);
+        Assert.True(File.Exists(suffixedGibPath));
+        Assert.False(File.Exists(intermediateGibPath));
+        Assert.Equal("existing-big-content", await File.ReadAllTextAsync(existingBigPath));
+    }
+
+    /// <summary>
+    /// Tests that detection finds .ctr files in nested subdirectories and includes them in summary.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DetectGenLauncherFilesAsync_FindsNestedCtrFilesAsync()
+    {
+        var nestedDir = Path.Combine(_tempDir, "mods", "contra");
+        Directory.CreateDirectory(nestedDir);
+        var ctrPath = Path.Combine(nestedDir, "patch.ctr");
+        await File.WriteAllTextAsync(ctrPath, "dummy");
+
+        var detection = await _service.DetectGenLauncherFilesAsync(_tempDir);
+
+        Assert.True(detection.HasGenLauncherFiles);
+        Assert.Single(detection.CtrFiles);
+        Assert.Equal(ctrPath, detection.CtrFiles[0]);
+        Assert.Contains(".ctr", detection.GetSummary());
+    }
+
     private bool TryCreateFileSymlink(out string? skipReason)
     {
         skipReason = null;

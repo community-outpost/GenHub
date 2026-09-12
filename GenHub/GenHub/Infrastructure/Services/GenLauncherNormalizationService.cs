@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Infrastructure.Services;
@@ -143,6 +144,43 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                     var normalizedName = RemoveSuffix(suffixFile);
                     if (normalizedName != suffixFile)
                     {
+                        var ext = Path.GetExtension(normalizedName);
+                        if (ext.Equals(GenLauncherConstants.CtrExtension, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string? targetDestination = null;
+                            if (ExecutableFileClassifier.HasExecutableMagicBytes(suffixFile))
+                            {
+                                targetDestination = Path.ChangeExtension(normalizedName, GenLauncherConstants.ExeExtension);
+                            }
+                            else if (BigArchiveClassifier.IsBigArchiveFile(suffixFile))
+                            {
+                                targetDestination = Path.ChangeExtension(normalizedName, GenLauncherConstants.BigExtension);
+                            }
+
+                            if (targetDestination != null && (File.Exists(targetDestination) || Directory.Exists(targetDestination)))
+                            {
+                                logger.LogWarning(
+                                    "Skipping .ctr normalization for {OriginalFile}: target {Destination} already exists. Manual resolution required.",
+                                    suffixFile,
+                                    targetDestination);
+                                result.FailedFiles.Add(suffixFile);
+                                continue;
+                            }
+                        }
+                        else if (ext.Equals(GenLauncherConstants.GibExtension, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var targetBig = Path.ChangeExtension(normalizedName, GenLauncherConstants.BigExtension);
+                            if (File.Exists(targetBig) || Directory.Exists(targetBig))
+                            {
+                                logger.LogWarning(
+                                    "Skipping .gib → .big conversion for {OriginalFile}: target {BigFile} already exists. Manual resolution required.",
+                                    suffixFile,
+                                    targetBig);
+                                result.FailedFiles.Add(suffixFile);
+                                continue;
+                            }
+                        }
+
                         // Check if destination exists (file or directory) - skip to avoid data loss
                         if (File.Exists(normalizedName) || Directory.Exists(normalizedName))
                         {
@@ -162,6 +200,10 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                         {
                             TryConvertGibToBig(normalizedName, result);
                         }
+                        else if (Path.GetExtension(normalizedName).Equals(GenLauncherConstants.CtrExtension, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TryNormalizeCtr(normalizedName, result);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -176,6 +218,13 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 TryConvertGibToBig(gibFile, result);
+            }
+
+            // Normalize .ctr files by content before directory moves so file paths remain valid during conversion
+            foreach (var ctrFile in detection.CtrFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                TryNormalizeCtr(ctrFile, result);
             }
 
             // Normalize matching directories after file conversions
@@ -279,6 +328,11 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                     {
                         result.GibFiles.Add(file);
                         logger.LogDebug("Detected .gib file: {FilePath}", file);
+                    }
+                    else if (extension.Equals(GenLauncherConstants.CtrExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.CtrFiles.Add(file);
+                        logger.LogDebug("Detected .ctr file: {FilePath}", file);
                     }
 
                     // Check for suffix files
@@ -408,6 +462,53 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         {
             logger.LogError(ex, "Failed to convert .gib file: {FilePath}", gibFile);
             result.FailedFiles.Add(gibFile);
+        }
+    }
+
+    private void TryNormalizeCtr(string ctrFile, GenLauncherNormalizationResult result)
+    {
+        if (!File.Exists(ctrFile))
+        {
+            return;
+        }
+
+        try
+        {
+            string destination;
+            if (ExecutableFileClassifier.HasExecutableMagicBytes(ctrFile))
+            {
+                destination = Path.ChangeExtension(ctrFile, GenLauncherConstants.ExeExtension);
+            }
+            else if (BigArchiveClassifier.IsBigArchiveFile(ctrFile))
+            {
+                destination = Path.ChangeExtension(ctrFile, GenLauncherConstants.BigExtension);
+            }
+            else
+            {
+                logger.LogInformation("Skipping .ctr file with unrecognized format: {CtrFile}", ctrFile);
+                result.SkippedFiles.Add(ctrFile);
+                return;
+            }
+
+            // Check if destination exists (file or directory) - skip to avoid data loss
+            if (File.Exists(destination) || Directory.Exists(destination))
+            {
+                logger.LogWarning(
+                    "Skipping .ctr normalization for {CtrFile}: target {Destination} already exists. Manual resolution required.",
+                    ctrFile,
+                    destination);
+                result.FailedFiles.Add(ctrFile);
+                return;
+            }
+
+            File.Move(ctrFile, destination);
+            result.NormalizedCount++;
+            logger.LogInformation("Normalized {CtrFile} to {Destination}", ctrFile, destination);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to normalize .ctr file: {FilePath}", ctrFile);
+            result.FailedFiles.Add(ctrFile);
         }
     }
 }

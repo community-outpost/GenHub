@@ -417,6 +417,7 @@ public partial class AddLocalContentViewModel(
                             $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
                             "This will:\n" +
                             $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
+                            $"• Convert {GenLauncherConstants.CtrExtension} files to {GenLauncherConstants.BigExtension} or {GenLauncherConstants.ExeExtension} based on content\n" +
                             $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
                             "• Remove symbolic links";
 

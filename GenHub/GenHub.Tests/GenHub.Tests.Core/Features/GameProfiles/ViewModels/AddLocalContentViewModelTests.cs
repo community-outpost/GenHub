@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -763,6 +764,162 @@ public class AddLocalContentViewModelTests : IDisposable
         await vm.AddContentCommand.ExecuteAsync(null);
 
         Assert.Null(capturedEntryPoint);
+    }
+
+    /// <summary>
+    /// Verifies that when GenLauncher files including .ctr files are detected, the confirmation prompt includes .ctr conversion details, and confirming invokes normalization.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenCtrFilesDetected_PromptsWithCtrDetails_AndNormalizesOnConfirmationAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        var ctrFile = Path.Combine(tempDir, "!Contra009.ctr");
+        File.WriteAllText(ctrFile, "dummy");
+
+        var detectionResult = new GenLauncherDetectionResult
+        {
+            HasGenLauncherFiles = true,
+            CtrFiles = [ctrFile],
+        };
+
+        _normalizationServiceMock
+            .Setup(x => x.DetectGenLauncherFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(detectionResult);
+
+        string? capturedPrompt = null;
+        _dialogServiceMock
+            .Setup(x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey))
+            .Callback<string, string, string, string, string?>((_, prompt, _, _, _) => capturedPrompt = prompt)
+            .ReturnsAsync(true);
+
+        _normalizationServiceMock
+            .Setup(x => x.NormalizeFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GenLauncherNormalizationResult>.CreateSuccess(new GenLauncherNormalizationResult
+            {
+                NormalizedCount = 1,
+            }));
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir);
+
+        _dialogServiceMock.Verify(
+            x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey),
+            Times.Once);
+
+        Assert.NotNull(capturedPrompt);
+        Assert.Contains(GenLauncherConstants.CtrExtension, capturedPrompt);
+        Assert.Contains(GenLauncherConstants.BigExtension, capturedPrompt);
+        Assert.Contains(GenLauncherConstants.ExeExtension, capturedPrompt);
+
+        _normalizationServiceMock.Verify(x => x.NormalizeFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Contains("Normalized 1 file(s)", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that when the user skips GenLauncher normalization, NormalizeFilesAsync is not called.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenNormalizationSkipped_DoesNotCallNormalizeFilesAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        var ctrFile = Path.Combine(tempDir, "!Contra009.ctr");
+        File.WriteAllText(ctrFile, "dummy");
+
+        var detectionResult = new GenLauncherDetectionResult
+        {
+            HasGenLauncherFiles = true,
+            CtrFiles = [ctrFile],
+        };
+
+        _normalizationServiceMock
+            .Setup(x => x.DetectGenLauncherFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(detectionResult);
+
+        _dialogServiceMock
+            .Setup(x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey))
+            .ReturnsAsync(false);
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir);
+
+        _normalizationServiceMock.Verify(x => x.NormalizeFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Contains("GenLauncher files not normalized", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that importing a folder containing Contra .ctr archives and executables with the real normalization service converts them to .big and .exe and auto-selects the resulting executable for GameClient.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WithRealNormalizationService_NormalizesContraFilesAndAutoSelectsExecutableAsync()
+    {
+        var tempDir = CreateTempDirectory();
+
+        // Write Contra BIG archive file (.ctr)
+        var bigCtrPath = Path.Combine(tempDir, "!Contra009.ctr");
+        var bigBytes = new byte[16];
+        bigBytes[0] = (byte)'B';
+        bigBytes[1] = (byte)'I';
+        bigBytes[2] = (byte)'G';
+        bigBytes[3] = (byte)'F';
+        await File.WriteAllBytesAsync(bigCtrPath, bigBytes);
+
+        // Write Contra executable file (.ctr)
+        var exeCtrPath = Path.Combine(tempDir, "generals.ctr");
+        var exeBytes = new byte[16];
+        exeBytes[0] = 0x4D; // 'M'
+        exeBytes[1] = 0x5A; // 'Z'
+        exeBytes[2] = 0x90;
+        exeBytes[3] = 0x00;
+        await File.WriteAllBytesAsync(exeCtrPath, exeBytes);
+
+        _dialogServiceMock
+            .Setup(x => x.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                It.IsAny<string>(),
+                "Normalize",
+                "Skip",
+                GenLauncherConstants.NormalizationDialogSessionKey))
+            .ReturnsAsync(true);
+
+        var realNormalizationService = new GenHub.Infrastructure.Services.GenLauncherNormalizationService(
+            NullLogger<GenHub.Infrastructure.Services.GenLauncherNormalizationService>.Instance);
+
+        var vm = new AddLocalContentViewModel(
+            _localContentServiceMock.Object,
+            _contentStorageServiceMock.Object,
+            realNormalizationService,
+            _dialogServiceMock.Object,
+            NullLogger<AddLocalContentViewModel>.Instance);
+        _viewModels.Add(vm);
+
+        vm.SelectedContentType = ContentType.GameClient;
+        vm.ContentName = "Contra 009";
+
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.Equal(1, vm.ExecutableCount);
+        Assert.NotNull(vm.SelectedExecutableItem);
+        Assert.Equal("generals.exe", vm.SelectedExecutableItem.Name);
+        Assert.True(vm.CanAdd);
+        Assert.Contains("Normalized 2 file(s)", vm.StatusMessage);
     }
 
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)

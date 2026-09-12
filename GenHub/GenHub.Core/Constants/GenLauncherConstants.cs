@@ -36,6 +36,11 @@ public static class GenLauncherConstants
     public const string BigExtension = ".big";
 
     /// <summary>
+    /// Standard executable file extension.
+    /// </summary>
+    public const string ExeExtension = ".exe";
+
+    /// <summary>
     /// Session key for "do not ask again" preference for normalization dialog.
     /// </summary>
     public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";

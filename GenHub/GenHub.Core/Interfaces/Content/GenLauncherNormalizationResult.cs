@@ -23,6 +23,11 @@ public class GenLauncherNormalizationResult
     public List<string> FailedFiles { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the list of files left untouched because their format was not recognized.
+    /// </summary>
+    public List<string> SkippedFiles { get; set; } = [];
+
+    /// <summary>
     /// Gets a value indicating whether normalization was fully successful.
     /// </summary>
     public bool IsFullySuccessful => FailedFiles.Count == 0;
