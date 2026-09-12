@@ -47,8 +47,22 @@ cat << 'EOF_WIKI' > "${ROOT_DIR}/public/wiki/index.html"
 </html>
 EOF_WIKI
 
-# Replace placeholders with live release info
-sed -i "s|VERSION_PLACEHOLDER|${DISPLAY_NAME}|g" "${ROOT_DIR}/public/index.html"
-sed -i "s|URL_PLACEHOLDER|${DOWNLOAD_URL}|g" "${ROOT_DIR}/public/index.html"
+# Replace placeholders with live release info safely and portably
+python3 -c '
+import html, sys
+
+display_name = html.escape(sys.argv[1])
+download_url = html.escape(sys.argv[2], quote=True)
+target_file = sys.argv[3]
+
+with open(target_file, "r", encoding="utf-8") as f:
+    text = f.read()
+
+text = text.replace("VERSION_PLACEHOLDER", display_name)
+text = text.replace("URL_PLACEHOLDER", download_url)
+
+with open(target_file, "w", encoding="utf-8") as f:
+    f.write(text)
+' "${DISPLAY_NAME}" "${DOWNLOAD_URL}" "${ROOT_DIR}/public/index.html"
 
 echo "Landing page built successfully in ${ROOT_DIR}/public"

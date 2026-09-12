@@ -361,9 +361,9 @@
                         </div>
                     </button>
                     
-                    <div class="stats-tooltip" id="gh-stats-tooltip">
+                    <div class="stats-tooltip" id="gh-stats-tooltip" role="region" aria-labelledby="gh-stats-tooltip-title">
                         <div class="tooltip-header">
-                            <span>Release Metrics Breakdown</span>
+                            <span id="gh-stats-tooltip-title">Release Metrics Breakdown</span>
                         </div>
                         <div class="tooltip-content" id="gh-breakdown-list">
                             <div class="loading-text">Loading history...</div>
@@ -1248,6 +1248,18 @@
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
+
+        // Header scroll effect
+        (function() {
+            const header = document.querySelector('header');
+            if (header) {
+                const onScroll = () => {
+                    header.classList.toggle('scrolled', window.scrollY > 20);
+                };
+                window.addEventListener('scroll', onScroll, { passive: true });
+                onScroll();
+            }
+        })();
 
         // Mobile Navigation Menu Toggle
         (function() {
