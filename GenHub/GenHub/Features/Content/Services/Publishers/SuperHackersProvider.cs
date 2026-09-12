@@ -214,46 +214,7 @@ public partial class SuperHackersProvider(
         return _cachedProviderDefinition;
     }
 
-    /// <inheritdoc/>
-    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
-        ContentManifest manifest,
-        string workingDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        Logger.LogInformation("Preparing SuperHackers content: {Version}", manifest.Version);
 
-        try
-        {
-            if (!Deliverer.CanDeliver(manifest))
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await Deliverer.DeliverContentAsync(
-                manifest,
-                workingDirectory,
-                progress,
-                cancellationToken);
-
-            if (!deliveryResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Content delivery failed: {deliveryResult.FirstError}");
-            }
-
-            var resultManifest = deliveryResult.Data ?? manifest;
-            Logger.LogInformation("Successfully prepared SuperHackers content {ManifestId}", manifest.Id);
-            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to prepare SuperHackers content");
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Content preparation failed: {ex.Message}");
-        }
-    }
 
     private static bool MatchesSearchTerm(GitHubRelease release, string repo, string displayName, string? searchTerm)
     {

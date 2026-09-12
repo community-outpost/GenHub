@@ -1,3 +1,4 @@
+using GenHub.Features.Content.Services.Common;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -152,78 +153,8 @@ public partial class CommunityOutpostDeliverer(
     [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
     private static partial Regex CommunityPatchRegex();
 
-    private static void EnsureValidArchivePayload(string archivePath)
-    {
-        var info = new FileInfo(archivePath);
-        if (!info.Exists || info.Length == 0)
-        {
-            throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
-        }
-
-        Span<byte> header = stackalloc byte[16];
-        using (var stream = File.OpenRead(archivePath))
-        {
-            var read = stream.Read(header);
-            if (read == 0)
-            {
-                throw new InvalidDataException($"Archive file is empty: {archivePath}");
-            }
-
-            header = header[..read];
-        }
-
-        if (LooksLikeHtml(header))
-        {
-            var preview = ReadTextPreview(archivePath, maxChars: 120);
-            throw new InvalidDataException(
-                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
-        }
-    }
-
-    private static bool LooksLikeHtml(ReadOnlySpan<byte> header)
-    {
-        if (header.Length >= 3 && header[0] == 0xEF && header[1] == 0xBB && header[2] == 0xBF)
-        {
-            header = header[3..];
-        }
-
-        while (header.Length > 0 && (header[0] == (byte)' ' || header[0] == (byte)'\t' || header[0] == (byte)'\r' || header[0] == (byte)'\n'))
-        {
-            header = header[1..];
-        }
-
-        if (header.Length < 5)
-        {
-            return false;
-        }
-
-        Span<char> ascii = stackalloc char[Math.Min(header.Length, 9)];
-        for (var i = 0; i < ascii.Length; i++)
-        {
-            ascii[i] = (char)header[i];
-        }
-
-        ReadOnlySpan<char> prefix = ascii;
-        return prefix.StartsWith("<!doctype", StringComparison.OrdinalIgnoreCase)
-            || prefix.StartsWith("<html", StringComparison.OrdinalIgnoreCase)
-            || prefix.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string ReadTextPreview(string path, int maxChars)
-    {
-        try
-        {
-            using var reader = new StreamReader(path, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-            var buffer = new char[maxChars];
-            var read = reader.Read(buffer, 0, buffer.Length);
-            var text = new string(buffer, 0, read).Replace('\r', ' ').Replace('\n', ' ').Trim();
-            return text.Length <= maxChars ? text : text[..maxChars];
-        }
-        catch
-        {
-            return "(unavailable)";
-        }
-    }
+    private static void EnsureValidArchivePayload(string archivePath) =>
+        ArchivePayloadProcessor.EnsureValidArchivePayload(archivePath);
 
     /// <summary>
     /// Extracts an archive (ZIP, 7z, etc.) asynchronously using SharpCompress.

@@ -1,3 +1,4 @@
+using GenHub.Features.Content.Services.Common;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -100,67 +101,11 @@ public partial class AddLocalContentViewModel(
         return null;
     }
 
-    private static bool FilesHaveIdenticalContent(string file1, string file2)
-    {
-        const int bufferSize = 65536;
-        var buffer1 = new byte[bufferSize];
-        var buffer2 = new byte[bufferSize];
+    private static bool FilesHaveIdenticalContent(string file1, string file2) =>
+        ArchivePayloadProcessor.FilesHaveIdenticalContent(file1, file2);
 
-        using var s1 = File.OpenRead(file1);
-        using var s2 = File.OpenRead(file2);
-
-        if (s1.Length != s2.Length)
-        {
-            return false;
-        }
-
-        var bytesRead1 = 0;
-        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
-        {
-            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
-            if (bytesRead1 != bytesRead2)
-            {
-                return false;
-            }
-
-            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsBigArchiveFile(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(filePath);
-            if (stream.Length < 16)
-            {
-                return false;
-            }
-
-            Span<byte> header = stackalloc byte[4];
-            if (stream.Read(header) < 4)
-            {
-                return false;
-            }
-
-            return header[0] == (byte)'B' && header[1] == (byte)'I' && header[2] == (byte)'G' &&
-                   (header[3] == (byte)'4' || header[3] == (byte)'F' || header[3] == (byte)'E' || header[3] == 0);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private static bool IsBigArchiveFile(string filePath) =>
+        ArchivePayloadProcessor.IsBigArchiveFile(filePath);
 
     private static bool IsExecutableFile(string filePath)
     {

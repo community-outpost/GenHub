@@ -940,25 +940,12 @@ public partial class ModDBDiscoverer(
 
             await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit });
 
-            var (listingReady, challengeObserved) = await WaitForListingOrChallengeAsync(page, url, cancellationToken);
-            if (!listingReady)
+            var (document, keepPageOpen, challengeObserved) = await LoadPageDocumentAsync(page, url, cancellationToken);
+            if (document == null)
             {
-                var isChallenge = await HandleVerificationFailureAsync(page, url, challengeObserved);
-                if (isChallenge)
-                {
-                    keepPageOpenForVerification = !page.IsClosed;
-                    return ([], false, keepPageOpenForVerification, true);
-                }
+                keepPageOpenForVerification = keepPageOpen;
+                return ([], false, keepPageOpenForVerification, challengeObserved);
             }
-
-            if (page.IsClosed)
-            {
-                return ([], false, false, challengeObserved);
-            }
-
-            var html = await page.ContentAsync();
-            var browsingContext = BrowsingContext.New(Configuration.Default);
-            var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
 
             var results = ParseDocumentSearchResults(document, gameType, section);
             if (results.Count == 0)
@@ -1208,25 +1195,12 @@ public partial class ModDBDiscoverer(
             logger.LogInformation("[ModDB] Navigating directly to requested URL: {Url}", url);
             await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit });
 
-            var (listingReady, challengeObserved) = await WaitForListingOrChallengeAsync(page, url, cancellationToken);
-            if (!listingReady)
+            var (document, keepPageOpen, challengeObserved) = await LoadPageDocumentAsync(page, url, cancellationToken);
+            if (document == null)
             {
-                var isChallenge = await HandleVerificationFailureAsync(page, url, challengeObserved);
-                if (isChallenge)
-                {
-                    keepPageOpenForVerification = !page.IsClosed;
-                    return ([], false, keepPageOpenForVerification, true);
-                }
+                keepPageOpenForVerification = keepPageOpen;
+                return ([], false, keepPageOpenForVerification, challengeObserved);
             }
-
-            if (page.IsClosed)
-            {
-                return ([], false, false, challengeObserved);
-            }
-
-            var html = await page.ContentAsync();
-            var browsingContext = BrowsingContext.New(Configuration.Default);
-            var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
 
             var section = DetermineSectionFromUrl(url);
 
@@ -1273,5 +1247,30 @@ public partial class ModDBDiscoverer(
             logger.LogError(ex, "Failed to discover from direct ModDB URL {Url}", url);
             return ([], false, keepPageOpenForVerification, false);
         }
+    }
+    private async Task<(AngleSharp.Dom.IDocument? Document, bool KeepPageOpen, bool ChallengeObserved)> LoadPageDocumentAsync(
+        IPage page,
+        string url,
+        CancellationToken cancellationToken)
+    {
+        var (listingReady, challengeObserved) = await WaitForListingOrChallengeAsync(page, url, cancellationToken);
+        if (!listingReady)
+        {
+            var isChallenge = await HandleVerificationFailureAsync(page, url, challengeObserved);
+            if (isChallenge)
+            {
+                return (null, !page.IsClosed, true);
+            }
+        }
+
+        if (page.IsClosed)
+        {
+            return (null, false, challengeObserved);
+        }
+
+        var html = await page.ContentAsync();
+        var browsingContext = BrowsingContext.New(Configuration.Default);
+        var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
+        return (document, false, challengeObserved);
     }
 }

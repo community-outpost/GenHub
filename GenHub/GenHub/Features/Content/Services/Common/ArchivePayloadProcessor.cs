@@ -458,7 +458,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             .ToList();
     }
 
-    private static void EnsureValidArchivePayload(string archivePath)
+    internal static void EnsureValidArchivePayload(string archivePath)
     {
         var info = new FileInfo(archivePath);
         if (!info.Exists || info.Length == 0)
@@ -651,7 +651,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
-    private static bool IsBigArchiveFile(string filePath)
+    internal static bool IsBigArchiveFile(string filePath)
     {
         if (!File.Exists(filePath))
         {
@@ -1941,7 +1941,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return newDestPath;
     }
 
-    private static bool FilesHaveIdenticalContent(string file1, string file2)
+    internal static bool FilesHaveIdenticalContent(string file1, string file2)
     {
         const int bufferSize = 65536;
         var buffer1 = new byte[bufferSize];

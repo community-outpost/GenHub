@@ -495,64 +495,40 @@ public class GeneralsOnlineManifestFactory(
             });
 
             // Also include 60Hz variant as secondary option
-            manifests.Add(new ContentManifest
-            {
-                Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+            manifests.Add(Create60HzManifest(
+                ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
                     PublisherTypeConstants.GeneralsOnline,
                     ContentType.GameClient,
                     GeneralsOnlineConstants.Variant60HzSuffix,
                     userVersion)),
-                Name = GameClientConstants.GeneralsOnline60HzDisplayName,
-                Version = version,
-                ContentType = ContentType.GameClient,
-                TargetGame = GameType.ZeroHour,
-                Publisher = publisherInfo,
-                OriginalProviderName = originalManifest.OriginalProviderName,
-                OriginalContentId = originalManifest.OriginalContentId,
-                Metadata = new ContentMetadata
-                {
-                    Description = GeneralsOnlineConstants.ShortDescription,
-                    ReleaseDate = releaseDate,
-                    IconUrl = iconUrl,
-                    ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                    Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
-                    ChangelogUrl = changelogUrl,
-                    CoverUrl = GeneralsOnlineConstants.CoverSource,
-                },
-                Files = [],
-                Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
-            });
+                version,
+                publisherInfo,
+                originalManifest,
+                userVersion,
+                releaseDate,
+                iconUrl,
+                changelogUrl));
         }
         else
         {
             // Standard GameClient acquisition: 60Hz first, QuickMatch MapPack second
-            manifests.Add(new ContentManifest
-            {
-                Id = originalManifest.ContentType == ContentType.GameClient ? originalManifest.Id : ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+            var hz60Id = originalManifest.ContentType == ContentType.GameClient
+                ? originalManifest.Id
+                : ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
                     PublisherTypeConstants.GeneralsOnline,
                     ContentType.GameClient,
                     GeneralsOnlineConstants.Variant60HzSuffix,
-                    userVersion)),
-                Name = GameClientConstants.GeneralsOnline60HzDisplayName,
-                Version = version,
-                ContentType = ContentType.GameClient,
-                TargetGame = GameType.ZeroHour,
-                Publisher = publisherInfo,
-                OriginalProviderName = originalManifest.OriginalProviderName,
-                OriginalContentId = originalManifest.OriginalContentId,
-                Metadata = new ContentMetadata
-                {
-                    Description = GeneralsOnlineConstants.ShortDescription,
-                    ReleaseDate = releaseDate,
-                    IconUrl = iconUrl,
-                    ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                    Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
-                    ChangelogUrl = changelogUrl,
-                    CoverUrl = GeneralsOnlineConstants.CoverSource,
-                },
-                Files = [],
-                Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
-            });
+                    userVersion));
+
+            manifests.Add(Create60HzManifest(
+                hz60Id,
+                version,
+                publisherInfo,
+                originalManifest,
+                userVersion,
+                releaseDate,
+                iconUrl,
+                changelogUrl));
 
             manifests.Add(new ContentManifest
             {
@@ -848,5 +824,39 @@ public class GeneralsOnlineManifestFactory(
                 m.Dependencies = m.Dependencies.Where(d => d.DependencyType != ContentType.MapPack).ToList();
             }
         }
+    }
+    private static ContentManifest Create60HzManifest(
+        ManifestId manifestId,
+        string version,
+        PublisherInfo publisherInfo,
+        ContentManifest originalManifest,
+        string userVersion,
+        DateTimeOffset? releaseDate,
+        string iconUrl,
+        string changelogUrl)
+    {
+        return new ContentManifest
+        {
+            Id = manifestId,
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = version,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = publisherInfo,
+            OriginalProviderName = originalManifest.OriginalProviderName,
+            OriginalContentId = originalManifest.OriginalContentId,
+            Metadata = new ContentMetadata
+            {
+                Description = GeneralsOnlineConstants.ShortDescription,
+                ReleaseDate = releaseDate,
+                IconUrl = iconUrl,
+                ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
+                ChangelogUrl = changelogUrl,
+                CoverUrl = GeneralsOnlineConstants.CoverSource,
+            },
+            Files = [],
+            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
+        };
     }
 }

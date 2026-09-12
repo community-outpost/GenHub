@@ -273,30 +273,14 @@ public partial class AODMapsDiscoverer(
         var author = AODMapsHelper.ExtractAuthor(name, sourceUrl) ?? AODMapsConstants.DefaultAuthorName;
         var description = BuildMapDescription(name, playerCount, sourceUrl, author);
 
-        var result = new ContentSearchResult
-        {
-            Id = safeHashCode,
-            Name = name,
-            Description = description,
-            AuthorName = author,
-            Version = string.Empty,
-            ProviderName = AODMapsConstants.DiscovererSourceName,
-            SourceUrl = safeDownloadUrl, // Use download URL as source URL for unique identification
-            IconUrl = thumbnailUrl ?? PublisherInfoConstants.AODMaps.LogoSource,
-            ContentType = ContentType.Map,
-            TargetGame = GameType.ZeroHour,
-            RequiresResolution = true,
-            ResolverId = AODMapsConstants.ResolverId,
-            LastUpdated = null,
-            ResolverMetadata =
-            {
-                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
-                { AODMapsConstants.MapIdMetadataKey, safeHashCode },
-                { AODMapsConstants.ContentIdMetadataKey, safeHashCode },
-                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
-                { AODMapsConstants.ListPageUrlMetadataKey, sourceUrl },
-            },
-        };
+        var result = CreateAODMapSearchResult(
+            safeHashCode,
+            name,
+            description,
+            author,
+            safeDownloadUrl,
+            thumbnailUrl,
+            sourceUrl);
 
         result.Tags.Add("AODMaps");
         if (!string.IsNullOrWhiteSpace(author) && !author.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase))
@@ -349,30 +333,14 @@ public partial class AODMapsDiscoverer(
         var author = AODMapsHelper.ExtractAuthor(title, sourceUrl) ?? "MapMaker";
         var description = AODMapsHelper.ExtractMapMakerDescription(content, playerCount, InferCategoryFromUrl(sourceUrl), author);
 
-        var result = new ContentSearchResult
-        {
-            Id = safeHashCode,
-            Name = title,
-            Description = description,
-            AuthorName = author,
-            Version = string.Empty,
-            ProviderName = AODMapsConstants.DiscovererSourceName,
-            SourceUrl = safeDownloadUrl, // Use download URL as source URL for unique identification
-            IconUrl = thumbnailUrl ?? PublisherInfoConstants.AODMaps.LogoSource,
-            ContentType = ContentType.Map,
-            TargetGame = GameType.ZeroHour,
-            RequiresResolution = true,
-            ResolverId = AODMapsConstants.ResolverId,
-            LastUpdated = null,
-            ResolverMetadata =
-            {
-                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
-                { AODMapsConstants.MapIdMetadataKey, safeHashCode },
-                { AODMapsConstants.ContentIdMetadataKey, safeHashCode },
-                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
-                { AODMapsConstants.ListPageUrlMetadataKey, sourceUrl },
-            },
-        };
+        var result = CreateAODMapSearchResult(
+            safeHashCode,
+            title,
+            description,
+            author,
+            safeDownloadUrl,
+            thumbnailUrl,
+            sourceUrl);
 
         result.Tags.Add("AODMaps");
         if (!string.IsNullOrWhiteSpace(author) && !author.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase) && !author.Equals("MapMaker", StringComparison.OrdinalIgnoreCase))
@@ -736,5 +704,39 @@ public partial class AODMapsDiscoverer(
 
         logger.LogInformation("[AODMaps] No next page link found on page {Page}", currentPage);
         return false;
+    }
+    private static ContentSearchResult CreateAODMapSearchResult(
+        string id,
+        string name,
+        string description,
+        string author,
+        string safeDownloadUrl,
+        string? thumbnailUrl,
+        string sourceUrl)
+    {
+        return new ContentSearchResult
+        {
+            Id = id,
+            Name = name,
+            Description = description,
+            AuthorName = author,
+            Version = string.Empty,
+            ProviderName = AODMapsConstants.DiscovererSourceName,
+            SourceUrl = safeDownloadUrl,
+            IconUrl = thumbnailUrl ?? PublisherInfoConstants.AODMaps.LogoSource,
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            RequiresResolution = true,
+            ResolverId = AODMapsConstants.ResolverId,
+            LastUpdated = null,
+            ResolverMetadata =
+            {
+                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
+                { AODMapsConstants.MapIdMetadataKey, id },
+                { AODMapsConstants.ContentIdMetadataKey, id },
+                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
+                { AODMapsConstants.ListPageUrlMetadataKey, sourceUrl },
+            },
+        };
     }
 }
