@@ -592,7 +592,7 @@ public sealed partial class ContentStateService(
         }
 
         var datePart = raw[..^1];
-        int month, day, year;
+        int month = 0, day = 0, year = 0;
         if (datePart.Length == 5)
         {
             if (!int.TryParse(datePart.AsSpan(0, 1), NumberStyles.None, CultureInfo.InvariantCulture, out month) ||
