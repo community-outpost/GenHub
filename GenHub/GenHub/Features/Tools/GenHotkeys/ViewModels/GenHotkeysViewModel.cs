@@ -32,6 +32,7 @@ public partial class GenHotkeysViewModel(
 
     private List<HotkeyFaction> _allFactions = [];
     private bool _isInitializing;
+    private bool _isDisposed;
     private CancellationTokenSource? _reloadCts;
 
     [ObservableProperty]
@@ -128,6 +129,11 @@ public partial class GenHotkeysViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
+        if (_isInitializing)
+        {
+            return;
+        }
+
         _isInitializing = true;
         try
         {
@@ -178,7 +184,11 @@ public partial class GenHotkeysViewModel(
         {
             SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
             SelectedProfile.KeyMappings[SelectedAction.HotkeyString] = upper;
-            await SaveCurrentProfileAsync(cancellationToken);
+            var saved = await SaveCurrentProfileAsync(cancellationToken);
+            if (!saved)
+            {
+                return;
+            }
         }
 
         ValidateConflicts();
@@ -210,7 +220,11 @@ public partial class GenHotkeysViewModel(
         {
             SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
             SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
-            await SaveCurrentProfileAsync(cancellationToken);
+            var saved = await SaveCurrentProfileAsync(cancellationToken);
+            if (!saved)
+            {
+                return;
+            }
         }
 
         ValidateConflicts();
@@ -241,7 +255,11 @@ public partial class GenHotkeysViewModel(
         {
             SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
             SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
-            await SaveCurrentProfileAsync(cancellationToken);
+            var saved = await SaveCurrentProfileAsync(cancellationToken);
+            if (!saved)
+            {
+                return;
+            }
         }
 
         ValidateConflicts();
@@ -257,9 +275,10 @@ public partial class GenHotkeysViewModel(
     /// Applies a preset configuration (e.g. Legionnaire, Leikeze, or Vanilla).
     /// </summary>
     /// <param name="presetName">The name of the preset to apply.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task ApplyPresetAsync(string presetName)
+    public async Task ApplyPresetAsync(string presetName, CancellationToken cancellationToken = default)
     {
         if (SelectedProfile == null)
         {
@@ -271,7 +290,7 @@ public partial class GenHotkeysViewModel(
             IsBusy = true;
             BusyMessage = $"Applying '{presetName}' preset...";
 
-            var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame, CancellationToken.None);
+            var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame, cancellationToken);
             if (preset == null)
             {
                 StatusMessage = $"Failed to load preset '{presetName}'.";
@@ -293,9 +312,11 @@ public partial class GenHotkeysViewModel(
 
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            await SaveCurrentProfileAsync(CancellationToken.None);
-
-            StatusMessage = $"Applied '{presetName}' preset successfully.";
+            var saved = await SaveCurrentProfileAsync(cancellationToken);
+            if (saved)
+            {
+                StatusMessage = $"Applied '{presetName}' preset successfully.";
+            }
         }
         catch (OperationCanceledException)
         {
@@ -315,9 +336,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Creates a new profile with the given name.
     /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task CreateNewProfileAsync()
+    public async Task CreateNewProfileAsync(CancellationToken cancellationToken = default)
     {
         var name = string.IsNullOrWhiteSpace(NewProfileName) ? "Custom Hotkeys" : NewProfileName.Trim();
         var profile = new HotkeyProfile
@@ -331,7 +353,7 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            await profileStorageService.SaveProfileAsync(profile, CancellationToken.None);
+            await profileStorageService.SaveProfileAsync(profile, cancellationToken);
             Profiles.Add(profile);
             SelectedProfile = profile;
             NewProfileName = string.Empty;
@@ -352,9 +374,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Renames the currently selected profile.
     /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task RenameCurrentProfileAsync()
+    public async Task RenameCurrentProfileAsync(CancellationToken cancellationToken = default)
     {
         if (SelectedProfile == null)
         {
@@ -376,7 +399,12 @@ public partial class GenHotkeysViewModel(
 
         var oldName = SelectedProfile.Name;
         SelectedProfile.Name = newName;
-        await SaveCurrentProfileAsync(CancellationToken.None);
+        var saved = await SaveCurrentProfileAsync(cancellationToken);
+        if (!saved)
+        {
+            SelectedProfile.Name = oldName;
+            return;
+        }
 
         var index = Profiles.IndexOf(SelectedProfile);
         if (index >= 0)
@@ -390,9 +418,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Deletes the currently selected profile.
     /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task DeleteCurrentProfileAsync()
+    public async Task DeleteCurrentProfileAsync(CancellationToken cancellationToken = default)
     {
         if (SelectedProfile == null || Profiles.Count <= 1)
         {
@@ -403,7 +432,7 @@ public partial class GenHotkeysViewModel(
         var toDelete = SelectedProfile;
         try
         {
-            await profileStorageService.DeleteProfileAsync(toDelete.Id, CancellationToken.None);
+            await profileStorageService.DeleteProfileAsync(toDelete.Id, cancellationToken);
             Profiles.Remove(toDelete);
             SelectedProfile = Profiles.FirstOrDefault();
 
@@ -423,9 +452,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Exports the current hotkey configuration into a standalone .big addon and registers it with GenHub.
     /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task ExportAddonAsync()
+    public async Task ExportAddonAsync(CancellationToken cancellationToken = default)
     {
         if (SelectedProfile == null)
         {
@@ -439,7 +469,7 @@ public partial class GenHotkeysViewModel(
             BusyMessage = "Building .big archive and registering GenHub Addon...";
 
             var progress = new Progress<string>(msg => BusyMessage = msg);
-            var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress, CancellationToken.None);
+            var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress, cancellationToken);
 
             StatusMessage = result is { Success: true, Data: not null }
                 ? $"Success! Addon '{result.Data.Name}' ({result.Data.Id}) registered in GenHub!"
@@ -465,19 +495,32 @@ public partial class GenHotkeysViewModel(
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task SaveCurrentProfileAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> SaveCurrentProfileAsync(CancellationToken cancellationToken = default)
     {
-        if (SelectedProfile == null)
+        if (SelectedProfile == null || _isDisposed)
         {
-            return;
+            return false;
         }
 
-        await _saveSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _saveSemaphore.WaitAsync(cancellationToken);
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+
         try
         {
             SelectedProfile.OverlayEnabled = OverlayEnabled;
             SelectedProfile.OverlayCorner = SelectedCorner;
-            await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken).ConfigureAwait(false);
+            await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken);
+            return true;
         }
         catch (OperationCanceledException)
         {
@@ -487,10 +530,18 @@ public partial class GenHotkeysViewModel(
         {
             logger.LogError(ex, "Failed to save profile '{Name}'", SelectedProfile.Name);
             StatusMessage = $"Failed to save profile: {ex.Message}";
+            return false;
         }
         finally
         {
-            _saveSemaphore.Release();
+            try
+            {
+                _saveSemaphore.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignored if disposed during release
+            }
         }
     }
 
@@ -583,6 +634,8 @@ public partial class GenHotkeysViewModel(
     {
         if (disposing)
         {
+            _isDisposed = true;
+
             _reloadCts?.Cancel();
             _reloadCts?.Dispose();
             _reloadCts = null;
@@ -657,9 +710,9 @@ public partial class GenHotkeysViewModel(
     {
         if (!_isInitializing)
         {
-            _reloadCts?.Cancel();
-            _reloadCts?.Dispose();
+            var oldCts = _reloadCts;
             _reloadCts = new CancellationTokenSource();
+            oldCts?.Cancel();
 
             SelectedAction = null;
             SelectedGameObject = null;

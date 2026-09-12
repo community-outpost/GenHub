@@ -16,7 +16,7 @@ public class CsfFile
     private static readonly byte[] MagicRts = [(byte)' ', (byte)'R', (byte)'T', (byte)'S'];
 
     private static readonly Regex HotkeyBracketRegex = new(
-        @"\[&?[A-Za-z0-9]\]|\(&?[A-Za-z0-9]\)",
+        @"\[&[A-Za-z0-9]\]|\(&[A-Za-z0-9]\)|^\s*(?:\[[A-Za-z0-9]\]|\([A-Za-z0-9]\))\s*",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(1));
 
@@ -61,13 +61,11 @@ public class CsfFile
         using var reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: true);
         var csf = new CsfFile();
 
-        // Read and verify magic ' FSC'
-        var magic = reader.ReadBytes(4);
-        if (magic.Length < 4 ||
-            magic[0] != MagicCsf[0] || magic[1] != MagicCsf[1] ||
-            magic[2] != MagicCsf[2] || magic[3] != MagicCsf[3])
+        // Read and verify header
+        var header = reader.ReadBytes(4);
+        if (header.Length < 4 || !header.AsSpan().SequenceEqual(MagicCsf))
         {
-            throw new InvalidDataException("Invalid CSF file header: magic ' FSC' not found.");
+            throw new InvalidDataException("Invalid CSF file header.");
         }
 
         csf.Version = reader.ReadUInt32();
@@ -215,6 +213,26 @@ public class CsfFile
     }
 
     /// <summary>
+    /// Gets a string value by its label.
+    /// </summary>
+    /// <param name="label">CSF label name.</param>
+    /// <returns>The string value or empty string if not found.</returns>
+    public string GetString(string label)
+    {
+        return _strings.TryGetValue(label, out var val) ? val : string.Empty;
+    }
+
+    /// <summary>
+    /// Sets or adds a label and value pair in the string table.
+    /// </summary>
+    /// <param name="label">CSF label name.</param>
+    /// <param name="value">String value to assign.</param>
+    public void SetString(string label, string value)
+    {
+        _strings[label] = value;
+    }
+
+    /// <summary>
     /// Writes the CSF file to the specified destination path.
     /// </summary>
     /// <param name="filePath">Target destination file path.</param>
@@ -258,31 +276,12 @@ public class CsfFile
             // ' RTS', length in 16-bit characters, inverted UTF-16 chars
             writer.Write(MagicRts);
             writer.Write((uint)val.Length);
-            for (int i = 0; i < val.Length; i++)
+
+            for (int c = 0; c < val.Length; c++)
             {
-                var ch = val[i];
-                writer.Write((ushort)~ch);
+                var raw = (ushort)val[c];
+                writer.Write((ushort)(~raw));
             }
         }
-    }
-
-    /// <summary>
-    /// Gets a string value by its label.
-    /// </summary>
-    /// <param name="label">CSF label name.</param>
-    /// <returns>The string value or empty string if not found.</returns>
-    public string GetString(string label)
-    {
-        return _strings.TryGetValue(label, out var val) ? val : string.Empty;
-    }
-
-    /// <summary>
-    /// Sets or adds a label and value pair in the string table.
-    /// </summary>
-    /// <param name="label">CSF label name.</param>
-    /// <param name="value">String value to assign.</param>
-    public void SetString(string label, string value)
-    {
-        _strings[label] = value;
     }
 }

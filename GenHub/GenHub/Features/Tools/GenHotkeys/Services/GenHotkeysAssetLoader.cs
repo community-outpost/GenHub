@@ -1,7 +1,7 @@
 using System;
 using System.IO;
-using System.Linq;
 using Avalonia.Platform;
+using GenHub.Core.Constants;
 
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
@@ -38,10 +38,17 @@ internal static class GenHotkeysAssetLoader
         }
 
         // 2. Try AppContext.BaseDirectory
-        var fileOnDisk = Path.Combine(AppContext.BaseDirectory, AssetsFolder, GenHotkeysFolder, relativePath);
-        if (File.Exists(fileOnDisk))
+        try
         {
-            return File.OpenRead(fileOnDisk);
+            var fileOnDisk = Path.Combine(AppContext.BaseDirectory, AssetsFolder, GenHotkeysFolder, relativePath);
+            if (File.Exists(fileOnDisk))
+            {
+                return File.OpenRead(fileOnDisk);
+            }
+        }
+        catch
+        {
+            // Ignore and fall back to search roots
         }
 
         // 3. Try relative to project/solution directories during development
@@ -53,7 +60,46 @@ internal static class GenHotkeysAssetLoader
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", GenHubFolder, GenHubFolder, AssetsFolder, GenHotkeysFolder, relativePath),
         };
 
-        var match = searchRoots.FirstOrDefault(File.Exists);
-        return match != null ? File.OpenRead(match) : null;
+        foreach (var root in searchRoots)
+        {
+            try
+            {
+                if (File.Exists(root))
+                {
+                    return File.OpenRead(root);
+                }
+            }
+            catch
+            {
+                // Ignore and try next root
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to open an asset stream for a faction emblem icon.
+    /// </summary>
+    /// <param name="filename">The icon filename (e.g. "usa.png").</param>
+    /// <returns>A readable <see cref="Stream"/> if the asset was found; otherwise, <see langword="null"/>.</returns>
+    public static Stream? TryOpenFactionIconStream(string filename)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filename);
+
+        try
+        {
+            var uri = new Uri(string.Format(GenHotkeysConstants.FactionIconUriPattern, filename));
+            if (AssetLoader.Exists(uri))
+            {
+                return AssetLoader.Open(uri);
+            }
+        }
+        catch
+        {
+            // Ignore and return null
+        }
+
+        return null;
     }
 }

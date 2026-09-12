@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -22,8 +23,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
 /// <summary>
-/// Service for building a standalone .big archive containing customized CSF
-/// and icon TGAs, and registering it as a GenHub ContentManifest Addon.
+/// Packages customized hotkeys into a SAGE engine .big archive and registers it as a GenHub Addon.
 /// </summary>
 public class HotkeyPackageService(
     ITechTreeService techTreeService,
@@ -31,7 +31,10 @@ public class HotkeyPackageService(
     IServiceScopeFactory scopeFactory,
     ILogger<HotkeyPackageService> logger) : IHotkeyPackageService
 {
-    private static readonly Regex SafeFileNameRegex = new("[^a-zA-Z0-9_-]", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private static readonly Regex SafeFileNameRegex = new(
+        @"[^a-zA-Z0-9_\-]",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1));
 
     /// <inheritdoc />
     public async Task<OperationResult<ContentManifest>> CreateHotkeysAddonAsync(
@@ -40,6 +43,7 @@ public class HotkeyPackageService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var stagingDir = Path.Combine(Path.GetTempPath(), $"GenHub_Hotkeys_{Guid.NewGuid():N}");
         var packageDir = Path.Combine(Path.GetTempPath(), $"GenHub_Hotkeys_Pkg_{Guid.NewGuid():N}");
@@ -49,42 +53,40 @@ public class HotkeyPackageService(
             Directory.CreateDirectory(stagingDir);
             Directory.CreateDirectory(packageDir);
 
-            progress?.Report("Preparing customized CSF string table...");
-            logger.LogDebug("Generating hotkey addon for profile '{Name}' ({Game})", profile.Name, profile.TargetGame);
+            // Step 1: Generate customized CommandMap.ini
+            progress?.Report("Generating CommandMap.ini...");
+            await GenerateCommandMapIniAsync(profile, stagingDir, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            // 1. Build and modify CSF asynchronously to avoid blocking the UI thread
-            await Task.Run(() => ApplyCsfModifications(profile, stagingDir), cancellationToken);
+            // Step 2: Generate customized generals.csf
+            progress?.Report("Generating localized strings (generals.csf)...");
+            await GenerateGeneralsCsfAsync(profile, stagingDir, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            // 2. Process Icon Overlays if enabled asynchronously to avoid blocking the UI thread
+            // Step 3: Render and stamp icon overlays (if enabled)
             if (profile.OverlayEnabled)
             {
-                await Task.Run(
-                    () => GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken),
-                    cancellationToken);
+                await GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken);
             }
 
-            // 3. Pack into .big archive
-            progress?.Report("Packing files into .big archive...");
-            await PackBigArchiveAsync(profile, stagingDir, packageDir, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            // 4. Register with GenHub as ContentManifest Addon
-            progress?.Report("Registering hotkey addon in GenHub...");
-            var result = await RegisterAddonManifestAsync(profile, packageDir, cancellationToken);
+            // Step 4: Pack staging folder into !Hotkeys_<ProfileName>_<Game>.big
+            progress?.Report("Packing SAGE .big archive...");
+            var bigFilePath = await PackBigArchiveAsync(profile, stagingDir, packageDir, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            if (!result.Success || result.Data == null)
-            {
-                logger.LogError("Failed to register hotkeys addon: {Errors}", string.Join(", ", result.Errors));
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Failed to register hotkey addon: {string.Join(", ", result.Errors)}");
-            }
+            // Step 5: Register as an Addon ContentManifest in GenHub
+            progress?.Report("Registering addon in GenHub...");
+            var manifestResult = await RegisterAddonManifestAsync(profile, packageDir, cancellationToken);
 
-            progress?.Report("Hotkey addon created successfully!");
             logger.LogInformation(
-                "Successfully created hotkey addon manifest {Id} for profile {Name}",
-                result.Data.Id,
-                profile.Name);
+                "Successfully exported hotkeys addon '{Name}' ({Id}) to {Path}",
+                profile.Name,
+                profile.Id,
+                bigFilePath);
 
-            return result;
+            return manifestResult;
         }
         catch (OperationCanceledException)
         {
@@ -92,9 +94,8 @@ public class HotkeyPackageService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create hotkey addon for profile '{Name}'", profile.Name);
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Failed to build hotkeys addon: {ex.Message}");
+            logger.LogError(ex, "Failed to package hotkeys addon for profile '{Name}'", profile.Name);
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to create hotkeys addon: {ex.Message}");
         }
         finally
         {
@@ -103,8 +104,41 @@ public class HotkeyPackageService(
         }
     }
 
-    private static void ApplyCsfModifications(HotkeyProfile profile, string stagingDir)
+    private static async Task GenerateCommandMapIniAsync(
+        HotkeyProfile profile,
+        string stagingDir,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        var map = LoadBaseCommandMap();
+
+        // Custom CommandMap entries from profile KeyMappings
+        foreach (var (key, val) in profile.KeyMappings)
+        {
+            if (key.StartsWith("CommandMap:", StringComparison.OrdinalIgnoreCase))
+            {
+                var entryName = key["CommandMap:".Length..];
+                var entry = map.GetOrCreateEntry(entryName);
+                entry.Properties["Key"] = $"KEY_{char.ToUpperInvariant(val)}";
+            }
+        }
+
+        var outputPath = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory, GenHotkeysConstants.CommandMapFileName);
+        var dir = Path.GetDirectoryName(outputPath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        await Task.Run(() => map.Save(outputPath), cancellationToken);
+    }
+
+    private static async Task GenerateGeneralsCsfAsync(
+        HotkeyProfile profile,
+        string stagingDir,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         var baseCsf = LoadBaseCsf(profile);
 
         // Strip explicitly cleared hotkeys (both primary label and linked shortcut aliases)
@@ -151,7 +185,7 @@ public class HotkeyPackageService(
         var englishDir = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory);
         Directory.CreateDirectory(englishDir);
         var csfOutputPath = Path.Combine(englishDir, GenHotkeysConstants.GeneralsCsfFileName);
-        baseCsf.Save(csfOutputPath);
+        await Task.Run(() => baseCsf.Save(csfOutputPath), cancellationToken);
     }
 
     private static void StripLabelAndAliases(CsfFile csf, string label)
@@ -159,17 +193,19 @@ public class HotkeyPackageService(
         var existing = csf.GetString(label);
         if (!string.IsNullOrEmpty(existing))
         {
-            csf.SetString(label, CsfFile.StripHotkey(existing));
+            var stripped = CsfFile.StripHotkey(existing);
+            csf.SetString(label, stripped);
         }
 
         if (GenHotkeysConstants.ShortcutLabelAliases.TryGetValue(label, out var aliases))
         {
             foreach (var alias in aliases)
             {
-                var aliasExisting = csf.GetString(alias);
-                if (!string.IsNullOrEmpty(aliasExisting))
+                var aliasVal = csf.GetString(alias);
+                if (!string.IsNullOrEmpty(aliasVal))
                 {
-                    csf.SetString(alias, CsfFile.StripHotkey(aliasExisting));
+                    var aliasStripped = CsfFile.StripHotkey(aliasVal);
+                    csf.SetString(alias, aliasStripped);
                 }
             }
         }
@@ -180,17 +216,19 @@ public class HotkeyPackageService(
         var existing = csf.GetString(label);
         if (!string.IsNullOrEmpty(existing))
         {
-            csf.SetString(label, CsfFile.SetHotkey(existing, key));
+            var updated = CsfFile.SetHotkey(existing, key);
+            csf.SetString(label, updated);
         }
 
         if (GenHotkeysConstants.ShortcutLabelAliases.TryGetValue(label, out var aliases))
         {
             foreach (var alias in aliases)
             {
-                var aliasExisting = csf.GetString(alias);
-                if (!string.IsNullOrEmpty(aliasExisting))
+                var aliasVal = csf.GetString(alias);
+                if (!string.IsNullOrEmpty(aliasVal))
                 {
-                    csf.SetString(alias, CsfFile.SetHotkey(aliasExisting, key));
+                    var aliasUpdated = CsfFile.SetHotkey(aliasVal, key);
+                    csf.SetString(alias, aliasUpdated);
                 }
             }
         }
@@ -218,27 +256,25 @@ public class HotkeyPackageService(
         HotkeyProfile profile,
         string stagingDir,
         string packageDir,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
         var sanitizedName = SafeFileNameRegex.Replace(profile.Name, "_");
         if (string.IsNullOrWhiteSpace(sanitizedName))
         {
             sanitizedName = "Hotkeys";
         }
 
-        var gameTag = profile.TargetGame == GameType.Generals ? "Gen" : "ZH";
+        var gameTag = GenHotkeysConstants.GetGameTag(profile.TargetGame);
         var bigFileName = string.Format(GenHotkeysConstants.BigFileNamePattern, sanitizedName, gameTag);
         var bigFilePath = Path.Combine(packageDir, bigFileName);
 
-        await BigFilePacker.PackAsync(stagingDir, bigFilePath, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
+        await BigFilePacker.PackAsync(stagingDir, bigFilePath, cancellationToken).ConfigureAwait(false);
         return bigFilePath;
     }
 
     /// <summary>
-    /// Loads the base CSF string table for the specified profile.
-    /// Non-Legionnaire presets (including Vanilla/Default) use the bundled LeikezeEN string table,
+    /// Loads the base CSF template for a given profile.
+    /// Prefers the Leikeze English reference preset (Presets/LeikezeEN.csf),
     /// which provides the reference English layout used across the editor.
     /// </summary>
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)
@@ -257,6 +293,20 @@ public class HotkeyPackageService(
         }
 
         throw new FileNotFoundException($"Base CSF preset '{presetFile}' could not be loaded. Ensure GenHotkeys assets are present.");
+    }
+
+    private static CommandMapFile LoadBaseCommandMap()
+    {
+        var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsCommandMap);
+        if (stream != null)
+        {
+            using (stream)
+            {
+                return CommandMapFile.Load(stream);
+            }
+        }
+
+        return new CommandMapFile();
     }
 
     private static void TryDeleteDirectory(string path)
@@ -449,6 +499,10 @@ public class HotkeyPackageService(
             var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
             await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", iconName);
@@ -463,16 +517,14 @@ public class HotkeyPackageService(
         using var scope = scopeFactory.CreateScope();
         var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
 
-        var gameTag = profile.TargetGame == GameType.Generals ? "Gen" : "ZH";
+        var gameTag = GenHotkeysConstants.GetGameTag(profile.TargetGame);
         var manifestDisplayName = $"Hotkeys - {profile.Name} ({gameTag})";
 
         return await localContentService.CreateLocalContentManifestAsync(
-            directoryPath: packageDir,
-            name: manifestDisplayName,
-            contentType: ContentType.Addon,
-            targetGame: profile.TargetGame,
-            sourcePath: null,
-            progress: null,
+            packageDir,
+            manifestDisplayName,
+            ContentType.Addon,
+            profile.TargetGame,
             cancellationToken: cancellationToken);
     }
 }
