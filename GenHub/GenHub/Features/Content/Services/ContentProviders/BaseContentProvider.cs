@@ -352,6 +352,75 @@ public abstract class BaseContentProvider : IContentProvider
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Delivers content using the specified deliverer and enriches the manifest via the publisher manifest factory.
+    /// </summary>
+    /// <param name="deliverer">The content deliverer.</param>
+    /// <param name="manifestFactory">The publisher manifest factory.</param>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="workingDirectory">The working directory.</param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the prepared content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> DeliverAndEnrichContentAsync(
+        IContentDeliverer deliverer,
+        IPublisherManifestFactory manifestFactory,
+        ContentManifest manifest,
+        string workingDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(deliverer);
+        ArgumentNullException.ThrowIfNull(manifestFactory);
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        try
+        {
+            if (!deliverer.CanDeliver(manifest))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Cannot deliver content for manifest {manifest.Id}");
+            }
+
+            var deliveryResult = await deliverer.DeliverContentAsync(
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+
+            if (!deliveryResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Content delivery failed: {deliveryResult.FirstError}");
+            }
+
+            var extractedManifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+                manifest,
+                workingDirectory,
+                cancellationToken).ConfigureAwait(false);
+
+            var resultManifest = extractedManifests.Count > 0 ? extractedManifests[0] : (deliveryResult.Data ?? manifest);
+
+            Logger.LogInformation(
+                "Successfully prepared {SourceName} content {ManifestId} with {FileCount} files",
+                SourceName,
+                resultManifest.Id,
+                resultManifest.Files.Count);
+
+            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to prepare {SourceName} content {ManifestId}", SourceName, manifest.Id);
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content preparation failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Creates a resolved <see cref="ContentSearchResult"/> from a discovered item and manifest.
     /// </summary>
     /// <param name="discovered">The discovered search result.</param>

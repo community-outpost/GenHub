@@ -62,10 +62,15 @@ public static partial class AODMapsHelper
             var match = AuthorFromTitleRegex().Match(title);
             if (match.Success)
             {
-                var candidate = match.Groups[1].Value.Trim();
+                var prefix = match.Groups[1].Value.Trim();
+                var candidate = match.Groups[2].Value.Trim();
                 var recognized = AODMapsConstants.RecognizedMapMakers.FirstOrDefault(m =>
                     m.Equals(candidate, StringComparison.OrdinalIgnoreCase));
-                return recognized ?? candidate;
+
+                if (!prefix.Equals("by", StringComparison.OrdinalIgnoreCase) || recognized != null)
+                {
+                    return recognized ?? candidate;
+                }
             }
         }
 
@@ -88,7 +93,7 @@ public static partial class AODMapsHelper
     /// Extracts special AI or game rule notes from the title.
     /// </summary>
     /// <param name="title">The map title.</param>
-    /// <returns>A string with extracted notes, or null if none found.</returns>
+    /// <returns>Extracted notes, or null if none found.</returns>
     public static string? ExtractSpecialNotes(string? title)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -140,9 +145,9 @@ public static partial class AODMapsHelper
         builder.Append(categoryName);
         builder.Append(" map");
 
-        if (playerCount.HasValue && playerCount.Value > 0)
+        if (playerCount.HasValue)
         {
-            builder.Append(playerCount.Value == 1 ? " for 1 player" : $" for {playerCount.Value} players");
+            builder.Append($" for {playerCount.Value} players");
         }
 
         if (!string.IsNullOrWhiteSpace(author) && !author.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase))
@@ -150,14 +155,13 @@ public static partial class AODMapsHelper
             builder.Append($" by {author}");
         }
 
-        builder.Append('.');
-
         var notes = ExtractSpecialNotes(title);
         if (!string.IsNullOrWhiteSpace(notes))
         {
-            builder.Append($" Notes: {notes}.");
+            builder.Append($". Notes: {notes}");
         }
 
+        builder.Append('.');
         return builder.ToString();
     }
 
@@ -176,8 +180,16 @@ public static partial class AODMapsHelper
 
         if (!string.IsNullOrWhiteSpace(p1Text))
         {
-            var cleanedP1 = p1Text.TrimStart('-').Trim();
-            paragraphs.Add(cleanedP1);
+            if (!DownloadCounterScriptRegex().IsMatch(p1Text))
+            {
+                var normalizedP1 = NormalizeHtmlDescription(p1Text);
+                if (!string.IsNullOrWhiteSpace(normalizedP1) &&
+                    !normalizedP1.Equals("info text will be here soon", StringComparison.OrdinalIgnoreCase) &&
+                    !normalizedP1.Equals("&nbsp;", StringComparison.OrdinalIgnoreCase))
+                {
+                    paragraphs.Add(normalizedP1.TrimStart('-').Trim());
+                }
+            }
         }
 
         var pElements = content.QuerySelectorAll("p");
@@ -247,7 +259,7 @@ public static partial class AODMapsHelper
         return (gameType, contentType);
     }
 
-    [GeneratedRegex(@"\b(?:created\s+by|remade\s+by|remoded\s+by|made\s+by|by)\s+([A-Za-z0-9_\^\-\[\]]+)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(created\s+by|remade\s+by|remoded\s+by|made\s+by|by)\s+([A-Za-z0-9_\^\-\[\]]+)", RegexOptions.IgnoreCase)]
     private static partial Regex AuthorFromTitleRegex();
 
     [GeneratedRegex(@"/mapmakers/MM_P/(?<maker>[^/]+)/", RegexOptions.IgnoreCase)]

@@ -147,7 +147,11 @@ public class AODMapsResolver(
         }
 
         var description = context.Title;
-        if (!string.IsNullOrWhiteSpace(file.SizeDisplay))
+        if (!string.IsNullOrWhiteSpace(file.Description))
+        {
+            description = file.Description;
+        }
+        else if (!string.IsNullOrWhiteSpace(file.SizeDisplay))
         {
             description = file.SizeDisplay;
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
@@ -107,9 +108,9 @@ public partial class AODMapsDiscoverer(
                 {
                     html = await client.GetStringAsync(url, cancellationToken);
                 }
-                catch (HttpRequestException ex)
+                catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
                 {
-                    // 404 or similar: we ran past the last site page — not an error.
+                    // 404: we ran past the last site page — not an error.
                     logger.LogInformation(ex, "AODMaps site page {SitePage} not available ({Message}); stopping pagination", sitePage, ex.Message);
                     break;
                 }
@@ -126,6 +127,11 @@ public partial class AODMapsDiscoverer(
                     }
 
                     rawAccepted++;
+                    if (!MatchesSearchTerm(item, query.SearchTerm))
+                    {
+                        continue;
+                    }
+
                     if (MatchesPlayerCountFilter(item, expectedPlayerCount))
                     {
                         collected.Add(item);
@@ -161,79 +167,78 @@ public partial class AODMapsDiscoverer(
         {
             throw;
         }
-        catch (HttpRequestException ex)
-        {
-            logger.LogError(ex, "HTTP error while discovering maps from AODMaps");
-            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed due to network error: {ex.Message}");
-        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to discover maps from AODMaps");
-            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
+            logger.LogError(ex, "Failed to discover AODMaps content");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"AODMaps discovery failed: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// Makes a relative URL absolute by prepending the AODMaps base URL.
-    /// </summary>
-    /// <param name="url">The URL to make absolute.</param>
-    /// <param name="sourceUrl">The page containing the URL.</param>
-    /// <returns>The absolute URL, or the original URL if already absolute or null/empty.</returns>
-    private static string? MakeAbsoluteUrl(string? url, string sourceUrl)
+    private static int? ExtractPlayerCountFromDownloadId(string? downloadUrl)
     {
-        if (string.IsNullOrEmpty(url))
+        if (string.IsNullOrWhiteSpace(downloadUrl))
         {
-            return url;
+            return null;
         }
 
-        if (Uri.TryCreate(url, UriKind.Absolute, out var absoluteUri))
-        {
-            return absoluteUri.AbsoluteUri;
-        }
-
-        // AOD category pages use relative image paths. Resolve against the page rather than the
-        // site root so "AOA/map.png" and "../haritalar/map.png" both remain valid.
-        var baseUri = Uri.TryCreate(sourceUrl, UriKind.Absolute, out var pageUri)
-            ? pageUri
-            : new Uri(AODMapsConstants.BaseUrl, UriKind.Absolute);
-
-        return Uri.TryCreate(baseUri, url, out var resolvedUri)
-            ? resolvedUri.AbsoluteUri
+        var match = PlayerCountFromDownloadIdRegex().Match(downloadUrl);
+        return match.Success && int.TryParse(match.Groups["players"].Value, out var players)
+            ? players
             : null;
     }
 
-    private static int? ExtractPlayerCount(IElement item, string downloadUrl, string sourceUrl)
+    private static int? ExtractPlayerCountFromText(string? text)
     {
-        foreach (var value in new[] { downloadUrl, item.TextContent, sourceUrl })
+        if (string.IsNullOrWhiteSpace(text))
         {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                continue;
-            }
-
-            var match = PlayerCountFromDownloadIdRegex().Match(value);
-            if (!match.Success)
-            {
-                match = PlayerCountFromTextRegex().Match(value);
-            }
-
-            if (!match.Success)
-            {
-                match = PlayerCountFromPageUrlRegex().Match(value);
-            }
-
-            if (match.Success && int.TryParse(match.Groups["players"].Value, out var playerCount))
-            {
-                return playerCount;
-            }
+            return null;
         }
 
-        return null;
+        var match = PlayerCountFromTextRegex().Match(text);
+        return match.Success && int.TryParse(match.Groups["players"].Value, out var players)
+            ? players
+            : null;
     }
 
-    private static string? InferCategoryFromUrl(string sourceUrl)
+    private static int? ExtractPlayerCountFromPageUrl(string? pageUrl)
     {
-        if (string.IsNullOrWhiteSpace(sourceUrl) || !Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri))
+        if (string.IsNullOrWhiteSpace(pageUrl))
+        {
+            return null;
+        }
+
+        var match = PlayerCountFromPageUrlRegex().Match(pageUrl);
+        return match.Success && int.TryParse(match.Groups["players"].Value, out var players)
+            ? players
+            : null;
+    }
+
+    private static int? ExtractPlayerCount(IElement? element, string? downloadUrl, string? pageUrl)
+    {
+        var fromId = ExtractPlayerCountFromDownloadId(downloadUrl);
+        if (fromId.HasValue)
+        {
+            return fromId;
+        }
+
+        var text = element?.TextContent;
+        var fromText = ExtractPlayerCountFromText(text);
+        if (fromText.HasValue)
+        {
+            return fromText;
+        }
+
+        return ExtractPlayerCountFromPageUrl(pageUrl);
+    }
+
+    private static string? InferCategoryFromUrl(string? pageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(pageUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(pageUrl, UriKind.Absolute, out var uri))
         {
             return null;
         }
@@ -347,6 +352,17 @@ public partial class AODMapsDiscoverer(
         return int.TryParse(raw, out var actual) && actual == expectedPlayerCount.Value;
     }
 
+    private static bool MatchesSearchTerm(ContentSearchResult item, string? searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return true;
+        }
+
+        return (item.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+            || string.Equals(item.Id, searchTerm, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void ApplyDiscoveryBadges(ContentSearchResult result, int? playerCount, string sourceUrl)
     {
         if (playerCount.HasValue)
@@ -362,12 +378,6 @@ public partial class AODMapsDiscoverer(
         return AODMapsHelper.BuildRichMapDescription(title, playerCount, InferCategoryFromUrl(sourceUrl), author);
     }
 
-    /// <summary>
-    /// Parses a gallery item element into a ContentSearchResult.
-    /// </summary>
-    /// <param name="item">The HTML element representing a gallery item.</param>
-    /// <param name="sourceUrl">The source URL where this item was found.</param>
-    /// <returns>A ContentSearchResult if parsing succeeds, otherwise null.</returns>
     private static ContentSearchResult? ParseGalleryItem(IElement item, string sourceUrl)
     {
         // Name
@@ -393,9 +403,6 @@ public partial class AODMapsDiscoverer(
         var thumbnailUrl = imgEl?.GetAttribute(AODMapsConstants.SrcAttribute);
         thumbnailUrl = MakeAbsoluteUrl(thumbnailUrl, sourceUrl);
 
-        // Downloads (parsed from script or text)
-        // Simply store it in metadata if needed for sorting?
-        // We really need it for the Manifest, but Discoverer just finds.
         string safeDownloadUrl = downloadUrl ?? string.Empty;
         string safeHashCode = ComputeStableHash(safeDownloadUrl);
         var playerCount = ExtractPlayerCount(item, safeDownloadUrl, sourceUrl);
@@ -422,12 +429,6 @@ public partial class AODMapsDiscoverer(
         return result;
     }
 
-    /// <summary>
-    /// Parses a map maker item element into a ContentSearchResult.
-    /// </summary>
-    /// <param name="content">The HTML element representing a map maker item.</param>
-    /// <param name="sourceUrl">The source URL where this item was found.</param>
-    /// <returns>A ContentSearchResult if parsing succeeds, otherwise null.</returns>
     private static ContentSearchResult? ParseMapMakerItem(IElement content, string sourceUrl)
     {
         // Title: <h1>- AOD rebel uprising</h1>
@@ -459,7 +460,7 @@ public partial class AODMapsDiscoverer(
         string safeDownloadUrl = downloadUrl ?? string.Empty;
         string safeHashCode = ComputeStableHash(safeDownloadUrl);
         var playerCount = ExtractPlayerCount(content, safeDownloadUrl, sourceUrl);
-        var author = AODMapsHelper.ExtractAuthor(title, sourceUrl) ?? "MapMaker";
+        var author = AODMapsHelper.ExtractAuthor(title, sourceUrl) ?? AODMapsConstants.DefaultAuthorName;
         var description = AODMapsHelper.ExtractMapMakerDescription(content, playerCount, InferCategoryFromUrl(sourceUrl), author);
 
         var result = CreateAODMapSearchResult(
@@ -472,7 +473,7 @@ public partial class AODMapsDiscoverer(
             sourceUrl);
 
         result.Tags.Add("AODMaps");
-        if (!string.IsNullOrWhiteSpace(author) && !author.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase) && !author.Equals("MapMaker", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(author) && !author.Equals(AODMapsConstants.DefaultAuthorName, StringComparison.OrdinalIgnoreCase))
         {
             result.Tags.Add($"author:{author.ToLowerInvariant()}");
         }
@@ -482,11 +483,6 @@ public partial class AODMapsDiscoverer(
         return result;
     }
 
-    /// <summary>
-    /// Computes a stable hash from the input string for use as a content identifier.
-    /// </summary>
-    /// <param name="input">The input string to hash.</param>
-    /// <returns>A hexadecimal string representation of the hash.</returns>
     private static string ComputeStableHash(string input)
     {
         if (string.IsNullOrEmpty(input))
@@ -569,12 +565,6 @@ public partial class AODMapsDiscoverer(
         };
     }
 
-    /// <summary>
-    /// Builds the discovery URL based on the search query.
-    /// </summary>
-    /// <param name="query">The content search query.</param>
-    /// <param name="sitePage">1-based page number on the remote site.</param>
-    /// <returns>The URL to fetch content from.</returns>
     private static string BuildDiscoveryUrl(ContentSearchQuery query, int sitePage)
     {
         string suffix = sitePage > 1 ? sitePage.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
@@ -623,12 +613,6 @@ public partial class AODMapsDiscoverer(
         return string.Format(AODMapsConstants.NewMapsPagePattern, suffix);
     }
 
-    /// <summary>
-    /// Extracts content items from the parsed HTML document.
-    /// </summary>
-    /// <param name="document">The parsed HTML document.</param>
-    /// <param name="sourceUrl">The source URL of the document.</param>
-    /// <returns>A list containing the extracted items.</returns>
     private static List<ContentSearchResult> ExtractItems(IDocument document, string sourceUrl)
     {
         var results = new List<ContentSearchResult>();
@@ -637,5 +621,35 @@ public partial class AODMapsDiscoverer(
         ExtractMapMakerItems(document, sourceUrl, results);
 
         return results;
+    }
+
+    private static string? MakeAbsoluteUrl(string? url, string sourceUrl)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return null;
+        }
+
+        // PashaCNC links - they are dead, replace with current domain
+        if (url.Contains("pashacnc.com", StringComparison.OrdinalIgnoreCase))
+        {
+            url = url.Replace("pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
+            url = url.Replace("www.pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        try
+        {
+            var baseUri = new Uri(sourceUrl);
+            return new Uri(baseUri, url).ToString();
+        }
+        catch
+        {
+            return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
+        }
     }
 }

@@ -101,7 +101,7 @@ public partial class AODMapsPageParser(
     /// <summary>
     /// Extracts content sections (maps) from the document.
     /// </summary>
-    private List<ContentSection> ExtractSections(IDocument document)
+    private List<ContentSection> ExtractSections(IDocument document, string pageUrl)
     {
         var sections = new List<ContentSection>();
 
@@ -111,7 +111,7 @@ public partial class AODMapsPageParser(
         {
             foreach (var item in galleryItems)
             {
-                var file = ExtractFileFromGalleryItem(item);
+                var file = ExtractFileFromGalleryItem(item, pageUrl);
                 if (file != null)
                 {
                     sections.Add(file);
@@ -128,7 +128,7 @@ public partial class AODMapsPageParser(
                 var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
                 if (contentDiv != null)
                 {
-                    var file = ExtractFileFromMapMakerItem(contentDiv);
+                    var file = ExtractFileFromMapMakerItem(contentDiv, pageUrl);
                     if (file != null)
                     {
                         sections.Add(file);
@@ -143,7 +143,7 @@ public partial class AODMapsPageParser(
     /// <summary>
     /// Extracts a file from a gallery item element.
     /// </summary>
-    private DownloadableFile? ExtractFileFromGalleryItem(IElement item)
+    private DownloadableFile? ExtractFileFromGalleryItem(IElement item, string pageUrl)
     {
         var linkEl = item.QuerySelector(AODMapsConstants.GalleryDownloadLinkSelector);
         if (linkEl == null)
@@ -166,8 +166,12 @@ public partial class AODMapsPageParser(
             return null;
         }
 
+        var thumbEl = item.QuerySelector(AODMapsConstants.GalleryThumbnailSelector);
+        var thumbSrc = thumbEl?.GetAttribute("src");
+        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc) : null;
+
         var downloadCount = ExtractDownloadCount(item);
-        var author = AODMapsHelper.ExtractAuthor(name, null) ?? AODMapsConstants.DefaultAuthorName;
+        var author = AODMapsHelper.ExtractAuthor(name, pageUrl) ?? AODMapsConstants.DefaultAuthorName;
 
         return new DownloadableFile(
             Name: name,
@@ -179,13 +183,14 @@ public partial class AODMapsPageParser(
             Uploader: author,
             DownloadUrl: downloadUrl,
             Md5Hash: null,
-            CommentCount: downloadCount);
+            CommentCount: downloadCount,
+            ThumbnailUrl: thumbUrl);
     }
 
     /// <summary>
     /// Extracts a file from a map maker item element.
     /// </summary>
-    private DownloadableFile? ExtractFileFromMapMakerItem(IElement item)
+    private DownloadableFile? ExtractFileFromMapMakerItem(IElement item, string pageUrl)
     {
         // Download URL
         var downloadEl = item.QuerySelector(AODMapsConstants.MapMakerDownloadSelector) ?? item.QuerySelector("a[href*='ccount/click.php']");
@@ -202,20 +207,26 @@ public partial class AODMapsPageParser(
         var name = titleEl?.TextContent?.Trim().TrimStart('-').Trim() ?? "Unknown Map";
 
         // Description & Author
-        var author = AODMapsHelper.ExtractAuthor(name, null) ?? "MapMaker";
+        var author = AODMapsHelper.ExtractAuthor(name, pageUrl) ?? AODMapsConstants.DefaultAuthorName;
         var description = AODMapsHelper.ExtractMapMakerDescription(item, null, null, author);
+
+        var imgEl = item.QuerySelector(AODMapsConstants.MapMakerImageSelector);
+        var thumbSrc = imgEl?.GetAttribute("src");
+        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc) : null;
 
         return new DownloadableFile(
              Name: name,
              Version: "0",
              SizeBytes: null,
-             SizeDisplay: description,
+             SizeDisplay: null,
              UploadDate: null,
              Category: "Map",
              Uploader: author,
              DownloadUrl: downloadUrl,
              Md5Hash: null,
-             CommentCount: null);
+             CommentCount: null,
+             ThumbnailUrl: thumbUrl,
+             Description: description);
     }
 
     /// <inheritdoc />
@@ -265,7 +276,7 @@ public partial class AODMapsPageParser(
 
         logger.LogDebug("Detected page type: {PageType}", pageType);
 
-        var sections = ExtractSections(document);
+        var sections = ExtractSections(document, url);
 
         logger.LogInformation(
             "Parsed AODMaps page: {Url}, Sections={SectionCount}",
