@@ -46,6 +46,9 @@ public static class PublisherTypeConstants
     /// <summary>Retail publisher.</summary>
     public const string Retail = "retail";
 
+    /// <summary>GenHub local custom game installation publisher.</summary>
+    public const string GenHubLocal = "genhublocal";
+
     /// <summary>Generals Online community client publisher.</summary>
     public const string GeneralsOnline = "generalsonline";
 

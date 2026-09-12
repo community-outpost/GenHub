@@ -1,6 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -24,6 +27,8 @@ public class GameInstallationServiceTests : IDisposable
     private readonly Mock<IManifestGenerationService> _manifestServiceMock;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
     private readonly Mock<IInstallationPathResolver> _pathResolverMock;
+    private readonly Mock<IUserSettingsService> _userSettingsMock;
+    private readonly UserSettings _userSettings;
     private readonly GameInstallationService _service;
 
     /// <summary>
@@ -37,6 +42,13 @@ public class GameInstallationServiceTests : IDisposable
         _manifestServiceMock = new Mock<IManifestGenerationService>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _pathResolverMock = new Mock<IInstallationPathResolver>();
+        _userSettingsMock = new Mock<IUserSettingsService>();
+        _userSettings = new UserSettings();
+        _userSettingsMock.Setup(x => x.Get()).Returns(_userSettings);
+        _userSettingsMock.Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .ReturnsAsync((Func<UserSettings, bool> updater) => updater(_userSettings));
+        _userSettingsMock.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(_userSettings));
 
         // Setup path resolver to return success by default (path is valid)
         _pathResolverMock.Setup(x => x.ValidateInstallationPathAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
@@ -54,13 +66,304 @@ public class GameInstallationServiceTests : IDisposable
                 return Task.FromResult(clientResult);
             });
 
+        var mockManifestBuilder = new Mock<IContentManifestBuilder>();
+        mockManifestBuilder.Setup(x => x.Build()).Returns(new ContentManifest());
+
+        _manifestServiceMock.Setup(x => x.CreateGameInstallationManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<GameType>(),
+                It.IsAny<GameInstallationType>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockManifestBuilder.Object);
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
+        _manifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _manifestPoolMock.Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        _manifestPoolMock.Setup(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         _service = new GameInstallationService(
             _orchestratorMock.Object,
             _clientOrchestratorMock.Object,
             _loggerMock.Object,
             _manifestServiceMock.Object,
             _manifestPoolMock.Object,
-            _pathResolverMock.Object);
+            _pathResolverMock.Object,
+            _userSettingsMock.Object);
+    }
+
+    /// <summary>
+    /// Tests that RegisterCustomInstallationAsync returns failure when directory path is invalid.
+    /// </summary>
+    /// <param name="invalidPath">The invalid path to test.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task RegisterCustomInstallationAsync_WithInvalidPath_ShouldReturnFailureAsync(string? invalidPath)
+    {
+        // Act
+        var result = await _service.RegisterCustomInstallationAsync(invalidPath!);
+
+        // Assert
+        Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// Tests that RegisterCustomInstallationAsync returns failure when directory does not exist.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RegisterCustomInstallationAsync_WithNonExistentPath_ShouldReturnFailureAsync()
+    {
+        // Arrange
+        var fakePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        // Act
+        var result = await _service.RegisterCustomInstallationAsync(fakePath);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Directory does not exist", string.Join(" ", result.Errors));
+    }
+
+    /// <summary>
+    /// Tests that RegisterCustomInstallationAsync returns failure when directory contains no valid game files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RegisterCustomInstallationAsync_WithNoGameFiles_ShouldReturnFailureAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            // Act
+            var result = await _service.RegisterCustomInstallationAsync(tempDir);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("No valid Command & Conquer Generals or Zero Hour game files found", string.Join(" ", result.Errors));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that RegisterCustomInstallationAsync succeeds when valid game executable exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RegisterCustomInstallationAsync_WithValidFiles_ShouldSucceedAndAssignDisplayNameAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, GameClientConstants.GeneralsExecutable);
+        File.WriteAllText(exePath, "dummy");
+
+        try
+        {
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            // Act
+            var result = await _service.RegisterCustomInstallationAsync(tempDir);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.Equal(GameInstallationType.Custom, result.Data.InstallationType);
+            Assert.Equal(PublisherInfoConstants.GenHubLocal.Name, result.Data.DisplayName);
+            Assert.True(result.Data.HasGenerals);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that multiple custom installations get numbered DisplayNames.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RegisterCustomInstallationAsync_WithMultipleInstallations_ShouldNumberDisplayNamesAsync()
+    {
+        // Arrange
+        var tempDir1 = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var tempDir2 = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir1);
+        Directory.CreateDirectory(tempDir2);
+        File.WriteAllText(Path.Combine(tempDir1, GameClientConstants.GeneralsExecutable), "dummy1");
+        File.WriteAllText(Path.Combine(tempDir2, GameClientConstants.GeneralsExecutable), "dummy2");
+
+        try
+        {
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            // Act
+            var result1 = await _service.RegisterCustomInstallationAsync(tempDir1);
+            var result2 = await _service.RegisterCustomInstallationAsync(tempDir2);
+
+            // Assert
+            Assert.True(result1.Success);
+            Assert.True(result2.Success);
+
+            var allResult = await _service.GetAllInstallationsAsync();
+            Assert.True(allResult.Success);
+            var customList = allResult.Data!.Where(i => i.InstallationType == GameInstallationType.Custom).ToList();
+            Assert.Equal(2, customList.Count);
+            Assert.Equal($"{PublisherInfoConstants.GenHubLocal.Name} 1", customList[0].DisplayName);
+            Assert.Equal($"{PublisherInfoConstants.GenHubLocal.Name} 2", customList[1].DisplayName);
+        }
+        finally
+        {
+            Directory.Delete(tempDir1, true);
+            Directory.Delete(tempDir2, true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that RemoveCustomInstallationAsync cannot remove native installations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RemoveCustomInstallationAsync_WithNativeInstallation_ShouldFailAsync()
+    {
+        // Arrange
+        var nativeInstall = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam);
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([nativeInstall], TimeSpan.Zero));
+
+        // Act
+        var result = await _service.RemoveCustomInstallationAsync(nativeInstall.Id);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Only custom game installations can be removed", string.Join(" ", result.Errors));
+    }
+
+    /// <summary>
+    /// Tests that RemoveCustomInstallationAsync succeeds for a registered custom installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RemoveCustomInstallationAsync_WithCustomInstallation_ShouldSucceedAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), "dummy");
+
+        try
+        {
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            var regResult = await _service.RegisterCustomInstallationAsync(tempDir);
+            Assert.True(regResult.Success);
+
+            // Act
+            var removeResult = await _service.RemoveCustomInstallationAsync(regResult.Data!.Id);
+
+            // Assert
+            Assert.True(removeResult.Success);
+            var allResult = await _service.GetAllInstallationsAsync();
+            Assert.DoesNotContain(allResult.Data!, i => i.Id == regResult.Data.Id);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that RegisterCustomInstallationAsync rolls back and does not cache when user settings persistence fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RegisterCustomInstallationAsync_WhenSettingsSaveFails_FailsAndDoesNotCacheInstallationAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), "dummy");
+
+        try
+        {
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+            _userSettingsMock.Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+                .Callback<Func<UserSettings, bool>>(updater => updater(_userSettings))
+                .ReturnsAsync(false);
+
+            // Act
+            var result = await _service.RegisterCustomInstallationAsync(tempDir);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.DoesNotContain(Path.GetFullPath(tempDir), _userSettings.CustomInstallationDirectories);
+            var allResult = await _service.GetAllInstallationsAsync();
+            Assert.Empty(allResult.Data ?? []);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that RemoveCustomInstallationAsync fails and retains the installation in cache when user settings persistence fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RemoveCustomInstallationAsync_WhenSettingsSaveFails_FailsAndRetainsInstallationInCacheAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), "dummy");
+
+        try
+        {
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            var regResult = await _service.RegisterCustomInstallationAsync(tempDir);
+            Assert.True(regResult.Success);
+
+            // Fail future settings saves
+            _userSettingsMock.Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+                .Callback<Func<UserSettings, bool>>(updater => updater(_userSettings))
+                .ReturnsAsync(false);
+
+            // Act
+            var removeResult = await _service.RemoveCustomInstallationAsync(regResult.Data!.Id);
+
+            // Assert
+            Assert.False(removeResult.Success);
+            Assert.Contains(Path.GetFullPath(tempDir), _userSettings.CustomInstallationDirectories);
+            var allResult = await _service.GetAllInstallationsAsync();
+            Assert.Contains(allResult.Data!, i => i.Id == regResult.Data.Id);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
     }
 
     /// <summary>

@@ -634,7 +634,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var currentVersionBase = CurrentAppVersion.Split('+')[0];
         var prVersionBase = artifact.Version.Split('+')[0];
 
-        if (AppUpdateVersionHelper.IsArtifactVersionNewer(prVersionBase, currentVersionBase))
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(prVersionBase, currentVersionBase, allowCrossChannel: true))
         {
             var settings = _userSettingsService.Get();
             if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
@@ -660,7 +660,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var currentVersionBase = CurrentAppVersion.Split('+')[0];
         var branchVersionBase = artifact.Version.Split('+')[0];
 
-        if (AppUpdateVersionHelper.IsArtifactVersionNewer(branchVersionBase, currentVersionBase))
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(branchVersionBase, currentVersionBase, allowCrossChannel: true))
         {
             var settings = _userSettingsService.Get();
             if (!string.Equals(branchVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
@@ -693,22 +693,22 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var currentVersionBase = CurrentAppVersion.Split('+')[0];
         var selectedVersionBase = value.Version.Split('+')[0];
 
-        if (AppUpdateVersionHelper.IsArtifactVersionNewer(selectedVersionBase, currentVersionBase))
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(selectedVersionBase, currentVersionBase, allowCrossChannel: true))
         {
             var settings = _userSettingsService.Get();
             if (!string.Equals(selectedVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
                 IsUpdateAvailable = true;
                 LatestVersion = selectedVersionBase;
-                if (value.PullRequestNumber.HasValue)
-                {
-                    ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{value.PullRequestNumber.Value}";
-                    StatusMessage = $"New PR build available: {value.DisplayVersion}";
-                }
-                else if (!string.IsNullOrEmpty(SubscribedBranch))
+                if (!string.IsNullOrEmpty(SubscribedBranch))
                 {
                     ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/tree/{SubscribedBranch}";
                     StatusMessage = $"New {SubscribedBranch} build available: {value.DisplayVersion}";
+                }
+                else if (value.PullRequestNumber.HasValue)
+                {
+                    ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{value.PullRequestNumber.Value}";
+                    StatusMessage = $"New PR build available: {value.DisplayVersion}";
                 }
                 else
                 {

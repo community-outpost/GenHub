@@ -57,7 +57,7 @@ public static class ToolConstants
         /// <summary>
         /// The icon path for the Replay Manager tool.
         /// </summary>
-        public const string IconPath = "Assets/Icons/replay.png"; // Placeholder
+        public const string IconPath = UriConstants.ReplayManagerIconUri;
 
         /// <summary>
         /// Whether the Replay Manager tool is bundled with the application.

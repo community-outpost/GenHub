@@ -63,7 +63,9 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
     {
         var publisherName = GetPublisherFromInstallationType(installation.InstallationType);
         var normalizedVersion = NormalizeVersion(gameClient.Version);
-        var displayName = BuildDisplayName(gameClient.GameType, normalizedVersion);
+        var displayName = installation.InstallationType == GameInstallationType.Custom
+            ? installation.DisplayName
+            : BuildDisplayName(gameClient.GameType, normalizedVersion);
 
         return new ContentDisplayItem
         {
@@ -222,6 +224,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
             GameInstallationType.Wine => Publisher.Wine.GetDisplayName(),
             GameInstallationType.CDISO => Publisher.CdRom.GetDisplayName(),
             GameInstallationType.Retail => Publisher.Retail.GetDisplayName(),
+            GameInstallationType.Custom => Publisher.GenHubLocal.GetDisplayName(),
             _ => Publisher.Unknown.GetDisplayName(),
         };
     }
@@ -251,6 +254,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         if (lowerName.Contains("generalsonline")) return Publisher.GeneralsOnline.GetDisplayName();
         if (lowerName.Contains("thesuperhackers") || lowerName.Contains("superhacker")) return Publisher.SuperHackers.GetDisplayName();
         if (lowerName.Contains("cnclabs")) return Publisher.CncLabs.GetDisplayName();
+        if (lowerName.Contains("genhublocal") || lowerName.Contains("genhub local")) return Publisher.GenHubLocal.GetDisplayName();
 
         // Priority 4: Default to installation type display name (handles Retail and Unknown)
         return installationType.GetDisplayName();
@@ -259,12 +263,18 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
     /// <inheritdoc/>
     public GameInstallationType GetInstallationTypeFromManifest(ContentManifest manifest)
     {
+        if (manifest.Id.Value.Contains(".genhublocal.") || manifest.Id.Value.Contains(".custom."))
+        {
+            return GameInstallationType.Custom;
+        }
+
         var lowerName = manifest.Name.ToLowerInvariant();
 
         if (lowerName.Contains("steam")) return GameInstallationType.Steam;
         if (lowerName.Contains("ea") || lowerName.Contains("origin")) return GameInstallationType.EaApp;
         if (lowerName.Contains("tfd") || lowerName.Contains("firstdecade")) return GameInstallationType.TheFirstDecade;
         if (lowerName.Contains("wine") || lowerName.Contains("proton")) return GameInstallationType.Wine;
+        if (lowerName.Contains("genhublocal") || lowerName.Contains("genhub local")) return GameInstallationType.Custom;
 
         return GameInstallationType.Retail;
     }

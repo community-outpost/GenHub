@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Services;
@@ -244,6 +245,80 @@ public class VelopackUpdateManagerTests
                 try { Directory.Delete(sampleDir, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             }
         }
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun accepts push, workflow_dispatch, and pull_request events when head_branch matches.
+    /// </summary>
+    /// <param name="eventType">The workflow run event type.</param>
+    /// <param name="expected">The expected match result.</param>
+    [Theory]
+    [InlineData("push", true)]
+    [InlineData("workflow_dispatch", true)]
+    [InlineData("pull_request", true)]
+    [InlineData("issue_comment", false)]
+    public void IsMatchingWorkflowRun_BranchMatchingEvents_ReturnsExpected(string eventType, bool expected)
+    {
+        // Arrange
+        var json = $"{{\"head_branch\": \"development\", \"event\": \"{eventType}\"}}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, "development", null);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun rejects runs whose head branch does not match requested branch.
+    /// </summary>
+    [Fact]
+    public void IsMatchingWorkflowRun_WhenHeadBranchDiffers_ReturnsFalse()
+    {
+        // Arrange
+        var json = "{\"head_branch\": \"feature/other\", \"event\": \"pull_request\"}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, "development", null);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun matches PR numbers when specified.
+    /// </summary>
+    [Fact]
+    public void IsMatchingWorkflowRun_WithMatchingPrNumber_ReturnsTrue()
+    {
+        // Arrange
+        var json = "{\"head_branch\": \"development\", \"event\": \"pull_request\", \"pull_requests\": [{\"number\": 378}]}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, null, 378);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun rejects non-matching PR numbers.
+    /// </summary>
+    [Fact]
+    public void IsMatchingWorkflowRun_WithDifferentPrNumber_ReturnsFalse()
+    {
+        // Arrange
+        var json = "{\"head_branch\": \"development\", \"event\": \"pull_request\", \"pull_requests\": [{\"number\": 378}]}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, null, 400);
+
+        // Assert
+        Assert.False(result);
     }
 
     /// <summary>

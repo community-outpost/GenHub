@@ -1090,14 +1090,22 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
                     {
                         Directory.Delete(subDir);
                     }
-                    catch (Exception)
+                    catch (IOException)
+                    {
+                        // Non-fatal cleanup
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                         // Non-fatal cleanup
                     }
                 }
             }
         }
-        catch (Exception)
+        catch (IOException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // Non-fatal cleanup
         }

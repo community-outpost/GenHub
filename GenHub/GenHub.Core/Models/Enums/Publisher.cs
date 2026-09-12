@@ -37,4 +37,7 @@ public enum Publisher
 
     /// <summary>AODMaps community.</summary>
     AODMaps = 10,
+
+    /// <summary>GenHub local custom installation.</summary>
+    GenHubLocal = 11,
 }

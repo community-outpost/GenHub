@@ -131,7 +131,7 @@ public class ProfileContentLoader(
             return contentType switch
             {
                 ContentType.GameInstallation =>
-                    CloneWithEnabledState(availableGameInstallations, enabledSet),
+                    CloneWithEnabledState(availableGameInstallations.Where(i => i.InstallationType == GameInstallationType.Custom), enabledSet),
                 ContentType.GameClient =>
                     await LoadGameClientsWithEnabledStateAsync(enabledSet),
                 _ =>
@@ -330,9 +330,24 @@ public class ProfileContentLoader(
         var isLocal = manifest.Publisher?.PublisherType?.Equals(LocalContentService.LocalPublisherType, StringComparison.OrdinalIgnoreCase) == true
             || !string.IsNullOrEmpty(manifest.SourcePath);
         var normalizedVersion = isLocal ? string.Empty : displayFormatter.NormalizeVersion(manifest.Version);
-        var displayName = manifest.ContentType == ContentType.GameInstallation
-            ? displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion)
-            : displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+        string displayName;
+        if (manifest.ContentType == ContentType.GameInstallation)
+        {
+            if (displayFormatter.GetInstallationTypeFromManifest(manifest) == GameInstallationType.Custom)
+            {
+                displayName = !string.IsNullOrWhiteSpace(manifest.Name)
+                    ? manifest.Name
+                    : PublisherInfoConstants.GenHubLocal.Name;
+            }
+            else
+            {
+                displayName = displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion);
+            }
+        }
+        else
+        {
+            displayName = displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+        }
 
         return new ContentDisplayItem
         {
@@ -374,7 +389,7 @@ public class ProfileContentLoader(
     }
 
     private static ObservableCollection<ContentDisplayItem> CloneWithEnabledState(
-        ObservableCollection<ContentDisplayItem> items,
+        IEnumerable<ContentDisplayItem> items,
         HashSet<string> enabledIds)
     {
         return new ObservableCollection<ContentDisplayItem>(
@@ -425,6 +440,9 @@ public class ProfileContentLoader(
             gameType,
             versionForManifestId);
         var publisher = displayFormatter.GetPublisherFromInstallationType(installation.InstallationType);
+        var displayName = installation.InstallationType == GameInstallationType.Custom
+            ? installation.DisplayName
+            : displayFormatter.BuildDisplayName(gameType, versionForDisplay);
 
         return new ContentDisplayItem
         {
@@ -432,7 +450,7 @@ public class ProfileContentLoader(
             ManifestId = manifestId,
             SourceId = installation.Id,
             GameClientId = baseClient.Id,
-            DisplayName = displayFormatter.BuildDisplayName(gameType, versionForDisplay),
+            DisplayName = displayName,
             Description = $"{publisher} - {installation.InstallationType} - {gameType}",
             Version = versionForDisplay,
             ContentType = ContentType.GameInstallation,
@@ -680,12 +698,15 @@ public class ProfileContentLoader(
             var normalizedVersion = displayFormatter.NormalizeVersion(gameClient.Version);
             var publisher = displayFormatter.GetPublisherFromInstallationType(
                 gameInstallation.InstallationType);
+            var displayName = gameInstallation.InstallationType == GameInstallationType.Custom
+                ? gameInstallation.DisplayName
+                : displayFormatter.BuildDisplayName(gameClient.GameType, normalizedVersion);
 
             return new ContentDisplayItem
             {
                 Id = manifest.Id.Value,
                 ManifestId = manifest.Id.Value,
-                DisplayName = displayFormatter.BuildDisplayName(gameClient.GameType, normalizedVersion),
+                DisplayName = displayName,
                 Version = normalizedVersion,
                 ContentType = ContentType.GameInstallation,
                 GameType = gameClient.GameType,

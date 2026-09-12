@@ -18,6 +18,7 @@ namespace GenHub.Core.Models.GameInstallations;
 public class GameInstallation : IGameInstallation
 {
     private readonly ILogger<GameInstallation>? _logger;
+    private string? _displayName;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameInstallation"/> class.
@@ -46,6 +47,16 @@ public class GameInstallation : IGameInstallation
     /// Gets or sets the unique identifier for this installation.
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    /// <summary>
+    /// Gets or sets the display name for this installation.
+    /// If not explicitly set, falls back to the installation type display name.
+    /// </summary>
+    public string DisplayName
+    {
+        get => !string.IsNullOrWhiteSpace(_displayName) ? _displayName : InstallationType.GetDisplayName();
+        set => _displayName = value;
+    }
 
     /// <summary>Gets or sets the installation type.</summary>
     public GameInstallationType InstallationType { get; set; }
@@ -150,7 +161,7 @@ public class GameInstallation : IGameInstallation
     /// </summary>
     /// <remarks>
     /// This method is primarily used for testing and initialization purposes.
-    /// For production code, prefer using <see cref="SetPaths(string?, string?)"/> with explicit paths.
+    /// For production code, prefer using <see cref="SetPaths(string?, string?)"/> with explicit paths technique.
     /// </remarks>
     public void Fetch()
     {
@@ -421,7 +432,7 @@ public class GameInstallation : IGameInstallation
             HasGenerals = true;
             GeneralsPath = InstallationPath;
             foundGenerals = true;
-            _logger?.LogDebug("Found Generals installation at root {GeneralsPath}", GeneralsPath);
+            _logger?.LogDebug("Found Generals installation at root based on fallback {GeneralsPath}", GeneralsPath);
         }
     }
 }

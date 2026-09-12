@@ -205,7 +205,7 @@ public class BackgroundUpdateCoordinator(
             var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
             var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
 
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
+            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase, allowCrossChannel: true) &&
                 !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
                 var updateIdentity = $"{AppUpdateConstants.PrDedupePrefix}{prNumber}:{artifactVersionBase}";
@@ -420,7 +420,7 @@ public class BackgroundUpdateCoordinator(
             var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
             var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
 
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
+            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase, allowCrossChannel: true) &&
                 !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
                 var updateIdentity = $"{AppUpdateConstants.BranchDedupePrefix}{branch}:{artifactVersionBase}";

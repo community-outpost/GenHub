@@ -756,4 +756,43 @@ public class UpdateNotificationViewModelTests
         Assert.True(vm.CanDownloadUpdate);
         Assert.Equal("Install Update", vm.InstallButtonText);
     }
+
+    /// <summary>
+    /// Verifies that subscribing to a branch with a PR-tagged artifact loads and auto-selects the artifact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SubscribeToBranch_WithPrTaggedArtifact_LoadsArtifactAndEvaluatesUpdateAsync()
+    {
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var artifacts = new List<ArtifactUpdateInfo>
+        {
+            new("0.0.2804-pr378", "8c9ab37", null, 34_634_077_893, "https://github.com/test/run/34634077893", 777, "genhub-velopack-windows-0.0.2804-pr378", DateTime.UtcNow, "https://github.com/test/art/777", 4_096),
+        };
+
+        mockVelopack.Setup(x => x.GetArtifactsForBranchAsync("development", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(artifacts);
+
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        vm.SubscribeToBranchCommand.Execute("development");
+
+        var timeout = DateTime.UtcNow.AddSeconds(2);
+        while (vm.IsLoadingVersions && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.False(vm.IsLoadingVersions);
+        Assert.Single(vm.AvailableVersions);
+        Assert.NotNull(vm.SelectedVersion);
+        Assert.Equal("0.0.2804-pr378", vm.SelectedVersion.Version);
+        Assert.Equal("development", vm.SubscribedBranch);
+    }
 }

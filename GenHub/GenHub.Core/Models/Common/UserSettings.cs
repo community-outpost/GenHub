@@ -75,6 +75,15 @@ public class UserSettings
     /// <summary>Gets or sets the list of content directories for local discovery.</summary>
     public List<string>? ContentDirectories { get; set; }
 
+    private List<string> _customInstallationDirectories = [];
+
+    /// <summary>Gets or sets the list of manually registered custom game installation directories.</summary>
+    public List<string> CustomInstallationDirectories
+    {
+        get => _customInstallationDirectories;
+        set => _customInstallationDirectories = value ?? [];
+    }
+
     /// <summary>Gets or sets the list of GitHub repositories for discovery.</summary>
     public List<string>? GitHubDiscoveryRepositories { get; set; }
 
@@ -214,6 +223,7 @@ public class UserSettings
             SubscribedBranch = SubscribedBranch,
             DismissedUpdateVersion = DismissedUpdateVersion,
             ContentDirectories = ContentDirectories != null ? [.. ContentDirectories] : null,
+            CustomInstallationDirectories = CustomInstallationDirectories != null ? [.. CustomInstallationDirectories] : [],
             GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? [.. GitHubDiscoveryRepositories] : null,
             IndexFilePath = IndexFilePath,
             CsvValidationCatalogs = CsvValidationCatalogs != null ? [.. CsvValidationCatalogs.Select(c => c.Clone())] : null,
@@ -301,7 +311,7 @@ public class UserSettings
     }
 
     /// <summary>
-    /// Gets the subscription for a specific publisher, or null if not subscribed.
+    /// Gets the subscription for a specific publisher, or null if not found.
     /// </summary>
     /// <param name="publisherId">The publisher identifier.</param>
     /// <returns>The subscription, or null if not found.</returns>

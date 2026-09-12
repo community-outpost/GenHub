@@ -1,4 +1,6 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Constants;
@@ -10,6 +12,24 @@ namespace GenHub.Core.Constants;
 [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class PublisherInfoConstants
 {
+    /// <summary>
+    /// Default icon source for general GenHub publishers and fallback views.
+    /// </summary>
+    public const string DefaultGenHubIconSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+
+    private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
+    [
+        (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpost.LogoSource),
+        (["superhacker"], TheSuperHackers.LogoSource),
+        (["generalsonline", "generals online", "generals-online"], GeneralsOnline.LogoSource),
+        (["moddb", "mod db", "mod-db"], ModDB.LogoSource),
+        (["cnclabs", "cnc labs", "cnc-labs"], CNCLabs.LogoSource),
+        (["aodmaps", "aod maps", "aod-maps"], AODMaps.LogoSource),
+        (["genhublocal", "genhub local"], GenHubLocal.LogoSource),
+        (["lutris"], Lutris.LogoSource),
+        (["github"], GitHub.LogoSource),
+    ];
+
     /// <summary>
     /// Publisher information for Steam.
     /// </summary>
@@ -116,6 +136,42 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for Retail.</summary>
         public const string LogoSource = ""; // Placeholder/System managed
+    }
+
+    /// <summary>
+    /// Publisher information for Lutris.
+    /// </summary>
+    public static class Lutris
+    {
+        /// <summary>Display name for Lutris publisher.</summary>
+        public const string Name = "Lutris";
+
+        /// <summary>Website URL for Lutris.</summary>
+        public const string Website = "https://lutris.net";
+
+        /// <summary>Support URL for Lutris.</summary>
+        public const string SupportUrl = "https://forums.lutris.net";
+
+        /// <summary>Logo source for Lutris.</summary>
+        public const string LogoSource = DefaultGenHubIconSource;
+    }
+
+    /// <summary>
+    /// Publisher information for GenHub Local.
+    /// </summary>
+    public static class GenHubLocal
+    {
+        /// <summary>Display name for GenHub Local publisher.</summary>
+        public const string Name = "GenHub Local";
+
+        /// <summary>Website URL for GenHub Local.</summary>
+        public const string Website = "https://github.com/community-outpost/GenHub";
+
+        /// <summary>Support URL for GenHub Local.</summary>
+        public const string SupportUrl = "https://github.com/community-outpost/GenHub/issues";
+
+        /// <summary>Logo source for GenHub Local.</summary>
+        public const string LogoSource = DefaultGenHubIconSource;
     }
 
     /// <summary>
@@ -253,7 +309,25 @@ public static class PublisherInfoConstants
         public const string Name = "All Publishers";
 
         /// <summary>Logo source for All Publishers view.</summary>
-        public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+        public const string LogoSource = DefaultGenHubIconSource;
+    }
+
+    /// <summary>
+    /// Publisher information for Unknown/Other publishers.
+    /// </summary>
+    public static class Unknown
+    {
+        /// <summary>Display name for Unknown publisher.</summary>
+        public const string Name = "Unknown";
+
+        /// <summary>Website URL for Unknown.</summary>
+        public const string Website = "about:blank";
+
+        /// <summary>Support URL for Unknown.</summary>
+        public const string SupportUrl = "about:blank";
+
+        /// <summary>Logo source for Unknown.</summary>
+        public const string LogoSource = DefaultGenHubIconSource;
     }
 
     /// <summary>
@@ -271,12 +345,9 @@ public static class PublisherInfoConstants
             GameInstallationType.Wine => (Wine.Name, Wine.Website, Wine.SupportUrl),
             GameInstallationType.CDISO => (CdIso.Name, CdIso.Website, CdIso.SupportUrl),
             GameInstallationType.Retail => (Retail.Name, Retail.Website, Retail.SupportUrl),
-
-            // Unknown is the enum default for unrecognized installs and Lutris is a legitimate Linux
-            // install type; both fall back to Retail, matching InstallationTypeDisplayConverter.
-            GameInstallationType.Unknown => (Retail.Name, Retail.Website, Retail.SupportUrl),
-            GameInstallationType.Lutris => (Retail.Name, Retail.Website, Retail.SupportUrl),
-            _ => (Retail.Name, Retail.Website, Retail.SupportUrl), // Default to retail
+            GameInstallationType.Lutris => (Lutris.Name, Lutris.Website, Lutris.SupportUrl),
+            GameInstallationType.Custom => (GenHubLocal.Name, GenHubLocal.Website, GenHubLocal.SupportUrl),
+            _ => (Unknown.Name, Unknown.Website, Unknown.SupportUrl),
         };
     }
 
@@ -307,49 +378,12 @@ public static class PublisherInfoConstants
             return null;
         }
 
-        if (input.Contains("communityoutpost", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("community outpost", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("community-outpost", StringComparison.OrdinalIgnoreCase))
+        foreach (var (keywords, logoSource) in LogoRules)
         {
-            return CommunityOutpost.LogoSource;
-        }
-
-        if (input.Contains("superhacker", StringComparison.OrdinalIgnoreCase))
-        {
-            return TheSuperHackers.LogoSource;
-        }
-
-        if (input.Contains("generalsonline", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("generals online", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("generals-online", StringComparison.OrdinalIgnoreCase))
-        {
-            return GeneralsOnline.LogoSource;
-        }
-
-        if (input.Contains("moddb", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("mod db", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("mod-db", StringComparison.OrdinalIgnoreCase))
-        {
-            return ModDB.LogoSource;
-        }
-
-        if (input.Contains("cnclabs", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("cnc labs", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("cnc-labs", StringComparison.OrdinalIgnoreCase))
-        {
-            return CNCLabs.LogoSource;
-        }
-
-        if (input.Contains("aodmaps", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("aod maps", StringComparison.OrdinalIgnoreCase) ||
-            input.Contains("aod-maps", StringComparison.OrdinalIgnoreCase))
-        {
-            return AODMaps.LogoSource;
-        }
-
-        if (input.Contains("github", StringComparison.OrdinalIgnoreCase))
-        {
-            return GitHub.LogoSource;
+            if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+            {
+                return logoSource;
+            }
         }
 
         return null;
