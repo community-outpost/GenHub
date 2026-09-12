@@ -328,8 +328,8 @@ public class GeneralsOnlineManifestFactory(
         ContentManifest originalManifest,
         int userVersion,
         DateTime? releaseDate,
-        string iconUrl,
-        string changelogUrl)
+        string? iconUrl,
+        string? changelogUrl)
     {
         return new ContentManifest
         {
@@ -344,7 +344,7 @@ public class GeneralsOnlineManifestFactory(
             Metadata = new ContentMetadata
             {
                 Description = GeneralsOnlineConstants.ShortDescription,
-                ReleaseDate = releaseDate,
+                ReleaseDate = releaseDate ?? DateTime.UtcNow,
                 IconUrl = iconUrl,
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
@@ -355,7 +355,6 @@ public class GeneralsOnlineManifestFactory(
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
         };
     }
-
 
     /// <summary>
     /// Creates a content manifest for the GeneralsOnlineGameData data patch.

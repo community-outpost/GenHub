@@ -649,6 +649,41 @@ public partial class AODMapsDiscoverer(
         return string.Format(AODMapsConstants.NewMapsPagePattern, suffix);
     }
 
+    private static ContentSearchResult CreateAODMapSearchResult(
+        string id,
+        string name,
+        string description,
+        string author,
+        string safeDownloadUrl,
+        string? thumbnailUrl,
+        string sourceUrl)
+    {
+        return new ContentSearchResult
+        {
+            Id = id,
+            Name = name,
+            Description = description,
+            AuthorName = author,
+            Version = string.Empty,
+            ProviderName = AODMapsConstants.DiscovererSourceName,
+            SourceUrl = safeDownloadUrl,
+            IconUrl = thumbnailUrl ?? PublisherInfoConstants.AODMaps.LogoSource,
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            RequiresResolution = true,
+            ResolverId = AODMapsConstants.ResolverId,
+            LastUpdated = null,
+            ResolverMetadata =
+            {
+                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
+                { AODMapsConstants.MapIdMetadataKey, id },
+                { AODMapsConstants.ContentIdMetadataKey, id },
+                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
+                { AODMapsConstants.ListPageUrlMetadataKey, sourceUrl },
+            },
+        };
+    }
+
     /// <summary>
     /// Extracts content items from the parsed HTML document.
     /// </summary>
@@ -704,39 +739,5 @@ public partial class AODMapsDiscoverer(
 
         logger.LogInformation("[AODMaps] No next page link found on page {Page}", currentPage);
         return false;
-    }
-    private static ContentSearchResult CreateAODMapSearchResult(
-        string id,
-        string name,
-        string description,
-        string author,
-        string safeDownloadUrl,
-        string? thumbnailUrl,
-        string sourceUrl)
-    {
-        return new ContentSearchResult
-        {
-            Id = id,
-            Name = name,
-            Description = description,
-            AuthorName = author,
-            Version = string.Empty,
-            ProviderName = AODMapsConstants.DiscovererSourceName,
-            SourceUrl = safeDownloadUrl,
-            IconUrl = thumbnailUrl ?? PublisherInfoConstants.AODMaps.LogoSource,
-            ContentType = ContentType.Map,
-            TargetGame = GameType.ZeroHour,
-            RequiresResolution = true,
-            ResolverId = AODMapsConstants.ResolverId,
-            LastUpdated = null,
-            ResolverMetadata =
-            {
-                { AODMapsConstants.DownloadUrlMetadataKey, safeDownloadUrl },
-                { AODMapsConstants.MapIdMetadataKey, id },
-                { AODMapsConstants.ContentIdMetadataKey, id },
-                { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
-                { AODMapsConstants.ListPageUrlMetadataKey, sourceUrl },
-            },
-        };
     }
 }
