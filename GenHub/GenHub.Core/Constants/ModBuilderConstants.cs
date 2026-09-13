@@ -89,6 +89,31 @@ public static class ModBuilderConstants
     public const string BackupFileExtension = ".modbuilder_backup";
 
     /// <summary>
+    /// Title displayed when no project is loaded.
+    /// </summary>
+    public const string NoProjectTitle = "No Project";
+
+    /// <summary>
+    /// Message displayed when no project is loaded.
+    /// </summary>
+    public const string NoProjectMessage = "Please load or create a project first";
+
+    /// <summary>
+    /// Status message for ready state.
+    /// </summary>
+    public const string ReadyStatus = "Ready";
+
+    /// <summary>
+    /// Fallback error message for unknown build errors.
+    /// </summary>
+    public const string UnknownError = "Unknown error";
+
+    /// <summary>
+    /// Error message when project path is empty.
+    /// </summary>
+    public const string ProjectPathEmptyError = "Project path cannot be empty";
+
+    /// <summary>
     /// Default directory name for build output.
     /// </summary>
     public const string DefaultBuildDir = ".Build";
@@ -147,6 +172,11 @@ public static class ModBuilderConstants
     /// File name for bundle packs configuration.
     /// </summary>
     public const string BundlePacksConfigFileName = "ModBundlePacks.json";
+
+    /// <summary>
+    /// Directory name for release packages.
+    /// </summary>
+    public const string PackagesDir = "Packages";
 
     /// <summary>
     /// Directory name for uncompressed release files.

@@ -27,13 +27,11 @@ public sealed class ProjectConfigService(
     ILogger<ProjectConfigService> logger,
     IConfigurationProviderService? configurationProvider = null) : IProjectConfigService
 {
-    private const string ProjectPathEmptyError = "Project path cannot be empty";
-
     private readonly string _recentProjectsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath()
             ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".genhub"),
+                StorageConstants.DefaultDataDirectoryName),
         ModBuilderConstants.ModBuilderDirName,
         ModBuilderConstants.RecentProjectsFileName);
 
@@ -59,7 +57,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    ProjectPathEmptyError,
+                    ModBuilderConstants.ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -175,7 +173,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    ProjectPathEmptyError,
+                    ModBuilderConstants.ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -261,7 +259,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    ProjectPathEmptyError,
+                    ModBuilderConstants.ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -547,7 +545,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<bool>.CreateFailure(
-                    ProjectPathEmptyError,
+                    ModBuilderConstants.ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -595,7 +593,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<bool>.CreateFailure(
-                    ProjectPathEmptyError,
+                    ModBuilderConstants.ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -833,7 +831,7 @@ public sealed class ProjectConfigService(
         {
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return ProjectOperationResult<int>.CreateFailure(ProjectPathEmptyError, sw.Elapsed);
+                return ProjectOperationResult<int>.CreateFailure(ModBuilderConstants.ProjectPathEmptyError, sw.Elapsed);
             }
 
             var projectDir = Path.GetDirectoryName(projectPath);
@@ -913,7 +911,7 @@ public sealed class ProjectConfigService(
         {
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return ProjectOperationResult<ModBuilderProject>.CreateFailure(ProjectPathEmptyError, sw.Elapsed);
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(ModBuilderConstants.ProjectPathEmptyError, sw.Elapsed);
             }
 
             var bigList = bigFilePaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
@@ -1295,7 +1293,7 @@ public sealed class ProjectConfigService(
         logger.LogDebug("Created ModBundlePacks.json for imported BIG files at {Path}", packsPath);
     }
 
-    private async Task AppendPacksToExistingBundleFileAsync(string packsPath, List<object> packsToAdd, CancellationToken cancellationToken)
+    private async Task<bool> AppendPacksToExistingBundleFileAsync(string packsPath, List<object> packsToAdd, CancellationToken cancellationToken)
     {
         try
         {
@@ -1312,22 +1310,25 @@ public sealed class ProjectConfigService(
                 AppendPacksToJsonObject(rootObj, packsToAdd);
                 await AtomicWriteJsonFileAsync(packsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
+                return true;
             }
             else if (node is JsonArray rootArray)
             {
                 AppendPacksToJsonArray(rootArray, packsToAdd);
                 await AtomicWriteJsonFileAsync(packsPath, rootArray, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
+                return true;
             }
             else
             {
-                logger.LogError("Existing ModBundlePacks.json at {Path} is neither an object nor an array", packsPath);
-                throw new InvalidDataException($"Existing ModBundlePacks.json at '{packsPath}' has an unsupported JSON root type ({node?.GetType().Name ?? "null"}).");
+                logger.LogWarning("Existing ModBundlePacks.json at {Path} is neither an object nor an array; preserving file without changes", packsPath);
+                return false;
             }
         }
-        catch (Exception ex) when (ex is not InvalidDataException and not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            throw new InvalidOperationException($"Failed to append new packs to existing ModBundlePacks.json at '{packsPath}': {ex.Message}", ex);
+            logger.LogWarning(ex, "Failed to append new packs to existing ModBundlePacks.json at '{Path}'; preserving file without overwriting", packsPath);
+            return false;
         }
     }
 

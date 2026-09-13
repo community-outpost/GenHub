@@ -56,13 +56,6 @@ public partial class ModBuilderViewModel(
     IDialogService? dialogService = null,
     ISampleProjectService? sampleProjectService = null) : ObservableObject, IDisposable
 {
-    private const string ModBuilderLiteral = "ModBuilder";
-    private const string MbprojFilter = "*.mbproj";
-    private const string SampleProjectsDirLiteral = ModBuilderConstants.SampleProjectsDirectoryName;
-    private const string NoProjectTitle = "No Project";
-    private const string NoProjectMessage = "Please load or create a project first";
-    private const string ReadyStatusLiteral = "Ready";
-    private const string UnknownErrorLiteral = "Unknown error";
     private const string DefaultStatusColor = UiConstants.DefaultStatusBackgroundColor;
 
     private readonly Stopwatch _buildStopwatch = new();
@@ -312,7 +305,7 @@ public partial class ModBuilderViewModel(
     /// Gets or sets the build status text.
     /// </summary>
     [ObservableProperty]
-    private string _buildStatus = ReadyStatusLiteral;
+    private string _buildStatus = ModBuilderConstants.ReadyStatus;
 
     /// <summary>
     /// Gets the current build stage (alias for BuildStage).
@@ -388,13 +381,13 @@ public partial class ModBuilderViewModel(
     /// Gets or sets the status message.
     /// </summary>
     [ObservableProperty]
-    private string _statusMessage = ReadyStatusLiteral;
+    private string _statusMessage = ModBuilderConstants.ReadyStatus;
 
     /// <summary>
     /// Gets or sets the status text for the status bar.
     /// </summary>
     [ObservableProperty]
-    private string _statusText = ReadyStatusLiteral;
+    private string _statusText = ModBuilderConstants.ReadyStatus;
 
     /// <summary>
     /// Default status color value for the status bar.
@@ -651,7 +644,7 @@ public partial class ModBuilderViewModel(
             SuggestedStartLocation = suggestedFolder,
             FileTypeChoices =
             [
-                new FilePickerFileType("ModBuilder Project") { Patterns = [MbprojFilter,], }
+                new FilePickerFileType("ModBuilder Project") { Patterns = [ModBuilderConstants.ProjectFilePattern,], }
             ],
         }).ConfigureAwait(false);
 
@@ -684,7 +677,7 @@ public partial class ModBuilderViewModel(
                 }
                 else
                 {
-                    notificationService.ShowError("Creation Failed", result.FirstError ?? UnknownErrorLiteral);
+                    notificationService.ShowError("Creation Failed", result.FirstError ?? ModBuilderConstants.UnknownError);
                     logger.LogWarning("Project creation failed: {Error}", result.FirstError);
                 }
             }
@@ -722,7 +715,7 @@ public partial class ModBuilderViewModel(
             SuggestedStartLocation = suggestedFolder,
             FileTypeFilter =
             [
-                new FilePickerFileType("ModBuilder Project") { Patterns = [MbprojFilter,], }
+                new FilePickerFileType("ModBuilder Project") { Patterns = [ModBuilderConstants.ProjectFilePattern,], }
             ],
         }).ConfigureAwait(false);
 
@@ -820,7 +813,7 @@ public partial class ModBuilderViewModel(
             }
             else
             {
-                notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
+                notificationService.ShowError("Import Failed", result.FirstError ?? ModBuilderConstants.UnknownError);
                 AppendBuildLog($"Import failed: {result.FirstError}");
             }
         }
@@ -907,7 +900,7 @@ public partial class ModBuilderViewModel(
             SuggestedStartLocation = suggestedFolder,
             FileTypeChoices =
             [
-                new FilePickerFileType("ModBuilder Project") { Patterns = [MbprojFilter], },
+                new FilePickerFileType("ModBuilder Project") { Patterns = [ModBuilderConstants.ProjectFilePattern], },
             ],
         }).ConfigureAwait(false);
 
@@ -956,7 +949,7 @@ public partial class ModBuilderViewModel(
             }
             else
             {
-                notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
+                notificationService.ShowError("Import Failed", result.FirstError ?? ModBuilderConstants.UnknownError);
                 AppendBuildLog($"Failed to create imported project: {result.FirstError}");
             }
         }
@@ -1155,11 +1148,11 @@ public partial class ModBuilderViewModel(
     {
         var sampleBaseDirs = new[]
         {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral),
-            Path.Combine(AppContext.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral),
-            Path.Combine(Directory.GetCurrentDirectory(), SampleProjectsDirLiteral, ModBuilderLiteral),
-            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral)),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral)),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+            Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+            Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
         };
 
         var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
@@ -1204,7 +1197,7 @@ public partial class ModBuilderViewModel(
     {
         try
         {
-            var files = Directory.GetFiles(baseDir, MbprojFilter, SearchOption.AllDirectories);
+            var files = Directory.GetFiles(baseDir, ModBuilderConstants.ProjectFilePattern, SearchOption.AllDirectories);
             foreach (var templateFile in files)
             {
                 await ProvisionSingleSampleTemplateAsync(templateFile, userSamplesDir, userProjectPaths).ConfigureAwait(false);
@@ -1389,16 +1382,16 @@ public partial class ModBuilderViewModel(
         var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         if (!string.IsNullOrWhiteSpace(docs) && Directory.Exists(docs))
         {
-            return Path.Combine(docs, ModBuilderLiteral);
+            return Path.Combine(docs, ModBuilderConstants.ModBuilderDirName);
         }
 
         var localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         if (!string.IsNullOrWhiteSpace(localApp))
         {
-            return Path.Combine(localApp, "GenHub", ModBuilderLiteral);
+            return Path.Combine(localApp, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
         }
 
-        return Path.Combine(Path.GetTempPath(), "GenHub", ModBuilderLiteral);
+        return Path.Combine(Path.GetTempPath(), AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
     }
 
     private async Task<string?> MigrateProjectOutOfAppDirectoryAsync(string oldProjectPath)
@@ -1548,7 +1541,7 @@ public partial class ModBuilderViewModel(
         logger.LogInformation("OpenFileManagerAsync requested");
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(ModBuilderConstants.NoProjectTitle, ModBuilderConstants.NoProjectMessage);
             return;
         }
 
@@ -1764,7 +1757,7 @@ public partial class ModBuilderViewModel(
             }
             else
             {
-                notificationService.ShowError("Save Failed", result.FirstError ?? UnknownErrorLiteral);
+                notificationService.ShowError("Save Failed", result.FirstError ?? ModBuilderConstants.UnknownError);
                 logger.LogWarning("Failed to save project: {Error}", result.FirstError);
             }
         }
@@ -1785,7 +1778,7 @@ public partial class ModBuilderViewModel(
     {
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(ModBuilderConstants.NoProjectTitle, ModBuilderConstants.NoProjectMessage);
             return;
         }
 
@@ -1861,7 +1854,7 @@ public partial class ModBuilderViewModel(
             IsProjectLoaded = false;
             Bundles.Clear();
             BuildLog.Clear();
-            StatusMessage = ReadyStatusLiteral;
+            StatusMessage = ModBuilderConstants.ReadyStatus;
         }).ConfigureAwait(false);
 
         logger.LogInformation("Project closed successfully");
@@ -2090,7 +2083,7 @@ public partial class ModBuilderViewModel(
     {
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(ModBuilderConstants.NoProjectTitle, ModBuilderConstants.NoProjectMessage);
             return;
         }
 
@@ -2161,8 +2154,8 @@ public partial class ModBuilderViewModel(
             else
             {
                 AppendBuildLog("\n=== Build Failed ===");
-                AppendBuildLog(result.FirstError ?? UnknownErrorLiteral);
-                notificationService.ShowError("Build Failed", result.FirstError ?? UnknownErrorLiteral);
+                AppendBuildLog(result.FirstError ?? ModBuilderConstants.UnknownError);
+                notificationService.ShowError("Build Failed", result.FirstError ?? ModBuilderConstants.UnknownError);
                 StatusMessage = "Build failed";
             }
         }
@@ -2223,7 +2216,7 @@ public partial class ModBuilderViewModel(
     {
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(ModBuilderConstants.NoProjectTitle, ModBuilderConstants.NoProjectMessage);
             return;
         }
 
@@ -2265,7 +2258,7 @@ public partial class ModBuilderViewModel(
             else
             {
                 AppendBuildLog("\n=== Manifest Creation Failed ===");
-                AppendBuildLog(result.FirstError ?? UnknownErrorLiteral);
+                AppendBuildLog(result.FirstError ?? ModBuilderConstants.UnknownError);
                 await InvokeOnUIThreadAsync(() =>
                     notificationService.ShowError("Manifest Creation Failed", result.FirstError ?? "Failed to create manifest"));
                 StatusMessage = "Manifest creation failed";
@@ -2441,7 +2434,7 @@ public partial class ModBuilderViewModel(
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(ModBuilderConstants.NoProjectTitle, ModBuilderConstants.NoProjectMessage);
             return;
         }
 
@@ -2475,7 +2468,7 @@ public partial class ModBuilderViewModel(
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(ModBuilderConstants.NoProjectTitle, ModBuilderConstants.NoProjectMessage);
             return;
         }
 
@@ -2517,7 +2510,7 @@ public partial class ModBuilderViewModel(
         logger.LogInformation("OpenBuildFolder requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
-            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(ModBuilderConstants.NoProjectTitle, ModBuilderConstants.NoProjectMessage);
             return;
         }
 
@@ -2846,7 +2839,7 @@ public partial class ModBuilderViewModel(
     partial void OnBuildStageChanged(string value)
     {
         OnPropertyChanged(nameof(CurrentStage));
-        BuildStatus = string.IsNullOrEmpty(value) ? ReadyStatusLiteral : value;
+        BuildStatus = string.IsNullOrEmpty(value) ? ModBuilderConstants.ReadyStatus : value;
     }
 
     partial void OnProjectPathChanged(string value)

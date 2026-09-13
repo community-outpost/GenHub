@@ -6,6 +6,11 @@ namespace GenHub.Core.Constants;
 public static class StorageConstants
 {
     /// <summary>
+    /// Default application data directory name in user profile.
+    /// </summary>
+    public const string DefaultDataDirectoryName = ".genhub";
+
+    /// <summary>
     /// Prefix used for temporary files that verify a storage location is writable.
     /// </summary>
     public const string WriteProbeFilePrefix = ".genhub-write-probe-";
