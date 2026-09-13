@@ -242,11 +242,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         Dispatcher.UIThread.Post(async () =>
         {
-            if (Interlocked.Exchange(ref _isContentReloadInProgress, 1) == 1)
+            if (_isContentReloadInProgress)
             {
                 return;
             }
 
+            _isContentReloadInProgress = true;
             try
             {
                 await Task.Delay(75).ConfigureAwait(true);
@@ -254,7 +255,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             }
             finally
             {
-                Interlocked.Exchange(ref _isContentReloadInProgress, 0);
+                _isContentReloadInProgress = false;
             }
         });
     }

@@ -71,6 +71,7 @@ public partial class ModBuilderViewModel(
     private readonly StringBuilder _buildOutputBuilder = new();
     private FileManagerViewModel? _fileManager;
     private CancellationTokenSource? _buildCancellationTokenSource;
+    private CancellationTokenSource? _importCancellationTokenSource;
     private bool _isPopulatingBundles;
     private bool _disposed;
 
@@ -776,18 +777,24 @@ public partial class ModBuilderViewModel(
             return;
         }
 
+        if (IsBuildRunning)
+        {
+            notificationService.ShowWarning("Build in Progress", "Cannot import files while a build is running.");
+            return;
+        }
+
         logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
         AppendBuildLog($"Importing {selectedPaths.Count} .BIG archive(s) into project...");
 
-        if (_buildCancellationTokenSource != null)
+        if (_importCancellationTokenSource != null)
         {
-            await _buildCancellationTokenSource.CancelAsync().ConfigureAwait(false);
-            _buildCancellationTokenSource.Dispose();
-            _buildCancellationTokenSource = null;
+            await _importCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+            _importCancellationTokenSource.Dispose();
+            _importCancellationTokenSource = null;
         }
 
         var cts = new CancellationTokenSource();
-        _buildCancellationTokenSource = cts;
+        _importCancellationTokenSource = cts;
 
         try
         {
@@ -827,6 +834,14 @@ public partial class ModBuilderViewModel(
             logger.LogError(ex, "Failed to import BIG file(s)");
             notificationService.ShowError("Import Error", ex.Message);
             AppendBuildLog($"Error importing BIG archive: {ex.Message}");
+        }
+        finally
+        {
+            if (_importCancellationTokenSource == cts)
+            {
+                _importCancellationTokenSource.Dispose();
+                _importCancellationTokenSource = null;
+            }
         }
     }
 
@@ -3028,6 +3043,10 @@ public partial class ModBuilderViewModel(
             _buildCancellationTokenSource?.Cancel();
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;
+
+            _importCancellationTokenSource?.Cancel();
+            _importCancellationTokenSource?.Dispose();
+            _importCancellationTokenSource = null;
         }
 
         _disposed = true;

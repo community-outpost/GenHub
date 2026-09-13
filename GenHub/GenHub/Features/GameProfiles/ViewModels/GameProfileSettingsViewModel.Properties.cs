@@ -15,7 +15,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameProfileSettingsViewModel
 {
     private Action<string>? _scrollToSectionRequested;
-    private int _isContentReloadInProgress;
+    private bool _isContentReloadInProgress;
 
     /// <summary>
     /// Gets or sets the action triggered when the view needs to scroll to a specific section.
