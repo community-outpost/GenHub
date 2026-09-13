@@ -57,23 +57,7 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
             File.WriteAllText(filePath, customPath);
             logger?.LogInformation("Recorded custom installation root in file: {CustomRoot}", customPath);
         }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (SecurityException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (ArgumentException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or InvalidOperationException)
         {
             logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
@@ -89,47 +73,19 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
         try
         {
             var filePath = GetLocationFilePath();
-            if (File.Exists(filePath))
+            if (!File.Exists(filePath))
             {
-                var path = File.ReadAllText(filePath).Trim();
-                if (PathHelper.TrySanitizeLocalPath(path, out var sanitized))
-                {
-                    var currentRoot = StorageMigrationService.GetSourceRootDirectory();
-                    if (PathHelper.AreSamePath(sanitized, currentRoot))
-                    {
-                        return null;
-                    }
+                return null;
+            }
 
-                    var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
-                    if (!string.IsNullOrWhiteSpace(defaultRoot) && PathHelper.AreSamePath(sanitized, defaultRoot))
-                    {
-                        return null;
-                    }
-
-                    if (Directory.Exists(sanitized) && StorageMigrationService.IsVelopackRoot(sanitized))
-                    {
-                        return sanitized;
-                    }
-                }
+            var path = File.ReadAllText(filePath).Trim();
+            if (PathHelper.TrySanitizeLocalPath(path, out var sanitized) &&
+                IsValidCustomInstallCandidate(sanitized))
+            {
+                return sanitized;
             }
         }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (SecurityException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (ArgumentException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or InvalidOperationException)
         {
             logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
@@ -152,23 +108,7 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
                 logger?.LogInformation("Cleared custom installation root file: {FilePath}", filePath);
             }
         }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, ClearLocationFailureMessage);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, ClearLocationFailureMessage);
-        }
-        catch (SecurityException ex)
-        {
-            logger?.LogWarning(ex, ClearLocationFailureMessage);
-        }
-        catch (ArgumentException ex)
-        {
-            logger?.LogWarning(ex, ClearLocationFailureMessage);
-        }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or InvalidOperationException)
         {
             logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
@@ -213,4 +153,21 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
     /// </summary>
     /// <param name="path">The override file path, or <see langword="null"/> to reset.</param>
     internal static void SetLocationFilePathOverrideForTesting(string? path) => _locationFilePathOverride = path;
+
+    private static bool IsValidCustomInstallCandidate(string path)
+    {
+        var currentRoot = StorageMigrationService.GetSourceRootDirectory();
+        if (PathHelper.AreSamePath(path, currentRoot))
+        {
+            return false;
+        }
+
+        var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
+        if (!string.IsNullOrWhiteSpace(defaultRoot) && PathHelper.AreSamePath(path, defaultRoot))
+        {
+            return false;
+        }
+
+        return Directory.Exists(path) && StorageMigrationService.IsVelopackRoot(path);
+    }
 }

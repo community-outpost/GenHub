@@ -27,6 +27,7 @@ public class InstallationConflictService(
 {
     private const string ConflictCheckErrorMessage = "Error checking for installation location conflicts.";
     private const string RemoveMarkerErrorMessage = "Failed to remove adoption marker file at {MarkerPath}";
+    private const string ReadMarkerErrorMessage = "Failed to read adoption pending marker file at {MarkerPath}";
 
     /// <inheritdoc />
     public Task CheckAndResolveConflictsAsync(CancellationToken cancellationToken = default)
@@ -48,44 +49,7 @@ public class InstallationConflictService(
                 return;
             }
 
-            var customPath = installationLocationTracker.GetRegisteredCustomInstallPath();
-            string? detectedCustomPath = null;
-
-            if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var resolvedTrackerPath) &&
-                !string.IsNullOrWhiteSpace(resolvedTrackerPath))
-            {
-                detectedCustomPath = resolvedTrackerPath;
-            }
-            else if (File.Exists(markerPath))
-            {
-                // Never take tracker returning null or current install as proof there is no conflict
-                // while .adoption-pending still names a live custom root.
-                try
-                {
-                    var markerContent = File.ReadAllText(markerPath).Trim();
-                    if (StorageMigrationService.HasDuplicateInstallationConflict(markerContent, out var resolvedMarkerPath) &&
-                        !string.IsNullOrWhiteSpace(resolvedMarkerPath))
-                    {
-                        detectedCustomPath = resolvedMarkerPath;
-                    }
-                }
-                catch (IOException ex)
-                {
-                    logger?.LogWarning(ex, "Failed to read adoption pending marker file at {MarkerPath}", markerPath);
-                }
-                catch (UnauthorizedAccessException ex)
-                {
-                    logger?.LogWarning(ex, "Failed to read adoption pending marker file at {MarkerPath}", markerPath);
-                }
-                catch (SecurityException ex)
-                {
-                    logger?.LogWarning(ex, "Failed to read adoption pending marker file at {MarkerPath}", markerPath);
-                }
-                catch (ArgumentException ex)
-                {
-                    logger?.LogWarning(ex, "Failed to read adoption pending marker file at {MarkerPath}", markerPath);
-                }
-            }
+            var detectedCustomPath = DetectCustomInstallationPath(markerPath);
 
             if (!string.IsNullOrWhiteSpace(detectedCustomPath))
             {
@@ -98,26 +62,48 @@ public class InstallationConflictService(
                 TryClearAdoptionMarkerIfSafe(markerPath, defaultRoot);
             }
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or InvalidOperationException)
         {
             logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
-        catch (UnauthorizedAccessException ex)
+    }
+
+    private string? DetectCustomInstallationPath(string markerPath)
+    {
+        var customPath = installationLocationTracker.GetRegisteredCustomInstallPath();
+        if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var resolvedTrackerPath) &&
+            !string.IsNullOrWhiteSpace(resolvedTrackerPath))
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            return resolvedTrackerPath;
         }
-        catch (SecurityException ex)
+
+        return TryReadMarkerCustomPath(markerPath);
+    }
+
+    private string? TryReadMarkerCustomPath(string markerPath)
+    {
+        if (!File.Exists(markerPath))
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            return null;
         }
-        catch (ArgumentException ex)
+
+        // Never take tracker returning null or current install as proof there is no conflict
+        // while .adoption-pending still names a live custom root.
+        try
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            var markerContent = File.ReadAllText(markerPath).Trim();
+            if (StorageMigrationService.HasDuplicateInstallationConflict(markerContent, out var resolvedMarkerPath) &&
+                !string.IsNullOrWhiteSpace(resolvedMarkerPath))
+            {
+                return resolvedMarkerPath;
+            }
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            logger?.LogWarning(ex, ReadMarkerErrorMessage, markerPath);
         }
+
+        return null;
     }
 
     private void ResolveDuplicateInstallationConflict(
@@ -242,19 +228,7 @@ public class InstallationConflictService(
                 File.Delete(markerPath);
             }
         }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
-        }
-        catch (SecurityException ex)
-        {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
-        }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
         {
             logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
@@ -283,19 +257,7 @@ public class InstallationConflictService(
                 installationLocationTracker.ClearCustomInstallPath();
             }
         }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
-        }
-        catch (SecurityException ex)
-        {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
-        }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
         {
             logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
