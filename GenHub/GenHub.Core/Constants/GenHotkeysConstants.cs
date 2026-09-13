@@ -35,6 +35,30 @@ public static class GenHotkeysConstants
 
         /// <summary>CSF label for Structure Sell command.</summary>
         public const string Sell = "CONTROLBAR:Sell";
+
+        /// <summary>CSF label for Capture Building action.</summary>
+        public const string CaptureBuilding = "CONTROLBAR:CaptureBuilding";
+
+        /// <summary>CSF label for Cash Hack action.</summary>
+        public const string CashHack = "CONTROLBAR:CashHack";
+
+        /// <summary>CSF label for Steal Cash Hack action.</summary>
+        public const string StealCashHack = "CONTROLBAR:StealCashHack";
+
+        /// <summary>CSF label for Guard action.</summary>
+        public const string Guard = "CONTROLBAR:Guard";
+
+        /// <summary>CSF label for Construct Tomahawk vehicle action.</summary>
+        public const string ConstructAmericaVehicleTomahawk = "CONTROLBAR:ConstructAmericaVehicleTomahawk";
+
+        /// <summary>CSF label for Stealth Fighter upgrade.</summary>
+        public const string UpgradeStealthFighter = "UPGRADE:StealthFighter";
+
+        /// <summary>CSF label for Timed Demo Charge action.</summary>
+        public const string TimedDemoCharge = "CONTROLBAR:TimedDemoCharge";
+
+        /// <summary>CSF label for Detonate Charges action.</summary>
+        public const string DetonateCharges = "CONTROLBAR:DetonateCharges";
     }
 
     /// <summary>Mutual exclusion and special action icon names.</summary>
