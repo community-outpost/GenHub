@@ -119,37 +119,53 @@ public class SampleProjectService(
 
         var canonicalName = ResolveCanonicalProjectName(projectName, projectDir);
 
+        OperationResult<bool> result;
         try
         {
             switch (canonicalName)
             {
                 case GeneralsGamePatch2Name:
-                    return await AcquireGeneralsGamePatch2AssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireGeneralsGamePatch2AssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    break;
 
                 case ImprovedMenusName:
-                    return await AcquireImprovedMenusAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireImprovedMenusAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    break;
 
                 case LemonControlBarName:
-                    return await AcquireLemonControlBarAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireLemonControlBarAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    break;
 
                 case LeikezeHotkeysName:
-                    return await AcquireLeikezeHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireLeikezeHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    break;
 
                 case HotkeysName:
                 case CustomIconsName:
-                    return await AcquireHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    break;
 
                 default:
                     logger.LogWarning("Unrecognized sample project name: {ProjectName}", projectName);
-                    return OperationResult<bool>.CreateFailure($"Unknown sample project: {projectName}");
+                    result = OperationResult<bool>.CreateFailure($"Unknown sample project: {projectName}");
+                    break;
             }
+
+            if (!result.Success)
+            {
+                CleanupDirectorySafely(gameFilesDir);
+            }
+
+            return result;
         }
         catch (OperationCanceledException)
         {
+            CleanupDirectorySafely(gameFilesDir);
             throw;
         }
         catch (Exception ex)
         {
+            CleanupDirectorySafely(gameFilesDir);
             logger.LogError(ex, "Failed to download and extract sample assets for {ProjectName}", projectName);
             return OperationResult<bool>.CreateFailure($"Failed to acquire sample assets for {projectName}: {ex.Message}");
         }
@@ -245,20 +261,38 @@ public class SampleProjectService(
         }
     }
 
-    private static void CopyDirectoryContents(string sourceDir, string targetDir)
+    private void CleanupDirectorySafely(string dir)
     {
+        try
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up directory {Dir} after failed sample acquisition", dir);
+        }
+    }
+
+    private static void CopyDirectoryContents(string sourceDir, string targetDir, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         Directory.CreateDirectory(targetDir);
 
         foreach (var file in Directory.GetFiles(sourceDir))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var targetFilePath = Path.Combine(targetDir, Path.GetFileName(file));
             File.Copy(file, targetFilePath, overwrite: true);
         }
 
         foreach (var subDir in Directory.GetDirectories(sourceDir))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var targetSubDirPath = Path.Combine(targetDir, Path.GetFileName(subDir));
-            CopyDirectoryContents(subDir, targetSubDirPath);
+            CopyDirectoryContents(subDir, targetSubDirPath, cancellationToken);
         }
     }
 
@@ -394,7 +428,7 @@ public class SampleProjectService(
                 return OperationResult<bool>.CreateFailure($"Failed to unpack GeneralsGamePatch2 .big file: {unpackResult.FirstError}");
             }
 
-            CopyDirectoryContents(unpackStaging, gameFilesDir);
+            CopyDirectoryContents(unpackStaging, gameFilesDir, cancellationToken);
             await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation("Successfully unpacked GeneralsGamePatch2 game files into {Dir}", gameFilesDir);
@@ -466,7 +500,7 @@ public class SampleProjectService(
                 return OperationResult<bool>.CreateFailure($"Failed to unpack ImprovedMenus .big file: {unpackResult.FirstError}");
             }
 
-            CopyDirectoryContents(unpackStaging, gameFilesDir);
+            CopyDirectoryContents(unpackStaging, gameFilesDir, cancellationToken);
             await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
 
             // Copy movie backgrounds if provided in release zip
@@ -579,7 +613,7 @@ public class SampleProjectService(
                 return OperationResult<bool>.CreateFailure($"Failed to unpack Lemon Control Bar .big file: {unpackResult.FirstError}");
             }
 
-            CopyDirectoryContents(unpackStaging, gameFilesDir);
+            CopyDirectoryContents(unpackStaging, gameFilesDir, cancellationToken);
             await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation("Successfully unpacked Lemon Control Bar game files into {Dir}", gameFilesDir);
@@ -733,12 +767,12 @@ public class SampleProjectService(
             // Copy Zero Hour indicators from ZH/BIG (or fallback to root)
             var zhBigDir = Path.Combine(tempHlenStaging, "ZH", "BIG");
             var hlenSource = Directory.Exists(zhBigDir) ? zhBigDir : tempHlenStaging;
-            CopyDirectoryContents(hlenSource, gameFilesDir);
+            CopyDirectoryContents(hlenSource, gameFilesDir, cancellationToken);
 
             // Copy hotkey string definitions from hleg BIG/
             var hlegBigDir = Path.Combine(tempHlegStaging, "BIG");
             var hlegSource = Directory.Exists(hlegBigDir) ? hlegBigDir : tempHlegStaging;
-            CopyDirectoryContents(hlegSource, gameFilesDir);
+            CopyDirectoryContents(hlegSource, gameFilesDir, cancellationToken);
 
             await TryConvertCsfToStrAsync(gameFilesDir, cancellationToken).ConfigureAwait(false);
 

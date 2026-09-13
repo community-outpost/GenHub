@@ -830,65 +830,73 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
-        AppendBuildLog($"Importing {selectedPaths.Count} .BIG archive(s) into project...");
-
-        if (_importCancellationTokenSource != null)
-        {
-            await _importCancellationTokenSource.CancelAsync().ConfigureAwait(false);
-            _importCancellationTokenSource.Dispose();
-            _importCancellationTokenSource = null;
-        }
-
-        var cts = new CancellationTokenSource();
-        _importCancellationTokenSource = cts;
-
+        IsBuildRunning = true;
         try
         {
-            var result = await projectConfigService.ImportBigFilesAsync(
-                ProjectPath,
-                selectedPaths,
-                createBundlePackForBig: true,
-                cancellationToken: cts.Token).ConfigureAwait(false);
+            logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
+            AppendBuildLog($"Importing {selectedPaths.Count} .BIG archive(s) into project...");
 
-            if (result.Success)
+            if (_importCancellationTokenSource != null)
             {
-                AppendBuildLog($"Successfully imported {result.Data} files from {selectedPaths.Count} BIG archive(s).");
-                notificationService.ShowSuccess(
-                    "Import Complete",
-                    $"Imported {result.Data} file(s) from {selectedPaths.Count} .BIG archive(s) into GameFilesEdited.");
-
-                await LoadProjectDataAsync().ConfigureAwait(false);
-                if (CurrentProject != null)
-                {
-                    var editedDir = CurrentProject.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
-                    await FileManager.InitializeAsync(CurrentProject.ProjectDir, editedDir).ConfigureAwait(false);
-                }
-            }
-            else
-            {
-                notificationService.ShowError("Import Failed", result.FirstError ?? ModBuilderConstants.UnknownError);
-                AppendBuildLog($"Import failed: {result.FirstError}");
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            AppendBuildLog("Import cancelled.");
-            notificationService.ShowInfo("Import Cancelled", "The BIG import operation was cancelled.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to import BIG file(s)");
-            notificationService.ShowError("Import Error", ex.Message);
-            AppendBuildLog($"Error importing BIG archive: {ex.Message}");
-        }
-        finally
-        {
-            if (_importCancellationTokenSource == cts)
-            {
+                await _importCancellationTokenSource.CancelAsync().ConfigureAwait(false);
                 _importCancellationTokenSource.Dispose();
                 _importCancellationTokenSource = null;
             }
+
+            var cts = new CancellationTokenSource();
+            _importCancellationTokenSource = cts;
+
+            try
+            {
+                var result = await projectConfigService.ImportBigFilesAsync(
+                    ProjectPath,
+                    selectedPaths,
+                    createBundlePackForBig: true,
+                    cancellationToken: cts.Token).ConfigureAwait(false);
+
+                if (result.Success)
+                {
+                    AppendBuildLog($"Successfully imported {result.Data} files from {selectedPaths.Count} BIG archive(s).");
+                    notificationService.ShowSuccess(
+                        "Import Complete",
+                        $"Imported {result.Data} file(s) from {selectedPaths.Count} .BIG archive(s) into GameFilesEdited.");
+
+                    await LoadProjectDataAsync().ConfigureAwait(false);
+                    if (CurrentProject != null)
+                    {
+                        var editedDir = CurrentProject.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+                        await FileManager.InitializeAsync(CurrentProject.ProjectDir, editedDir).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    notificationService.ShowError("Import Failed", result.FirstError ?? ModBuilderConstants.UnknownError);
+                    AppendBuildLog($"Import failed: {result.FirstError}");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                AppendBuildLog("Import cancelled.");
+                notificationService.ShowInfo("Import Cancelled", "The BIG import operation was cancelled.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to import BIG file(s)");
+                notificationService.ShowError("Import Error", ex.Message);
+                AppendBuildLog($"Error importing BIG archive: {ex.Message}");
+            }
+            finally
+            {
+                if (_importCancellationTokenSource == cts)
+                {
+                    _importCancellationTokenSource.Dispose();
+                    _importCancellationTokenSource = null;
+                }
+            }
+        }
+        finally
+        {
+            IsBuildRunning = false;
         }
     }
 
@@ -2564,8 +2572,9 @@ public partial class ModBuilderViewModel(
     {
         logger.LogInformation("AbortBuild requested");
         _buildCancellationTokenSource?.Cancel();
-        AppendBuildLog("\nAborting build...");
-        StatusMessage = "Aborting build...";
+        _importCancellationTokenSource?.Cancel();
+        AppendBuildLog("\nAborting operation...");
+        StatusMessage = "Aborting operation...";
     }
 
     private bool CanAbortBuild() => IsBuildRunning;
