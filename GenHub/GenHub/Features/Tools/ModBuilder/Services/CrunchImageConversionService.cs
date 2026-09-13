@@ -112,6 +112,41 @@ public class CrunchImageConversionService(
     }
 
     /// <summary>
+    /// Checks if crunch executable is available on the system.
+    /// </summary>
+    /// <returns>True if crunch executable is found.</returns>
+    public static bool IsCrunchAvailable()
+    {
+        var resolved = ResolveCrunchExecutable();
+        return File.Exists(resolved);
+    }
+
+    /// <summary>
+    /// Resolves the absolute path to crunch_x64 executable.
+    /// </summary>
+    /// <returns>The resolved executable path or default tool name.</returns>
+    public static string ResolveCrunchExecutable()
+    {
+        var existingCandidate = ModBuilderConstants.CrunchExecutableCandidates.FirstOrDefault(File.Exists);
+        if (existingCandidate != null)
+        {
+            return Path.GetFullPath(existingCandidate);
+        }
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrEmpty(pathEnv))
+        {
+            var foundInPath = FindCrunchInPath(pathEnv);
+            if (foundInPath != null)
+            {
+                return foundInPath;
+            }
+        }
+
+        return ModBuilderConstants.CrunchExecutable;
+    }
+
+    /// <summary>
     /// Converts an image to dds using crunch_x64 with temporary tga generation when needed.
     /// </summary>
     private async Task<bool> ConvertToDdsViaCrunchAsync(
@@ -578,41 +613,6 @@ public class CrunchImageConversionService(
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
             return true;
         }, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Resolves the absolute path to crunch_x64 executable.
-    /// </summary>
-    /// <returns>The resolved executable path or default tool name.</returns>
-        /// <summary>
-    /// Checks if crunch executable is available on the system.
-    /// </summary>
-    /// <returns>True if crunch executable is found.</returns>
-    public static bool IsCrunchAvailable()
-    {
-        var resolved = ResolveCrunchExecutable();
-        return File.Exists(resolved);
-    }
-
-    public static string ResolveCrunchExecutable()
-    {
-        var existingCandidate = ModBuilderConstants.CrunchExecutableCandidates.FirstOrDefault(File.Exists);
-        if (existingCandidate != null)
-        {
-            return Path.GetFullPath(existingCandidate);
-        }
-
-        var pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (!string.IsNullOrEmpty(pathEnv))
-        {
-            var foundInPath = FindCrunchInPath(pathEnv);
-            if (foundInPath != null)
-            {
-                return foundInPath;
-            }
-        }
-
-        return ModBuilderConstants.CrunchExecutable;
     }
 
     private static string? FindCrunchInPath(string pathEnv)

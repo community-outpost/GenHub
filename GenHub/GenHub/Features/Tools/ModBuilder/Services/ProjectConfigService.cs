@@ -1312,18 +1312,17 @@ public sealed class ProjectConfigService(
                 logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
                 return true;
             }
-            else if (node is JsonArray rootArray)
+
+            if (node is JsonArray rootArray)
             {
                 AppendPacksToJsonArray(rootArray, packsToAdd);
                 await AtomicWriteJsonFileAsync(packsPath, rootArray, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
                 return true;
             }
-            else
-            {
-                logger.LogWarning("Existing ModBundlePacks.json at {Path} is neither an object nor an array; preserving file without changes", packsPath);
-                return false;
-            }
+
+            logger.LogWarning("Existing ModBundlePacks.json at {Path} is neither an object nor an array; preserving file without changes", packsPath);
+            return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

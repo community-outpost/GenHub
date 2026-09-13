@@ -62,7 +62,6 @@ public partial class ModBuilderViewModel(
     private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
     private readonly StringBuilder _buildOutputBuilder = new();
-    private FileManagerViewModel? _fileManager;
     private CancellationTokenSource? _buildCancellationTokenSource;
     private CancellationTokenSource? _importCancellationTokenSource;
     private bool _isPopulatingBundles;
@@ -71,7 +70,7 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Gets the file manager view model.
     /// </summary>
-    public FileManagerViewModel FileManager => _fileManager ??= InitializeFileManager();
+    public FileManagerViewModel FileManager => fileManager;
 
     /// <summary>
     /// Gets or sets the current project.
@@ -1547,6 +1546,9 @@ public partial class ModBuilderViewModel(
 
         try
         {
+            fileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
+            fileManager.ImportBigFilesRequested += ImportBigFilesAsync;
+
             var projectDir = GetEffectiveProjectDir();
             if (!string.IsNullOrEmpty(projectDir))
             {
@@ -2741,6 +2743,9 @@ public partial class ModBuilderViewModel(
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
     {
+        fileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
+        fileManager.ImportBigFilesRequested += ImportBigFilesAsync;
+
         var editedDir = CurrentProject?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
         await FileManager.InitializeAsync(projectDir, editedDir, CancellationToken.None).ConfigureAwait(false);
 
@@ -3000,12 +3005,6 @@ public partial class ModBuilderViewModel(
         return filePath;
     }
 
-    private FileManagerViewModel InitializeFileManager()
-    {
-        fileManager.ImportBigFilesRequested += ImportBigFilesAsync;
-        return fileManager;
-    }
-
     /// <summary>
     /// Disposes resources.
     /// </summary>
@@ -3028,10 +3027,7 @@ public partial class ModBuilderViewModel(
 
         if (disposing)
         {
-            if (_fileManager != null)
-            {
-                _fileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
-            }
+            fileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
 
             _buildCancellationTokenSource?.Cancel();
             _buildCancellationTokenSource?.Dispose();

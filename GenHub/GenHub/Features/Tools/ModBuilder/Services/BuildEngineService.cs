@@ -1454,7 +1454,7 @@ public sealed class BuildEngineService(
             {
                 CurrentStage = BuildStage.Complete,
                 CurrentIndex = BuildIndex.CreateManifest,
-                CurrentStep = $"Local manifest {manifest?.Id} created and saved to manifest.json",
+                CurrentStep = $"Local manifest {manifest?.Id} created and saved to {ModBuilderConstants.ManifestFileName}",
             });
 
             return true;
@@ -1488,14 +1488,14 @@ public sealed class BuildEngineService(
             Converters = { new JsonStringEnumConverter() },
         };
         var manifestJson = JsonSerializer.Serialize(manifest, options);
-        var buildManifestPath = Path.Combine(buildDir, "manifest.json");
+        var buildManifestPath = Path.Combine(buildDir, ModBuilderConstants.ManifestFileName);
         await File.WriteAllTextAsync(buildManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Saved manifest file to {Path}", buildManifestPath);
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
             Directory.CreateDirectory(releaseDir);
-            var releaseManifestPath = Path.Combine(releaseDir, "manifest.json");
+            var releaseManifestPath = Path.Combine(releaseDir, ModBuilderConstants.ManifestFileName);
             await File.WriteAllTextAsync(releaseManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Saved manifest file to {Path}", releaseManifestPath);
         }
@@ -1564,7 +1564,7 @@ public sealed class BuildEngineService(
         {
             buildDir = !string.IsNullOrWhiteSpace(setup.ProjectDir)
                 ? Path.Combine(setup.ProjectDir, ModBuilderConstants.DefaultBuildDir)
-                : Path.Combine(Path.GetTempPath(), "GenHub_ModBuilder", ModBuilderConstants.DefaultBuildDir);
+                : Path.Combine(Path.GetTempPath(), ModBuilderConstants.FallbackTempDirName, ModBuilderConstants.DefaultBuildDir);
         }
 
         return Path.Combine(buildDir, $"{stage}.json");
