@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
@@ -37,62 +38,116 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     /// <inheritdoc />
     public async Task<BuildConfiguration> LoadConfigurationAsync(string configPath, CancellationToken cancellationToken = default)
     {
+        var result = await LoadConfigurationResultAsync(configPath, cancellationToken).ConfigureAwait(false);
+        if (!result.Success || result.Data == null)
+        {
+            var firstError = result.Errors.FirstOrDefault() ?? $"Failed to load configuration: {configPath}";
+            if (!File.Exists(configPath))
+            {
+                throw new FileNotFoundException(firstError, configPath);
+            }
+
+            throw new InvalidOperationException(firstError);
+        }
+
+        return result.Data;
+    }
+
+    /// <inheritdoc />
+    public async Task<ProjectOperationResult<BuildConfiguration>> LoadConfigurationResultAsync(
+        string configPath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(configPath))
+        {
+            return ProjectOperationResult<BuildConfiguration>.CreateFailure("Configuration file path cannot be empty");
+        }
+
+        if (!File.Exists(configPath))
+        {
+            logger.LogWarning("Configuration file not found: {ConfigPath}", configPath);
+            return ProjectOperationResult<BuildConfiguration>.CreateFailure($"Configuration file not found: {configPath}");
+        }
+
         try
         {
             logger.LogInformation("Loading configuration from: {ConfigPath}", configPath);
-
-            if (!File.Exists(configPath))
-            {
-                logger.LogError("Configuration file not found: {ConfigPath}", configPath);
-                throw new FileNotFoundException($"Configuration file not found: {configPath}");
-            }
-
             var json = await File.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
 
             if (TryLoadSimplifiedConfig(json, configPath, out var simplifiedConfig) && simplifiedConfig != null)
             {
-                return simplifiedConfig;
+                return ProjectOperationResult<BuildConfiguration>.CreateSuccess(simplifiedConfig);
             }
 
             if (TryLoadPythonConfig(json, configPath, out var pythonConfig) && pythonConfig != null)
             {
-                return pythonConfig;
+                return ProjectOperationResult<BuildConfiguration>.CreateSuccess(pythonConfig);
             }
 
-            return LoadDirectConfig(json, configPath);
+            return ProjectOperationResult<BuildConfiguration>.CreateSuccess(LoadDirectConfig(json, configPath));
         }
         catch (JsonException ex)
         {
             logger.LogError(ex, "JSON parsing error in configuration file: {ConfigPath}", configPath);
-            throw new InvalidOperationException($"Invalid JSON in configuration file: {configPath}", ex);
+            return ProjectOperationResult<BuildConfiguration>.CreateFailure($"Invalid JSON in configuration file: {configPath}: {ex.Message}");
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex) when (ex is not InvalidOperationException && ex is not FileNotFoundException)
+        catch (Exception ex)
         {
-            throw new InvalidOperationException($"Failed to load configuration: {configPath}", ex);
+            logger.LogError(ex, "Failed to load configuration: {ConfigPath}", configPath);
+            return ProjectOperationResult<BuildConfiguration>.CreateFailure($"Failed to load configuration: {configPath}: {ex.Message}");
         }
     }
 
     /// <inheritdoc />
     public async Task<BuildConfiguration> LoadAndMergeConfigurationsAsync(IReadOnlyList<string> configPaths, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Loading and merging {Count} configuration files", configPaths.Count);
-
-        if (configPaths.Count == 0)
+        var result = await LoadAndMergeConfigurationsResultAsync(configPaths, cancellationToken).ConfigureAwait(false);
+        if (!result.Success || result.Data == null)
         {
-            logger.LogWarning("No configuration files provided, returning empty configuration");
-            return new BuildConfiguration();
+            var firstError = result.Errors.FirstOrDefault() ?? "Failed to load and merge configurations";
+            throw new InvalidOperationException(firstError);
         }
 
-        var mergedConfig = await LoadConfigurationAsync(configPaths[0], cancellationToken).ConfigureAwait(false);
+        return result.Data;
+    }
 
+    /// <inheritdoc />
+    public async Task<ProjectOperationResult<BuildConfiguration>> LoadAndMergeConfigurationsResultAsync(
+        IReadOnlyList<string> configPaths,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (configPaths == null || configPaths.Count == 0)
+        {
+            logger.LogWarning("No configuration files provided, returning empty configuration");
+            return ProjectOperationResult<BuildConfiguration>.CreateSuccess(new BuildConfiguration());
+        }
+
+        logger.LogInformation("Loading and merging {Count} configuration files", configPaths.Count);
+
+        var firstResult = await LoadConfigurationResultAsync(configPaths[0], cancellationToken).ConfigureAwait(false);
+        if (!firstResult.Success || firstResult.Data == null)
+        {
+            return firstResult;
+        }
+
+        var mergedConfig = firstResult.Data;
         for (int i = 1; i < configPaths.Count; i++)
         {
-            var config = await LoadConfigurationAsync(configPaths[i], cancellationToken).ConfigureAwait(false);
-            mergedConfig = MergeConfigurations(mergedConfig, config);
+            var nextResult = await LoadConfigurationResultAsync(configPaths[i], cancellationToken).ConfigureAwait(false);
+            if (!nextResult.Success || nextResult.Data == null)
+            {
+                return nextResult;
+            }
+
+            mergedConfig = MergeConfigurations(mergedConfig, nextResult.Data);
         }
 
         logger.LogInformation(
@@ -100,7 +155,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             mergedConfig.Items.Count,
             mergedConfig.Packs.Count);
 
-        return mergedConfig;
+        return ProjectOperationResult<BuildConfiguration>.CreateSuccess(mergedConfig);
     }
 
     /// <inheritdoc />
@@ -239,7 +294,14 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 return null;
             }
 
-            var config = await LoadAndMergeConfigurationsAsync(configFiles, cancellationToken).ConfigureAwait(false);
+            var result = await LoadAndMergeConfigurationsResultAsync(configFiles, cancellationToken).ConfigureAwait(false);
+            if (!result.Success || result.Data == null)
+            {
+                logger.LogWarning("Failed to load project configuration from {ProjectPath}: {Errors}", projectPath, string.Join("; ", result.Errors));
+                return null;
+            }
+
+            var config = result.Data;
             await ApplyModFoldersOverrideAsync(config, projectDir, cancellationToken).ConfigureAwait(false);
 
             config = await ResolveWildcardsAsync(config, cancellationToken).ConfigureAwait(false);
@@ -250,7 +312,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             logger.LogWarning(ex, "Failed to load project configuration from {ProjectPath}", projectPath);
             return null;

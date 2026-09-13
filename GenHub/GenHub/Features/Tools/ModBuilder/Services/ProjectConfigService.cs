@@ -1267,7 +1267,7 @@ public sealed class ProjectConfigService(
                     AllowBuild = true,
                     AllowInstall = true,
                     Big = true,
-                    OutputFile = $".Release/{bigFileName}",
+                    OutputFile = $"{ModBuilderConstants.DefaultReleaseDir}/{bigFileName}",
                     Description = $"Build pack to generate {bigFileName} from edited mod files",
                 });
                 existingPacks.Add(packName);

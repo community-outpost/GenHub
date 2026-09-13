@@ -28,11 +28,32 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
 /// <summary>
-/// ViewModel for ModBuilder tool with complete build pipeline integration.
+/// Main view model for the ModBuilder tool plugin.
+/// Coordinates project state, build pipeline, file management, and sub-view models.
 /// </summary>
+/// <param name="buildEngineService">The build engine service.</param>
+/// <param name="projectConfigService">The project configuration service.</param>
+/// <param name="configurationLoaderService">The configuration loader service.</param>
+/// <param name="projectStructureGenerator">The project structure generator.</param>
+/// <param name="notificationService">The notification service.</param>
+/// <param name="fileManager">The file manager view model.</param>
+/// <param name="loggerFactory">The logger factory.</param>
+/// <param name="logger">The logger.</param>
+/// <param name="dialogService">Optional dialog service for user confirmations.</param>
+/// <param name="sampleProjectService">Optional sample project service for asset acquisition.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S107:Methods should not have too many parameters", Justification = "ViewModel requires multiple injected services")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand and XAML bindings require instance members")]
-public partial class ModBuilderViewModel : ObservableObject, IDisposable
+public partial class ModBuilderViewModel(
+    IBuildEngineService buildEngineService,
+    IProjectConfigService projectConfigService,
+    IConfigurationLoaderService configurationLoaderService,
+    IProjectStructureGenerator projectStructureGenerator,
+    INotificationService notificationService,
+    FileManagerViewModel fileManager,
+    ILoggerFactory loggerFactory,
+    ILogger<ModBuilderViewModel> logger,
+    IDialogService? dialogService = null,
+    ISampleProjectService? sampleProjectService = null) : ObservableObject, IDisposable
 {
     private const string ModBuilderLiteral = "ModBuilder";
     private const string MbprojFilter = "*.mbproj";
@@ -43,18 +64,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private const string UnknownErrorLiteral = "Unknown error";
     private const string DefaultStatusColor = UiConstants.DefaultStatusBackgroundColor;
 
-    private readonly IBuildEngineService _buildEngineService;
-    private readonly IProjectConfigService _projectConfigService;
-    private readonly IConfigurationLoaderService _configurationLoaderService;
-    private readonly IProjectStructureGenerator _projectStructureGenerator;
-    private readonly INotificationService _notificationService;
-    private readonly IDialogService? _dialogService;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<ModBuilderViewModel> _logger;
-    private readonly ISampleProjectService? _sampleProjectService;
     private readonly Stopwatch _buildStopwatch = new();
     private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
+    private FileManagerViewModel? _fileManager;
     private CancellationTokenSource? _buildCancellationTokenSource;
     private bool _isPopulatingBundles;
     private bool _disposed;
@@ -62,57 +75,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the file manager view model.
     /// </summary>
-    public FileManagerViewModel FileManager { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ModBuilderViewModel"/> class.
-    /// </summary>
-    /// <param name="buildEngineService">The build engine service.</param>
-    /// <param name="projectConfigService">The project configuration service.</param>
-    /// <param name="configurationLoaderService">The configuration loader service.</param>
-    /// <param name="projectStructureGenerator">The project structure generator.</param>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="fileManager">The file manager view model.</param>
-    /// <param name="loggerFactory">The logger factory.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="dialogService">Optional dialog service for user confirmations.</param>
-    /// <param name="sampleProjectService">Optional sample project service for asset acquisition.</param>
-    public ModBuilderViewModel(
-        IBuildEngineService buildEngineService,
-        IProjectConfigService projectConfigService,
-        IConfigurationLoaderService configurationLoaderService,
-        IProjectStructureGenerator projectStructureGenerator,
-        INotificationService notificationService,
-        FileManagerViewModel fileManager,
-        ILoggerFactory loggerFactory,
-        ILogger<ModBuilderViewModel> logger,
-        IDialogService? dialogService = null,
-        ISampleProjectService? sampleProjectService = null)
-    {
-        _buildEngineService = buildEngineService;
-        _projectConfigService = projectConfigService;
-        _configurationLoaderService = configurationLoaderService;
-        _projectStructureGenerator = projectStructureGenerator;
-        _notificationService = notificationService;
-        FileManager = fileManager;
-        FileManager.ImportBigFilesRequested += ImportBigFilesAsync;
-        _loggerFactory = loggerFactory;
-        _logger = logger;
-        _dialogService = dialogService;
-        _sampleProjectService = sampleProjectService;
-
-        // Initialize compression levels
-        CompressionLevels.Add(CompressionLevel.NoCompression);
-        CompressionLevels.Add(CompressionLevel.Fastest);
-        CompressionLevels.Add(CompressionLevel.Optimal);
-        CompressionLevels.Add(CompressionLevel.SmallestSize);
-        SelectedCompressionLevel = CompressionLevel.Fastest;
-
-        // Initialize build configurations
-        BuildConfigurations.Add("Debug");
-        BuildConfigurations.Add("Release");
-        SelectedConfiguration = "Debug";
-    }
+    public FileManagerViewModel FileManager => _fileManager ??= InitializeFileManager();
 
     /// <summary>
     /// Gets or sets the current project.
@@ -136,7 +99,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         if (CurrentProject is { } project && project.TargetGame != value)
         {
             project.TargetGame = value;
-            _logger.LogInformation("Project '{Name}' TargetGame changed to {TargetGame}", project.Name, value);
+            logger.LogInformation("Project '{Name}' TargetGame changed to {TargetGame}", project.Name, value);
         }
     }
 
@@ -164,7 +127,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         if (CurrentProject is { } project && project.ContentType != value)
         {
             project.ContentType = value;
-            _logger.LogInformation("Project '{Name}' ContentType changed to {ContentType}", project.Name, value);
+            logger.LogInformation("Project '{Name}' ContentType changed to {ContentType}", project.Name, value);
         }
     }
 
@@ -220,7 +183,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the list of build configurations.
     /// </summary>
-    public ObservableCollection<string> BuildConfigurations { get; } = [];
+    public ObservableCollection<string> BuildConfigurations { get; } = ["Debug", "Release"];
 
     /// <summary>
     /// Gets or sets the selected configuration.
@@ -231,7 +194,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the list of compression levels.
     /// </summary>
-    public ObservableCollection<CompressionLevel> CompressionLevels { get; } = [];
+    public ObservableCollection<CompressionLevel> CompressionLevels { get; } =
+    [
+        CompressionLevel.NoCompression,
+        CompressionLevel.Fastest,
+        CompressionLevel.Optimal,
+        CompressionLevel.SmallestSize,
+    ];
 
     /// <summary>
     /// Gets or sets the selected compression level.
@@ -494,7 +463,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
+            var result = await projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
             var rawPaths = result.Success && result.Data != null ? result.Data : (IReadOnlyList<string>)[];
             var projectPaths = await SanitizeAndMigrateRecentPathsAsync(rawPaths).ConfigureAwait(false);
 
@@ -509,11 +478,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 ApplyProjectFilter();
             });
 
-            _logger.LogInformation("Loaded {Count} recent projects", projectInfos.Count);
+            logger.LogInformation("Loaded {Count} recent projects", projectInfos.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load recent projects");
+            logger.LogError(ex, "Failed to load recent projects");
         }
     }
 
@@ -558,14 +527,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         var name = Path.GetFileNameWithoutExtension(path);
         var dirName = Path.GetFileName(Path.GetDirectoryName(path) ?? string.Empty);
-        return string.Equals(name, "BasicMod", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(dirName, "BasicMod", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(name, "BalancePatch", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(dirName, "BalancePatch", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(name, "TextureOverhaul", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(dirName, "TextureOverhaul", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(name, "CustomIcons", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(dirName, "CustomIcons", StringComparison.OrdinalIgnoreCase);
+        return ModBuilderConstants.DeprecatedSampleNames.Any(deprecated =>
+            string.Equals(name, deprecated, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(dirName, deprecated, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task PrependDiscoveredSampleProjectsAsync(List<string> projectPaths)
@@ -577,7 +541,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to discover sample project paths");
+            logger.LogWarning(ex, "Failed to discover sample project paths");
         }
 
         for (var i = samplePaths.Count - 1; i >= 0; i--)
@@ -652,7 +616,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task NewProjectAsync()
     {
-        _logger.LogInformation("NewProjectAsync requested");
+        logger.LogInformation("NewProjectAsync requested");
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -669,7 +633,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
+                logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
             }
         }
 
@@ -694,18 +658,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                _notificationService.ShowWarning(
+                notificationService.ShowWarning(
                     "Invalid Path",
                     "Please select a valid project location");
                 return;
             }
 
             var projectName = Path.GetFileNameWithoutExtension(projectPath);
-            _logger.LogInformation("Creating new project '{ProjectName}' at {ProjectPath}", projectName, projectPath);
+            logger.LogInformation("Creating new project '{ProjectName}' at {ProjectPath}", projectName, projectPath);
 
             try
             {
-                var result = await _projectConfigService.CreateProjectAsync(
+                var result = await projectConfigService.CreateProjectAsync(
                     projectPath,
                     projectName,
                     contentType: SelectedContentType,
@@ -717,14 +681,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    _notificationService.ShowError("Creation Failed", result.FirstError ?? UnknownErrorLiteral);
-                    _logger.LogWarning("Project creation failed: {Error}", result.FirstError);
+                    notificationService.ShowError("Creation Failed", result.FirstError ?? UnknownErrorLiteral);
+                    logger.LogWarning("Project creation failed: {Error}", result.FirstError);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create project at {ProjectPath}", projectPath);
-                _notificationService.ShowError("Creation Error", ex.Message);
+                logger.LogError(ex, "Failed to create project at {ProjectPath}", projectPath);
+                notificationService.ShowError("Creation Error", ex.Message);
             }
         }
     }
@@ -735,7 +699,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task OpenProjectAsync()
     {
-        _logger.LogInformation("OpenProjectAsync requested");
+        logger.LogInformation("OpenProjectAsync requested");
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -761,7 +725,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (files.Any())
         {
-            _logger.LogInformation("Selected project to open: {Path}", files[0].Path.LocalPath);
+            logger.LogInformation("Selected project to open: {Path}", files[0].Path.LocalPath);
             await LoadProjectFromPathAsync(files[0].Path.LocalPath).ConfigureAwait(false);
         }
     }
@@ -775,7 +739,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         if (CurrentProject == null || string.IsNullOrWhiteSpace(ProjectPath))
         {
-            _notificationService.ShowWarning(
+            notificationService.ShowWarning(
                 "No Project Open",
                 "Please open or create a project first before importing .BIG files.");
             return;
@@ -810,12 +774,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
+        logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
         AppendBuildLog($"Importing {selectedPaths.Count} .BIG archive(s) into project...");
 
         try
         {
-            var result = await _projectConfigService.ImportBigFilesAsync(
+            var result = await projectConfigService.ImportBigFilesAsync(
                 ProjectPath,
                 selectedPaths,
                 createBundlePackForBig: true,
@@ -824,7 +788,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             if (result.Success)
             {
                 AppendBuildLog($"Successfully imported {result.Data} files from {selectedPaths.Count} BIG archive(s).");
-                _notificationService.ShowSuccess(
+                notificationService.ShowSuccess(
                     "Import Complete",
                     $"Imported {result.Data} file(s) from {selectedPaths.Count} .BIG archive(s) into GameFilesEdited.");
 
@@ -837,14 +801,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
+                notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
                 AppendBuildLog($"Import failed: {result.FirstError}");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to import BIG file(s)");
-            _notificationService.ShowError("Import Error", ex.Message);
+            logger.LogError(ex, "Failed to import BIG file(s)");
+            notificationService.ShowError("Import Error", ex.Message);
             AppendBuildLog($"Error importing BIG archive: {ex.Message}");
         }
     }
@@ -896,7 +860,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
+                logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
             }
         }
 
@@ -923,12 +887,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         var projectPath = saveFile.Path.LocalPath;
         var projectName = Path.GetFileNameWithoutExtension(projectPath);
 
-        _logger.LogInformation("Creating imported project '{ProjectName}' at {ProjectPath} from {BigCount} BIG archives", projectName, projectPath, selectedPaths.Count);
+        logger.LogInformation("Creating imported project '{ProjectName}' at {ProjectPath} from {BigCount} BIG archives", projectName, projectPath, selectedPaths.Count);
         AppendBuildLog($"Creating project '{projectName}' from {selectedPaths.Count} .BIG archive(s)...");
 
         try
         {
-            var result = await _projectConfigService.CreateProjectFromBigFilesAsync(
+            var result = await projectConfigService.CreateProjectFromBigFilesAsync(
                 projectPath,
                 projectName,
                 selectedPaths,
@@ -944,7 +908,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 IsProjectLoaded = true;
 
                 await LoadProjectDataAsync().ConfigureAwait(false);
-                await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+                await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
                 await LoadRecentProjectsAsync().ConfigureAwait(false);
 
                 if (CurrentProject != null)
@@ -953,21 +917,21 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     await FileManager.InitializeAsync(CurrentProject.ProjectDir, editedDir).ConfigureAwait(false);
                 }
 
-                _notificationService.ShowSuccess(
+                notificationService.ShowSuccess(
                     "BIG Mod Imported",
                     $"Project '{projectName}' created from {selectedPaths.Count} .BIG archive(s).\nExtracted to GameFilesEdited and bundle packs configured.");
                 AppendBuildLog($"Imported project created successfully: {projectPath}");
             }
             else
             {
-                _notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
+                notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
                 AppendBuildLog($"Failed to create imported project: {result.FirstError}");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create project from BIG archive(s)");
-            _notificationService.ShowError("Import Error", ex.Message);
+            logger.LogError(ex, "Failed to create project from BIG archive(s)");
+            notificationService.ShowError("Import Error", ex.Message);
             AppendBuildLog($"Error importing BIG archive(s): {ex.Message}");
         }
     }
@@ -987,10 +951,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             _ => null,
         };
 
-        _logger.LogInformation("OpenRecentProjectAsync requested for: {Path}", path);
+        logger.LogInformation("OpenRecentProjectAsync requested for: {Path}", path);
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
-            _notificationService.ShowWarning("Project Not Found", $"Could not find project file at: {path}");
+            notificationService.ShowWarning("Project Not Found", $"Could not find project file at: {path}");
             return;
         }
 
@@ -1022,9 +986,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await _projectConfigService.RemoveFromRecentProjectsAsync(path, CancellationToken.None).ConfigureAwait(false);
+        await projectConfigService.RemoveFromRecentProjectsAsync(path, CancellationToken.None).ConfigureAwait(false);
         await LoadRecentProjectsAsync().ConfigureAwait(false);
-        _notificationService.ShowInfo("Project Removed", $"Removed '{name}' from recent projects.");
+        notificationService.ShowInfo("Project Removed", $"Removed '{name}' from recent projects.");
     }
 
     /// <summary>
@@ -1041,14 +1005,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (_dialogService == null)
+        if (dialogService == null)
         {
-            _logger.LogWarning("Cannot confirm project deletion: dialog service unavailable");
-            _notificationService.ShowError("Error", "Confirmation dialog service is unavailable.");
+            logger.LogWarning("Cannot confirm project deletion: dialog service unavailable");
+            notificationService.ShowError("Error", "Confirmation dialog service is unavailable.");
             return;
         }
 
-        var confirmed = await _dialogService.ShowConfirmationAsync(
+        var confirmed = await dialogService.ShowConfirmationAsync(
             "Delete Project",
             $"Are you sure you want to permanently delete '{name}'?\n\nThis will delete the project file and its directory from disk:\n{path}",
             confirmText: "Delete",
@@ -1064,7 +1028,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             DeleteProjectFilesFromDisk(path);
 
-            await _projectConfigService.RemoveFromRecentProjectsAsync(path, CancellationToken.None).ConfigureAwait(false);
+            await projectConfigService.RemoveFromRecentProjectsAsync(path, CancellationToken.None).ConfigureAwait(false);
 
             if (ProjectPath.Equals(path, StringComparison.OrdinalIgnoreCase))
             {
@@ -1072,12 +1036,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             await LoadRecentProjectsAsync().ConfigureAwait(false);
-            _notificationService.ShowSuccess("Project Deleted", $"Successfully deleted '{name}'.");
+            notificationService.ShowSuccess("Project Deleted", $"Successfully deleted '{name}'.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete project at {Path}", path);
-            _notificationService.ShowError("Delete Failed", $"Failed to delete project: {ex.Message}");
+            logger.LogError(ex, "Failed to delete project at {Path}", path);
+            notificationService.ShowError("Delete Failed", $"Failed to delete project: {ex.Message}");
         }
     }
 
@@ -1131,27 +1095,27 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LoadSampleProjectAsync()
     {
-        _logger.LogInformation("LoadSampleProjectAsync requested");
+        logger.LogInformation("LoadSampleProjectAsync requested");
         try
         {
             var samplePath = await ResolveSampleProjectPathAsync().ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(samplePath))
             {
-                _notificationService.ShowWarning(
+                notificationService.ShowWarning(
                     "Sample Not Found",
                     "Sample project not found.");
                 AppendBuildLog("Sample project not found in search paths.");
                 return;
             }
 
-            _logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
+            logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
             await LoadProjectFromPathAsync(samplePath).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load sample project");
-            _notificationService.ShowError("Load Failed", $"Failed to load sample project: {ex.Message}");
+            logger.LogError(ex, "Failed to load sample project");
+            notificationService.ShowError("Load Failed", $"Failed to load sample project: {ex.Message}");
         }
     }
 
@@ -1186,8 +1150,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var deprecated = new[] { "BasicMod", "BalancePatch", "TextureOverhaul", "CustomIcons" };
-        foreach (var name in deprecated)
+        foreach (var name in ModBuilderConstants.DeprecatedSampleNames)
         {
             var staleDir = Path.Combine(userSamplesDir, name);
             if (Directory.Exists(staleDir))
@@ -1195,11 +1158,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 try
                 {
                     Directory.Delete(staleDir, recursive: true);
-                    _logger.LogInformation("Removed deprecated sample directory: {Dir}", staleDir);
+                    logger.LogInformation("Removed deprecated sample directory: {Dir}", staleDir);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Failed to clean deprecated sample directory {Dir}", staleDir);
+                    logger.LogDebug(ex, "Failed to clean deprecated sample directory {Dir}", staleDir);
                 }
             }
         }
@@ -1217,7 +1180,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to provision sample templates from {Dir}", baseDir);
+            logger.LogDebug(ex, "Failed to provision sample templates from {Dir}", baseDir);
         }
     }
 
@@ -1230,8 +1193,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         var projectName = Path.GetFileName(templateDir);
-        var allowedSampleNames = new[] { "GeneralsGamePatch2", "ImprovedMenus", "Hotkeys" };
-        if (!allowedSampleNames.Contains(projectName, StringComparer.OrdinalIgnoreCase))
+        if (!ModBuilderConstants.AllowedSampleTemplateNames.Contains(projectName, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }
@@ -1399,18 +1361,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 TryCleanAppDirectoryBuildArtifacts(oldProjectDir);
             }
 
-            await _projectConfigService.RemoveFromRecentProjectsAsync(oldProjectPath, CancellationToken.None).ConfigureAwait(false);
+            await projectConfigService.RemoveFromRecentProjectsAsync(oldProjectPath, CancellationToken.None).ConfigureAwait(false);
             if (File.Exists(targetProjectPath))
             {
-                await _projectConfigService.AddToRecentProjectsAsync(targetProjectPath, CancellationToken.None).ConfigureAwait(false);
+                await projectConfigService.AddToRecentProjectsAsync(targetProjectPath, CancellationToken.None).ConfigureAwait(false);
             }
 
-            _logger.LogInformation("Successfully migrated project from {Old} to {New}", oldProjectPath, targetProjectPath);
+            logger.LogInformation("Successfully migrated project from {Old} to {New}", oldProjectPath, targetProjectPath);
             return targetProjectPath;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to migrate project from app directory: {Path}", oldProjectPath);
+            logger.LogWarning(ex, "Failed to migrate project from app directory: {Path}", oldProjectPath);
             return null;
         }
     }
@@ -1488,13 +1450,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 catch (Exception ex)
                 {
                     // Best-effort cleanup of temporary msgpack files; ignore locked or inaccessible files
-                    _logger.LogTrace(ex, "Failed to delete temporary file {FilePath}", f);
+                    logger.LogTrace(ex, "Failed to delete temporary file {FilePath}", f);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Could not clean app directory build artifacts in {Dir}", dir);
+            logger.LogDebug(ex, "Could not clean app directory build artifacts in {Dir}", dir);
         }
     }
 
@@ -1517,10 +1479,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanOpenFileManager))]
     private async Task OpenFileManagerAsync()
     {
-        _logger.LogInformation("OpenFileManagerAsync requested");
+        logger.LogInformation("OpenFileManagerAsync requested");
         if (CurrentProject == null)
         {
-            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -1551,8 +1513,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open File Manager dialog");
-            _notificationService.ShowError("File Manager Error", ex.Message);
+            logger.LogError(ex, "Failed to open File Manager dialog");
+            notificationService.ShowError("File Manager Error", ex.Message);
         }
     }
 
@@ -1567,7 +1529,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         IsProjectLoaded = true;
 
         // Generate complete project structure
-        await _projectStructureGenerator.GenerateProjectStructureAsync(
+        await projectStructureGenerator.GenerateProjectStructureAsync(
             projectPath,
             CancellationToken.None).ConfigureAwait(false);
 
@@ -1578,20 +1540,20 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         await LoadProjectDataAsync().ConfigureAwait(false);
-        await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+        await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
         await LoadRecentProjectsAsync().ConfigureAwait(false);
 
-        _notificationService.ShowSuccess(
+        notificationService.ShowSuccess(
             "Project Created",
             $"Created project: {projectName}\nProject structure ready. Edit files in GameFilesEdited folder.");
         AppendBuildLog($"Created new project: {projectPath}");
         AppendBuildLog("Generated project structure with folders and config files");
-        _logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
+        logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
     }
 
     private async Task EnsureSampleAssetsIfRequiredAsync(string projectPath, string projectDir, string projectName)
     {
-        if (_sampleProjectService is not { } sps ||
+        if (sampleProjectService is not { } sps ||
             !sps.IsSampleProject(projectPath) ||
             sps.HasSampleAssets(projectDir))
         {
@@ -1600,7 +1562,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         StatusMessage = $"Acquiring sample assets for {projectName}...";
         AppendBuildLog($"Sample assets missing for {projectName}. Downloading and extracting authentic game files on-demand...");
-        _notificationService.ShowInfo("Downloading Sample Assets", $"Downloading sample assets for {projectName}...");
+        notificationService.ShowInfo("Downloading Sample Assets", $"Downloading sample assets for {projectName}...");
 
         var progressReporter = new Progress<string>(AppendBuildLog);
         var acquireResult = await sps.EnsureSampleAssetsAsync(
@@ -1612,12 +1574,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         if (acquireResult.Success)
         {
             AppendBuildLog($"Successfully acquired sample assets for {projectName}.");
-            _notificationService.ShowSuccess("Sample Assets Ready", "Authentic game files extracted into GameFilesEdited.");
+            notificationService.ShowSuccess("Sample Assets Ready", "Authentic game files extracted into GameFilesEdited.");
         }
         else
         {
             AppendBuildLog($"Warning: Failed to acquire sample assets: {acquireResult.FirstError}");
-            _notificationService.ShowWarning("Sample Assets Incomplete", acquireResult.FirstError ?? "Failed to acquire sample assets.");
+            notificationService.ShowWarning("Sample Assets Incomplete", acquireResult.FirstError ?? "Failed to acquire sample assets.");
         }
     }
 
@@ -1630,13 +1592,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             if (string.IsNullOrEmpty(projectPath))
             {
-                _notificationService.ShowError("Invalid Path", "Project path cannot be empty");
+                notificationService.ShowError("Invalid Path", "Project path cannot be empty");
                 return;
             }
 
             if (IsPathInsideAppDirectory(projectPath))
             {
-                _logger.LogInformation("Project path is inside app directory. Auto-migrating to user space: {Path}", projectPath);
+                logger.LogInformation("Project path is inside app directory. Auto-migrating to user space: {Path}", projectPath);
                 var migrated = await MigrateProjectOutOfAppDirectoryAsync(projectPath).ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(migrated))
                 {
@@ -1646,11 +1608,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (!File.Exists(projectPath))
             {
-                _notificationService.ShowError("File Not Found", $"Project file does not exist: {projectPath}");
+                notificationService.ShowError("File Not Found", $"Project file does not exist: {projectPath}");
                 return;
             }
 
-            var result = await _projectConfigService.LoadProjectAsync(
+            var result = await projectConfigService.LoadProjectAsync(
                 projectPath,
                 validateIntegrity: true,
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
@@ -1666,35 +1628,35 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 await EnsureSampleAssetsIfRequiredAsync(projectPath, projectDir, ProjectName).ConfigureAwait(false);
 
                 await LoadProjectDataAsync().ConfigureAwait(false);
-                await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+                await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
 
-                _notificationService.ShowSuccess("Project Loaded", $"Loaded: {Path.GetFileName(projectPath)}");
+                notificationService.ShowSuccess("Project Loaded", $"Loaded: {Path.GetFileName(projectPath)}");
                 AppendBuildLog($"Loaded project: {projectPath}");
                 StatusMessage = $"Project loaded: {ProjectName}";
             }
             else
             {
                 var errorMessage = result.FirstError ?? "Unknown error occurred while loading project";
-                _notificationService.ShowError("Load Failed", errorMessage);
+                notificationService.ShowError("Load Failed", errorMessage);
                 AppendBuildLog($"Failed to load project: {errorMessage}");
             }
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogError(ex, "Access denied loading project");
-            _notificationService.ShowError("Access Denied", "You don't have permission to access this project file");
+            logger.LogError(ex, "Access denied loading project");
+            notificationService.ShowError("Access Denied", "You don't have permission to access this project file");
             AppendBuildLog($"Access denied: {ex.Message}");
         }
         catch (IOException ex)
         {
-            _logger.LogError(ex, "I/O error loading project");
-            _notificationService.ShowError("File Error", "Could not read project file. It may be in use by another program.");
+            logger.LogError(ex, "I/O error loading project");
+            notificationService.ShowError("File Error", "Could not read project file. It may be in use by another program.");
             AppendBuildLog($"I/O error: {ex.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load project");
-            _notificationService.ShowError("Load Error", $"Unexpected error: {ex.Message}");
+            logger.LogError(ex, "Failed to load project");
+            notificationService.ShowError("Load Error", $"Unexpected error: {ex.Message}");
             AppendBuildLog($"Error loading project: {ex.Message}");
         }
     }
@@ -1705,7 +1667,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanSaveProject))]
     private async Task SaveProjectAsync()
     {
-        _logger.LogInformation("SaveProjectAsync requested for: {Path}", ProjectPath);
+        logger.LogInformation("SaveProjectAsync requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
             return;
@@ -1722,28 +1684,28 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 CurrentProject.Configuration.ZipCompressionLevel = SelectedCompressionLevel;
             }
 
-            var result = await _projectConfigService.SaveProjectAsync(
+            var result = await projectConfigService.SaveProjectAsync(
                 ProjectPath,
                 CurrentProject,
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             if (result.Success)
             {
-                _notificationService.ShowSuccess("Project Saved", "Project saved successfully");
+                notificationService.ShowSuccess("Project Saved", "Project saved successfully");
                 AppendBuildLog($"Saved project: {ProjectPath}");
                 StatusMessage = "Project saved";
-                _logger.LogInformation("Project saved successfully to {Path}", ProjectPath);
+                logger.LogInformation("Project saved successfully to {Path}", ProjectPath);
             }
             else
             {
-                _notificationService.ShowError("Save Failed", result.FirstError ?? UnknownErrorLiteral);
-                _logger.LogWarning("Failed to save project: {Error}", result.FirstError);
+                notificationService.ShowError("Save Failed", result.FirstError ?? UnknownErrorLiteral);
+                logger.LogWarning("Failed to save project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save project");
-            _notificationService.ShowError("Save Error", ex.Message);
+            logger.LogError(ex, "Failed to save project");
+            notificationService.ShowError("Save Error", ex.Message);
         }
     }
 
@@ -1757,16 +1719,16 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         if (CurrentProject == null)
         {
-            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
         try
         {
             var configEditorViewModel = new ConfigEditorViewModel(
-                _configurationLoaderService,
-                _notificationService,
-                _loggerFactory.CreateLogger<ConfigEditorViewModel>());
+                configurationLoaderService,
+                notificationService,
+                loggerFactory.CreateLogger<ConfigEditorViewModel>());
 
             await configEditorViewModel.InitializeAsync(CurrentProject).ConfigureAwait(false);
 
@@ -1788,8 +1750,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open configuration editor");
-            _notificationService.ShowError("Configuration Editor", $"Failed to open configuration editor: {ex.Message}");
+            logger.LogError(ex, "Failed to open configuration editor");
+            notificationService.ShowError("Configuration Editor", $"Failed to open configuration editor: {ex.Message}");
         }
     }
 
@@ -1808,7 +1770,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         await InvokeOnUIThreadAsync(() =>
         {
             PopulateProjectBundlesAndProperties(CurrentProject.Configuration);
-            _logger.LogInformation("Loaded {Count} bundles", Bundles.Count);
+            logger.LogInformation("Loaded {Count} bundles", Bundles.Count);
         });
     }
 
@@ -1818,7 +1780,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanCloseProject))]
     private async Task CloseProjectAsync()
     {
-        _logger.LogInformation("CloseProjectAsync requested for: {Name}", CurrentProject?.Name);
+        logger.LogInformation("CloseProjectAsync requested for: {Name}", CurrentProject?.Name);
         if (CurrentProject == null)
         {
             return;
@@ -1836,7 +1798,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             StatusMessage = ReadyStatusLiteral;
         }).ConfigureAwait(false);
 
-        _logger.LogInformation("Project closed successfully");
+        logger.LogInformation("Project closed successfully");
     }
 
     private bool CanCloseProject() => IsProjectLoaded && !IsBuildRunning;
@@ -1847,7 +1809,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanAddBundle))]
     private async Task AddBundleAsync()
     {
-        _logger.LogInformation("AddBundleAsync requested");
+        logger.LogInformation("AddBundleAsync requested");
         if (CurrentProject?.Configuration == null)
         {
             return;
@@ -1885,7 +1847,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanRemoveBundle))]
     private async Task RemoveBundleAsync()
     {
-        _logger.LogInformation("RemoveBundleAsync requested for: {BundleName}", SelectedBundle?.Name);
+        logger.LogInformation("RemoveBundleAsync requested for: {BundleName}", SelectedBundle?.Name);
         if (SelectedBundle == null || CurrentProject?.Configuration == null)
         {
             return;
@@ -1921,7 +1883,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _logger.LogInformation("Editing bundle: {BundleName}", SelectedBundle.Name);
+        logger.LogInformation("Editing bundle: {BundleName}", SelectedBundle.Name);
         await Task.CompletedTask;
     }
 
@@ -1953,7 +1915,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if ((buildConfig == null || buildConfig.Items.Count == 0) && !string.IsNullOrEmpty(projectDir))
         {
-            buildConfig = await _configurationLoaderService.LoadProjectConfigurationAsync(
+            buildConfig = await configurationLoaderService.LoadProjectConfigurationAsync(
                 projectDir,
                 cancellationToken).ConfigureAwait(false);
             if (CurrentProject != null)
@@ -2022,7 +1984,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     "- Files exist in GameFilesEdited folder\n" +
                     "- Bundles are configured in config/ModBundleItems.json\n" +
                     "- File paths in config match actual files";
-                _notificationService.ShowInfo(
+                notificationService.ShowInfo(
                     "Build Complete (No Files)",
                     noFilesMessage,
                     autoDismissMs: 8000);
@@ -2036,7 +1998,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     $"Created {bundlesCreated} bundles\n" +
                     $"Time: {LastBuildTime:mm\\:ss}\n" +
                     $"Output: {outputPath}";
-                _notificationService.ShowSuccess(
+                notificationService.ShowSuccess(
                     "Build Complete",
                     summaryMessage);
             }
@@ -2046,7 +2008,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (!string.IsNullOrEmpty(ProjectPath))
         {
-            await _projectConfigService.UpdateLastBuildTimeAsync(ProjectPath).ConfigureAwait(false);
+            await projectConfigService.UpdateLastBuildTimeAsync(ProjectPath).ConfigureAwait(false);
         }
     }
 
@@ -2058,7 +2020,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         if (CurrentProject == null)
         {
-            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -2073,7 +2035,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     "2. Copy game files to appropriate folders\n" +
                     "3. Edit config/ModBundleItems.json to configure bundles\n" +
                     "4. Try building again";
-                _notificationService.ShowWarning(
+                notificationService.ShowWarning(
                     "No Files to Build",
                     warningMessage,
                     autoDismissMs: 10000);
@@ -2107,9 +2069,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var progress = new Progress<BuildProgress>(OnBuildProgress);
 
             var buildSteps = DetermineBuildSteps();
-            _logger.LogInformation("Build steps configured: {BuildSteps} (CreateManifestEnabled={CreateManifestEnabled})", buildSteps, CreateManifestEnabled);
+            logger.LogInformation("Build steps configured: {BuildSteps} (CreateManifestEnabled={CreateManifestEnabled})", buildSteps, CreateManifestEnabled);
 
-            var result = await _buildEngineService.ExecuteBuildAsync(
+            var result = await buildEngineService.ExecuteBuildAsync(
                 CurrentProject,
                 buildConfig,
                 selectedPacks,
@@ -2130,25 +2092,25 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             {
                 AppendBuildLog("\n=== Build Failed ===");
                 AppendBuildLog(result.FirstError ?? UnknownErrorLiteral);
-                _notificationService.ShowError("Build Failed", result.FirstError ?? UnknownErrorLiteral);
+                notificationService.ShowError("Build Failed", result.FirstError ?? UnknownErrorLiteral);
                 StatusMessage = "Build failed";
             }
         }
         catch (OperationCanceledException ex)
         {
             _buildStopwatch.Stop();
-            _logger.LogInformation(ex, "Build cancelled by user");
+            logger.LogInformation(ex, "Build cancelled by user");
             AppendBuildLog("\n=== Build Cancelled ===");
-            await InvokeOnUIThreadAsync(() => _notificationService.ShowInfo("Build Cancelled", "Build operation was cancelled"));
+            await InvokeOnUIThreadAsync(() => notificationService.ShowInfo("Build Cancelled", "Build operation was cancelled"));
             StatusMessage = "Build cancelled";
         }
         catch (Exception ex)
         {
             _buildStopwatch.Stop();
-            _logger.LogError(ex, "Build execution failed");
+            logger.LogError(ex, "Build execution failed");
             AppendBuildLog("\n=== Build Error ===");
             AppendBuildLog(ex.Message);
-            _notificationService.ShowError("Build Error", ex.Message);
+            notificationService.ShowError("Build Error", ex.Message);
             StatusMessage = "Build error";
         }
         finally
@@ -2191,7 +2153,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         if (CurrentProject == null)
         {
-            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -2208,7 +2170,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             var progress = new Progress<BuildProgress>(OnBuildProgress);
 
-            var result = await _buildEngineService.ExecuteBuildAsync(
+            var result = await buildEngineService.ExecuteBuildAsync(
                 CurrentProject,
                 buildConfig,
                 selectedPacks,
@@ -2224,7 +2186,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     var typeName = CurrentProject.ContentType != ContentType.UnknownContentType
                         ? CurrentProject.ContentType.ToString().ToLowerInvariant()
                         : "mod";
-                    _notificationService.ShowSuccess(
+                    notificationService.ShowSuccess(
                         "Manifest Created",
                         $"Local ContentManifest registered in GenHub for '{CurrentProject.Name}'. You can now enable this {typeName} in Game Profiles.");
                 });
@@ -2235,22 +2197,22 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 AppendBuildLog("\n=== Manifest Creation Failed ===");
                 AppendBuildLog(result.FirstError ?? UnknownErrorLiteral);
                 await InvokeOnUIThreadAsync(() =>
-                    _notificationService.ShowError("Manifest Creation Failed", result.FirstError ?? "Failed to create manifest"));
+                    notificationService.ShowError("Manifest Creation Failed", result.FirstError ?? "Failed to create manifest"));
                 StatusMessage = "Manifest creation failed";
             }
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogInformation(ex, "Manifest creation cancelled by user");
+            logger.LogInformation(ex, "Manifest creation cancelled by user");
             AppendBuildLog("\n=== Manifest Creation Cancelled ===");
             StatusMessage = "Manifest creation cancelled";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Manifest creation failed");
+            logger.LogError(ex, "Manifest creation failed");
             AppendBuildLog($"\n=== Manifest Creation Error: {ex.Message} ===");
             await InvokeOnUIThreadAsync(() =>
-                _notificationService.ShowError("Manifest Creation Error", ex.Message));
+                notificationService.ShowError("Manifest Creation Error", ex.Message));
             StatusMessage = "Manifest creation error";
         }
         finally
@@ -2315,12 +2277,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogInformation(ex, "Counting files to build was cancelled");
+            logger.LogInformation(ex, "Counting files to build was cancelled");
             return 0;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to count files to build");
+            logger.LogError(ex, "Failed to count files to build");
             return 0;
         }
     }
@@ -2341,7 +2303,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanClean))]
     private async Task CleanAsync()
     {
-        _logger.LogInformation("CleanAsync requested for project: {Name}", CurrentProject?.Name);
+        logger.LogInformation("CleanAsync requested for project: {Name}", CurrentProject?.Name);
         if (CurrentProject == null)
         {
             return;
@@ -2365,17 +2327,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             {
                 await Task.Run(() => Directory.Delete(buildPath, recursive: true), CancellationToken.None).ConfigureAwait(false);
                 AppendBuildLog($"Cleaned build directory: {buildPath}");
-                _notificationService.ShowSuccess("Clean Complete", "Build directory cleaned");
+                notificationService.ShowSuccess("Clean Complete", "Build directory cleaned");
                 StatusMessage = "Build directory cleaned";
-                _logger.LogInformation("Cleaned build directory: {Dir}", buildPath);
+                logger.LogInformation("Cleaned build directory: {Dir}", buildPath);
             }
 
-            _buildEngineService.InvalidateBuildStructureCache();
+            buildEngineService.InvalidateBuildStructureCache();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to clean build directory");
-            _notificationService.ShowError("Clean Failed", ex.Message);
+            logger.LogError(ex, "Failed to clean build directory");
+            notificationService.ShowError("Clean Failed", ex.Message);
         }
     }
 
@@ -2387,7 +2349,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanAbortBuild))]
     private void AbortBuild()
     {
-        _logger.LogInformation("AbortBuild requested");
+        logger.LogInformation("AbortBuild requested");
         _buildCancellationTokenSource?.Cancel();
         AppendBuildLog("\nAborting build...");
         StatusMessage = "Aborting build...";
@@ -2401,11 +2363,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenProjectFolder()
     {
-        _logger.LogInformation("OpenProjectFolder requested for: {Path}", ProjectPath);
+        logger.LogInformation("OpenProjectFolder requested for: {Path}", ProjectPath);
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -2424,8 +2386,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open project folder");
-            _notificationService.ShowError("Open Failed", "Could not open project folder");
+            logger.LogError(ex, "Failed to open project folder");
+            notificationService.ShowError("Open Failed", "Could not open project folder");
         }
     }
 
@@ -2435,11 +2397,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenEditFolder()
     {
-        _logger.LogInformation("OpenEditFolder requested for project: {Path}", ProjectPath);
+        logger.LogInformation("OpenEditFolder requested for project: {Path}", ProjectPath);
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -2449,8 +2411,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var editFolder = Path.IsPathRooted(editedDir) ? editedDir : Path.Combine(projectDir, editedDir);
             if (IsPathInsideAppDirectory(editFolder))
             {
-                _logger.LogWarning("Refusing to open edit folder inside app directory: {Path}", editFolder);
-                _notificationService.ShowWarning("Folder Restricted", "Cannot open folder located inside application installation directory.");
+                logger.LogWarning("Refusing to open edit folder inside app directory: {Path}", editFolder);
+                notificationService.ShowWarning("Folder Restricted", "Cannot open folder located inside application installation directory.");
                 return;
             }
 
@@ -2467,8 +2429,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open edit folder");
-            _notificationService.ShowError("Open Failed", "Could not open GameFilesEdited folder");
+            logger.LogError(ex, "Failed to open edit folder");
+            notificationService.ShowError("Open Failed", "Could not open GameFilesEdited folder");
         }
     }
 
@@ -2478,10 +2440,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenBuildFolder()
     {
-        _logger.LogInformation("OpenBuildFolder requested for: {Path}", ProjectPath);
+        logger.LogInformation("OpenBuildFolder requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
-            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -2497,8 +2459,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var buildPath = Path.IsPathRooted(buildDir) ? buildDir : Path.Combine(projectDir, buildDir);
             if (IsPathInsideAppDirectory(buildPath))
             {
-                _logger.LogWarning("Refusing to open build folder inside app directory: {Path}", buildPath);
-                _notificationService.ShowWarning("Folder Restricted", "Cannot open build folder located inside application installation directory.");
+                logger.LogWarning("Refusing to open build folder inside app directory: {Path}", buildPath);
+                notificationService.ShowWarning("Folder Restricted", "Cannot open build folder located inside application installation directory.");
                 return;
             }
 
@@ -2515,8 +2477,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open build folder");
-            _notificationService.ShowError("Open Failed", "Could not open build folder");
+            logger.LogError(ex, "Failed to open build folder");
+            notificationService.ShowError("Open Failed", "Could not open build folder");
         }
     }
 
@@ -2526,7 +2488,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenReleaseFolder()
     {
-        _logger.LogInformation("OpenReleaseFolder requested for: {Path}", ProjectPath);
+        logger.LogInformation("OpenReleaseFolder requested for: {Path}", ProjectPath);
         if (CurrentProject == null)
         {
             return;
@@ -2556,8 +2518,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var releasePath = Path.IsPathRooted(releaseDir) ? releaseDir : Path.Combine(projectDir, releaseDir);
             if (IsPathInsideAppDirectory(releasePath))
             {
-                _logger.LogWarning("Refusing to open release folder inside app directory: {Path}", releasePath);
-                _notificationService.ShowWarning("Folder Restricted", "Cannot open release folder located inside application installation directory.");
+                logger.LogWarning("Refusing to open release folder inside app directory: {Path}", releasePath);
+                notificationService.ShowWarning("Folder Restricted", "Cannot open release folder located inside application installation directory.");
                 return;
             }
 
@@ -2574,8 +2536,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open release folder");
-            _notificationService.ShowError("Open Folder Failed", $"Failed to open release folder: {ex.Message}");
+            logger.LogError(ex, "Failed to open release folder");
+            notificationService.ShowError("Open Folder Failed", $"Failed to open release folder: {ex.Message}");
         }
     }
 
@@ -2585,7 +2547,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ClearOutput()
     {
-        _logger.LogInformation("ClearOutput requested");
+        logger.LogInformation("ClearOutput requested");
         PostToUIThread(() =>
         {
             BuildLog.Clear();
@@ -2610,7 +2572,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (!string.IsNullOrEmpty(projectDir) && CurrentProject != null)
             {
-                var loadedConfig = await _configurationLoaderService.LoadProjectConfigurationAsync(
+                var loadedConfig = await configurationLoaderService.LoadProjectConfigurationAsync(
                     projectDir,
                     CancellationToken.None).ConfigureAwait(false);
                 if (CurrentProject != null)
@@ -2641,8 +2603,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load project data");
-            _notificationService.ShowError("Load Error", $"Failed to load project data: {ex.Message}");
+            logger.LogError(ex, "Failed to load project data");
+            notificationService.ShowError("Load Error", $"Failed to load project data: {ex.Message}");
         }
     }
 
@@ -2963,6 +2925,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         return filePath;
     }
 
+    private FileManagerViewModel InitializeFileManager()
+    {
+        fileManager.ImportBigFilesRequested += ImportBigFilesAsync;
+        return fileManager;
+    }
+
     /// <summary>
     /// Disposes resources.
     /// </summary>
@@ -2985,7 +2953,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (disposing)
         {
-            FileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
+            if (_fileManager != null)
+            {
+                _fileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
+            }
             _buildCancellationTokenSource?.Cancel();
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;
