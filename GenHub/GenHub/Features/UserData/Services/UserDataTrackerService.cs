@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.Enums;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.UserData;
@@ -1011,17 +1012,14 @@ public class UserDataTrackerService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        var matchingOwnerEntry = index.FileToInstallationMap
-            .FirstOrDefault(kvp => string.Equals(kvp.Key, file.AbsolutePath, pathComparison));
-
-        if (matchingOwnerEntry.Key != null && matchingOwnerEntry.Value != manifest.InstallationKey)
+        if (index.FileToInstallationMap.TryGetValue(file.AbsolutePath, out var currentOwnerKey) &&
+            currentOwnerKey != manifest.InstallationKey)
         {
             logger.LogDebug(
                 "[UserData] Skipping deactivation file deletion of {Path} for installation {Key}; currently owned by {OwnerKey}",
                 file.AbsolutePath,
                 manifest.InstallationKey,
-                matchingOwnerEntry.Value);
+                currentOwnerKey);
             return true;
         }
 
@@ -1250,12 +1248,15 @@ public class UserDataTrackerService(
 
                 // If adopted file on disk does not match expected hash, back up user modifications before deletion
                 var modifiedBackup = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
-                if (!string.IsNullOrEmpty(modifiedBackup))
+                if (string.IsNullOrEmpty(modifiedBackup))
                 {
-                    backupPath = modifiedBackup;
-                    wasOverwritten = true;
-                    logger.LogInformation("[UserData] Backed up modified adopted user file: {Path} -> {Backup}", targetPath, modifiedBackup);
+                    logger.LogError("[UserData] Failed to create safety backup for modified adopted user file {Path}; aborting installation to prevent data loss", targetPath);
+                    return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to create safety backup for '{targetPath}'. Installation aborted.");
                 }
+
+                backupPath = modifiedBackup;
+                wasOverwritten = true;
+                logger.LogInformation("[UserData] Backed up modified adopted user file: {Path} -> {Backup}", targetPath, modifiedBackup);
             }
             else if (string.IsNullOrEmpty(conflictResult.Data))
             {
@@ -1740,7 +1741,15 @@ public class UserDataTrackerService(
         }
 
         var json = await File.ReadAllTextAsync(_indexPath, cancellationToken);
-        _cachedIndex = JsonSerializer.Deserialize<UserDataIndex>(json) ?? new UserDataIndex();
+        var loadedIndex = JsonSerializer.Deserialize<UserDataIndex>(json) ?? new UserDataIndex();
+        if (loadedIndex.FileToInstallationMap.Comparer != PathHelper.PathComparer)
+        {
+            loadedIndex.FileToInstallationMap = new Dictionary<string, string>(
+                loadedIndex.FileToInstallationMap,
+                PathHelper.PathComparer);
+        }
+
+        _cachedIndex = loadedIndex;
         return _cachedIndex;
     }
 

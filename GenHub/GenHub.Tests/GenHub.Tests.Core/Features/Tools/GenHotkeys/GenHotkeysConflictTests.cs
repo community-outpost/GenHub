@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using GenHub.Core.Constants;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
 using Xunit;
 
@@ -222,7 +223,7 @@ public class GenHotkeysConflictTests
         {
             DisplayName = "Carpet Bomb",
             IconName = "SACarpetBomb",
-            HotkeyString = "CONTROLBAR:CarpetBomb",
+            HotkeyString = GenHotkeysConstants.CsfLabels.CarpetBomb,
             Hotkey = 'T',
         };
 
@@ -230,7 +231,7 @@ public class GenHotkeysConflictTests
         {
             DisplayName = "Composite Armor",
             IconName = "SACompositeArmor",
-            HotkeyString = "UPGRADE:CompositeArmor",
+            HotkeyString = GenHotkeysConstants.CsfLabels.UpgradeAmericaCompositeArmor,
             Hotkey = 'T',
         };
 
