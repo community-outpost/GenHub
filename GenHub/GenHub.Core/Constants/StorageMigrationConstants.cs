@@ -141,6 +141,26 @@ public static class StorageMigrationConstants
     public const int DuplicateInstallationNotificationAutoDismissMs = 12000;
 
     /// <summary>
+    /// File extension for macOS application bundles.
+    /// </summary>
+    public const string MacAppBundleExtension = ".app";
+
+    /// <summary>
+    /// Contents directory name within a macOS application bundle.
+    /// </summary>
+    public const string MacContentsDirectoryName = "Contents";
+
+    /// <summary>
+    /// Info.plist file name within a macOS application bundle.
+    /// </summary>
+    public const string MacInfoPlistFileName = "Info.plist";
+
+    /// <summary>
+    /// MacOS directory name within a macOS application bundle.
+    /// </summary>
+    public const string MacOsDirectoryName = "MacOS";
+
+    /// <summary>
     /// Marker file name placed in the installation root during user data adoption to track pending retries.
     /// </summary>
     public const string AdoptionPendingMarkerFileName = ".adoption-pending";

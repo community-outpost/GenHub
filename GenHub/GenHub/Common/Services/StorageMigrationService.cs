@@ -241,7 +241,7 @@ public class StorageMigrationService(
             var segments = appBaseDir.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
             for (var i = 0; i < segments.Length; i++)
             {
-                if (segments[i].EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+                if (segments[i].EndsWith(StorageMigrationConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
                 {
                     const string prefix = "/";
                     return prefix + string.Join('/', segments.Take(i + 1));
@@ -307,11 +307,11 @@ public class StorageMigrationService(
 
         try
         {
-            if (OperatingSystem.IsMacOS() && directoryPath.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+            if (OperatingSystem.IsMacOS() && directoryPath.EndsWith(StorageMigrationConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
             {
-                var contentsDir = Path.Combine(directoryPath, "Contents");
+                var contentsDir = Path.Combine(directoryPath, StorageMigrationConstants.MacContentsDirectoryName);
                 return Directory.Exists(contentsDir) &&
-                       (File.Exists(Path.Combine(contentsDir, "Info.plist")) || Directory.Exists(Path.Combine(contentsDir, "MacOS")));
+                       (File.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacInfoPlistFileName)) || Directory.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacOsDirectoryName)));
             }
 
             var hasUpdateExe = File.Exists(Path.Combine(directoryPath, "Update.exe")) || File.Exists(Path.Combine(directoryPath, "Update"));
@@ -396,7 +396,7 @@ public class StorageMigrationService(
             return _defaultDataRootOverride;
         }
 
-        var configuredEnv = Environment.GetEnvironmentVariable("GENHUB_GenHub__AppDataPath");
+        var configuredEnv = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
         if (!string.IsNullOrWhiteSpace(configuredEnv) && PathHelper.TrySanitizeLocalPath(configuredEnv, out var sanitized))
         {
             return sanitized;

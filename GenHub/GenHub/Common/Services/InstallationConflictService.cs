@@ -28,11 +28,10 @@ public class InstallationConflictService(
     private const string ConflictCheckErrorMessage = "Error checking for installation location conflicts.";
     private const string RemoveMarkerErrorMessage = "Failed to remove adoption marker file at {MarkerPath}";
 
-    private readonly IInstallationLocationTracker _tracker = installationLocationTracker ?? throw new ArgumentNullException(nameof(installationLocationTracker));
-
     /// <inheritdoc />
     public async Task CheckAndResolveConflictsAsync(CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(installationLocationTracker);
         await Task.Run(() => ExecuteConflictResolution(cancellationToken), cancellationToken);
     }
 
@@ -45,12 +44,12 @@ public class InstallationConflictService(
         {
             if (StorageMigrationService.IsCustomInstallRoot())
             {
-                _tracker.RecordInstallLocation();
+                installationLocationTracker.RecordInstallLocation();
                 StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
                 return;
             }
 
-            var customPath = _tracker.GetRegisteredCustomInstallPath();
+            var customPath = installationLocationTracker.GetRegisteredCustomInstallPath();
             if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var detectedCustomPath) &&
                 !string.IsNullOrWhiteSpace(detectedCustomPath))
             {
@@ -100,62 +99,88 @@ public class InstallationConflictService(
         var hasExistingData = StorageMigrationService.HasExistingUserData(defaultRoot);
         var shouldAdopt = (!hasExistingData || isPendingRetry) &&
                           StorageMigrationService.HasExistingUserData(detectedCustomPath);
-        var imported = false;
 
         if (shouldAdopt)
         {
-            if (!SetAdoptionMarker(markerPath, detectedCustomPath))
+            if (!TryAdoptUserData(detectedCustomPath, markerPath, defaultRoot, cancellationToken, out var imported))
             {
-                logger?.LogWarning(
-                    "Aborting user configuration adoption because writing adoption marker failed: {MarkerPath}",
-                    markerPath);
                 NotifyDuplicateInstallationConflict(detectedCustomPath, imported: false);
                 return;
             }
 
-            logger?.LogInformation(
-                "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
-                detectedCustomPath,
-                defaultRoot);
-
-            imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger, cancellationToken) ||
-                       StorageMigrationService.WasEarlyAdopted;
             cancellationToken.ThrowIfCancellationRequested();
+            NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
+            return;
+        }
 
-            if (imported)
-            {
-                userSettingsService?.Reload();
-            }
+        HandleNonAdoptedConflict(detectedCustomPath, markerPath, defaultRoot, cancellationToken);
+    }
 
-            var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
-            if (hasRemainingUnadopted == false)
-            {
-                ClearAdoptionMarker(markerPath);
-                _tracker.ClearCustomInstallPath();
-            }
+    private bool TryAdoptUserData(
+        string detectedCustomPath,
+        string markerPath,
+        string defaultRoot,
+        CancellationToken cancellationToken,
+        out bool imported)
+    {
+        imported = false;
+        if (!SetAdoptionMarker(markerPath, detectedCustomPath))
+        {
+            logger?.LogWarning(
+                "Aborting user configuration adoption because writing adoption marker failed: {MarkerPath}",
+                markerPath);
+            return false;
+        }
+
+        logger?.LogInformation(
+            "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
+            detectedCustomPath,
+            defaultRoot);
+
+        imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger, cancellationToken) ||
+                   StorageMigrationService.WasEarlyAdopted;
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (imported)
+        {
+            userSettingsService?.Reload();
+        }
+
+        TryFinalizeAdoptionCleanup(detectedCustomPath, defaultRoot, markerPath);
+        return true;
+    }
+
+    private void HandleNonAdoptedConflict(
+        string detectedCustomPath,
+        string markerPath,
+        string defaultRoot,
+        CancellationToken cancellationToken)
+    {
+        var imported = false;
+        if (StorageMigrationService.WasEarlyAdopted)
+        {
+            imported = true;
+            userSettingsService?.Reload();
+            TryFinalizeAdoptionCleanup(detectedCustomPath, defaultRoot, markerPath);
         }
         else
         {
-            if (StorageMigrationService.WasEarlyAdopted)
-            {
-                imported = true;
-                userSettingsService?.Reload();
-                var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
-                if (hasRemainingUnadopted == false)
-                {
-                    ClearAdoptionMarker(markerPath);
-                    _tracker.ClearCustomInstallPath();
-                }
-            }
-            else
-            {
-                ClearAdoptionMarker(markerPath);
-                _tracker.ClearCustomInstallPath();
-            }
+            ClearAdoptionMarker(markerPath);
+            installationLocationTracker.ClearCustomInstallPath();
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
+    }
+
+    private void TryFinalizeAdoptionCleanup(string detectedCustomPath, string defaultRoot, string markerPath)
+    {
+        var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
+        if (hasRemainingUnadopted == false)
+        {
+            ClearAdoptionMarker(markerPath);
+            installationLocationTracker.ClearCustomInstallPath();
+        }
     }
 
     private bool SetAdoptionMarker(string markerPath, string customPath)

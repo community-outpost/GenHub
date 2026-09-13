@@ -29,6 +29,10 @@ public class StorageMigrationConstantsTests
             Assert.Equal("Preparing Binary Migration", StorageMigrationConstants.StagePreparingBinaries);
             Assert.Equal("Launching Migration Assistant", StorageMigrationConstants.StageLaunchingAssistant);
             Assert.Equal("Finalizing Migration", StorageMigrationConstants.StageFinalizing);
+            Assert.Equal(".app", StorageMigrationConstants.MacAppBundleExtension);
+            Assert.Equal("Contents", StorageMigrationConstants.MacContentsDirectoryName);
+            Assert.Equal("Info.plist", StorageMigrationConstants.MacInfoPlistFileName);
+            Assert.Equal("MacOS", StorageMigrationConstants.MacOsDirectoryName);
             Assert.Equal(".adoption-pending", StorageMigrationConstants.AdoptionPendingMarkerFileName);
             Assert.Equal("GENHUB_GenHub__AppDataPath", StorageMigrationConstants.AppDataPathEnvVar);
             Assert.Equal("install-location", StorageMigrationConstants.CustomInstallPathFileName);

@@ -185,13 +185,14 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
         }
 
         var sb = new StringBuilder(value.Length);
-        for (var i = 0; i < value.Length; i++)
+        var i = 0;
+        while (i < value.Length)
         {
             var ch = value[i];
             if (ch == '%' && i + 1 < value.Length && value[i + 1] == '%')
             {
                 sb.Append('%');
-                i++;
+                i += 2;
             }
             else if (ch == '\\' && i + 1 < value.Length)
             {
@@ -203,32 +204,34 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
                     case '$':
                     case '`':
                         sb.Append(next);
-                        i++;
+                        i += 2;
                         break;
                     case 's':
                         sb.Append(' ');
-                        i++;
+                        i += 2;
                         break;
                     case 'n':
                         sb.Append('\n');
-                        i++;
+                        i += 2;
                         break;
                     case 't':
                         sb.Append('\t');
-                        i++;
+                        i += 2;
                         break;
                     case 'r':
                         sb.Append('\r');
-                        i++;
+                        i += 2;
                         break;
                     default:
                         sb.Append(ch);
+                        i++;
                         break;
                 }
             }
             else
             {
                 sb.Append(ch);
+                i++;
             }
         }
 
