@@ -55,6 +55,10 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
         {
             logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
+        catch (InvalidOperationException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
     }
 
     /// <summary>
@@ -89,6 +93,10 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
             logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
         catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
+        }
+        catch (InvalidOperationException ex)
         {
             logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
@@ -127,6 +135,10 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
         {
             logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
+        catch (InvalidOperationException ex)
+        {
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
+        }
     }
 
     /// <summary>
@@ -143,7 +155,7 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
 
         if (string.IsNullOrWhiteSpace(profileDir))
         {
-            profileDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            throw new InvalidOperationException("Could not determine user profile or local application data directory for tracking installation location.");
         }
 
         return Path.Combine(profileDir, StorageMigrationConstants.GenHubConfigDirectoryName, StorageMigrationConstants.CustomInstallPathFileName);
