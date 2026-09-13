@@ -362,8 +362,7 @@ public class StorageMigrationService(
             return _defaultDataRootOverride;
         }
 
-        var configuredPath = Environment.GetEnvironmentVariable("GENHUB_GenHub__AppDataPath") ??
-                             Environment.GetEnvironmentVariable("GENHUB_AppDataPath");
+        var configuredPath = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
         if (!string.IsNullOrWhiteSpace(configuredPath))
         {
             return configuredPath;

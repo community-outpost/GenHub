@@ -146,6 +146,11 @@ public static class StorageMigrationConstants
     public const string AdoptionPendingMarkerFileName = ".adoption-pending";
 
     /// <summary>
+    /// Environment variable name for the configured application data path override.
+    /// </summary>
+    public const string AppDataPathEnvVar = "GENHUB_GenHub__AppDataPath";
+
+    /// <summary>
     /// File name used to persist custom installation location markers across platforms.
     /// </summary>
     public const string CustomInstallPathFileName = "install-location";
