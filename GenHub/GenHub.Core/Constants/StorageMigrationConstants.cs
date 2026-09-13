@@ -141,12 +141,6 @@ public static class StorageMigrationConstants
     public const int DuplicateInstallationNotificationAutoDismissMs = 12000;
 
     /// <summary>
-    /// Obsolete alias for <see cref="DuplicateInstallationNotificationAutoDismissMs"/>.
-    /// </summary>
-    [System.Obsolete("Use DuplicateInstallationNotificationAutoDismissMs instead.")]
-    public const int DuplicateInstallationNotificationDismissMs = DuplicateInstallationNotificationAutoDismissMs;
-
-    /// <summary>
     /// Marker file name placed in the installation root during user data adoption to track pending retries.
     /// </summary>
     public const string AdoptionPendingMarkerFileName = ".adoption-pending";
