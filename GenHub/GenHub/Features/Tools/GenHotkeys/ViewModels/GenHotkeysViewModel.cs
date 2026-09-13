@@ -637,11 +637,15 @@ public partial class GenHotkeysViewModel(
         }
         catch (OperationCanceledException)
         {
-            throw;
+            // Expected on cancellation during profile switch or disposal; exit quietly
+        }
+        catch (ObjectDisposedException)
+        {
+            // Expected if CTS was disposed during in-flight profile check; exit quietly
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to check existing addon manifest for profile '{Name}'", SelectedProfile.Name);
+            logger.LogWarning(ex, "Failed to check existing addon manifest for profile '{Name}'", SelectedProfile?.Name);
         }
     }
 
@@ -887,13 +891,35 @@ public partial class GenHotkeysViewModel(
             {
                 _isDisposed = true;
 
-                _reloadCts?.Cancel();
-                _reloadCts?.Dispose();
+                var reloadCts = _reloadCts;
                 _reloadCts = null;
+                if (reloadCts != null)
+                {
+                    try
+                    {
+                        reloadCts.Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
 
-                _addonCheckCts?.Cancel();
-                _addonCheckCts?.Dispose();
+                    reloadCts.Dispose();
+                }
+
+                var addonCheckCts = _addonCheckCts;
                 _addonCheckCts = null;
+                if (addonCheckCts != null)
+                {
+                    try
+                    {
+                        addonCheckCts.Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+
+                    addonCheckCts.Dispose();
+                }
 
                 _saveSemaphore.Dispose();
 
@@ -1330,27 +1356,45 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireEn);
-            if (stream == null)
-            {
-                StatusMessage = "Failed to load Legionnaire preset asset.";
-                return;
-            }
-
-            var csf = CsfFile.Load(stream);
             var validActionKeys = new HashSet<string>(
                 _allFactions.SelectMany(f => f.GameObjects).SelectMany(o => o.KeyboardLayouts).SelectMany(l => l)
                     .Where(a => !string.IsNullOrEmpty(a.HotkeyString))
                     .Select(a => a.HotkeyString),
                 StringComparer.OrdinalIgnoreCase);
 
-            foreach (var kvp in csf.Strings.Where(k => validActionKeys.Contains(k.Key)))
-            {
-                var hotkey = CsfFile.ExtractHotkey(kvp.Value);
-                if (hotkey.HasValue)
+            var extractedMappings = await Task.Run(
+                () =>
                 {
-                    SelectedProfile.KeyMappings[kvp.Key] = hotkey.Value;
-                }
+                    using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireEn);
+                    if (stream == null)
+                    {
+                        return null;
+                    }
+
+                    var csf = CsfFile.Load(stream);
+                    var extracted = new Dictionary<string, char>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kvp in csf.Strings.Where(k => validActionKeys.Contains(k.Key)))
+                    {
+                        var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+                        if (hotkey.HasValue)
+                        {
+                            extracted[kvp.Key] = hotkey.Value;
+                        }
+                    }
+
+                    return extracted;
+                },
+                cancellationToken).ConfigureAwait(true);
+
+            if (extractedMappings == null)
+            {
+                StatusMessage = "Failed to load Legionnaire preset asset.";
+                return;
+            }
+
+            foreach (var kvp in extractedMappings)
+            {
+                SelectedProfile.KeyMappings[kvp.Key] = kvp.Value;
             }
 
             var saved = await SaveCurrentProfileAsync(cancellationToken);
@@ -1388,9 +1432,20 @@ public partial class GenHotkeysViewModel(
 
     partial void OnSelectedProfileChanged(HotkeyProfile? value)
     {
-        _addonCheckCts?.Cancel();
-        _addonCheckCts?.Dispose();
+        var oldCts = _addonCheckCts;
         _addonCheckCts = null;
+        if (oldCts != null)
+        {
+            try
+            {
+                oldCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            oldCts.Dispose();
+        }
 
         if (value != null)
         {
@@ -1400,7 +1455,8 @@ public partial class GenHotkeysViewModel(
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
             _addonCheckCts = new CancellationTokenSource();
-            _ = CheckExistingAddonAsync(_addonCheckCts.Token);
+            var token = _addonCheckCts.Token;
+            _ = SafeCheckExistingAddonAsync(token);
         }
         else
         {
@@ -1408,6 +1464,26 @@ public partial class GenHotkeysViewModel(
             HasExistingAddon = false;
             ExistingAddonManifest = null;
             AddonButtonText = CreateAddonText;
+        }
+    }
+
+    private async Task SafeCheckExistingAddonAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await CheckExistingAddonAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on cancellation during profile switch or disposal
+        }
+        catch (ObjectDisposedException)
+        {
+            // Expected if CTS was disposed
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Unexpected error checking existing addon");
         }
     }
 
