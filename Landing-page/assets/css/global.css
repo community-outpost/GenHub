@@ -142,7 +142,7 @@ body::after {
 .section-tag svg {
     width: 14px;
     height: 14px;
-    stroke: currentColor;
+    stroke: currentcolor;
 }
 
 .section-title {
@@ -156,6 +156,7 @@ body::after {
 .text-gradient {
     background: var(--gradient-primary);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     display: inline-block;
 }
