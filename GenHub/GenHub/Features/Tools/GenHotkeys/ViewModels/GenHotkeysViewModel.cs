@@ -48,8 +48,16 @@ public partial class GenHotkeysViewModel(
     IContentManifestPool? manifestPool = null,
     ILoggerFactory? loggerFactory = null) : ObservableObject, IDisposable
 {
+    private readonly record struct HotkeyConflictTarget(
+        HotkeyFaction Faction,
+        string GameObjectName,
+        string HotkeyString,
+        char? Hotkey,
+        HotkeyActionViewModel? ActionVm = null);
+
     private const string CreateAddonText = "Create Addon";
     private const string AddToProfileText = "Add to Profile";
+    private const string DefaultApplyToAllText = "Apply to All";
 
     private static readonly HashSet<string> GeneralsPowersActions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -84,6 +92,7 @@ public partial class GenHotkeysViewModel(
     private bool _isInitializing;
     private bool _isDisposed;
     private CancellationTokenSource? _reloadCts;
+    private CancellationTokenSource? _addonCheckCts;
 
     [ObservableProperty]
     private GameType _selectedGame = GameType.ZeroHour;
@@ -125,13 +134,10 @@ public partial class GenHotkeysViewModel(
     private int _totalConflictsCount;
 
     [ObservableProperty]
-    private string _conflictSummary = string.Empty;
-
-    [ObservableProperty]
     private string _conflictStatusText = string.Empty;
 
     [ObservableProperty]
-    private string _applyToAllButtonText = "Apply to All";
+    private string _applyToAllButtonText = DefaultApplyToAllText;
 
     [ObservableProperty]
     private string _newProfileName = string.Empty;
@@ -417,11 +423,13 @@ public partial class GenHotkeysViewModel(
         }
         else
         {
-            await SaveCurrentProfileAsync(cancellationToken);
+            var saved = await SaveCurrentProfileAsync(cancellationToken);
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
             var isVanilla = string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase);
-            StatusMessage = isVanilla ? "Applied default vanilla retail hotkeys." : $"Applied '{presetName}' preset hotkeys.";
+            StatusMessage = saved
+                ? (isVanilla ? "Applied default vanilla retail hotkeys." : $"Applied '{presetName}' preset hotkeys.")
+                : $"Failed to save profile after applying preset '{presetName}'.";
         }
     }
 
@@ -585,12 +593,18 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
+        var currentProfileId = SelectedProfile.Id;
         try
         {
             var expectedBigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
             var expectedManifestName = GenHotkeysConstants.GetManifestDisplayName(SelectedProfile.Name, SelectedGame);
 
             var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (cancellationToken.IsCancellationRequested || SelectedProfile?.Id != currentProfileId)
+            {
+                return;
+            }
+
             if (manifestsResult is not { Success: true, Data: not null })
             {
                 HasExistingAddon = false;
@@ -605,6 +619,11 @@ public partial class GenHotkeysViewModel(
                 (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase) ||
                  (m.Files?.Any(f => f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true)));
 
+            if (cancellationToken.IsCancellationRequested || SelectedProfile?.Id != currentProfileId)
+            {
+                return;
+            }
+
             ExistingAddonManifest = match;
             HasExistingAddon = match is not null;
             AddonButtonText = HasExistingAddon ? AddToProfileText : CreateAddonText;
@@ -615,7 +634,7 @@ public partial class GenHotkeysViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Failed to check existing addon manifest for profile '{Name}'", SelectedProfile.Name);
+            logger.LogWarning(ex, "Failed to check existing addon manifest for profile '{Name}'", SelectedProfile.Name);
         }
     }
 
@@ -863,6 +882,10 @@ public partial class GenHotkeysViewModel(
             _reloadCts?.Dispose();
             _reloadCts = null;
 
+            _addonCheckCts?.Cancel();
+            _addonCheckCts?.Dispose();
+            _addonCheckCts = null;
+
             _saveSemaphore.Dispose();
 
             foreach (var kvp in _bitmapCache)
@@ -898,12 +921,6 @@ public partial class GenHotkeysViewModel(
              IsRadarAndCashHack(actions) ||
              IsTimedAndRemoteDemo(actions) ||
              IsGrangerCarpetBombAndCompositeArmor(actions)))
-        {
-            return true;
-        }
-
-        var nonSellActions = actions.Where(a => !string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (actions.Count > 1 && nonSellActions.Count <= 1)
         {
             return true;
         }
@@ -948,9 +965,9 @@ public partial class GenHotkeysViewModel(
         }
 
         return actions.All(a =>
-            string.Equals(a.HotkeyString, "CONTROLBAR:CaptureBuilding", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a.HotkeyString, "CONTROLBAR:CashHack", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a.HotkeyString, "CONTROLBAR:StealCashHack", StringComparison.OrdinalIgnoreCase));
+            string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.CaptureBuilding, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.CashHack, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.StealCashHack, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsBombTruckBioBombOverlap(List<HotkeyActionViewModel> actions, string objName)
@@ -961,7 +978,7 @@ public partial class GenHotkeysViewModel(
         }
 
         return actions.Any(a => a.HotkeyString is not null && a.HotkeyString.Contains("BioBomb", StringComparison.OrdinalIgnoreCase)) &&
-               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:Guard", StringComparison.OrdinalIgnoreCase));
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Guard, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsGeneralsPowersTrayOverlap(List<HotkeyActionViewModel> actions, string objName)
@@ -1020,14 +1037,16 @@ public partial class GenHotkeysViewModel(
     {
         return actions.Count == 2 &&
                actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeChinaRadar", StringComparison.OrdinalIgnoreCase)) &&
-               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:StealCashHack", StringComparison.OrdinalIgnoreCase));
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.StealCashHack, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsTimedAndRemoteDemo(List<HotkeyActionViewModel> actions)
     {
         return actions.Count == 2 &&
-               actions.Any(a => a.IconName.Contains("TimedDemo", StringComparison.OrdinalIgnoreCase)) &&
-               actions.Any(a => a.IconName.Contains("Detonate", StringComparison.OrdinalIgnoreCase));
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.TimedDemoCharge, StringComparison.OrdinalIgnoreCase) ||
+                                a.IconName.Contains("TimedDemo", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.DetonateCharges, StringComparison.OrdinalIgnoreCase) ||
+                                a.IconName.Contains("Detonate", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsGrangerCarpetBombAndCompositeArmor(List<HotkeyActionViewModel> actions)
@@ -1194,10 +1213,14 @@ public partial class GenHotkeysViewModel(
             {
                 foreach (var item in group)
                 {
+                    var actionKey = !string.IsNullOrWhiteSpace(item.Action.HotkeyString)
+                        ? item.Action.HotkeyString
+                        : (!string.IsNullOrWhiteSpace(item.Action.IconName) ? item.Action.IconName : item.Action.DisplayName);
+
                     targets.Add(new HotkeyConflictTarget(
                         faction,
                         obj.Name ?? obj.DisplayName,
-                        item.Action.HotkeyString ?? item.Action.IconName ?? item.Action.DisplayName,
+                        actionKey,
                         item.Key,
                         null));
                 }
@@ -1278,29 +1301,32 @@ public partial class GenHotkeysViewModel(
         try
         {
             using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireEn);
-            if (stream != null)
+            if (stream == null)
             {
-                var csf = CsfFile.Load(stream);
-                var validActionKeys = new HashSet<string>(
-                    _allFactions.SelectMany(f => f.GameObjects).SelectMany(o => o.KeyboardLayouts).SelectMany(l => l)
-                        .Where(a => !string.IsNullOrEmpty(a.HotkeyString))
-                        .Select(a => a.HotkeyString),
-                    StringComparer.OrdinalIgnoreCase);
+                StatusMessage = "Failed to load Legionnaire preset asset.";
+                return;
+            }
 
-                foreach (var kvp in csf.Strings.Where(k => validActionKeys.Contains(k.Key)))
+            var csf = CsfFile.Load(stream);
+            var validActionKeys = new HashSet<string>(
+                _allFactions.SelectMany(f => f.GameObjects).SelectMany(o => o.KeyboardLayouts).SelectMany(l => l)
+                    .Where(a => !string.IsNullOrEmpty(a.HotkeyString))
+                    .Select(a => a.HotkeyString),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kvp in csf.Strings.Where(k => validActionKeys.Contains(k.Key)))
+            {
+                var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+                if (hotkey.HasValue)
                 {
-                    var hotkey = CsfFile.ExtractHotkey(kvp.Value);
-                    if (hotkey.HasValue)
-                    {
-                        SelectedProfile.KeyMappings[kvp.Key] = hotkey.Value;
-                    }
+                    SelectedProfile.KeyMappings[kvp.Key] = hotkey.Value;
                 }
             }
 
-            await SaveCurrentProfileAsync(cancellationToken);
+            var saved = await SaveCurrentProfileAsync(cancellationToken);
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            StatusMessage = "Applied Legionnaire preset hotkeys.";
+            StatusMessage = saved ? "Applied Legionnaire preset hotkeys." : "Failed to save profile after applying Legionnaire preset.";
         }
         catch (OperationCanceledException)
         {
@@ -1332,6 +1358,10 @@ public partial class GenHotkeysViewModel(
 
     partial void OnSelectedProfileChanged(HotkeyProfile? value)
     {
+        _addonCheckCts?.Cancel();
+        _addonCheckCts?.Dispose();
+        _addonCheckCts = null;
+
         if (value != null)
         {
             RenameProfileText = value.Name;
@@ -1339,7 +1369,8 @@ public partial class GenHotkeysViewModel(
             SelectedCorner = value.OverlayCorner;
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            _ = CheckExistingAddonAsync(CancellationToken.None);
+            _addonCheckCts = new CancellationTokenSource();
+            _ = CheckExistingAddonAsync(_addonCheckCts.Token);
         }
         else
         {
@@ -1382,7 +1413,7 @@ public partial class GenHotkeysViewModel(
     {
         ApplyToAllButtonText = value != null && !string.IsNullOrWhiteSpace(value.DisplayName)
             ? $"Apply to all {value.DisplayName}"
-            : "Apply to All";
+            : DefaultApplyToAllText;
     }
 
     private async Task SafeReloadAllAsync(CancellationToken cancellationToken)
@@ -1724,14 +1755,5 @@ public partial class GenHotkeysViewModel(
         {
             ConflictStatusText = string.Empty;
         }
-
-        ConflictSummary = ConflictStatusText;
     }
-
-    private readonly record struct HotkeyConflictTarget(
-        HotkeyFaction Faction,
-        string GameObjectName,
-        string HotkeyString,
-        char? Hotkey,
-        HotkeyActionViewModel? ActionVm = null);
 }

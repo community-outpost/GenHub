@@ -160,7 +160,7 @@
                     <MenuItem Header="Default (Vanilla Retail)"
                               Command="{Binding ApplyPresetCommand}"
                               CommandParameter="Vanilla"
-                              ToolTip.Tip="Reset to original retail game hotkeys">
+                              ToolTip.Tip="Reset to default game hotkeys">
                       <MenuItem.Icon>
                         <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="14" Height="14"/>
                       </MenuItem.Icon>

@@ -1011,14 +1011,17 @@ public class UserDataTrackerService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (index.FileToInstallationMap.TryGetValue(file.AbsolutePath, out var currentOwnerKey) &&
-            currentOwnerKey != manifest.InstallationKey)
+        var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var matchingOwnerEntry = index.FileToInstallationMap
+            .FirstOrDefault(kvp => string.Equals(kvp.Key, file.AbsolutePath, pathComparison));
+
+        if (matchingOwnerEntry.Key != null && matchingOwnerEntry.Value != manifest.InstallationKey)
         {
             logger.LogDebug(
                 "[UserData] Skipping deactivation file deletion of {Path} for installation {Key}; currently owned by {OwnerKey}",
                 file.AbsolutePath,
                 manifest.InstallationKey,
-                currentOwnerKey);
+                matchingOwnerEntry.Value);
             return true;
         }
 
@@ -1243,6 +1246,15 @@ public class UserDataTrackerService(
                             IsHardLink = adoptedEntry.IsHardLink,
                         });
                     }
+                }
+
+                // If adopted file on disk does not match expected hash, back up user modifications before deletion
+                var modifiedBackup = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
+                if (!string.IsNullOrEmpty(modifiedBackup))
+                {
+                    backupPath = modifiedBackup;
+                    wasOverwritten = true;
+                    logger.LogInformation("[UserData] Backed up modified adopted user file: {Path} -> {Backup}", targetPath, modifiedBackup);
                 }
             }
             else if (string.IsNullOrEmpty(conflictResult.Data))
