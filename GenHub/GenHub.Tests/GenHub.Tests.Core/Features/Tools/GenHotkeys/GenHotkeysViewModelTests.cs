@@ -234,6 +234,70 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that RenameCurrentProfileAsync re-sorts profiles and refreshes selection.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameCurrentProfileAsync_SortsProfilesAndRefreshesSelectionAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profileA = new HotkeyProfile { Name = "Alpha" };
+        var profileB = new HotkeyProfile { Name = "Beta" };
+        vm.Profiles.Add(profileA);
+        vm.Profiles.Add(profileB);
+        vm.SelectedProfile = profileA;
+        vm.RenameProfileText = "Zeta";
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(profileA, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(profileA);
+
+        await vm.RenameCurrentProfileAsync();
+
+        Assert.Equal("Zeta", profileA.Name);
+        Assert.Same(profileA, vm.SelectedProfile);
+        Assert.Equal("Beta", vm.Profiles[0].Name);
+        Assert.Equal("Zeta", vm.Profiles[1].Name);
+        Assert.Equal("Zeta", vm.RenameProfileText);
+    }
+
+    /// <summary>
+    /// Verifies that CreateNewProfileAsync adds a sorted profile and selects it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateNewProfileAsync_AddsSortsAndSelectsNewProfileAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var existing = new HotkeyProfile { Name = "Profile B" };
+        vm.Profiles.Add(existing);
+        vm.SelectedProfile = existing;
+        vm.NewProfileName = "Profile A";
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HotkeyProfile p, CancellationToken _) => p);
+
+        await vm.CreateNewProfileAsync();
+
+        Assert.Equal(2, vm.Profiles.Count);
+        Assert.Equal("Profile A", vm.Profiles[0].Name);
+        Assert.Equal("Profile B", vm.Profiles[1].Name);
+        Assert.NotNull(vm.SelectedProfile);
+        Assert.Equal("Profile A", vm.SelectedProfile.Name);
+        Assert.Empty(vm.NewProfileName);
+        Assert.Equal("Profile A", vm.RenameProfileText);
+    }
+
+    /// <summary>
     /// Verifies that DeleteCurrentProfileAsync prompts confirmation and deletes when confirmed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
