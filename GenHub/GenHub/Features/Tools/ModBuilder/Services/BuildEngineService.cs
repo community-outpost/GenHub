@@ -55,8 +55,6 @@ public sealed class BuildEngineService(
     private int _filesFailed;
     private string? _lastErrorMessage;
 
-    
-
     /// <summary>
     /// Event triggered when a bundle event occurs during the build process.
     /// </summary>
@@ -1378,12 +1376,7 @@ public sealed class BuildEngineService(
 
             if (item.IsBig)
             {
-                var bigSuccess = await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
-                if (!bigSuccess)
-                {
-                    logger.LogError("Failed to build required BIG bundle item {ItemName} during manifest preparation", item.Name);
-                    return false;
-                }
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
             }
             else
             {

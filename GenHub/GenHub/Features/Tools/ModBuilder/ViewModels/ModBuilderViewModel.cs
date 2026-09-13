@@ -68,10 +68,10 @@ public partial class ModBuilderViewModel(
     private readonly Stopwatch _buildStopwatch = new();
     private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
+    private readonly StringBuilder _buildOutputBuilder = new();
     private FileManagerViewModel? _fileManager;
     private CancellationTokenSource? _buildCancellationTokenSource;
     private bool _isPopulatingBundles;
-    private readonly StringBuilder _buildOutputBuilder = new();
     private bool _disposed;
 
     /// <summary>
@@ -2848,8 +2848,7 @@ public partial class ModBuilderViewModel(
         }
         else
         {
-            var innerTask = await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
-            await innerTask.ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
         }
     }
 
@@ -2976,6 +2975,7 @@ public partial class ModBuilderViewModel(
             {
                 _fileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
             }
+
             _buildCancellationTokenSource?.Cancel();
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;
