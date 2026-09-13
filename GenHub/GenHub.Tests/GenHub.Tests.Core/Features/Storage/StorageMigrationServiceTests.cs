@@ -942,8 +942,21 @@ public class StorageMigrationServiceTests : IDisposable
         {
             File.SetUnixFileMode(subDir, UnixFileMode.None);
 
-            var result = StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir);
-            Assert.Null(result);
+            var isActuallyDenied = false;
+            try
+            {
+                _ = Directory.GetFiles(subDir);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                isActuallyDenied = true;
+            }
+
+            if (isActuallyDenied)
+            {
+                var result = StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir);
+                Assert.Null(result);
+            }
         }
         finally
         {

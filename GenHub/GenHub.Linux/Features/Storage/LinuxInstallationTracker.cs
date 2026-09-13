@@ -69,21 +69,10 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
 
             foreach (var candidateFile in candidateFiles.Where(File.Exists))
             {
-                var execPath = ExtractExecPathFromDesktopFile(candidateFile);
-                if (!string.IsNullOrWhiteSpace(execPath))
+                var customRoot = ResolveCustomRootFromDesktopFile(candidateFile, logger);
+                if (customRoot != null)
                 {
-                    var dir = Path.GetDirectoryName(execPath);
-                    if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                    {
-                        var velopackRoot = ResolveCandidateVelopackRoot(dir);
-                        if (!string.IsNullOrWhiteSpace(velopackRoot) &&
-                            StorageMigrationService.IsVelopackRoot(velopackRoot) &&
-                            !string.Equals(velopackRoot, StorageMigrationService.GetDefaultInstallRoot(), StringComparison.OrdinalIgnoreCase))
-                        {
-                            logger?.LogInformation("Found registered custom install from desktop entry {DesktopFile}: {VelopackRoot}", candidateFile, velopackRoot);
-                            return velopackRoot;
-                        }
-                    }
+                    return customRoot;
                 }
             }
         }
@@ -102,6 +91,32 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
         catch (ArgumentException ex)
         {
             logger?.LogWarning(ex, InspectDesktopEntriesFailureMessage);
+        }
+
+        return null;
+    }
+
+    private static string? ResolveCustomRootFromDesktopFile(string candidateFile, ILogger? logger)
+    {
+        var execPath = ExtractExecPathFromDesktopFile(candidateFile);
+        if (string.IsNullOrWhiteSpace(execPath))
+        {
+            return null;
+        }
+
+        var dir = Path.GetDirectoryName(execPath);
+        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+        {
+            return null;
+        }
+
+        var velopackRoot = ResolveCandidateVelopackRoot(dir);
+        if (!string.IsNullOrWhiteSpace(velopackRoot) &&
+            StorageMigrationService.IsVelopackRoot(velopackRoot) &&
+            !string.Equals(velopackRoot, StorageMigrationService.GetDefaultInstallRoot(), StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogInformation("Found registered custom install from desktop entry {DesktopFile}: {VelopackRoot}", candidateFile, velopackRoot);
+            return velopackRoot;
         }
 
         return null;

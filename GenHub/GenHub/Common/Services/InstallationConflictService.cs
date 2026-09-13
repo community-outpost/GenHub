@@ -111,8 +111,9 @@ public class InstallationConflictService(
 
             imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger, cancellationToken) ||
                        StorageMigrationService.WasEarlyAdopted;
-            var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
+            cancellationToken.ThrowIfCancellationRequested();
 
+            var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
             if (hasRemainingUnadopted == false)
             {
                 ClearAdoptionMarker(markerPath);
@@ -124,16 +125,21 @@ public class InstallationConflictService(
             if (StorageMigrationService.WasEarlyAdopted)
             {
                 imported = true;
+                var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
+                if (hasRemainingUnadopted == false)
+                {
+                    ClearAdoptionMarker(markerPath);
+                    _tracker.ClearCustomInstallPath();
+                }
             }
-
-            var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
-            if (hasRemainingUnadopted == false)
+            else
             {
                 ClearAdoptionMarker(markerPath);
                 _tracker.ClearCustomInstallPath();
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
     }
 
