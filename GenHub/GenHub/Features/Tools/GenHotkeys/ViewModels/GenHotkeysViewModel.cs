@@ -148,7 +148,6 @@ public partial class GenHotkeysViewModel(
     private string _renameProfileText = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AddonButtonToolTip))]
     private bool _hasExistingAddon;
 
     [ObservableProperty]
@@ -156,10 +155,6 @@ public partial class GenHotkeysViewModel(
 
     [ObservableProperty]
     private string _addonButtonText = CreateAddonText;
-
-    /// <summary>Gets the tooltip for the addon button depending on state.</summary>
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated instance property HasExistingAddon")]
-    public string AddonButtonToolTip => "Packs customized hotkeys and icons into a .big archive and registers as a GenHub Addon in CAS";
 
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
@@ -427,7 +422,7 @@ public partial class GenHotkeysViewModel(
             HotkeyProfile? savedProfile = null;
             try
             {
-                savedProfile = await profileStorageService.SaveProfileAsync(targetProfile, cancellationToken);
+                savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -495,6 +490,12 @@ public partial class GenHotkeysViewModel(
     public async Task CreateNewProfileAsync(CancellationToken cancellationToken = default)
     {
         var name = string.IsNullOrWhiteSpace(NewProfileName) ? $"Profile {Profiles.Count + 1}" : NewProfileName.Trim();
+        if (Profiles.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = $"A profile named '{name}' already exists.";
+            return;
+        }
+
         var newProfile = new HotkeyProfile
         {
             Name = name,
@@ -506,18 +507,10 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            await profileStorageService.SaveProfileAsync(newProfile, cancellationToken);
+            await SaveProfileSerializedAsync(newProfile, cancellationToken);
             Profiles.Add(newProfile);
 
-            var sorted = Profiles.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
-            Profiles.Clear();
-            foreach (var p in sorted)
-            {
-                Profiles.Add(p);
-            }
-
-            SelectedProfile = null;
-            SelectedProfile = newProfile;
+            SortProfilesByName(newProfile);
             NewProfileName = string.Empty;
             StatusMessage = $"Created profile '{name}'.";
         }
@@ -546,30 +539,36 @@ public partial class GenHotkeysViewModel(
         }
 
         var newName = RenameProfileText?.Trim();
-        if (string.IsNullOrWhiteSpace(newName) || string.Equals(newName, SelectedProfile.Name, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            StatusMessage = "Profile name cannot be empty.";
+            return;
+        }
+
+        if (string.Equals(newName, SelectedProfile.Name, StringComparison.Ordinal))
         {
             return;
         }
 
         var currentProfile = SelectedProfile;
+        if (Profiles.Any(p => !ReferenceEquals(p, currentProfile) && string.Equals(p.Name, newName, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = $"A profile named '{newName}' already exists.";
+            return;
+        }
+
         var oldName = currentProfile.Name;
         currentProfile.Name = newName;
         var saved = await SaveCurrentProfileAsync(cancellationToken);
         if (!saved)
         {
             currentProfile.Name = oldName;
+            StatusMessage = $"Failed to save renamed profile '{newName}'.";
             return;
         }
 
-        var sorted = Profiles.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
-        Profiles.Clear();
-        foreach (var p in sorted)
-        {
-            Profiles.Add(p);
-        }
-
-        SelectedProfile = null;
-        SelectedProfile = currentProfile;
+        var targetToReselect = ReferenceEquals(SelectedProfile, currentProfile) ? currentProfile : SelectedProfile;
+        SortProfilesByName(targetToReselect);
 
         await CheckExistingAddonAsync(cancellationToken);
         StatusMessage = $"Renamed profile '{oldName}' to '{newName}'.";
@@ -591,18 +590,21 @@ public partial class GenHotkeysViewModel(
 
         var toDelete = SelectedProfile;
 
-        if (dialogService != null)
+        if (dialogService == null)
         {
-            var confirmed = await dialogService.ShowConfirmationAsync(
-                "Delete Profile",
-                $"Are you sure you want to delete the profile '{toDelete.Name}'? This action cannot be undone.",
-                confirmText: "Delete",
-                cancelText: "Cancel");
+            logger.LogWarning("Cannot delete profile '{Name}' because dialog service is unavailable for confirmation", toDelete.Name);
+            return;
+        }
 
-            if (!confirmed)
-            {
-                return;
-            }
+        var confirmed = await dialogService.ShowConfirmationAsync(
+            "Delete Profile",
+            $"Are you sure you want to delete the profile '{toDelete.Name}'? This action cannot be undone.",
+            confirmText: "Delete",
+            cancelText: "Cancel");
+
+        if (!confirmed)
+        {
+            return;
         }
 
         try
@@ -875,19 +877,10 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            await _saveSemaphore.WaitAsync(cancellationToken);
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-
-        try
-        {
             SelectedProfile.OverlayEnabled = OverlayEnabled;
             SelectedProfile.OverlayCorner = SelectedCorner;
-            await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken);
-            return true;
+            var saved = await SaveProfileSerializedAsync(SelectedProfile, cancellationToken);
+            return saved != null;
         }
         catch (OperationCanceledException)
         {
@@ -898,17 +891,6 @@ public partial class GenHotkeysViewModel(
             logger.LogError(ex, "Failed to persist profile '{Name}'", SelectedProfile.Name);
             StatusMessage = $"Failed to save: {ex.Message}";
             return false;
-        }
-        finally
-        {
-            try
-            {
-                _saveSemaphore.Release();
-            }
-            catch (ObjectDisposedException ex)
-            {
-                logger.LogDebug(ex, "Save semaphore was disposed before release");
-            }
         }
     }
 
@@ -1436,7 +1418,7 @@ public partial class GenHotkeysViewModel(
                 () => ExtractLegionnaireMappings(validActionKeys),
                 cancellationToken).ConfigureAwait(true);
 
-            if (cancellationToken.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested || !ReferenceEquals(SelectedProfile, targetProfile))
             {
                 return;
             }
@@ -1452,7 +1434,7 @@ public partial class GenHotkeysViewModel(
             HotkeyProfile? savedProfile = null;
             try
             {
-                savedProfile = await profileStorageService.SaveProfileAsync(targetProfile, cancellationToken);
+                savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -1964,6 +1946,54 @@ public partial class GenHotkeysViewModel(
         else
         {
             ConflictStatusText = string.Empty;
+        }
+    }
+
+    private async Task<HotkeyProfile?> SaveProfileSerializedAsync(HotkeyProfile profile, CancellationToken cancellationToken)
+    {
+        if (_isDisposed)
+        {
+            return null;
+        }
+
+        try
+        {
+            await _saveSemaphore.WaitAsync(cancellationToken);
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await profileStorageService.SaveProfileAsync(profile, cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                _saveSemaphore.Release();
+            }
+            catch (ObjectDisposedException ex)
+            {
+                logger.LogDebug(ex, "Save semaphore was disposed before release");
+            }
+        }
+    }
+
+    private void SortProfilesByName(HotkeyProfile? profileToSelect = null)
+    {
+        var sorted = Profiles.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        Profiles.Clear();
+        foreach (var p in sorted)
+        {
+            Profiles.Add(p);
+        }
+
+        if (profileToSelect != null)
+        {
+            SelectedProfile = profileToSelect;
         }
     }
 }

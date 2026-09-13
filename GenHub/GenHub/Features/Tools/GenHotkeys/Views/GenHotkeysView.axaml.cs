@@ -20,7 +20,7 @@ public partial class GenHotkeysView : UserControl
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnRootKeyDown, RoutingStrategies.Tunnel);
-        AttachedToVisualTree += (_, _) => SetupFlyouts();
+        SetupFlyouts();
     }
 
     private void SetupFlyouts()
@@ -123,12 +123,18 @@ public partial class GenHotkeysView : UserControl
             if (string.Equals(tb.Tag as string, "Create", StringComparison.OrdinalIgnoreCase))
             {
                 await vm.CreateNewProfileCommand.ExecuteAsync(null);
-                (this.FindControl<Button>("NewProfileButton")?.Flyout as Flyout)?.Hide();
+                if (string.IsNullOrEmpty(vm.NewProfileName))
+                {
+                    (this.FindControl<Button>("NewProfileButton")?.Flyout as Flyout)?.Hide();
+                }
             }
             else if (string.Equals(tb.Tag as string, "Rename", StringComparison.OrdinalIgnoreCase))
             {
                 await vm.RenameCurrentProfileCommand.ExecuteAsync(null);
-                (this.FindControl<Button>("RenameProfileButton")?.Flyout as Flyout)?.Hide();
+                if (vm.SelectedProfile != null && string.Equals(vm.SelectedProfile.Name, vm.RenameProfileText, StringComparison.Ordinal))
+                {
+                    (this.FindControl<Button>("RenameProfileButton")?.Flyout as Flyout)?.Hide();
+                }
             }
         }
     }
@@ -138,9 +144,11 @@ public partial class GenHotkeysView : UserControl
         if (DataContext is GenHotkeysViewModel vm)
         {
             await vm.CreateNewProfileCommand.ExecuteAsync(null);
+            if (string.IsNullOrEmpty(vm.NewProfileName))
+            {
+                (this.FindControl<Button>("NewProfileButton")?.Flyout as Flyout)?.Hide();
+            }
         }
-
-        (this.FindControl<Button>("NewProfileButton")?.Flyout as Flyout)?.Hide();
     }
 
     private async void OnSaveRenameProfileClick(object? sender, RoutedEventArgs e)
@@ -148,8 +156,10 @@ public partial class GenHotkeysView : UserControl
         if (DataContext is GenHotkeysViewModel vm)
         {
             await vm.RenameCurrentProfileCommand.ExecuteAsync(null);
+            if (vm.SelectedProfile != null && string.Equals(vm.SelectedProfile.Name, vm.RenameProfileText, StringComparison.Ordinal))
+            {
+                (this.FindControl<Button>("RenameProfileButton")?.Flyout as Flyout)?.Hide();
+            }
         }
-
-        (this.FindControl<Button>("RenameProfileButton")?.Flyout as Flyout)?.Hide();
     }
 }
