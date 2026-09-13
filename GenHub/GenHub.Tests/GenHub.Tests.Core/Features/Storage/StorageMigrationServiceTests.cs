@@ -1026,12 +1026,10 @@ public class StorageMigrationServiceTests : IDisposable
             StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
             var sourceRoot = StorageMigrationService.GetSourceRootDirectory();
             var parentDir = Directory.GetParent(sourceRoot)?.FullName;
+            Assert.NotNull(parentDir);
 
-            if (parentDir != null)
-            {
-                StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(parentDir);
-                Assert.True(StorageMigrationService.IsDefaultInstallRoot());
-            }
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(parentDir);
+            Assert.True(StorageMigrationService.IsDefaultInstallRoot());
 
             StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(sourceRoot);
             Assert.True(StorageMigrationService.IsDefaultInstallRoot());
