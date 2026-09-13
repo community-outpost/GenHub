@@ -61,9 +61,10 @@ public partial class App : Application
             {
                 _localizationService.SetCulture(new CultureInfo(configuredLanguage));
             }
-            catch
+            catch (CultureNotFoundException ex)
             {
-                // Fall back to default culture if configured culture is invalid.
+                var logger = _serviceProvider?.GetService<ILogger<App>>();
+                logger?.LogWarning(ex, "Configured language '{Language}' was not recognized; falling back to default", configuredLanguage);
             }
         }
 

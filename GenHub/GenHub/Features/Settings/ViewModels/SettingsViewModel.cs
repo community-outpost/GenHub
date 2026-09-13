@@ -235,11 +235,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private double _migrationProgressPercentage;
 
     /// <summary>
-    /// Gets the list of available languages.
-    /// </summary>
-    public IReadOnlyList<LanguageOption> AvailableLanguages { get; }
-
-    /// <summary>
     /// Gets or sets the currently selected language option.
     /// </summary>
     [ObservableProperty]
@@ -386,6 +381,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public string PatStatusColor => _isPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
+    /// Gets the list of available languages.
+    /// </summary>
+    public IReadOnlyList<LanguageOption> AvailableLanguages { get; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.
     /// </summary>
     public bool IsViewVisible
@@ -529,6 +529,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Formats a culture into a user-friendly display name with native and English representations.
+    /// </summary>
+    /// <param name="culture">The culture to format.</param>
+    /// <returns>A formatted display name string.</returns>
     private static string GetCultureDisplayName(CultureInfo culture)
     {
         if (string.IsNullOrWhiteSpace(culture.NativeName) ||
@@ -659,6 +664,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Synchronizes the selected language option when the current culture changes externally.
+    /// </summary>
+    /// <param name="sender">The event sender.</param>
+    /// <param name="e">The event arguments containing the changed property name.</param>
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) && _localizationService != null)

@@ -102,12 +102,12 @@ Every localization change should test the behavior it introduces. At minimum:
 
 User language preference is saved in `UserSettings` and persisted automatically by `IUserSettingsService`:
 
-- **Model Property:** `UserSettings.Language` (string culture identifier, default: `"en-US"` defined in `LocalizationConstants.DefaultCultureName`).
+- **Model Property:** `UserSettings.Language` (string culture identifier, default: `"en"` defined in `LocalizationConstants.DefaultCultureName`).
 - **ViewModel Integration:** `SettingsViewModel` exposes `AvailableLanguages` (`IReadOnlyList<LanguageOption>`) and `SelectedLanguage` (`LanguageOption?`).
   - `LanguageOption` encapsulates `(CultureInfo Culture, string DisplayName)`.
   - When `SelectedLanguage` changes, `SettingsViewModel` calls `_localizationService.SetCulture(selectedOption.Culture)`.
   - On `SaveSettingsCommand`, the selected culture's `Name` is written to `UserSettings.Language` and persisted to disk.
-  - When resetting to defaults, `SelectedLanguage` resets to the default English culture (`en-US`).
+  - When resetting to defaults, `SelectedLanguage` resets to the default English culture (`en`).
   - `SettingsViewModel` listens to `_localizationService.PropertyChanged` on `CurrentCulture` to keep its dropdown synchronized if culture is changed elsewhere.
 
 ## Application Startup Flow

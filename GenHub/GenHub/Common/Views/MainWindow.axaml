@@ -219,7 +219,7 @@
                 <Button Grid.Column="4"
                         Classes="titlebar-window-btn"
                         Click="MaximizeButton_Click"
-                        ToolTip.Tip="{localization:Localize Window.Maximize}">
+                        ToolTip.Tip="{localization:Localize Window.MaximizeRestore}">
                     <Path x:Name="MaximizeIcon"
                           Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
                           Fill="{Binding $parent[Button].Foreground}"

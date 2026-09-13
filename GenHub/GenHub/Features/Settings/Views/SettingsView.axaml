@@ -173,8 +173,8 @@
 
       <!-- Header -->
       <StackPanel Spacing="6" Margin="0,0,0,8">
-        <TextBlock Text="Settings" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
-        <TextBlock Text="Configure your GenHub preferences and application behavior"
+        <TextBlock Text="{localization:Localize Settings.Title.Settings}" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+        <TextBlock Text="{localization:Localize Settings.Subtitle.Settings}"
                    FontSize="14" Foreground="{DynamicResource TextSecondary}" />
       </StackPanel>
 
@@ -184,7 +184,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M7,5V19H17V5H7M7,3H17A2,2 0 0,1 19,5V19A2,2 0 0,1 17,21H7A2,2 0 0,1 5,19V5A2,2 0 0,1 7,3M9,7H15V9H9V7M9,11H15V13H9V11M9,15H15V17H9V15Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Game Configuration" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.GameConfiguration}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -253,7 +253,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Downloads" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.Downloads}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -330,15 +330,15 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="{localization:Localize Settings.Appearance.Header}" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.Appearance}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
           <StackPanel Spacing="16">
             <!-- Theme Selection -->
             <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Appearance.AccentColor.Label}" Classes="setting-label" />
-              <TextBlock Text="{localization:Localize Settings.Appearance.AccentColor.Description}"
+              <TextBlock Text="{localization:Localize Settings.Appearance.Theme.Label}" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Appearance.Theme.Description}"
                          Classes="setting-description" />
 
               <ItemsControl ItemsSource="{Binding AvailableThemes}" Margin="0,8,0,0">
@@ -428,7 +428,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M20,18H4V8H20V18Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Data Directories" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.DataDirectories}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -491,7 +491,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Migrate Installation" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.MigrateInstallation}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -557,7 +557,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16.5,16.5L13.5,19.5L12,18L13.5,16.5L12,15L13.5,13.5L12,12L13.5,10.5L15,12L16.5,10.5L18,12L16.5,13.5L18,15L16.5,16.5Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Logs" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.Logs}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -603,7 +603,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M13,3A9,9 0 0,0 4,12H1L4.89,16.89L4.96,17L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Performance" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.Performance}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -626,7 +626,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M2,6H6V18H2V6M9,6H13V18H9V6M16,6H20V18H16V6Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Content-Addressable Storage (CAS)" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.CAS}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -731,7 +731,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H17V2H7V2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Local Content Directories" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.LocalContent}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -751,7 +751,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="GitHub Discovery" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.GitHubDiscovery}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -771,7 +771,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Updates" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Section.Updates}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -901,7 +901,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"
                           Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
-                <TextBlock Text="Danger Zone" Classes="section-header" Margin="0" Foreground="{DynamicResource ErrorBrush}"/>
+                <TextBlock Text="{localization:Localize Settings.Section.DangerZone}" Classes="section-header" Margin="0" Foreground="{DynamicResource ErrorBrush}"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -971,7 +971,7 @@
 
       <!-- Action Buttons -->
       <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" Margin="0,10,0,0">
-        <Button Content="Reset to Defaults"
+        <Button Content="{localization:Localize Settings.Button.ResetToDefaults}"
                 Command="{Binding ResetToDefaultsCommand}"
                 Classes="secondary-button"
                 IsEnabled="{Binding !IsSaving}" />
@@ -982,7 +982,7 @@
         <StackPanel Orientation="Horizontal" Spacing="12">
           <PathIcon Data="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z"
                     Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-          <TextBlock Text="Settings are automatically saved and will take effect immediately or on next restart as needed."
+          <TextBlock Text="{localization:Localize Settings.Hint.SettingsAutoSave}"
                      Foreground="{DynamicResource TextSecondary}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center" />
         </StackPanel>
       </Border>

@@ -1028,6 +1028,22 @@
     <value>Language</value>
     <comment>Label for language selection.</comment>
   </data>
+  <data name="Settings.Appearance.AccentColor.Description" xml:space="preserve">
+    <value>Choose an accent color theme for buttons, tabs, highlights, glows, and scrollbars across GenHub.</value>
+    <comment>Description for accent color theme.</comment>
+  </data>
+  <data name="Settings.Appearance.AccentColor.Label" xml:space="preserve">
+    <value>Accent Color Theme</value>
+    <comment>Label for theme selection.</comment>
+  </data>
+  <data name="Settings.Appearance.ActiveTheme" xml:space="preserve">
+    <value>Active Theme:</value>
+    <comment>Active theme indicator label.</comment>
+  </data>
+  <data name="Settings.Appearance.Header" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>Header for appearance settings section.</comment>
+  </data>
   <data name="Settings.Appearance.Theme.ActiveTheme" xml:space="preserve">
     <value>Active Theme:</value>
     <comment>Active theme indicator label.</comment>
@@ -2149,8 +2165,12 @@
     <comment>Close window.</comment>
   </data>
   <data name="Window.Maximize" xml:space="preserve">
-    <value>Maximize</value>
-    <comment>Maximize window.</comment>
+    <value>Maximize or Restore</value>
+    <comment>Maximize or restore window.</comment>
+  </data>
+  <data name="Window.MaximizeRestore" xml:space="preserve">
+    <value>Maximize or Restore</value>
+    <comment>Maximize or restore window.</comment>
   </data>
   <data name="Window.Minimize" xml:space="preserve">
     <value>Minimize</value>
