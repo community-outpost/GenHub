@@ -107,98 +107,151 @@
 .bento-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     margin-bottom: 1.5rem;
 }
 
 .card-icon-wrap {
-    width: 52px;
-    height: 52px;
-    border-radius: 0.85rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(139, 92, 246, 0.15);
+    background: rgba(139, 92, 246, 0.12);
     border: 1px solid rgba(139, 92, 246, 0.3);
     color: var(--primary-light);
-    transition: all var(--transition-fast);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease, color 0.25s ease;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .card-icon-wrap svg,
 .card-icon-wrap img,
 .card-icon-wrap i {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
+    transition: transform 0.25s ease;
 }
 
-.bento-card:hover .card-icon-wrap {
-    transform: scale(1.06);
-    background: var(--gradient-primary);
-    color: #ffffff;
-    box-shadow: 0 0 20px var(--primary-glow);
-}
-
-.icon-emerald {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: rgba(16, 185, 129, 0.35);
-    color: var(--accent-emerald);
-}
-
-.bento-card:hover .icon-emerald {
-    background: var(--gradient-emerald);
-    color: #ffffff;
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-}
-
-.icon-cyan {
-    background: rgba(56, 189, 248, 0.15);
-    border-color: rgba(56, 189, 248, 0.35);
-    color: var(--accent-cyan);
-}
-
-.bento-card:hover .icon-cyan {
-    background: var(--gradient-cyan);
-    color: #ffffff;
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+.bento-card:hover .card-icon-wrap svg {
+    transform: scale(1.08);
 }
 
 .icon-steam {
-    background: rgba(14, 165, 233, 0.15);
+    background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.24), rgba(14, 165, 233, 0.05));
     border-color: rgba(56, 189, 248, 0.35);
     color: #38bdf8;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(14, 165, 233, 0.15);
 }
 
 .bento-card:hover .icon-steam {
-    background: linear-gradient(135deg, #0284c7, #38bdf8);
-    color: #ffffff;
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.7);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(56, 189, 248, 0.35);
+    background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.35), rgba(14, 165, 233, 0.12));
+    color: #7dd3fc;
 }
 
+.icon-cyan {
+    background: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.24), rgba(6, 182, 212, 0.05));
+    border-color: rgba(6, 182, 212, 0.35);
+    color: #22d3ee;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(6, 182, 212, 0.15);
+}
+
+.bento-card:hover .icon-cyan {
+    transform: translateY(-2px);
+    border-color: rgba(6, 182, 212, 0.7);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(6, 182, 212, 0.35);
+    background: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.12));
+    color: #67e8f9;
+}
+
+.icon-emerald {
+    background: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.24), rgba(16, 185, 129, 0.05));
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #34d399;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(16, 185, 129, 0.15);
+}
+
+.bento-card:hover .icon-emerald {
+    transform: translateY(-2px);
+    border-color: rgba(16, 185, 129, 0.7);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(16, 185, 129, 0.35);
+    background: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.35), rgba(16, 185, 129, 0.12));
+    color: #6ee7b7;
+}
+
+.icon-purple,
+.icon-deck {
+    background: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.24), rgba(147, 51, 234, 0.05));
+    border-color: rgba(168, 85, 247, 0.35);
+    color: #c084fc;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(168, 85, 247, 0.15);
+}
+
+.bento-card:hover .icon-purple,
+.bento-card:hover .icon-deck {
+    transform: translateY(-2px);
+    border-color: rgba(168, 85, 247, 0.7);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(168, 85, 247, 0.35);
+    background: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.35), rgba(147, 51, 234, 0.12));
+    color: #e9d5ff;
+}
+
+/* Card Badge - Tactical HUD telemetry chip */
 .card-badge {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 0.3rem 0.75rem;
-    border-radius: 9999px;
+    letter-spacing: 0.08em;
+    padding: 0.28rem 0.7rem;
+    border-radius: 6px;
+    font-family: var(--font-mono, monospace);
+    background: rgba(15, 15, 25, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-muted);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all var(--transition-fast);
+}
+
+.badge-workspaces {
+    background: rgba(14, 165, 233, 0.12);
+    color: #7dd3fc;
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.badge-catalog {
+    background: rgba(6, 182, 212, 0.12);
+    color: #67e8f9;
+    border-color: rgba(34, 211, 238, 0.3);
+}
+
+.badge-tools {
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+    border-color: rgba(52, 211, 153, 0.3);
+}
+
+.badge-deck,
+.badge-purple {
+    background: rgba(168, 85, 247, 0.12);
+    color: #d8b4fe;
+    border-color: rgba(192, 132, 252, 0.3);
 }
 
 .badge-emerald {
-    background: #064e3b;
-    color: #a7f3d0;
-    border: 1px solid #059669;
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+    border-color: rgba(52, 211, 153, 0.3);
 }
 
 .badge-cyan {
-    background: #0c4a6e;
-    color: #bae6fd;
-    border: 1px solid #0284c7;
-}
-
-.badge-purple {
-    background: #2e1065;
-    color: #ddd6fe;
-    border: 1px solid #7c3aed;
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    border-color: rgba(56, 189, 248, 0.3);
 }
 
 /* Card Body */
@@ -271,5 +324,3 @@
 .spotlight-updates .feature-points li svg {
     color: #38bdf8;
 }
-
-

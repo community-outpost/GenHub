@@ -1362,8 +1362,8 @@ main {
 .card-positive h3 { color: #bae6fd; }
 
 .comparison-icon {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1372,13 +1372,15 @@ main {
 }
 
 .card-negative .comparison-icon {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.18);
+    border: 1px solid rgba(239, 68, 68, 0.35);
     color: #fca5a5;
 }
 
 .card-positive .comparison-icon {
-    background: rgba(56, 189, 248, 0.2);
-    color: #7dd3fc;
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
 }
 
 .comparison-list {
@@ -1398,10 +1400,10 @@ main {
 }
 
 .comparison-list li svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 .card-negative li svg { color: #f87171; }
@@ -1453,21 +1455,35 @@ main {
 }
 
 .step-icon-wrap {
-    width: 52px;
-    height: 52px;
-    border-radius: 0.85rem;
-    background: var(--gradient-glow);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: radial-gradient(circle at 35% 35%, rgba(139, 92, 246, 0.24), rgba(124, 58, 237, 0.05));
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(124, 58, 237, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 1.5rem;
     color: var(--primary-light);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.step-card:hover .step-icon-wrap {
+    transform: translateY(-2px);
+    border-color: rgba(168, 85, 247, 0.65);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(139, 92, 246, 0.35);
+    color: #e9d5ff;
 }
 
 .step-icon-wrap svg {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
+    transition: transform 0.25s ease;
+}
+
+.step-card:hover .step-icon-wrap svg {
+    transform: scale(1.08);
 }
 
 .step-card h3 {
