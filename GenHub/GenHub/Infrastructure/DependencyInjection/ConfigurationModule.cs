@@ -15,8 +15,6 @@ namespace GenHub.Infrastructure.DependencyInjection;
 /// </summary>
 public static class ConfigurationModule
 {
-    private static IConfiguration? _cachedConfiguration;
-
     /// <summary>
     /// Builds application configuration from appsettings files and environment variables.
     /// </summary>
@@ -35,21 +33,16 @@ public static class ConfigurationModule
     /// Initializes the configured data-path resolver for storage services before early adoption executes.
     /// </summary>
     /// <param name="configuration">Optional pre-built configuration.</param>
-    /// <returns>The configured <see cref="IConfiguration"/> instance.</returns>
-    public static IConfiguration InitializeConfiguredDataPathResolver(IConfiguration? configuration = null)
+    public static void InitializeConfiguredDataPathResolver(IConfiguration? configuration = null)
     {
-        var config = configuration ?? _cachedConfiguration ?? (_cachedConfiguration = CreateConfiguration());
-        _cachedConfiguration = config;
-        StorageMigrationService.SetConfiguredDataPathResolver(() => config[ConfigurationKeys.AppDataPath]);
-        return config;
-    }
-
-    /// <summary>
-    /// Resets the cached configuration instance (for unit testing).
-    /// </summary>
-    internal static void ResetCachedConfigurationForTesting()
-    {
-        _cachedConfiguration = null;
+        if (configuration != null)
+        {
+            StorageMigrationService.SetConfiguredDataPathResolver(() => configuration[ConfigurationKeys.AppDataPath]);
+        }
+        else
+        {
+            StorageMigrationService.SetConfiguredDataPathResolver(() => CreateConfiguration()[ConfigurationKeys.AppDataPath]);
+        }
     }
 
     /// <summary>
@@ -66,9 +59,13 @@ public static class ConfigurationModule
             builder.SetMinimumLevel(LogLevel.Warning);
         });
 
-        // Initialize configured data-path resolver eagerly and register configuration factory
-        InitializeConfiguredDataPathResolver();
-        services.AddSingleton<IConfiguration>(_ => InitializeConfiguredDataPathResolver());
+        // Register IConfiguration first - this is required by AppConfiguration
+        services.AddSingleton<IConfiguration>(provider =>
+        {
+            var config = CreateConfiguration();
+            StorageMigrationService.SetConfiguredDataPathResolver(() => config[ConfigurationKeys.AppDataPath]);
+            return config;
+        });
 
         // Register bootstrap loggers for configuration services
         services.AddSingleton<ILogger<AppConfiguration>>(provider =>
@@ -85,8 +82,13 @@ public static class ConfigurationModule
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IAppConfiguration>(provider =>
         {
-            var logger = provider.GetService<ILogger<AppConfiguration>>();
             var config = provider.GetService<IConfiguration>();
+            var logger = provider.GetService<ILogger<AppConfiguration>>();
+            if (config != null)
+            {
+                StorageMigrationService.SetConfiguredDataPathResolver(() => config[ConfigurationKeys.AppDataPath]);
+            }
+
             return new AppConfiguration(config, logger);
         });
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
@@ -98,9 +100,9 @@ public static class ConfigurationModule
         // Register image cache service with resolved configuration provider and logger
         services.AddSingleton<IImageCacheService>(provider =>
         {
-            var configProvider = provider.GetRequiredService<IConfigurationProviderService>();
+            var config = provider.GetRequiredService<IConfigurationProviderService>();
             var logger = provider.GetService<ILogger<ImageCacheService>>();
-            return new ImageCacheService(configProvider, logger);
+            return new ImageCacheService(config, logger);
         });
 
         return services;
