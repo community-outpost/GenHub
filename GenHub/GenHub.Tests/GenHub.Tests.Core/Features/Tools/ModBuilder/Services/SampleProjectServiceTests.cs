@@ -62,6 +62,8 @@ public sealed class SampleProjectServiceTests : IDisposable
     [Theory]
     [InlineData("GeneralsGamePatch2", true)]
     [InlineData("ImprovedMenus", true)]
+    [InlineData("LemonControlBar", true)]
+    [InlineData("LeikezeHotkeys", true)]
     [InlineData("Hotkeys", true)]
     [InlineData("CustomIcons", true)]
     [InlineData(@"C:\Projects\GeneralsGamePatch2\GeneralsGamePatch2.mbproj", true)]

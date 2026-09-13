@@ -27,6 +27,22 @@ public interface IArchiveService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Creates a BIG archive from a source directory using an optional layout manifest for byte-for-byte exact reproduction.
+    /// </summary>
+    /// <param name="sourceDirectory">Path to the source directory containing files to pack.</param>
+    /// <param name="targetBigPath">Path to the target .big file.</param>
+    /// <param name="manifestFilePath">Optional path to the .manifest.json file.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Operation result indicating success or failure.</returns>
+    Task<OperationResult<bool>> CreateBigArchiveAsync(
+        string sourceDirectory,
+        string targetBigPath,
+        string? manifestFilePath,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Extracts files from a BIG archive to the specified target directory.
     /// </summary>
     /// <param name="bigFilePath">Path to the .big archive.</param>

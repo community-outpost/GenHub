@@ -1,0 +1,21 @@
+{
+  "BundleItems": [
+    {
+      "Name": "LemonControlBarWindows",
+      "SourceFiles": [
+        "GameFilesEdited/Window/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 1080p control bar window definitions"
+    },
+    {
+      "Name": "LemonControlBarArt",
+      "SourceFiles": [
+        "GameFilesEdited/Art/**/*.tga"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "Description": "Lemon Edition 1080p control bar art assets"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Content;
@@ -314,6 +315,7 @@ public sealed class BuildEngineService(
 
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var projectDir = setup.ProjectDir ?? Directory.GetCurrentDirectory();
 
         try
         {
@@ -700,6 +702,7 @@ public sealed class BuildEngineService(
         CancellationToken cancellationToken)
     {
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var projectDir = setup.ProjectDir ?? Directory.GetCurrentDirectory();
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
         var items = setup.Bundles?.Items;
@@ -741,8 +744,16 @@ public sealed class BuildEngineService(
                 ProcessedFiles = Volatile.Read(ref _filesProcessed),
             });
 
+            string? manifestPath = null;
+            if (!string.IsNullOrEmpty(pack.ManifestFile))
+            {
+                manifestPath = Path.IsPathRooted(pack.ManifestFile)
+                    ? pack.ManifestFile
+                    : Path.Combine(projectDir, pack.ManifestFile);
+            }
+
             var archiveResult = pack.IsBigPack
-                ? await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, new Progress<double>(p =>
+                ? await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, manifestPath, new Progress<double>(p =>
                 {
                     progress?.Report(new BuildProgress
                     {
@@ -765,6 +776,30 @@ public sealed class BuildEngineService(
             {
                 Interlocked.Increment(ref _filesProcessed);
                 logger.LogInformation("Successfully created archive: {Path}", packFilePath);
+
+                if (pack.IsBigPack && File.Exists(packFilePath))
+                {
+                    using var sha = System.Security.Cryptography.SHA256.Create();
+                    using var stream = File.OpenRead(packFilePath);
+                    var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
+                    var builtSha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+                    if (!string.IsNullOrEmpty(manifestPath) && File.Exists(manifestPath))
+                    {
+                        var manifest = await BigFilePacker.LoadManifestAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+                        if (!string.IsNullOrEmpty(manifest?.Sha256))
+                        {
+                            if (string.Equals(builtSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
+                            {
+                                logger.LogInformation("BYTE-FOR-BYTE EXACT MATCH: Built BIG archive matches publisher SHA256: {Sha256}", builtSha256);
+                            }
+                            else
+                            {
+                                logger.LogWarning("BIG archive SHA256 mismatch with manifest! Expected {Expected}, got {Actual}", manifest.Sha256, builtSha256);
+                            }
+                        }
+                    }
+                }
             }
         }
         finally
@@ -860,6 +895,13 @@ public sealed class BuildEngineService(
     {
         var sourcePath = file.AbsSourceFile;
         if (string.IsNullOrEmpty(buildDir))
+        {
+            return (sourcePath, targetRelPath);
+        }
+
+        if (file.Params?.ContainsKey("noconvert") == true ||
+            file.Params?.ContainsKey("raw") == true ||
+            string.Equals(file.Params?.GetValueOrDefault("outputformat")?.ToString(), "RAW", StringComparison.OrdinalIgnoreCase))
         {
             return (sourcePath, targetRelPath);
         }

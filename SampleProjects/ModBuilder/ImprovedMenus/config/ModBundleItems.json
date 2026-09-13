@@ -21,9 +21,8 @@
       "SourceFiles": [
         "GameFilesEdited/Data/English/Art/Textures/**/*.tga"
       ],
-      "OutputFormat": "DDS",
-      "Compression": "DXT5",
-      "GenerateMipmaps": false,
+      "OutputFormat": "RAW",
+      "NoConvert": true,
       "Description": "High resolution menu backdrops and UI frame textures"
     }
   ]

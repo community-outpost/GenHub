@@ -297,6 +297,8 @@ public static class ModBuilderConstants
     [
         "GeneralsGamePatch2",
         "ImprovedMenus",
+        "LemonControlBar",
+        "LeikezeHotkeys",
         "Hotkeys"
     ];
 }

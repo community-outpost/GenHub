@@ -76,6 +76,18 @@
       <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
     </Style>
 
+    <!-- Showcase Card -->
+    <Style Selector="Border.showcase-card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+    <Style Selector="Border.showcase-card:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
     <!-- Recent Project Row -->
     <Style Selector="Border.recent-project-row">
       <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
@@ -301,6 +313,142 @@
           </Button>
         </Border>
       </Grid>
+
+      <!-- ==================== PUBLISHER SAMPLE PROJECTS SHOWCASE ==================== -->
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Path Width="16" Height="16"
+                  Fill="{DynamicResource AccentPrimary}"
+                  Data="{StaticResource IconPackage}"
+                  Stretch="Uniform"
+                  VerticalAlignment="Center"/>
+            <TextBlock Text="Explore Publisher Sample Projects"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       VerticalAlignment="Center"/>
+            <Border Background="{DynamicResource SuccessBadgeBackgroundBrush}"
+                    CornerRadius="10"
+                    Padding="8,2"
+                    Margin="6,0,0,0">
+              <TextBlock Text="Byte-for-Byte Verified"
+                         FontSize="10"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource SuccessBrush}"/>
+            </Border>
+          </StackPanel>
+          <TextBlock Grid.Column="1"
+                     Text="Official community releases reconstructed as editable projects"
+                     FontSize="11"
+                     Foreground="{DynamicResource TextTertiary}"
+                     VerticalAlignment="Center"/>
+        </Grid>
+
+        <ItemsControl ItemsSource="{Binding PublisherSampleProjects}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="2"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="models:SampleProjectShowcaseItem">
+              <Border Classes="showcase-card" Margin="4,4,4,4">
+                <Button Command="{Binding #Root.((vm:ModBuilderViewModel)DataContext).OpenSampleProjectCommand}"
+                        CommandParameter="{Binding}"
+                        Classes="card-action-btn"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        Padding="16,14">
+                  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+                    <!-- Top badges -->
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                      <Border Grid.Column="0"
+                              Background="{DynamicResource SurfaceVariant}"
+                              CornerRadius="4"
+                              Padding="6,2">
+                        <TextBlock Text="{Binding Tag}"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentPrimary}"/>
+                      </Border>
+                      <Border Grid.Column="2"
+                              Background="{DynamicResource SurfaceVariant}"
+                              CornerRadius="4"
+                              Padding="6,2">
+                        <TextBlock Text="{Binding TargetGame}"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource TextSecondary}"/>
+                      </Border>
+                    </Grid>
+
+                    <!-- Title & Publisher -->
+                    <StackPanel Grid.Row="1" Margin="0,8,0,4" Spacing="2">
+                      <TextBlock Text="{Binding Name}"
+                                 FontSize="14"
+                                 FontWeight="Bold"
+                                 Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBlock Text="{Binding Publisher, StringFormat='Publisher: {0}'}"
+                                 FontSize="11"
+                                 Foreground="{DynamicResource TextTertiary}"/>
+                    </StackPanel>
+
+                    <!-- Description -->
+                    <TextBlock Grid.Row="2"
+                               Text="{Binding Description}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextSecondary}"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,8"
+                               MaxLines="3"
+                               TextTrimming="CharacterEllipsis"/>
+
+                    <!-- Target BIG & Verification Pill -->
+                    <Border Grid.Row="3"
+                            Background="{DynamicResource SurfaceVariant}"
+                            CornerRadius="6"
+                            Padding="8,4"
+                            Margin="0,0,0,8">
+                      <Grid ColumnDefinitions="Auto,*">
+                        <Path Grid.Column="0"
+                              Width="12" Height="12"
+                              Fill="{DynamicResource SuccessBrush}"
+                              Data="{StaticResource IconCheckmark}"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding OutputFileName, StringFormat='Recreates {0}'}"
+                                   FontSize="10"
+                                   FontFamily="Consolas, monospace"
+                                   Foreground="{DynamicResource SuccessBrush}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                      </Grid>
+                    </Border>
+
+                    <!-- Bottom Action Link -->
+                    <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0"
+                                 Text="Download &amp; Open Project"
+                                 FontSize="11"
+                                 FontWeight="SemiBold"
+                                 Foreground="{DynamicResource AccentPrimary}"
+                                 VerticalAlignment="Center"/>
+                      <Path Grid.Column="1"
+                            Width="12" Height="12"
+                            Fill="{DynamicResource AccentPrimary}"
+                            Data="{StaticResource IconChevronRight}"
+                            Stretch="Uniform"
+                            VerticalAlignment="Center"/>
+                    </Grid>
+                  </Grid>
+                </Button>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
 
       <!-- ==================== RECENT PROJECTS SECTION ==================== -->
       <StackPanel Spacing="12">

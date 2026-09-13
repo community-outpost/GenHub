@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -342,6 +344,48 @@ public sealed class ArchiveServiceTests : IDisposable
         // Assert
         result.Success.Should().BeTrue();
         File.Exists(targetZip).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateBigArchiveAsync_WithManifest_PreservesExactLayoutAndTrailer()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempDirectory, "manifest_source");
+        Directory.CreateDirectory(Path.Combine(sourceDir, "Data", "INI"));
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "Data", "INI", "GameData.ini"), "[GameData]\nWindowed = Yes\n");
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "Data", "INI", "ControlBar.ini"), "[ControlBar]\nEnabled = 1\n");
+
+        var firstBig = Path.Combine(_tempDirectory, "first.big");
+        var firstResult = await _service.CreateBigArchiveAsync(sourceDir, firstBig);
+        firstResult.Success.Should().BeTrue();
+
+        // Extract manifest from first archive
+        var manifest = BigFilePacker.ExtractManifest(firstBig);
+        manifest.Should().NotBeNull();
+        manifest.EntryOrder.Should().HaveCount(2);
+
+        // Customize manifest with a custom trailer to simulate FinalBIG or special publishers
+        manifest.TrailerHex = "4C3232350000000000";
+        var manifestPath = Path.Combine(_tempDirectory, "custom.manifest.json");
+        await BigFilePacker.SaveManifestAsync(manifest, manifestPath);
+
+        // Repack using the manifest
+        var secondBig = Path.Combine(_tempDirectory, "second.big");
+        var secondResult = await _service.CreateBigArchiveAsync(sourceDir, secondBig, manifestFilePath: manifestPath);
+        secondResult.Success.Should().BeTrue();
+
+        // Verify the repacked big has the custom trailer
+        var secondBytes = await File.ReadAllBytesAsync(secondBig);
+        var secondManifest = BigFilePacker.ExtractManifest(secondBig);
+        secondManifest.TrailerHex.Should().Be("4C3232350000000000");
+
+        // Repack a third time with the exact same manifest -> byte for byte identical to secondBig
+        var thirdBig = Path.Combine(_tempDirectory, "third.big");
+        var thirdResult = await _service.CreateBigArchiveAsync(sourceDir, thirdBig, manifestFilePath: manifestPath);
+        thirdResult.Success.Should().BeTrue();
+
+        var thirdBytes = await File.ReadAllBytesAsync(thirdBig);
+        thirdBytes.Should().Equal(secondBytes);
     }
 
     private static string? FindExtractedPatchDir()

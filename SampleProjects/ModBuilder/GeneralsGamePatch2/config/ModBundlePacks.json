@@ -6,6 +6,7 @@
         "PatchINI"
       ],
       "OutputFile": ".Release/500_900_CommunityPatch_CoreINI.big",
+      "ManifestFile": "config/500_900_CommunityPatch_CoreINI.big.manifest.json",
       "Big": true,
       "AllowBuild": true,
       "AllowInstall": true,

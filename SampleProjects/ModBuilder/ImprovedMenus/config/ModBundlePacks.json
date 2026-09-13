@@ -8,6 +8,7 @@
         "MenuTextures"
       ],
       "OutputFile": ".Release/0_ImprovedMenusEnglish.big",
+      "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Big": true,
       "AllowBuild": true,
       "AllowInstall": true,
