@@ -411,7 +411,15 @@ public partial class GenHotkeysViewModel(
 
         if (string.Equals(presetName, GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase))
         {
-            await ApplyLegionnairePresetAsync(targetProfile, cancellationToken);
+            await ApplyCsfPresetAsync(targetProfile, GenHotkeysConstants.PresetLegionnaire, GenHotkeysConstants.PresetsLegionnaireEn, cancellationToken);
+        }
+        else if (string.Equals(presetName, GenHotkeysConstants.PresetLeikeze, StringComparison.OrdinalIgnoreCase))
+        {
+            await ApplyCsfPresetAsync(targetProfile, GenHotkeysConstants.PresetLeikeze, GenHotkeysConstants.PresetsLeikezeEn, cancellationToken);
+        }
+        else if (string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase))
+        {
+            await ApplyVanillaPresetAsync(targetProfile, cancellationToken);
         }
         else
         {
@@ -439,16 +447,13 @@ public partial class GenHotkeysViewModel(
                 ValidateConflicts();
             }
 
-            var isVanilla = string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase);
             if (savedProfile == null)
             {
                 StatusMessage = $"Failed to save profile after applying preset '{presetName}'.";
             }
             else
             {
-                StatusMessage = isVanilla
-                    ? "Applied default vanilla retail hotkeys."
-                    : $"Applied '{presetName}' preset hotkeys.";
+                StatusMessage = $"Applied '{presetName}' preset hotkeys.";
             }
         }
     }
@@ -1345,9 +1350,9 @@ public partial class GenHotkeysViewModel(
             string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static Dictionary<string, char>? ExtractLegionnaireMappings(HashSet<string> validActionKeys)
+    private static Dictionary<string, char>? ExtractPresetMappings(string presetPath, HashSet<string> validActionKeys)
     {
-        using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireEn);
+        using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetPath);
         if (stream == null)
         {
             return null;
@@ -1404,32 +1409,13 @@ public partial class GenHotkeysViewModel(
         return matchingCount;
     }
 
-    private async Task ApplyLegionnairePresetAsync(HotkeyProfile targetProfile, CancellationToken cancellationToken)
+    private async Task ApplyVanillaPresetAsync(HotkeyProfile targetProfile, CancellationToken cancellationToken)
     {
         try
         {
-            var validActionKeys = new HashSet<string>(
-                _allFactions.SelectMany(f => f.GameObjects).SelectMany(o => o.KeyboardLayouts).SelectMany(l => l)
-                    .Where(a => !string.IsNullOrEmpty(a.HotkeyString))
-                    .Select(a => a.HotkeyString),
-                StringComparer.OrdinalIgnoreCase);
-
-            var extractedMappings = await Task.Run(
-                () => ExtractLegionnaireMappings(validActionKeys),
-                cancellationToken).ConfigureAwait(true);
-
-            if (cancellationToken.IsCancellationRequested || !ReferenceEquals(SelectedProfile, targetProfile))
-            {
-                return;
-            }
-
-            if (extractedMappings == null)
-            {
-                StatusMessage = "Failed to load Legionnaire preset asset.";
-                return;
-            }
-
-            PopulateProfileMappings(targetProfile, GenHotkeysConstants.PresetLegionnaire, extractedMappings);
+            targetProfile.BasePreset = GenHotkeysConstants.PresetVanilla;
+            targetProfile.KeyMappings.Clear();
+            targetProfile.ClearedKeys.Clear();
 
             HotkeyProfile? savedProfile = null;
             try
@@ -1442,7 +1428,7 @@ public partial class GenHotkeysViewModel(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to save profile after applying Legionnaire preset");
+                logger.LogError(ex, "Failed to save profile after applying Vanilla preset");
             }
 
             if (ReferenceEquals(SelectedProfile, targetProfile))
@@ -1451,7 +1437,9 @@ public partial class GenHotkeysViewModel(
                 ValidateConflicts();
             }
 
-            StatusMessage = savedProfile != null ? "Applied Legionnaire preset hotkeys." : "Failed to save profile after applying Legionnaire preset.";
+            StatusMessage = savedProfile != null
+                ? "Applied default vanilla retail hotkeys."
+                : "Failed to save profile after applying Vanilla preset.";
         }
         catch (OperationCanceledException)
         {
@@ -1459,7 +1447,73 @@ public partial class GenHotkeysViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to apply Legionnaire preset");
+            logger.LogError(ex, "Failed to apply Vanilla preset");
+            StatusMessage = $"Failed to apply preset: {ex.Message}";
+        }
+    }
+
+    private async Task ApplyCsfPresetAsync(
+        HotkeyProfile targetProfile,
+        string presetName,
+        string presetCsfRelativePath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var validActionKeys = new HashSet<string>(
+                _allFactions.SelectMany(f => f.GameObjects).SelectMany(o => o.KeyboardLayouts).SelectMany(l => l)
+                    .Where(a => !string.IsNullOrEmpty(a.HotkeyString))
+                    .Select(a => a.HotkeyString),
+                StringComparer.OrdinalIgnoreCase);
+
+            var extractedMappings = await Task.Run(
+                () => ExtractPresetMappings(presetCsfRelativePath, validActionKeys),
+                cancellationToken).ConfigureAwait(true);
+
+            if (cancellationToken.IsCancellationRequested || !ReferenceEquals(SelectedProfile, targetProfile))
+            {
+                return;
+            }
+
+            if (extractedMappings == null)
+            {
+                StatusMessage = $"Failed to load {presetName} preset asset.";
+                return;
+            }
+
+            PopulateProfileMappings(targetProfile, presetName, extractedMappings);
+
+            HotkeyProfile? savedProfile = null;
+            try
+            {
+                savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to save profile after applying {Preset} preset", presetName);
+            }
+
+            if (ReferenceEquals(SelectedProfile, targetProfile))
+            {
+                ApplyProfileMappingsToViewModels();
+                ValidateConflicts();
+            }
+
+            StatusMessage = savedProfile != null
+                ? $"Applied {presetName} preset hotkeys."
+                : $"Failed to save profile after applying {presetName} preset.";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to apply {Preset} preset", presetName);
             StatusMessage = $"Failed to apply preset: {ex.Message}";
         }
     }

@@ -388,7 +388,8 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
     {
         try
         {
-            var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
+            var presetPath = GenHotkeysConstants.GetVanillaPresetCsfPath(gameType);
+            var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetPath);
             if (stream != null)
             {
                 using (stream)

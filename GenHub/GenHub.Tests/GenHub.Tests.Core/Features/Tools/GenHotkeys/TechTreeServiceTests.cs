@@ -82,4 +82,57 @@ public class TechTreeServiceTests
         // GLAWorker is a 2-page builder (Page 1 = Real, Page 2 = Fake) and must retain 2 layouts
         Assert.Equal(2, worker.KeyboardLayouts.Count);
     }
+
+    /// <summary>
+    /// Verifies that Zero Hour tech tree actions load retail vanilla default hotkeys (e.g. America Dozer is 'D', not 'F').
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TechTreeService_ZeroHour_LoadsRetailVanillaDefaultHotkeysAsync()
+    {
+        var factions = await _service.LoadTechTreeAsync(GameType.ZeroHour);
+        var usa = factions.FirstOrDefault(f => f.ShortName == "USA");
+        Assert.NotNull(usa);
+
+        var allActions = usa.GameObjects
+            .SelectMany(g => g.KeyboardLayouts)
+            .SelectMany(l => l)
+            .ToList();
+
+        var dozerAction = allActions.FirstOrDefault(a => a.HotkeyString == "CONTROLBAR:ConstructAmericaDozer");
+        Assert.NotNull(dozerAction);
+        Assert.Equal('D', dozerAction.DefaultHotkey);
+        Assert.Equal('D', dozerAction.Hotkey);
+        Assert.Equal("Construction Dozer", dozerAction.DisplayName);
+
+        var rangerAction = allActions.FirstOrDefault(a => a.HotkeyString == "CONTROLBAR:ConstructAmericaInfantryRanger");
+        Assert.NotNull(rangerAction);
+        Assert.Equal('G', rangerAction.DefaultHotkey);
+
+        var crusaderAction = allActions.FirstOrDefault(a => a.HotkeyString == "CONTROLBAR:ConstructAmericaTankCrusader");
+        Assert.NotNull(crusaderAction);
+        Assert.Equal('C', crusaderAction.DefaultHotkey);
+    }
+
+    /// <summary>
+    /// Verifies that Generals tech tree actions load retail vanilla default hotkeys (e.g. America Dozer is 'D').
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TechTreeService_Generals_LoadsRetailVanillaDefaultHotkeysAsync()
+    {
+        var factions = await _service.LoadTechTreeAsync(GameType.Generals);
+        var usa = factions.FirstOrDefault(f => f.ShortName == "USA");
+        Assert.NotNull(usa);
+
+        var allActions = usa.GameObjects
+            .SelectMany(g => g.KeyboardLayouts)
+            .SelectMany(l => l)
+            .ToList();
+
+        var dozerAction = allActions.FirstOrDefault(a => a.HotkeyString == "CONTROLBAR:ConstructAmericaDozer");
+        Assert.NotNull(dozerAction);
+        Assert.Equal('D', dozerAction.DefaultHotkey);
+        Assert.Equal('D', dozerAction.Hotkey);
+    }
 }
