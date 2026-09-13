@@ -119,23 +119,28 @@ body::after {
 .section-tag {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    background: rgba(139, 92, 246, 0.12);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    gap: 0.55rem;
+    background: rgba(139, 92, 246, 0.09);
+    border: 1px solid rgba(139, 92, 246, 0.28);
     color: var(--primary-light);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 0.35rem 0.9rem;
+    padding: 0.35rem 0.85rem;
     border-radius: 9999px;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    font-family: var(--font-mono, monospace);
 }
 
 .section-tag svg,
 .section-tag i {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
 }
 
 .section-title {
