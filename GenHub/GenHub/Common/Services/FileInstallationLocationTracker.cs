@@ -143,7 +143,7 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
 
         if (string.IsNullOrWhiteSpace(profileDir))
         {
-            profileDir = Path.GetTempPath();
+            profileDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         }
 
         return Path.Combine(profileDir, StorageMigrationConstants.GenHubConfigDirectoryName, StorageMigrationConstants.CustomInstallPathFileName);

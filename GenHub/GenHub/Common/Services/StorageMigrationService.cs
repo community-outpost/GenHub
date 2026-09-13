@@ -50,6 +50,8 @@ public class StorageMigrationService(
     private const string ImportUserDataFailureMessage =
         "Failed to import user data from custom installation directory {CustomRoot}";
 
+    private const string WriteAdoptionMarkerErrorMessage = "Failed to write adoption marker file";
+
     private static readonly EnumerationOptions RecursiveEnumerationOptions = new()
     {
         IgnoreInaccessible = false,
@@ -901,9 +903,11 @@ public class StorageMigrationService(
                 }
                 catch (IOException)
                 {
+                    // Best-effort cleanup of corrupted marker
                 }
                 catch (UnauthorizedAccessException)
                 {
+                    // Best-effort cleanup of corrupted marker
                 }
 
                 return false;
@@ -955,22 +959,22 @@ public class StorageMigrationService(
         }
         catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to write adoption marker file");
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger?.LogWarning(ex, "Failed to write adoption marker file");
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
             return false;
         }
         catch (SecurityException ex)
         {
-            logger?.LogWarning(ex, "Failed to write adoption marker file");
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
             return false;
         }
         catch (ArgumentException ex)
         {
-            logger?.LogWarning(ex, "Failed to write adoption marker file");
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
             return false;
         }
     }

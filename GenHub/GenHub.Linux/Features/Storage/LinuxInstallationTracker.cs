@@ -114,36 +114,7 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
             var trimmed = line.Trim();
             if (trimmed.StartsWith("Exec=", StringComparison.OrdinalIgnoreCase))
             {
-                var raw = trimmed["Exec=".Length..].Trim();
-                string candidate;
-                if (raw.StartsWith('\"'))
-                {
-                    var closingQuote = -1;
-                    for (var i = 1; i < raw.Length; i++)
-                    {
-                        if (raw[i] == '\"' && raw[i - 1] != '\\')
-                        {
-                            closingQuote = i;
-                            break;
-                        }
-                    }
-
-                    var insideQuotes = closingQuote > 1 ? raw[1..closingQuote] : raw.Trim('\"');
-                    candidate = insideQuotes
-                        .Replace("\\\"", "\"")
-                        .Replace("\\\\", "\\")
-                        .Replace("\\$", "$")
-                        .Replace("\\`", "`")
-                        .Replace("\\n", "\n")
-                        .Replace("%%", "%");
-                }
-                else
-                {
-                    var firstSpace = raw.IndexOf(' ');
-                    var token = firstSpace > 0 ? raw[..firstSpace] : raw;
-                    candidate = token.Replace("%%", "%");
-                }
-
+                var candidate = ExtractExecutableToken(trimmed["Exec=".Length..].Trim());
                 if (!string.IsNullOrWhiteSpace(candidate) && Path.IsPathRooted(candidate))
                 {
                     return candidate;
@@ -152,6 +123,40 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
         }
 
         return null;
+    }
+
+    private static string ExtractExecutableToken(string raw)
+    {
+        if (raw.StartsWith('\"'))
+        {
+            var closingQuote = -1;
+            for (var i = 1; i < raw.Length; i++)
+            {
+                if (raw[i] == '\"' && raw[i - 1] != '\\')
+                {
+                    closingQuote = i;
+                    break;
+                }
+            }
+
+            var insideQuotes = closingQuote > 1 ? raw[1..closingQuote] : raw.Trim('\"');
+            return DecodeFreedesktopEscapes(insideQuotes);
+        }
+
+        var firstSpace = raw.IndexOf(' ');
+        var token = firstSpace > 0 ? raw[..firstSpace] : raw;
+        return token.Replace("%%", "%");
+    }
+
+    private static string DecodeFreedesktopEscapes(string value)
+    {
+        return value
+            .Replace("\\\"", "\"")
+            .Replace("\\\\", "\\")
+            .Replace("\\$", "$")
+            .Replace("\\`", "`")
+            .Replace("\\n", "\n")
+            .Replace("%%", "%");
     }
 
     private static string? ResolveCandidateVelopackRoot(string directory)
