@@ -640,7 +640,7 @@ public sealed class ProjectConfigService(
         }
 
         var normalizedConfig = config.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
-        var effectiveConfigsDirName = string.IsNullOrWhiteSpace(configsDirName) ? "config" : configsDirName;
+        var effectiveConfigsDirName = string.IsNullOrWhiteSpace(configsDirName) ? ModBuilderConstants.LowercaseConfigDir : configsDirName;
         var configsDir = Path.Combine(projectDir, effectiveConfigsDirName);
 
         // 1. Direct match under configsDir (e.g. "ModBundleItems.json")

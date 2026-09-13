@@ -287,7 +287,7 @@ public partial class FileManagerViewModel(
             {
                 DisplayName = $"Generals ({installation.InstallationType})",
                 Path = installation.GeneralsPath,
-                IconPath = "avares://GenHub/Assets/Icons/generals-icon.png",
+                IconPath = UriConstants.GeneralsIconUri,
                 InstallationType = installation.InstallationType.ToString()
             });
         }
@@ -298,7 +298,7 @@ public partial class FileManagerViewModel(
             {
                 DisplayName = $"Zero Hour ({installation.InstallationType})",
                 Path = installation.ZeroHourPath,
-                IconPath = "avares://GenHub/Assets/Icons/zerohour-icon.png",
+                IconPath = UriConstants.ZeroHourIconUri,
                 InstallationType = installation.InstallationType.ToString()
             });
         }
@@ -864,8 +864,12 @@ public partial class FileManagerViewModel(
     {
         if (!string.IsNullOrEmpty(_projectPath))
         {
-            _reloadCts?.Cancel();
-            _reloadCts?.Dispose();
+            if (_reloadCts != null)
+            {
+                await _reloadCts.CancelAsync().ConfigureAwait(false);
+                _reloadCts.Dispose();
+                _reloadCts = null;
+            }
             var cts = new CancellationTokenSource();
             _reloadCts = cts;
             try

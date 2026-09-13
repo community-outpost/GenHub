@@ -185,13 +185,13 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Gets the list of build configurations.
     /// </summary>
-    public ObservableCollection<string> BuildConfigurations { get; } = ["Debug", "Release"];
+    public ObservableCollection<string> BuildConfigurations { get; } = [ModBuilderConstants.BuildConfigurationDebug, ModBuilderConstants.BuildConfigurationRelease];
 
     /// <summary>
     /// Gets or sets the selected configuration.
     /// </summary>
     [ObservableProperty]
-    private string _selectedConfiguration = "Debug";
+    private string _selectedConfiguration = ModBuilderConstants.BuildConfigurationDebug;
 
     /// <summary>
     /// Gets the list of compression levels.
@@ -566,7 +566,7 @@ public partial class ModBuilderViewModel(
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            name = "Untitled Project";
+            name = ModBuilderConstants.UntitledProjectName;
         }
 
         DateTime? lastWriteTime = null;
@@ -779,13 +779,18 @@ public partial class ModBuilderViewModel(
         logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
         AppendBuildLog($"Importing {selectedPaths.Count} .BIG archive(s) into project...");
 
+        _buildCancellationTokenSource?.Cancel();
+        _buildCancellationTokenSource?.Dispose();
+        var cts = new CancellationTokenSource();
+        _buildCancellationTokenSource = cts;
+
         try
         {
             var result = await projectConfigService.ImportBigFilesAsync(
                 ProjectPath,
                 selectedPaths,
                 createBundlePackForBig: true,
-                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: cts.Token).ConfigureAwait(false);
 
             if (result.Success)
             {
@@ -806,6 +811,11 @@ public partial class ModBuilderViewModel(
                 notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
                 AppendBuildLog($"Import failed: {result.FirstError}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            AppendBuildLog("Import cancelled.");
+            notificationService.ShowInfo("Import Cancelled", "The BIG import operation was cancelled.");
         }
         catch (Exception ex)
         {
@@ -1085,8 +1095,8 @@ public partial class ModBuilderViewModel(
     {
         return installationType switch
         {
-            "Generals" => ("avares://GenHub/Assets/Icons/generals-icon.png", "Generals"),
-            "ZeroHour" => ("avares://GenHub/Assets/Icons/zerohour-icon.png", "Zero Hour"),
+            ModBuilderConstants.GeneralsInstallationType => (UriConstants.GeneralsIconUri, ModBuilderConstants.GeneralsDisplayName),
+            ModBuilderConstants.ZeroHourInstallationType => (UriConstants.ZeroHourIconUri, ModBuilderConstants.ZeroHourDisplayName),
             _ => (string.Empty, string.Empty)
         };
     }
@@ -1132,7 +1142,7 @@ public partial class ModBuilderViewModel(
             Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral)),
         };
 
-        var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), "Samples");
+        var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
         CleanDeprecatedSampleDirectories(userSamplesDir);
 
         var userProjectPaths = new List<string>();
@@ -1272,24 +1282,61 @@ public partial class ModBuilderViewModel(
 
     private static void DeleteProjectFilesFromDisk(string path)
     {
-        var projectDir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(projectDir) && Directory.Exists(projectDir))
-        {
-            if (IsProtectedProjectDirectory(projectDir))
-            {
-                if (File.Exists(path))
-                {
-                    File.Delete(path);
-                }
-            }
-            else
-            {
-                Directory.Delete(projectDir, recursive: true);
-            }
-        }
-        else if (File.Exists(path))
+        if (File.Exists(path))
         {
             File.Delete(path);
+        }
+
+        var projectDir = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir) || IsProtectedProjectDirectory(projectDir))
+        {
+            return;
+        }
+
+        // If other project files exist in this folder, do not delete sibling projects or shared folders
+        var siblingProjects = Directory.GetFiles(projectDir, ModBuilderConstants.ProjectFilePattern);
+        if (siblingProjects.Length > 0)
+        {
+            return;
+        }
+
+        // Delete known project-owned subdirectories if they exist
+        var knownDirs = new[]
+        {
+            Path.Combine(projectDir, ModBuilderConstants.DefaultBuildDir),
+            Path.Combine(projectDir, ModBuilderConstants.DefaultReleaseDir),
+            Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir),
+            Path.Combine(projectDir, ModBuilderConstants.ConfigDir),
+            Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir),
+            Path.Combine(projectDir, ModBuilderConstants.CacheDirectoryName),
+        };
+
+        foreach (var dir in knownDirs)
+        {
+            if (Directory.Exists(dir))
+            {
+                try
+                {
+                    Directory.Delete(dir, recursive: true);
+                }
+                catch
+                {
+                    // Ignore deletion errors on subdirectories
+                }
+            }
+        }
+
+        // Only delete the project directory itself if it is completely empty
+        try
+        {
+            if (Directory.Exists(projectDir) && !Directory.EnumerateFileSystemEntries(projectDir).Any())
+            {
+                Directory.Delete(projectDir, recursive: false);
+            }
+        }
+        catch
+        {
+            // Ignore directory deletion errors
         }
     }
 
@@ -1353,7 +1400,7 @@ public partial class ModBuilderViewModel(
             }
 
             var projectName = Path.GetFileName(oldProjectDir);
-            var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), "Samples");
+            var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
             var targetDir = Path.Combine(userSamplesDir, projectName);
             var targetProjectPath = Path.Combine(targetDir, Path.GetFileName(oldProjectPath));
 
@@ -1994,7 +2041,7 @@ public partial class ModBuilderViewModel(
             else
             {
                 var outputPath = CurrentProject != null
-                    ? Path.Combine(CurrentProject.ProjectDir, CurrentProject.Directories.Build)
+                    ? Path.Combine(CurrentProject.ProjectDir, CurrentProject.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir)
                     : string.Empty;
                 var summaryMessage = $"Processed {filesProcessed} files\n" +
                     $"Created {bundlesCreated} bundles\n" +
@@ -2465,7 +2512,7 @@ public partial class ModBuilderViewModel(
                 return;
             }
 
-            var buildDir = CurrentProject.Directories.Build ?? ModBuilderConstants.DefaultBuildDir;
+            var buildDir = CurrentProject?.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
             var buildPath = Path.IsPathRooted(buildDir) ? buildDir : Path.Combine(projectDir, buildDir);
             if (IsPathInsideAppDirectory(buildPath))
             {
@@ -2670,7 +2717,7 @@ public partial class ModBuilderViewModel(
         if (CurrentProject != null)
         {
             GameDirectory = CurrentProject.GameDir;
-            OutputDirectory = CurrentProject.Directories.Build;
+            OutputDirectory = CurrentProject.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
         }
 
         if (config != null)
