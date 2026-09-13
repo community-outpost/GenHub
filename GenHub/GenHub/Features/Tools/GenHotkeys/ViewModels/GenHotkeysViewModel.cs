@@ -508,6 +508,15 @@ public partial class GenHotkeysViewModel(
         {
             await profileStorageService.SaveProfileAsync(newProfile, cancellationToken);
             Profiles.Add(newProfile);
+
+            var sorted = Profiles.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            Profiles.Clear();
+            foreach (var p in sorted)
+            {
+                Profiles.Add(p);
+            }
+
+            SelectedProfile = null;
             SelectedProfile = newProfile;
             NewProfileName = string.Empty;
             StatusMessage = $"Created profile '{name}'.";
@@ -552,6 +561,14 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
+        var sorted = Profiles.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        Profiles.Clear();
+        foreach (var p in sorted)
+        {
+            Profiles.Add(p);
+        }
+
+        SelectedProfile = null;
         SelectedProfile = currentProfile;
 
         await CheckExistingAddonAsync(cancellationToken);
