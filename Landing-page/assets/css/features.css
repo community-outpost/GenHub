@@ -217,6 +217,10 @@
     margin-bottom: 1.5rem;
 }
 
+.bento-desc:last-child {
+    margin-bottom: 0;
+}
+
 .bento-desc code {
     color: #38bdf8;
     background: rgba(56, 189, 248, 0.1);
