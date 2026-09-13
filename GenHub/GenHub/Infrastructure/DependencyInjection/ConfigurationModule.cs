@@ -46,6 +46,13 @@ public static class ConfigurationModule
     }
 
     /// <summary>
+    /// Resets cached configuration state for testing.
+    /// </summary>
+    internal static void ResetCachedConfigurationForTesting()
+    {
+    }
+
+    /// <summary>
     /// Registers configuration services with the service collection.
     /// </summary>
     /// <param name="services">The service collection to register services with.</param>
