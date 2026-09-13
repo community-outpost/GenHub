@@ -129,7 +129,7 @@
 .card-icon-wrap svg {
     width: 32px;
     height: 32px;
-    transition: transform 0.25s ease;
+    transition: transform 0.25s ease, color 0.25s ease;
 }
 
 .bento-card:hover .card-icon-wrap svg {
@@ -137,7 +137,8 @@
 }
 
 .icon-steam {
-    background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.24), rgba(14, 165, 233, 0.05));
+    background-color: #0c1a29;
+    background-image: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.24), rgba(14, 165, 233, 0.05));
     border-color: rgba(56, 189, 248, 0.35);
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(14, 165, 233, 0.15);
 }
@@ -150,7 +151,8 @@
     transform: translateY(-2px);
     border-color: rgba(56, 189, 248, 0.7);
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(56, 189, 248, 0.35);
-    background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.35), rgba(14, 165, 233, 0.12));
+    background-color: #0f273d;
+    background-image: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.35), rgba(14, 165, 233, 0.12));
 }
 
 .bento-card:hover .icon-steam svg {
@@ -158,7 +160,8 @@
 }
 
 .icon-cyan {
-    background: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.24), rgba(6, 182, 212, 0.05));
+    background-color: #091c24;
+    background-image: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.24), rgba(6, 182, 212, 0.05));
     border-color: rgba(6, 182, 212, 0.35);
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(6, 182, 212, 0.15);
 }
@@ -171,7 +174,8 @@
     transform: translateY(-2px);
     border-color: rgba(6, 182, 212, 0.7);
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(6, 182, 212, 0.35);
-    background: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.12));
+    background-color: #0c2b38;
+    background-image: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.12));
 }
 
 .bento-card:hover .icon-cyan svg {
@@ -179,7 +183,8 @@
 }
 
 .icon-emerald {
-    background: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.24), rgba(16, 185, 129, 0.05));
+    background-color: #091f17;
+    background-image: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.24), rgba(16, 185, 129, 0.05));
     border-color: rgba(16, 185, 129, 0.35);
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(16, 185, 129, 0.15);
 }
@@ -192,7 +197,8 @@
     transform: translateY(-2px);
     border-color: rgba(16, 185, 129, 0.7);
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(16, 185, 129, 0.35);
-    background: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.35), rgba(16, 185, 129, 0.12));
+    background-color: #0f2e22;
+    background-image: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.35), rgba(16, 185, 129, 0.12));
 }
 
 .bento-card:hover .icon-emerald svg {
@@ -200,7 +206,8 @@
 }
 
 .icon-deck {
-    background: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.24), rgba(147, 51, 234, 0.05));
+    background-color: #1a102b;
+    background-image: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.24), rgba(147, 51, 234, 0.05));
     border-color: rgba(168, 85, 247, 0.35);
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(168, 85, 247, 0.15);
 }
@@ -213,7 +220,8 @@
     transform: translateY(-2px);
     border-color: rgba(168, 85, 247, 0.7);
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(168, 85, 247, 0.35);
-    background: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.35), rgba(147, 51, 234, 0.12));
+    background-color: #261642;
+    background-image: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.35), rgba(147, 51, 234, 0.12));
 }
 
 .bento-card:hover .icon-deck svg {
@@ -232,8 +240,6 @@
     background: rgba(15, 15, 25, 0.65);
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: var(--text-muted);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
 }
 
 .badge-workspaces {
