@@ -1721,7 +1721,7 @@ public sealed class BuildEngineService(
         {
             var absolutePath = ProjectConfigService.ResolveBundleConfigPath(
                 project.ProjectDir,
-                project.Directories?.Configs ?? "config",
+                project.Directories?.Configs ?? ModBuilderConstants.LowercaseConfigDir,
                 bundleConfig);
 
             if (File.Exists(absolutePath))
