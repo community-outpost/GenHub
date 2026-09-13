@@ -17,6 +17,8 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
     private const string ReadLocationFailureMessage = "Failed to read custom installation location from file.";
     private const string ClearLocationFailureMessage = "Failed to clear custom installation location file.";
 
+    private static string? _locationFilePathOverride;
+
     /// <summary>
     /// Records the current installation directory in a user profile marker file when running from a custom install root.
     /// </summary>
@@ -140,8 +142,6 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
             logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
     }
-
-    private static string? _locationFilePathOverride;
 
     /// <summary>
     /// Gets the absolute path of the custom install location tracking file in the user profile directory.
