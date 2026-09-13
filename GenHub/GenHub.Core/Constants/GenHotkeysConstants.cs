@@ -48,11 +48,11 @@ public static class GenHotkeysConstants
         /// <summary>CSF label for Guard action.</summary>
         public const string Guard = "CONTROLBAR:Guard";
 
-        /// <summary>CSF label for Construct Tomahawk vehicle action.</summary>
-        public const string ConstructAmericaVehicleTomahawk = "CONTROLBAR:ConstructAmericaVehicleTomahawk";
+        /// <summary>CSF label for Carpet Bomb special power.</summary>
+        public const string CarpetBomb = "CONTROLBAR:CarpetBomb";
 
-        /// <summary>CSF label for Stealth Fighter upgrade.</summary>
-        public const string UpgradeStealthFighter = "UPGRADE:StealthFighter";
+        /// <summary>CSF label for America Composite Armor upgrade.</summary>
+        public const string UpgradeAmericaCompositeArmor = "CONTROLBAR:UpgradeAmericaCompositeArmor";
 
         /// <summary>CSF label for Timed Demo Charge action.</summary>
         public const string TimedDemoCharge = "CONTROLBAR:TimedDemoCharge";
@@ -210,10 +210,6 @@ public static class GenHotkeysConstants
 
     /// <summary>Preset path for English CSF (Legionnaire layout).</summary>
     public const string PresetsLegionnaireEn = "Presets/LegionnaireEN.csf";
-
-    /// <summary>Preset path for Russian CSF (obsolete alias pointing to English preset).</summary>
-    [Obsolete("Use PresetsLegionnaireEn instead.")]
-    public const string PresetsLegionnaireRu = PresetsLegionnaireEn;
 
     /// <summary>Preset path for CommandMap.ini.</summary>
     public const string PresetsCommandMap = "Presets/CommandMap.ini";
