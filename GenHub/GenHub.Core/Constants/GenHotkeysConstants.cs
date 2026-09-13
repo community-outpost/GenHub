@@ -205,6 +205,15 @@ public static class GenHotkeysConstants
     /// <summary>Standard CSF filename.</summary>
     public const string GeneralsCsfFileName = "generals.csf";
 
+    /// <summary>Preset path for English CSF (Vanilla Zero Hour retail layout).</summary>
+    public const string PresetsVanillaZhEn = "Presets/VanillaZH.csf";
+
+    /// <summary>Preset path for English CSF (Vanilla Generals retail layout).</summary>
+    public const string PresetsVanillaGenEn = "Presets/VanillaGEN.csf";
+
+    /// <summary>Preset path for English CSF (Vanilla layout, defaults to Zero Hour).</summary>
+    public const string PresetsVanillaEn = PresetsVanillaZhEn;
+
     /// <summary>Preset path for English CSF (Leikeze layout).</summary>
     public const string PresetsLeikezeEn = "Presets/LeikezeEN.csf";
 
@@ -296,6 +305,14 @@ public static class GenHotkeysConstants
             ["CONTROLBAR:GPSScrambler"] = ["GUI:SuperweaponGPSScrambler"],
             ["CONTROLBAR:RadarVanScan"] = ["CONTROLBAR:RadarVanScanShortcut"],
         };
+
+    /// <summary>
+    /// Gets the relative asset path for the vanilla reference CSF of the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>Relative asset path for the vanilla CSF.</returns>
+    public static string GetVanillaPresetCsfPath(GameType gameType) =>
+        gameType == GameType.Generals ? PresetsVanillaGenEn : PresetsVanillaZhEn;
 
     /// <summary>
     /// Gets the abbreviated game tag ("Gen" or "ZH") for the specified game type.

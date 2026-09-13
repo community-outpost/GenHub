@@ -207,6 +207,74 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that ApplyPresetAsync with Leikeze extracts mappings, and switching back to Vanilla clears mappings and restores default hotkeys.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ApplyPresetAsync_SwitchBetweenLeikezeAndVanilla_RestoresDefaultHotkeysAsync()
+    {
+        var dozerAction = new HotkeyAction
+        {
+            DisplayName = "Construction Dozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaDozer",
+            DefaultHotkey = 'D',
+            Hotkey = 'D',
+        };
+        var cc = new HotkeyGameObject
+        {
+            Name = "AmericaCommandCenter",
+            DisplayName = "USA Command Center",
+            KeyboardLayouts = [[dozerAction]],
+        };
+        var factionUsa = new HotkeyFaction
+        {
+            ShortName = "USA",
+            DisplayName = "USA",
+            GameObjects = [cc],
+        };
+
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([factionUsa]);
+
+        var profile = new HotkeyProfile { Name = "Test Profile", TargetGame = GameType.ZeroHour };
+        _mockProfileStorage.Setup(p => p.GetProfilesAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([profile]);
+        _mockProfileStorage.Setup(p => p.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(profile);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        await vm.InitializeAsync(CancellationToken.None);
+
+        var actionVm = vm.FilteredGameObjects.SelectMany(g => g.Layouts).SelectMany(l => l)
+            .First(a => a.HotkeyString == "CONTROLBAR:ConstructAmericaDozer");
+
+        // Initial state: Vanilla defaults
+        Assert.Equal('D', actionVm.DefaultHotkey);
+        Assert.Equal('D', actionVm.Hotkey);
+
+        // Apply Leikeze preset: Dozer hotkey becomes 'F', DefaultHotkey remains 'D'
+        await vm.ApplyPresetAsync(GenHotkeysConstants.PresetLeikeze, CancellationToken.None);
+
+        Assert.Equal(GenHotkeysConstants.PresetLeikeze, profile.BasePreset);
+        Assert.Equal('F', profile.KeyMappings["CONTROLBAR:ConstructAmericaDozer"]);
+        Assert.Equal('F', actionVm.Hotkey);
+        Assert.Equal('D', actionVm.DefaultHotkey);
+
+        // Apply Vanilla preset: KeyMappings cleared, Dozer hotkey restored to 'D', DefaultHotkey remains 'D'
+        await vm.ApplyPresetAsync(GenHotkeysConstants.PresetVanilla, CancellationToken.None);
+
+        Assert.Equal(GenHotkeysConstants.PresetVanilla, profile.BasePreset);
+        Assert.Empty(profile.KeyMappings);
+        Assert.Equal('D', actionVm.Hotkey);
+        Assert.Equal('D', actionVm.DefaultHotkey);
+    }
+
+    /// <summary>
     /// Verifies that RenameCurrentProfileAsync updates the profile name and preserves ComboBox selection.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

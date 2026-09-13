@@ -250,15 +250,16 @@ public class HotkeyPackageService(
 
     /// <summary>
     /// Loads the base CSF template for a given profile.
-    /// Always uses an English reference preset (Presets/LegionnaireEN.csf or Presets/LeikezeEN.csf)
-    /// as the base string table so the game language remains English in Data/English/generals.csf
-    /// regardless of which preset layout (Vanilla, Leikeze, or Legionnaire) was selected.
+    /// Uses an English reference preset matching the base preset layout (Vanilla, Legionnaire, or Leikeze)
+    /// as the base string table so the game language remains English in Data/English/generals.csf.
     /// </summary>
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)
     {
         var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
             ? GenHotkeysConstants.PresetsLegionnaireEn
-            : GenHotkeysConstants.PresetsLeikezeEn;
+            : profile.BasePreset?.Contains(GenHotkeysConstants.PresetLeikeze, StringComparison.OrdinalIgnoreCase) == true
+                ? GenHotkeysConstants.PresetsLeikezeEn
+                : GenHotkeysConstants.GetVanillaPresetCsfPath(profile.TargetGame);
 
         var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetFile);
         if (stream != null)
