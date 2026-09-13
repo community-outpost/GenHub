@@ -274,7 +274,7 @@ public partial class MainViewModel(
                             SelectTab(NavigationTab.Info);
 
                             // Programmatic navigation to the quickstart section
-                            InfoViewModel.OpenSection("quickstart");
+                            InfoViewModel.OpenSection(InfoConstants.QuickstartSectionId);
                         },
                     },
                     new DialogAction

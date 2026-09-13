@@ -5,6 +5,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
@@ -49,6 +50,9 @@ public class SettingsViewModelTests
     private readonly Mock<IUserDataTracker> _mockUserDataTracker;
     private readonly Mock<IDialogService> _mockDialogService;
     private readonly Mock<IStorageMigrationService> _mockStorageMigrationService;
+    private readonly Mock<IPublisherSubscriptionStore> _mockSubscriptionStore;
+    private readonly Mock<IPublisherCatalogRefreshService> _mockCatalogRefreshService;
+    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
     private readonly UserSettings _defaultSettings;
 
     /// <summary>
@@ -70,6 +74,11 @@ public class SettingsViewModelTests
         _mockUserDataTracker = new Mock<IUserDataTracker>();
         _mockDialogService = new Mock<IDialogService>();
         _mockStorageMigrationService = new Mock<IStorageMigrationService>();
+        _mockSubscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        _mockSubscriptionStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+        _mockCatalogRefreshService = new Mock<IPublisherCatalogRefreshService>();
+        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
         _defaultSettings = new UserSettings();
 
         _mockConfigService.Setup(x => x.Get()).Returns(_defaultSettings);
@@ -1376,8 +1385,9 @@ public class SettingsViewModelTests
         _mockDialogService.Object,
         _mockStorageMigrationService.Object,
         themeService,
-        subscriptionStore: subscriptionStore,
-        catalogRefreshService: catalogRefreshService);
+        gitHubApiClient: _mockGitHubApiClient.Object,
+        subscriptionStore: subscriptionStore ?? _mockSubscriptionStore.Object,
+        catalogRefreshService: catalogRefreshService ?? _mockCatalogRefreshService.Object);
 
     private void SetupDeletableData()
     {

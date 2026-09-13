@@ -7,6 +7,7 @@
         x:Class="GenHub.Features.GameProfiles.Views.Wizard.SetupWizardView"
         x:DataType="vm:SetupWizardViewModel"
         Title="Setup Wizard"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="700" Height="500"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

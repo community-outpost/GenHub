@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Utilities;
 
@@ -104,6 +105,16 @@ public static class ExecutableFileClassifier
 
         var extension = Path.GetExtension(path);
 
+        if (MatchesAny(extension, LibraryExtensions) || MatchesAny(extension, GenLauncherConstants.AllSuffixes))
+        {
+            return false;
+        }
+
+        if (MatchesAny(extension, RunnableExtensions))
+        {
+            return true;
+        }
+
         // Extensionless: the shape of a native binary, but also of a README. Content is
         // the only reliable way to tell them apart, so use it whenever we have it.
         if (string.IsNullOrEmpty(extension))
@@ -111,12 +122,8 @@ public static class ExecutableFileClassifier
             return absolutePath is null || HasExecutePermissionHeader(absolutePath);
         }
 
-        if (MatchesAny(extension, LibraryExtensions))
-        {
-            return false;
-        }
-
-        return MatchesAny(extension, RunnableExtensions);
+        // For non-standard extensions, sniff magic bytes if on disk
+        return !string.IsNullOrEmpty(absolutePath) && HasExecutePermissionHeader(absolutePath);
     }
 
     /// <summary>
@@ -159,15 +166,24 @@ public static class ExecutableFileClassifier
 
         var extension = Path.GetExtension(path);
 
-        // Extensionless native binaries and Windows executables only. Notably not .dat:
-        // the Steam layout launches game.dat through a proxy, but that is a launch
-        // *strategy* chosen by the Steam integration, not a property of the file.
+        if (MatchesAny(extension, LibraryExtensions) || MatchesAny(extension, GenLauncherConstants.AllSuffixes))
+        {
+            return false;
+        }
+
+        if (extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Extensionless native binaries
         if (string.IsNullOrEmpty(extension))
         {
             return absolutePath is null || HasExecutableMagicBytes(absolutePath);
         }
 
-        return extension.Equals(".exe", StringComparison.OrdinalIgnoreCase);
+        // For non-standard extensions (e.g. custom mod PE binaries), sniff magic bytes if on disk
+        return !string.IsNullOrEmpty(absolutePath) && HasExecutableMagicBytes(absolutePath);
     }
 
     /// <summary>

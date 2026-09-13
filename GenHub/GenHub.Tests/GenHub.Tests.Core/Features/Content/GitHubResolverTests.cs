@@ -121,6 +121,50 @@ public class GitHubResolverTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an explicitly selected release asset produces a manifest for that asset only.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithSelectedReleaseAsset_ResolvesOnlyThatAssetAsync()
+    {
+        var discoveredItem = CreateItem("v1.0");
+        discoveredItem.ResolverMetadata["asset-name"] = "generalszh-weekly.zip";
+        var release = new GitHubRelease
+        {
+            TagName = "v1.0",
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "generals-weekly.zip", BrowserDownloadUrl = "https://example.test/generals.zip" },
+                new GitHubReleaseAsset { Name = "generalszh-weekly.zip", BrowserDownloadUrl = "https://example.test/zerohour.zip" },
+            ],
+        };
+        _apiClientMock
+            .Setup(client => client.GetReleaseByTagAsync("owner", "repo", "v1.0", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+        SetupBuilder(release);
+
+        var result = await _resolver.ResolveAsync(discoveredItem);
+
+        Assert.True(result.Success);
+        _manifestBuilderMock.Verify(
+            builder => builder.AddRemoteFileAsync(
+                "generalszh-weekly.zip",
+                "https://example.test/zerohour.zip",
+                ContentSourceType.RemoteDownload,
+                It.IsAny<bool>(),
+                It.IsAny<FilePermissions?>()),
+            Times.Once);
+        _manifestBuilderMock.Verify(
+            builder => builder.AddRemoteFileAsync(
+                "generals-weekly.zip",
+                It.IsAny<string>(),
+                It.IsAny<ContentSourceType>(),
+                It.IsAny<bool>(),
+                It.IsAny<FilePermissions?>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Disposes of the test resources.
     /// </summary>
     public void Dispose()

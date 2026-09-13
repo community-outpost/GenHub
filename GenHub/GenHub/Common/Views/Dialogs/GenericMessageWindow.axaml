@@ -11,6 +11,7 @@
         x:Class="GenHub.Common.Views.Dialogs.GenericMessageWindow"
         x:DataType="vm:GenericMessageViewModel"
         Title="{Binding Title}"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="600" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

@@ -33,6 +33,8 @@ jobs:
     name: GitNexus Index & Artifact
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
 
     steps:
       - name: Checkout Code

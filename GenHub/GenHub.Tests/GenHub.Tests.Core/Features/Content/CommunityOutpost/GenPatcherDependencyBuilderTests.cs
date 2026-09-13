@@ -195,6 +195,26 @@ public class GenPatcherDependencyBuilderTests
     }
 
     /// <summary>
+    /// Verifies that Legionnaire's Hotkeys automatically reconciles its GenTool runtime requirement.
+    /// </summary>
+    [Fact]
+    public void GetDependencies_LegionnairesHotkeys_AutoInstallsGenTool()
+    {
+        // Arrange
+        var metadata = GenPatcherContentRegistry.GetMetadata("hleg");
+
+        // Act
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies("hleg", metadata);
+
+        // Assert
+        Assert.Contains(dependencies, dependency =>
+            dependency.Id.Value.EndsWith(".gent", StringComparison.OrdinalIgnoreCase) &&
+            dependency.DependencyType == ContentType.Addon &&
+            dependency.InstallBehavior == DependencyInstallBehavior.AutoInstall &&
+            !dependency.IsOptional);
+    }
+
+    /// <summary>
     /// Verifies that control bars are marked as exclusive (conflict with each other).
     /// </summary>
     [Fact]

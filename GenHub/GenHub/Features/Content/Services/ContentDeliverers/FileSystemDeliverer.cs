@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -22,13 +23,11 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// </summary>
 /// <param name="logger">The logger instance.</param>
 /// <param name="configProvider">The configuration provider service.</param>
-/// <param name="hashProvider">The file hash provider.</param>
-/// <param name="downloadService">The download service.</param>
+/// <param name="manifestBuilderFactory">Factory for creating content manifest builders.</param>
 public class FileSystemDeliverer(
     ILogger<FileSystemDeliverer> logger,
     IConfigurationProviderService configProvider,
-    IFileHashProvider hashProvider,
-    IDownloadService downloadService) : IContentDeliverer
+    Func<IContentManifestBuilder> manifestBuilderFactory) : IContentDeliverer
 {
     /// <inheritdoc />
     public string SourceName => "Local File System Deliverer";
@@ -45,7 +44,7 @@ public class FileSystemDeliverer(
     /// <inheritdoc />
     public bool CanDeliver(ContentManifest manifest)
     {
-        if (manifest?.Files == null)
+        if (manifest?.Files == null || manifest.Files.Count == 0)
         {
             return false;
         }
@@ -102,21 +101,10 @@ public class FileSystemDeliverer(
                 processedFiles++;
             }
 
-            var manifestBuilder = new ContentManifestBuilder(
-                LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
-                hashProvider,
-                null!,
-                downloadService,
-                configProvider);
-
-            if (!int.TryParse(packageManifest.Version, out var manifestVersionInt))
-            {
-                logger.LogError("Invalid manifest version format: {Version}", packageManifest.Version);
-                return OperationResult<ContentManifest>.CreateFailure("Invalid manifest version format");
-            }
+            var manifestBuilder = manifestBuilderFactory();
 
             manifestBuilder
-                .WithBasicInfo(packageManifest.Id, packageManifest.Name, manifestVersionInt)
+                .WithBasicInfo(packageManifest.Id.Value, packageManifest.Name, packageManifest.Version)
                 .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
                 .WithPublisher(
                     packageManifest.Publisher?.Name ?? string.Empty,
@@ -180,6 +168,10 @@ public class FileSystemDeliverer(
             var deliveredManifest = manifestBuilder.Build();
 
             return OperationResult<ContentManifest>.CreateSuccess(deliveredManifest);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

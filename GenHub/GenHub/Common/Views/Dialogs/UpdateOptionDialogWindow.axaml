@@ -7,6 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
         x:Class="GenHub.Common.Views.Dialogs.UpdateOptionDialogWindow"
         x:DataType="vm:UpdateOptionDialogViewModel"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="500" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         SystemDecorations="None"

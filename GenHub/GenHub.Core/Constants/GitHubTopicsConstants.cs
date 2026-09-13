@@ -129,4 +129,9 @@ public static class GitHubTopicsConstants
     /// Metadata key for primary language.
     /// </summary>
     public const string LanguageMetadataKey = "language";
+
+    /// <summary>
+    /// Metadata key for asset name.
+    /// </summary>
+    public const string AssetNameMetadataKey = "asset-name";
 }

@@ -25,7 +25,8 @@ public class GitHubContentProvider(
     IEnumerable<IContentDeliverer> deliverers,
     ILogger<GitHubContentProvider> logger,
     IContentValidator contentValidator,
-    IInstallationInstructionsService installationInstructionsService)
+    IInstallationInstructionsService installationInstructionsService,
+    IArchivePayloadProcessor archiveProcessor)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     /// <inheritdoc />
@@ -61,26 +62,6 @@ public class GitHubContentProvider(
         ?? throw new InvalidOperationException("No GitHub deliverer found. Ensure a deliverer with 'GitHub Content Deliverer' in its SourceName is registered.");
 
     /// <inheritdoc />
-    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
-        string contentId, CancellationToken cancellationToken = default)
-    {
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data!.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
-        }
-
-        var result = searchResult.Data!.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
-    }
-
-    /// <inheritdoc />
     protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
@@ -105,6 +86,13 @@ public class GitHubContentProvider(
 
             // Ensure we have valid data before validation
             var resultManifest = deliveryResult.Data ?? manifest;
+
+            // Process payload archives and normalize directory structure safely
+            await archiveProcessor.ProcessPayloadAsync(
+                workingDirectory,
+                resultManifest.ContentType,
+                resultManifest.TargetGame,
+                cancellationToken);
 
             // Validate the delivered content (full validation)
             // Forward the provider progress reporter to the validator for user-visible progress

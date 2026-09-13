@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -234,6 +236,70 @@ public class DependencyResolver(
         return DependencyResolutionResult.CreateSuccess([..resolvedIds], resolvedManifests, missingContentIds);
     }
 
+    /// <summary>
+    /// Finds a compatible acquired manifest match for a declared catalog dependency by identity and version constraint.
+    /// </summary>
+    /// <param name="declaredDependencyId">The declared dependency identifier.</param>
+    /// <param name="dependency">The dependency requirements and version constraints.</param>
+    /// <param name="allManifests">All installed content manifests.</param>
+    /// <returns>The matching manifest identifier, or <see langword="null"/> when no candidate satisfies version requirements.</returns>
+    internal static string? FindVersionIndependentCatalogMatch(
+        string declaredDependencyId,
+        ContentDependency dependency,
+        IReadOnlyList<ContentManifest> allManifests)
+    {
+        var declaredParts = declaredDependencyId.Split('.');
+        if (declaredParts.Length != 5)
+        {
+            return null;
+        }
+
+        var matchingManifests = allManifests
+            .Where(manifest => HasCompatibleCatalogIdentity(declaredParts, manifest.Id.Value.Split('.')))
+            .ToList();
+
+        if (matchingManifests.Count == 0)
+        {
+            return null;
+        }
+
+        // Evaluate version constraints if specified on dependency
+        var versionConstraint = new VersionConstraint
+        {
+            MinVersion = dependency.MinVersion,
+            MaxVersion = dependency.MaxVersion,
+        };
+
+        var compatible = matchingManifests.Where(m =>
+        {
+            if (dependency.CompatibleVersions is { Count: > 0 } &&
+                !dependency.CompatibleVersions.Contains(m.Version, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion))
+            {
+                return versionConstraint.IsSatisfiedBy(m.Version);
+            }
+
+            return true;
+        }).ToList();
+
+        if (compatible.Count == 0)
+        {
+            return null;
+        }
+
+        // Sort descending by parsed version to pick latest compatible version
+        var best = compatible
+            .OrderByDescending(m => GameVersionHelper.ExtractVersionFromVersionString(m.Version))
+            .ThenByDescending(m => m.Version, StringComparer.OrdinalIgnoreCase)
+            .First();
+
+        return best.Id.Value;
+    }
+
     private static bool IsPublisherCompatible(string declaredPublisher, string acquiredPublisher) =>
         declaredPublisher.Equals(ManifestConstants.AnyPublisherToken, StringComparison.OrdinalIgnoreCase) ||
         declaredPublisher.Equals(acquiredPublisher, StringComparison.OrdinalIgnoreCase);
@@ -400,5 +466,121 @@ public class DependencyResolver(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Identifies semantic Community Outpost dependencies without weakening exact-ID semantics for
+    /// other publishers.
+    /// </summary>
+    public static class CommunityOutpostDependencyIdentity
+    {
+        /// <summary>
+        /// Determines whether a dependency is an intentionally type-only constraint rather than a
+        /// reference to an acquired manifest. Type-only dependencies use the <c>any</c> publisher
+        /// segment, for example <c>1.104.any.gameinstallation.zerohour</c>.
+        /// </summary>
+        /// <param name="dependency">The content dependency to evaluate.</param>
+        /// <returns>True if the dependency is a generic type-only constraint; otherwise, false.</returns>
+        /// <remarks>
+        /// Legacy manifests also used placeholder publishers such as <c>genhub</c> or <c>ea</c>
+        /// for GameInstallation RequireExisting constraints. Those IDs never existed in the
+        /// manifest pool (real installations are <c>steam</c>/<c>eaapp</c>/etc.), so they must
+        /// be treated as type-only. ProfileContentService injects the concrete installation.
+        /// </remarks>
+        public static bool IsGenericTypeDependency(ContentDependency dependency)
+        {
+            var idParts = dependency.Id.Value.Split('.');
+            if (dependency.StrictPublisher || idParts.Length != 5)
+            {
+                return false;
+            }
+
+            // Only GameInstallation dependencies with "any" or legacy publisher are type-only constraints.
+            // Non-GameInstallation dependencies (MapPacks, Addons, Mods, Tools) must be resolved to acquired manifests.
+            return dependency.DependencyType == ContentType.GameInstallation &&
+                   (idParts[2].Equals("any", StringComparison.OrdinalIgnoreCase) ||
+                    dependency.InstallBehavior == DependencyInstallBehavior.RequireExisting);
+        }
+
+        /// <summary>
+        /// Extracts Community Outpost's stable catalog content code from a concrete manifest ID.
+        /// </summary>
+        /// <param name="manifestId">The raw manifest identifier string.</param>
+        /// <param name="contentType">When successful, the extracted content type segment.</param>
+        /// <param name="contentCode">When successful, the resolved Community Outpost content code.</param>
+        /// <returns>True if a content code could be determined; otherwise, false.</returns>
+        public static bool TryGetCommunityOutpostContentCode(
+            string manifestId,
+            out string contentType,
+            out string contentCode)
+        {
+            contentType = string.Empty;
+            contentCode = string.Empty;
+            var idParts = manifestId.Split('.');
+            if (idParts.Length != 5 ||
+                !idParts[2].Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            contentType = idParts[3];
+            var nameSegment = idParts[4];
+            var metadata = GenPatcherContentRegistry.GetMetadata(nameSegment);
+            if (metadata.ContentType != ContentType.UnknownContentType)
+            {
+                contentCode = metadata.ContentCode;
+                return true;
+            }
+
+            var dashIndex = nameSegment.IndexOf('-');
+            var codePrefix = dashIndex > 0 ? nameSegment[..dashIndex] : nameSegment;
+            var prefixMetadata = GenPatcherContentRegistry.GetMetadata(codePrefix);
+            if (prefixMetadata.ContentType != ContentType.UnknownContentType)
+            {
+                contentCode = prefixMetadata.ContentCode;
+                return true;
+            }
+
+            contentCode = codePrefix.Length >= 4 ? codePrefix[..4] : codePrefix;
+            return !string.IsNullOrEmpty(contentCode);
+        }
+
+        /// <summary>
+        /// Gets the authoritative Community Outpost code recorded in a manifest, falling back to
+        /// its canonical identifier for older manifests that predate the metadata tag.
+        /// </summary>
+        /// <param name="manifest">The content manifest to evaluate.</param>
+        /// <returns>The resolved Community Outpost content code, or an empty string if none matched.</returns>
+        public static string GetCommunityOutpostContentCode(ContentManifest manifest)
+        {
+            var contentCodeTag = manifest.Metadata?.Tags?
+                .FirstOrDefault(tag => tag.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrEmpty(contentCodeTag))
+            {
+                var tagValue = contentCodeTag["contentCode:".Length..];
+                var directMeta = GenPatcherContentRegistry.GetMetadata(tagValue);
+                if (directMeta.ContentType != ContentType.UnknownContentType)
+                {
+                    return directMeta.ContentCode;
+                }
+
+                var dashIdx = tagValue.IndexOf('-');
+                if (dashIdx > 0)
+                {
+                    var prefix = tagValue[..dashIdx];
+                    var prefixMeta = GenPatcherContentRegistry.GetMetadata(prefix);
+                    if (prefixMeta.ContentType != ContentType.UnknownContentType)
+                    {
+                        return prefixMeta.ContentCode;
+                    }
+                }
+
+                return tagValue;
+            }
+
+            return TryGetCommunityOutpostContentCode(manifest.Id.Value, out _, out var contentCode)
+                ? contentCode
+                : string.Empty;
+        }
     }
 }

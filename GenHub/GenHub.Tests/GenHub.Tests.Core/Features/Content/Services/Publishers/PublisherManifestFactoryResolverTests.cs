@@ -19,7 +19,8 @@ namespace GenHub.Tests.Core.Features.Content.Services.Publishers;
 public class PublisherManifestFactoryResolverTests
 {
     private readonly Mock<IFileHashProvider> _hashProviderMock;
-    private readonly Mock<IArchivePayloadProcessor> _archiveProcessorMock;
+    private readonly Mock<IArchivePayloadProcessor> _archivePayloadProcessorMock;
+    private readonly Mock<IControlBarPackageProcessor> _controlBarPackageProcessorMock;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PublisherManifestFactoryResolverTests"/> class.
@@ -27,7 +28,8 @@ public class PublisherManifestFactoryResolverTests
     public PublisherManifestFactoryResolverTests()
     {
         _hashProviderMock = new Mock<IFileHashProvider>();
-        _archiveProcessorMock = new Mock<IArchivePayloadProcessor>();
+        _archivePayloadProcessorMock = new Mock<IArchivePayloadProcessor>();
+        _controlBarPackageProcessorMock = new Mock<IControlBarPackageProcessor>();
     }
 
     /// <summary>
@@ -39,12 +41,14 @@ public class PublisherManifestFactoryResolverTests
         // Arrange
         var superHackersFactory = new SuperHackersManifestFactory(
             NullLogger<SuperHackersManifestFactory>.Instance,
-            _hashProviderMock.Object);
+            _hashProviderMock.Object,
+            _archivePayloadProcessorMock.Object);
 
         var gitHubFactory = new GitHubManifestFactory(
             NullLogger<GitHubManifestFactory>.Instance,
             _hashProviderMock.Object,
-            _archiveProcessorMock.Object);
+            _archivePayloadProcessorMock.Object,
+            _controlBarPackageProcessorMock.Object);
 
         var resolver = new PublisherManifestFactoryResolver(
             [superHackersFactory, gitHubFactory],
@@ -78,12 +82,14 @@ public class PublisherManifestFactoryResolverTests
         // Arrange
         var superHackersFactory = new SuperHackersManifestFactory(
             NullLogger<SuperHackersManifestFactory>.Instance,
-            _hashProviderMock.Object);
+            _hashProviderMock.Object,
+            _archivePayloadProcessorMock.Object);
 
         var gitHubFactory = new GitHubManifestFactory(
             NullLogger<GitHubManifestFactory>.Instance,
             _hashProviderMock.Object,
-            _archiveProcessorMock.Object);
+            _archivePayloadProcessorMock.Object,
+            _controlBarPackageProcessorMock.Object);
 
         var resolver = new PublisherManifestFactoryResolver(
             [superHackersFactory, gitHubFactory],
@@ -117,7 +123,8 @@ public class PublisherManifestFactoryResolverTests
         // Arrange
         var superHackersFactory = new SuperHackersManifestFactory(
             NullLogger<SuperHackersManifestFactory>.Instance,
-            _hashProviderMock.Object);
+            _hashProviderMock.Object,
+            _archivePayloadProcessorMock.Object);
 
         var resolver = new PublisherManifestFactoryResolver(
             [superHackersFactory],
@@ -152,7 +159,8 @@ public class PublisherManifestFactoryResolverTests
         var gitHubFactory = new GitHubManifestFactory(
             NullLogger<GitHubManifestFactory>.Instance,
             _hashProviderMock.Object,
-            _archiveProcessorMock.Object);
+            _archivePayloadProcessorMock.Object,
+            _controlBarPackageProcessorMock.Object);
 
         var resolver = new PublisherManifestFactoryResolver(
             [gitHubFactory],

@@ -246,6 +246,47 @@ public class LocalContentServiceTests : IDisposable
         Assert.Equal("generals.exe", result.Data!.EntryPoint);
     }
 
+    /// <summary>
+    /// Verifies that CreateLocalContentManifestAsync invokes IArchivePayloadProcessor when provided.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CreateLocalContentManifestAsync_WithArchivePayloadProcessor_InvokesNormalizeDirectoryStructure()
+    {
+        SetupManifestBuilder(ContentType.Mod, GameType.ZeroHour, "NormalizedMod");
+
+        var archiveProcessorMock = new Mock<IArchivePayloadProcessor>();
+        archiveProcessorMock
+            .Setup(x => x.NormalizeDirectoryStructureAsync(
+                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new LocalContentService(
+            _manifestGenServiceMock.Object,
+            _contentStorageServiceMock.Object,
+            _reconciliationServiceMock.Object,
+            NullLogger<LocalContentService>.Instance,
+            archiveProcessorMock.Object);
+
+        var result = await service.CreateLocalContentManifestAsync(
+            directoryPath: _tempDir,
+            name: "NormalizedMod",
+            contentType: ContentType.Mod,
+            targetGame: GameType.ZeroHour);
+
+        Assert.True(result.Success);
+        archiveProcessorMock.Verify(
+            x => x.NormalizeDirectoryStructureAsync(
+                _tempDir,
+                ContentType.Mod,
+                GameType.ZeroHour,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     private void SetupManifestBuilder(ContentType contentType, GameType targetGame, string contentName, params string[] filePaths)
     {
         var files = filePaths.Length > 0

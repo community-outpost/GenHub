@@ -5,12 +5,15 @@ using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.AppUpdate.Interfaces;
@@ -39,6 +42,9 @@ public class SettingsViewModelMigrationTests
     private readonly Mock<IUserDataTracker> _mockUserDataTracker;
     private readonly Mock<IDialogService> _mockDialogService;
     private readonly Mock<IStorageMigrationService> _mockStorageMigrationService;
+    private readonly Mock<IPublisherSubscriptionStore> _mockSubscriptionStore;
+    private readonly Mock<IPublisherCatalogRefreshService> _mockCatalogRefreshService;
+    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModelMigrationTests"/> class.
@@ -58,6 +64,11 @@ public class SettingsViewModelMigrationTests
         _mockUserDataTracker = new Mock<IUserDataTracker>();
         _mockDialogService = new Mock<IDialogService>();
         _mockStorageMigrationService = new Mock<IStorageMigrationService>();
+        _mockSubscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        _mockSubscriptionStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+        _mockCatalogRefreshService = new Mock<IPublisherCatalogRefreshService>();
+        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
 
         _mockConfigService.Setup(x => x.Get()).Returns(new UserSettings());
     }
@@ -217,5 +228,8 @@ public class SettingsViewModelMigrationTests
         _mockStorageLocationService.Object,
         _mockUserDataTracker.Object,
         _mockDialogService.Object,
-        _mockStorageMigrationService.Object);
+        _mockStorageMigrationService.Object,
+        gitHubApiClient: _mockGitHubApiClient.Object,
+        subscriptionStore: _mockSubscriptionStore.Object,
+        catalogRefreshService: _mockCatalogRefreshService.Object);
 }

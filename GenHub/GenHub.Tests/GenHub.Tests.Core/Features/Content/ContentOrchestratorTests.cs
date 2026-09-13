@@ -10,6 +10,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using Moq;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -28,6 +29,7 @@ public class ContentOrchestratorTests
     private readonly Mock<IGameInstallationService> _installationServiceMock;
     private readonly Mock<IInstallationCasPoolService> _installationCasPoolServiceMock;
     private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock;
+    private readonly Mock<PublisherManifestFactoryResolver> _factoryResolverMock;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentOrchestratorTests"/> class.
@@ -40,6 +42,9 @@ public class ContentOrchestratorTests
         _installationServiceMock = new Mock<IGameInstallationService>();
         _installationCasPoolServiceMock = new Mock<IInstallationCasPoolService>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
+        _factoryResolverMock = new Mock<PublisherManifestFactoryResolver>(
+            new List<IPublisherManifestFactory>(),
+            new Mock<ILogger<PublisherManifestFactoryResolver>>().Object);
     }
 
     /// <summary>
@@ -75,7 +80,8 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _installationCasPoolServiceMock.Object);
+            _installationCasPoolServiceMock.Object,
+            _factoryResolverMock.Object);
 
         // Act
         var result = await orchestrator.SearchAsync(new ContentSearchQuery());
@@ -136,16 +142,72 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _installationCasPoolServiceMock.Object);
+            _installationCasPoolServiceMock.Object,
+            _factoryResolverMock.Object);
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);
 
         // Assert
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.FirstError);
         Assert.Equal(manifest, result.Data);
         _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies late provider callbacks cannot move acquisition progress backwards.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_ProviderReportsOutOfOrderPhases_ReportsMonotonicStagesAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult { Id = "1.0.genhub.mod.progress", Name = "Progress Test", ProviderName = "TestProvider" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.progress", Name = "Progress Test" };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(p => p.SourceName).Returns("TestProvider");
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Returns((ContentManifest _, string _, IProgress<ContentAcquisitionProgress>? progress, CancellationToken _) =>
+            {
+                progress?.Report(new ContentAcquisitionProgress { Phase = ContentAcquisitionPhase.Extracting, ProgressPercentage = 70 });
+                progress?.Report(new ContentAcquisitionProgress { Phase = ContentAcquisitionPhase.Downloading, ProgressPercentage = 50 });
+                return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+            });
+
+        _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var progressEvents = new List<ContentAcquisitionProgress>();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(progressEvents.Add);
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object,
+            _factoryResolverMock.Object);
+
+        // Act
+        var result = await orchestrator.AcquireContentAsync(searchResult, progress);
+        await Task.Delay(100);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotEmpty(progressEvents);
+        Assert.Equal(5, progressEvents[^1].CurrentStage);
+        Assert.True(progressEvents.Select(e => e.CurrentStage).SequenceEqual(progressEvents.Select(e => e.CurrentStage).Order()));
     }
 
     /// <summary>
@@ -204,6 +266,7 @@ public class ContentOrchestratorTests
                 It.IsAny<IReadOnlyList<GameInstallation>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
+
         var orchestrator = new ContentOrchestrator(
             _loggerMock.Object,
             [providerMock.Object],
@@ -213,7 +276,8 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _installationCasPoolServiceMock.Object);
+            _installationCasPoolServiceMock.Object,
+            _factoryResolverMock.Object);
 
         var result = await orchestrator.AcquireContentAsync(searchResult);
 
@@ -477,6 +541,65 @@ public class ContentOrchestratorTests
     }
 
     /// <summary>
+    /// Verifies that ResolveManifestAsync successfully resolves manifests with hyphenated and unhyphenated IDs.
+    /// </summary>
+    /// <param name="registeredResolverId">The resolver ID registered in the container.</param>
+    /// <param name="lookupResolverId">The resolver ID on the search result.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("community-outpost", "communityoutpost")]
+    [InlineData("community-outpost", "community-outpost")]
+    [InlineData("community-outpost", "CommunityOutpost")]
+    [InlineData("AODMaps", "aodmaps")]
+    [InlineData("AODMaps", "AODMaps")]
+    public async Task ResolveManifestAsync_ResolvesNormalizedAndAliasedResolvers_SuccessfullyAsync(
+        string registeredResolverId,
+        string lookupResolverId)
+    {
+        // Arrange
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.SetupGet(r => r.ResolverId).Returns(registeredResolverId);
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Mod",
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "test-item",
+            Name = "Test Item",
+            ResolverId = lookupResolverId,
+        };
+
+        resolverMock.Setup(r => r.ResolveAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [],
+            [],
+            [resolverMock.Object],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.ResolveManifestAsync(searchResult);
+
+        // Assert
+        Assert.True(result.Success, $"Resolution failed for lookup '{lookupResolverId}' on registered '{registeredResolverId}': {result.FirstError}");
+        Assert.NotNull(result.Data);
+        Assert.Equal(manifest.Id, result.Data.Id);
+    }
+
+    /// <summary>
     /// Verifies that SearchAsync deduplicates results by manifest ID, preferring specialized providers.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -592,5 +715,10 @@ public class ContentOrchestratorTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("GenTool", result.Data.Name);
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 }
