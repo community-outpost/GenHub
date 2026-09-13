@@ -1905,15 +1905,15 @@ public sealed class BuildEngineService(
     private List<string> CollectRawBundleItemFiles(BuildConfiguration configuration)
     {
         var existing = new List<string>();
-        foreach (var file in configuration.Items.SelectMany(item => item.Files))
+        foreach (var sourceFile in configuration.Items.SelectMany(item => item.Files.Select(f => f.AbsSourceFile)))
         {
-            if (File.Exists(file.AbsSourceFile))
+            if (File.Exists(sourceFile))
             {
-                existing.Add(file.AbsSourceFile);
+                existing.Add(sourceFile);
             }
             else
             {
-                logger.LogWarning("Configured bundle source file does not exist: {File}", file.AbsSourceFile);
+                logger.LogWarning("Configured bundle source file does not exist: {File}", sourceFile);
             }
         }
 
