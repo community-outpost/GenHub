@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -71,5 +72,34 @@ public partial class GenHotkeysView : UserControl
             _ = vm.AssignHotkeyAsync(ch);
             e.Handled = true;
         }
+    }
+
+    private void OnFlyoutTextBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && sender is TextBox tb && DataContext is GenHotkeysViewModel vm)
+        {
+            if (string.Equals(tb.Tag as string, "Create", StringComparison.OrdinalIgnoreCase))
+            {
+                vm.CreateNewProfileCommand.Execute(null);
+                (this.FindControl<Button>("NewProfileButton")?.Flyout as Flyout)?.Hide();
+                e.Handled = true;
+            }
+            else if (string.Equals(tb.Tag as string, "Rename", StringComparison.OrdinalIgnoreCase))
+            {
+                vm.RenameCurrentProfileCommand.Execute(null);
+                (this.FindControl<Button>("RenameProfileButton")?.Flyout as Flyout)?.Hide();
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void OnCloseNewProfileFlyout(object? sender, RoutedEventArgs e)
+    {
+        (this.FindControl<Button>("NewProfileButton")?.Flyout as Flyout)?.Hide();
+    }
+
+    private void OnCloseRenameProfileFlyout(object? sender, RoutedEventArgs e)
+    {
+        (this.FindControl<Button>("RenameProfileButton")?.Flyout as Flyout)?.Hide();
     }
 }

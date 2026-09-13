@@ -110,8 +110,8 @@ public class ContentStorageService : IContentStorageService
             return false;
         }
 
-        // MapPacks created locally MUST be stored in CAS because the source (temp dir) will be deleted
-        if (manifest.ContentType == ContentType.MapPack)
+        // MapPacks and Addons created locally MUST be stored in CAS because the source (temp dir) will be deleted
+        if (manifest.ContentType == ContentType.MapPack || manifest.ContentType == ContentType.Addon)
         {
             return true;
         }
@@ -237,9 +237,9 @@ public class ContentStorageService : IContentStorageService
         // Check if source directory is on a potentially invalid or removable drive
         bool isInvalidDrive = IsInvalidOrRemovableDrive(sourceDirectory);
 
-        // MapPacks and other local content might be created in temp directories on "invalid" drives (e.g. RAM disks)
-        // We should allow storage if it's a MapPack to ensure it persists after temp cleanup.
-        bool forceStorage = manifest.ContentType == ContentType.MapPack;
+        // MapPacks, Addons, and other local content might be created in temp directories on "invalid" drives (e.g. RAM disks)
+        // We should allow storage if it's a MapPack or Addon to ensure it persists after temp cleanup.
+        bool forceStorage = manifest.ContentType == ContentType.MapPack || manifest.ContentType == ContentType.Addon;
 
         if (isInvalidDrive && !forceStorage)
         {
@@ -660,7 +660,8 @@ public class ContentStorageService : IContentStorageService
             return manifest;
         }
 
-        if (IsInvalidOrRemovableDrive(sourceDirectory))
+        bool forceStorage = manifest.ContentType == ContentType.MapPack || manifest.ContentType == ContentType.Addon;
+        if (IsInvalidOrRemovableDrive(sourceDirectory) && !forceStorage)
         {
             _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive", sourceDirectory);
             manifest.Files.Clear();
