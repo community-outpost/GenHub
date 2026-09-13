@@ -899,8 +899,9 @@ public partial class GenHotkeysViewModel(
                     {
                         reloadCts.Cancel();
                     }
-                    catch (ObjectDisposedException)
+                    catch (ObjectDisposedException ex)
                     {
+                        logger.LogDebug(ex, "Reload CTS was disposed before cancellation");
                     }
 
                     reloadCts.Dispose();
@@ -914,8 +915,9 @@ public partial class GenHotkeysViewModel(
                     {
                         addonCheckCts.Cancel();
                     }
-                    catch (ObjectDisposedException)
+                    catch (ObjectDisposedException ex)
                     {
+                        logger.LogDebug(ex, "Addon check CTS was disposed before cancellation");
                     }
 
                     addonCheckCts.Dispose();
@@ -1440,8 +1442,9 @@ public partial class GenHotkeysViewModel(
             {
                 oldCts.Cancel();
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
+                logger.LogDebug(ex, "Previous addon check CTS was disposed before cancellation");
             }
 
             oldCts.Dispose();
