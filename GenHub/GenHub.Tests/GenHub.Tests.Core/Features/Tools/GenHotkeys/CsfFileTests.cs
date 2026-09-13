@@ -31,6 +31,8 @@ public class CsfFileTests
     /// <param name="expected">Expected modified string.</param>
     [Theory]
     [InlineData("[&D] Build Dozer", 'R', "[&R] Build Dozer")]
+    [InlineData("[D] Build Dozer", 'R', "[&R] Build Dozer")]
+    [InlineData("(D) Build Dozer", 'R', "(&R) Build Dozer")]
     [InlineData("&Dozer", 'R', "[&R] Dozer")]
     [InlineData("Laser Crusader (&L)", 'A', "Laser Crusader (&A)")]
     [InlineData("Build Dozer", 'D', "[&D] Build Dozer")]

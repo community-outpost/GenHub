@@ -182,9 +182,13 @@ public class CsfFile
                 return text.Remove(bracketMatch.Index, bracketMatch.Length).Insert(bracketMatch.Index, replaced);
             }
 
-            if (matchValue.Length >= 3)
+            var openBracketIndex = matchValue.IndexOfAny(['[', '(']);
+            var closeBracketIndex = matchValue.LastIndexOfAny([']', ')']);
+            if (openBracketIndex >= 0 && closeBracketIndex > openBracketIndex)
             {
-                var replaced = matchValue[0] + $"&{letter}" + matchValue[^1];
+                var openBracket = matchValue[openBracketIndex];
+                var closeBracket = matchValue[closeBracketIndex];
+                var replaced = matchValue[..openBracketIndex] + openBracket + $"&{letter}" + closeBracket + matchValue[(closeBracketIndex + 1)..];
                 return text.Remove(bracketMatch.Index, bracketMatch.Length).Insert(bracketMatch.Index, replaced);
             }
         }
