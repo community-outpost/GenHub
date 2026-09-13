@@ -46,6 +46,25 @@ public sealed partial class ContentStateService(
     [GeneratedRegex("[^a-zA-Z0-9]")]
     private static partial Regex SegmentNormalizer();
 
+    [GeneratedRegex(@"(?:^|[-_./\s])(en|ru|de|fr|es|zh|ja|ko|it|pt|pl|uk)(?:$|[-_./\s])", RegexOptions.IgnoreCase)]
+    private static partial Regex LanguageCodePattern();
+
+    private static readonly Dictionary<string, string> IsoLanguageCodeMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["en"] = "english",
+        ["ru"] = "russian",
+        ["de"] = "german",
+        ["fr"] = "french",
+        ["es"] = "spanish",
+        ["zh"] = "chinese",
+        ["ja"] = "japanese",
+        ["ko"] = "korean",
+        ["it"] = "italian",
+        ["pt"] = "portuguese",
+        ["pl"] = "polish",
+        ["uk"] = "ukrainian",
+    };
+
     /// <summary>
     /// Maps catalog/content IDs to the manifest IDs stored for them during this session.
     /// Publisher factories rename content (e.g. "Generals Online" becomes manifest name "60hz"),
@@ -428,7 +447,9 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        var manifestVariant = ExtractVariantToken(manifest.Name) ?? ExtractVariantToken(segments[4]);
+        var manifestVariant = ExtractVariantToken(manifest.Metadata?.SelectedVariantId)
+            ?? ExtractVariantToken(manifest.Name)
+            ?? ExtractVariantToken(segments[4]);
         var cardVariant = ExtractVariantToken(expectedName);
 
         if (!string.IsNullOrEmpty(manifestVariant) && !string.IsNullOrEmpty(cardVariant))
@@ -1000,6 +1021,34 @@ public sealed partial class ContentStateService(
             return null;
         }
 
+        var itemVariant = ExtractVariantToken(item.Name)
+            ?? ExtractVariantToken(item.Id)
+            ?? (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CatalogConstants.SelectedVariantMetadataKey, out var selVar) ? ExtractVariantToken(selVar) : null);
+
+        if (!string.IsNullOrEmpty(itemVariant))
+        {
+            var variantMatches = candidates.Where(m =>
+            {
+                var mVariant = ExtractVariantToken(m.Metadata?.SelectedVariantId)
+                    ?? ExtractVariantToken(m.Name)
+                    ?? ExtractVariantToken(m.Id.Value)
+                    ?? (m.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith(ManifestTagConstants.VariantPrefix, StringComparison.OrdinalIgnoreCase)) is { } vTag
+                        ? ExtractVariantToken(vTag[ManifestTagConstants.VariantPrefix.Length..])
+                        : null);
+
+                return string.Equals(mVariant, itemVariant, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+
+            if (variantMatches.Count > 0)
+            {
+                candidates = variantMatches;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         if (candidates.Count == 1)
         {
             return candidates[0];
@@ -1026,6 +1075,17 @@ public sealed partial class ContentStateService(
 
     private static bool IsExactManifestMatch(ContentManifest manifest, ContentSearchResult item)
     {
+        var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
+        var manifestVariant = ExtractVariantToken(manifest.Metadata?.SelectedVariantId)
+            ?? ExtractVariantToken(manifest.Name)
+            ?? ExtractVariantToken(manifest.Id.Value);
+
+        if (!string.IsNullOrEmpty(itemVariant) && !string.IsNullOrEmpty(manifestVariant) &&
+            !string.Equals(itemVariant, manifestVariant, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         if (IsSameContentSource(manifest, item))
         {
             return true;
@@ -1126,13 +1186,18 @@ public sealed partial class ContentStateService(
             return null;
         }
 
-        // 1. Check for trailing parentheses like "(English)" or "(1080p)"
+        // 1. Check for trailing parentheses like "(English)" or "(1080p)" or "(RU)"
         var parenMatch = GitHubTopicsDiscoverer.VariantPatterns.TrailingParenthesesPattern().Match(input);
         if (parenMatch.Success)
         {
             var token = parenMatch.Groups[1].Value.Trim().ToLowerInvariant();
             if (!string.IsNullOrEmpty(token))
             {
+                if (IsoLanguageCodeMap.TryGetValue(token, out var isoLang))
+                {
+                    return isoLang;
+                }
+
                 if (GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames.ContainsKey(token))
                 {
                     return token;
@@ -1191,6 +1256,23 @@ public sealed partial class ContentStateService(
             if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
             {
                 return pattern.ToLowerInvariant();
+            }
+        }
+
+        // 4. Check ISO language code tokens in hyphenated / structured identifiers (e.g. zerohour-ru, hlei-zerohour-de)
+        var langTokenMatch = LanguageCodePattern().Match(input);
+        if (langTokenMatch.Success && IsoLanguageCodeMap.TryGetValue(langTokenMatch.Groups[1].Value, out var isoMatched))
+        {
+            return isoMatched;
+        }
+
+        // 5. Check if input ends with a known ISO code without separators (e.g. hleizerohourru, enzh, ruzh)
+        foreach (var (isoCode, langName) in IsoLanguageCodeMap)
+        {
+            if (input.EndsWith(isoCode, StringComparison.OrdinalIgnoreCase) ||
+                input.EndsWith($"{isoCode}zh", StringComparison.OrdinalIgnoreCase))
+            {
+                return langName;
             }
         }
 

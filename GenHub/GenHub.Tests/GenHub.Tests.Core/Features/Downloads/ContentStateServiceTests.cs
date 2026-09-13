@@ -1830,6 +1830,122 @@ public class ContentStateServiceTests
         Assert.True(ContentStateService.CompareVersions("123125", "010126", isGeneralsOnline: true) < 0);
     }
 
+    /// <summary>
+    /// Verifies that when selecting Russian hotkeys, GetLocalManifestIdAsync resolves strictly to the Russian
+    /// manifest and does not conflate with German or other sibling variants.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetLocalManifestIdAsync_WhenRussianHotkeySelected_ResolvesRussianManifestAndIgnoresGermanAsync()
+    {
+        var germanManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei-zerohour-de"),
+            Name = "Leikeze's Hotkeys (DE)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                SelectedVariantId = "zerohour-de",
+                Tags = ["contentCode:hlei", "variant:zerohour-de"],
+            },
+        };
+
+        var russianManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei-zerohour-ru"),
+            Name = "Leikeze's Hotkeys (RU)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                SelectedVariantId = "zerohour-ru",
+                Tags = ["contentCode:hlei", "variant:zerohour-ru"],
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([germanManifest, russianManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(russianManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(germanManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != russianManifest.Id.Value && m.Value != germanManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var cardRu = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hleizerohourru",
+            Name = "Leikeze's Hotkeys (RU)",
+            ProviderName = "communityoutpost",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0",
+        };
+
+        var resolvedId = await service.GetLocalManifestIdAsync(cardRu);
+        var state = await service.GetStateAsync(cardRu);
+
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-ru", resolvedId);
+        Assert.Equal(ContentState.Downloaded, state);
+    }
+
+    /// <summary>
+    /// Verifies that when only German hotkeys are installed, querying for Russian hotkeys returns null and NotDownloaded.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetLocalManifestIdAsync_WhenOnlyGermanManifestInstalled_RussianReturnsNullAsync()
+    {
+        var germanManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei-zerohour-de"),
+            Name = "Leikeze's Hotkeys (DE)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                SelectedVariantId = "zerohour-de",
+                Tags = ["contentCode:hlei", "variant:zerohour-de"],
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([germanManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(germanManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != germanManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var cardRu = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hleizerohourru",
+            Name = "Leikeze's Hotkeys (RU)",
+            ProviderName = "communityoutpost",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0",
+        };
+
+        var resolvedId = await service.GetLocalManifestIdAsync(cardRu);
+        var state = await service.GetStateAsync(cardRu);
+
+        Assert.Null(resolvedId);
+        Assert.Equal(ContentState.NotDownloaded, state);
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

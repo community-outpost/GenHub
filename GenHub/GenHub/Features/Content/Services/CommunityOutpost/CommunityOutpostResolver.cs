@@ -74,7 +74,17 @@ public class CommunityOutpostResolver(
                 patchPageUrl);
 
             // Extract metadata from resolver metadata (set by the discoverer/parser)
-            var contentCode = GetMetadataValue(discoveredItem, "contentCode", "unknown");
+            var rawContentCode = GetMetadataValue(discoveredItem, "contentCode", "unknown");
+            var contentCode = GenPatcherContentRegistry.NormalizeContentCode(rawContentCode);
+            if (string.Equals(contentCode, "unknown", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(discoveredItem.Id))
+            {
+                var idParts = discoveredItem.Id.Split('.');
+                if (idParts.Length >= 5)
+                {
+                    contentCode = GenPatcherContentRegistry.NormalizeContentCode(idParts[4]);
+                }
+            }
+
             var category = GetMetadataValue(discoveredItem, "category", "Other");
             var fileSize = GetMetadataValueLong(discoveredItem, "fileSize", 0);
 

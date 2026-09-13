@@ -191,7 +191,7 @@ public class CommunityOutpostManifestFactory(
 
         if (!string.IsNullOrEmpty(contentCodeTag))
         {
-            return contentCodeTag[ManifestTagConstants.ContentCodePrefix.Length..];
+            return GenPatcherContentRegistry.NormalizeContentCode(contentCodeTag[ManifestTagConstants.ContentCodePrefix.Length..]);
         }
 
         // Try to extract from manifest ID
@@ -199,7 +199,7 @@ public class CommunityOutpostManifestFactory(
         var idParts = manifest.Id.Value?.Split('.') ?? [];
         if (idParts.Length >= 5)
         {
-            return idParts[4]; // The content name part
+            return GenPatcherContentRegistry.NormalizeContentCode(idParts[4]);
         }
 
         return "unknown";
@@ -395,7 +395,7 @@ public class CommunityOutpostManifestFactory(
                 inclusionContext,
                 cancellationToken);
 
-            var (manifestId, manifestName) = ResolveVariantIdentity(originalManifest, variant, fileEntries.Count);
+            var (manifestId, manifestName) = ResolveVariantIdentity(originalManifest, contentMetadata, variant, fileEntries.Count);
             return AssembleManifest(originalManifest, contentMetadata, variant, manifestId, manifestName, fileEntries);
         }
         catch (Exception ex)
@@ -495,6 +495,7 @@ public class CommunityOutpostManifestFactory(
 
     private (ManifestId ManifestId, string ManifestName) ResolveVariantIdentity(
         ContentManifest originalManifest,
+        GenPatcherContentMetadata contentMetadata,
         ContentVariant? variant,
         int fileCount)
     {
@@ -509,15 +510,19 @@ public class CommunityOutpostManifestFactory(
         var idParts = originalManifest.Id.Value.Split('.');
         if (idParts.Length >= 5)
         {
-            var contentCode = originalManifest.Metadata?.Tags?
-                .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase))?[ManifestTagConstants.ContentCodePrefix.Length..];
+            var contentCode = contentMetadata.ContentCode;
+            if (string.IsNullOrEmpty(contentCode))
+            {
+                contentCode = originalManifest.Metadata?.Tags?
+                    .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase))?[ManifestTagConstants.ContentCodePrefix.Length..];
+            }
 
             if (string.IsNullOrEmpty(contentCode))
             {
-                var rawCode = idParts[4];
-                var hyphenIdx = rawCode.IndexOf('-');
-                contentCode = hyphenIdx > 0 ? rawCode[..hyphenIdx] : rawCode;
+                contentCode = idParts[4];
             }
+
+            contentCode = GenPatcherContentRegistry.NormalizeContentCode(contentCode);
 
             var variantContentName = $"{contentCode}-{variant.Id}".ToLowerInvariant();
             manifestId = ManifestId.Create($"{idParts[0]}.{idParts[1]}.{idParts[2]}.{idParts[3]}.{variantContentName}");
@@ -549,7 +554,14 @@ public class CommunityOutpostManifestFactory(
             variantTags.AddRange(originalManifest.Metadata.Tags.Where(t =>
                 !t.StartsWith(ManifestTagConstants.SelectedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
                 !t.StartsWith(ManifestTagConstants.RequestedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
-                !t.StartsWith(ManifestTagConstants.VariantPrefix, StringComparison.OrdinalIgnoreCase)));
+                !t.StartsWith(ManifestTagConstants.VariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var normalizedCode = GenPatcherContentRegistry.NormalizeContentCode(contentMetadata.ContentCode);
+        if (!string.IsNullOrEmpty(normalizedCode))
+        {
+            variantTags.Add($"{ManifestTagConstants.ContentCodePrefix}{normalizedCode}");
         }
 
         if (variant != null)

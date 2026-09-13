@@ -316,4 +316,39 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         Assert.Single(manifests);
         Assert.Contains("1080p", manifests[0].Id.Value);
     }
+
+    /// <summary>
+    /// Verifies that variant identity resolution normalizes compound content codes and produces clean variant IDs.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithCompoundContentCode_NormalizesVariantIdsAsync()
+    {
+        // Arrange
+        var ruBig = Path.Combine(_tempDir, "!HotkeysLeikezeRUZH.big");
+        File.WriteAllText(ruBig, "ru hotkey content");
+        var deBig = Path.Combine(_tempDir, "!HotkeysLeikezeDEZH.big");
+        File.WriteAllText(deBig, "de hotkey content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hleizerohourru"),
+            Name = "Leikeze's Hotkeys (RU)",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:hleizerohourru"],
+            },
+        };
+
+        // Act
+        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.Equal(4, manifests.Count);
+        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-ru");
+        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-de");
+        Assert.DoesNotContain(manifests, m => m.Id.Value.Contains("hleizerohourru-zerohour"));
+    }
 }

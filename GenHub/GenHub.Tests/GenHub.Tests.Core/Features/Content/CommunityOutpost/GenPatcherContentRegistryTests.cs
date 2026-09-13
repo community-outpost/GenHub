@@ -264,4 +264,27 @@ public class GenPatcherContentRegistryTests
         Assert.Equal("!HotkeysLeikezeEN.big", ccgEn.OutputFilename);
         Assert.Equal(GameType.Generals, ccgEn.TargetGame);
     }
+
+    /// <summary>
+    /// Verifies that NormalizeContentCode correctly normalizes raw and composite content codes.
+    /// </summary>
+    /// <param name="rawCode">The raw code to test.</param>
+    /// <param name="expectedNormalized">The expected normalized code.</param>
+    [Theory]
+    [InlineData("hleizerohourru", "hlei")]
+    [InlineData("hlei-zerohour-ru", "hlei")]
+    [InlineData("hlei-zerohour-de", "hlei")]
+    [InlineData("hlei", "hlei")]
+    [InlineData("HLEI", "hlei")]
+    [InlineData("cbpr-1080p", "cbpr")]
+    [InlineData("community-patch", "community-patch")]
+    [InlineData("10zh", "10zh")]
+    [InlineData("unknown_test", "unknown_test")]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    public void NormalizeContentCode_ReturnsExpectedNormalizedCode(string? rawCode, string expectedNormalized)
+    {
+        var result = GenPatcherContentRegistry.NormalizeContentCode(rawCode);
+        Assert.Equal(expectedNormalized, result);
+    }
 }
