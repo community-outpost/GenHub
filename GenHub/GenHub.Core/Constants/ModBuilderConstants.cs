@@ -14,6 +14,46 @@ public static class ModBuilderConstants
     public const string DefaultProjectVersion = "1.0.0";
 
     /// <summary>
+    /// Default project name for untitled projects.
+    /// </summary>
+    public const string UntitledProjectName = "Untitled Project";
+
+    /// <summary>
+    /// Subdirectory name for user sample projects.
+    /// </summary>
+    public const string SamplesDirectoryName = "Samples";
+
+    /// <summary>
+    /// Installation type identifier for Generals.
+    /// </summary>
+    public const string GeneralsInstallationType = "Generals";
+
+    /// <summary>
+    /// Installation type identifier for Zero Hour.
+    /// </summary>
+    public const string ZeroHourInstallationType = "ZeroHour";
+
+    /// <summary>
+    /// Display name for Generals installation.
+    /// </summary>
+    public const string GeneralsDisplayName = "Generals";
+
+    /// <summary>
+    /// Display name for Zero Hour installation.
+    /// </summary>
+    public const string ZeroHourDisplayName = "Zero Hour";
+
+    /// <summary>
+    /// Build configuration name for Debug.
+    /// </summary>
+    public const string BuildConfigurationDebug = "Debug";
+
+    /// <summary>
+    /// Build configuration name for Release.
+    /// </summary>
+    public const string BuildConfigurationRelease = "Release";
+
+    /// <summary>
     /// Default project file extension.
     /// </summary>
     public const string ProjectFileExtension = ".mbproj";
