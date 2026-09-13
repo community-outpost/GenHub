@@ -66,28 +66,6 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Disposes resources.
-    /// </summary>
-    /// <param name="disposing">Whether managed resources should be disposed.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            try
-            {
-                if (Directory.Exists(_tempRoot))
-                {
-                    Directory.Delete(_tempRoot, true);
-                }
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
-        }
-    }
-
-    /// <summary>
     /// Tests that content storage fails when a file path traverses outside the source directory.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -212,5 +190,27 @@ public class ContentStorageServiceTests : IDisposable
         Assert.Single(result.Data.Files);
         Assert.Equal("cas_hash_addon_123", result.Data.Files[0].Hash);
         Assert.Equal(ContentSourceType.ContentAddressable, result.Data.Files[0].SourceType);
+    }
+
+    /// <summary>
+    /// Disposes resources.
+    /// </summary>
+    /// <param name="disposing">Whether managed resources should be disposed.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            try
+            {
+                if (Directory.Exists(_tempRoot))
+                {
+                    Directory.Delete(_tempRoot, true);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
     }
 }
