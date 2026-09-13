@@ -42,7 +42,23 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
                 FileInstallationLocationTracker.RecordInstallLocationStatic(logger);
             }
         }
-        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+        }
+        catch (InvalidOperationException ex)
         {
             logger?.LogWarning(ex, "Failed to record installation location in registry.");
         }
@@ -67,9 +83,9 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
             if (key != null)
             {
                 var customPath = key.GetValue(CustomInstallPathValueName) as string;
-                if (!string.IsNullOrWhiteSpace(customPath) && Directory.Exists(customPath))
+                if (IsValidLocalDirectoryPath(customPath))
                 {
-                    return customPath;
+                    return customPath!.Trim().Trim('"');
                 }
             }
 
@@ -81,11 +97,10 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
                 if (!string.IsNullOrWhiteSpace(command))
                 {
                     var candidate = ExtractDirectoryFromCommand(command);
-                    if (!string.IsNullOrWhiteSpace(candidate) &&
-                        Directory.Exists(candidate) &&
-                        StorageMigrationService.IsVelopackRoot(candidate))
+                    if (IsValidLocalDirectoryPath(candidate) &&
+                        StorageMigrationService.IsVelopackRoot(candidate!))
                     {
-                        return candidate;
+                        return candidate!.Trim().Trim('"');
                     }
                 }
             }
@@ -97,7 +112,23 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
                 return fromFile;
             }
         }
-        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+        }
+        catch (InvalidOperationException ex)
         {
             logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
         }
@@ -122,7 +153,23 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
             key?.DeleteValue(CustomInstallPathValueName, throwOnMissingValue: false);
             logger?.LogInformation("Cleared custom installation path from registry.");
         }
-        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+        }
+        catch (InvalidOperationException ex)
         {
             logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
         }
@@ -138,6 +185,28 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
 
     /// <inheritdoc />
     public void ClearCustomInstallPath() => ClearCustomInstallPathStatic(logger);
+
+    private static bool IsValidLocalDirectoryPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var trimmed = path.Trim().Trim('"');
+        if (trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
+            trimmed.StartsWith("//", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && uri.IsUnc)
+        {
+            return false;
+        }
+
+        return Directory.Exists(trimmed);
+    }
 
     private static string? ExtractDirectoryFromCommand(string command)
     {

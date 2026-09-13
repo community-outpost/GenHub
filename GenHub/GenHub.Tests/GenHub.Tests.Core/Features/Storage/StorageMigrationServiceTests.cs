@@ -774,7 +774,16 @@ public class StorageMigrationServiceTests : IDisposable
     {
         var root = StorageMigrationService.GetDefaultInstallRoot();
         Assert.False(string.IsNullOrWhiteSpace(root));
-        Assert.EndsWith(AppConstants.AppName, root, StringComparison.OrdinalIgnoreCase);
+        if (OperatingSystem.IsMacOS())
+        {
+            Assert.True(
+                root.EndsWith($"{AppConstants.AppName}.app", StringComparison.OrdinalIgnoreCase) ||
+                root.EndsWith(AppConstants.AppName, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            Assert.EndsWith(AppConstants.AppName, root, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     /// <summary>

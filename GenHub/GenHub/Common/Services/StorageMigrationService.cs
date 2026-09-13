@@ -71,6 +71,54 @@ public class StorageMigrationService(
     private static readonly Lazy<bool> CachedIsCustomInstallRoot = new(ComputeIsCustomInstallRoot);
     private static bool? _customInstallRootOverride;
 
+    /// <summary>
+    /// Synchronously copies user settings and data from a custom installation before dependency injection
+    /// registers services, ensuring UserSettingsService reads adopted configuration on initial startup.
+    /// </summary>
+    /// <param name="registeredCustomPath">The registered custom installation path from tracker.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><see langword="true"/> if data was imported; otherwise, <see langword="false"/>.</returns>
+    public static bool EarlyAdoptIfConflict(string? registeredCustomPath, ILogger? logger = null)
+    {
+        if (IsCustomInstallRoot() || string.IsNullOrWhiteSpace(registeredCustomPath))
+        {
+            return false;
+        }
+
+        if (HasDuplicateInstallationConflict(registeredCustomPath, out var detectedCustomPath) &&
+            !string.IsNullOrWhiteSpace(detectedCustomPath))
+        {
+            var defaultRoot = GetDefaultInstallRoot();
+            var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
+            var isPendingRetry = File.Exists(markerPath);
+            var hasExistingData = HasExistingUserData(defaultRoot);
+
+            if ((!hasExistingData || isPendingRetry) && HasExistingUserData(detectedCustomPath))
+            {
+                try
+                {
+                    if (!File.Exists(markerPath))
+                    {
+                        File.WriteAllText(markerPath, detectedCustomPath);
+                    }
+                }
+                catch (IOException ex)
+                {
+                    logger?.LogWarning(ex, "Failed to write adoption marker file");
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    logger?.LogWarning(ex, "Failed to write adoption marker file");
+                }
+
+                logger?.LogInformation("Adopting configuration from '{Custom}' before service initialization", detectedCustomPath);
+                return TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
+            }
+        }
+
+        return false;
+    }
+
     /// <inheritdoc />
     public async Task<OperationResult<StorageMigrationPreflightResult>> ValidatePreflightAsync(
         string targetPath,
@@ -336,10 +384,18 @@ public class StorageMigrationService(
             return false;
         }
 
+        var trimmedCandidate = candidateCustomPath.Trim().Trim('"');
+        if (trimmedCandidate.StartsWith(@"\\", StringComparison.Ordinal) ||
+            trimmedCandidate.StartsWith("//", StringComparison.Ordinal) ||
+            (Uri.TryCreate(trimmedCandidate, UriKind.Absolute, out var uri) && uri.IsUnc))
+        {
+            return false;
+        }
+
         try
         {
             var currentRoot = GetSourceRootDirectory();
-            var normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(candidateCustomPath));
+            var normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(trimmedCandidate));
 
             if (PathHelper.AreSamePath(currentRoot, normalizedCandidate))
             {
@@ -470,9 +526,8 @@ public class StorageMigrationService(
             {
                 var srcDir = Path.Combine(customRoot, dirName);
                 var destDir = Path.Combine(targetRoot, dirName);
-                if (Directory.Exists(srcDir) && (!Directory.Exists(destDir) || !Directory.EnumerateFileSystemEntries(destDir).Any()))
+                if (Directory.Exists(srcDir) && CopyMissingFilesRecursive(srcDir, destDir))
                 {
-                    CopyDirectoryRecursive(srcDir, destDir);
                     importedAny = true;
                     logger?.LogInformation("Imported {Directory} from custom installation: {Src} -> {Dest}", dirName, srcDir, destDir);
                 }
@@ -542,8 +597,7 @@ public class StorageMigrationService(
             {
                 var srcDir = Path.Combine(customRoot, dir);
                 var destDir = Path.Combine(targetRoot, dir);
-                if (Directory.Exists(srcDir) && Directory.EnumerateFileSystemEntries(srcDir).Any() &&
-                    (!Directory.Exists(destDir) || !Directory.EnumerateFileSystemEntries(destDir).Any()))
+                if (HasUnadoptedDirectoryData(srcDir, destDir))
                 {
                     return true;
                 }
@@ -564,6 +618,68 @@ public class StorageMigrationService(
         catch (ArgumentException)
         {
             return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively copies files from source to destination if they do not already exist in the destination.
+    /// </summary>
+    /// <param name="srcDir">Source directory.</param>
+    /// <param name="destDir">Destination directory.</param>
+    /// <returns><see langword="true"/> if any file was copied; otherwise, <see langword="false"/>.</returns>
+    internal static bool CopyMissingFilesRecursive(string srcDir, string destDir)
+    {
+        var copiedAny = false;
+        Directory.CreateDirectory(destDir);
+
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", SearchOption.AllDirectories))
+        {
+            var relPath = Path.GetRelativePath(srcDir, file);
+            var destFile = Path.Combine(destDir, relPath);
+            if (!File.Exists(destFile))
+            {
+                var targetSubDir = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(targetSubDir))
+                {
+                    Directory.CreateDirectory(targetSubDir);
+                }
+
+                File.Copy(file, destFile, overwrite: false);
+                copiedAny = true;
+            }
+        }
+
+        return copiedAny;
+    }
+
+    /// <summary>
+    /// Determines whether the source directory contains any files not yet adopted into the destination directory.
+    /// </summary>
+    /// <param name="srcDir">Source directory.</param>
+    /// <param name="destDir">Destination directory.</param>
+    /// <returns><see langword="true"/> if unadopted files exist; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasUnadoptedDirectoryData(string srcDir, string destDir)
+    {
+        if (!Directory.Exists(srcDir))
+        {
+            return false;
+        }
+
+        if (!Directory.Exists(destDir))
+        {
+            return Directory.EnumerateFileSystemEntries(srcDir).Any();
+        }
+
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", SearchOption.AllDirectories))
+        {
+            var relPath = Path.GetRelativePath(srcDir, file);
+            var destFile = Path.Combine(destDir, relPath);
+            if (!File.Exists(destFile))
+            {
+                return true;
+            }
         }
 
         return false;

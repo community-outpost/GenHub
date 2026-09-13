@@ -57,6 +57,11 @@ public class Program
             {
                 bootstrapLogger.LogInformation("Starting GenHub Linux application");
 
+                // Check for duplicate installation collision and adopt configuration early
+                // before dependency injection initializes UserSettingsService.
+                var registeredCustom = Features.Storage.LinuxInstallationTracker.GetRegisteredCustomInstallPathStatic(bootstrapLogger);
+                Common.Services.StorageMigrationService.EarlyAdoptIfConflict(registeredCustom, bootstrapLogger);
+
                 // Record custom installation location if running outside default root
                 Features.Storage.LinuxInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
 

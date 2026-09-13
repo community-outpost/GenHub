@@ -31,6 +31,11 @@ public static class Program
         {
             bootstrapLogger.LogInformation("Starting GenHub macOS application");
 
+            // Check for duplicate installation collision and adopt configuration early
+            // before dependency injection initializes UserSettingsService.
+            var registeredCustom = Common.Services.FileInstallationLocationTracker.GetRegisteredCustomInstallPathStatic(bootstrapLogger);
+            Common.Services.StorageMigrationService.EarlyAdoptIfConflict(registeredCustom, bootstrapLogger);
+
             // Record custom installation location if running outside default root
             Common.Services.FileInstallationLocationTracker.RecordInstallLocationStatic(bootstrapLogger);
 

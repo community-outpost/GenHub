@@ -95,15 +95,10 @@ public class Program
         }
 
         // Check for duplicate installation collision: if running from default %LOCALAPPDATA%
-        // but a custom installation was previously registered or recorded.
+        // but a custom installation was previously registered or recorded, adopt user configuration early
+        // before dependency injection initializes UserSettingsService.
         var registeredCustom = Features.Storage.WindowsInstallationTracker.GetRegisteredCustomInstallPathStatic(bootstrapLogger);
-        if (Common.Services.StorageMigrationService.HasDuplicateInstallationConflict(registeredCustom, out var detectedCustomPath))
-        {
-            bootstrapLogger.LogWarning(
-                "Duplicate installation detected: GenHub is running from default location '{ProcessPath}', but a valid custom installation exists at '{CustomPath}'",
-                Environment.ProcessPath,
-                detectedCustomPath);
-        }
+        Common.Services.StorageMigrationService.EarlyAdoptIfConflict(registeredCustom, bootstrapLogger);
 
         // Record custom installation location in registry if running outside default root
         Features.Storage.WindowsInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
