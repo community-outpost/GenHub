@@ -870,6 +870,7 @@ public partial class FileManagerViewModel(
                 _reloadCts.Dispose();
                 _reloadCts = null;
             }
+
             var cts = new CancellationTokenSource();
             _reloadCts = cts;
             try
