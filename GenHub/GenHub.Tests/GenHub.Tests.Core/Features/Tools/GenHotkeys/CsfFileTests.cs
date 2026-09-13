@@ -202,27 +202,6 @@ public class CsfFileTests
             }
         }
     }
-    private static string FindPresetPath(string relativePath)
-    {
-        var candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", relativePath),
-        };
-
-        foreach (var c in candidates)
-        {
-            var full = Path.GetFullPath(c);
-            if (File.Exists(full))
-            {
-                return full;
-            }
-        }
-
-        throw new FileNotFoundException($"Preset file '{relativePath}' was not found.");
-    }
 
     /// <summary>
     /// Verifies that the bundled Vanilla Zero Hour preset has retail EA default hotkeys (e.g. America Dozer is 'D', Ranger is 'G', Crusader is 'C').
@@ -263,5 +242,27 @@ public class CsfFileTests
         var dozer = csf.GetString("CONTROLBAR:ConstructAmericaDozer");
         Assert.Equal("Construction &Dozer", dozer);
         Assert.Equal('D', CsfFile.ExtractHotkey(dozer));
+    }
+
+    private static string FindPresetPath(string relativePath)
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", relativePath),
+        };
+
+        foreach (var c in candidates)
+        {
+            var full = Path.GetFullPath(c);
+            if (File.Exists(full))
+            {
+                return full;
+            }
+        }
+
+        throw new FileNotFoundException($"Preset file '{relativePath}' was not found.");
     }
 }
