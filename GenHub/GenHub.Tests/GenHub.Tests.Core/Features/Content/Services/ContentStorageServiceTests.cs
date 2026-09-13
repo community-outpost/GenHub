@@ -75,7 +75,7 @@ public class ContentStorageServiceTests : IDisposable
         // Arrange
         // Source Dir: /Temp/SafeDir
         // Secret Dir: /Temp/SecretDir/secret.txt
-        // File SourcePath: /Temp/SafeDir/../../SecretDir/secret.txt (Traverses out of Source Dir)
+        // File SourcePath: /Temp/SecretDir/secret.txt (Absolute path outside sourceDir)
         var sourceDir = Path.Combine(_tempRoot, "SafeDir");
         Directory.CreateDirectory(sourceDir);
 

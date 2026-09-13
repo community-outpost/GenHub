@@ -31,15 +31,6 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
-    <Style Selector="FlyoutPresenter.ModernFlyout">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-      <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
-    </Style>
     <Style Selector="Button.KeyButton">
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="FontWeight" Value="Bold" />
@@ -136,7 +127,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                           <Border Width="28" Height="28" CornerRadius="6"
                                   Background="{DynamicResource PrimaryGradientBrush}">
-                            <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" Foreground="{DynamicResource PrimaryButtonForeground}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                           </Border>
                           <StackPanel Spacing="1">
                             <TextBlock Text="New Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -182,7 +173,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                           <Border Width="28" Height="28" CornerRadius="6"
                                   Background="{DynamicResource PrimaryGradientBrush}">
-                            <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" Foreground="{DynamicResource PrimaryButtonForeground}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                           </Border>
                           <StackPanel Spacing="1">
                             <TextBlock Text="Rename Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -267,7 +258,7 @@
                     Classes="Primary"
                     IsEnabled="{Binding !IsBusy}"
                     Padding="12,7"
-                    ToolTip.Tip="{Binding AddonButtonToolTip}">
+                    ToolTip.Tip="Packs customized hotkeys and icons into a .big archive and registers as a GenHub Addon in CAS">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="14" Height="14" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding AddonButtonText}" FontWeight="SemiBold" VerticalAlignment="Center"/>

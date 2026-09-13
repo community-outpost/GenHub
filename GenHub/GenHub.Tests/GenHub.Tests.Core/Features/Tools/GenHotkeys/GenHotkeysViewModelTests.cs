@@ -298,6 +298,80 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that CreateNewProfileAsync does not create duplicate profiles and sets status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateNewProfileAsync_WhenNameAlreadyExists_SetsStatusMessageAndDoesNotCreateAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var existing = new HotkeyProfile { Name = "Profile A" };
+        vm.Profiles.Add(existing);
+        vm.SelectedProfile = existing;
+        vm.NewProfileName = "profile a";
+
+        await vm.CreateNewProfileAsync();
+
+        Assert.Single(vm.Profiles);
+        Assert.Contains("already exists", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that RenameCurrentProfileAsync does not allow duplicate profile names.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameCurrentProfileAsync_WhenNameAlreadyExists_SetsStatusMessageAndDoesNotRenameAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profileA = new HotkeyProfile { Name = "Profile A" };
+        var profileB = new HotkeyProfile { Name = "Profile B" };
+        vm.Profiles.Add(profileA);
+        vm.Profiles.Add(profileB);
+        vm.SelectedProfile = profileA;
+        vm.RenameProfileText = "profile b";
+
+        await vm.RenameCurrentProfileAsync();
+
+        Assert.Equal("Profile A", profileA.Name);
+        Assert.Contains("already exists", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that RenameCurrentProfileAsync sets status message when new name is empty or whitespace.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameCurrentProfileAsync_WhenNameIsEmpty_SetsStatusMessageAndDoesNotRenameAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profileA = new HotkeyProfile { Name = "Profile A" };
+        vm.Profiles.Add(profileA);
+        vm.SelectedProfile = profileA;
+        vm.RenameProfileText = "   ";
+
+        await vm.RenameCurrentProfileAsync();
+
+        Assert.Equal("Profile A", profileA.Name);
+        Assert.Contains("cannot be empty", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Verifies that DeleteCurrentProfileAsync prompts confirmation and deletes when confirmed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -356,6 +430,33 @@ public class GenHotkeysViewModelTests
             _mockPackageService.Object,
             _mockLogger.Object,
             dialogService: _mockDialogService.Object);
+
+        var profile1 = new HotkeyProfile { Name = "Profile 1" };
+        var profile2 = new HotkeyProfile { Name = "Profile 2" };
+        vm.Profiles.Add(profile1);
+        vm.Profiles.Add(profile2);
+        vm.SelectedProfile = profile1;
+
+        await vm.DeleteCurrentProfileAsync();
+
+        Assert.Contains(profile1, vm.Profiles);
+        Assert.Same(profile1, vm.SelectedProfile);
+        _mockProfileStorage.Verify(s => s.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteCurrentProfileAsync fails closed and does not delete when dialog service is null.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteCurrentProfileAsync_WhenDialogServiceIsNull_DoesNotDeleteProfileAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            dialogService: null);
 
         var profile1 = new HotkeyProfile { Name = "Profile 1" };
         var profile2 = new HotkeyProfile { Name = "Profile 2" };
