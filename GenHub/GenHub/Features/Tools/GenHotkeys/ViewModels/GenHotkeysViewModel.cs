@@ -447,14 +447,9 @@ public partial class GenHotkeysViewModel(
                 ValidateConflicts();
             }
 
-            if (savedProfile == null)
-            {
-                StatusMessage = $"Failed to save profile after applying preset '{presetName}'.";
-            }
-            else
-            {
-                StatusMessage = $"Applied '{presetName}' preset hotkeys.";
-            }
+            StatusMessage = savedProfile == null
+                ? $"Failed to save profile after applying preset '{presetName}'."
+                : $"Applied '{presetName}' preset hotkeys.";
         }
     }
 

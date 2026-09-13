@@ -255,11 +255,19 @@ public class HotkeyPackageService(
     /// </summary>
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)
     {
-        var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
-            ? GenHotkeysConstants.PresetsLegionnaireEn
-            : profile.BasePreset?.Contains(GenHotkeysConstants.PresetLeikeze, StringComparison.OrdinalIgnoreCase) == true
-                ? GenHotkeysConstants.PresetsLeikezeEn
-                : GenHotkeysConstants.GetVanillaPresetCsfPath(profile.TargetGame);
+        string presetFile;
+        if (profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            presetFile = GenHotkeysConstants.PresetsLegionnaireEn;
+        }
+        else if (profile.BasePreset?.Contains(GenHotkeysConstants.PresetLeikeze, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            presetFile = GenHotkeysConstants.PresetsLeikezeEn;
+        }
+        else
+        {
+            presetFile = GenHotkeysConstants.GetVanillaPresetCsfPath(profile.TargetGame);
+        }
 
         var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetFile);
         if (stream != null)
