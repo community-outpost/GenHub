@@ -132,13 +132,13 @@ nav {
 }
 
 .nav-btn-discord {
-    background: rgba(88, 101, 242, 0.18);
+    background: #1e1f4b;
     border: 1px solid rgba(88, 101, 242, 0.45);
     color: #e0e7ff;
 }
 
 .nav-btn-discord:hover {
-    background: rgba(88, 101, 242, 0.3);
+    background: #272863;
     color: #ffffff;
     border-color: #5865f2;
 }
