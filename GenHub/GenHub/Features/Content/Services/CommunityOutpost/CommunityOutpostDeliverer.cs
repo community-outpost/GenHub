@@ -68,11 +68,11 @@ public class CommunityOutpostDeliverer(
     {
         // Look for contentCode tag in metadata
         var contentCodeTag = manifest.Metadata?.Tags?
-            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(contentCodeTag))
         {
-            return contentCodeTag["contentCode:".Length..];
+            return contentCodeTag[ManifestTagConstants.ContentCodePrefix.Length..];
         }
 
         return "unknown";
@@ -1031,7 +1031,7 @@ public class CommunityOutpostDeliverer(
                     TargetGame = depMetadata.TargetGame,
                     Metadata = new ContentMetadata
                     {
-                        Tags = [$"contentCode:{actualContentCode}"],
+                        Tags = [$"{ManifestTagConstants.ContentCodePrefix}{actualContentCode}"],
                     },
                 };
 

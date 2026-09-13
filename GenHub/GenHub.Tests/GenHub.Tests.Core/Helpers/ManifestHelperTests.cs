@@ -66,6 +66,41 @@ public sealed class ManifestHelperTests
     }
 
     /// <summary>
+    /// Tests that SelectPrimaryManifest prioritizes an exact SelectedVariantId match over an ID-suffix match.
+    /// </summary>
+    [Fact]
+    public void SelectPrimaryManifest_PrefersExactSelectedVariantIdOverIdSuffix()
+    {
+        var suffixMatch = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.addon.pkg-ru"),
+            Name = "Suffix Match",
+            ContentType = ContentType.Addon,
+            Metadata = new ContentMetadata { SelectedVariantId = "other" },
+        };
+
+        var exactMatch = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.addon.pkg-custom"),
+            Name = "Exact Match",
+            ContentType = ContentType.Addon,
+            Metadata = new ContentMetadata { SelectedVariantId = "ru" },
+        };
+
+        var reference = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.addon.pkg"),
+            Name = "Pkg",
+            ContentType = ContentType.Addon,
+            Metadata = new ContentMetadata { SelectedVariantId = "ru" },
+        };
+
+        // Put suffixMatch first in candidates; exactMatch should still be selected
+        var result = ManifestHelper.SelectPrimaryManifest([suffixMatch, exactMatch], reference);
+        Assert.Same(exactMatch, result);
+    }
+
+    /// <summary>
     /// Tests that SelectPrimaryManifest returns the manifest matching variant tags.
     /// </summary>
     [Fact]

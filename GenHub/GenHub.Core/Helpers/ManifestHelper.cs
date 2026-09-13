@@ -63,7 +63,7 @@ public static class ManifestHelper
     /// </summary>
     /// <param name="manifests">The generated manifests.</param>
     /// <param name="referenceManifest">The package or reference manifest specifying variant/game metadata.</param>
-    /// <returns>The best-matching content manifest, or null if manifests is empty.</returns>
+    /// <returns>The best-matching content manifest, or <paramref name="referenceManifest"/> if <paramref name="manifests"/> is null or empty.</returns>
     public static ContentManifest? SelectPrimaryManifest(
         IReadOnlyList<ContentManifest>? manifests,
         ContentManifest? referenceManifest)
@@ -86,7 +86,8 @@ public static class ManifestHelper
             var variantSuffix = $"-{requestedVariant}";
 
             primaryManifest = manifests.FirstOrDefault(m =>
-                string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase))
+              ?? manifests.FirstOrDefault(m =>
                 m.Id.Value.EndsWith(variantSuffix, StringComparison.OrdinalIgnoreCase))
               ?? manifests.FirstOrDefault(m =>
                 m.Metadata?.Tags?.Any(t => string.Equals(t, variantTag, StringComparison.OrdinalIgnoreCase) ||

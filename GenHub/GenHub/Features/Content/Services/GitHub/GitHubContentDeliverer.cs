@@ -354,7 +354,7 @@ public class GitHubContentDeliverer(
             }
 
             // Return primary manifest matching requested variant or target game if specified
-            var primaryManifest = ManifestHelper.SelectPrimaryManifest(manifests, originalManifest) ?? manifests[0];
+            var primaryManifest = ManifestHelper.SelectPrimaryManifest(manifests, originalManifest) ?? originalManifest;
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }
