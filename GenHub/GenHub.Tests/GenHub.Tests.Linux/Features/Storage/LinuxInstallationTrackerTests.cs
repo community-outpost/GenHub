@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Runtime.Versioning;
 using GenHub.Linux.Features.Storage;
 using Xunit;
@@ -23,6 +25,96 @@ public class LinuxInstallationTrackerTests
         if (path != null)
         {
             Assert.False(string.IsNullOrWhiteSpace(path));
+        }
+    }
+
+    /// <summary>
+    /// Verifies that desktop entry parsing resolves custom Velopack install roots via XDG_DATA_HOME.
+    /// </summary>
+    [Fact]
+    public void GetRegisteredCustomInstallPath_FromDesktopEntry_ResolvesCustomVelopackRoot()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "GenHubLinuxTrackerTests_" + System.Guid.NewGuid().ToString("N"));
+        var xdgDataHome = Path.Combine(tempRoot, "share");
+        var appDir = Path.Combine(xdgDataHome, "applications");
+        Directory.CreateDirectory(appDir);
+
+        var customInstall = Path.Combine(tempRoot, "CustomInstall");
+        Directory.CreateDirectory(customInstall);
+        File.WriteAllText(Path.Combine(customInstall, "Update"), "stub");
+
+        var desktopFile = Path.Combine(appDir, "GenHub.desktop");
+        var execTarget = Path.Combine(customInstall, "current", "GenHub.Linux");
+        Directory.CreateDirectory(Path.GetDirectoryName(execTarget)!);
+        File.WriteAllText(execTarget, "stub");
+
+        File.WriteAllText(desktopFile, $"[Desktop Entry]\nName=GenHub\nExec=\"{execTarget}\" %u\n");
+
+        var oldXdg = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+        try
+        {
+            Environment.SetEnvironmentVariable("XDG_DATA_HOME", xdgDataHome);
+            var detected = LinuxInstallationTracker.GetRegisteredCustomInstallPathStatic();
+            Assert.NotNull(detected);
+            Assert.Equal(customInstall, detected);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("XDG_DATA_HOME", oldXdg);
+            try
+            {
+                Directory.Delete(tempRoot, true);
+            }
+            catch (IOException)
+            {
+                // Ignore cleanup errors
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that desktop entry parsing decodes freedesktop escapes.
+    /// </summary>
+    [Fact]
+    public void GetRegisteredCustomInstallPath_FromDesktopEntry_DecodesFreedesktopEscapes()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "GenHubLinuxTrackerTests_" + Guid.NewGuid().ToString("N"));
+        var xdgDataHome = Path.Combine(tempRoot, "share");
+        var appDir = Path.Combine(xdgDataHome, "applications");
+        Directory.CreateDirectory(appDir);
+
+        var customInstall = Path.Combine(tempRoot, "Custom Install");
+        Directory.CreateDirectory(customInstall);
+        File.WriteAllText(Path.Combine(customInstall, "Update"), "stub");
+
+        var desktopFile = Path.Combine(appDir, "GenHub.desktop");
+        var execTarget = Path.Combine(customInstall, "current", "GenHub.Linux");
+        Directory.CreateDirectory(Path.GetDirectoryName(execTarget)!);
+        File.WriteAllText(execTarget, "stub");
+
+        // Escaped space \s and %%
+        var escapedTarget = execTarget.Replace("Custom Install", "Custom\\sInstall");
+        File.WriteAllText(desktopFile, $"[Desktop Entry]\nName=GenHub\nExec=\"{escapedTarget}\" %%u\n");
+
+        var oldXdg = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+        try
+        {
+            Environment.SetEnvironmentVariable("XDG_DATA_HOME", xdgDataHome);
+            var detected = LinuxInstallationTracker.GetRegisteredCustomInstallPathStatic();
+            Assert.NotNull(detected);
+            Assert.Equal(customInstall, detected);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("XDG_DATA_HOME", oldXdg);
+            try
+            {
+                Directory.Delete(tempRoot, true);
+            }
+            catch (IOException)
+            {
+                // Ignore cleanup errors
+            }
         }
     }
 }

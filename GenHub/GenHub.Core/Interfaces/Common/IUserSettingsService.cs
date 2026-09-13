@@ -43,4 +43,9 @@ public interface IUserSettingsService
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task that represents the asynchronous save operation.</returns>
     Task SaveAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reloads user settings from disk into memory.
+    /// </summary>
+    void Reload();
 }

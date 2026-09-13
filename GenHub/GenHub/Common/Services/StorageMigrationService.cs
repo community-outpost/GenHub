@@ -82,6 +82,8 @@ public class StorageMigrationService(
 
     private static readonly Lazy<bool> CachedIsCustomInstallRoot = new(ComputeIsCustomInstallRoot);
     private static bool? _customInstallRootOverride;
+    private static bool? _defaultInstallRootOverride;
+    private static string? _defaultInstallRootPathOverride;
     private static string? _defaultDataRootOverride;
 
     /// <summary>
@@ -345,32 +347,70 @@ public class StorageMigrationService(
     internal static void SetCustomInstallRootOverrideForTesting(bool? isCustom) => _customInstallRootOverride = isCustom;
 
     /// <summary>
+    /// Determines whether the running instance is located in the default Velopack installation root directory.
+    /// </summary>
+    /// <returns><see langword="true"/> if running from the default installation directory; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsDefaultInstallRoot()
+    {
+        if (_defaultInstallRootOverride.HasValue)
+        {
+            return _defaultInstallRootOverride.Value;
+        }
+
+        var defaultInstallRoot = GetDefaultInstallRoot();
+        if (string.IsNullOrWhiteSpace(defaultInstallRoot))
+        {
+            return false;
+        }
+
+        var sourceRoot = GetSourceRootDirectory();
+        return PathHelper.AreSamePath(sourceRoot, defaultInstallRoot);
+    }
+
+    /// <summary>
+    /// Sets an override for <see cref="IsDefaultInstallRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="isDefault">The override value, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultInstallRootOverrideForTesting(bool? isDefault) => _defaultInstallRootOverride = isDefault;
+
+    /// <summary>
+    /// Sets an override for <see cref="GetDefaultInstallRoot"/> path for unit testing.
+    /// </summary>
+    /// <param name="path">The override directory path, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultInstallRootPathOverrideForTesting(string? path) => _defaultInstallRootPathOverride = path;
+
+    /// <summary>
     /// Sets an override for <see cref="GetDefaultDataRoot"/> for unit testing.
     /// </summary>
     /// <param name="path">The override directory path, or <see langword="null"/> to reset.</param>
     internal static void SetDefaultDataRootOverrideForTesting(string? path) => _defaultDataRootOverride = path;
 
     /// <summary>
-    /// Gets the default application data root directory across all platforms,
-    /// checking for custom configured data path overrides before falling back to LocalApplicationData.
+    /// Gets the default application data root directory in LocalApplicationData across all platforms.
     /// </summary>
     /// <returns>The path to the default application data root.</returns>
     internal static string GetDefaultDataRoot()
     {
-        if (!string.IsNullOrWhiteSpace(_defaultDataRootOverride))
+        if (_defaultDataRootOverride != null)
         {
             return _defaultDataRootOverride;
         }
 
-        var configuredPath = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
-        if (!string.IsNullOrWhiteSpace(configuredPath))
+        var configuredEnv = Environment.GetEnvironmentVariable("GENHUB_GenHub__AppDataPath");
+        if (!string.IsNullOrWhiteSpace(configuredEnv) && PathHelper.TrySanitizeLocalPath(configuredEnv, out var sanitized))
         {
-            return configuredPath;
+            return sanitized;
         }
 
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localAppData))
+        {
+            localAppData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        return !string.IsNullOrWhiteSpace(localAppData)
+            ? Path.Combine(localAppData, AppConstants.AppName)
+            : Path.Combine(Path.GetTempPath(), AppConstants.AppName);
     }
 
     /// <summary>
@@ -379,24 +419,39 @@ public class StorageMigrationService(
     /// <returns>The path to the default installation root.</returns>
     internal static string GetDefaultInstallRoot()
     {
+        if (_defaultInstallRootPathOverride != null)
+        {
+            return _defaultInstallRootPathOverride;
+        }
+
         if (OperatingSystem.IsMacOS())
         {
-            var userApplications = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Applications",
-                $"{AppConstants.AppName}.app");
-
-            if (Directory.Exists(userApplications))
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrWhiteSpace(userProfile))
             {
-                return userApplications;
+                var userApplications = Path.Combine(
+                    userProfile,
+                    "Applications",
+                    $"{AppConstants.AppName}.app");
+
+                if (Directory.Exists(userApplications))
+                {
+                    return userApplications;
+                }
             }
 
             return $"/Applications/{AppConstants.AppName}.app";
         }
 
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localAppData))
+        {
+            localAppData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        return !string.IsNullOrWhiteSpace(localAppData)
+            ? Path.Combine(localAppData, AppConstants.AppName)
+            : string.Empty;
     }
 
     /// <summary>
@@ -410,11 +465,23 @@ public class StorageMigrationService(
             return;
         }
 
-        CleanIfEmpty(GetDefaultDataRoot());
+        var defaultInstall = GetDefaultInstallRoot();
+        if (!string.IsNullOrWhiteSpace(defaultInstall) && Path.IsPathRooted(defaultInstall))
+        {
+            CleanIfEmpty(defaultInstall);
+        }
 
-        CleanIfEmpty(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            AppConstants.AppName));
+        var defaultData = GetDefaultDataRoot();
+        if (!string.IsNullOrWhiteSpace(defaultData) && Path.IsPathRooted(defaultData))
+        {
+            CleanIfEmpty(defaultData);
+        }
+
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData) && Path.IsPathRooted(appData))
+        {
+            CleanIfEmpty(Path.Combine(appData, AppConstants.AppName));
+        }
     }
 
     /// <summary>
@@ -427,7 +494,7 @@ public class StorageMigrationService(
     internal static bool HasDuplicateInstallationConflict(string? candidateCustomPath, out string? detectedCustomPath)
     {
         detectedCustomPath = null;
-        if (IsCustomInstallRoot() || string.IsNullOrWhiteSpace(candidateCustomPath))
+        if (IsCustomInstallRoot() || !IsDefaultInstallRoot() || string.IsNullOrWhiteSpace(candidateCustomPath))
         {
             return false;
         }

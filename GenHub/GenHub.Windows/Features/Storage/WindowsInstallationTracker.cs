@@ -183,7 +183,7 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         if (key != null)
         {
             var customPath = key.GetValue(CustomInstallPathValueName) as string;
-            if (IsValidLocalDirectoryPath(customPath))
+            if (IsValidLocalDirectoryPath(customPath) && StorageMigrationService.IsVelopackRoot(customPath!))
             {
                 return customPath!.Trim().Trim('"');
             }
@@ -228,15 +228,29 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
             {
                 var exePath = trimmed[1..endQuote];
                 var dir = Path.GetDirectoryName(exePath);
-                if (string.Equals(Path.GetFileName(dir), "current", StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrWhiteSpace(dir))
                 {
-                    return Directory.GetParent(dir!)?.FullName;
+                    return ResolveCandidateVelopackRoot(dir);
                 }
-
-                return dir;
             }
         }
 
         return null;
+    }
+
+    private static string? ResolveCandidateVelopackRoot(string directory)
+    {
+        if (StorageMigrationService.IsVelopackRoot(directory))
+        {
+            return directory;
+        }
+
+        var parent = Directory.GetParent(directory)?.FullName;
+        if (parent != null && StorageMigrationService.IsVelopackRoot(parent))
+        {
+            return parent;
+        }
+
+        return directory;
     }
 }

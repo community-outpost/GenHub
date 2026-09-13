@@ -178,7 +178,7 @@ public static class RegistryConstants
     // ===== Shell & Classes Keys =====
 
     /// <summary>Registry shell open command subkey path for GenHub URI scheme.</summary>
-    public const string GenHubUriSchemeCommandKey = @"Software\Classes\genhub\shell\open\command";
+    public const string GenHubUriSchemeCommandKey = @"Software\Classes\" + CommandLineConstants.SchemeName + @"\shell\open\command";
 
     // ===== GenHub Application Keys =====
 

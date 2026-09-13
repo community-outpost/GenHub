@@ -709,6 +709,7 @@ public class StorageMigrationServiceTests : IDisposable
     public void HasDuplicateInstallationConflict_DetectsCustomInstallation_WhenRunningFromDefault()
     {
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
         try
         {
             var customInstall = Path.Combine(_tempRoot, "CustomInstallRoot");
@@ -722,6 +723,7 @@ public class StorageMigrationServiceTests : IDisposable
         }
         finally
         {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
             StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
         }
     }
@@ -778,6 +780,7 @@ public class StorageMigrationServiceTests : IDisposable
     {
         var root = StorageMigrationService.GetDefaultInstallRoot();
         Assert.False(string.IsNullOrWhiteSpace(root));
+        Assert.True(Path.IsPathRooted(root));
         if (OperatingSystem.IsMacOS())
         {
             Assert.True(
@@ -985,6 +988,47 @@ public class StorageMigrationServiceTests : IDisposable
         File.WriteAllText(markerPath, "   ");
         Assert.False(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
         Assert.False(File.Exists(markerPath));
+    }
+
+    /// <summary>
+    /// Tests that IsDefaultInstallRoot honors testing overrides.
+    /// </summary>
+    [Fact]
+    public void IsDefaultInstallRoot_HonorsOverrides()
+    {
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
+        Assert.True(StorageMigrationService.IsDefaultInstallRoot());
+
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(false);
+        Assert.False(StorageMigrationService.IsDefaultInstallRoot());
+
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when not running from default install root.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_WhenNotDefaultInstallRoot_ReturnsFalse()
+    {
+        var customDir = Path.Combine(_tempRoot, "CustomConflictDir");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(false);
+
+        try
+        {
+            var conflict = StorageMigrationService.HasDuplicateInstallationConflict(customDir, out var detected);
+            Assert.False(conflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
     }
 
     private StorageMigrationService CreateService()

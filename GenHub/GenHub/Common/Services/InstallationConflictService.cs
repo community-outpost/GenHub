@@ -5,6 +5,7 @@ using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using Microsoft.Extensions.Logging;
@@ -12,18 +13,19 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Common.Services;
 
 /// <summary>
-/// Service responsible for detecting and resolving duplicate installation collisions
-/// when GenHub is launched from the default installation directory while a custom installation exists.
+/// Service responsible for detecting and resolving conflicts between default and custom GenHub installations.
 /// </summary>
-/// <param name="installationLocationTracker">The installation tracker for recording and discovering installation paths.</param>
-/// <param name="notificationService">Optional UI notification service for alert toasts.</param>
+/// <param name="installationLocationTracker">The installation location tracker.</param>
+/// <param name="notificationService">Optional notification service to alert the user about detected conflicts.</param>
+/// <param name="userSettingsService">Optional user settings service to reload settings after adoption.</param>
 /// <param name="logger">Optional logger for diagnostics.</param>
 public class InstallationConflictService(
     IInstallationLocationTracker installationLocationTracker,
     INotificationService? notificationService = null,
+    IUserSettingsService? userSettingsService = null,
     ILogger<InstallationConflictService>? logger = null) : IInstallationConflictService
 {
-    private const string ConflictCheckErrorMessage = "Error checking for duplicate installation conflict on startup";
+    private const string ConflictCheckErrorMessage = "Error checking for installation location conflicts.";
     private const string RemoveMarkerErrorMessage = "Failed to remove adoption marker file at {MarkerPath}";
 
     private readonly IInstallationLocationTracker _tracker = installationLocationTracker ?? throw new ArgumentNullException(nameof(installationLocationTracker));
@@ -105,9 +107,8 @@ public class InstallationConflictService(
             if (!SetAdoptionMarker(markerPath, detectedCustomPath))
             {
                 logger?.LogWarning(
-                    "Failed to write adoption marker file at '{MarkerPath}'; aborting adoption to avoid stranding custom data.",
+                    "Aborting user configuration adoption because writing adoption marker failed: {MarkerPath}",
                     markerPath);
-                NotifyDuplicateInstallationConflict(detectedCustomPath, false);
                 return;
             }
 
@@ -119,6 +120,11 @@ public class InstallationConflictService(
             imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger, cancellationToken) ||
                        StorageMigrationService.WasEarlyAdopted;
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (imported)
+            {
+                userSettingsService?.Reload();
+            }
 
             var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
             if (hasRemainingUnadopted == false)
@@ -132,6 +138,7 @@ public class InstallationConflictService(
             if (StorageMigrationService.WasEarlyAdopted)
             {
                 imported = true;
+                userSettingsService?.Reload();
                 var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
                 if (hasRemainingUnadopted == false)
                 {
@@ -196,7 +203,7 @@ public class InstallationConflictService(
         notificationService.ShowWarning(
             StorageMigrationConstants.DuplicateInstallationDetectedTitle,
             message,
-            StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,
+            StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
             showInBadge: true);
     }
 }

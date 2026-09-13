@@ -535,6 +535,27 @@ public class UserSettingsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that Reload re-reads settings from disk into memory.
+    /// </summary>
+    [Fact]
+    public void Reload_WhenSettingsFileModifiedOnDisk_UpdatesInMemorySettings()
+    {
+        var settingsPath = Path.Combine(_tempDirectory, FileTypes.SettingsFileName);
+        File.WriteAllText(settingsPath, """{ "theme": "Dark", "downloadBufferSize": 4096 }""");
+
+        var appConfig = CreateAppConfigMock();
+        var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath);
+        Assert.Equal("Dark", service.Get().Theme);
+        Assert.Equal(4096, service.Get().DownloadBufferSize);
+
+        File.WriteAllText(settingsPath, """{ "theme": "Light", "downloadBufferSize": 8192 }""");
+        service.Reload();
+
+        Assert.Equal("Light", service.Get().Theme);
+        Assert.Equal(8192, service.Get().DownloadBufferSize);
+    }
+
+    /// <summary>
     /// Verifies that a first run, which has no settings file at all, still persists its settings.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

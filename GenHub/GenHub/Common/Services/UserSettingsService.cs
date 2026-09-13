@@ -226,6 +226,32 @@ public class UserSettingsService : IUserSettingsService
         }
     }
 
+    /// <inheritdoc/>
+    public void Reload()
+    {
+        lock (_lock)
+        {
+            var currentPath = _target.Path;
+            if (!string.IsNullOrWhiteSpace(currentPath))
+            {
+                _settings = LoadSettings(currentPath, out var outcome);
+                _target = TargetFor(currentPath, outcome);
+                try
+                {
+                    NormalizeAndValidateLocked(_settings, _appConfig);
+                }
+                catch (ArgumentException ex)
+                {
+                    _logger.LogError(ex, "Failed to normalize settings, keeping the loaded values as they are");
+                }
+
+                return;
+            }
+        }
+
+        InitializeSettings();
+    }
+
     /// <summary>
     /// Adopts <paramref name="path"/> as the settings file, reading it into the in-memory settings.
     /// This is the "start using this file" move, and it necessarily discards the settings currently

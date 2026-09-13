@@ -14,7 +14,7 @@ namespace GenHub.Tests.Core.Features.Storage;
 public class FileInstallationLocationTrackerTests : IDisposable
 {
     private readonly string _tempRoot;
-    private readonly string _testLocationFilePath;
+    private readonly string _customLocationFile;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileInstallationLocationTrackerTests"/> class.
@@ -24,12 +24,8 @@ public class FileInstallationLocationTrackerTests : IDisposable
         _tempRoot = Path.Combine(Path.GetTempPath(), "FileTrackerTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempRoot);
 
-        _testLocationFilePath = Path.Combine(
-            _tempRoot,
-            StorageMigrationConstants.GenHubConfigDirectoryName,
-            StorageMigrationConstants.CustomInstallPathFileName);
-
-        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(_testLocationFilePath);
+        _customLocationFile = Path.Combine(_tempRoot, StorageMigrationConstants.GenHubConfigDirectoryName, StorageMigrationConstants.CustomInstallPathFileName);
+        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(_customLocationFile);
     }
 
     /// <summary>
@@ -37,8 +33,8 @@ public class FileInstallationLocationTrackerTests : IDisposable
     /// </summary>
     public void Dispose()
     {
-        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(null);
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(null);
 
         if (Directory.Exists(_tempRoot))
         {
@@ -77,7 +73,7 @@ public class FileInstallationLocationTrackerTests : IDisposable
         }
         finally
         {
-            FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(_testLocationFilePath);
+            FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(_customLocationFile);
         }
     }
 

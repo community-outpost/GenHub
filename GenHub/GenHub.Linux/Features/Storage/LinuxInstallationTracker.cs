@@ -3,8 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
 using System.Security;
+using System.Text;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -57,10 +59,20 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
             if (string.IsNullOrWhiteSpace(dataHome))
             {
                 var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if (string.IsNullOrWhiteSpace(home))
+                {
+                    return null;
+                }
+
                 dataHome = Path.Combine(home, ".local", "share");
             }
 
             var appDir = Path.Combine(dataHome, "applications");
+            if (!Directory.Exists(appDir))
+            {
+                return null;
+            }
+
             var candidateFiles = new[]
             {
                 Path.Combine(appDir, $"{AppConstants.AppName}.desktop"),
@@ -113,7 +125,7 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
         var velopackRoot = ResolveCandidateVelopackRoot(dir);
         if (!string.IsNullOrWhiteSpace(velopackRoot) &&
             StorageMigrationService.IsVelopackRoot(velopackRoot) &&
-            !string.Equals(velopackRoot, StorageMigrationService.GetDefaultInstallRoot(), StringComparison.OrdinalIgnoreCase))
+            !PathHelper.AreSamePath(velopackRoot, StorageMigrationService.GetDefaultInstallRoot()))
         {
             logger?.LogInformation("Found registered custom install from desktop entry {DesktopFile}: {VelopackRoot}", candidateFile, velopackRoot);
             return velopackRoot;
@@ -130,9 +142,11 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
             if (trimmed.StartsWith("Exec=", StringComparison.OrdinalIgnoreCase))
             {
                 var candidate = ExtractExecutableToken(trimmed["Exec=".Length..].Trim());
-                if (!string.IsNullOrWhiteSpace(candidate) && Path.IsPathRooted(candidate))
+                if (!string.IsNullOrWhiteSpace(candidate) &&
+                    PathHelper.TrySanitizeLocalPath(candidate, out var sanitizedPath) &&
+                    !PathHelper.AreSamePath(sanitizedPath, StorageMigrationService.GetSourceRootDirectory()))
                 {
-                    return candidate;
+                    return sanitizedPath;
                 }
             }
         }
@@ -160,18 +174,65 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
 
         var firstSpace = raw.IndexOf(' ');
         var token = firstSpace > 0 ? raw[..firstSpace] : raw;
-        return token.Replace("%%", "%");
+        return DecodeFreedesktopEscapes(token);
     }
 
     private static string DecodeFreedesktopEscapes(string value)
     {
-        return value
-            .Replace("\\\"", "\"")
-            .Replace("\\$", "$")
-            .Replace("\\`", "`")
-            .Replace("\\n", "\n")
-            .Replace("\\\\", "\\")
-            .Replace("%%", "%");
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        var sb = new StringBuilder(value.Length);
+        for (var i = 0; i < value.Length; i++)
+        {
+            var ch = value[i];
+            if (ch == '%' && i + 1 < value.Length && value[i + 1] == '%')
+            {
+                sb.Append('%');
+                i++;
+            }
+            else if (ch == '\\' && i + 1 < value.Length)
+            {
+                var next = value[i + 1];
+                switch (next)
+                {
+                    case '\"':
+                    case '\\':
+                    case '$':
+                    case '`':
+                        sb.Append(next);
+                        i++;
+                        break;
+                    case 's':
+                        sb.Append(' ');
+                        i++;
+                        break;
+                    case 'n':
+                        sb.Append('\n');
+                        i++;
+                        break;
+                    case 't':
+                        sb.Append('\t');
+                        i++;
+                        break;
+                    case 'r':
+                        sb.Append('\r');
+                        i++;
+                        break;
+                    default:
+                        sb.Append(ch);
+                        break;
+                }
+            }
+            else
+            {
+                sb.Append(ch);
+            }
+        }
+
+        return sb.ToString();
     }
 
     private static string? ResolveCandidateVelopackRoot(string directory)

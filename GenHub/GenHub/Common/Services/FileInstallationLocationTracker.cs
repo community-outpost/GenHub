@@ -149,7 +149,7 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
     /// <returns>The path to the tracking file.</returns>
     public static string GetLocationFilePath()
     {
-        if (!string.IsNullOrWhiteSpace(_locationFilePathOverride))
+        if (_locationFilePathOverride != null)
         {
             return _locationFilePathOverride;
         }
@@ -178,8 +178,8 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
     public virtual void ClearCustomInstallPath() => ClearCustomInstallPathStatic(logger);
 
     /// <summary>
-    /// Sets an override for <see cref="GetLocationFilePath"/> for unit testing.
+    /// Sets an override for the location file path for unit testing.
     /// </summary>
-    /// <param name="path">The override path, or <see langword="null"/> to reset.</param>
+    /// <param name="path">The override file path, or <see langword="null"/> to reset.</param>
     internal static void SetLocationFilePathOverrideForTesting(string? path) => _locationFilePathOverride = path;
 }
