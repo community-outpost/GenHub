@@ -885,7 +885,13 @@ public sealed class ProjectConfigService(
 
             if (createBundlePackForBig)
             {
-                await ConfigureBundlePacksForImportedBigsAsync(projectDir, bigList, cancellationToken, project).ConfigureAwait(false);
+                var packsConfigured = await ConfigureBundlePacksForImportedBigsAsync(projectDir, bigList, cancellationToken, project).ConfigureAwait(false);
+                if (!packsConfigured)
+                {
+                    sw.Stop();
+                    logger.LogError("Failed to configure bundle packs in ModBundlePacks.json for imported BIG files in project {ProjectPath}", projectPath);
+                    return ProjectOperationResult<int>.CreateFailure("Failed to update ModBundlePacks.json for imported BIG archives", sw.Elapsed);
+                }
             }
 
             sw.Stop();
@@ -978,7 +984,7 @@ public sealed class ProjectConfigService(
     /// <summary>
     /// Configures ModBundleItems.json and ModBundlePacks.json for imported BIG archives.
     /// </summary>
-    private async Task ConfigureBundlePacksForImportedBigsAsync(
+    private async Task<bool> ConfigureBundlePacksForImportedBigsAsync(
         string projectDir,
         List<string> bigFilePaths,
         CancellationToken cancellationToken,
@@ -991,7 +997,7 @@ public sealed class ProjectConfigService(
         var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
 
         var itemNames = await EnsureImportedBundleItemsAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
-        await EnsureImportedBundlePacksAsync(packsPath, bigFilePaths, itemNames, cancellationToken).ConfigureAwait(false);
+        return await EnsureImportedBundlePacksAsync(packsPath, bigFilePaths, itemNames, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<List<string>> EnsureImportedBundleItemsAsync(
@@ -1159,7 +1165,7 @@ public sealed class ProjectConfigService(
         logger.LogDebug("Created ModBundleItems.json for imported BIG files at {Path}", itemsPath);
     }
 
-    private async Task EnsureImportedBundlePacksAsync(
+    private async Task<bool> EnsureImportedBundlePacksAsync(
         string packsPath,
         List<string> bigFilePaths,
         List<string> itemNames,
@@ -1170,16 +1176,17 @@ public sealed class ProjectConfigService(
 
         if (packsToAdd.Count == 0)
         {
-            return;
+            return true;
         }
 
         if (!File.Exists(packsPath))
         {
             await CreateBundlePacksFileAsync(packsPath, packsToAdd, cancellationToken).ConfigureAwait(false);
+            return true;
         }
         else
         {
-            await AppendPacksToExistingBundleFileAsync(packsPath, packsToAdd, cancellationToken).ConfigureAwait(false);
+            return await AppendPacksToExistingBundleFileAsync(packsPath, packsToAdd, cancellationToken).ConfigureAwait(false);
         }
     }
 
