@@ -118,11 +118,27 @@ public class HotkeyProfileStorageService(
         var filePath = GetSafeProfilePath(profile.Id);
         var json = JsonSerializer.Serialize(profile, JsonOptions);
         var tempPath = $"{filePath}.tmp.{Guid.NewGuid():N}";
-        await File.WriteAllTextAsync(tempPath, json, cancellationToken);
-        File.Move(tempPath, filePath, overwrite: true);
-        logger.LogInformation("Saved hotkey profile '{Name}' ({Id})", profile.Name, profile.Id);
-
-        return profile;
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, json, cancellationToken);
+            File.Move(tempPath, filePath, overwrite: true);
+            logger.LogInformation("Saved hotkey profile '{Name}' ({Id})", profile.Name, profile.Id);
+            return profile;
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to clean up temporary profile file '{TempPath}'", tempPath);
+                }
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -240,6 +256,28 @@ public class HotkeyProfileStorageService(
         if (!Directory.Exists(ProfilesDirectory))
         {
             Directory.CreateDirectory(ProfilesDirectory);
+        }
+        else
+        {
+            // Sweep stale temp files from interrupted saves
+            try
+            {
+                foreach (var tempFile in Directory.EnumerateFiles(ProfilesDirectory, "*.tmp.*", SearchOption.TopDirectoryOnly))
+                {
+                    try
+                    {
+                        File.Delete(tempFile);
+                    }
+                    catch
+                    {
+                        // Stale temp file cleanup is best-effort
+                    }
+                }
+            }
+            catch
+            {
+                // Directory enumeration failure is best-effort
+            }
         }
     }
 }

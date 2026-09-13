@@ -212,6 +212,38 @@ public class GenHotkeysConflictTests
     }
 
     /// <summary>
+    /// Verifies that Granger Airfield Carpet Bomb and Composite Armor sharing hotkey 'T' are treated as mutually exclusive
+    /// because Granger does not have Carpet Bomb in standard play, so this is a permitted engine overlap.
+    /// </summary>
+    [Fact]
+    public void GrangerCarpetBomb_And_CompositeArmor_SharingHotkey_AreNotConflicts()
+    {
+        var carpetBomb = new HotkeyActionViewModel
+        {
+            DisplayName = "Carpet Bomb",
+            IconName = "SACarpetBomb",
+            HotkeyString = "CONTROLBAR:CarpetBomb",
+            Hotkey = 'T',
+        };
+
+        var compositeArmor = new HotkeyActionViewModel
+        {
+            DisplayName = "Composite Armor",
+            IconName = "SACompositeArmor",
+            HotkeyString = "UPGRADE:CompositeArmor",
+            Hotkey = 'T',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { carpetBomb, compositeArmor };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(carpetBomb.IsConflict);
+        Assert.False(compositeArmor.IsConflict);
+    }
+
+    /// <summary>
     /// Verifies that Timed Demo Charge and Detonate Charges sharing hotkey 'D' are not treated as conflicts
     /// because Detonate is inactive until remote charges are placed.
     /// </summary>
