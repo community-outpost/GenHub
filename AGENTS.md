@@ -98,7 +98,7 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 
 ## Code Conventions & Taste
 
-- **Coding Style Authority:** Follow `coding-style.md`.
+- **Coding Style Authority:** Follow `coding-style.md` and repository [`.editorconfig`](.editorconfig).
 - **Primary Constructors:** Always use primary constructors for classes and records when dependencies are injected. Remove redundant private instance fields (e.g., `_logger = logger;`) and use constructor parameters directly in class members.
 - **Collection Types:** Prefer `IReadOnlyList<T>` when callers need indexed access and known count, and `IReadOnlyCollection<T>` when only count and enumeration are needed. Avoid raw `IEnumerable<T>` for public properties and return types to prevent unintended deferred multiple enumerations; materialize eagerly (e.g., `.ToList()`, `.ToArray()`, or `ImmutableArray<T>`) when returning collections from services or queries.
 - **No `this.`:** Never qualify instance members with `this.`.
@@ -120,6 +120,21 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
   7. Indexers
   8. Events
   9. Methods (Static first, then instance; ordered `public` -> `protected` -> `internal` -> `private`).
+
+### Static Analysis & Bot Pre-Emption (DeepSource & SonarCloud)
+
+To avoid review roundtrips and CI Quality Gate failures from automated bots, adhere to these enforced baselines:
+
+- **Async Naming Convention (`CS-R1005`):** Any method returning `Task`, `Task<T>`, `ValueTask`, or `ValueTask<T>` MUST end with the `Async` suffix (e.g., `DownloadFileAsync`, `ComputeCrcAsync`). Interface implementations and public API contracts must maintain this consistently.
+- **SonarCloud Duplication Threshold (< 3.0% on New Code):** SonarCloud fails the CI Quality Gate if duplicated lines on new code exceed 3.0%. When authoring similar ViewModels, dialogs, or service methods, extract shared boilerplate logic into private helper methods or shared base classes before opening a PR.
+- **Modern C# Scopes & Lambdas (`CS-R1085`):**
+  - Use `using var stream = ...;` statements over nested `using (var stream = ...) { ... }` blocks to prevent excessive indentation.
+  - Simplify single-statement lambdas to expression bodies: `x => x.Value` instead of `x => { return x.Value; }`.
+  - Avoid deeply nested or multi-level ternary expressions (`? :`). Use `if / else` blocks, switch expressions, or pattern matching instead.
+  - Merge adjacent nested `if` statements when there are no `else` branches (`if (a && b)`).
+- **Time Representation:** Always use `DateTime.UtcNow` or `DateTimeOffset.UtcNow` for timestamps, file manifests, and metrics. Never use machine-local `DateTime.Now`.
+- **Concurrency & Synchronization:** Never lock on `this`, `typeof(...)`, or string literals. Use a dedicated `private readonly object _syncLock = new();` or asynchronous synchronization primitives like `SemaphoreSlim`.
+- **CancellationToken Propagation:** Forward `CancellationToken` through every inner async call (`FileStream.ReadAsync`, `HttpClient.SendAsync`, `Task.Delay`). Do not drop cancellation tokens midway through async pipelines.
 
 ## Dev & Verification
 
