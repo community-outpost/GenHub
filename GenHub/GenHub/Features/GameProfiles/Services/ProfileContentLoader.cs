@@ -411,7 +411,7 @@ public class ProfileContentLoader(
             }));
     }
 
-    private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion)
+    private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion, GameType gameType)
     {
         var isUnknown = string.IsNullOrEmpty(detectedVersion) ||
             detectedVersion.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
@@ -421,8 +421,13 @@ public class ProfileContentLoader(
 
         if (isUnknown)
         {
-            // Show empty string for version 0
-            return ("0", string.Empty);
+            // GameInstallationService pools the manifest under the game-type default when detection
+            // fails, so the same fallback is needed here or the picker hands the profile an id that
+            // resolves to no manifest.
+            var fallback = gameType == GameType.ZeroHour
+                ? ManifestConstants.ZeroHourManifestVersion
+                : ManifestConstants.GeneralsManifestVersion;
+            return (fallback, string.Empty);
         }
 
         return (detectedVersion!, displayFormatter.NormalizeVersion(detectedVersion!));
@@ -434,7 +439,7 @@ public class ProfileContentLoader(
         GameType gameType,
         bool isEnabled = false)
     {
-        var (versionForManifestId, versionForDisplay) = GetVersionStrings(baseClient.Version);
+        var (versionForManifestId, versionForDisplay) = GetVersionStrings(baseClient.Version, gameType);
         var manifestId = ManifestIdGenerator.GenerateGameInstallationId(
             installation,
             gameType,
