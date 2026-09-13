@@ -24,6 +24,10 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+button, input, select, textarea {
+    font-family: inherit;
+}
+
 /* Atmospheric Ambient Background */
 body::before {
     content: '';
@@ -114,53 +118,50 @@ body::after {
     text-align: center;
     max-width: 780px;
     margin: 0 auto 3.5rem;
+    position: relative;
+    z-index: 1;
 }
 
 .section-tag {
     display: inline-flex;
     align-items: center;
-    gap: 0.55rem;
-    background: rgba(139, 92, 246, 0.09);
-    border: 1px solid rgba(139, 92, 246, 0.28);
+    gap: 0.5rem;
+    padding: 0.35rem 0.95rem;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 9999px;
     color: var(--primary-light);
     font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 0.35rem 0.85rem;
-    border-radius: 9999px;
-    margin-bottom: 1.25rem;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
-    font-family: var(--font-mono, monospace);
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.1);
 }
 
-.section-tag svg,
-.section-tag i {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
+.section-tag svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
 }
 
 .section-title {
-    font-size: clamp(1.85rem, 4vw, 2.75rem);
+    font-size: clamp(2rem, 3.5vw, 2.75rem);
     font-weight: 800;
-    line-height: 1.15;
     letter-spacing: -0.025em;
-    color: var(--text-main);
+    line-height: 1.2;
     margin-bottom: 1rem;
 }
 
-.section-title .text-gradient {
-    background: var(--gradient-accent);
+.text-gradient {
+    background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-clip: text;
+    display: inline-block;
 }
 
 .section-description {
-    font-size: 1.1rem;
+    font-size: 1.075rem;
     color: var(--text-secondary);
-    line-height: 1.7;
+    line-height: 1.65;
 }

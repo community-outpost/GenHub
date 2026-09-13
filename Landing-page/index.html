@@ -108,6 +108,7 @@
       }
 
       .stat-divider {
+        display: block;
         width: 1px;
         height: 36px;
         background: rgba(139, 92, 246, 0.25);
@@ -350,15 +351,15 @@
             <div id="genhub-stats-widget" class="stats-widget">
                 <div class="stats-card" id="gh-stats-card">
                     <button class="stats-summary stats-trigger-btn" id="gh-stats-trigger" type="button" aria-expanded="false" aria-controls="gh-stats-tooltip" aria-label="Toggle release metrics breakdown">
-                        <div class="stat-box">
+                        <span class="stat-box">
                             <span class="stat-label">Total Installs</span>
                             <span class="stat-value" id="gh-total-installs">...</span>
-                        </div>
-                        <div class="stat-divider"></div>
-                        <div class="stat-box">
+                        </span>
+                        <span class="stat-divider"></span>
+                        <span class="stat-box">
                             <span class="stat-label">Updates Served</span>
                             <span class="stat-value" id="gh-total-updates">...</span>
-                        </div>
+                        </span>
                     </button>
                     
                     <section class="stats-tooltip" id="gh-stats-tooltip" aria-labelledby="gh-stats-tooltip-title">
@@ -510,7 +511,7 @@
 
                                 <div class="profile-card-topbar">
                                     <span class="profile-version-pill">Mod v1.205</span>
-                                    <span class="profile-version-pill" style="background:rgba(168, 85, 247, 0.2); color:#c4b5fd;">Isolated Sandbox</span>
+                                    <span class="profile-version-pill" style="background:#261642; color:#d8b4fe; border-color:rgba(168, 85, 247, 0.4);">Isolated Sandbox</span>
                                 </div>
 
                                 <div class="profile-card-details">
@@ -798,19 +799,19 @@
                     </div>
                     <ul class="comparison-list">
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444"/><path d="M7 7L13 13M13 7L7 13" stroke="#ef4444"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M7 7L13 13M13 7L7 13" stroke="currentColor"/></svg>
                             <span><strong>Overwritten files.</strong> Mods overwrite your install folder, requiring manual backups or a complete reinstall to play vanilla again.</span>
                         </li>
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444"/><path d="M7 7L13 13M13 7L7 13" stroke="#ef4444"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M7 7L13 13M13 7L7 13" stroke="currentColor"/></svg>
                             <span><strong>Fragile Steam installs.</strong> Steam file verifications wipe mod files, and only one setup can stay installed at a time.</span>
                         </li>
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444"/><path d="M7 7L13 13M13 7L7 13" stroke="#ef4444"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M7 7L13 13M13 7L7 13" stroke="currentColor"/></svg>
                             <span><strong>Third-party network tools.</strong> Multiplayer requires external tools like GameRanger or Radmin to connect.</span>
                         </li>
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444"/><path d="M7 7L13 13M13 7L7 13" stroke="#ef4444"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M7 7L13 13M13 7L7 13" stroke="currentColor"/></svg>
                             <span><strong>Mismatched replays.</strong> Older match replays desync on newer patches, and maps require manual folder extraction.</span>
                         </li>
                     </ul>
@@ -826,19 +827,19 @@
                     </div>
                     <ul class="comparison-list">
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="#10b981"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="currentColor"/></svg>
                             <span><strong>Isolated workspaces.</strong> Every mod runs in its own sandbox using hardlinks. Your base game stays untouched.</span>
                         </li>
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="#10b981"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="currentColor"/></svg>
                             <span><strong>Native Steam tracking.</strong> Playtime tracking, friend status, and the Shift+Tab overlay work across all mods.</span>
                         </li>
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="#10b981"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="currentColor"/></svg>
                             <span><strong>Direct multiplayer.</strong> Generals Online provides built-in matchmaking and lobbies with no third-party tools.</span>
                         </li>
                         <li>
-                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="#10b981"/></svg>
+                            <svg class="comp-svg-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><path d="M6.5 10.5L9 13L13.5 7.5" stroke="currentColor"/></svg>
                             <span><strong>Map & replay tools.</strong> Drag and drop custom maps with previews, and map Generals Online CRCs to play tournament replays.</span>
                         </li>
                     </ul>
@@ -1037,7 +1038,7 @@
         <section class="faq-section" id="faq">
             <div class="section-header">
                 <span class="section-tag">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" fill-opacity="0.15"/><path d="M6.5 6.5A1.5 1.5 0 0 1 8 5a1.5 1.5 0 0 1 1.5 1.5c0 1-1.5 1.5-1.5 2"/><circle cx="8" cy="11.5" r="0.75" fill="currentColor"/></svg>
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" fill-opacity="0.15"/><path d="M6.5 6.5A1.5 1.5 0 0 1 8 5a1.5 1.5 0 0 1 1.5 1.5c0 1-1.5 1.5-1.5 2"/><circle cx="8" cy="11.5" r="0.75" fill="currentColor" stroke="none"/></svg>
                     <span>FAQ</span>
                 </span>
                 <h2 class="section-title">
@@ -1142,7 +1143,7 @@
             <!-- Community Feedback Question -->
             <div class="community-question-card">
                 <span class="community-question-badge">
-                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" fill-opacity="0.15"/><path d="M6.5 6.5A1.5 1.5 0 0 1 8 5a1.5 1.5 0 0 1 1.5 1.5c0 1-1.5 1.5-1.5 2"/><circle cx="8" cy="11.5" r="0.75" fill="currentColor"/></svg>
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" fill-opacity="0.15"/><path d="M6.5 6.5A1.5 1.5 0 0 1 8 5a1.5 1.5 0 0 1 1.5 1.5c0 1-1.5 1.5-1.5 2"/><circle cx="8" cy="11.5" r="0.75" fill="currentColor" stroke="none"/></svg>
                     <span>Community Question</span>
                 </span>
                 <h3>One Question for the C&C Community</h3>
@@ -1172,7 +1173,7 @@
                         Open-source launcher and mod workspace manager for Command & Conquer: Generals and Zero Hour.
                     </p>
                     <span class="footer-community-pill">
-                        <svg viewBox="0 0 16 16" width="12" height="12" fill="#f43f5e" stroke="none" aria-hidden="true"><path d="M8 13.5l-1.1-.98C2.98 8.87 1 7.07 1 4.8 1 2.95 2.45 1.5 4.3 1.5c1.04 0 2.05.49 2.7 1.26C7.65 1.99 8.66 1.5 9.7 1.5 11.55 1.5 13 2.95 13 4.8c0 2.27-1.98 4.07-5.9 7.72L8 13.5z"/></svg>
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="#f43f5e" stroke="none" aria-hidden="true"><path d="M8 13.5l-1.1-.98C3.98 8.87 2 7.07 2 4.8 2 2.95 3.45 1.5 5.3 1.5c1.04 0 2.05.49 2.7 1.26C8.65 1.99 9.66 1.5 10.7 1.5 12.55 1.5 14 2.95 14 4.8c0 2.27-1.98 4.07-5.9 7.72L8 13.5z"/></svg>
                         <span>Built for the C&C Community</span>
                     </span>
                 </div>
