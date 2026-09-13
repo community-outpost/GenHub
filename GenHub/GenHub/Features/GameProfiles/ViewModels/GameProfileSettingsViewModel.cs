@@ -81,6 +81,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
+    private bool _isContentReloadInProgress; // skipcq: CS-R1137
     private int _loadContentVersion;
     private bool _isSynchronizingEnabledContent;
     private string? _currentProfileId;
