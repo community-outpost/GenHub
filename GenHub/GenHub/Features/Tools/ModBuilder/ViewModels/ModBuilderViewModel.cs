@@ -144,6 +144,61 @@ public partial class ModBuilderViewModel(
     public ObservableCollection<RecentProjectInfo> RecentProjects { get; } = [];
 
     /// <summary>
+    /// Gets the collection of curated publisher sample projects showcased in the dashboard.
+    /// </summary>
+    public ObservableCollection<SampleProjectShowcaseItem> PublisherSampleProjects { get; } =
+    [
+        new SampleProjectShowcaseItem
+        {
+            Id = "GeneralsGamePatch2",
+            Name = "Generals Community Patch 2.0",
+            Publisher = "TheSuperHackers",
+            Description = "Comprehensive balance and bugfix INI rules for C&C Generals. Demonstrates multi-directory INI rules and balance tuning.",
+            TargetGame = "Generals",
+            OutputFileName = "500_900_CommunityPatch_CoreINI.big",
+            Tag = "Balance & Bugfix",
+            IsReproducibleVerified = true,
+            ExpectedSha256 = "6a02aca9aebe6602b3e4bb76bf6e2cf35086a33fec7c6f000d8e7a4048629775",
+        },
+        new SampleProjectShowcaseItem
+        {
+            Id = "ImprovedMenus",
+            Name = "Improved Menus Widescreen",
+            Publisher = "eliorata",
+            Description = "16:9 widescreen UI layout overhaul with custom .wnd window definitions and high-definition menu textures.",
+            TargetGame = "Zero Hour",
+            OutputFileName = "0_ImprovedMenusEnglish.big",
+            Tag = "Widescreen UI",
+            IsReproducibleVerified = true,
+            ExpectedSha256 = "3280056a2d7cf9bc5cbe8d4ac18fb082846e6db11ad7bb5c60f7c4619353f0a4",
+        },
+        new SampleProjectShowcaseItem
+        {
+            Id = "LemonControlBar",
+            Name = "Lemon Control Bar (1080p)",
+            Publisher = "L3-M (Lemon)",
+            Description = "Lemon Edition 1080p widescreen command & control bar overhaul with custom art textures and window layouts.",
+            TargetGame = "Zero Hour",
+            OutputFileName = "340_ControlBarProLemonEdition1080ZH.big",
+            Tag = "Control Bar",
+            IsReproducibleVerified = true,
+            ExpectedSha256 = "ce169f207867aeb7594e799e1cc67abd8561a1d1b5c6cb2e59af88f4caeca828",
+        },
+        new SampleProjectShowcaseItem
+        {
+            Id = "LeikezeHotkeys",
+            Name = "Leikeze Competitive Hotkeys",
+            Publisher = "Leikeze",
+            Description = "Tournament-standard QWERTY CSF string tables. Demonstrates language string packaging into a fast release BIG archive.",
+            TargetGame = "Zero Hour",
+            OutputFileName = "!HotkeysLeikezeENZH.big",
+            Tag = "Competitive Hotkeys",
+            IsReproducibleVerified = true,
+            ExpectedSha256 = "b06677d18c83c108aaa482d571c99a5aad3365c8a492067ef6eaf09364d3ab88",
+        },
+    ];
+
+    /// <summary>
     /// Gets or sets the search query for filtering projects.
     /// </summary>
     [ObservableProperty]
@@ -1116,6 +1171,86 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Loads the sample project for testing.
     /// </summary>
+    /// <summary>
+    /// Loads or provisions a specific publisher sample project by its showcase item.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenSampleProjectAsync(SampleProjectShowcaseItem? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        logger.LogInformation("OpenSampleProjectAsync requested for {SampleId} ({SampleName})", item.Id, item.Name);
+        try
+        {
+            var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
+            var projectDir = Path.Combine(userSamplesDir, item.Id);
+            var projectFile = Path.Combine(projectDir, $"{item.Id}{ModBuilderConstants.ProjectFileExtension}");
+
+            if (!File.Exists(projectFile))
+            {
+                var baseTemplateDir = FindBaseSampleTemplateDirectory(item.Id);
+                if (!string.IsNullOrEmpty(baseTemplateDir) && Directory.Exists(baseTemplateDir))
+                {
+                    Directory.CreateDirectory(projectDir);
+                    await CopyDirectoryAsync(baseTemplateDir, projectDir).ConfigureAwait(false);
+                }
+            }
+
+            if (!File.Exists(projectFile))
+            {
+                var discovered = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
+                var found = discovered.FirstOrDefault(p => Path.GetFileNameWithoutExtension(p).Equals(item.Id, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(found) && File.Exists(found))
+                {
+                    projectFile = found;
+                }
+            }
+
+            if (File.Exists(projectFile))
+            {
+                await LoadProjectFromPathAsync(projectFile).ConfigureAwait(false);
+            }
+            else
+            {
+                notificationService.ShowWarning(
+                    "Sample Not Found",
+                    $"Could not locate template files for {item.Name}.");
+                AppendBuildLog($"Sample template {item.Id} not found in search paths.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load sample project {SampleId}", item.Id);
+            notificationService.ShowError("Load Failed", $"Failed to load sample project: {ex.Message}");
+        }
+    }
+
+    private static string? FindBaseSampleTemplateDirectory(string sampleId)
+    {
+        var sampleBaseDirs = new[]
+        {
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+            Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+            Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
+        };
+
+        foreach (var dir in sampleBaseDirs.Where(Directory.Exists))
+        {
+            var candidate = Path.Combine(dir, sampleId);
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
     [RelayCommand]
     private async Task LoadSampleProjectAsync()
     {

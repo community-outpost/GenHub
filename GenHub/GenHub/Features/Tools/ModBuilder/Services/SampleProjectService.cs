@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using GenHub.Core.Models.Tools.ModBuilder;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -28,12 +30,16 @@ public class SampleProjectService : ISampleProjectService
     [
         "GeneralsGamePatch2",
         "ImprovedMenus",
+        "LemonControlBar",
+        "LeikezeHotkeys",
         "Hotkeys",
         "CustomIcons",
     ];
 
     private const string GeneralsGamePatch2Name = "GeneralsGamePatch2";
     private const string ImprovedMenusName = "ImprovedMenus";
+    private const string LemonControlBarName = "LemonControlBar";
+    private const string LeikezeHotkeysName = "LeikezeHotkeys";
     private const string HotkeysName = "Hotkeys";
     private const string CustomIconsName = "CustomIcons";
 
@@ -42,6 +48,8 @@ public class SampleProjectService : ISampleProjectService
 #pragma warning disable S1075 // URIs should not be hardcoded
     private const string GeneralsGamePatch2Url = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/download/1.0.1/500_900_CommunityPatch_CoreINI.zip";
     private const string ImprovedMenusUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
+    private const string LemonControlBarUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
+    private const string LeikezeHotkeysUrl = "https://legi.cc/gp2/f/hlei.dat";
     private const string HotkeysHlegUrl = "https://legi.cc/gp2/f/hleg.dat";
     private const string HotkeysHlenUrl = "https://legi.cc/gp2/f/hlen.dat";
 #pragma warning restore S1075
@@ -149,6 +157,12 @@ public class SampleProjectService : ISampleProjectService
                 case ImprovedMenusName:
                     return await AcquireImprovedMenusAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
 
+                case LemonControlBarName:
+                    return await AcquireLemonControlBarAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+
+                case LeikezeHotkeysName:
+                    return await AcquireLeikezeHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+
                 case HotkeysName:
                 case CustomIconsName:
                     return await AcquireHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
@@ -181,6 +195,22 @@ public class SampleProjectService : ISampleProjectService
             projectDir.Contains(ImprovedMenusName, StringComparison.OrdinalIgnoreCase))
         {
             return ImprovedMenusName;
+        }
+
+        if (projectName.Contains(LemonControlBarName, StringComparison.OrdinalIgnoreCase) ||
+            projectDir.Contains(LemonControlBarName, StringComparison.OrdinalIgnoreCase) ||
+            projectName.Contains("ControlBar", StringComparison.OrdinalIgnoreCase) ||
+            projectDir.Contains("ControlBar", StringComparison.OrdinalIgnoreCase))
+        {
+            return LemonControlBarName;
+        }
+
+        if (projectName.Contains(LeikezeHotkeysName, StringComparison.OrdinalIgnoreCase) ||
+            projectDir.Contains(LeikezeHotkeysName, StringComparison.OrdinalIgnoreCase) ||
+            projectName.Contains("Leikeze", StringComparison.OrdinalIgnoreCase) ||
+            projectDir.Contains("Leikeze", StringComparison.OrdinalIgnoreCase))
+        {
+            return LeikezeHotkeysName;
         }
 
         if (projectName.Contains(HotkeysName, StringComparison.OrdinalIgnoreCase) ||
@@ -349,6 +379,7 @@ public class SampleProjectService : ISampleProjectService
             Directory.CreateDirectory(unpackStaging);
             await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             CopyDirectoryContents(unpackStaging, gameFilesDir);
+            await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("Successfully unpacked GeneralsGamePatch2 game files into {Dir}", gameFilesDir);
             return OperationResult<bool>.CreateSuccess(true);
@@ -410,6 +441,7 @@ public class SampleProjectService : ISampleProjectService
             Directory.CreateDirectory(unpackStaging);
             await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             CopyDirectoryContents(unpackStaging, gameFilesDir);
+            await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
 
             // Copy movie backgrounds if provided in release zip
             var bikFiles = Directory.GetFiles(tempStaging, "*.bik", SearchOption.AllDirectories);
@@ -422,6 +454,178 @@ public class SampleProjectService : ISampleProjectService
             }
 
             _logger.LogInformation("Successfully unpacked ImprovedMenus game files into {Dir}", gameFilesDir);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempStaging))
+                {
+                    Directory.Delete(tempStaging, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
+            }
+        }
+    }
+
+    private static async Task TryExtractAndSaveManifestAsync(
+        string bigFilePath,
+        string gameFilesDir,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var manifest = BigFilePacker.ExtractManifest(bigFilePath);
+            manifest.BigFileName = Path.GetFileName(bigFilePath);
+            using (var fs = File.OpenRead(bigFilePath))
+            {
+                using var sha = SHA256.Create();
+                var hash = await sha.ComputeHashAsync(fs, cancellationToken).ConfigureAwait(false);
+                manifest.Sha256 = Convert.ToHexString(hash).ToLowerInvariant();
+            }
+
+            var projectDir = Path.GetDirectoryName(gameFilesDir);
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                var configDir = Path.Combine(projectDir, "config");
+                Directory.CreateDirectory(configDir);
+                var manifestPath = Path.Combine(configDir, $"{Path.GetFileName(bigFilePath)}.manifest.json");
+                await BigFilePacker.SaveManifestAsync(manifest, manifestPath, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception)
+        {
+            // Manifest extraction is best-effort for reproducibility
+        }
+    }
+
+    private async Task<OperationResult<bool>> AcquireLemonControlBarAssetsAsync(
+        string gameFilesDir,
+        string cacheDir,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report("Downloading Lemon Control Bar (1080p)...");
+        _logger.LogInformation("Downloading Lemon Control Bar asset from {Url}", LemonControlBarUrl);
+
+        var zipCachePath = Path.Combine(cacheDir, "ControlBarProLemonEditionZH_v1.3_1920x1080.zip");
+        var downloadResult = await EnsureAssetDownloadedAsync(
+            LemonControlBarUrl,
+            zipCachePath,
+            1_000_000,
+            "LemonControlBar",
+            cancellationToken).ConfigureAwait(false);
+
+        if (!downloadResult.Success)
+        {
+            return downloadResult;
+        }
+
+        progress?.Report("Extracting Lemon Control Bar package...");
+        var tempStaging = Path.Combine(Path.GetTempPath(), $"genhub_lemon_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempStaging);
+            await ExtractArchiveFileAsync(zipCachePath, tempStaging, cancellationToken).ConfigureAwait(false);
+
+            var bigFiles = Directory.GetFiles(tempStaging, "*.big", SearchOption.AllDirectories);
+            if (bigFiles.Length == 0)
+            {
+                return OperationResult<bool>.CreateFailure("Lemon Control Bar archive did not contain expected .big file.");
+            }
+
+            var primaryBig = bigFiles.FirstOrDefault(b => Path.GetFileName(b).Equals("340_ControlBarProLemonEdition1080ZH.big", StringComparison.OrdinalIgnoreCase)) ?? bigFiles[0];
+            progress?.Report("Unpacking control bar assets into project...");
+            var unpackStaging = Path.Combine(tempStaging, "unpacked");
+            Directory.CreateDirectory(unpackStaging);
+            await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            CopyDirectoryContents(unpackStaging, gameFilesDir);
+            await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("Successfully unpacked Lemon Control Bar game files into {Dir}", gameFilesDir);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempStaging))
+                {
+                    Directory.Delete(tempStaging, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
+            }
+        }
+    }
+
+    private async Task<OperationResult<bool>> AcquireLeikezeHotkeysAssetsAsync(
+        string gameFilesDir,
+        string cacheDir,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report("Downloading Leikeze Hotkeys archive...");
+        _logger.LogInformation("Downloading Leikeze Hotkeys asset from {Url}", LeikezeHotkeysUrl);
+
+        var datCachePath = Path.Combine(cacheDir, "hlei.dat");
+        var downloadResult = await EnsureAssetDownloadedAsync(
+            LeikezeHotkeysUrl,
+            datCachePath,
+            500_000,
+            "Leikeze Hotkeys",
+            cancellationToken).ConfigureAwait(false);
+
+        if (!downloadResult.Success)
+        {
+            return downloadResult;
+        }
+
+        progress?.Report("Extracting Leikeze Hotkeys string tables...");
+        var tempStaging = Path.Combine(Path.GetTempPath(), $"genhub_leikeze_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempStaging);
+            await ExtractArchiveFileAsync(datCachePath, tempStaging, cancellationToken).ConfigureAwait(false);
+
+            var csfFiles = Directory.GetFiles(tempStaging, "generals.csf", SearchOption.AllDirectories);
+            var targetCsf = csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && f.Contains("BIG EN", StringComparison.OrdinalIgnoreCase))
+                ?? csfFiles.FirstOrDefault();
+
+            if (targetCsf == null || !File.Exists(targetCsf))
+            {
+                return OperationResult<bool>.CreateFailure("Leikeze Hotkeys archive did not contain generals.csf.");
+            }
+
+            var destEnglishDir = Path.Combine(gameFilesDir, "Data", "English");
+            Directory.CreateDirectory(destEnglishDir);
+            var destCsf = Path.Combine(destEnglishDir, "generals.csf");
+            File.Copy(targetCsf, destCsf, overwrite: true);
+
+            var manifest = new BigArchiveManifest
+            {
+                BigFileName = "!HotkeysLeikezeENZH.big",
+                TrailerHex = "0000000000000000",
+                Sha256 = "b06677d18c83c108aaa482d571c99a5aad3365c8a492067ef6eaf09364d3ab88",
+                EntryOrder = new List<string> { @"Data\English\generals.csf" },
+            };
+
+            var projectDir = Path.GetDirectoryName(gameFilesDir);
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                var configDir = Path.Combine(projectDir, "config");
+                Directory.CreateDirectory(configDir);
+                var manifestPath = Path.Combine(configDir, "!HotkeysLeikezeENZH.big.manifest.json");
+                await BigFilePacker.SaveManifestAsync(manifest, manifestPath, cancellationToken).ConfigureAwait(false);
+            }
+
+            _logger.LogInformation("Successfully unpacked Leikeze Hotkeys into {Dir}", gameFilesDir);
             return OperationResult<bool>.CreateSuccess(true);
         }
         finally

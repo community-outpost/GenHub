@@ -101,6 +101,10 @@ public sealed class PythonBundlePack
     [JsonPropertyName("outputFile")]
     public string? OutputFile { get; set; }
 
+    [JsonPropertyName("manifestFile")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ManifestFile { get; set; }
+
     [JsonPropertyName("setGameLanguageOnInstall")]
     public string SetGameLanguageOnInstall { get; set; } = string.Empty;
 
@@ -257,6 +261,10 @@ public sealed class SimplifiedBundleItem
     [JsonPropertyName("Big")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Big { get; set; }
+
+    [JsonPropertyName("NoConvert")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool NoConvert { get; set; }
 }
 
 /// <summary>
@@ -275,6 +283,10 @@ public sealed class SimplifiedBundlePack
 
     [JsonPropertyName("OutputFile")]
     public string? OutputFile { get; set; }
+
+    [JsonPropertyName("ManifestFile")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ManifestFile { get; set; }
 
     [JsonPropertyName("Big")]
     public bool? Big { get; set; }

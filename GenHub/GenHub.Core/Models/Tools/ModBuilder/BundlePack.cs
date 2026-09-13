@@ -74,6 +74,12 @@ public class BundlePack
     public string? OutputFile { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional manifest file path for byte-for-byte reproducible BIG packing.
+    /// </summary>
+    [JsonPropertyName("manifestFile")]
+    public string? ManifestFile { get; set; }
+
+    /// <summary>
     /// Gets a value indicating whether this bundle pack should be packaged into a .big archive.
     /// </summary>
     [JsonIgnore]

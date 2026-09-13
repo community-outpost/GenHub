@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Common;
@@ -26,9 +27,18 @@ public sealed class ArchiveService(
     private const string SourceDirectoryNotFoundMessage = "Source directory not found: {Path}";
 
     /// <inheritdoc/>
+    public Task<OperationResult<bool>> CreateBigArchiveAsync(
+        string sourceDirectory,
+        string targetBigPath,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+        => CreateBigArchiveAsync(sourceDirectory, targetBigPath, manifestFilePath: null, progress, cancellationToken);
+
+    /// <inheritdoc/>
     public async Task<OperationResult<bool>> CreateBigArchiveAsync(
         string sourceDirectory,
         string targetBigPath,
+        string? manifestFilePath,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -53,8 +63,43 @@ public sealed class ArchiveService(
 
             try
             {
-                // use existing BigFilePacker
-                var duplicateCount = await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, cancellationToken).ConfigureAwait(false);
+                BigArchiveManifest? manifest = null;
+                if (!string.IsNullOrEmpty(manifestFilePath) && File.Exists(manifestFilePath))
+                {
+                    manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
+                    if (manifest != null)
+                    {
+                        logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
+                    }
+                }
+                else
+                {
+                    var targetFileName = Path.GetFileName(targetBigPath);
+                    var candidateLocations = new[]
+                    {
+                        Path.ChangeExtension(targetBigPath, ".manifest.json"),
+                        Path.Combine(sourceDirectory, "..", "config", $"{targetFileName}.manifest.json"),
+                        Path.Combine(sourceDirectory, "..", "..", "config", $"{targetFileName}.manifest.json"),
+                        Path.Combine(sourceDirectory, "..", "config", "BigLayout.json"),
+                    };
+
+                    foreach (var candidate in candidateLocations)
+                    {
+                        var fullCandidate = Path.GetFullPath(candidate);
+                        if (File.Exists(fullCandidate))
+                        {
+                            manifest = await BigFilePacker.LoadManifestAsync(fullCandidate, cancellationToken).ConfigureAwait(false);
+                            if (manifest != null)
+                            {
+                                logger.LogInformation("Discovered BIG archive manifest at {Path}", fullCandidate);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // use existing BigFilePacker with manifest support
+                var duplicateCount = await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, manifest, cancellationToken).ConfigureAwait(false);
                 if (duplicateCount > 0)
                 {
                     logger.LogWarning("BIG archive creation dropped {Count} duplicate/colliding entry paths in {Source}", duplicateCount, sourceDirectory);

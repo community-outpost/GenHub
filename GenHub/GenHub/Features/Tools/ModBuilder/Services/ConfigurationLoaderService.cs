@@ -1055,6 +1055,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     AllowInstall = pythonPack.AllowInstall,
                     Big = pythonPack.Big,
                     OutputFile = pythonPack.OutputFile,
+                    ManifestFile = pythonPack.ManifestFile,
                     SetGameLanguageOnInstall = pythonPack.SetGameLanguageOnInstall,
                     ItemNames = pythonPack.ItemNames ?? new List<string>(),
                 });
@@ -1208,6 +1209,21 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     IsBig = simpItem.Big ?? true,
                 };
 
+                var fileParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (simpItem.NoConvert == true)
+                {
+                    fileParams["noconvert"] = "true";
+                }
+
+                if (!string.IsNullOrEmpty(simpItem.OutputFormat))
+                {
+                    fileParams["outputformat"] = simpItem.OutputFormat;
+                    if (string.Equals(simpItem.OutputFormat, "RAW", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fileParams["noconvert"] = "true";
+                    }
+                }
+
                 if (simpItem.SourceFiles != null)
                 {
                     foreach (var pattern in simpItem.SourceFiles)
@@ -1217,6 +1233,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                             AbsSourceParent = projectDir,
                             AbsSourceFile = pattern,
                             RelTargetFile = string.Empty,
+                            Params = fileParams.Count > 0 ? fileParams.ToDictionary(k => k.Key, v => (object)v.Value) : null,
                         });
                     }
                 }
@@ -1237,6 +1254,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     AllowInstall = simpPack.AllowInstall ?? true,
                     Big = simpPack.Big ?? simpPack.OutputFile?.EndsWith(".big", StringComparison.OrdinalIgnoreCase) == true,
                     OutputFile = simpPack.OutputFile,
+                    ManifestFile = simpPack.ManifestFile,
                 });
             }
         }

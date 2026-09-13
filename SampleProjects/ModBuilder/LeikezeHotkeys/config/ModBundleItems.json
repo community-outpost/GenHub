@@ -1,0 +1,13 @@
+{
+  "BundleItems": [
+    {
+      "Name": "HotkeyStrings",
+      "SourceFiles": [
+        "GameFilesEdited/Data/English/**/*.csf"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "Description": "Leikeze generals.csf string table with custom hotkeys"
+    }
+  ]
+}

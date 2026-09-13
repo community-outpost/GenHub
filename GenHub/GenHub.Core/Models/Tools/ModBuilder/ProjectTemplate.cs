@@ -67,6 +67,36 @@ public class ProjectTemplate
     };
 
     /// <summary>
+    /// Gets the Lemon control bar template.
+    /// </summary>
+    public static ProjectTemplate LemonControlBar => new()
+    {
+        Name = "Lemon Control Bar",
+        Description = "L3-M Lemon Edition widescreen control bar (1080p) layout and textures",
+        DefaultBundleConfigs = new List<string>
+        {
+            DefaultBundleItemsConfig,
+            DefaultBundlePacksConfig,
+        },
+        CreateSampleFiles = true,
+    };
+
+    /// <summary>
+    /// Gets the Leikeze hotkeys template.
+    /// </summary>
+    public static ProjectTemplate LeikezeHotkeys => new()
+    {
+        Name = "Leikeze Hotkeys",
+        Description = "Leikeze hotkey CSF string tables for Generals and Zero Hour",
+        DefaultBundleConfigs = new List<string>
+        {
+            DefaultBundleItemsConfig,
+            DefaultBundlePacksConfig,
+        },
+        CreateSampleFiles = true,
+    };
+
+    /// <summary>
     /// Gets the imported BIG archive project template.
     /// </summary>
     public static ProjectTemplate ImportedBig => new()

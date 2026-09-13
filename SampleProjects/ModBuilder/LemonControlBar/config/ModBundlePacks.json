@@ -1,0 +1,17 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "LemonControlBar",
+      "Items": [
+        "LemonControlBarWindows",
+        "LemonControlBarArt"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEdition1080ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEdition1080ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 1080p widescreen control bar BIG archive"
+    }
+  ]
+}

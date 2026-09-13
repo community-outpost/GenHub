@@ -1,0 +1,16 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "LeikezeHotkeys",
+      "Items": [
+        "HotkeyStrings"
+      ],
+      "OutputFile": ".Release/!HotkeysLeikezeENZH.big",
+      "ManifestFile": "config/!HotkeysLeikezeENZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Leikeze Hotkeys single BIG archive for Generals and Zero Hour"
+    }
+  ]
+}

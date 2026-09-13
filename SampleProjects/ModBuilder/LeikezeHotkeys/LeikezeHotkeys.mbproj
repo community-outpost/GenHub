@@ -1,0 +1,18 @@
+{
+  "name": "LeikezeHotkeys",
+  "contentType": "Addon",
+  "version": "1.0.0",
+  "author": "Leikeze",
+  "targetGame": "ZeroHour",
+  "description": "Leikeze competitive QWERTY hotkey string table (.csf) for C&C Generals and Zero Hour",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
+  ]
+}
