@@ -499,23 +499,8 @@ public class CommunityOutpostDeliverer(
                 CurrentOperation = "Community Outpost content delivered successfully",
             });
 
-            var requestedVariant = packageManifest.Metadata?.SelectedVariantId
-                ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
-                ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
-                ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1];
-
-            ContentManifest? primaryManifest = null;
-            if (!string.IsNullOrEmpty(requestedVariant))
-            {
-                primaryManifest = manifests.FirstOrDefault(m =>
-                    string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase) ||
-                    m.Id.Value.EndsWith($"-{requestedVariant}", StringComparison.OrdinalIgnoreCase))
-                  ?? manifests.FirstOrDefault(m =>
-                    m.Metadata?.Tags?.Any(t => string.Equals(t, $"variant:{requestedVariant}", StringComparison.OrdinalIgnoreCase) ||
-                                               string.Equals(t, $"selectedVariant:{requestedVariant}", StringComparison.OrdinalIgnoreCase)) == true);
-            }
-
-            primaryManifest ??= manifests.FirstOrDefault() ?? packageManifest;
+            // Return primary manifest matching requested variant if specified, or fallback to first manifest
+            var primaryManifest = ManifestHelper.SelectPrimaryManifest(manifests, packageManifest) ?? packageManifest;
 
             logger.LogInformation(
                 "Successfully delivered Community Outpost content: {ManifestCount} manifest(s) created, returning primary manifest {PrimaryManifestId}",

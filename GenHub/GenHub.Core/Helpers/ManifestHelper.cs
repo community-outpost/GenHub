@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -50,4 +53,44 @@ public static class ManifestHelper
     /// <returns>A single formatted error string.</returns>
     public static string FormatErrors(IEnumerable<string>? errors) =>
         errors?.Any() == true ? string.Join(", ", errors) : "Unknown error";
+
+    /// <summary>
+    /// Resolves the primary content manifest from a collection of candidate manifests based on
+    /// the requested variant specified on the reference manifest (or its tags) and target game.
+    /// </summary>
+    /// <param name="manifests">The generated manifests.</param>
+    /// <param name="referenceManifest">The package or reference manifest specifying variant/game metadata.</param>
+    /// <returns>The best-matching content manifest, or null if manifests is empty.</returns>
+    public static ContentManifest? SelectPrimaryManifest(
+        IReadOnlyList<ContentManifest> manifests,
+        ContentManifest? referenceManifest)
+    {
+        if (manifests == null || manifests.Count == 0)
+        {
+            return referenceManifest;
+        }
+
+        var requestedVariant = referenceManifest?.Metadata?.SelectedVariantId
+            ?? referenceManifest?.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
+            ?? referenceManifest?.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
+            ?? referenceManifest?.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1];
+
+        ContentManifest? primaryManifest = null;
+        if (!string.IsNullOrEmpty(requestedVariant))
+        {
+            primaryManifest = manifests.FirstOrDefault(m =>
+                string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase) ||
+                m.Id.Value.EndsWith($"-{requestedVariant}", StringComparison.OrdinalIgnoreCase))
+              ?? manifests.FirstOrDefault(m =>
+                m.Metadata?.Tags?.Any(t => string.Equals(t, $"variant:{requestedVariant}", StringComparison.OrdinalIgnoreCase) ||
+                                           string.Equals(t, $"selectedVariant:{requestedVariant}", StringComparison.OrdinalIgnoreCase)) == true);
+        }
+
+        if (primaryManifest == null && referenceManifest?.TargetGame != null)
+        {
+            primaryManifest = manifests.FirstOrDefault(m => m.TargetGame == referenceManifest.TargetGame);
+        }
+
+        return primaryManifest ?? manifests[0];
+    }
 }
