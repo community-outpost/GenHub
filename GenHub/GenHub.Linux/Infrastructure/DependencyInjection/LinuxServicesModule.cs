@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Workspace;
 using GenHub.Linux.Features.Shortcuts;
+using GenHub.Linux.Features.Storage;
 using GenHub.Linux.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -31,6 +32,7 @@ public static class LinuxServicesModule
         services.AddSingleton<IGamePathProvider, LinuxGamePathProvider>();
         services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, LinuxShortcutService>();
+        services.AddSingleton<IInstallationLocationTracker, LinuxInstallationTracker>();
 
         // Real hard links via link(2). Without this the base implementation throws, which
         // is deliberate: silently copying made a missing registration invisible while

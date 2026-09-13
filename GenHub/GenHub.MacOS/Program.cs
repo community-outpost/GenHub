@@ -31,6 +31,9 @@ public static class Program
         {
             bootstrapLogger.LogInformation("Starting GenHub macOS application");
 
+            // Record custom installation location if running outside default root
+            Common.Services.FileInstallationLocationTracker.RecordInstallLocationStatic(bootstrapLogger);
+
             var services = new ServiceCollection();
             services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
 

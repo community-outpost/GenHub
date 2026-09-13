@@ -38,6 +38,8 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
                 using var key = Registry.CurrentUser.CreateSubKey(GenHubSubKey, writable: true);
                 key.SetValue(CustomInstallPathValueName, customRoot);
                 logger?.LogInformation("Recorded custom installation root in registry: {CustomRoot}", customRoot);
+
+                FileInstallationLocationTracker.RecordInstallLocationStatic(logger);
             }
         }
         catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
@@ -47,7 +49,7 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
     }
 
     /// <summary>
-    /// Retrieves the registered custom installation directory from registry, with fallback to URI scheme command.
+    /// Retrieves the registered custom installation directory from registry, with fallback to URI scheme command and file tracker.
     /// </summary>
     /// <param name="logger">Optional logger for diagnostics.</param>
     /// <returns>The registered custom installation path if found; otherwise, <see langword="null"/>.</returns>
@@ -87,6 +89,13 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
                     }
                 }
             }
+
+            // 3. Fallback: check file installation tracker
+            var fromFile = FileInstallationLocationTracker.GetRegisteredCustomInstallPathStatic(logger);
+            if (!string.IsNullOrWhiteSpace(fromFile))
+            {
+                return fromFile;
+            }
         }
         catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
         {
@@ -117,6 +126,8 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         {
             logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
         }
+
+        FileInstallationLocationTracker.ClearCustomInstallPathStatic(logger);
     }
 
     /// <inheritdoc />

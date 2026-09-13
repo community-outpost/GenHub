@@ -88,12 +88,12 @@ public partial class App : Application
             // Repair desktop and application shortcuts if application executable has moved/relocated
             SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
 
-            // Clean any orphaned default AppData folders when running from a custom install location
-            StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
-
-            // Detect duplicate installation collisions (e.g. user previously installed to a custom directory via --installto,
-            // and later ran Setup.exe normally which installed to default %LOCALAPPDATA%).
-            SafeFireAndForget(CheckForDuplicateInstallationConflictAsync(), nameof(CheckForDuplicateInstallationConflictAsync));
+            // Detect and resolve duplicate installation collisions across platforms
+            var conflictService = _serviceProvider.GetService<IInstallationConflictService>();
+            if (conflictService != null)
+            {
+                SafeFireAndForget(conflictService.CheckAndResolveConflictsAsync(), nameof(IInstallationConflictService.CheckAndResolveConflictsAsync));
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -154,140 +154,6 @@ public partial class App : Application
                 }
             }
         }
-    }
-
-    private async Task CheckForDuplicateInstallationConflictAsync()
-    {
-        await Task.Run(HandleDuplicateInstallationConflict);
-    }
-
-    private void HandleDuplicateInstallationConflict()
-    {
-        try
-        {
-            var tracker = _serviceProvider.GetService<IInstallationLocationTracker>();
-            var customPath = tracker?.GetRegisteredCustomInstallPath();
-
-            if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var detectedCustomPath) &&
-                !string.IsNullOrWhiteSpace(detectedCustomPath))
-            {
-                ResolveDuplicateInstallationConflict(tracker, detectedCustomPath);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Security.SecurityException)
-        {
-            var logger = _serviceProvider.GetService<ILogger<App>>();
-            logger?.LogWarning(ex, "Error checking for duplicate installation conflict on startup");
-        }
-    }
-
-    private void ResolveDuplicateInstallationConflict(IInstallationLocationTracker? tracker, string detectedCustomPath)
-    {
-        var logger = _serviceProvider.GetService<ILogger<App>>();
-        var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
-
-        logger?.LogWarning(
-            "Duplicate installation detected: GenHub is running from default location '{DefaultLocation}', " +
-            "but an existing custom installation was found at '{CustomLocation}'.",
-            defaultRoot,
-            detectedCustomPath);
-
-        var markerPath = Path.Combine(defaultRoot, ".adoption-pending");
-        var isPendingRetry = File.Exists(markerPath);
-        var hasExistingData = StorageMigrationService.HasExistingUserData(defaultRoot);
-        var shouldAdopt = (!hasExistingData || isPendingRetry) &&
-                          StorageMigrationService.HasExistingUserData(detectedCustomPath);
-        var imported = false;
-
-        // If the current default location has no user data (fresh installer run) or is retrying a partial adoption,
-        // adopt settings/profiles from custom location
-        if (shouldAdopt)
-        {
-            SetAdoptionMarker(markerPath, detectedCustomPath, logger);
-
-            logger?.LogInformation(
-                "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
-                detectedCustomPath,
-                defaultRoot);
-
-            imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
-            var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
-
-            // If all eligible data has been adopted, clear marker file and registry marker
-            if (!hasRemainingUnadopted)
-            {
-                ClearAdoptionMarker(markerPath, logger);
-                tracker?.ClearCustomInstallPath();
-            }
-        }
-        else
-        {
-            ClearAdoptionMarker(markerPath, logger);
-            tracker?.ClearCustomInstallPath();
-        }
-
-        // Notify the user in the UI
-        NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
-    }
-
-    private void SetAdoptionMarker(string markerPath, string customPath, ILogger? logger)
-    {
-        try
-        {
-            if (!File.Exists(markerPath))
-            {
-                File.WriteAllText(markerPath, customPath);
-            }
-        }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, "Failed to create adoption marker file at {MarkerPath}", markerPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, "Failed to create adoption marker file at {MarkerPath}", markerPath);
-        }
-        catch (System.Security.SecurityException ex)
-        {
-            logger?.LogWarning(ex, "Failed to create adoption marker file at {MarkerPath}", markerPath);
-        }
-    }
-
-    private void ClearAdoptionMarker(string markerPath, ILogger? logger)
-    {
-        try
-        {
-            if (File.Exists(markerPath))
-            {
-                File.Delete(markerPath);
-            }
-        }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, "Failed to remove adoption marker file at {MarkerPath}", markerPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, "Failed to remove adoption marker file at {MarkerPath}", markerPath);
-        }
-        catch (System.Security.SecurityException ex)
-        {
-            logger?.LogWarning(ex, "Failed to remove adoption marker file at {MarkerPath}", markerPath);
-        }
-    }
-
-    private void NotifyDuplicateInstallationConflict(string detectedCustomPath, bool imported)
-    {
-        var notificationService = _serviceProvider.GetService<INotificationService>();
-        var message = imported
-            ? $"GenHub was installed to the default location while another installation exists at '{detectedCustomPath}'. Your configurations and profiles have been preserved."
-            : $"GenHub is running from the default location while another installation was detected at '{detectedCustomPath}'.";
-
-        notificationService?.ShowWarning(
-            StorageMigrationConstants.DuplicateInstallationDetectedTitle,
-            message,
-            autoDismissMs: StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,
-            showInBadge: true);
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)

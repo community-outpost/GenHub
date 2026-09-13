@@ -57,20 +57,13 @@ public class Program
             {
                 bootstrapLogger.LogInformation("Starting GenHub Linux application");
 
+                // Record custom installation location if running outside default root
+                Features.Storage.LinuxInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
+
                 var services = new ServiceCollection();
+                services.ConfigureApplicationServices(platformServices => platformServices.AddLinuxServices());
 
-                try
-                {
-                    // Register shared services and Linux-specific services
-                    services.ConfigureApplicationServices(s => s.AddLinuxServices());
-                }
-                catch (Exception configEx)
-                {
-                    bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
-                    throw;
-                }
-
-                var serviceProvider = services.BuildServiceProvider();
+                using var serviceProvider = services.BuildServiceProvider();
                 AppLocator.Services = serviceProvider;
 
                 BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
@@ -84,13 +77,10 @@ public class Program
     }
 
     /// <summary>
-    /// Avalonia configuration.
+    /// Configures the Avalonia application.
     /// </summary>
-    /// <returns>The <see cref="AppBuilder"/>.</returns>
-    /// <param name="serviceProvider">The application's dependency injection service provider.</param>
-    /// <remarks>
-    /// Don't remove; also used by visual designer.
-    /// </remarks>
+    /// <param name="serviceProvider">The application service provider.</param>
+    /// <returns>The configured Avalonia application builder.</returns>
     public static AppBuilder BuildAvaloniaApp(IServiceProvider serviceProvider)
         => AppBuilder.Configure(() => new App(serviceProvider))
             .UsePlatformDetect()

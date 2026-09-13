@@ -29,6 +29,9 @@ public class StorageMigrationConstantsTests
             Assert.Equal("Preparing Binary Migration", StorageMigrationConstants.StagePreparingBinaries);
             Assert.Equal("Launching Migration Assistant", StorageMigrationConstants.StageLaunchingAssistant);
             Assert.Equal("Finalizing Migration", StorageMigrationConstants.StageFinalizing);
+            Assert.Equal(".adoption-pending", StorageMigrationConstants.AdoptionPendingMarkerFileName);
+            Assert.Equal("install-location", StorageMigrationConstants.CustomInstallPathFileName);
+            Assert.Equal(".genhub", StorageMigrationConstants.GenHubConfigDirectoryName);
         });
     }
 

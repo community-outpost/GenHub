@@ -240,6 +240,11 @@ public class StorageMigrationService(
 
         try
         {
+            if (OperatingSystem.IsMacOS() && directoryPath.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             var hasUpdateExe = File.Exists(Path.Combine(directoryPath, "Update.exe")) || File.Exists(Path.Combine(directoryPath, "Update"));
             var hasPackagesDir = Directory.Exists(Path.Combine(directoryPath, "packages"));
             var hasAppDirs = Directory.GetDirectories(directoryPath, "app-*").Length > 0;
@@ -278,6 +283,21 @@ public class StorageMigrationService(
     /// <returns>The path to the default installation root.</returns>
     internal static string GetDefaultInstallRoot()
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            var userApplications = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Applications",
+                $"{AppConstants.AppName}.app");
+
+            if (Directory.Exists(userApplications))
+            {
+                return userApplications;
+            }
+
+            return $"/Applications/{AppConstants.AppName}.app";
+        }
+
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName);

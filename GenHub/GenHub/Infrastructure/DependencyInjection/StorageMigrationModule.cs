@@ -1,6 +1,5 @@
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -19,7 +18,8 @@ public static class StorageMigrationModule
     public static IServiceCollection AddStorageMigrationServices(this IServiceCollection services)
     {
         services.TryAddSingleton<IStorageMigrationService, StorageMigrationService>();
-        services.TryAddSingleton<IInstallationLocationTracker, NullInstallationLocationTracker>();
+        services.TryAddSingleton<IInstallationLocationTracker, FileInstallationLocationTracker>();
+        services.TryAddSingleton<IInstallationConflictService, InstallationConflictService>();
         return services;
     }
 }

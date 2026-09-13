@@ -139,4 +139,19 @@ public static class StorageMigrationConstants
     /// Auto-dismiss duration in milliseconds for the duplicate installation notification (12 seconds).
     /// </summary>
     public const int DuplicateInstallationNotificationDismissMs = 12000;
+
+    /// <summary>
+    /// Marker file name placed in the installation root during user data adoption to track pending retries.
+    /// </summary>
+    public const string AdoptionPendingMarkerFileName = ".adoption-pending";
+
+    /// <summary>
+    /// File name used to persist custom installation location markers across platforms.
+    /// </summary>
+    public const string CustomInstallPathFileName = "install-location";
+
+    /// <summary>
+    /// Configuration directory name within the user's home directory.
+    /// </summary>
+    public const string GenHubConfigDirectoryName = ".genhub";
 }
