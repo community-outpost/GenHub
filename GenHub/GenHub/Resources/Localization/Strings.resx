@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -15,5 +15,2153 @@
   <data name="App.Name" xml:space="preserve">
     <value>GenHub</value>
     <comment>Application name shown in window titles and other product identity surfaces.</comment>
+  </data>
+  <data name="App.Subtitle" xml:space="preserve">
+    <value>C&amp;C Generals Launcher</value>
+    <comment>Application subtitle / description under the logo.</comment>
+  </data>
+  <data name="Common.Action.Clear" xml:space="preserve">
+    <value>Clear</value>
+    <comment>Clear action text</comment>
+  </data>
+  <data name="Common.Action.Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>Copy action text</comment>
+  </data>
+  <data name="Common.Action.Cut" xml:space="preserve">
+    <value>Cut</value>
+    <comment>Cut action text</comment>
+  </data>
+  <data name="Common.Action.Export" xml:space="preserve">
+    <value>Export</value>
+    <comment>Export action text</comment>
+  </data>
+  <data name="Common.Action.Import" xml:space="preserve">
+    <value>Import</value>
+    <comment>Import action text</comment>
+  </data>
+  <data name="Common.Action.Paste" xml:space="preserve">
+    <value>Paste</value>
+    <comment>Paste action text</comment>
+  </data>
+  <data name="Common.Action.Reset" xml:space="preserve">
+    <value>Reset</value>
+    <comment>Reset action text</comment>
+  </data>
+  <data name="Common.Action.Select" xml:space="preserve">
+    <value>Select</value>
+    <comment>Select action text</comment>
+  </data>
+  <data name="Common.Button.Add" xml:space="preserve">
+    <value>Add</value>
+    <comment>Generic add button text</comment>
+  </data>
+  <data name="Common.Button.AddItem" xml:space="preserve">
+    <value>+ Add</value>
+    <comment>Button to add an item to a list</comment>
+  </data>
+  <data name="Common.Button.Apply" xml:space="preserve">
+    <value>Apply</value>
+    <comment>Generic apply button text</comment>
+  </data>
+  <data name="Common.Button.Back" xml:space="preserve">
+    <value>Back</value>
+    <comment>Generic back navigation button</comment>
+  </data>
+  <data name="Common.Button.Browse" xml:space="preserve">
+    <value>Browse</value>
+    <comment>Generic browse button text</comment>
+  </data>
+  <data name="Common.Button.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+    <comment>Generic cancel button text</comment>
+  </data>
+  <data name="Common.Button.Close" xml:space="preserve">
+    <value>Close</value>
+    <comment>Generic close button text</comment>
+  </data>
+  <data name="Common.Button.Delete" xml:space="preserve">
+    <value>Delete</value>
+    <comment>Generic delete button text</comment>
+  </data>
+  <data name="Common.Button.Edit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Generic edit button text</comment>
+  </data>
+  <data name="Common.Button.Launch" xml:space="preserve">
+    <value>Launch</value>
+    <comment>Button to launch a game or application</comment>
+  </data>
+  <data name="Common.Button.New" xml:space="preserve">
+    <value>New</value>
+    <comment>Button to create a new item</comment>
+  </data>
+  <data name="Common.Button.Next" xml:space="preserve">
+    <value>Next</value>
+    <comment>Generic next navigation button</comment>
+  </data>
+  <data name="Common.Button.OK" xml:space="preserve">
+    <value>OK</value>
+    <comment>Generic OK button text</comment>
+  </data>
+  <data name="Common.Button.Prepare" xml:space="preserve">
+    <value>Prepare</value>
+    <comment>Button to prepare workspace</comment>
+  </data>
+  <data name="Common.Button.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>Generic refresh button text</comment>
+  </data>
+  <data name="Common.Button.Remove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Generic remove button text</comment>
+  </data>
+  <data name="Common.Button.RemoveItem" xml:space="preserve">
+    <value>✕ Remove</value>
+    <comment>Button to remove an item from a list</comment>
+  </data>
+  <data name="Common.Button.Save" xml:space="preserve">
+    <value>Save</value>
+    <comment>Generic save button text</comment>
+  </data>
+  <data name="Common.Button.Scan" xml:space="preserve">
+    <value>Scan</value>
+    <comment>Button to scan for items</comment>
+  </data>
+  <data name="Common.Button.Search" xml:space="preserve">
+    <value>Search</value>
+    <comment>Generic search button text</comment>
+  </data>
+  <data name="Common.Button.Stop" xml:space="preserve">
+    <value>Stop</value>
+    <comment>Button to stop a running process</comment>
+  </data>
+  <data name="Common.Label.By" xml:space="preserve">
+    <value>by</value>
+    <comment>Author attribution label (lowercase)</comment>
+  </data>
+  <data name="Common.Label.Version" xml:space="preserve">
+    <value>version</value>
+    <comment>Version label (lowercase)</comment>
+  </data>
+  <data name="Common.Status.Complete" xml:space="preserve">
+    <value>Complete</value>
+    <comment>Status when operation is complete</comment>
+  </data>
+  <data name="Common.Status.Error" xml:space="preserve">
+    <value>Error</value>
+    <comment>Generic error status</comment>
+  </data>
+  <data name="Common.Status.Failed" xml:space="preserve">
+    <value>Failed</value>
+    <comment>Generic failed status</comment>
+  </data>
+  <data name="Common.Status.Info" xml:space="preserve">
+    <value>Info</value>
+    <comment>Generic info status</comment>
+  </data>
+  <data name="Common.Status.Initializing" xml:space="preserve">
+    <value>Initializing...</value>
+    <comment>Status shown during initialization</comment>
+  </data>
+  <data name="Common.Status.Loading" xml:space="preserve">
+    <value>Loading...</value>
+    <comment>Generic loading status message</comment>
+  </data>
+  <data name="Common.Status.LoadingContent" xml:space="preserve">
+    <value>Loading content...</value>
+    <comment>Status shown while loading content</comment>
+  </data>
+  <data name="Common.Status.PleaseWait" xml:space="preserve">
+    <value>Please wait...</value>
+    <comment>Generic please wait message</comment>
+  </data>
+  <data name="Common.Status.Processing" xml:space="preserve">
+    <value>Processing...</value>
+    <comment>Status shown while processing</comment>
+  </data>
+  <data name="Common.Status.Ready" xml:space="preserve">
+    <value>Ready</value>
+    <comment>Status when system is ready</comment>
+  </data>
+  <data name="Common.Status.Saving" xml:space="preserve">
+    <value>Saving...</value>
+    <comment>Status shown while saving</comment>
+  </data>
+  <data name="Common.Status.Success" xml:space="preserve">
+    <value>Success</value>
+    <comment>Generic success status</comment>
+  </data>
+  <data name="Common.Status.Warning" xml:space="preserve">
+    <value>Warning</value>
+    <comment>Generic warning status</comment>
+  </data>
+  <data name="Downloads.Category.GitHubBuilds" xml:space="preserve">
+    <value>GitHub Builds</value>
+    <comment>Download category for GitHub builds</comment>
+  </data>
+  <data name="Downloads.Category.Maps" xml:space="preserve">
+    <value>Maps</value>
+    <comment>Download category for maps</comment>
+  </data>
+  <data name="Downloads.Category.ModDownloads" xml:space="preserve">
+    <value>Mod Downloads</value>
+    <comment>Download category for mods</comment>
+  </data>
+  <data name="Downloads.Category.OfficialReleases" xml:space="preserve">
+    <value>Official Releases</value>
+    <comment>Download category for official releases</comment>
+  </data>
+  <data name="Downloads.Category.PatchesAndFixes" xml:space="preserve">
+    <value>Patches &amp; Fixes</value>
+    <comment>Download category for patches and fixes</comment>
+  </data>
+  <data name="Downloads.Category.ToolsAndUtilities" xml:space="preserve">
+    <value>Tools &amp; Utilities</value>
+    <comment>Download category for tools and utilities</comment>
+  </data>
+  <data name="Downloads.Label.ComingSoon" xml:space="preserve">
+    <value>(Coming Soon)</value>
+    <comment>Label indicating a feature is coming soon, with parentheses</comment>
+  </data>
+  <data name="Downloads.Section.AdditionalContent" xml:space="preserve">
+    <value>Additional Content</value>
+    <comment>Section header for additional content area</comment>
+  </data>
+  <data name="Downloads.Section.PrimaryDownloads" xml:space="preserve">
+    <value>Primary Downloads</value>
+    <comment>Section header for primary downloads area</comment>
+  </data>
+  <data name="Downloads.Status.ComingSoon" xml:space="preserve">
+    <value>Coming Soon</value>
+    <comment>Status text indicating a feature is coming soon</comment>
+  </data>
+  <data name="Downloads.Status.DownloadComplete" xml:space="preserve">
+    <value>Download Complete</value>
+    <comment>Status shown when download is complete</comment>
+  </data>
+  <data name="Downloads.Status.DownloadFailed" xml:space="preserve">
+    <value>Download Failed</value>
+    <comment>Status shown when download fails</comment>
+  </data>
+  <data name="Downloads.Status.Downloading" xml:space="preserve">
+    <value>Downloading...</value>
+    <comment>Status shown while downloading</comment>
+  </data>
+  <data name="Downloads.Status.Installing" xml:space="preserve">
+    <value>Installing...</value>
+    <comment>Status shown while installing</comment>
+  </data>
+  <data name="Downloads.Status.Paused" xml:space="preserve">
+    <value>Paused</value>
+    <comment>Status shown when download is paused</comment>
+  </data>
+  <data name="Downloads.Status.Queued" xml:space="preserve">
+    <value>Queued</value>
+    <comment>Status shown when download is queued</comment>
+  </data>
+  <data name="Downloads.Subtitle.Downloads" xml:space="preserve">
+    <value>Manage your downloads and installations</value>
+    <comment>Page subtitle for the Downloads tab</comment>
+  </data>
+  <data name="Downloads.Title.Downloads" xml:space="preserve">
+    <value>Downloads</value>
+    <comment>Page title for the Downloads tab</comment>
+  </data>
+  <data name="Errors.Operations.CouldNotFindMainWindow" xml:space="preserve">
+    <value>Could not find main window to show update dialog</value>
+    <comment>Error message when main window cannot be found</comment>
+  </data>
+  <data name="Errors.Operations.ErrorBrowsingCasPath" xml:space="preserve">
+    <value>Error occurred while browsing for CAS root path</value>
+    <comment>Error message when browsing for CAS root path fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorBrowsingGamePath" xml:space="preserve">
+    <value>Error occurred while browsing for game path</value>
+    <comment>Error message when browsing for game path fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorBrowsingSettingsPath" xml:space="preserve">
+    <value>Error occurred while browsing for settings file path</value>
+    <comment>Error message when browsing for settings file path fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorCreatingProfile" xml:space="preserve">
+    <value>Error creating profile for installation {0}</value>
+    <comment>Error message when creating a specific profile fails. {0} is installation ID</comment>
+  </data>
+  <data name="Errors.Operations.ErrorCreatingResourceManager" xml:space="preserve">
+    <value>Error creating ResourceManager for base name: {0}</value>
+    <comment>Error message when creating ResourceManager fails. {0} is the base name</comment>
+  </data>
+  <data name="Errors.Operations.ErrorDiscoveringLanguages" xml:space="preserve">
+    <value>Error discovering available languages</value>
+    <comment>Error message when discovering available languages fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorDuringProfileCreation" xml:space="preserve">
+    <value>Error occurred during automatic profile creation</value>
+    <comment>Error message when automatic profile creation fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorDuringSatelliteAssemblyDiscovery" xml:space="preserve">
+    <value>Error during satellite assembly discovery</value>
+    <comment>Error message when satellite assembly discovery fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorFormattingResourceString" xml:space="preserve">
+    <value>Error formatting resource string for key: {0}</value>
+    <comment>Error message when formatting a resource string fails. {0} is the key</comment>
+  </data>
+  <data name="Errors.Operations.ErrorInitializingProfiles" xml:space="preserve">
+    <value>Error initializing profiles</value>
+    <comment>Error message when profile initialization fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorLoadingTool" xml:space="preserve">
+    <value>Error loading tool '{0}': {1}</value>
+    <comment>Error when a specific tool fails to load. {0} = tool name, {1} = error</comment>
+  </data>
+  <data name="Errors.Operations.ErrorRetrievingResourceString" xml:space="preserve">
+    <value>Error retrieving resource string for key: {0}</value>
+    <comment>Error message when retrieving a resource string fails. {0} is the key</comment>
+  </data>
+  <data name="Errors.Operations.ErrorScanningForGames" xml:space="preserve">
+    <value>Error scanning for games</value>
+    <comment>Error message when game scanning fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorSettingCulture" xml:space="preserve">
+    <value>Error setting culture to: {0}</value>
+    <comment>Error message when setting culture fails. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Operations.ErrorValidatingCulture" xml:space="preserve">
+    <value>Error validating culture: {0}</value>
+    <comment>Error message when culture validation fails. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Operations.FailedToGetMemoryUsage" xml:space="preserve">
+    <value>Failed to get memory usage</value>
+    <comment>Error message when retrieving memory usage fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToInstallUpdate" xml:space="preserve">
+    <value>Failed to install update</value>
+    <comment>Error message when update installation fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToLoadInitialSettings" xml:space="preserve">
+    <value>Failed to load initial settings</value>
+    <comment>Error message when loading initial settings fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToLoadSettings" xml:space="preserve">
+    <value>Failed to load settings</value>
+    <comment>Error message when settings fail to load</comment>
+  </data>
+  <data name="Errors.Operations.FailedToLoadTools" xml:space="preserve">
+    <value>Failed to load tools: {0}</value>
+    <comment>Error when loading tools fails. {0} = error details</comment>
+  </data>
+  <data name="Errors.Operations.FailedToOpenBrowser" xml:space="preserve">
+    <value>Failed to open browser for release notes.</value>
+    <comment>Error message when opening browser for release notes fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToResetSettings" xml:space="preserve">
+    <value>Failed to reset settings to defaults</value>
+    <comment>Error message when settings reset fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToSaveSettings" xml:space="preserve">
+    <value>Failed to save settings</value>
+    <comment>Error message when settings fail to save</comment>
+  </data>
+  <data name="Errors.Operations.FailedToShowUpdateWindow" xml:space="preserve">
+    <value>Failed to show update notification window</value>
+    <comment>Error message when showing update window fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToUpdateSelectedTab" xml:space="preserve">
+    <value>Failed to update selected tab setting</value>
+    <comment>Error message when updating selected tab fails</comment>
+  </data>
+  <data name="Errors.Operations.FormatErrorForKey" xml:space="preserve">
+    <value>Format error for key '{0}' with {1} arguments</value>
+    <comment>Error message for format errors. {0} is key, {1} is argument count</comment>
+  </data>
+  <data name="Errors.Operations.MissingTranslation" xml:space="preserve">
+    <value>Missing translation for key '{0}' in culture '{1}'</value>
+    <comment>Error/warning for missing translations. {0} is key, {1} is culture</comment>
+  </data>
+  <data name="Errors.Operations.MissingTranslationException" xml:space="preserve">
+    <value>Missing translation for key '{0}' in culture '{1}'</value>
+    <comment>Exception message for missing translations. {0} is key, {1} is culture</comment>
+  </data>
+  <data name="Errors.Operations.OperationFailed" xml:space="preserve">
+    <value>Operation failed</value>
+    <comment>Generic operation failure message</comment>
+  </data>
+  <data name="Errors.Operations.OptionsFileDirectoryNotFound" xml:space="preserve">
+    <value>Options file directory not found</value>
+    <comment>Error when options file directory cannot be found</comment>
+  </data>
+  <data name="Errors.Operations.SearchFailed" xml:space="preserve">
+    <value>An unexpected error occurred: {0}</value>
+    <comment>Error message when content search fails. {0} is the error message</comment>
+  </data>
+  <data name="Errors.Operations.ServiceNotAvailable.GameProfileManager" xml:space="preserve">
+    <value>GameProfileManager service is not available.</value>
+    <comment>Error when GameProfileManager service is unavailable</comment>
+  </data>
+  <data name="Errors.Operations.ServiceNotAvailable.GameSettingsService" xml:space="preserve">
+    <value>Game settings service not available</value>
+    <comment>Error when GameSettingsService is unavailable</comment>
+  </data>
+  <data name="Errors.Operations.ServiceNotAvailable.ProfileContentLoader" xml:space="preserve">
+    <value>Profile content loader service not available</value>
+    <comment>Error when ProfileContentLoader service is unavailable</comment>
+  </data>
+  <data name="Errors.Operations.UnexpectedError" xml:space="preserve">
+    <value>An unexpected error occurred</value>
+    <comment>Generic unexpected error message</comment>
+  </data>
+  <data name="Errors.Operations.UnexpectedErrorValidatingCulture" xml:space="preserve">
+    <value>Unexpected error validating culture: {0}</value>
+    <comment>Unexpected error during culture validation. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Operations.UnexpectedErrorWithDetails" xml:space="preserve">
+    <value>An unexpected error occurred: {0}</value>
+    <comment>Unexpected error with details. {0} is the error message</comment>
+  </data>
+  <data name="Errors.Operations.UpdateCheckFailed" xml:space="preserve">
+    <value>Update check failed</value>
+    <comment>Error message when update check fails</comment>
+  </data>
+  <data name="Errors.Validation.BufferSizeOutOfRange" xml:space="preserve">
+    <value>Buffer size must be between {0} and {1} KB</value>
+    <comment>Validation error for buffer size range. {0} is min KB, {1} is max KB</comment>
+  </data>
+  <data name="Errors.Validation.ConcurrentDownloadsOutOfRange" xml:space="preserve">
+    <value>Concurrent downloads must be between {0} and {1}</value>
+    <comment>Validation error for concurrent downloads range. {0} is min, {1} is max</comment>
+  </data>
+  <data name="Errors.Validation.CultureNotAvailable" xml:space="preserve">
+    <value>Culture '{0}' is not available. Falling back to '{1}'</value>
+    <comment>Warning when culture is not available. {0} is requested culture, {1} is fallback</comment>
+  </data>
+  <data name="Errors.Validation.CultureNotFound" xml:space="preserve">
+    <value>Culture '{0}' not found. Using invariant culture</value>
+    <comment>Warning when culture is not found. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Validation.DownloadTimeoutOutOfRange" xml:space="preserve">
+    <value>Download timeout must be between {0} and {1} seconds</value>
+    <comment>Validation error for download timeout range. {0} is min seconds, {1} is max seconds</comment>
+  </data>
+  <data name="Errors.Validation.EnterProfileName" xml:space="preserve">
+    <value>Please enter a profile name</value>
+    <comment>Validation error when profile name is empty</comment>
+  </data>
+  <data name="Errors.Validation.GameInstallationRequired" xml:space="preserve">
+    <value>A Game Installation must be enabled for the profile to be launchable.</value>
+    <comment>Validation error when no game installation is enabled</comment>
+  </data>
+  <data name="Errors.Validation.InvalidCultureName" xml:space="preserve">
+    <value>Invalid culture name: {0}</value>
+    <comment>Error when culture name is invalid. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Validation.InvalidDownloadBufferSize" xml:space="preserve">
+    <value>Invalid DownloadBufferSizeKB value: {0}. Resetting to 80KB.</value>
+    <comment>Validation error for download buffer size. {0} is the invalid value</comment>
+  </data>
+  <data name="Errors.Validation.InvalidFormat" xml:space="preserve">
+    <value>Invalid format</value>
+    <comment>Generic invalid format validation message</comment>
+  </data>
+  <data name="Errors.Validation.InvalidMaxConcurrentDownloads" xml:space="preserve">
+    <value>Invalid MaxConcurrentDownloads value: {0}. Resetting to 3.</value>
+    <comment>Validation error for max concurrent downloads. {0} is the invalid value</comment>
+  </data>
+  <data name="Errors.Validation.InvalidPath" xml:space="preserve">
+    <value>Invalid path</value>
+    <comment>Generic invalid path validation message</comment>
+  </data>
+  <data name="Errors.Validation.InvalidUrl" xml:space="preserve">
+    <value>Invalid URL</value>
+    <comment>Generic invalid URL validation message</comment>
+  </data>
+  <data name="Errors.Validation.PathDoesNotExist" xml:space="preserve">
+    <value>Preferred game install path does not exist: {0}</value>
+    <comment>Validation warning when specified path doesn't exist. {0} is the path</comment>
+  </data>
+  <data name="Errors.Validation.RequiredField" xml:space="preserve">
+    <value>This field is required</value>
+    <comment>Generic required field validation message</comment>
+  </data>
+  <data name="Errors.Validation.SelectGameInstallation" xml:space="preserve">
+    <value>Please select a game installation</value>
+    <comment>Validation error when no game installation is selected</comment>
+  </data>
+  <data name="Errors.Validation.SettingsDirectoryDoesNotExist" xml:space="preserve">
+    <value>Settings file directory does not exist: {0}</value>
+    <comment>Validation warning when settings directory doesn't exist. {0} is the directory</comment>
+  </data>
+  <data name="Errors.Validation.ValueTooHigh" xml:space="preserve">
+    <value>Value is too high (maximum: {0})</value>
+    <comment>Validation error when value is above maximum. {0} is the maximum value</comment>
+  </data>
+  <data name="Errors.Validation.ValueTooLow" xml:space="preserve">
+    <value>Value is too low (minimum: {0})</value>
+    <comment>Validation error when value is below minimum. {0} is the minimum value</comment>
+  </data>
+  <data name="GameProfiles.Badge.Admin" xml:space="preserve">
+    <value>ADMIN</value>
+    <comment>Badge indicating admin privileges required</comment>
+  </data>
+  <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
+    <value>Add New Profile</value>
+    <comment>Button to create a new game profile</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorCreatingNewProfile" xml:space="preserve">
+    <value>Error creating new profile</value>
+    <comment>Generic error creating a new profile</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorDeletingProfile" xml:space="preserve">
+    <value>Error deleting {0}</value>
+    <comment>Generic error deleting profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorLaunchingProfile" xml:space="preserve">
+    <value>Error launching {0}</value>
+    <comment>Generic error launching profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorPreparingWorkspace" xml:space="preserve">
+    <value>Error preparing workspace for {0}</value>
+    <comment>Generic error preparing workspace. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorSavingProfiles" xml:space="preserve">
+    <value>Error saving profiles</value>
+    <comment>Generic error saving profiles</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToDeleteProfile" xml:space="preserve">
+    <value>Failed to delete {0}: {1}</value>
+    <comment>Error deleting profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToLaunchProfile" xml:space="preserve">
+    <value>Failed to launch {0}: {1}</value>
+    <comment>Error launching profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToLoadProfile" xml:space="preserve">
+    <value>Failed to load profile: {0}</value>
+    <comment>Error loading a specific profile. {0} = error details</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToLoadProfilesWithReason" xml:space="preserve">
+    <value>Failed to load profiles: {0}</value>
+    <comment>Error loading profiles. {0} = error details</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToPrepareWorkspace" xml:space="preserve">
+    <value>Failed to prepare workspace for {0}: {1}</value>
+    <comment>Error preparing workspace. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToStopProfile" xml:space="preserve">
+    <value>Failed to stop {0}: {1}</value>
+    <comment>Error stopping profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.MainWindowNotFound" xml:space="preserve">
+    <value>Could not find main window to open settings</value>
+    <comment>Error when main window cannot be found</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileEditorNotAvailable" xml:space="preserve">
+    <value>Profile editor not available</value>
+    <comment>Error when profile editor is unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileLauncherNotAvailable" xml:space="preserve">
+    <value>Profile launcher not available</value>
+    <comment>Error when profile launcher is unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileManagerNotAvailable" xml:space="preserve">
+    <value>Profile manager not available</value>
+    <comment>Error when profile manager service is unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileManagerNotInitialized" xml:space="preserve">
+    <value>Game Profile Manager service is not initialized</value>
+    <comment>Error when profile manager is not initialized</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileSettingsNotAvailable" xml:space="preserve">
+    <value>Profile settings not available</value>
+    <comment>Error when profile settings are unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ServiceNotAvailable" xml:space="preserve">
+    <value>Game installation service not available</value>
+    <comment>Error message shown when required service is not available</comment>
+  </data>
+  <data name="GameProfiles.GameType.Generals" xml:space="preserve">
+    <value>C&amp;C Generals</value>
+    <comment>Command and Conquer Generals game name</comment>
+  </data>
+  <data name="GameProfiles.GameType.ZeroHour" xml:space="preserve">
+    <value>C&amp;C Generals: Zero Hour</value>
+    <comment>Command and Conquer Generals Zero Hour game name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.CdIso" xml:space="preserve">
+    <value>CD/ISO</value>
+    <comment>CD/ISO installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.EaApp" xml:space="preserve">
+    <value>EA App</value>
+    <comment>EA App installation platform name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.FirstDecade" xml:space="preserve">
+    <value>The First Decade</value>
+    <comment>The First Decade installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.PcGame" xml:space="preserve">
+    <value>PC Game</value>
+    <comment>Default PC game installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.Retail" xml:space="preserve">
+    <value>Retail</value>
+    <comment>Retail installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.Steam" xml:space="preserve">
+    <value>Steam</value>
+    <comment>Steam installation platform name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.Wine" xml:space="preserve">
+    <value>Wine</value>
+    <comment>Wine/Linux installation platform name</comment>
+  </data>
+  <data name="GameProfiles.Profile.AutoCreated" xml:space="preserve">
+    <value>{0} Profile</value>
+    <comment>Auto-generated profile name. {0} is the installation type</comment>
+  </data>
+  <data name="GameProfiles.Profile.AutoCreatedDescription" xml:space="preserve">
+    <value>Auto-created profile for {0} installation at {1}</value>
+    <comment>Auto-generated profile description. {0} is installation type, {1} is path</comment>
+  </data>
+  <data name="GameProfiles.Status.CreatingProfiles" xml:space="preserve">
+    <value>Found {0} game installations, creating profiles</value>
+    <comment>Status message during profile creation. {0} is installation count</comment>
+  </data>
+  <data name="GameProfiles.Status.DeletingProfile" xml:space="preserve">
+    <value>Deleting {0}...</value>
+    <comment>Status when deleting a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.EditModeDisabled" xml:space="preserve">
+    <value>Edit mode disabled</value>
+    <comment>Status when edit mode is turned off</comment>
+  </data>
+  <data name="GameProfiles.Status.EditModeEnabled" xml:space="preserve">
+    <value>Edit mode enabled</value>
+    <comment>Status when edit mode is turned on</comment>
+  </data>
+  <data name="GameProfiles.Status.ErrorDuringScan" xml:space="preserve">
+    <value>Error during scan</value>
+    <comment>Status message shown when an unexpected error occurs during scan</comment>
+  </data>
+  <data name="GameProfiles.Status.ErrorLoadingProfiles" xml:space="preserve">
+    <value>Error loading profiles</value>
+    <comment>Status message shown when profile loading fails</comment>
+  </data>
+  <data name="GameProfiles.Status.LaunchingProfile" xml:space="preserve">
+    <value>Launching {0}...</value>
+    <comment>Status when launching a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.LoadingProfiles" xml:space="preserve">
+    <value>Loading profiles...</value>
+    <comment>Status message shown when loading game profiles</comment>
+  </data>
+  <data name="GameProfiles.Status.NewProfileWindowClosed" xml:space="preserve">
+    <value>New profile window closed</value>
+    <comment>Status when new profile window closes</comment>
+  </data>
+  <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
+    <value>No game installations found</value>
+    <comment>Message shown when no game installations are detected</comment>
+  </data>
+  <data name="GameProfiles.Status.PreparingWorkspace" xml:space="preserve">
+    <value>Preparing workspace for {0}...</value>
+    <comment>Status when preparing workspace. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreated" xml:space="preserve">
+    <value>Created profile '{0}' for installation {1}</value>
+    <comment>Log message for successful profile creation. {0} is profile name, {1} is installation ID</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreationComplete" xml:space="preserve">
+    <value>Profile creation complete: {0} created, {1} failed</value>
+    <comment>Summary message after profile creation. {0} is success count, {1} is failure count</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreationFailed" xml:space="preserve">
+    <value>Failed to create profile for installation {0}: {1}</value>
+    <comment>Log message for failed profile creation. {0} is installation ID, {1} is error message</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileDeletedSuccess" xml:space="preserve">
+    <value>{0} deleted successfully</value>
+    <comment>Success message after deleting. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileLaunchedSuccess" xml:space="preserve">
+    <value>{0} launched successfully (Process ID: {1})</value>
+    <comment>Success message after launching. {0} = profile name, {1} = process ID</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileStoppedSuccess" xml:space="preserve">
+    <value>{0} stopped successfully</value>
+    <comment>Success message after stopping. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileUpdatedSuccess" xml:space="preserve">
+    <value>Profile updated successfully</value>
+    <comment>Success message after updating a profile</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfilesLoaded" xml:space="preserve">
+    <value>Profiles loaded</value>
+    <comment>Status message shown when profiles are successfully loaded</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfilesLoadedCount" xml:space="preserve">
+    <value>Loaded {0} profiles</value>
+    <comment>Status showing number of loaded profiles. {0} = count</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfilesSaved" xml:space="preserve">
+    <value>Profiles saved successfully</value>
+    <comment>Success message after saving profiles</comment>
+  </data>
+  <data name="GameProfiles.Status.SavingProfiles" xml:space="preserve">
+    <value>Saving profiles...</value>
+    <comment>Status while saving profiles</comment>
+  </data>
+  <data name="GameProfiles.Status.ScanComplete" xml:space="preserve">
+    <value>Scan complete. Found {0} game installations</value>
+    <comment>Status message shown when scan completes. {0} is the count of installations found</comment>
+  </data>
+  <data name="GameProfiles.Status.ScanFailed" xml:space="preserve">
+    <value>Scan failed: {0}</value>
+    <comment>Status message shown when scan fails. {0} is the error message</comment>
+  </data>
+  <data name="GameProfiles.Status.Scanning" xml:space="preserve">
+    <value>Scanning...</value>
+    <comment>Status shown during game scanning</comment>
+  </data>
+  <data name="GameProfiles.Status.ScanningForGames" xml:space="preserve">
+    <value>Scanning for games...</value>
+    <comment>Status message shown when scanning for game installations</comment>
+  </data>
+  <data name="GameProfiles.Status.StoppingProfile" xml:space="preserve">
+    <value>Stopping {0}...</value>
+    <comment>Status when stopping a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.WorkspacePrepared" xml:space="preserve">
+    <value>Workspace prepared for {0} at {1}</value>
+    <comment>Success message after workspace preparation. {0} = profile name, {1} = path</comment>
+  </data>
+  <data name="GameProfiles.Subtitle.GameProfiles" xml:space="preserve">
+    <value>Select a profile to launch or create a new one</value>
+    <comment>Page subtitle for the Game Profiles section</comment>
+  </data>
+  <data name="GameProfiles.Title.GameProfiles" xml:space="preserve">
+    <value>Game Profiles</value>
+    <comment>Page title for the Game Profiles section</comment>
+  </data>
+  <data name="GameProfiles.Warning.InstallationScanFailed" xml:space="preserve">
+    <value>Game installation scan failed: {0}</value>
+    <comment>Warning message when installation scan fails. {0} is error details</comment>
+  </data>
+  <data name="GameProfiles.Warning.LoggerNotAvailable" xml:space="preserve">
+    <value>Logger not available - scan may proceed without detailed logging</value>
+    <comment>Warning message shown when logger is not available</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Copied" xml:space="preserve">
+    <value>Copied</value>
+    <comment>Workspace status when files are copied</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.HardLinked" xml:space="preserve">
+    <value>Hard Linked</value>
+    <comment>Workspace status when using hard links</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Hybrid" xml:space="preserve">
+    <value>Hybrid</value>
+    <comment>Workspace status when using hybrid strategy</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.NotPrepared" xml:space="preserve">
+    <value>Not Prepared</value>
+    <comment>Workspace status when not yet prepared</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Prepared" xml:space="preserve">
+    <value>Prepared</value>
+    <comment>Generic workspace status when prepared</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Symlinked" xml:space="preserve">
+    <value>Symlinked</value>
+    <comment>Workspace status when using symlinks</comment>
+  </data>
+  <data name="Messages.Confirmations.ApplyChanges" xml:space="preserve">
+    <value>Do you want to apply these changes?</value>
+    <comment>Confirmation message for applying changes</comment>
+  </data>
+  <data name="Messages.Confirmations.CancelOperation" xml:space="preserve">
+    <value>Are you sure you want to cancel this operation?</value>
+    <comment>Confirmation message for canceling an operation</comment>
+  </data>
+  <data name="Messages.Confirmations.CloseWithUnsavedChanges" xml:space="preserve">
+    <value>You have unsaved changes. Do you want to save before closing?</value>
+    <comment>Confirmation message when closing with unsaved changes</comment>
+  </data>
+  <data name="Messages.Confirmations.ContinueWithWarnings" xml:space="preserve">
+    <value>There are warnings. Do you want to continue anyway?</value>
+    <comment>Confirmation message for continuing despite warnings</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteFile" xml:space="preserve">
+    <value>Are you sure you want to delete this file?</value>
+    <comment>Confirmation message for deleting a file</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteFiles" xml:space="preserve">
+    <value>Are you sure you want to delete {0} files?</value>
+    <comment>Confirmation message for deleting multiple files. {0} is file count</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteFolder" xml:space="preserve">
+    <value>Are you sure you want to delete this folder and all its contents?</value>
+    <comment>Confirmation message for deleting a folder</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteProfile" xml:space="preserve">
+    <value>Are you sure you want to delete this profile?</value>
+    <comment>Confirmation message for deleting a profile</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteProfileWithName" xml:space="preserve">
+    <value>Are you sure you want to delete the profile '{0}'?</value>
+    <comment>Confirmation message for deleting a specific profile. {0} is profile name</comment>
+  </data>
+  <data name="Messages.Confirmations.DiscardChanges" xml:space="preserve">
+    <value>Are you sure you want to discard all changes?</value>
+    <comment>Confirmation message for discarding changes</comment>
+  </data>
+  <data name="Messages.Confirmations.ExitApplication" xml:space="preserve">
+    <value>Are you sure you want to exit the application?</value>
+    <comment>Confirmation message for exiting the application</comment>
+  </data>
+  <data name="Messages.Confirmations.ExportData" xml:space="preserve">
+    <value>Do you want to export this data?</value>
+    <comment>Confirmation message for exporting data</comment>
+  </data>
+  <data name="Messages.Confirmations.ImportData" xml:space="preserve">
+    <value>Are you sure you want to import this data? Existing data may be overwritten.</value>
+    <comment>Confirmation message for importing data</comment>
+  </data>
+  <data name="Messages.Confirmations.InstallUpdate" xml:space="preserve">
+    <value>An update is available. Do you want to install it now?</value>
+    <comment>Confirmation message for installing an update</comment>
+  </data>
+  <data name="Messages.Confirmations.OverwriteFile" xml:space="preserve">
+    <value>A file with this name already exists. Do you want to overwrite it?</value>
+    <comment>Confirmation message for overwriting a file</comment>
+  </data>
+  <data name="Messages.Confirmations.OverwriteProfile" xml:space="preserve">
+    <value>A profile with this name already exists. Do you want to overwrite it?</value>
+    <comment>Confirmation message for overwriting a profile</comment>
+  </data>
+  <data name="Messages.Confirmations.ProceedWithAction" xml:space="preserve">
+    <value>Do you want to proceed with this action?</value>
+    <comment>Generic confirmation message for proceeding with an action</comment>
+  </data>
+  <data name="Messages.Confirmations.ReplaceExisting" xml:space="preserve">
+    <value>Replace existing {0}?</value>
+    <comment>Confirmation message for replacing existing item. {0} is item type</comment>
+  </data>
+  <data name="Messages.Confirmations.ResetCache" xml:space="preserve">
+    <value>Are you sure you want to clear the cache? This cannot be undone.</value>
+    <comment>Confirmation message for clearing cache</comment>
+  </data>
+  <data name="Messages.Confirmations.ResetProfile" xml:space="preserve">
+    <value>Are you sure you want to reset this profile to default settings?</value>
+    <comment>Confirmation message for resetting a profile</comment>
+  </data>
+  <data name="Messages.Confirmations.ResetSettings" xml:space="preserve">
+    <value>Are you sure you want to reset all settings to defaults?</value>
+    <comment>Confirmation message for resetting settings</comment>
+  </data>
+  <data name="Messages.Confirmations.RestartToApplyUpdate" xml:space="preserve">
+    <value>The application needs to restart to apply the update. Restart now?</value>
+    <comment>Confirmation message for restarting to apply update</comment>
+  </data>
+  <data name="Messages.Confirmations.StopDownload" xml:space="preserve">
+    <value>Are you sure you want to stop this download?</value>
+    <comment>Confirmation message for stopping a download</comment>
+  </data>
+  <data name="Messages.Success.AddedDefaultCulture" xml:space="preserve">
+    <value>Added default culture: {0}</value>
+    <comment>Log message when default culture is added. {0} is culture name</comment>
+  </data>
+  <data name="Messages.Success.AvailableCulturesRefreshed" xml:space="preserve">
+    <value>Available cultures refreshed. Found {0} cultures</value>
+    <comment>Log message when available cultures are refreshed. {0} is culture count</comment>
+  </data>
+  <data name="Messages.Success.CreatedResourceManager" xml:space="preserve">
+    <value>Created ResourceManager for base name: {0}</value>
+    <comment>Log message when ResourceManager is created. {0} is base name</comment>
+  </data>
+  <data name="Messages.Success.CultureChanged" xml:space="preserve">
+    <value>Culture changed to: {0}</value>
+    <comment>Log message when culture is changed. {0} is the new culture name</comment>
+  </data>
+  <data name="Messages.Success.DataSaved" xml:space="preserve">
+    <value>Data saved successfully</value>
+    <comment>Generic data save success message</comment>
+  </data>
+  <data name="Messages.Success.DiscoveredLanguages" xml:space="preserve">
+    <value>Discovered {0} available languages: {1}</value>
+    <comment>Log message for discovered languages. {0} is count, {1} is comma-separated list</comment>
+  </data>
+  <data name="Messages.Success.ExportSuccessful" xml:space="preserve">
+    <value>Export completed successfully</value>
+    <comment>Success message for export operations</comment>
+  </data>
+  <data name="Messages.Success.FoundSatelliteAssembly" xml:space="preserve">
+    <value>Found satellite assembly for culture: {0}</value>
+    <comment>Log message when satellite assembly is found. {0} is culture name</comment>
+  </data>
+  <data name="Messages.Success.GameProfileLauncherInitialized" xml:space="preserve">
+    <value>Game profile launcher initialized</value>
+    <comment>Log message when game profile launcher is initialized</comment>
+  </data>
+  <data name="Messages.Success.GameScanCompleted" xml:space="preserve">
+    <value>Game scan completed successfully. Found {0} installations</value>
+    <comment>Success message when game scan completes. {0} is installation count</comment>
+  </data>
+  <data name="Messages.Success.ImportSuccessful" xml:space="preserve">
+    <value>Import completed successfully</value>
+    <comment>Success message for import operations</comment>
+  </data>
+  <data name="Messages.Success.LocalizationServiceInitialized" xml:space="preserve">
+    <value>LocalizationService initialized with culture: {0}</value>
+    <comment>Log message when LocalizationService is initialized. {0} is culture name</comment>
+  </data>
+  <data name="Messages.Success.MainViewModelInitialized" xml:space="preserve">
+    <value>MainViewModel initialized</value>
+    <comment>Log message when MainViewModel is initialized</comment>
+  </data>
+  <data name="Messages.Success.OperationCompleted" xml:space="preserve">
+    <value>Operation completed successfully</value>
+    <comment>Generic operation completion message</comment>
+  </data>
+  <data name="Messages.Success.ProfileCreated" xml:space="preserve">
+    <value>Profile created successfully</value>
+    <comment>Success message when a profile is created</comment>
+  </data>
+  <data name="Messages.Success.ProfileDeleted" xml:space="preserve">
+    <value>Profile deleted successfully</value>
+    <comment>Success message when a profile is deleted</comment>
+  </data>
+  <data name="Messages.Success.ProfileUpdated" xml:space="preserve">
+    <value>Profile updated successfully</value>
+    <comment>Success message when a profile is updated</comment>
+  </data>
+  <data name="Messages.Success.ProfilesSaved" xml:space="preserve">
+    <value>Profiles saved successfully</value>
+    <comment>Success message when profiles are saved</comment>
+  </data>
+  <data name="Messages.Success.SettingsLoaded" xml:space="preserve">
+    <value>Settings loaded successfully</value>
+    <comment>Success message when settings are loaded</comment>
+  </data>
+  <data name="Messages.Success.SettingsReset" xml:space="preserve">
+    <value>Settings reset to defaults</value>
+    <comment>Success message when settings are reset to defaults</comment>
+  </data>
+  <data name="Messages.Success.SettingsSaved" xml:space="preserve">
+    <value>Settings saved successfully</value>
+    <comment>Success message when settings are saved</comment>
+  </data>
+  <data name="Messages.Success.UpdateCheckCompleted" xml:space="preserve">
+    <value>Update check completed. Update available: {0}</value>
+    <comment>Log message when update check completes. {0} is true/false</comment>
+  </data>
+  <data name="Messages.Success.UpdateNotificationViewModelInitialized" xml:space="preserve">
+    <value>UpdateNotificationViewModel initialized</value>
+    <comment>Log message when UpdateNotificationViewModel is initialized</comment>
+  </data>
+  <data name="Navigation.App.Tagline" xml:space="preserve">
+    <value>C&amp;C Generals Launcher</value>
+    <comment>Application tagline shown in navigation</comment>
+  </data>
+  <data name="Navigation.Downloads" xml:space="preserve">
+    <value>Downloads</value>
+    <comment>Downloads navigation tab.</comment>
+  </data>
+  <data name="Navigation.GameProfiles" xml:space="preserve">
+    <value>Game Profiles</value>
+    <comment>Game Profiles navigation tab.</comment>
+  </data>
+  <data name="Navigation.Info" xml:space="preserve">
+    <value>Info</value>
+    <comment>Info navigation tab.</comment>
+  </data>
+  <data name="Navigation.Settings" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Settings navigation tab.</comment>
+  </data>
+  <data name="Navigation.Tab.About" xml:space="preserve">
+    <value>About</value>
+    <comment>Navigation tab name for about section</comment>
+  </data>
+  <data name="Navigation.Tab.Content" xml:space="preserve">
+    <value>Content</value>
+    <comment>Navigation tab name for content browser section</comment>
+  </data>
+  <data name="Navigation.Tab.Downloads" xml:space="preserve">
+    <value>Downloads</value>
+    <comment>Navigation tab name for downloads section</comment>
+  </data>
+  <data name="Navigation.Tab.GameProfiles" xml:space="preserve">
+    <value>Game Profiles</value>
+    <comment>Navigation tab name for game profiles section</comment>
+  </data>
+  <data name="Navigation.Tab.Home" xml:space="preserve">
+    <value>Home</value>
+    <comment>Navigation tab name for home section</comment>
+  </data>
+  <data name="Navigation.Tab.Settings" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Navigation tab name for settings section</comment>
+  </data>
+  <data name="Navigation.Tab.Tools" xml:space="preserve">
+    <value>Tools</value>
+    <comment>Navigation tab name for tools section</comment>
+  </data>
+  <data name="Navigation.Tab.Updates" xml:space="preserve">
+    <value>Updates</value>
+    <comment>Navigation tab name for updates section</comment>
+  </data>
+  <data name="Navigation.Tools" xml:space="preserve">
+    <value>Tools</value>
+    <comment>Tools navigation tab.</comment>
+  </data>
+  <data name="Notifications.Title" xml:space="preserve">
+    <value>Notifications</value>
+    <comment>Title for notifications panel and button.</comment>
+  </data>
+  <data name="Settings.Appearance.Language.Description" xml:space="preserve">
+    <value>Select the user interface display language.</value>
+    <comment>Description for language selection.</comment>
+  </data>
+  <data name="Settings.Appearance.Language.Label" xml:space="preserve">
+    <value>Language</value>
+    <comment>Label for language selection.</comment>
+  </data>
+  <data name="Settings.Appearance.Theme.ActiveTheme" xml:space="preserve">
+    <value>Active Theme:</value>
+    <comment>Active theme indicator label.</comment>
+  </data>
+  <data name="Settings.Appearance.Theme.Description" xml:space="preserve">
+    <value>Choose an accent color theme for buttons, tabs, highlights, glows, and scrollbars across GenHub.</value>
+    <comment>Description for accent color theme.</comment>
+  </data>
+  <data name="Settings.Appearance.Theme.Label" xml:space="preserve">
+    <value>Accent Color Theme</value>
+    <comment>Label for theme selection.</comment>
+  </data>
+  <data name="Settings.Button.ResetToDefaults" xml:space="preserve">
+    <value>Reset to Defaults</value>
+    <comment>Button to reset settings to default values</comment>
+  </data>
+  <data name="Settings.Button.SaveSettings" xml:space="preserve">
+    <value>Save Settings</value>
+    <comment>Button text for saving settings</comment>
+  </data>
+  <data name="Settings.Button.Saving" xml:space="preserve">
+    <value>Saving...</value>
+    <comment>Button text shown while saving is in progress</comment>
+  </data>
+  <data name="Settings.CAS.AutoGCInterval" xml:space="preserve">
+    <value>Auto GC Interval (Days)</value>
+    <comment>Label for automatic garbage collection interval setting</comment>
+  </data>
+  <data name="Settings.CAS.EnableAutomaticGC" xml:space="preserve">
+    <value>Enable Automatic Garbage Collection</value>
+    <comment>Label for enable automatic garbage collection checkbox</comment>
+  </data>
+  <data name="Settings.CAS.GCGracePeriod" xml:space="preserve">
+    <value>Garbage Collection Grace Period (Days)</value>
+    <comment>Label for garbage collection grace period setting</comment>
+  </data>
+  <data name="Settings.CAS.MaxCacheSize" xml:space="preserve">
+    <value>Max Cache Size (GB)</value>
+    <comment>Label for maximum cache size setting</comment>
+  </data>
+  <data name="Settings.CAS.MaxConcurrentOperations" xml:space="preserve">
+    <value>Max Concurrent Operations</value>
+    <comment>Label for maximum concurrent CAS operations</comment>
+  </data>
+  <data name="Settings.CAS.VerifyIntegrity" xml:space="preserve">
+    <value>Verify Integrity</value>
+    <comment>Label for verify integrity checkbox</comment>
+  </data>
+  <data name="Settings.Cas.AutoGc.Description" xml:space="preserve">
+    <value>Automatically clean up unreferenced content to free disk space</value>
+    <comment>Description for auto GC.</comment>
+  </data>
+  <data name="Settings.Cas.AutoGc.Label" xml:space="preserve">
+    <value>Enable automatic garbage collection</value>
+    <comment>Label for auto GC.</comment>
+  </data>
+  <data name="Settings.Cas.AutoGcInterval.Description" xml:space="preserve">
+    <value>How often to run automatic garbage collection (1-30 days)</value>
+    <comment>Description for auto GC interval.</comment>
+  </data>
+  <data name="Settings.Cas.AutoGcInterval.Label" xml:space="preserve">
+    <value>Auto GC Interval (Days)</value>
+    <comment>Label for auto GC interval.</comment>
+  </data>
+  <data name="Settings.Cas.GcGracePeriod.Description" xml:space="preserve">
+    <value>How long to keep unreferenced content before deletion (1-365 days)</value>
+    <comment>Description for GC grace period.</comment>
+  </data>
+  <data name="Settings.Cas.GcGracePeriod.Label" xml:space="preserve">
+    <value>Garbage Collection Grace Period (Days)</value>
+    <comment>Label for GC grace period.</comment>
+  </data>
+  <data name="Settings.Cas.MaxCacheSize.Description" xml:space="preserve">
+    <value>Maximum size for the CAS pool before garbage collection runs (1-1000 GB)</value>
+    <comment>Description for max cache size.</comment>
+  </data>
+  <data name="Settings.Cas.MaxCacheSize.Label" xml:space="preserve">
+    <value>Maximum Cache Size (GB)</value>
+    <comment>Label for max cache size.</comment>
+  </data>
+  <data name="Settings.Cas.MaxConcurrent.Description" xml:space="preserve">
+    <value>Number of simultaneous CAS operations (1-16, default: 4)</value>
+    <comment>Description for max concurrent CAS operations.</comment>
+  </data>
+  <data name="Settings.Cas.MaxConcurrent.Label" xml:space="preserve">
+    <value>Maximum Concurrent CAS Operations</value>
+    <comment>Label for max concurrent CAS operations.</comment>
+  </data>
+  <data name="Settings.Cas.RootDirectory.Description" xml:space="preserve">
+    <value>Directory where deduplicated content is stored. All workspaces reference files from here.</value>
+    <comment>Description for CAS root directory.</comment>
+  </data>
+  <data name="Settings.Cas.RootDirectory.Label" xml:space="preserve">
+    <value>CAS Root Directory</value>
+    <comment>Label for CAS root directory.</comment>
+  </data>
+  <data name="Settings.Cas.RootDirectory.Watermark" xml:space="preserve">
+    <value>Default (%AppData%/GenHub/cas-pool)</value>
+    <comment>Watermark for CAS root directory.</comment>
+  </data>
+  <data name="Settings.Cas.VerifyIntegrity.Description" xml:space="preserve">
+    <value>Check file hashes to ensure data integrity (recommended, slight performance impact)</value>
+    <comment>Description for verify integrity.</comment>
+  </data>
+  <data name="Settings.Cas.VerifyIntegrity.Label" xml:space="preserve">
+    <value>Verify file integrity during operations</value>
+    <comment>Label for verify integrity.</comment>
+  </data>
+  <data name="Settings.Content.Directories" xml:space="preserve">
+    <value>Content Directories</value>
+    <comment>Label for content directories setting</comment>
+  </data>
+  <data name="Settings.Content.GitHubRepositories" xml:space="preserve">
+    <value>GitHub Discovery Repositories</value>
+    <comment>Label for GitHub discovery repositories setting</comment>
+  </data>
+  <data name="Settings.DangerZone.CasStorage" xml:space="preserve">
+    <value>CAS Storage:</value>
+    <comment>CAS storage label.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanCasPool" xml:space="preserve">
+    <value>Clean CAS Pool</value>
+    <comment>Clean CAS pool button.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanManifests" xml:space="preserve">
+    <value>Clean Manifests</value>
+    <comment>Clean manifests button.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanWorkspaces" xml:space="preserve">
+    <value>Clean Workspaces</value>
+    <comment>Clean workspaces button.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanupActions" xml:space="preserve">
+    <value>Cleanup Actions:</value>
+    <comment>Cleanup actions header.</comment>
+  </data>
+  <data name="Settings.DangerZone.CurrentDataUsage" xml:space="preserve">
+    <value>Current Data Usage:</value>
+    <comment>Current data usage header.</comment>
+  </data>
+  <data name="Settings.DangerZone.Manifests" xml:space="preserve">
+    <value>Manifests:</value>
+    <comment>Manifests label.</comment>
+  </data>
+  <data name="Settings.DangerZone.ResetAll" xml:space="preserve">
+    <value>Reset All GenHub Data</value>
+    <comment>Reset all data button.</comment>
+  </data>
+  <data name="Settings.DangerZone.ResetSettings" xml:space="preserve">
+    <value>Reset Settings</value>
+    <comment>Reset settings button.</comment>
+  </data>
+  <data name="Settings.DangerZone.Workspaces" xml:space="preserve">
+    <value>Workspaces:</value>
+    <comment>Workspaces label.</comment>
+  </data>
+  <data name="Settings.DataDirectories.SettingsFilePath.Description" xml:space="preserve">
+    <value>Specify a custom location for your settings file. Leave empty for auto-detection.</value>
+    <comment>Description for settings file location.</comment>
+  </data>
+  <data name="Settings.DataDirectories.SettingsFilePath.Label" xml:space="preserve">
+    <value>Settings File Location</value>
+    <comment>Label for settings file location.</comment>
+  </data>
+  <data name="Settings.DataDirectories.SettingsFilePath.Watermark" xml:space="preserve">
+    <value>Default (platform-dependent)</value>
+    <comment>Watermark for settings file location.</comment>
+  </data>
+  <data name="Settings.Description.AutoCheckUpdates" xml:space="preserve">
+    <value>Automatically check for GenHub updates when the application starts</value>
+    <comment>Description for auto check updates setting</comment>
+  </data>
+  <data name="Settings.Description.AutoGcInterval" xml:space="preserve">
+    <value>How often to run automatic garbage collection (1-30 days)</value>
+    <comment>Description for auto GC interval setting</comment>
+  </data>
+  <data name="Settings.Description.AutomaticGc" xml:space="preserve">
+    <value>Automatically clean up unreferenced content to free disk space</value>
+    <comment>Description for automatic GC setting</comment>
+  </data>
+  <data name="Settings.Description.BackgroundDownloads" xml:space="preserve">
+    <value>Continue downloads when the application is minimized or in the background</value>
+    <comment>Description for background downloads setting</comment>
+  </data>
+  <data name="Settings.Description.BufferSize" xml:space="preserve">
+    <value>Buffer size used for file downloads (4KB - 1MB, default: 80KB)</value>
+    <comment>Description for buffer size setting</comment>
+  </data>
+  <data name="Settings.Description.CachePath" xml:space="preserve">
+    <value>Override the default cache directory for downloads and temp files.</value>
+    <comment>Description for cache path setting</comment>
+  </data>
+  <data name="Settings.Description.CasConcurrentOperations" xml:space="preserve">
+    <value>Number of simultaneous CAS operations (1-16, default: 4)</value>
+    <comment>Description for CAS concurrent operations setting</comment>
+  </data>
+  <data name="Settings.Description.CasRootPath" xml:space="preserve">
+    <value>Directory where deduplicated content is stored. All workspaces reference files from here.</value>
+    <comment>Description for CAS root path setting</comment>
+  </data>
+  <data name="Settings.Description.ContentDirectories" xml:space="preserve">
+    <value>Specify directories to scan for local content. One path per line.</value>
+    <comment>Description for content directories setting</comment>
+  </data>
+  <data name="Settings.Description.ContentStoragePath" xml:space="preserve">
+    <value>Override the default directory where downloaded content is stored permanently.</value>
+    <comment>Description for content storage path setting</comment>
+  </data>
+  <data name="Settings.Description.DetailedLogging" xml:space="preserve">
+    <value>Enable verbose logging for troubleshooting. May impact performance.</value>
+    <comment>Description for detailed logging setting</comment>
+  </data>
+  <data name="Settings.Description.GamePath" xml:space="preserve">
+    <value>Specify where you prefer games to be installed. Leave empty for auto-detection.</value>
+    <comment>Description for game path setting</comment>
+  </data>
+  <data name="Settings.Description.GcGracePeriod" xml:space="preserve">
+    <value>How long to keep unreferenced content before deletion (1-365 days)</value>
+    <comment>Description for GC grace period setting</comment>
+  </data>
+  <data name="Settings.Description.GitHubRepositories" xml:space="preserve">
+    <value>Specify GitHub repositories to scan for releases. One owner/repo per line.</value>
+    <comment>Description for GitHub repositories setting</comment>
+  </data>
+  <data name="Settings.Description.MaxCacheSize" xml:space="preserve">
+    <value>Maximum size for the CAS pool before garbage collection runs (1-1000 GB)</value>
+    <comment>Description for max cache size setting</comment>
+  </data>
+  <data name="Settings.Description.MaxConcurrent" xml:space="preserve">
+    <value>Limit the number of simultaneous downloads to manage bandwidth usage (1-10)</value>
+    <comment>Description for max concurrent downloads setting</comment>
+  </data>
+  <data name="Settings.Description.MemoryUsage" xml:space="preserve">
+    <value>Monitor application memory consumption</value>
+    <comment>Description for memory usage display</comment>
+  </data>
+  <data name="Settings.Description.SettingsFilePath" xml:space="preserve">
+    <value>Specify a custom location for your settings file. Leave empty to use the default location.</value>
+    <comment>Description for settings file path setting</comment>
+  </data>
+  <data name="Settings.Description.Theme" xml:space="preserve">
+    <value>Choose between light and dark themes</value>
+    <comment>Description for theme setting</comment>
+  </data>
+  <data name="Settings.Description.Timeout" xml:space="preserve">
+    <value>Timeout for each download operation (10-3600 seconds, default: 600 seconds)</value>
+    <comment>Description for timeout setting</comment>
+  </data>
+  <data name="Settings.Description.UserAgent" xml:space="preserve">
+    <value>HTTP User-Agent string sent with download requests</value>
+    <comment>Description for user agent setting</comment>
+  </data>
+  <data name="Settings.Description.VerifyIntegrity" xml:space="preserve">
+    <value>Check file hashes to ensure data integrity (recommended, slight performance impact)</value>
+    <comment>Description for verify integrity setting</comment>
+  </data>
+  <data name="Settings.Description.WorkspaceStrategy" xml:space="preserve">
+    <value>Choose how files are managed in game workspaces</value>
+    <comment>Description for workspace strategy setting</comment>
+  </data>
+  <data name="Settings.Dialog.SelectCasRootDirectory" xml:space="preserve">
+    <value>Select Content-Addressable Storage Root Directory</value>
+    <comment>Title for folder picker dialog when selecting CAS root directory</comment>
+  </data>
+  <data name="Settings.Dialog.SelectGameInstallDirectory" xml:space="preserve">
+    <value>Select Game Installation Directory</value>
+    <comment>Title for folder picker dialog when selecting game install directory</comment>
+  </data>
+  <data name="Settings.Dialog.SelectSettingsFileLocation" xml:space="preserve">
+    <value>Select Settings File Location</value>
+    <comment>Title for file picker dialog when selecting settings file location</comment>
+  </data>
+  <data name="Settings.Download.AllowBackgroundDownloads" xml:space="preserve">
+    <value>Allow Background Downloads</value>
+    <comment>Label for allow background downloads checkbox</comment>
+  </data>
+  <data name="Settings.Download.BufferSize" xml:space="preserve">
+    <value>Download Buffer Size (KB)</value>
+    <comment>Label for download buffer size setting</comment>
+  </data>
+  <data name="Settings.Download.MaxConcurrentDownloads" xml:space="preserve">
+    <value>Max Concurrent Downloads</value>
+    <comment>Label for maximum concurrent downloads setting</comment>
+  </data>
+  <data name="Settings.Download.Timeout" xml:space="preserve">
+    <value>Download Timeout (Seconds)</value>
+    <comment>Label for download timeout setting</comment>
+  </data>
+  <data name="Settings.Download.UserAgent" xml:space="preserve">
+    <value>Download User Agent</value>
+    <comment>Label for download user agent setting</comment>
+  </data>
+  <data name="Settings.Downloads.AllowBackground.Description" xml:space="preserve">
+    <value>Continue downloads when the application is minimized or in the background</value>
+    <comment>Description for background downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.AllowBackground.Label" xml:space="preserve">
+    <value>Allow background downloads</value>
+    <comment>Checkbox label for background downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.BufferSize.Description" xml:space="preserve">
+    <value>Buffer size used for file downloads (4KB - 1MB, default: 80KB)</value>
+    <comment>Description for download buffer size.</comment>
+  </data>
+  <data name="Settings.Downloads.BufferSize.Label" xml:space="preserve">
+    <value>Download Buffer Size</value>
+    <comment>Label for download buffer size.</comment>
+  </data>
+  <data name="Settings.Downloads.MaxConcurrent.Description" xml:space="preserve">
+    <value>Limit the number of simultaneous downloads to manage bandwidth usage (1-10)</value>
+    <comment>Description for max concurrent downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.MaxConcurrent.Label" xml:space="preserve">
+    <value>Maximum Concurrent Downloads</value>
+    <comment>Label for max concurrent downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.Timeout.Description" xml:space="preserve">
+    <value>Timeout for each download operation (10-3600 seconds, default: 600 seconds)</value>
+    <comment>Description for download timeout.</comment>
+  </data>
+  <data name="Settings.Downloads.Timeout.Label" xml:space="preserve">
+    <value>Download Timeout</value>
+    <comment>Label for download timeout.</comment>
+  </data>
+  <data name="Settings.Downloads.UserAgent.Description" xml:space="preserve">
+    <value>HTTP User-Agent string sent with download requests</value>
+    <comment>Description for download user-agent.</comment>
+  </data>
+  <data name="Settings.Downloads.UserAgent.Label" xml:space="preserve">
+    <value>Download User-Agent</value>
+    <comment>Label for download user-agent.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.Add" xml:space="preserve">
+    <value>Add Custom Installation...</value>
+    <comment>Button to add custom installation.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.Description" xml:space="preserve">
+    <value>Add custom or Git-tracked game installations outside Steam/EA App</value>
+    <comment>Description for custom game installations.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.Label" xml:space="preserve">
+    <value>Custom Game Installations</value>
+    <comment>Label for custom game installations.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.NoInstallations" xml:space="preserve">
+    <value>No custom installations registered</value>
+    <comment>Message when no custom installations exist.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.RemoveToolTip" xml:space="preserve">
+    <value>Remove custom installation</value>
+    <comment>Tooltip to remove custom installation.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.DefaultWorkspaceStrategy.Description" xml:space="preserve">
+    <value>Choose how files are managed in game workspaces</value>
+    <comment>Description for default workspace strategy.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.DefaultWorkspaceStrategy.Label" xml:space="preserve">
+    <value>Default Workspace Strategy</value>
+    <comment>Label for default workspace strategy.</comment>
+  </data>
+  <data name="Settings.General.AutoCheckForUpdates" xml:space="preserve">
+    <value>Auto Check for Updates on Startup</value>
+    <comment>Label for auto check for updates checkbox</comment>
+  </data>
+  <data name="Settings.General.DefaultWorkspaceStrategy" xml:space="preserve">
+    <value>Default Workspace Strategy</value>
+    <comment>Label for default workspace strategy setting</comment>
+  </data>
+  <data name="Settings.General.EnableDetailedLogging" xml:space="preserve">
+    <value>Enable Detailed Logging</value>
+    <comment>Label for enable detailed logging checkbox</comment>
+  </data>
+  <data name="Settings.GitHubDiscovery.Repositories.Description" xml:space="preserve">
+    <value>Specify GitHub repositories to scan for releases. One owner/repo per line.</value>
+    <comment>Description for repositories.</comment>
+  </data>
+  <data name="Settings.GitHubDiscovery.Repositories.Label" xml:space="preserve">
+    <value>GitHub Repositories (one per line, owner/repo)</value>
+    <comment>Label for repositories.</comment>
+  </data>
+  <data name="Settings.GitHubDiscovery.Repositories.Watermark" xml:space="preserve">
+    <value>e.g. some-author/some-mod</value>
+    <comment>Watermark for repositories.</comment>
+  </data>
+  <data name="Settings.Hint.SettingsAutoSave" xml:space="preserve">
+    <value>Settings are automatically saved and will take effect immediately or on next restart as needed.</value>
+    <comment>Hint about settings auto-save behavior</comment>
+  </data>
+  <data name="Settings.Label.CacheDirectory" xml:space="preserve">
+    <value>Cache Directory</value>
+    <comment>Label for cache directory setting</comment>
+  </data>
+  <data name="Settings.Label.ContentDirectories" xml:space="preserve">
+    <value>Content Directories (one per line)</value>
+    <comment>Label for content directories setting</comment>
+  </data>
+  <data name="Settings.Label.ContentStorage" xml:space="preserve">
+    <value>Content Storage Directory</value>
+    <comment>Label for content storage directory setting</comment>
+  </data>
+  <data name="Settings.Label.GitHubRepositories" xml:space="preserve">
+    <value>GitHub Repositories (one per line, owner/repo)</value>
+    <comment>Label for GitHub repositories setting</comment>
+  </data>
+  <data name="Settings.Label.MemoryUsage" xml:space="preserve">
+    <value>Memory Usage</value>
+    <comment>Label for memory usage display</comment>
+  </data>
+  <data name="Settings.Label.PreferredGamePath" xml:space="preserve">
+    <value>Preferred Game Installation Path</value>
+    <comment>Label for preferred game path setting</comment>
+  </data>
+  <data name="Settings.LocalContent.Directories.Description" xml:space="preserve">
+    <value>Specify directories to scan for local content. One path per line.</value>
+    <comment>Description for content directories.</comment>
+  </data>
+  <data name="Settings.LocalContent.Directories.Label" xml:space="preserve">
+    <value>Content Directories (one per line)</value>
+    <comment>Label for content directories.</comment>
+  </data>
+  <data name="Settings.LocalContent.Directories.Watermark" xml:space="preserve">
+    <value>e.g. C:\Games\GenHub\Mods</value>
+    <comment>Watermark for content directories.</comment>
+  </data>
+  <data name="Settings.Logs.ApplicationLogs.Label" xml:space="preserve">
+    <value>Application Logs</value>
+    <comment>Label for application logs.</comment>
+  </data>
+  <data name="Settings.Logs.Clear" xml:space="preserve">
+    <value>Clear Logs</value>
+    <comment>Button to clear logs.</comment>
+  </data>
+  <data name="Settings.Logs.CopyLatest" xml:space="preserve">
+    <value>Copy Latest Log Content</value>
+    <comment>Button to copy latest log.</comment>
+  </data>
+  <data name="Settings.Logs.DetailedLogging.Description" xml:space="preserve">
+    <value>Enable verbose DEBUG logging for troubleshooting. Takes effect immediately.</value>
+    <comment>Description for detailed logging.</comment>
+  </data>
+  <data name="Settings.Logs.DetailedLogging.Label" xml:space="preserve">
+    <value>Enable detailed logging</value>
+    <comment>Label for detailed logging.</comment>
+  </data>
+  <data name="Settings.Logs.OpenDirectory" xml:space="preserve">
+    <value>Open Logs Directory</value>
+    <comment>Button to open logs directory.</comment>
+  </data>
+  <data name="Settings.Logs.OpenLatest" xml:space="preserve">
+    <value>Open Latest Log</value>
+    <comment>Button to open latest log.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.Button" xml:space="preserve">
+    <value>Migrate Installation Location</value>
+    <comment>Button to start migration.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.Description" xml:space="preserve">
+    <value>Move the GenHub application files and binaries to another drive or directory. Useful for freeing up space on your system partition.</value>
+    <comment>Description for migration.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.RelocateCas.Description" xml:space="preserve">
+    <value>Moves cached mod files, game content, and workspaces to the new drive to maximize freed space on the current drive.</value>
+    <comment>Description for relocating CAS.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.RelocateCas.Label" xml:space="preserve">
+    <value>Also relocate CAS storage pool and game workspaces to target directory</value>
+    <comment>Checkbox for relocating CAS.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.TargetPath.Description" xml:space="preserve">
+    <value>Select an empty or new folder on your preferred drive.</value>
+    <comment>Description for target migration directory.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.TargetPath.Label" xml:space="preserve">
+    <value>Target Installation Directory</value>
+    <comment>Label for target migration directory.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.TargetPath.Watermark" xml:space="preserve">
+    <value>Select or enter target installation directory...</value>
+    <comment>Watermark for target migration directory.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.Title" xml:space="preserve">
+    <value>Relocate GenHub Installation</value>
+    <comment>Title for relocation panel.</comment>
+  </data>
+  <data name="Settings.Notification.SettingsSaved" xml:space="preserve">
+    <value>✓ Settings saved successfully!</value>
+    <comment>Notification shown when settings are saved</comment>
+  </data>
+  <data name="Settings.Path.CachePath" xml:space="preserve">
+    <value>Cache Path</value>
+    <comment>Label for cache path setting</comment>
+  </data>
+  <data name="Settings.Path.CasRootPath" xml:space="preserve">
+    <value>CAS Root Path</value>
+    <comment>Label for Content-Addressable Storage root path setting</comment>
+  </data>
+  <data name="Settings.Path.ContentStoragePath" xml:space="preserve">
+    <value>Content Storage Path</value>
+    <comment>Label for content storage path setting</comment>
+  </data>
+  <data name="Settings.Path.SettingsFilePath" xml:space="preserve">
+    <value>Settings File Path</value>
+    <comment>Label for settings file path setting</comment>
+  </data>
+  <data name="Settings.Path.WorkspacePath" xml:space="preserve">
+    <value>Workspace Path</value>
+    <comment>Label for workspace path setting</comment>
+  </data>
+  <data name="Settings.Performance.MemoryUsage.Description" xml:space="preserve">
+    <value>Monitor application memory consumption</value>
+    <comment>Description for memory usage.</comment>
+  </data>
+  <data name="Settings.Performance.MemoryUsage.Label" xml:space="preserve">
+    <value>Memory Usage</value>
+    <comment>Label for memory usage.</comment>
+  </data>
+  <data name="Settings.Section.Appearance" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>Appearance settings section header.</comment>
+  </data>
+  <data name="Settings.Section.CAS" xml:space="preserve">
+    <value>🔗 Content-Addressable Storage (CAS)</value>
+    <comment>Section header for CAS settings</comment>
+  </data>
+  <data name="Settings.Section.CasStorage" xml:space="preserve">
+    <value>CAS Storage</value>
+    <comment>CAS storage section header.</comment>
+  </data>
+  <data name="Settings.Section.ContentDirectories" xml:space="preserve">
+    <value>📂 Local Content Directories</value>
+    <comment>Section header for content directories settings</comment>
+  </data>
+  <data name="Settings.Section.DangerZone" xml:space="preserve">
+    <value>Danger Zone</value>
+    <comment>Danger Zone section header.</comment>
+  </data>
+  <data name="Settings.Section.DataDirectories" xml:space="preserve">
+    <value>Data Directories</value>
+    <comment>Data directories settings section header.</comment>
+  </data>
+  <data name="Settings.Section.Downloads" xml:space="preserve">
+    <value>Downloads</value>
+    <comment>Downloads settings section header.</comment>
+  </data>
+  <data name="Settings.Section.GameConfiguration" xml:space="preserve">
+    <value>Game Configuration</value>
+    <comment>Game Configuration section header.</comment>
+  </data>
+  <data name="Settings.Section.GitHubDiscovery" xml:space="preserve">
+    <value>GitHub Discovery</value>
+    <comment>GitHub discovery section header.</comment>
+  </data>
+  <data name="Settings.Section.LocalContent" xml:space="preserve">
+    <value>Local Content</value>
+    <comment>Local content section header.</comment>
+  </data>
+  <data name="Settings.Section.Logs" xml:space="preserve">
+    <value>Logs</value>
+    <comment>Logs settings section header.</comment>
+  </data>
+  <data name="Settings.Section.MigrateInstallation" xml:space="preserve">
+    <value>Migrate Installation</value>
+    <comment>Migrate installation section header.</comment>
+  </data>
+  <data name="Settings.Section.Performance" xml:space="preserve">
+    <value>Performance</value>
+    <comment>Performance section header.</comment>
+  </data>
+  <data name="Settings.Section.Storage" xml:space="preserve">
+    <value>🗄️ Storage</value>
+    <comment>Section header for storage settings</comment>
+  </data>
+  <data name="Settings.Section.Updates" xml:space="preserve">
+    <value>Updates</value>
+    <comment>Updates section header.</comment>
+  </data>
+  <data name="Settings.Subtitle.Settings" xml:space="preserve">
+    <value>Configure your GenHub preferences and application behavior</value>
+    <comment>Page subtitle for the Settings section</comment>
+  </data>
+  <data name="Settings.System.CurrentMemoryUsage" xml:space="preserve">
+    <value>Current Memory Usage (MB)</value>
+    <comment>Label for current memory usage display</comment>
+  </data>
+  <data name="Settings.Theme.Dark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>Dark theme option</comment>
+  </data>
+  <data name="Settings.Theme.Label" xml:space="preserve">
+    <value>Theme</value>
+    <comment>Label for theme selection setting</comment>
+  </data>
+  <data name="Settings.Theme.Light" xml:space="preserve">
+    <value>Light</value>
+    <comment>Light theme option</comment>
+  </data>
+  <data name="Settings.Title.Settings" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Page title for the Settings section</comment>
+  </data>
+  <data name="Settings.Updates.CheckInterval.Description" xml:space="preserve">
+    <value>How often to automatically check for updates (5-10080 minutes, default: 30 minutes)</value>
+    <comment>Description for update check interval.</comment>
+  </data>
+  <data name="Settings.Updates.CheckInterval.Label" xml:space="preserve">
+    <value>Update Check Interval (Minutes)</value>
+    <comment>Label for update check interval.</comment>
+  </data>
+  <data name="Settings.Updates.CheckPeriodically.Description" xml:space="preserve">
+    <value>Automatically check for updates in the background at regular intervals</value>
+    <comment>Description for periodic update check.</comment>
+  </data>
+  <data name="Settings.Updates.CheckPeriodically.Label" xml:space="preserve">
+    <value>Check for updates periodically</value>
+    <comment>Checkbox for periodic update check.</comment>
+  </data>
+  <data name="Settings.Updates.CheckStartup.Description" xml:space="preserve">
+    <value>Automatically check for GenHub updates when the application starts</value>
+    <comment>Description for startup update check.</comment>
+  </data>
+  <data name="Settings.Updates.CheckStartup.Label" xml:space="preserve">
+    <value>Check for updates on startup</value>
+    <comment>Checkbox for startup update check.</comment>
+  </data>
+  <data name="Settings.Updates.CurrentVersion.Label" xml:space="preserve">
+    <value>Current Version</value>
+    <comment>Label for current version.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.CreateButton" xml:space="preserve">
+    <value>Create PAT →</value>
+    <comment>Button to create PAT on GitHub.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.CreateToolTip" xml:space="preserve">
+    <value>Click to open GitHub PAT creation page</value>
+    <comment>Tooltip for create PAT button.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.Label" xml:space="preserve">
+    <value>GitHub Personal Access Token (for Artifact Updates)</value>
+    <comment>Label for PAT.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.Remove" xml:space="preserve">
+    <value>Remove PAT</value>
+    <comment>Button to remove PAT.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.SaveAndTest" xml:space="preserve">
+    <value>Save &amp; Test</value>
+    <comment>Button to save and test PAT.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.ScopeDescription" xml:space="preserve">
+    <value>PAT with 'repo' scope required for CI artifact access.</value>
+    <comment>Description for PAT scope.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.Warning" xml:space="preserve">
+    <value>To subscribe to Pull Requests or test specific Branches, you MUST configure a GitHub PAT above. This allows GenHub to download builds directly from GitHub CI.</value>
+    <comment>Warning about PAT necessity.</comment>
+  </data>
+  <data name="Settings.Updates.ManageUpdatesButton" xml:space="preserve">
+    <value>Manage Updates &amp; PRs</value>
+    <comment>Button to open Updates window.</comment>
+  </data>
+  <data name="Settings.Updates.ManageUpdatesToolTip" xml:space="preserve">
+    <value>Browse available updates and subscribe to Pull Requests</value>
+    <comment>Tooltip for manage updates button.</comment>
+  </data>
+  <data name="Settings.Updates.SubscribedBranch.Description" xml:space="preserve">
+    <value>Manage your branch subscription in the Updates &amp; PRs window.</value>
+    <comment>Description for subscribed branch.</comment>
+  </data>
+  <data name="Settings.Updates.SubscribedBranch.Label" xml:space="preserve">
+    <value>Subscribed Branch</value>
+    <comment>Label for subscribed branch.</comment>
+  </data>
+  <data name="Settings.Watermark.DefaultCasPool" xml:space="preserve">
+    <value>Default (%AppData%/GenHub/cas-pool)</value>
+    <comment>Placeholder for CAS root path</comment>
+  </data>
+  <data name="Settings.Watermark.DefaultContent" xml:space="preserve">
+    <value>Default (%AppData%/GenHub/Content)</value>
+    <comment>Placeholder for content storage path</comment>
+  </data>
+  <data name="Settings.Watermark.DefaultPlatform" xml:space="preserve">
+    <value>Default (platform-dependent)</value>
+    <comment>Placeholder for platform-dependent default paths</comment>
+  </data>
+  <data name="Settings.Watermark.GamePath" xml:space="preserve">
+    <value>Auto-detect game installation path...</value>
+    <comment>Placeholder for game path input</comment>
+  </data>
+  <data name="Settings.Watermark.GitHubRepoExample" xml:space="preserve">
+    <value>e.g. some-author/some-mod</value>
+    <comment>Example placeholder for GitHub repository</comment>
+  </data>
+  <data name="Settings.Watermark.ModsExample" xml:space="preserve">
+    <value>e.g. C:\Games\GenHub\Mods</value>
+    <comment>Example placeholder for mods directory</comment>
+  </data>
+  <data name="Tools.Button.AddTool" xml:space="preserve">
+    <value>➕ Add Tool</value>
+    <comment>Button to add a new tool plugin</comment>
+  </data>
+  <data name="Tools.Button.CloseDialog" xml:space="preserve">
+    <value>Close</value>
+    <comment>Button to close a dialog</comment>
+  </data>
+  <data name="Tools.Button.RefreshTools" xml:space="preserve">
+    <value>🔄 Refresh</value>
+    <comment>Button to refresh the tools list</comment>
+  </data>
+  <data name="Tools.Dialog.SelectToolAssembly" xml:space="preserve">
+    <value>Select Tool Plugin Assembly</value>
+    <comment>File picker dialog title</comment>
+  </data>
+  <data name="Tools.Dialog.ToolDetails" xml:space="preserve">
+    <value>Tool Details</value>
+    <comment>Dialog title for viewing tool details</comment>
+  </data>
+  <data name="Tools.EmptyState.NoTools" xml:space="preserve">
+    <value>No tools installed yet</value>
+    <comment>Empty state title when no tools are installed</comment>
+  </data>
+  <data name="Tools.EmptyState.NoToolsDescription" xml:space="preserve">
+    <value>Click 'Add Tool' to install your first tool plugin</value>
+    <comment>Empty state description when no tools are installed</comment>
+  </data>
+  <data name="Tools.EmptyState.SelectTool" xml:space="preserve">
+    <value>Select a tool from the list</value>
+    <comment>Prompt to select a tool from the sidebar</comment>
+  </data>
+  <data name="Tools.Error.ErrorLoadingTool" xml:space="preserve">
+    <value>✗ Error loading tool '{0}': {1}</value>
+    <comment>Error message when a specific tool fails to load. {0} = tool name, {1} = error</comment>
+  </data>
+  <data name="Tools.Error.FailedToInstallTool" xml:space="preserve">
+    <value>✗ Failed to install tool: {0}</value>
+    <comment>Error message when tool installation fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.Error.FailedToLoadTools" xml:space="preserve">
+    <value>⚠ Failed to load tools: {0}</value>
+    <comment>Error message when loading tools fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.Error.FailedToRefreshTools" xml:space="preserve">
+    <value>⚠ Failed to refresh tools: {0}</value>
+    <comment>Error message when tools refresh fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.Error.FailedToRemoveTool" xml:space="preserve">
+    <value>✗ Failed to remove tool: {0}</value>
+    <comment>Error message when tool removal fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.FileType.ToolPluginAssembly" xml:space="preserve">
+    <value>Tool Plugin Assembly</value>
+    <comment>File type description for DLL files</comment>
+  </data>
+  <data name="Tools.Label.Author" xml:space="preserve">
+    <value>Author</value>
+    <comment>Field label for tool author</comment>
+  </data>
+  <data name="Tools.Label.Description" xml:space="preserve">
+    <value>Description</value>
+    <comment>Field label for tool description</comment>
+  </data>
+  <data name="Tools.Label.InstalledTools" xml:space="preserve">
+    <value>Installed Tools</value>
+    <comment>Section label for installed tools list</comment>
+  </data>
+  <data name="Tools.Label.Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Field label for tool name</comment>
+  </data>
+  <data name="Tools.Label.ToolId" xml:space="preserve">
+    <value>Tool ID</value>
+    <comment>Field label for tool identifier</comment>
+  </data>
+  <data name="Tools.Label.Version" xml:space="preserve">
+    <value>Version</value>
+    <comment>Field label for tool version</comment>
+  </data>
+  <data name="Tools.MenuItem.RemoveTool" xml:space="preserve">
+    <value>Remove Tool</value>
+    <comment>Context menu item to remove a tool</comment>
+  </data>
+  <data name="Tools.MenuItem.ViewDetails" xml:space="preserve">
+    <value>View Details</value>
+    <comment>Context menu item to view tool details</comment>
+  </data>
+  <data name="Tools.Status.InstallingTool" xml:space="preserve">
+    <value>Installing tool...</value>
+    <comment>Status during tool installation</comment>
+  </data>
+  <data name="Tools.Status.Loading" xml:space="preserve">
+    <value>Loading...</value>
+    <comment>Loading status message</comment>
+  </data>
+  <data name="Tools.Status.NoToolsInstalled" xml:space="preserve">
+    <value>No tools installed. Click 'Add Tool' to install a tool plugin.</value>
+    <comment>Status when no tools are installed</comment>
+  </data>
+  <data name="Tools.Status.RefreshingTools" xml:space="preserve">
+    <value>Refreshing tools...</value>
+    <comment>Status during tools refresh</comment>
+  </data>
+  <data name="Tools.Status.RemovingTool" xml:space="preserve">
+    <value>Removing tool '{0}'...</value>
+    <comment>Status during tool removal. {0} = tool name</comment>
+  </data>
+  <data name="Tools.Status.ToolInstalledSuccess" xml:space="preserve">
+    <value>✓ Tool '{0}' v{1} installed successfully.</value>
+    <comment>Success message after installing a tool. {0} = tool name, {1} = version</comment>
+  </data>
+  <data name="Tools.Status.ToolRemovedSuccess" xml:space="preserve">
+    <value>✓ Tool '{0}' removed successfully.</value>
+    <comment>Success message after removing a tool. {0} = tool name</comment>
+  </data>
+  <data name="Tools.Status.ToolsRefreshedSuccess" xml:space="preserve">
+    <value>✓ Refreshed {0} tool(s) successfully.</value>
+    <comment>Success message after refreshing tools. {0} = tool count</comment>
+  </data>
+  <data name="Tools.Subtitle.Tools" xml:space="preserve">
+    <value>Manage and use tool plugins to extend GenHub functionality</value>
+    <comment>Page subtitle for the Tools tab</comment>
+  </data>
+  <data name="Tools.Title.Tools" xml:space="preserve">
+    <value>Tools</value>
+    <comment>Page title for the Tools tab</comment>
+  </data>
+  <data name="Tools.Tooltip.CollapseSidebar" xml:space="preserve">
+    <value>Collapse Sidebar</value>
+    <comment>Tooltip for collapse sidebar button</comment>
+  </data>
+  <data name="Tools.Tooltip.ExpandSidebar" xml:space="preserve">
+    <value>Expand Sidebar</value>
+    <comment>Tooltip for expand sidebar button</comment>
+  </data>
+  <data name="Tooltips.Button.Add" xml:space="preserve">
+    <value>Add new item</value>
+    <comment>Tooltip for add button</comment>
+  </data>
+  <data name="Tooltips.Button.Browse" xml:space="preserve">
+    <value>Browse for file or folder</value>
+    <comment>Tooltip for browse button</comment>
+  </data>
+  <data name="Tooltips.Button.Cancel" xml:space="preserve">
+    <value>Cancel and discard changes</value>
+    <comment>Tooltip for cancel button</comment>
+  </data>
+  <data name="Tooltips.Button.Delete" xml:space="preserve">
+    <value>Delete selected item</value>
+    <comment>Tooltip for delete button</comment>
+  </data>
+  <data name="Tooltips.Button.Edit" xml:space="preserve">
+    <value>Edit selected item</value>
+    <comment>Tooltip for edit button</comment>
+  </data>
+  <data name="Tooltips.Button.Refresh" xml:space="preserve">
+    <value>Refresh data</value>
+    <comment>Tooltip for refresh button</comment>
+  </data>
+  <data name="Tooltips.Button.Reset" xml:space="preserve">
+    <value>Reset to default values</value>
+    <comment>Tooltip for reset button</comment>
+  </data>
+  <data name="Tooltips.Button.Save" xml:space="preserve">
+    <value>Save changes</value>
+    <comment>Tooltip for save button</comment>
+  </data>
+  <data name="Tooltips.Content.Filter" xml:space="preserve">
+    <value>Filter search results</value>
+    <comment>Tooltip for content filter options</comment>
+  </data>
+  <data name="Tooltips.Content.Search" xml:space="preserve">
+    <value>Search for content</value>
+    <comment>Tooltip for content search button</comment>
+  </data>
+  <data name="Tooltips.Content.Sort" xml:space="preserve">
+    <value>Sort search results</value>
+    <comment>Tooltip for content sort options</comment>
+  </data>
+  <data name="Tooltips.CopyVersionToClipboard" xml:space="preserve">
+    <value>Click to copy full version (including git hash) to clipboard</value>
+    <comment>Tooltip for version display button.</comment>
+  </data>
+  <data name="Tooltips.Icon.Error" xml:space="preserve">
+    <value>Error - action failed</value>
+    <comment>Tooltip for error icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Help" xml:space="preserve">
+    <value>Show help information</value>
+    <comment>Tooltip for help icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Info" xml:space="preserve">
+    <value>Show additional information</value>
+    <comment>Tooltip for info icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Success" xml:space="preserve">
+    <value>Success - action completed</value>
+    <comment>Tooltip for success icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Warning" xml:space="preserve">
+    <value>Warning - attention required</value>
+    <comment>Tooltip for warning icon</comment>
+  </data>
+  <data name="Tooltips.Nav.Content" xml:space="preserve">
+    <value>Browse and search for content</value>
+    <comment>Tooltip for content browser navigation tab</comment>
+  </data>
+  <data name="Tooltips.Nav.Downloads" xml:space="preserve">
+    <value>View and manage downloads</value>
+    <comment>Tooltip for downloads navigation tab</comment>
+  </data>
+  <data name="Tooltips.Nav.GameProfiles" xml:space="preserve">
+    <value>Manage and launch game profiles</value>
+    <comment>Tooltip for game profiles navigation tab</comment>
+  </data>
+  <data name="Tooltips.Nav.Settings" xml:space="preserve">
+    <value>Configure application settings</value>
+    <comment>Tooltip for settings navigation tab</comment>
+  </data>
+  <data name="Tooltips.Profile.CreateNew" xml:space="preserve">
+    <value>Create a new game profile</value>
+    <comment>Tooltip for create new profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.CreateShortcut" xml:space="preserve">
+    <value>Create desktop shortcut for this profile</value>
+    <comment>Tooltip for create shortcut button</comment>
+  </data>
+  <data name="Tooltips.Profile.Delete" xml:space="preserve">
+    <value>Delete this profile</value>
+    <comment>Tooltip for delete profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.Edit" xml:space="preserve">
+    <value>Edit profile settings</value>
+    <comment>Tooltip for edit profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.Launch" xml:space="preserve">
+    <value>Launch game with this profile</value>
+    <comment>Tooltip for launch profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.ScanForGames" xml:space="preserve">
+    <value>Scan system for installed games</value>
+    <comment>Tooltip for scan for games button</comment>
+  </data>
+  <data name="Tooltips.Settings.AllowBackgroundDownloads" xml:space="preserve">
+    <value>Allow downloads to continue in the background</value>
+    <comment>Tooltip for allow background downloads setting</comment>
+  </data>
+  <data name="Tooltips.Settings.AutoCheckUpdates" xml:space="preserve">
+    <value>Automatically check for application updates when starting</value>
+    <comment>Tooltip for auto check updates setting</comment>
+  </data>
+  <data name="Tooltips.Settings.CasRootPath" xml:space="preserve">
+    <value>Root directory for Content-Addressable Storage</value>
+    <comment>Tooltip for CAS root path setting</comment>
+  </data>
+  <data name="Tooltips.Settings.DefaultWorkspaceStrategy" xml:space="preserve">
+    <value>Default strategy for creating game workspaces</value>
+    <comment>Tooltip for default workspace strategy setting</comment>
+  </data>
+  <data name="Tooltips.Settings.DownloadBufferSize" xml:space="preserve">
+    <value>Buffer size for downloads in kilobytes</value>
+    <comment>Tooltip for download buffer size setting</comment>
+  </data>
+  <data name="Tooltips.Settings.DownloadTimeout" xml:space="preserve">
+    <value>Timeout duration for downloads in seconds</value>
+    <comment>Tooltip for download timeout setting</comment>
+  </data>
+  <data name="Tooltips.Settings.EnableAutomaticGC" xml:space="preserve">
+    <value>Automatically clean up unused cache files</value>
+    <comment>Tooltip for enable automatic GC setting</comment>
+  </data>
+  <data name="Tooltips.Settings.EnableDetailedLogging" xml:space="preserve">
+    <value>Enable detailed logging for troubleshooting</value>
+    <comment>Tooltip for enable detailed logging setting</comment>
+  </data>
+  <data name="Tooltips.Settings.MaxCacheSize" xml:space="preserve">
+    <value>Maximum cache size in gigabytes</value>
+    <comment>Tooltip for max cache size setting</comment>
+  </data>
+  <data name="Tooltips.Settings.MaxConcurrentDownloads" xml:space="preserve">
+    <value>Maximum number of simultaneous downloads (1-10)</value>
+    <comment>Tooltip for max concurrent downloads setting</comment>
+  </data>
+  <data name="Tooltips.Settings.Theme" xml:space="preserve">
+    <value>Choose between dark and light theme</value>
+    <comment>Tooltip for theme setting</comment>
+  </data>
+  <data name="Tooltips.Settings.VerifyIntegrity" xml:space="preserve">
+    <value>Verify file integrity during cache operations</value>
+    <comment>Tooltip for verify integrity setting</comment>
+  </data>
+  <data name="Tooltips.Settings.WorkspacePath" xml:space="preserve">
+    <value>Default workspace directory for game profiles</value>
+    <comment>Tooltip for workspace path setting</comment>
+  </data>
+  <data name="Tooltips.Update.CheckForUpdates" xml:space="preserve">
+    <value>Check for application updates</value>
+    <comment>Tooltip for check for updates button</comment>
+  </data>
+  <data name="Tooltips.Update.Dismiss" xml:space="preserve">
+    <value>Dismiss update notification</value>
+    <comment>Tooltip for dismiss update button</comment>
+  </data>
+  <data name="Tooltips.Update.InstallUpdate" xml:space="preserve">
+    <value>Download and install the update</value>
+    <comment>Tooltip for install update button</comment>
+  </data>
+  <data name="Tooltips.Update.ViewReleaseNotes" xml:space="preserve">
+    <value>View release notes in browser</value>
+    <comment>Tooltip for view release notes button</comment>
+  </data>
+  <data name="Updates.Button.InstallUpdate" xml:space="preserve">
+    <value>Install Update</value>
+    <comment>Button text for installing update</comment>
+  </data>
+  <data name="Updates.Button.Installing" xml:space="preserve">
+    <value>Installing...</value>
+    <comment>Button text shown while installing</comment>
+  </data>
+  <data name="Updates.Description.DefaultUpdateNotes" xml:space="preserve">
+    <value>This update includes bug fixes, performance improvements, and new features.</value>
+    <comment>Default text for update description when no specific notes</comment>
+  </data>
+  <data name="Updates.Error.FailedToCheckForUpdates" xml:space="preserve">
+    <value>Failed to check for updates: {0}</value>
+    <comment>Error message when update check fails. {0} is the error details</comment>
+  </data>
+  <data name="Updates.Error.NoCompatiblePackage" xml:space="preserve">
+    <value>No compatible update package found for your platform.</value>
+    <comment>Error message when no compatible update package is found</comment>
+  </data>
+  <data name="Updates.Error.UpdateFailed" xml:space="preserve">
+    <value>Update failed: {0}</value>
+    <comment>Error message when update fails. {0} is the error details</comment>
+  </data>
+  <data name="Updates.Label.VersionReady" xml:space="preserve">
+    <value>is ready to install</value>
+    <comment>Partial text indicating version is ready</comment>
+  </data>
+  <data name="Updates.Label.WhatsNew" xml:space="preserve">
+    <value>What's new:</value>
+    <comment>Label for release notes section</comment>
+  </data>
+  <data name="Updates.Progress.InstallationFailed" xml:space="preserve">
+    <value>Installation failed</value>
+    <comment>Progress message when installation fails</comment>
+  </data>
+  <data name="Updates.Progress.PercentComplete" xml:space="preserve">
+    <value>% complete</value>
+    <comment>Partial text for percentage completion</comment>
+  </data>
+  <data name="Updates.Progress.PreparingDownload" xml:space="preserve">
+    <value>Preparing download...</value>
+    <comment>Progress message when preparing download</comment>
+  </data>
+  <data name="Updates.Progress.Ready" xml:space="preserve">
+    <value>Ready</value>
+    <comment>Initial progress message</comment>
+  </data>
+  <data name="Updates.Progress.UpdatePreparedSuccessfully" xml:space="preserve">
+    <value>Update prepared successfully! The application will restart automatically.</value>
+    <comment>Progress message when update is successfully prepared</comment>
+  </data>
+  <data name="Updates.Status.CheckingForUpdates" xml:space="preserve">
+    <value>Checking for updates...</value>
+    <comment>Status message while checking for updates</comment>
+  </data>
+  <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
+    <value>No updates available</value>
+    <comment>Status message when no updates are available</comment>
+  </data>
+  <data name="Updates.Status.PreparingDownload" xml:space="preserve">
+    <value>Preparing to download update...</value>
+    <comment>Status message when preparing to download update</comment>
+  </data>
+  <data name="Updates.Status.ReadyToCheck" xml:space="preserve">
+    <value>Ready to check for updates</value>
+    <comment>Initial status message before checking for updates</comment>
+  </data>
+  <data name="Updates.Status.UpToDate" xml:space="preserve">
+    <value>You're up to date!</value>
+    <comment>Status message when app is already on latest version</comment>
+  </data>
+  <data name="Updates.Status.UpdateAvailable" xml:space="preserve">
+    <value>Update available: {0}</value>
+    <comment>Status message when update is available. {0} is the version number</comment>
+  </data>
+  <data name="Updates.Status.UpdateAvailableExclaim" xml:space="preserve">
+    <value>Update Available!</value>
+    <comment>Heading when an update is available (with exclamation)</comment>
+  </data>
+  <data name="Updates.Status.UpdateCheckFailed" xml:space="preserve">
+    <value>Update check failed</value>
+    <comment>Status message when update check fails</comment>
+  </data>
+  <data name="Updates.Status.UpdateFailed" xml:space="preserve">
+    <value>Update failed</value>
+    <comment>Status message when update process fails</comment>
+  </data>
+  <data name="Updates.Status.UpdateInstallationFailed" xml:space="preserve">
+    <value>Update installation failed.</value>
+    <comment>Status message when update installation fails</comment>
+  </data>
+  <data name="Updates.Status.UpdatePreparedSuccessfully" xml:space="preserve">
+    <value>Update prepared successfully! The application will restart automatically.</value>
+    <comment>Status message when update is successfully prepared</comment>
+  </data>
+  <data name="Updates.Version.Current" xml:space="preserve">
+    <value>Current Version</value>
+    <comment>Label for current application version</comment>
+  </data>
+  <data name="Updates.Version.Default" xml:space="preserve">
+    <value>v0.0.0</value>
+    <comment>Default version display when no version is available</comment>
+  </data>
+  <data name="Updates.Version.Latest" xml:space="preserve">
+    <value>Latest Version</value>
+    <comment>Label for latest available version</comment>
+  </data>
+  <data name="Window.Close" xml:space="preserve">
+    <value>Close</value>
+    <comment>Close window.</comment>
+  </data>
+  <data name="Window.Maximize" xml:space="preserve">
+    <value>Maximize</value>
+    <comment>Maximize window.</comment>
+  </data>
+  <data name="Window.Minimize" xml:space="preserve">
+    <value>Minimize</value>
+    <comment>Minimize window.</comment>
+  </data>
+  <data name="Window.Restore" xml:space="preserve">
+    <value>Restore</value>
+    <comment>Restore window.</comment>
+  </data>
+  <data name="Tooltips.Notifications" xml:space="preserve">
+    <value>Notifications</value>
+    <comment>Tooltip for the notification bell button.</comment>
   </data>
 </root>

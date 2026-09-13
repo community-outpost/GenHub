@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -71,6 +73,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IDialogService _dialogService;
     private readonly IStorageMigrationService _storageMigrationService;
     private readonly IThemeService? _themeService;
+    private readonly ILocalizationService? _localizationService;
 
     private bool _isViewVisible;
     private bool _disposed;
@@ -232,6 +235,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private double _migrationProgressPercentage;
 
     /// <summary>
+    /// Gets the list of available languages.
+    /// </summary>
+    public IReadOnlyList<LanguageOption> AvailableLanguages { get; }
+
+    /// <summary>
+    /// Gets or sets the currently selected language option.
+    /// </summary>
+    [ObservableProperty]
+    private LanguageOption? _selectedLanguage;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
     /// <param name="userSettingsService">The user settings service.</param>
@@ -251,6 +265,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     /// <param name="gitHubApiClient">GitHub API client.</param>
+    /// <param name="localizationService">The localization service for language management.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -268,7 +283,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
-        IGitHubApiClient? gitHubApiClient = null)
+        IGitHubApiClient? gitHubApiClient = null,
+        ILocalizationService? localizationService = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -287,6 +303,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
         _gitHubApiClient = gitHubApiClient;
+        _localizationService = localizationService;
+
+        var cultures = _localizationService?.AvailableCultures;
+        if (cultures == null || cultures.Count == 0)
+        {
+            cultures = [new CultureInfo(LocalizationConstants.DefaultCultureName)];
+        }
+
+        AvailableLanguages = cultures
+            .Select(c => new LanguageOption(c, GetCultureDisplayName(c)))
+            .ToList();
+
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
 
         LoadSettings();
         _ = LoadPatStatusAsync();
@@ -475,7 +507,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Disposes the ViewModel and its resources.
+    /// Disposes the ViewModel and its managed resources.
     /// </summary>
     /// <param name="disposing">True if disposing managed resources.</param>
     protected virtual void Dispose(bool disposing)
@@ -484,12 +516,28 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             if (disposing)
             {
+                if (_localizationService != null)
+                {
+                    _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+                }
+
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
             }
 
             _disposed = true;
         }
+    }
+
+    private static string GetCultureDisplayName(CultureInfo culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture.NativeName) ||
+            culture.NativeName.Equals(culture.EnglishName, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{culture.EnglishName} ({culture.Name})";
+        }
+
+        return $"{culture.NativeName} ({culture.EnglishName})";
     }
 
     private static (int DeletedCount, int LockedCount, long FreedBytes) ClearLogFiles(
@@ -596,6 +644,33 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         using var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
         stream.SetLength(0);
         stream.Flush();
+    }
+
+    /// <summary>
+    /// Handles changes to the selected language option.
+    /// </summary>
+    /// <param name="value">The newly selected language option.</param>
+    partial void OnSelectedLanguageChanged(LanguageOption? value)
+    {
+        if (value != null && _localizationService != null &&
+            !string.Equals(_localizationService.CurrentCulture.Name, value.Culture.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            _localizationService.SetCulture(value.Culture);
+        }
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) && _localizationService != null)
+        {
+            var activeCultureName = _localizationService.CurrentCulture.Name;
+            if (SelectedLanguage?.Culture.Name != activeCultureName)
+            {
+                SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                    string.Equals(l.Culture.Name, activeCultureName, StringComparison.OrdinalIgnoreCase))
+                    ?? AvailableLanguages.FirstOrDefault();
+            }
+        }
     }
 
     // Handle text property changes with validation
@@ -715,6 +790,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 string.Equals(t.DisplayName, currentThemeId, StringComparison.OrdinalIgnoreCase))
                 ?? ThemeConstants.DefaultTheme;
             Theme = SelectedTheme.Id;
+            var currentCultureName = settings.Language ?? LocalizationConstants.DefaultCultureName;
+            SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                string.Equals(l.Culture.Name, currentCultureName, StringComparison.OrdinalIgnoreCase))
+                ?? AvailableLanguages.FirstOrDefault();
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = settings.AutoCheckForUpdatesOnStartup;
@@ -771,6 +850,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _userSettingsService.Update(settings =>
             {
                 settings.Theme = Theme;
+                settings.Language = SelectedLanguage?.Culture.Name ?? LocalizationConstants.DefaultCultureName;
                 settings.WorkspacePath = WorkspacePath;
                 settings.MaxConcurrentDownloads = MaxConcurrentDownloads;
                 settings.AutoCheckForUpdatesOnStartup = AutoCheckForUpdatesOnStartup;
@@ -838,6 +918,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             Theme = ThemeConstants.DefaultTheme.Id;
+            SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                string.Equals(l.Culture.Name, LocalizationConstants.DefaultCultureName, StringComparison.OrdinalIgnoreCase))
+                ?? AvailableLanguages.FirstOrDefault();
             WorkspacePath = string.Empty;
             MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = true;

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -53,6 +54,19 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        var configuredLanguage = _userSettingsService?.Get()?.Language;
+        if (!string.IsNullOrWhiteSpace(configuredLanguage) && _localizationService != null)
+        {
+            try
+            {
+                _localizationService.SetCulture(new CultureInfo(configuredLanguage));
+            }
+            catch
+            {
+                // Fall back to default culture if configured culture is invalid.
+            }
+        }
+
         // Make localization available while application XAML resources are loading.
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);

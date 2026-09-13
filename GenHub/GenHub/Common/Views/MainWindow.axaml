@@ -7,6 +7,7 @@
         xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
         xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
         xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="GenHub.Common.Views.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -130,7 +131,7 @@
                             Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Info}}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="{x:Static enums:NavigationTab.Info}"
-                            ToolTip.Tip="Info">
+                            ToolTip.Tip="{localization:Localize Navigation.Info}">
                         <Path Fill="{Binding $parent[Button].Foreground}"
                               Width="18"
                               Height="18"
@@ -145,7 +146,7 @@
                             Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Settings}}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="{x:Static enums:NavigationTab.Settings}"
-                            ToolTip.Tip="Settings">
+                            ToolTip.Tip="{localization:Localize Navigation.Settings}">
                         <Path Fill="{Binding $parent[Button].Foreground}"
                               Width="18"
                               Height="18"
@@ -159,7 +160,7 @@
                     <Button Classes="titlebar-action-btn"
                             Classes.active="{Binding NotificationFeed.IsFeedOpen}"
                             Command="{Binding NotificationFeed.ToggleFeedCommand}"
-                            ToolTip.Tip="Notifications">
+                            ToolTip.Tip="{localization:Localize Tooltips.Notifications}">
                         <Grid Width="26" Height="26">
                             <!-- Bell Icon -->
                             <Path Fill="{Binding $parent[Button].Foreground}"
@@ -203,7 +204,8 @@
                 <!-- Minimize Button -->
                 <Button Grid.Column="3"
                         Classes="titlebar-window-btn"
-                        Click="MinimizeButton_Click">
+                        Click="MinimizeButton_Click"
+                        ToolTip.Tip="{localization:Localize Window.Minimize}">
                     <Path Data="M4,11H20V13H4Z"
                           Fill="{Binding $parent[Button].Foreground}"
                           Width="12" Height="12"
@@ -216,7 +218,8 @@
                 <!-- Maximize/Restore Button -->
                 <Button Grid.Column="4"
                         Classes="titlebar-window-btn"
-                        Click="MaximizeButton_Click">
+                        Click="MaximizeButton_Click"
+                        ToolTip.Tip="{localization:Localize Window.Maximize}">
                     <Path x:Name="MaximizeIcon"
                           Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
                           Fill="{Binding $parent[Button].Foreground}"
@@ -229,7 +232,8 @@
                 <!-- Close Button -->
                 <Button Grid.Column="5"
                         Classes="titlebar-window-btn titlebar-close-btn"
-                        Click="CloseButton_Click">
+                        Click="CloseButton_Click"
+                        ToolTip.Tip="{localization:Localize Window.Close}">
                     <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
                           Fill="{Binding $parent[Button].Foreground}"
                           Width="12" Height="12"

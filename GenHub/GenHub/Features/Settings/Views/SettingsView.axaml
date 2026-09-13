@@ -8,6 +8,7 @@
              xmlns:installations="clr-namespace:GenHub.Core.Models.GameInstallations;assembly=GenHub.Core"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Settings.Views.SettingsView"
              x:DataType="vm:SettingsViewModel"
@@ -329,15 +330,15 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Appearance" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.Appearance.Header}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
           <StackPanel Spacing="16">
             <!-- Theme Selection -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Accent Color Theme" Classes="setting-label" />
-              <TextBlock Text="Choose an accent color theme for buttons, tabs, highlights, glows, and scrollbars across GenHub."
+              <TextBlock Text="{localization:Localize Settings.Appearance.AccentColor.Label}" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Appearance.AccentColor.Description}"
                          Classes="setting-description" />
 
               <ItemsControl ItemsSource="{Binding AvailableThemes}" Margin="0,8,0,0">
@@ -390,13 +391,31 @@
 
               <!-- Active theme indicator -->
               <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
-                <TextBlock Text="Active Theme:" FontSize="12.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                <TextBlock Text="{localization:Localize Settings.Appearance.ActiveTheme}" FontSize="12.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
                 <Border Width="10" Height="10" CornerRadius="5" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding SelectedTheme.DisplayName, FallbackValue='Void Purple'}"
                            FontSize="12.5"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource AccentBrush}"
                            VerticalAlignment="Center" />
+              </StackPanel>
+
+              <!-- Language Selection -->
+              <StackPanel Spacing="6" Margin="0,16,0,0">
+                <TextBlock Text="{localization:Localize Settings.Appearance.Language.Label}" Classes="setting-label" />
+                <TextBlock Text="{localization:Localize Settings.Appearance.Language.Description}"
+                           Classes="setting-description" />
+                <ComboBox ItemsSource="{Binding AvailableLanguages}"
+                          SelectedItem="{Binding SelectedLanguage}"
+                          MinWidth="220"
+                          HorizontalAlignment="Left"
+                          Margin="0,4,0,0">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:LanguageOption">
+                      <TextBlock Text="{Binding DisplayName}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
               </StackPanel>
             </StackPanel>
           </StackPanel>
