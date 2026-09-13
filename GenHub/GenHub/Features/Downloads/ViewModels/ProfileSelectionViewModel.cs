@@ -439,9 +439,13 @@ public sealed partial class ProfileSelectionViewModel(
                 ContentManifestId);
 
             // Check whether this content is a member of a downloaded variant family.
-            var manifestResult = await manifestPool.GetManifestAsync(
-                ManifestId.Create(ContentManifestId),
-                _cts.Token);
+            OperationResult<ContentManifest?>? manifestResult = null;
+            if (!string.IsNullOrWhiteSpace(ContentManifestId) && ManifestId.TryCreate(ContentManifestId, out var parsedManifestId))
+            {
+                manifestResult = await manifestPool.GetManifestAsync(
+                    parsedManifestId,
+                    _cts.Token);
+            }
 
             var (selectedManifestId, selectedContentName) = manifestResult?.Success == true && manifestResult.Data != null
                 ? (manifestResult.Data.Id.Value, manifestResult.Data.Name)
@@ -511,10 +515,14 @@ public sealed partial class ProfileSelectionViewModel(
 
     private async Task<string> ResolveUniqueProfileNameAsync(string selectedManifestId, string selectedContentName)
     {
-        var selectedManifestResult = await manifestPool.GetManifestAsync(
-            ManifestId.Create(selectedManifestId),
-            _cts.Token);
-        var selectedManifest = selectedManifestResult?.Success == true ? selectedManifestResult.Data : null;
+        ContentManifest? selectedManifest = null;
+        if (!string.IsNullOrWhiteSpace(selectedManifestId) && ManifestId.TryCreate(selectedManifestId, out var parsedManifestId))
+        {
+            var selectedManifestResult = await manifestPool.GetManifestAsync(
+                parsedManifestId,
+                _cts.Token);
+            selectedManifest = selectedManifestResult?.Success == true ? selectedManifestResult.Data : null;
+        }
         string baseName;
         if (selectedManifest?.ContentType == ContentType.GameClient &&
             !string.IsNullOrWhiteSpace(selectedManifest.Name))
