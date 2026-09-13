@@ -568,8 +568,10 @@ public class StorageMigrationService(
     /// </summary>
     /// <param name="customRoot">The custom installation root directory.</param>
     /// <param name="targetRoot">The target installation root directory.</param>
-    /// <returns><see langword="true"/> if unadopted user data is present in <paramref name="customRoot"/>; otherwise, <see langword="false"/>.</returns>
-    internal static bool HasUnadoptedUserData(string customRoot, string targetRoot)
+    /// <returns><see langword="true"/> if unadopted user data is confirmed present;
+    /// <see langword="false"/> if all user data has been adopted or paths do not exist;
+    /// or <see langword="null"/> if an error prevented inspection.</returns>
+    internal static bool? HasUnadoptedUserData(string customRoot, string targetRoot)
     {
         if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
             !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
@@ -602,25 +604,25 @@ public class StorageMigrationService(
                     return true;
                 }
             }
+
+            return false;
         }
         catch (IOException)
         {
-            return false;
+            return null;
         }
         catch (UnauthorizedAccessException)
         {
-            return false;
+            return null;
         }
         catch (SecurityException)
         {
-            return false;
+            return null;
         }
         catch (ArgumentException)
         {
-            return false;
+            return null;
         }
-
-        return false;
     }
 
     /// <summary>

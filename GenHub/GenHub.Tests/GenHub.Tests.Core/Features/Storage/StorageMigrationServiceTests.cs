@@ -862,6 +862,17 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that HasUnadoptedUserData returns false when given invalid or non-existent paths.
+    /// </summary>
+    [Fact]
+    public void HasUnadoptedUserData_WhenPathsInvalidOrMissing_ReturnsFalse()
+    {
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(null!, null!));
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(string.Empty, string.Empty));
+        Assert.False(StorageMigrationService.HasUnadoptedUserData("/non/existent/path/1", "/non/existent/path/2"));
+    }
+
+    /// <summary>
     /// Verifies that EarlyAdoptIfConflict returns false when GenHub is running as a custom install root.
     /// </summary>
     [Fact]

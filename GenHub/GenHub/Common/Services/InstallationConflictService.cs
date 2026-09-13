@@ -138,7 +138,7 @@ public class InstallationConflictService(
                        StorageMigrationService.WasEarlyAdopted;
             var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
 
-            if (!hasRemainingUnadopted)
+            if (hasRemainingUnadopted == false)
             {
                 ClearAdoptionMarker(markerPath);
                 _tracker.ClearCustomInstallPath();
