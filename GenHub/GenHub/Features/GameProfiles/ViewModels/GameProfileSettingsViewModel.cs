@@ -291,6 +291,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly List<string> _originalEnabledContentIds = [];
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
+    private bool _isContentReloadInProgress; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
