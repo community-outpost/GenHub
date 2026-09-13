@@ -1240,67 +1240,6 @@ main {
     margin: 0 auto;
 }
 
-/* Story Quote Card / Classic Car Analogy */
-.story-quote-card {
-    background: rgba(22, 14, 44, 0.75);
-    border: 1px solid rgba(139, 92, 246, 0.35);
-    border-radius: 1.25rem;
-    padding: 2.25rem 2.5rem;
-    margin: 2.5rem auto 2.5rem;
-    position: relative;
-    overflow: hidden;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-}
-
-.story-quote-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(180deg, var(--primary), var(--accent-cyan));
-}
-
-.story-quote-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.2rem;
-    color: var(--primary-light);
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.story-quote-header svg {
-    width: 18px;
-    height: 18px;
-    color: var(--primary-light);
-}
-
-.story-quote-text {
-    font-size: 1.05rem;
-    line-height: 1.75;
-    color: var(--text-main);
-}
-
-.story-quote-text p {
-    margin-bottom: 1rem;
-}
-
-.story-quote-text p:last-child {
-    margin-bottom: 0;
-}
-
-.story-quote-text strong {
-    color: var(--accent-cyan);
-    font-weight: 700;
-}
-
 .comparison-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
