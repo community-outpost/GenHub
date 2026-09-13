@@ -295,6 +295,85 @@ public partial class AddContentDialogViewModel : ObservableValidator
     }
 
     /// <summary>
+    /// Populates content item fields from a local directory or file path.
+    /// If ContentName or ContentId are empty, auto-fills them.
+    /// </summary>
+    /// <param name="path">Path to the folder or archive file.</param>
+    public void PopulateFromPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        path = path.Trim('"', '\'', ' ');
+
+        LocalFilePath = path;
+        UseDirectUrl = false;
+        IncludeInitialRelease = true;
+
+        string baseName;
+        if (Directory.Exists(path))
+        {
+            var dirInfo = new DirectoryInfo(path);
+            baseName = dirInfo.Name;
+            PackageFilename = $"{baseName}.zip";
+
+            try
+            {
+                var totalBytes = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
+                FileSize = totalBytes;
+                FileSizeDisplay = $"{FormatBytes(totalBytes)} (folder)";
+            }
+            catch
+            {
+                FileSize = 0;
+                FileSizeDisplay = "Folder (size pending)";
+            }
+
+            Sha256Hash = "(Calculated on package archive)";
+        }
+        else if (File.Exists(path))
+        {
+            var fileInfo = new FileInfo(path);
+            baseName = Path.GetFileNameWithoutExtension(path);
+            PackageFilename = fileInfo.Name;
+            FileSize = fileInfo.Length;
+            FileSizeDisplay = FormatBytes(fileInfo.Length);
+            _ = ComputeSha256Async(path);
+        }
+        else
+        {
+            return;
+        }
+
+        // Auto-fill ContentName if empty
+        if (string.IsNullOrWhiteSpace(ContentName))
+        {
+            var humanized = Regex.Replace(baseName, @"[-_]+", " ").Trim();
+            if (!string.IsNullOrWhiteSpace(humanized))
+            {
+                var words = humanized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                ContentName = string.Join(" ", words.Select(w => char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..] : string.Empty)));
+            }
+            else
+            {
+                ContentName = baseName;
+            }
+        }
+
+        // Auto-fill ContentId if empty
+        if (string.IsNullOrWhiteSpace(ContentId))
+        {
+            ContentId = GenerateContentId(ContentName);
+        }
+
+        // Auto-fill Description if empty
+        if (string.IsNullOrWhiteSpace(Description))
+        {
+            Description = $"{ContentName} package for {SelectedTargetGame}.";
+        }
+
+        Validate();
+    }
+
+    /// <summary>
     /// Browses for a local archive file (.zip, .big, .7z, etc.).
     /// </summary>
     [RelayCommand]
@@ -305,17 +384,22 @@ public partial class AddContentDialogViewModel : ObservableValidator
         var filePath = await _dialogService.ShowFilePickerAsync("Select Content Archive File");
         if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
         {
-            LocalFilePath = filePath;
-            var info = new FileInfo(filePath);
-            FileSize = info.Length;
-            FileSizeDisplay = FormatBytes(info.Length);
+            PopulateFromPath(filePath);
+        }
+    }
 
-            if (string.IsNullOrWhiteSpace(PackageFilename))
-            {
-                PackageFilename = Path.GetFileName(filePath);
-            }
+    /// <summary>
+    /// Browses for a local content folder.
+    /// </summary>
+    [RelayCommand]
+    private async Task BrowseLocalFolderAsync()
+    {
+        if (_dialogService == null) return;
 
-            await ComputeSha256Async(filePath);
+        var folderPath = await _dialogService.ShowFolderPickerAsync("Select Content Folder");
+        if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+        {
+            PopulateFromPath(folderPath);
         }
     }
 

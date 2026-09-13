@@ -58,10 +58,19 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
     }
 
     /// <inheritdoc/>
-    public async Task<CatalogContentItem?> ShowAddContentDialogAsync()
+    public async Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(callback, this));
+            callback =>
+            {
+                var vm = new AddContentDialogViewModel(callback, this);
+                if (!string.IsNullOrWhiteSpace(initialPath))
+                {
+                    vm.PopulateFromPath(initialPath);
+                }
+
+                return vm;
+            });
     }
 
     /// <inheritdoc/>
@@ -175,6 +184,22 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
 
         var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
         return files.Count > 0 ? files[0].Path.LocalPath : null;
+    }
+
+    /// <inheritdoc/>
+    public async Task<string?> ShowFolderPickerAsync(string title)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow == null) return null;
+
+        var options = new Avalonia.Platform.Storage.FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+        };
+
+        var folders = await mainWindow.StorageProvider.OpenFolderPickerAsync(options);
+        return folders.Count > 0 ? folders[0].Path.LocalPath : null;
     }
 
     /// <inheritdoc/>

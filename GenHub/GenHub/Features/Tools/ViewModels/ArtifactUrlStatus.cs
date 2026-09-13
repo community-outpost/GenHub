@@ -101,16 +101,16 @@ public partial class ArtifactUrlStatus : ObservableObject
         }
         else if (HasLocalFile)
         {
-            if (System.IO.File.Exists(LocalFilePath))
+            if (System.IO.File.Exists(LocalFilePath) || System.IO.Directory.Exists(LocalFilePath))
             {
-                // Has local file but no URL - will be uploaded during publish
+                // Has local file or folder but no URL - will be uploaded during publish
                 IsValid = true;
                 StatusMessage = "Pending cloud upload";
             }
             else
             {
                 IsValid = false;
-                StatusMessage = "Local file not found";
+                StatusMessage = "Local file or directory not found";
             }
         }
         else

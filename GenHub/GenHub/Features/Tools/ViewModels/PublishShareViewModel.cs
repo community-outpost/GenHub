@@ -4,6 +4,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.IO;
+using System.IO.Compression;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -382,6 +384,32 @@ public partial class PublishShareViewModel : ObservableObject
         // Validate on load
         RefreshArtifactStatuses();
         _ = ValidateCatalogAsync();
+    }
+
+    /// <summary>
+    /// Reloads the hosting providers from the factory.
+    /// </summary>
+    public void ReloadHostingProviders()
+    {
+        if (_hostingProviderFactory == null) return;
+
+        var existingSelectedId = SelectedHostingProvider?.ProviderId;
+        HostingProviders.Clear();
+
+        foreach (var provider in _hostingProviderFactory.GetCatalogHostingProviders())
+        {
+            HostingProviders.Add(provider);
+        }
+
+        if (!string.IsNullOrEmpty(existingSelectedId))
+        {
+            SelectedHostingProvider = HostingProviders.FirstOrDefault(p => p.ProviderId == existingSelectedId)
+                ?? HostingProviders.FirstOrDefault();
+        }
+        else if (SelectedHostingProvider == null)
+        {
+            SelectedHostingProvider = HostingProviders.FirstOrDefault();
+        }
     }
 
     /// <summary>
@@ -1423,24 +1451,53 @@ public partial class PublishShareViewModel : ObservableObject
         UploadStatusMessage = $"Uploading artifact {current}/{total}: {task.Artifact.Filename}";
         UploadProgress = (int)((double)(current - 1) / total * 80);
 
+        string? tempZipToCleanup = null;
         try
         {
-            if (!System.IO.File.Exists(task.Artifact.LocalFilePath))
+            Stream stream;
+            if (Directory.Exists(task.Artifact.LocalFilePath))
+            {
+                UploadStatusMessage = $"Compressing folder '{Path.GetFileName(task.Artifact.LocalFilePath)}' into archive...";
+                var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "ArtifactCache");
+                Directory.CreateDirectory(tempDir);
+                var archiveName = string.IsNullOrWhiteSpace(task.Artifact.Filename)
+                    ? $"{Path.GetFileName(task.Artifact.LocalFilePath)}.zip"
+                    : task.Artifact.Filename;
+                if (!archiveName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    archiveName += ".zip";
+                }
+
+                tempZipToCleanup = Path.Combine(tempDir, $"{Guid.NewGuid():N}_{archiveName}");
+                ZipFile.CreateFromDirectory(task.Artifact.LocalFilePath, tempZipToCleanup);
+                stream = File.OpenRead(tempZipToCleanup);
+                task.Artifact.Size = stream.Length;
+            }
+            else if (File.Exists(task.Artifact.LocalFilePath))
+            {
+                stream = File.OpenRead(task.Artifact.LocalFilePath);
+            }
+            else
             {
                 task.Status = UploadStatus.Failed;
-                task.ErrorMessage = "File not found";
-                UploadStatusMessage = $"File not found: {task.Artifact.LocalFilePath}";
+                task.ErrorMessage = "File or directory not found";
+                UploadStatusMessage = $"File or directory not found: {task.Artifact.LocalFilePath}";
                 return false;
             }
 
-            using var stream = System.IO.File.OpenRead(task.Artifact.LocalFilePath);
-            var progress = new Progress<int>(p =>
+            try
             {
-                task.Progress = p;
-                UploadProgress = (int)(((double)(current - 1) / total * 80) + (p / total * 80.0 / 100.0));
-            });
+                var progress = new Progress<int>(p =>
+                {
+                    task.Progress = p;
+                    UploadProgress = (int)(((double)(current - 1) / total * 80) + (p / total * 80.0 / 100.0));
+                });
 
-            var result = await provider.UploadFileAsync(stream, task.Artifact.Filename, null, progress, CancellationToken.None);
+                var uploadFileName = string.IsNullOrWhiteSpace(task.Artifact.Filename)
+                    ? (tempZipToCleanup != null ? Path.GetFileName(tempZipToCleanup) : Path.GetFileName(task.Artifact.LocalFilePath))
+                    : task.Artifact.Filename;
+
+                var result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, CancellationToken.None);
             if (result.Success && result.Data != null)
             {
                 task.Artifact.DownloadUrl = result.Data.DirectDownloadUrl;
@@ -1489,6 +1546,15 @@ public partial class PublishShareViewModel : ObservableObject
             task.ErrorMessage = result.FirstError ?? "Upload failed";
             UploadStatusMessage = $"Failed to upload {task.Artifact.Filename}: {result.FirstError}";
             return false;
+            }
+            finally
+            {
+                await stream.DisposeAsync();
+                if (tempZipToCleanup != null && File.Exists(tempZipToCleanup))
+                {
+                    try { File.Delete(tempZipToCleanup); } catch { /* best effort */ }
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -1681,16 +1747,32 @@ public partial class PublishShareViewModel : ObservableObject
             UploadStatusMessage = "Uploading provider definition...";
 
             var fileName = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
+            var existingDefFileId = _currentHostingState?.Definition?.FileId;
 
-            // Upload as a file
-            using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
-            var result = await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: CancellationToken.None);
+            // Upload or update as a file
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
+            var result = (!string.IsNullOrEmpty(existingDefFileId) && SelectedHostingProvider.SupportsUpdate)
+                ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, stream, fileName, cancellationToken: CancellationToken.None)
+                : await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: CancellationToken.None);
 
             if (result.Success && result.Data != null)
             {
                 ProviderDefinitionUrl = result.Data.DirectDownloadUrl;
+                if (_currentHostingState != null && !string.IsNullOrEmpty(_project.ProjectPath))
+                {
+                    _currentHostingState.Definition = new HostedFileInfo
+                    {
+                        FileId = result.Data.FileId,
+                        Url = result.Data.DirectDownloadUrl,
+                        FileSize = result.Data.FileSize,
+                        LastUpdated = DateTime.UtcNow,
+                    };
+                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+                }
+
                 GenerateSubscriptionUrl(); // Regenerate based on new definition URL
                 RefreshUploadHierarchy();
+                RefreshHostedAssets();
                 UploadStatusMessage = "Provider definition uploaded successfully.";
                 _logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
             }

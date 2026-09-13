@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:interfaces="using:GenHub.Features.Tools.Interfaces"
              mc:Ignorable="d"
              d:DesignWidth="920" d:DesignHeight="1200"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublishShareView"
@@ -183,7 +184,7 @@
                                   SelectedItem="{Binding SelectedHostingProvider}"
                                   HorizontalAlignment="Stretch">
                             <ComboBox.ItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate x:DataType="interfaces:IHostingProvider">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
                                         <TextBlock Text="{Binding Description}" Foreground="#888888" FontSize="12"/>

@@ -118,7 +118,7 @@ public partial class PublisherStudioViewModel : ObservableObject
         IHostingStateManager? hostingStateManager = null,
         INotificationService? notificationService = null,
         IConfigurationProviderService? configurationProvider = null)
-        : this(logger, publisherStudioService, dialogService, autoInitialize: true)
+        : this(logger, publisherStudioService, dialogService, autoInitialize: false)
     {
         _hostingProviderFactory = hostingProviderFactory;
         if (hostingStateManager != null)
@@ -132,6 +132,9 @@ public partial class PublisherStudioViewModel : ObservableObject
             configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
             "GenHub",
             "publisher_studio_settings.json");
+
+        // Now that all dependencies including _hostingProviderFactory are assigned, initialize
+        _ = InitializeAsync();
     }
 
     /// <summary>
@@ -255,6 +258,10 @@ public partial class PublisherStudioViewModel : ObservableObject
         OnPropertyChanged(nameof(ShouldShowSetupOverlay));
         if (value is TabHostingStorage or TabPublishShare && PublishShareViewModel != null)
         {
+            if (PublishShareViewModel.HostingProviders.Count == 0)
+            {
+                PublishShareViewModel.ReloadHostingProviders();
+            }
             PublishShareViewModel.RefreshUploadHierarchy();
             PublishShareViewModel.RefreshHostedAssets();
         }

@@ -420,7 +420,8 @@ public class PublisherStudioService(
 
                 var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
                     IsPendingLocalArtifact(artifact) &&
-                    !File.Exists(artifact?.LocalFilePath));
+                    !File.Exists(artifact?.LocalFilePath) &&
+                    !Directory.Exists(artifact?.LocalFilePath));
 
                 if (missingArtifact != null)
                 {

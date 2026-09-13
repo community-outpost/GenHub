@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:interfaces="using:GenHub.Features.Tools.Interfaces"
              mc:Ignorable="d"
              d:DesignWidth="960" d:DesignHeight="1300"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.HostingStorageView"
@@ -255,7 +256,7 @@
                                   SelectedItem="{Binding SelectedHostingProvider}"
                                   HorizontalAlignment="Stretch">
                             <ComboBox.ItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate x:DataType="interfaces:IHostingProvider">
                                     <StackPanel Orientation="Horizontal" Spacing="12">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
                                         <TextBlock Text="{Binding Description}" Foreground="#888888" FontSize="12"/>
@@ -273,9 +274,9 @@
                                     <Border Width="20" Height="20" CornerRadius="4" Background="#4285F4" VerticalAlignment="Center">
                                         <TextBlock Text="G" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                     </Border>
-                                    <TextBlock Text="Google Drive OAuth 2.0 Setup Guide" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Google Drive Desktop OAuth Setup Guide (Step-by-Step)" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock Text="Google Drive provides 15 GB of free cloud storage for your catalogs and large binary game releases. Follow these steps in your Google Cloud Console:"
+                                <TextBlock Text="Google Drive supports hosting both catalog manifests and binary archives (mod/patch zips) up to your Drive storage quota."
                                            FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
 
                                 <Border Height="1" Background="#20FFFFFF"/>
@@ -283,19 +284,19 @@
                                 <!-- Steps -->
                                 <StackPanel Spacing="8">
                                     <TextBlock Text="Step 1: Create a Google Cloud Project" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Open the Google Cloud Console, click the top project selector dropdown, and click 'NEW PROJECT'. Name it 'GenHub Publisher' and create it." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Click button #1 below. In Google Cloud Console, click the project selector at the top &gt; 'NEW PROJECT' &gt; name it 'GenHub Publisher' &gt; click 'CREATE'. Then select it from the project dropdown." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 2: Configure App under 'Google Auth Platform' (Project Configuration)" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Click button #1 below. On 'Project configuration': Set App name ('GenHub'), choose your email for 'User support email', select 'External' audience, enter your email for 'Developer contact', and click 'Create'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Step 2: Create App via 'Project Configuration'  [CRITICAL: Configure first]" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                    <TextBlock Text="Click button #1 below ('Open Google Auth Platform'). If you see 'Google auth platform not configured yet', click 'Get started' (or 'Configure consent screen'). Enter App name (GenHub), select your email, set Audience to External, developer email, and click Create." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="Step 3: Enable the Google Drive API" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="In Google Cloud Console, search for 'Google Drive API' in the top bar and click 'ENABLE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Search for 'Google Drive API' in the top search bar and click 'ENABLE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 4: Create OAuth Client ID  [CRITICAL: Must choose 'Desktop app']" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
-                                    <TextBlock Text="Click button #2 below (Credentials) -> '+ CREATE CREDENTIALS' -> 'OAuth client ID'. Set Application type to 'Desktop app' (DO NOT select 'Web application' — web apps do not permit desktop loopback and will fail with Error 400: redirect_uri_mismatch). Name it 'GenHub Desktop' and create." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Step 4: Create Desktop OAuth Client ID  [CRITICAL: Must select 'Desktop app']" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                    <TextBlock Text="In Google Auth Platform, click 'Clients' (or click button #2 below). Click '+ Create client'. Set Application type to 'Desktop app' (DO NOT leave as 'Web application'!). Name it 'GenHub Desktop' and click 'CREATE'. Copy your Client ID and Client Secret immediately!" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 5: Add your account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Under Google Auth Platform -> 'Audience' -> 'Test users', click '+ ADD USERS' and add your Google account email address. Click Save." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Step 5: Add your Google account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="Click 'Audience' in Google Auth Platform. Under 'Test users', click '+ ADD USERS', enter your Google account email, and click 'SAVE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="Step 6: Paste Client ID and Secret below and Connect" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="Copy your Client ID and Client Secret into the input fields below and click Connect." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>

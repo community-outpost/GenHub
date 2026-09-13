@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -174,7 +175,7 @@ public class GitHubHostingProvider : IHostingProvider
                 return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
                 {
                     FileId = gist.Id,
-                    DirectDownloadUrl = downloadUrl,
+                    DirectDownloadUrl = NormalizeGistRawUrl(downloadUrl),
                     PublicUrl = gist.HtmlUrl,
                     FileSize = Encoding.UTF8.GetByteCount(jsonContent),
                 });
@@ -298,7 +299,7 @@ public class GitHubHostingProvider : IHostingProvider
             var result = new HostingUploadResult
             {
                 PublicUrl = gist.HtmlUrl,
-                DirectDownloadUrl = rawUrl,
+                DirectDownloadUrl = NormalizeGistRawUrl(rawUrl),
                 FileId = gist.Id,
                 FileSize = Encoding.UTF8.GetByteCount(catalogJson),
             };
@@ -401,7 +402,7 @@ public class GitHubHostingProvider : IHostingProvider
             var result = new HostingUploadResult
             {
                 PublicUrl = updatedGist.HtmlUrl,
-                DirectDownloadUrl = rawUrl,
+                DirectDownloadUrl = NormalizeGistRawUrl(rawUrl),
                 FileId = updatedGist.Id,
                 FileSize = Encoding.UTF8.GetByteCount(content),
             };
@@ -466,7 +467,23 @@ public class GitHubHostingProvider : IHostingProvider
     public string GetDirectDownloadUrl(string shareUrl)
     {
         // GitHub release assets already have direct download URLs
-        // Gist raw URLs are also direct
-        return shareUrl;
+        // Gist raw URLs are also direct, but ensure they point to HEAD
+        return NormalizeGistRawUrl(shareUrl);
+    }
+
+    /// <summary>
+    /// Strips the commit SHA from a GitHub Gist raw URL so that subscribers polling the URL
+    /// always receive the HEAD/latest revision rather than being pinned to a specific commit.
+    /// E.g. https://gist.githubusercontent.com/user/id/raw/0123456789abcdef0123456789abcdef01234567/filename
+    /// becomes https://gist.githubusercontent.com/user/id/raw/filename
+    /// </summary>
+    public static string NormalizeGistRawUrl(string rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+        {
+            return rawUrl;
+        }
+
+        return Regex.Replace(rawUrl, @"/raw/[0-9a-fA-F]{40}/", "/raw/");
     }
 }

@@ -130,12 +130,12 @@ public partial class ContentLibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Adds a new content item to the active catalog.
+    /// Adds a new content item to the active catalog with an optional initial folder/file path.
     /// </summary>
-    [RelayCommand]
-    private async Task AddContentAsync()
+    /// <param name="initialPath">Optional initial path of dropped or selected folder/file.</param>
+    public async Task AddContentWithPathAsync(string? initialPath)
     {
-        var newContent = await _dialogService.ShowAddContentDialogAsync();
+        var newContent = await _dialogService.ShowAddContentDialogAsync(initialPath);
         if (newContent != null)
         {
             _activeCatalog.Catalog.Content.Add(newContent);
@@ -147,6 +147,15 @@ public partial class ContentLibraryViewModel : ObservableObject
             await _parentViewModel.SaveProjectAsync();
             _logger.LogInformation("Added new content item: {ContentId} to catalog: {CatalogId}", newContent.Id, _activeCatalog.Id);
         }
+    }
+
+    /// <summary>
+    /// Adds a new content item to the active catalog.
+    /// </summary>
+    [RelayCommand]
+    private async Task AddContentAsync()
+    {
+        await AddContentWithPathAsync(null);
     }
 
     /// <summary>

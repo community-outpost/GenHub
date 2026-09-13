@@ -41,8 +41,9 @@ public interface IPublisherStudioDialogService
     /// <summary>
     /// Shows the add content dialog to create a new content item.
     /// </summary>
+    /// <param name="initialPath">Optional initial folder or file path to populate from.</param>
     /// <returns>The created content item, or null if cancelled.</returns>
-    Task<CatalogContentItem?> ShowAddContentDialogAsync();
+    Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null);
 
     /// <summary>
     /// Shows the edit content dialog for an existing content item.
@@ -108,6 +109,13 @@ public interface IPublisherStudioDialogService
     /// <param name="title">Title of the dialog.</param>
     /// <returns>The selected file path, or null if cancelled.</returns>
     Task<string?> ShowFilePickerAsync(string title);
+
+    /// <summary>
+    /// Shows a folder picker dialog for selecting content directories.
+    /// </summary>
+    /// <param name="title">Title of the dialog.</param>
+    /// <returns>The selected directory path, or null if cancelled.</returns>
+    Task<string?> ShowFolderPickerAsync(string title);
 
     /// <summary>
     /// Shows the rename catalog dialog.

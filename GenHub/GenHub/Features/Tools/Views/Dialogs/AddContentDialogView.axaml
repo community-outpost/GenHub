@@ -5,7 +5,8 @@
              xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
              mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="720"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddContentDialogView"
-             x:DataType="vm:AddContentDialogViewModel">
+             x:DataType="vm:AddContentDialogViewModel"
+             DragDrop.AllowDrop="True">
 
     <UserControl.Styles>
         <Style Selector="TextBox">
@@ -200,19 +201,28 @@
 
                             <!-- Local File Mode -->
                             <StackPanel Spacing="4" IsVisible="{Binding !UseDirectUrl}">
-                                <TextBlock Text="Local Archive File (.zip, .big, .rar, .7z)" Classes="label"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Local Package File or Folder" Classes="label"/>
+                                    <TextBlock Grid.Column="1" Text="Drag &amp; drop folders or files here" Classes="hint" VerticalAlignment="Center"/>
+                                </Grid>
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBox Text="{Binding LocalFilePath, Mode=TwoWay}"
-                                             Watermark="Select a local zip or big file..."
+                                             Watermark="Select or drag &amp; drop a folder or archive file..."
                                              IsReadOnly="True"/>
-                                    <Button Grid.Column="1"
-                                            Content="Browse..."
-                                            Command="{Binding BrowseLocalFileCommand}"
-                                            Margin="8,0,0,0"
-                                            Padding="16,8"
-                                            Background="#20FFFFFF"
-                                            CornerRadius="6"
-                                            Foreground="{DynamicResource TextPrimary}"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                                        <Button Content="Browse File..."
+                                                Command="{Binding BrowseLocalFileCommand}"
+                                                Padding="12,8"
+                                                Background="#20FFFFFF"
+                                                CornerRadius="6"
+                                                Foreground="{DynamicResource TextPrimary}"/>
+                                        <Button Content="Browse Folder..."
+                                                Command="{Binding BrowseLocalFolderCommand}"
+                                                Padding="12,8"
+                                                Background="#20FFFFFF"
+                                                CornerRadius="6"
+                                                Foreground="{DynamicResource TextPrimary}"/>
+                                    </StackPanel>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                     <TextBlock Text="{Binding FileSizeDisplay}" FontSize="12" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
