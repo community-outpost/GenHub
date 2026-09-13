@@ -123,12 +123,12 @@
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="16"
-                            BoxShadow="0 8 24 0 #40000000">
+                            BoxShadow="{DynamicResource FlyoutElevationShadow}">
                       <StackPanel Spacing="12" Width="260">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                           <Border Width="28" Height="28" CornerRadius="6"
                                   Background="{DynamicResource PrimaryGradientBrush}">
-                            <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                           </Border>
                           <StackPanel Spacing="1">
                             <TextBlock Text="New Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -170,7 +170,7 @@
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="16"
-                            BoxShadow="0 8 24 0 #40000000">
+                            BoxShadow="{DynamicResource FlyoutElevationShadow}">
                       <StackPanel Spacing="12" Width="260">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                           <Border Width="28" Height="28" CornerRadius="6"

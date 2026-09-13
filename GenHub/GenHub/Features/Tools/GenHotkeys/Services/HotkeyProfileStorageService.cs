@@ -184,6 +184,11 @@ public class HotkeyProfileStorageService(
             OverlayCorner = OverlayCorner.TopLeft,
         };
 
+        if (presetName.Equals(GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase))
+        {
+            return profile;
+        }
+
         // Determine preset CSF asset
         var presetCsfPath = presetName.Equals(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
             ? GenHotkeysConstants.PresetsLegionnaireEn

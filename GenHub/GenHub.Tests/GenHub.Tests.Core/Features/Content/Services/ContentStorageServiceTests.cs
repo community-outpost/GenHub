@@ -154,4 +154,50 @@ public class ContentStorageServiceTests : IDisposable
         // Assert
         Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
     }
+
+    /// <summary>
+    /// Tests that content storage for an Addon physically stores files into CAS,
+    /// populates file hashes, updates source types, and preserves the manifest file list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WithAddonContentType_PhysicallyStoresFilesInCasAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "AddonSource");
+        Directory.CreateDirectory(sourceDir);
+
+        var addonFile = Path.Combine(sourceDir, "addon.big");
+        await File.WriteAllTextAsync(addonFile, "sample-addon-bytes");
+
+        _casServiceMock
+            .Setup(c => c.StoreFileAsync(addonFile, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("cas_hash_addon_123");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.local.addon.sample-hotkeys",
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    SourcePath = addonFile,
+                    SourceType = ContentSourceType.LocalFile,
+                },
+            ],
+        };
+
+        // Act
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        // Assert
+        Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
+        _casServiceMock.Verify(c => c.StoreFileAsync(addonFile, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(result.Data);
+        Assert.Single(result.Data.Files);
+        Assert.Equal("cas_hash_addon_123", result.Data.Files[0].Hash);
+        Assert.Equal(ContentSourceType.ContentAddressable, result.Data.Files[0].SourceType);
+    }
 }

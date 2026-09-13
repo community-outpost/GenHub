@@ -480,8 +480,7 @@ public class HotkeyPackageService(
         using var scope = scopeFactory.CreateScope();
         var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
 
-        var gameTag = GenHotkeysConstants.GetGameTag(profile.TargetGame);
-        var manifestDisplayName = $"Hotkeys - {profile.Name} ({gameTag})";
+        var manifestDisplayName = GenHotkeysConstants.GetManifestDisplayName(profile.Name, profile.TargetGame);
 
         return await localContentService.CreateLocalContentManifestAsync(
             packageDir,
