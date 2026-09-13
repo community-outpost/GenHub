@@ -118,7 +118,7 @@
                 <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
                   <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
-                    <Border Background="{DynamicResource SurfaceSubtleBrush}"
+                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
                             BorderBrush="{DynamicResource BorderSubtleBrush}"
                             BorderThickness="1"
                             CornerRadius="10"
@@ -165,7 +165,7 @@
                 <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
                   <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
-                    <Border Background="{DynamicResource SurfaceSubtleBrush}"
+                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
                             BorderBrush="{DynamicResource BorderSubtleBrush}"
                             BorderThickness="1"
                             CornerRadius="10"
@@ -175,7 +175,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                           <Border Width="28" Height="28" CornerRadius="6"
                                   Background="{DynamicResource SurfaceElevatedBrush}">
-                            <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" Foreground="{DynamicResource AccentPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                           </Border>
                           <StackPanel Spacing="1">
                             <TextBlock Text="Rename Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
