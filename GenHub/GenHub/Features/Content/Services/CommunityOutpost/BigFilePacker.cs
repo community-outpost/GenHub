@@ -433,7 +433,7 @@ public static class BigFilePacker
         });
 
         // De-duplicate colliding normalized relative paths to guarantee total order and prevent duplicate archive entries
-        var seenRelPaths = new HashSet<string>(StringComparer.Ordinal);
+        var seenRelPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var uniqueEntries = candidateEntries.Where(entry => seenRelPaths.Add(entry.NormalizedRelPath)).ToList();
         var duplicateCount = candidateEntries.Count - uniqueEntries.Count;
 
@@ -483,7 +483,12 @@ public static class BigFilePacker
             ? rootDirectory
             : Path.Combine(rootDirectory, relativeDir);
 
-        if (!Directory.Exists(currentDir) || depth > 32)
+        if (depth > 32)
+        {
+            throw new InvalidOperationException($"Directory nesting depth exceeds maximum limit of 32 levels at '{currentDir}'.");
+        }
+
+        if (!Directory.Exists(currentDir))
         {
             return;
         }

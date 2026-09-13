@@ -377,8 +377,26 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     }
 
     /// <inheritdoc/>
-    public void Receive(Core.Models.Content.ContentAcquiredMessage message) =>
-        Dispatcher.UIThread.Post(() => _ = LoadAvailableContentAsync());
+    public void Receive(Core.Models.Content.ContentAcquiredMessage message)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            if (Interlocked.Exchange(ref _isContentReloadInProgress, 1) == 1)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.Delay(75).ConfigureAwait(true);
+                await LoadAvailableContentAsync().ConfigureAwait(true);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isContentReloadInProgress, 0);
+            }
+        });
+    }
 
     /// <inheritdoc/>
     public void Receive(ManifestReplacedMessage message)

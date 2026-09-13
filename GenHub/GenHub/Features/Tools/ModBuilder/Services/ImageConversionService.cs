@@ -238,9 +238,16 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 }
                 finally
                 {
-                    if (File.Exists(tempPath))
+                    try
                     {
-                        File.Delete(tempPath);
+                        if (File.Exists(tempPath))
+                        {
+                            File.Delete(tempPath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Failed to delete temporary TGA file at {Path}", tempPath);
                     }
                 }
             }

@@ -807,7 +807,14 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     {
         try
         {
-            foreach (var file in Directory.EnumerateFiles(projectDir, "*.json", SearchOption.AllDirectories))
+            var enumOptions = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                MaxRecursionDepth = 5,
+                IgnoreInaccessible = true,
+            };
+
+            foreach (var file in Directory.EnumerateFiles(projectDir, "*.json", enumOptions))
             {
                 var fileName = Path.GetFileName(file).ToLowerInvariant();
                 if (fileName.StartsWith('.') || fileName.StartsWith('$'))
@@ -821,7 +828,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Recursive config discovery completed with non-fatal warnings");
         }
@@ -870,6 +881,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 config.Folders.AbsGameDir = foldersConfig.Folders.GameDir;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

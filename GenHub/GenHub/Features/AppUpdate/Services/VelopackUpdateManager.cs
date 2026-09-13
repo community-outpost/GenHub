@@ -940,7 +940,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         try
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var sampleProjectsDir = Path.Combine(baseDir, "SampleProjects");
+            var sampleProjectsDir = Path.Combine(baseDir, ModBuilderConstants.SampleProjectsDirectoryName);
             if (Directory.Exists(sampleProjectsDir))
             {
                 CleanSampleProjectArtifacts(sampleProjectsDir);

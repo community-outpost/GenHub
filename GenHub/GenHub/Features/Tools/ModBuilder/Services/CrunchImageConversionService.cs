@@ -532,55 +532,68 @@ public class CrunchImageConversionService(
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
-        using var magickImage = new MagickImage(sourcePath);
-
-        if (magickImage.ChannelCount <= 3)
+        return await Task.Run(async () =>
         {
-            using var ms = new MemoryStream();
-            magickImage.Format = MagickFormat.Png;
-            await magickImage.WriteAsync(ms, cancellationToken).ConfigureAwait(false);
-            ms.Position = 0;
-            using var loaded = await Image.LoadAsync(ms, cancellationToken).ConfigureAwait(false);
-            var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
-            await ImageProcessingHelper.SaveImageToTargetAsync(resized, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
+            using var magickImage = new MagickImage(sourcePath);
+
+            if (magickImage.ChannelCount <= 3)
+            {
+                using var ms = new MemoryStream();
+                magickImage.Format = MagickFormat.Png;
+                await magickImage.WriteAsync(ms, cancellationToken).ConfigureAwait(false);
+                ms.Position = 0;
+                using var loaded = await Image.LoadAsync(ms, cancellationToken).ConfigureAwait(false);
+                var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
+                await ImageProcessingHelper.SaveImageToTargetAsync(resized, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+
+            var channels = magickImage.Separate().ToList();
+            var r = channels[0];
+            var g = channels[1];
+            var b = channels[2];
+
+            var alpha = new MagickImage(MagickColors.White, magickImage.Width, magickImage.Height);
+            for (var i = 3; i < magickImage.ChannelCount; i++)
+            {
+                alpha.Composite(channels[i], CompositeOperator.Multiply);
+            }
+
+            var collection = new MagickImageCollection { r, g, b, alpha };
+            using var merged = collection.Combine(ColorSpace.sRGB);
+            using var msCombined = new MemoryStream();
+            merged.Format = MagickFormat.Png;
+            await merged.WriteAsync(msCombined, cancellationToken).ConfigureAwait(false);
+            msCombined.Position = 0;
+
+            foreach (var ch in channels)
+            {
+                ch.Dispose();
+            }
+
+            alpha.Dispose();
+
+            using var psdLoaded = await Image.LoadAsync(msCombined, cancellationToken).ConfigureAwait(false);
+            var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
+            await ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
             return true;
-        }
-
-        var channels = magickImage.Separate().ToList();
-        var r = channels[0];
-        var g = channels[1];
-        var b = channels[2];
-
-        var alpha = new MagickImage(MagickColors.White, magickImage.Width, magickImage.Height);
-        for (var i = 3; i < magickImage.ChannelCount; i++)
-        {
-            alpha.Composite(channels[i], CompositeOperator.Multiply);
-        }
-
-        var collection = new MagickImageCollection { r, g, b, alpha };
-        using var merged = collection.Combine(ColorSpace.sRGB);
-        using var msCombined = new MemoryStream();
-        merged.Format = MagickFormat.Png;
-        await merged.WriteAsync(msCombined, cancellationToken).ConfigureAwait(false);
-        msCombined.Position = 0;
-
-        foreach (var ch in channels)
-        {
-            ch.Dispose();
-        }
-
-        alpha.Dispose();
-
-        using var psdLoaded = await Image.LoadAsync(msCombined, cancellationToken).ConfigureAwait(false);
-        var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
-        await ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
-        return true;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Resolves the absolute path to crunch_x64 executable.
     /// </summary>
     /// <returns>The resolved executable path or default tool name.</returns>
+        /// <summary>
+    /// Checks if crunch executable is available on the system.
+    /// </summary>
+    /// <returns>True if crunch executable is found.</returns>
+    public static bool IsCrunchAvailable()
+    {
+        var resolved = ResolveCrunchExecutable();
+        return File.Exists(resolved);
+    }
+
     public static string ResolveCrunchExecutable()
     {
         var existingCandidate = ModBuilderConstants.CrunchExecutableCandidates.FirstOrDefault(File.Exists);

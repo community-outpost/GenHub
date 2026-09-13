@@ -84,7 +84,7 @@ public class SampleProjectService : ISampleProjectService
         return SampleProjectNames.Contains(fileNameWithoutExt, StringComparer.OrdinalIgnoreCase) ||
                SampleProjectNames.Contains(dirName, StringComparer.OrdinalIgnoreCase) ||
                normalized.Contains("/Samples/", StringComparison.OrdinalIgnoreCase) ||
-               normalized.Contains("/SampleProjects/", StringComparison.OrdinalIgnoreCase);
+               normalized.Contains($"/{ModBuilderConstants.SampleProjectsDirectoryName}/", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />
@@ -268,14 +268,39 @@ public class SampleProjectService : ISampleProjectService
     {
         if (!File.Exists(cachePath) || new FileInfo(cachePath).Length < minLength)
         {
-            var downloadResult = await _downloadService.DownloadFileAsync(
-                new Uri(url),
-                cachePath,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!downloadResult.Success)
+            var tempPath = $"{cachePath}.tmp_{Guid.NewGuid():N}";
+            try
             {
-                return OperationResult<bool>.CreateFailure($"Failed to download {assetLabel}: {downloadResult.FirstError ?? UnknownError}");
+                var downloadResult = await _downloadService.DownloadFileAsync(
+                    new Uri(url),
+                    tempPath,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                if (!downloadResult.Success)
+                {
+                    return OperationResult<bool>.CreateFailure($"Failed to download {assetLabel}: {downloadResult.FirstError ?? UnknownError}");
+                }
+
+                if (!File.Exists(tempPath) || new FileInfo(tempPath).Length < minLength)
+                {
+                    return OperationResult<bool>.CreateFailure($"Downloaded file for {assetLabel} was smaller than expected.");
+                }
+
+                File.Move(tempPath, cachePath, overwrite: true);
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        File.Delete(tempPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Failed to clean up temporary download file {Path}", tempPath);
+                }
             }
         }
 
@@ -319,16 +344,26 @@ public class SampleProjectService : ISampleProjectService
 
             var primaryBig = bigFiles[0];
             progress?.Report("Unpacking game files into project...");
-            await BigFilePacker.UnpackAsync(primaryBig, gameFilesDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var unpackStaging = Path.Combine(tempStaging, "unpacked");
+            Directory.CreateDirectory(unpackStaging);
+            await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            CopyDirectoryContents(unpackStaging, gameFilesDir);
 
             _logger.LogInformation("Successfully unpacked GeneralsGamePatch2 game files into {Dir}", gameFilesDir);
             return OperationResult<bool>.CreateSuccess(true);
         }
         finally
         {
-            if (Directory.Exists(tempStaging))
+            try
             {
-                Directory.Delete(tempStaging, recursive: true);
+                if (Directory.Exists(tempStaging))
+                {
+                    Directory.Delete(tempStaging, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
             }
         }
     }
@@ -370,7 +405,10 @@ public class SampleProjectService : ISampleProjectService
 
             var primaryBig = bigFiles[0];
             progress?.Report("Unpacking menu windows and textures into project...");
-            await BigFilePacker.UnpackAsync(primaryBig, gameFilesDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var unpackStaging = Path.Combine(tempStaging, "unpacked");
+            Directory.CreateDirectory(unpackStaging);
+            await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            CopyDirectoryContents(unpackStaging, gameFilesDir);
 
             // Copy movie backgrounds if provided in release zip
             var bikFiles = Directory.GetFiles(tempStaging, "*.bik", SearchOption.AllDirectories);
@@ -387,9 +425,16 @@ public class SampleProjectService : ISampleProjectService
         }
         finally
         {
-            if (Directory.Exists(tempStaging))
+            try
             {
-                Directory.Delete(tempStaging, recursive: true);
+                if (Directory.Exists(tempStaging))
+                {
+                    Directory.Delete(tempStaging, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
             }
         }
     }
@@ -461,14 +506,28 @@ public class SampleProjectService : ISampleProjectService
         }
         finally
         {
-            if (Directory.Exists(tempHlenStaging))
+            try
             {
-                Directory.Delete(tempHlenStaging, recursive: true);
+                if (Directory.Exists(tempHlenStaging))
+                {
+                    Directory.Delete(tempHlenStaging, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to clean up temporary hlen staging directory {Dir}", tempHlenStaging);
             }
 
-            if (Directory.Exists(tempHlegStaging))
+            try
             {
-                Directory.Delete(tempHlegStaging, recursive: true);
+                if (Directory.Exists(tempHlegStaging))
+                {
+                    Directory.Delete(tempHlegStaging, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to clean up temporary hleg staging directory {Dir}", tempHlegStaging);
             }
         }
     }

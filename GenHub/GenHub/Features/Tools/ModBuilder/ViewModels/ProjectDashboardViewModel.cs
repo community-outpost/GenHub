@@ -29,10 +29,6 @@ public sealed partial class ProjectDashboardViewModel(
     INotificationService notificationService,
     ILogger<ProjectDashboardViewModel> logger) : ObservableObject
 {
-    private readonly IProjectConfigService _projectConfigService = projectConfigService;
-    private readonly INotificationService _notificationService = notificationService;
-    private readonly ILogger<ProjectDashboardViewModel> _logger = logger;
-
     /// <summary>
     /// Gets the collection of recent projects.
     /// </summary>
@@ -84,8 +80,8 @@ public sealed partial class ProjectDashboardViewModel(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize project dashboard");
-            _notificationService.ShowError(
+            logger.LogError(ex, "Failed to initialize project dashboard");
+            notificationService.ShowError(
                 "Dashboard Error",
                 "Failed to load recent projects. Please try again.");
         }
@@ -96,7 +92,7 @@ public sealed partial class ProjectDashboardViewModel(
     /// </summary>
     private async Task LoadRecentProjectsAsync()
     {
-        var recentResult = await _projectConfigService.GetRecentProjectsAsync().ConfigureAwait(false);
+        var recentResult = await projectConfigService.GetRecentProjectsAsync().ConfigureAwait(false);
         var projects = new List<RecentProjectInfo>();
 
         if (recentResult.Success && recentResult.Data != null)
@@ -175,7 +171,7 @@ public sealed partial class ProjectDashboardViewModel(
     {
         try
         {
-            _logger.LogInformation("NewProjectAsync requested from Dashboard");
+            logger.LogInformation("NewProjectAsync requested from Dashboard");
             if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             {
                 return;
@@ -198,7 +194,7 @@ public sealed partial class ProjectDashboardViewModel(
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Could not pre-create default ModBuilder documents directory");
+                    logger.LogDebug(ex, "Could not pre-create default ModBuilder documents directory");
                 }
             }
 
@@ -223,27 +219,30 @@ public sealed partial class ProjectDashboardViewModel(
             if (file != null)
             {
                 var projectPath = file.Path.LocalPath;
-                _logger.LogInformation("Creating new project at: {ProjectPath}", projectPath);
+                logger.LogInformation("Creating new project at: {ProjectPath}", projectPath);
 
                 var projectName = Path.GetFileNameWithoutExtension(projectPath);
-                var result = await _projectConfigService.CreateProjectAsync(
+                var result = await projectConfigService.CreateProjectAsync(
                     projectPath,
                     projectName,
                     cancellationToken: System.Threading.CancellationToken.None).ConfigureAwait(false);
 
                 if (result.Success && result.Data != null)
                 {
-                    await _projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
+                    await projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
                     await LoadRecentProjectsAsync().ConfigureAwait(false);
-                    NewProjectRequested?.Invoke(this, EventArgs.Empty);
-                    ProjectSelected?.Invoke(this, projectPath);
-                    _notificationService.ShowSuccess(
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        NewProjectRequested?.Invoke(this, EventArgs.Empty);
+                        ProjectSelected?.Invoke(this, projectPath);
+                    });
+                    notificationService.ShowSuccess(
                         "Project Created",
                         $"New project created at {Path.GetFileName(projectPath)}");
                 }
                 else
                 {
-                    _notificationService.ShowError(
+                    notificationService.ShowError(
                         "Project Creation Failed",
                         result.FirstError ?? "Failed to create project.");
                 }
@@ -251,8 +250,8 @@ public sealed partial class ProjectDashboardViewModel(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create new project");
-            _notificationService.ShowError(
+            logger.LogError(ex, "Failed to create new project");
+            notificationService.ShowError(
                 "Project Creation Failed",
                 "Failed to create new project. Please try again.");
         }
@@ -266,7 +265,7 @@ public sealed partial class ProjectDashboardViewModel(
     {
         try
         {
-            _logger.LogInformation("OpenProjectAsync requested from Dashboard");
+            logger.LogInformation("OpenProjectAsync requested from Dashboard");
             if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             {
                 return;
@@ -302,20 +301,20 @@ public sealed partial class ProjectDashboardViewModel(
             if (files.Count > 0)
             {
                 var projectPath = files[0].Path.LocalPath;
-                _logger.LogInformation("Opening project: {ProjectPath}", projectPath);
+                logger.LogInformation("Opening project: {ProjectPath}", projectPath);
 
                 // Raise event to notify parent that a project should be opened
-                ProjectSelected?.Invoke(this, projectPath);
+                Dispatcher.UIThread.Post(() => ProjectSelected?.Invoke(this, projectPath));
 
-                _notificationService.ShowSuccess(
+                notificationService.ShowSuccess(
                     "Project Opened",
                     $"Opened project: {Path.GetFileName(projectPath)}");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open project");
-            _notificationService.ShowError(
+            logger.LogError(ex, "Failed to open project");
+            notificationService.ShowError(
                 "Project Open Failed",
                 "Failed to open project. Please try again.");
         }
@@ -333,7 +332,7 @@ public sealed partial class ProjectDashboardViewModel(
             return;
         }
 
-        _logger.LogInformation("Opening recent project: {ProjectName}", projectInfo.Name);
-        ProjectSelected?.Invoke(this, projectInfo.Path);
+        logger.LogInformation("Opening recent project: {ProjectName}", projectInfo.Name);
+        Dispatcher.UIThread.Post(() => ProjectSelected?.Invoke(this, projectInfo.Path));
     }
 }

@@ -34,6 +34,11 @@ public static class ModBuilderConstants
     public const string ModBuilderDirName = "ModBuilder";
 
     /// <summary>
+    /// Directory name for bundled sample projects.
+    /// </summary>
+    public const string SampleProjectsDirectoryName = "SampleProjects";
+
+    /// <summary>
     /// Install manifest file name stored in target game directory.
     /// </summary>
     public const string InstallManifestFileName = ".modbuilder_install.json";

@@ -122,17 +122,17 @@
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
         <StackPanel Grid.Column="0" Spacing="4">
           <TextBlock Text="ModBuilder"
-                     Classes="headline-large"
+                     FontSize="22"
                      FontWeight="Bold"
                      Foreground="{DynamicResource TextPrimary}"/>
           <TextBlock Text="C&amp;C Generals &amp; Zero Hour Content Creation Tool"
-                     Classes="title-small"
+                     FontSize="13"
                      Foreground="{DynamicResource TextSecondary}"/>
         </StackPanel>
 
         <!-- Header Actions: Primary buttons always accessible -->
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-          <Button Command="{Binding CreateProjectCommand}"
+          <Button Command="{Binding NewProjectCommand}"
                   Classes="dashboard-primary-btn"
                   ToolTip.Tip="Create a brand new mod project (Ctrl+N)">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -167,7 +167,7 @@
         <Border Grid.Column="0"
                 Classes="action-card"
                 Margin="0,0,8,0">
-          <Button Command="{Binding CreateProjectCommand}"
+          <Button Command="{Binding NewProjectCommand}"
                   Classes="card-action-btn"
                   HorizontalContentAlignment="Stretch"
                   VerticalContentAlignment="Stretch">
@@ -175,7 +175,7 @@
               <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
                 <Border Width="40" Height="40"
                         CornerRadius="8"
-                        Background="#263B82F6"
+                        Background="{DynamicResource AccentBadgeBackgroundBrush}"
                         HorizontalAlignment="Left">
                   <Path Width="18" Height="18"
                         Fill="{DynamicResource AccentPrimary}"
@@ -221,7 +221,7 @@
               <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
                 <Border Width="40" Height="40"
                         CornerRadius="8"
-                        Background="#2610B981"
+                        Background="{DynamicResource SuccessBadgeBackgroundBrush}"
                         HorizontalAlignment="Left">
                   <Path Width="18" Height="18"
                         Fill="{DynamicResource SuccessBrush}"
@@ -267,7 +267,7 @@
               <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
                 <Border Width="40" Height="40"
                         CornerRadius="8"
-                        Background="#268B5CF6"
+                        Background="{DynamicResource WarningBadgeBackgroundBrush}"
                         HorizontalAlignment="Left">
                   <Path Width="18" Height="18"
                         Fill="{DynamicResource AccentSecondaryBrush}"
