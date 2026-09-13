@@ -431,4 +431,35 @@ public class GenHotkeysConflictTests
         Assert.True(ranger.IsConflict);
         Assert.True(flashbang.IsConflict);
     }
+
+    /// <summary>
+    /// Verifies that Sell sharing a hotkey with a production unit on a building is detected as a conflict.
+    /// </summary>
+    [Fact]
+    public void Sell_And_ProductionUnit_SharingHotkey_DetectedAsConflict()
+    {
+        var sell = new HotkeyActionViewModel
+        {
+            DisplayName = "Sell",
+            IconName = "Sell",
+            HotkeyString = GenHotkeysConstants.CsfLabels.Sell,
+            Hotkey = 'S',
+        };
+
+        var ranger = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            IconName = "USARanger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            Hotkey = 'S',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { sell, ranger };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USABarracks", "USA");
+
+        Assert.Equal(2, conflictCount);
+        Assert.True(sell.IsConflict);
+        Assert.True(ranger.IsConflict);
+    }
 }
