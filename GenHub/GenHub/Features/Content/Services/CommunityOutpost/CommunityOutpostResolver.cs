@@ -101,10 +101,12 @@ public class CommunityOutpostResolver(
 
             // Generate a deterministic content name from the content code.
             // For multi-variant packages (e.g. hlei, cbpr), keep the base content code so the
-            // resolved package ID matches 1.0.communityoutpost.<type>.<code\> and the factory can
+            // resolved package ID matches 1.0.communityoutpost.<type>.<code> and the factory can
             // produce canonical variant manifest IDs (e.g. 1.0.communityoutpost.addon.hlei-zerohour-ru).
             var contentName = GenerateContentName(contentCode, contentMetadata);
             var requestedVariantSuffix = TryExtractVariantSuffix(discoveredItem, contentMetadata);
+
+            // Defensive fallback for hypothetical catalog items with Variants defined but SupportsVariants = false
             if (!contentMetadata.SupportsVariants &&
                 !string.IsNullOrEmpty(requestedVariantSuffix) &&
                 contentName.IndexOf('-') < 0)

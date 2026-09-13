@@ -509,15 +509,14 @@ public class CommunityOutpostManifestFactory(
         var idParts = originalManifest.Id.Value.Split('.');
         if (idParts.Length >= 5)
         {
-            var contentCode = GetContentCodeFromManifest(originalManifest);
+            var contentCode = originalManifest.Metadata?.Tags?
+                .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase))?["contentCode:".Length..];
+
             if (string.IsNullOrEmpty(contentCode))
             {
-                contentCode = idParts[4];
-                var hyphenIdx = contentCode.IndexOf('-');
-                if (hyphenIdx > 0)
-                {
-                    contentCode = contentCode[..hyphenIdx];
-                }
+                var rawCode = idParts[4];
+                var hyphenIdx = rawCode.IndexOf('-');
+                contentCode = hyphenIdx > 0 ? rawCode[..hyphenIdx] : rawCode;
             }
 
             var variantContentName = $"{contentCode}-{variant.Id}".ToLowerInvariant();
