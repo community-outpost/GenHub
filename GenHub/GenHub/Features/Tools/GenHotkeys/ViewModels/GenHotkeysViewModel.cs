@@ -14,6 +14,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -46,7 +47,8 @@ public partial class GenHotkeysViewModel(
     IGameProfileManager? profileManager = null,
     IProfileContentService? profileContentService = null,
     IContentManifestPool? manifestPool = null,
-    ILoggerFactory? loggerFactory = null) : ObservableObject, IDisposable
+    ILoggerFactory? loggerFactory = null,
+    IDialogService? dialogService = null) : ObservableObject, IDisposable
 {
     private readonly record struct HotkeyConflictTarget(
         HotkeyFaction Faction,
@@ -157,9 +159,7 @@ public partial class GenHotkeysViewModel(
 
     /// <summary>Gets the tooltip for the addon button depending on state.</summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated instance property HasExistingAddon")]
-    public string AddonButtonToolTip => HasExistingAddon
-        ? "Add this hotkeys addon to an existing game profile"
-        : "Packs customized hotkeys and icons into a new .big archive and registers as a GenHub Addon";
+    public string AddonButtonToolTip => "Packs customized hotkeys and icons into a .big archive and registers as a GenHub Addon in CAS";
 
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
@@ -408,26 +408,44 @@ public partial class GenHotkeysViewModel(
     [RelayCommand]
     public async Task ApplyPresetAsync(string presetName, CancellationToken cancellationToken = default)
     {
-        if (SelectedProfile == null)
+        var targetProfile = SelectedProfile;
+        if (targetProfile == null)
         {
             return;
         }
 
-        SelectedProfile.BasePreset = presetName;
-        SelectedProfile.KeyMappings.Clear();
-        SelectedProfile.ClearedKeys.Clear();
-
         if (string.Equals(presetName, GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase))
         {
-            await ApplyLegionnairePresetAsync(cancellationToken);
+            await ApplyLegionnairePresetAsync(targetProfile, cancellationToken);
         }
         else
         {
-            var saved = await SaveCurrentProfileAsync(cancellationToken);
-            ApplyProfileMappingsToViewModels();
-            ValidateConflicts();
+            targetProfile.BasePreset = presetName;
+            targetProfile.KeyMappings.Clear();
+            targetProfile.ClearedKeys.Clear();
+
+            HotkeyProfile? savedProfile = null;
+            try
+            {
+                savedProfile = await profileStorageService.SaveProfileAsync(targetProfile, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to save profile after applying preset '{Preset}'", presetName);
+            }
+
+            if (ReferenceEquals(SelectedProfile, targetProfile))
+            {
+                ApplyProfileMappingsToViewModels();
+                ValidateConflicts();
+            }
+
             var isVanilla = string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase);
-            if (!saved)
+            if (savedProfile == null)
             {
                 StatusMessage = $"Failed to save profile after applying preset '{presetName}'.";
             }
@@ -524,20 +542,17 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        var oldName = SelectedProfile.Name;
-        SelectedProfile.Name = newName;
+        var currentProfile = SelectedProfile;
+        var oldName = currentProfile.Name;
+        currentProfile.Name = newName;
         var saved = await SaveCurrentProfileAsync(cancellationToken);
         if (!saved)
         {
-            SelectedProfile.Name = oldName;
+            currentProfile.Name = oldName;
             return;
         }
 
-        var index = Profiles.IndexOf(SelectedProfile);
-        if (index >= 0)
-        {
-            Profiles[index] = SelectedProfile;
-        }
+        SelectedProfile = currentProfile;
 
         await CheckExistingAddonAsync(cancellationToken);
         StatusMessage = $"Renamed profile '{oldName}' to '{newName}'.";
@@ -558,6 +573,21 @@ public partial class GenHotkeysViewModel(
         }
 
         var toDelete = SelectedProfile;
+
+        if (dialogService != null)
+        {
+            var confirmed = await dialogService.ShowConfirmationAsync(
+                "Delete Profile",
+                $"Are you sure you want to delete the profile '{toDelete.Name}'? This action cannot be undone.",
+                confirmText: "Delete",
+                cancelText: "Cancel");
+
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
         try
         {
             var deleted = await profileStorageService.DeleteProfileAsync(toDelete.Id, cancellationToken);
@@ -633,7 +663,7 @@ public partial class GenHotkeysViewModel(
 
             ExistingAddonManifest = match;
             HasExistingAddon = match is not null;
-            AddonButtonText = HasExistingAddon ? AddToProfileText : CreateAddonText;
+            AddonButtonText = CreateAddonText;
         }
         catch (OperationCanceledException)
         {
@@ -658,14 +688,7 @@ public partial class GenHotkeysViewModel(
     [RelayCommand]
     public async Task HandleAddonActionAsync(CancellationToken cancellationToken = default)
     {
-        if (HasExistingAddon && ExistingAddonManifest is not null)
-        {
-            await OpenProfileSelectionAsync(ExistingAddonManifest);
-        }
-        else
-        {
-            await ExportAddonAsync(cancellationToken);
-        }
+        await ExportAddonAsync(cancellationToken);
     }
 
     /// <summary>
@@ -763,7 +786,7 @@ public partial class GenHotkeysViewModel(
                 var bigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
                 ExistingAddonManifest = result.Data;
                 HasExistingAddon = true;
-                AddonButtonText = AddToProfileText;
+                AddonButtonText = CreateAddonText;
                 StatusMessage = $"Success! Addon '{result.Data.Name}' registered in GenHub!";
 
                 if (notificationService is not null)
@@ -772,7 +795,7 @@ public partial class GenHotkeysViewModel(
                     var notification = new NotificationMessage(
                         NotificationType.Success,
                         "Hotkey Addon Created",
-                        $"Created '{bigFileName}' successfully.",
+                        $"Created '{bigFileName}' successfully and stored in CAS.",
                         autoDismissMilliseconds: NotificationDurations.Long,
                         actionText: AddToProfileText,
                         action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(capturedManifest)));
@@ -1349,13 +1372,8 @@ public partial class GenHotkeysViewModel(
         return matchingCount;
     }
 
-    private async Task ApplyLegionnairePresetAsync(CancellationToken cancellationToken)
+    private async Task ApplyLegionnairePresetAsync(HotkeyProfile targetProfile, CancellationToken cancellationToken)
     {
-        if (SelectedProfile == null)
-        {
-            return;
-        }
-
         try
         {
             var validActionKeys = new HashSet<string>(
@@ -1388,21 +1406,46 @@ public partial class GenHotkeysViewModel(
                 },
                 cancellationToken).ConfigureAwait(true);
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             if (extractedMappings == null)
             {
                 StatusMessage = "Failed to load Legionnaire preset asset.";
                 return;
             }
 
+            targetProfile.BasePreset = GenHotkeysConstants.PresetLegionnaire;
+            targetProfile.KeyMappings.Clear();
+            targetProfile.ClearedKeys.Clear();
             foreach (var kvp in extractedMappings)
             {
-                SelectedProfile.KeyMappings[kvp.Key] = kvp.Value;
+                targetProfile.KeyMappings[kvp.Key] = kvp.Value;
             }
 
-            var saved = await SaveCurrentProfileAsync(cancellationToken);
-            ApplyProfileMappingsToViewModels();
-            ValidateConflicts();
-            StatusMessage = saved ? "Applied Legionnaire preset hotkeys." : "Failed to save profile after applying Legionnaire preset.";
+            HotkeyProfile? savedProfile = null;
+            try
+            {
+                savedProfile = await profileStorageService.SaveProfileAsync(targetProfile, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to save profile after applying Legionnaire preset");
+            }
+
+            if (ReferenceEquals(SelectedProfile, targetProfile))
+            {
+                ApplyProfileMappingsToViewModels();
+                ValidateConflicts();
+            }
+
+            StatusMessage = savedProfile != null ? "Applied Legionnaire preset hotkeys." : "Failed to save profile after applying Legionnaire preset.";
         }
         catch (OperationCanceledException)
         {

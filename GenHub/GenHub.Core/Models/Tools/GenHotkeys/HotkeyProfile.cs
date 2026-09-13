@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
@@ -8,13 +9,14 @@ namespace GenHub.Core.Models.Tools.GenHotkeys;
 /// <summary>
 /// A persistent user profile containing customized hotkey mappings and settings.
 /// </summary>
-public class HotkeyProfile
+public partial class HotkeyProfile : ObservableObject
 {
     /// <summary>Gets or sets the unique profile ID.</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
     /// <summary>Gets or sets the user-given profile name (e.g. "My Zero Hour Hotkeys").</summary>
-    public string Name { get; set; } = "Custom Hotkeys";
+    [ObservableProperty]
+    private string _name = "Custom Hotkeys";
 
     /// <summary>Gets or sets the target game (Generals or Zero Hour).</summary>
     public GameType TargetGame { get; set; } = GameType.ZeroHour;

@@ -4,8 +4,10 @@ using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -23,6 +25,7 @@ public class GenHotkeysViewModelTests
     private readonly Mock<IHotkeyProfileStorageService> _mockProfileStorage;
     private readonly Mock<IHotkeyPackageService> _mockPackageService;
     private readonly Mock<ILogger<GenHotkeysViewModel>> _mockLogger;
+    private readonly Mock<IDialogService> _mockDialogService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GenHotkeysViewModelTests"/> class.
@@ -33,6 +36,7 @@ public class GenHotkeysViewModelTests
         _mockProfileStorage = new Mock<IHotkeyProfileStorageService>();
         _mockPackageService = new Mock<IHotkeyPackageService>();
         _mockLogger = new Mock<ILogger<GenHotkeysViewModel>>();
+        _mockDialogService = new Mock<IDialogService>();
     }
 
     /// <summary>
@@ -200,5 +204,131 @@ public class GenHotkeysViewModelTests
         Assert.Equal(GenHotkeysConstants.PresetVanilla, profile.BasePreset);
         Assert.Empty(profile.KeyMappings);
         Assert.Empty(profile.ClearedKeys);
+    }
+
+    /// <summary>
+    /// Verifies that RenameCurrentProfileAsync updates the profile name and preserves ComboBox selection.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameCurrentProfileAsync_PreservesSelectedProfileAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profile = new HotkeyProfile { Name = "Old Name" };
+        vm.Profiles.Add(profile);
+        vm.SelectedProfile = profile;
+        vm.RenameProfileText = "New Name";
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(profile, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(profile);
+
+        await vm.RenameCurrentProfileAsync();
+
+        Assert.Equal("New Name", profile.Name);
+        Assert.Same(profile, vm.SelectedProfile);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteCurrentProfileAsync prompts confirmation and deletes when confirmed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteCurrentProfileAsync_WhenConfirmed_DeletesProfileAsync()
+    {
+        _mockDialogService.Setup(d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            dialogService: _mockDialogService.Object);
+
+        var profile1 = new HotkeyProfile { Name = "Profile 1" };
+        var profile2 = new HotkeyProfile { Name = "Profile 2" };
+        vm.Profiles.Add(profile1);
+        vm.Profiles.Add(profile2);
+        vm.SelectedProfile = profile1;
+
+        _mockProfileStorage.Setup(s => s.DeleteProfileAsync(profile1.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await vm.DeleteCurrentProfileAsync();
+
+        Assert.DoesNotContain(profile1, vm.Profiles);
+        Assert.Same(profile2, vm.SelectedProfile);
+        _mockDialogService.Verify(d => d.ShowConfirmationAsync("Delete Profile", It.IsAny<string>(), "Delete", "Cancel", null), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteCurrentProfileAsync prompts confirmation and cancels without deleting when rejected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteCurrentProfileAsync_WhenCancelled_DoesNotDeleteProfileAsync()
+    {
+        _mockDialogService.Setup(d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            dialogService: _mockDialogService.Object);
+
+        var profile1 = new HotkeyProfile { Name = "Profile 1" };
+        var profile2 = new HotkeyProfile { Name = "Profile 2" };
+        vm.Profiles.Add(profile1);
+        vm.Profiles.Add(profile2);
+        vm.SelectedProfile = profile1;
+
+        await vm.DeleteCurrentProfileAsync();
+
+        Assert.Contains(profile1, vm.Profiles);
+        Assert.Same(profile1, vm.SelectedProfile);
+        _mockProfileStorage.Verify(s => s.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that HandleAddonActionAsync always invokes ExportAddonAsync and creates the addon.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HandleAddonActionAsync_AlwaysExportsAddonAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profile = new HotkeyProfile { Name = "Custom Profile" };
+        vm.Profiles.Add(profile);
+        vm.SelectedProfile = profile;
+
+        _mockPackageService.Setup(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = "Hotkeys Addon" }));
+
+        await vm.HandleAddonActionAsync();
+
+        _mockPackageService.Verify(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("Create Addon", vm.AddonButtonText);
     }
 }
