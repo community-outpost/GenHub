@@ -883,24 +883,27 @@ public partial class GenHotkeysViewModel(
     {
         if (disposing)
         {
-            _isDisposed = true;
-
-            _reloadCts?.Cancel();
-            _reloadCts?.Dispose();
-            _reloadCts = null;
-
-            _addonCheckCts?.Cancel();
-            _addonCheckCts?.Dispose();
-            _addonCheckCts = null;
-
-            _saveSemaphore.Dispose();
-
-            foreach (var kvp in _bitmapCache)
+            lock (_bitmapCache)
             {
-                kvp.Value.Dispose();
-            }
+                _isDisposed = true;
 
-            _bitmapCache.Clear();
+                _reloadCts?.Cancel();
+                _reloadCts?.Dispose();
+                _reloadCts = null;
+
+                _addonCheckCts?.Cancel();
+                _addonCheckCts?.Dispose();
+                _addonCheckCts = null;
+
+                _saveSemaphore.Dispose();
+
+                foreach (var kvp in _bitmapCache)
+                {
+                    kvp.Value.Dispose();
+                }
+
+                _bitmapCache.Clear();
+            }
         }
     }
 
@@ -1612,6 +1615,11 @@ public partial class GenHotkeysViewModel(
     {
         try
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+
             var key = (gameType, iconName);
             if (_bitmapCache.TryGetValue(key, out var cached))
             {
@@ -1620,13 +1628,42 @@ public partial class GenHotkeysViewModel(
             }
 
             var bytes = await techTreeService.GetIconBytesAsync(iconName, gameType, cancellationToken).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested || _isDisposed)
+            {
+                return;
+            }
+
             if (bytes is { Length: > 0 })
             {
                 using var ms = new MemoryStream(bytes);
                 var bmp = new Bitmap(ms);
-                _bitmapCache[key] = bmp;
 
-                Dispatcher.UIThread.Post(() => onLoaded(bmp));
+                lock (_bitmapCache)
+                {
+                    if (_isDisposed)
+                    {
+                        bmp.Dispose();
+                        return;
+                    }
+
+                    if (_bitmapCache.TryGetValue(key, out var existing))
+                    {
+                        bmp.Dispose();
+                        bmp = existing;
+                    }
+                    else
+                    {
+                        _bitmapCache[key] = bmp;
+                    }
+                }
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!_isDisposed)
+                    {
+                        onLoaded(bmp);
+                    }
+                });
             }
         }
         catch (OperationCanceledException)
