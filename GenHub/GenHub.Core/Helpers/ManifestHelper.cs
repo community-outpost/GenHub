@@ -21,7 +21,10 @@ public static class ManifestHelper
     /// <returns>True if the manifest represents downloaded content.</returns>
     public static bool IsDownloadedManifest(ContentManifest manifest)
     {
-        if (manifest == null) return false;
+        if (manifest == null)
+        {
+            return false;
+        }
 
         // Local detection manifests have version "Auto-Updated"
         if (string.Equals(manifest.Version, GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
@@ -36,7 +39,7 @@ public static class ManifestHelper
         }
 
         // Check if files indicate downloaded content (ContentAddressable source type with hashes)
-        if (manifest.Files != null && manifest.Files.Count > 0)
+        if (manifest.Files is { Count: > 0 })
         {
             return manifest.Files.Any(f =>
                 f.SourceType == ContentSourceType.ContentAddressable &&
@@ -62,7 +65,7 @@ public static class ManifestHelper
     /// <param name="referenceManifest">The package or reference manifest specifying variant/game metadata.</param>
     /// <returns>The best-matching content manifest, or null if manifests is empty.</returns>
     public static ContentManifest? SelectPrimaryManifest(
-        IReadOnlyList<ContentManifest> manifests,
+        IReadOnlyList<ContentManifest>? manifests,
         ContentManifest? referenceManifest)
     {
         if (manifests == null || manifests.Count == 0)
@@ -71,19 +74,23 @@ public static class ManifestHelper
         }
 
         var requestedVariant = referenceManifest?.Metadata?.SelectedVariantId
-            ?? referenceManifest?.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
-            ?? referenceManifest?.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
-            ?? referenceManifest?.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1];
+            ?? ExtractTagValue(referenceManifest?.Metadata?.Tags, ManifestTagConstants.SelectedVariantPrefix)
+            ?? ExtractTagValue(referenceManifest?.Metadata?.Tags, ManifestTagConstants.RequestedVariantPrefix)
+            ?? ExtractTagValue(referenceManifest?.Metadata?.Tags, ManifestTagConstants.VariantPrefix);
 
         ContentManifest? primaryManifest = null;
         if (!string.IsNullOrEmpty(requestedVariant))
         {
+            var variantTag = $"{ManifestTagConstants.VariantPrefix}{requestedVariant}";
+            var selectedVariantTag = $"{ManifestTagConstants.SelectedVariantPrefix}{requestedVariant}";
+            var variantSuffix = $"-{requestedVariant}";
+
             primaryManifest = manifests.FirstOrDefault(m =>
                 string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase) ||
-                m.Id.Value.EndsWith($"-{requestedVariant}", StringComparison.OrdinalIgnoreCase))
+                m.Id.Value.EndsWith(variantSuffix, StringComparison.OrdinalIgnoreCase))
               ?? manifests.FirstOrDefault(m =>
-                m.Metadata?.Tags?.Any(t => string.Equals(t, $"variant:{requestedVariant}", StringComparison.OrdinalIgnoreCase) ||
-                                           string.Equals(t, $"selectedVariant:{requestedVariant}", StringComparison.OrdinalIgnoreCase)) == true);
+                m.Metadata?.Tags?.Any(t => string.Equals(t, variantTag, StringComparison.OrdinalIgnoreCase) ||
+                                           string.Equals(t, selectedVariantTag, StringComparison.OrdinalIgnoreCase)) == true);
         }
 
         if (primaryManifest == null && referenceManifest?.TargetGame != null)
@@ -92,5 +99,17 @@ public static class ManifestHelper
         }
 
         return primaryManifest ?? manifests[0];
+    }
+
+    /// <summary>
+    /// Extracts the tag value following the specified prefix from a collection of tags.
+    /// </summary>
+    /// <param name="tags">The collection of metadata tags.</param>
+    /// <param name="prefix">The prefix to search for.</param>
+    /// <returns>The string after the prefix, or null if not found.</returns>
+    private static string? ExtractTagValue(IEnumerable<string>? tags, string prefix)
+    {
+        var tag = tags?.FirstOrDefault(t => t.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        return tag?[prefix.Length..];
     }
 }

@@ -382,18 +382,18 @@ public class CommunityOutpostResolver(
         if (!string.IsNullOrEmpty(context.RequestedVariantSuffix))
         {
             builtManifest.Metadata.SelectedVariantId = context.RequestedVariantSuffix;
-            builtManifest.Metadata.Tags.Add($"requestedVariant:{context.RequestedVariantSuffix}");
-            builtManifest.Metadata.Tags.Add($"selectedVariant:{context.RequestedVariantSuffix}");
-            builtManifest.Metadata.Tags.Add($"variant:{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.RequestedVariantPrefix}{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.VariantPrefix}{context.RequestedVariantSuffix}");
         }
 
         if (context.MirrorUrls.Count > 1)
         {
-            builtManifest.Metadata.Tags.Add($"mirrors:{context.MirrorUrls.Count}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.MirrorsPrefix}{context.MirrorUrls.Count}");
         }
 
-        builtManifest.Metadata.Tags.Add($"contentCode:{context.ContentCode}");
-        builtManifest.Metadata.Tags.Add($"installTarget:{context.ContentMetadata.InstallTarget}");
+        builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.ContentCodePrefix}{context.ContentCode}");
+        builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.InstallTargetPrefix}{context.ContentMetadata.InstallTarget}");
     }
 
     private static void ApplyManifestFileConfig(ContentManifest builtManifest, in PostResolutionContext context)

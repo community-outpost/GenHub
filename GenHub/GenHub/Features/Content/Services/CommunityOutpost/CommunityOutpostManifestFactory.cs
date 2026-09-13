@@ -187,11 +187,11 @@ public class CommunityOutpostManifestFactory(
     {
         // Look for contentCode tag in metadata
         var contentCodeTag = manifest.Metadata?.Tags?
-            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(contentCodeTag))
         {
-            return contentCodeTag["contentCode:".Length..];
+            return contentCodeTag[ManifestTagConstants.ContentCodePrefix.Length..];
         }
 
         // Try to extract from manifest ID
@@ -510,7 +510,7 @@ public class CommunityOutpostManifestFactory(
         if (idParts.Length >= 5)
         {
             var contentCode = originalManifest.Metadata?.Tags?
-                .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase))?["contentCode:".Length..];
+                .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase))?[ManifestTagConstants.ContentCodePrefix.Length..];
 
             if (string.IsNullOrEmpty(contentCode))
             {
@@ -547,15 +547,15 @@ public class CommunityOutpostManifestFactory(
         if (originalManifest.Metadata?.Tags != null)
         {
             variantTags.AddRange(originalManifest.Metadata.Tags.Where(t =>
-                !t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase) &&
-                !t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase) &&
-                !t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase)));
+                !t.StartsWith(ManifestTagConstants.SelectedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.RequestedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.VariantPrefix, StringComparison.OrdinalIgnoreCase)));
         }
 
         if (variant != null)
         {
-            variantTags.Add($"variant:{variant.Id}");
-            variantTags.Add($"selectedVariant:{variant.Id}");
+            variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Id}");
+            variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Id}");
         }
 
         var manifest = new ContentManifest
@@ -573,7 +573,7 @@ public class CommunityOutpostManifestFactory(
             Metadata = new ContentMetadata
             {
                 Description = originalManifest.Metadata?.Description ?? string.Empty,
-                ReleaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.UtcNow,
+                ReleaseDate = originalManifest.Metadata?.ReleaseDate ?? default,
                 IconUrl = CommunityOutpostConstants.LogoSource,
                 CoverUrl = CommunityOutpostConstants.CoverSource,
                 ThemeColor = CommunityOutpostConstants.ThemeColor,

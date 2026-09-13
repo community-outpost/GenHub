@@ -27,7 +27,7 @@ public sealed class ManifestHelperTests
             ContentType = ContentType.Addon,
         };
 
-        Assert.Same(reference, ManifestHelper.SelectPrimaryManifest(null!, reference));
+        Assert.Same(reference, ManifestHelper.SelectPrimaryManifest(null, reference));
         Assert.Same(reference, ManifestHelper.SelectPrimaryManifest([], reference));
     }
 
