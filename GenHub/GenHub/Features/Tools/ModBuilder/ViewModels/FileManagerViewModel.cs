@@ -864,7 +864,18 @@ public partial class FileManagerViewModel(
     {
         if (!string.IsNullOrEmpty(_projectPath))
         {
-            await InitializeAsync(_projectPath, _gameFilesEditedDir).ConfigureAwait(false);
+            _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
+            var cts = new CancellationTokenSource();
+            _reloadCts = cts;
+            try
+            {
+                await InitializeAsync(_projectPath, _gameFilesEditedDir, cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Refresh cancelled
+            }
         }
     }
 

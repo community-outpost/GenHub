@@ -231,7 +231,7 @@ public sealed partial class ProjectDashboardViewModel(
                 {
                     await projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
                     await LoadRecentProjectsAsync().ConfigureAwait(false);
-                    Dispatcher.UIThread.Post(() =>
+                    PostToUIThread(() =>
                     {
                         NewProjectRequested?.Invoke(this, EventArgs.Empty);
                         ProjectSelected?.Invoke(this, projectPath);
@@ -304,7 +304,7 @@ public sealed partial class ProjectDashboardViewModel(
                 logger.LogInformation("Opening project: {ProjectPath}", projectPath);
 
                 // Raise event to notify parent that a project should be opened
-                Dispatcher.UIThread.Post(() => ProjectSelected?.Invoke(this, projectPath));
+                PostToUIThread(() => ProjectSelected?.Invoke(this, projectPath));
 
                 notificationService.ShowSuccess(
                     "Project Opened",
@@ -333,6 +333,18 @@ public sealed partial class ProjectDashboardViewModel(
         }
 
         logger.LogInformation("Opening recent project: {ProjectName}", projectInfo.Name);
-        Dispatcher.UIThread.Post(() => ProjectSelected?.Invoke(this, projectInfo.Path));
+        PostToUIThread(() => ProjectSelected?.Invoke(this, projectInfo.Path));
+    }
+
+    private static void PostToUIThread(Action action)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
     }
 }
