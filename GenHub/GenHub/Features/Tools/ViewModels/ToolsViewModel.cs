@@ -65,7 +65,13 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     [ObservableProperty]
     private IToolPlugin? _toolForDetails;
 
+    private IToolPlugin? _lastOpenedTool;
     private System.Threading.CancellationTokenSource? _statusHideCts;
+
+    /// <summary>
+    /// Gets the most recently opened tool plugin, remembered across tab switches.
+    /// </summary>
+    public IToolPlugin? LastOpenedTool => _lastOpenedTool;
 
     /// <summary>
     /// Gets the collection of installed tools.
@@ -130,6 +136,46 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Called when the Tools tab is activated.
+    /// Restores the previously opened tool if no tool is currently selected.
+    /// </summary>
+    public void OnTabActivated()
+    {
+        if (SelectedTool == null && _lastOpenedTool != null)
+        {
+            var matchingTool = InstalledTools.FirstOrDefault(t =>
+                t == _lastOpenedTool ||
+                string.Equals(t.Metadata.Id, _lastOpenedTool.Metadata.Id, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingTool != null)
+            {
+                SelectedTool = matchingTool;
+            }
+            else if (InstalledTools.Count > 0)
+            {
+                _lastOpenedTool = InstalledTools[0];
+                SelectedTool = _lastOpenedTool;
+            }
+            else
+            {
+                _lastOpenedTool = null;
+            }
+        }
+        else if (SelectedTool != null && CurrentToolControl == null)
+        {
+            try
+            {
+                SelectedTool.OnActivated(serviceProvider);
+                CurrentToolControl = SelectedTool.CreateControl();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error activating tool '{ToolName}' on tab activation", SelectedTool.Metadata.Name);
+            }
         }
     }
 
@@ -265,6 +311,11 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                     SelectedTool = InstalledTools.FirstOrDefault();
                 }
 
+                if (toolToRemove == _lastOpenedTool)
+                {
+                    _lastOpenedTool = SelectedTool;
+                }
+
                 ShowStatusMessage($"✓ Tool '{toolToRemove.Metadata.Name}' removed successfully.", MessageType.Success);
 
                 logger.LogInformation("Tool {ToolId} removed successfully", toolToRemove.Metadata.Id);
@@ -296,8 +347,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             IsLoading = true;
             ShowStatusMessage("Refreshing tools...", MessageType.Info);
 
-            // Store the current selection
-            var previousSelectedId = SelectedTool?.Metadata.Id;
+            var previousSelectedId = SelectedTool?.Metadata.Id ?? _lastOpenedTool?.Metadata.Id;
 
             // Deactivate current tool before refresh
             if (SelectedTool != null)
@@ -337,6 +387,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                 }
                 else
                 {
+                    _lastOpenedTool = null;
                     ShowStatusMessage("✓ Refreshed tools list.", MessageType.Success);
                 }
 
@@ -361,6 +412,11 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
 
     partial void OnSelectedToolChanged(IToolPlugin? oldValue, IToolPlugin? newValue)
     {
+        if (newValue != null)
+        {
+            _lastOpenedTool = newValue;
+        }
+
         // Deactivate the old tool
         if (oldValue != null)
         {

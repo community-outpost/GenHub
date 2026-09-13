@@ -343,6 +343,7 @@ public partial class MainViewModel(
         }
         else if (value == NavigationTab.Tools)
         {
+            ToolsViewModel.OnTabActivated();
             ToolsViewModel.IsPaneOpen = true;
         }
         else if (value == NavigationTab.Info)
