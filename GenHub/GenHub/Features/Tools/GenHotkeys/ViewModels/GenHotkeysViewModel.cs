@@ -427,9 +427,16 @@ public partial class GenHotkeysViewModel(
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
             var isVanilla = string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase);
-            StatusMessage = saved
-                ? (isVanilla ? "Applied default vanilla retail hotkeys." : $"Applied '{presetName}' preset hotkeys.")
-                : $"Failed to save profile after applying preset '{presetName}'.";
+            if (!saved)
+            {
+                StatusMessage = $"Failed to save profile after applying preset '{presetName}'.";
+            }
+            else
+            {
+                StatusMessage = isVanilla
+                    ? "Applied default vanilla retail hotkeys."
+                    : $"Applied '{presetName}' preset hotkeys.";
+            }
         }
     }
 
@@ -1043,17 +1050,15 @@ public partial class GenHotkeysViewModel(
     private static bool IsTimedAndRemoteDemo(List<HotkeyActionViewModel> actions)
     {
         return actions.Count == 2 &&
-               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.TimedDemoCharge, StringComparison.OrdinalIgnoreCase) ||
-                                a.IconName.Contains("TimedDemo", StringComparison.OrdinalIgnoreCase)) &&
-               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.DetonateCharges, StringComparison.OrdinalIgnoreCase) ||
-                                a.IconName.Contains("Detonate", StringComparison.OrdinalIgnoreCase));
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.TimedDemoCharge, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.DetonateCharges, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsGrangerCarpetBombAndCompositeArmor(List<HotkeyActionViewModel> actions)
     {
         return actions.Count == 2 &&
-               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:CarpetBomb", StringComparison.OrdinalIgnoreCase)) &&
-               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeAmericaCompositeArmor", StringComparison.OrdinalIgnoreCase));
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.CarpetBomb, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeAmericaCompositeArmor, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsDaisyCutterOrMoab(HotkeyActionViewModel action)
@@ -1178,6 +1183,53 @@ public partial class GenHotkeysViewModel(
         return null;
     }
 
+    private static string ResolveActionKey(HotkeyAction action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.HotkeyString))
+        {
+            return action.HotkeyString;
+        }
+
+        if (!string.IsNullOrWhiteSpace(action.IconName))
+        {
+            return action.IconName;
+        }
+
+        return action.DisplayName;
+    }
+
+    private static void ProcessConflictGroup(
+        HotkeyFaction faction,
+        HotkeyGameObject obj,
+        IGrouping<char, (HotkeyAction Action, char Key)> group,
+        List<HotkeyConflictTarget> targets)
+    {
+        var dummyVms = group.Select(x => new HotkeyActionViewModel
+        {
+            DisplayName = x.Action.DisplayName,
+            IconName = x.Action.IconName,
+            HotkeyString = x.Action.HotkeyString,
+            Hotkey = x.Key,
+        }).ToList();
+
+        var objName = obj.Name ?? obj.DisplayName;
+        var factionCode = faction.ShortName ?? faction.DisplayName;
+        if (IsPermittedEngineOverlap(dummyVms, objName, factionCode))
+        {
+            return;
+        }
+
+        foreach (var item in group)
+        {
+            targets.Add(new HotkeyConflictTarget(
+                faction,
+                objName,
+                ResolveActionKey(item.Action),
+                item.Key,
+                null));
+        }
+    }
+
     private static void CollectLayoutConflicts(
         HotkeyFaction faction,
         HotkeyGameObject obj,
@@ -1199,32 +1251,7 @@ public partial class GenHotkeysViewModel(
 
         foreach (var group in activeActions)
         {
-            var dummyVms = group.Select(x => new HotkeyActionViewModel
-            {
-                DisplayName = x.Action.DisplayName,
-                IconName = x.Action.IconName,
-                HotkeyString = x.Action.HotkeyString,
-                Hotkey = x.Key,
-            }).ToList();
-
-            var objName = obj.Name ?? obj.DisplayName;
-            var factionCode = faction.ShortName ?? faction.DisplayName;
-            if (!IsPermittedEngineOverlap(dummyVms, objName, factionCode))
-            {
-                foreach (var item in group)
-                {
-                    var actionKey = !string.IsNullOrWhiteSpace(item.Action.HotkeyString)
-                        ? item.Action.HotkeyString
-                        : (!string.IsNullOrWhiteSpace(item.Action.IconName) ? item.Action.IconName : item.Action.DisplayName);
-
-                    targets.Add(new HotkeyConflictTarget(
-                        faction,
-                        obj.Name ?? obj.DisplayName,
-                        actionKey,
-                        item.Key,
-                        null));
-                }
-            }
+            ProcessConflictGroup(faction, obj, group, targets);
         }
     }
 
