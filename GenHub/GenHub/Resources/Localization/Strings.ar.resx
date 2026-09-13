@@ -1,0 +1,2187 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="App.Name" xml:space="preserve">
+    <value>GenHub</value>
+    <comment>Application name shown in window titles and other product identity surfaces.</comment>
+  </data>
+  <data name="App.Subtitle" xml:space="preserve">
+    <value>مشغل C&amp;C Generals</value>
+    <comment>Application subtitle / description under the logo.</comment>
+  </data>
+  <data name="Common.Action.Clear" xml:space="preserve">
+    <value>مسح</value>
+    <comment>Clear action text</comment>
+  </data>
+  <data name="Common.Action.Copy" xml:space="preserve">
+    <value>نسخ</value>
+    <comment>Copy action text</comment>
+  </data>
+  <data name="Common.Action.Cut" xml:space="preserve">
+    <value>قص</value>
+    <comment>Cut action text</comment>
+  </data>
+  <data name="Common.Action.Export" xml:space="preserve">
+    <value>تصدير</value>
+    <comment>Export action text</comment>
+  </data>
+  <data name="Common.Action.Import" xml:space="preserve">
+    <value>استيراد</value>
+    <comment>Import action text</comment>
+  </data>
+  <data name="Common.Action.Paste" xml:space="preserve">
+    <value>لصق</value>
+    <comment>Paste action text</comment>
+  </data>
+  <data name="Common.Action.Reset" xml:space="preserve">
+    <value>إعادة تعيين</value>
+    <comment>Reset action text</comment>
+  </data>
+  <data name="Common.Action.Select" xml:space="preserve">
+    <value>تحديد</value>
+    <comment>Select action text</comment>
+  </data>
+  <data name="Common.Button.Add" xml:space="preserve">
+    <value>إضافة</value>
+    <comment>Generic add button text</comment>
+  </data>
+  <data name="Common.Button.AddItem" xml:space="preserve">
+    <value>+ إضافة</value>
+    <comment>Button to add an item to a list</comment>
+  </data>
+  <data name="Common.Button.Apply" xml:space="preserve">
+    <value>تطبيق</value>
+    <comment>Generic apply button text</comment>
+  </data>
+  <data name="Common.Button.Back" xml:space="preserve">
+    <value>رجوع</value>
+    <comment>Generic back navigation button</comment>
+  </data>
+  <data name="Common.Button.Browse" xml:space="preserve">
+    <value>استعراض</value>
+    <comment>Generic browse button text</comment>
+  </data>
+  <data name="Common.Button.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+    <comment>Generic cancel button text</comment>
+  </data>
+  <data name="Common.Button.Close" xml:space="preserve">
+    <value>إغلاق</value>
+    <comment>Generic close button text</comment>
+  </data>
+  <data name="Common.Button.Delete" xml:space="preserve">
+    <value>حذف</value>
+    <comment>Generic delete button text</comment>
+  </data>
+  <data name="Common.Button.Edit" xml:space="preserve">
+    <value>تعديل</value>
+    <comment>Generic edit button text</comment>
+  </data>
+  <data name="Common.Button.Launch" xml:space="preserve">
+    <value>تشغيل</value>
+    <comment>Button to launch a game or application</comment>
+  </data>
+  <data name="Common.Button.New" xml:space="preserve">
+    <value>جديد</value>
+    <comment>Button to create a new item</comment>
+  </data>
+  <data name="Common.Button.Next" xml:space="preserve">
+    <value>التالي</value>
+    <comment>Generic next navigation button</comment>
+  </data>
+  <data name="Common.Button.OK" xml:space="preserve">
+    <value>موافق</value>
+    <comment>Generic OK button text</comment>
+  </data>
+  <data name="Common.Button.Prepare" xml:space="preserve">
+    <value>تحضير</value>
+    <comment>Button to prepare workspace</comment>
+  </data>
+  <data name="Common.Button.Refresh" xml:space="preserve">
+    <value>تحديث</value>
+    <comment>Generic refresh button text</comment>
+  </data>
+  <data name="Common.Button.Remove" xml:space="preserve">
+    <value>إزالة</value>
+    <comment>Generic remove button text</comment>
+  </data>
+  <data name="Common.Button.RemoveItem" xml:space="preserve">
+    <value>✕ إزالة</value>
+    <comment>Button to remove an item from a list</comment>
+  </data>
+  <data name="Common.Button.Save" xml:space="preserve">
+    <value>حفظ</value>
+    <comment>Generic save button text</comment>
+  </data>
+  <data name="Common.Button.Scan" xml:space="preserve">
+    <value>فحص</value>
+    <comment>Button to scan for items</comment>
+  </data>
+  <data name="Common.Button.Search" xml:space="preserve">
+    <value>بحث</value>
+    <comment>Generic search button text</comment>
+  </data>
+  <data name="Common.Button.Stop" xml:space="preserve">
+    <value>إيقاف</value>
+    <comment>Button to stop a running process</comment>
+  </data>
+  <data name="Common.Label.By" xml:space="preserve">
+    <value>بواسطة</value>
+    <comment>Author attribution label (lowercase)</comment>
+  </data>
+  <data name="Common.Label.Version" xml:space="preserve">
+    <value>الإصدار</value>
+    <comment>Version label (lowercase)</comment>
+  </data>
+  <data name="Common.Status.Complete" xml:space="preserve">
+    <value>اكتمل</value>
+    <comment>Status when operation is complete</comment>
+  </data>
+  <data name="Common.Status.Error" xml:space="preserve">
+    <value>خطأ</value>
+    <comment>Generic error status</comment>
+  </data>
+  <data name="Common.Status.Failed" xml:space="preserve">
+    <value>فشل</value>
+    <comment>Generic failed status</comment>
+  </data>
+  <data name="Common.Status.Info" xml:space="preserve">
+    <value>معلومات</value>
+    <comment>Generic info status</comment>
+  </data>
+  <data name="Common.Status.Initializing" xml:space="preserve">
+    <value>جارٍ التهيئة...</value>
+    <comment>Status shown during initialization</comment>
+  </data>
+  <data name="Common.Status.Loading" xml:space="preserve">
+    <value>جارٍ التحميل...</value>
+    <comment>Generic loading status message</comment>
+  </data>
+  <data name="Common.Status.LoadingContent" xml:space="preserve">
+    <value>جارٍ تحميل المحتوى...</value>
+    <comment>Status shown while loading content</comment>
+  </data>
+  <data name="Common.Status.PleaseWait" xml:space="preserve">
+    <value>يرجى الانتظار...</value>
+    <comment>Generic please wait message</comment>
+  </data>
+  <data name="Common.Status.Processing" xml:space="preserve">
+    <value>جارٍ المعالجة...</value>
+    <comment>Status shown while processing</comment>
+  </data>
+  <data name="Common.Status.Ready" xml:space="preserve">
+    <value>جاهز</value>
+    <comment>Status when system is ready</comment>
+  </data>
+  <data name="Common.Status.Saving" xml:space="preserve">
+    <value>جارٍ الحفظ...</value>
+    <comment>Status shown while saving</comment>
+  </data>
+  <data name="Common.Status.Success" xml:space="preserve">
+    <value>نجاح</value>
+    <comment>Generic success status</comment>
+  </data>
+  <data name="Common.Status.Warning" xml:space="preserve">
+    <value>تحذير</value>
+    <comment>Generic warning status</comment>
+  </data>
+  <data name="Downloads.Category.GitHubBuilds" xml:space="preserve">
+    <value>إصدارات GitHub</value>
+    <comment>Download category for GitHub builds</comment>
+  </data>
+  <data name="Downloads.Category.Maps" xml:space="preserve">
+    <value>الخرائط</value>
+    <comment>Download category for maps</comment>
+  </data>
+  <data name="Downloads.Category.ModDownloads" xml:space="preserve">
+    <value>تنزيلات التعديلات (Mods)</value>
+    <comment>Download category for mods</comment>
+  </data>
+  <data name="Downloads.Category.OfficialReleases" xml:space="preserve">
+    <value>الإصدارات الرسمية</value>
+    <comment>Download category for official releases</comment>
+  </data>
+  <data name="Downloads.Category.PatchesAndFixes" xml:space="preserve">
+    <value>التحديثات والإصلاحات</value>
+    <comment>Download category for patches and fixes</comment>
+  </data>
+  <data name="Downloads.Category.ToolsAndUtilities" xml:space="preserve">
+    <value>الأدوات والمرافق</value>
+    <comment>Download category for tools and utilities</comment>
+  </data>
+  <data name="Downloads.Label.ComingSoon" xml:space="preserve">
+    <value>(قريباً)</value>
+    <comment>Label indicating a feature is coming soon, with parentheses</comment>
+  </data>
+  <data name="Downloads.Section.AdditionalContent" xml:space="preserve">
+    <value>محتوى إضافي</value>
+    <comment>Section header for additional content area</comment>
+  </data>
+  <data name="Downloads.Section.PrimaryDownloads" xml:space="preserve">
+    <value>التنزيلات الرئيسية</value>
+    <comment>Section header for primary downloads area</comment>
+  </data>
+  <data name="Downloads.Status.ComingSoon" xml:space="preserve">
+    <value>قريباً</value>
+    <comment>Status text indicating a feature is coming soon</comment>
+  </data>
+  <data name="Downloads.Status.DownloadComplete" xml:space="preserve">
+    <value>اكتمل التنزيل</value>
+    <comment>Status shown when download is complete</comment>
+  </data>
+  <data name="Downloads.Status.DownloadFailed" xml:space="preserve">
+    <value>فشل التنزيل</value>
+    <comment>Status shown when download fails</comment>
+  </data>
+  <data name="Downloads.Status.Downloading" xml:space="preserve">
+    <value>جارٍ التنزيل...</value>
+    <comment>Status shown while downloading</comment>
+  </data>
+  <data name="Downloads.Status.Installing" xml:space="preserve">
+    <value>جارٍ التثبيت...</value>
+    <comment>Status shown while installing</comment>
+  </data>
+  <data name="Downloads.Status.Paused" xml:space="preserve">
+    <value>متوقف مؤقتاً</value>
+    <comment>Status shown when download is paused</comment>
+  </data>
+  <data name="Downloads.Status.Queued" xml:space="preserve">
+    <value>في قائمة الانتظار</value>
+    <comment>Status shown when download is queued</comment>
+  </data>
+  <data name="Downloads.Subtitle.Downloads" xml:space="preserve">
+    <value>إدارة التنزيلات والتثبيتات الخاصة بك</value>
+    <comment>Page subtitle for the Downloads tab</comment>
+  </data>
+  <data name="Downloads.Title.Downloads" xml:space="preserve">
+    <value>التنزيلات</value>
+    <comment>Page title for the Downloads tab</comment>
+  </data>
+  <data name="Errors.Operations.CouldNotFindMainWindow" xml:space="preserve">
+    <value>تعذر العثور على النافذة الرئيسية لعرض مربع حوار التحديث</value>
+    <comment>Error message when main window cannot be found</comment>
+  </data>
+  <data name="Errors.Operations.ErrorBrowsingCasPath" xml:space="preserve">
+    <value>حدث خطأ أثناء استعراض مسار جذر CAS</value>
+    <comment>Error message when browsing for CAS root path fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorBrowsingGamePath" xml:space="preserve">
+    <value>حدث خطأ أثناء استعراض مسار اللعبة</value>
+    <comment>Error message when browsing for game path fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorBrowsingSettingsPath" xml:space="preserve">
+    <value>حدث خطأ أثناء استعراض مسار ملف الإعدادات</value>
+    <comment>Error message when browsing for settings file path fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorCreatingProfile" xml:space="preserve">
+    <value>خطأ في إنشاء ملف التعريف للتثبيت {0}</value>
+    <comment>Error message when creating a specific profile fails. {0} is installation ID</comment>
+  </data>
+  <data name="Errors.Operations.ErrorCreatingResourceManager" xml:space="preserve">
+    <value>خطأ في إنشاء ResourceManager للاسم الأساسي: {0}</value>
+    <comment>Error message when creating ResourceManager fails. {0} is the base name</comment>
+  </data>
+  <data name="Errors.Operations.ErrorDiscoveringLanguages" xml:space="preserve">
+    <value>خطأ في اكتشاف اللغات المتاحة</value>
+    <comment>Error message when discovering available languages fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorDuringProfileCreation" xml:space="preserve">
+    <value>حدث خطأ أثناء إنشاء ملف التعريف التلقائي</value>
+    <comment>Error message when automatic profile creation fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorDuringSatelliteAssemblyDiscovery" xml:space="preserve">
+    <value>خطأ أثناء اكتشاف تجميعات الأقمار الصناعية</value>
+    <comment>Error message when satellite assembly discovery fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorFormattingResourceString" xml:space="preserve">
+    <value>خطأ في تنسيق سلسلة المورد للمفتاح: {0}</value>
+    <comment>Error message when formatting a resource string fails. {0} is the key</comment>
+  </data>
+  <data name="Errors.Operations.ErrorInitializingProfiles" xml:space="preserve">
+    <value>خطأ في تهيئة ملفات التعريف</value>
+    <comment>Error message when profile initialization fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorLoadingTool" xml:space="preserve">
+    <value>خطأ أثناء تحميل الأداة '{0}': {1}</value>
+    <comment>Error when a specific tool fails to load. {0} = tool name, {1} = error</comment>
+  </data>
+  <data name="Errors.Operations.ErrorRetrievingResourceString" xml:space="preserve">
+    <value>خطأ في استرداد سلسلة المورد للمفتاح: {0}</value>
+    <comment>Error message when retrieving a resource string fails. {0} is the key</comment>
+  </data>
+  <data name="Errors.Operations.ErrorScanningForGames" xml:space="preserve">
+    <value>خطأ أثناء فحص الألعاب</value>
+    <comment>Error message when game scanning fails</comment>
+  </data>
+  <data name="Errors.Operations.ErrorSettingCulture" xml:space="preserve">
+    <value>خطأ في تعيين اللغة إلى: {0}</value>
+    <comment>Error message when setting culture fails. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Operations.ErrorValidatingCulture" xml:space="preserve">
+    <value>خطأ في التحقق من صحة اللغة: {0}</value>
+    <comment>Error message when culture validation fails. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Operations.FailedToGetMemoryUsage" xml:space="preserve">
+    <value>فشل في الحصول على استخدام الذاكرة</value>
+    <comment>Error message when retrieving memory usage fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToInstallUpdate" xml:space="preserve">
+    <value>فشل تثبيت التحديث</value>
+    <comment>Error message when update installation fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToLoadInitialSettings" xml:space="preserve">
+    <value>فشل تحميل الإعدادات الأولية</value>
+    <comment>Error message when loading initial settings fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToLoadSettings" xml:space="preserve">
+    <value>فشل تحميل الإعدادات</value>
+    <comment>Error message when settings fail to load</comment>
+  </data>
+  <data name="Errors.Operations.FailedToLoadTools" xml:space="preserve">
+    <value>فشل تحميل الأدوات: {0}</value>
+    <comment>Error when loading tools fails. {0} = error details</comment>
+  </data>
+  <data name="Errors.Operations.FailedToOpenBrowser" xml:space="preserve">
+    <value>فشل فتح المتصفح لعرض ملاحظات الإصدار.</value>
+    <comment>Error message when opening browser for release notes fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToResetSettings" xml:space="preserve">
+    <value>فشل إعادة ضبط الإعدادات إلى الافتراضية</value>
+    <comment>Error message when settings reset fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToSaveSettings" xml:space="preserve">
+    <value>فشل حفظ الإعدادات</value>
+    <comment>Error message when settings fail to save</comment>
+  </data>
+  <data name="Errors.Operations.FailedToShowUpdateWindow" xml:space="preserve">
+    <value>فشل إظهار نافذة إشعار التحديث</value>
+    <comment>Error message when showing update window fails</comment>
+  </data>
+  <data name="Errors.Operations.FailedToUpdateSelectedTab" xml:space="preserve">
+    <value>فشل تحديث إعداد علامة التبويب المحددة</value>
+    <comment>Error message when updating selected tab fails</comment>
+  </data>
+  <data name="Errors.Operations.FormatErrorForKey" xml:space="preserve">
+    <value>خطأ في التنسيق للمفتاح '{0}' مع {1} من الوسيطات</value>
+    <comment>Error message for format errors. {0} is key, {1} is argument count</comment>
+  </data>
+  <data name="Errors.Operations.MissingTranslation" xml:space="preserve">
+    <value>ترجمة مفقودة للمفتاح '{0}' في اللغة '{1}'</value>
+    <comment>Error/warning for missing translations. {0} is key, {1} is culture</comment>
+  </data>
+  <data name="Errors.Operations.MissingTranslationException" xml:space="preserve">
+    <value>ترجمة مفقودة للمفتاح '{0}' في اللغة '{1}'</value>
+    <comment>Exception message for missing translations. {0} is key, {1} is culture</comment>
+  </data>
+  <data name="Errors.Operations.OperationFailed" xml:space="preserve">
+    <value>فشلت العملية</value>
+    <comment>Generic operation failure message</comment>
+  </data>
+  <data name="Errors.Operations.OptionsFileDirectoryNotFound" xml:space="preserve">
+    <value>دليل ملف الخيارات غير موجود</value>
+    <comment>Error when options file directory cannot be found</comment>
+  </data>
+  <data name="Errors.Operations.SearchFailed" xml:space="preserve">
+    <value>حدث خطأ غير متوقع: {0}</value>
+    <comment>Error message when content search fails. {0} is the error message</comment>
+  </data>
+  <data name="Errors.Operations.ServiceNotAvailable.GameProfileManager" xml:space="preserve">
+    <value>خدمة GameProfileManager غير متوفرة.</value>
+    <comment>Error when GameProfileManager service is unavailable</comment>
+  </data>
+  <data name="Errors.Operations.ServiceNotAvailable.GameSettingsService" xml:space="preserve">
+    <value>خدمة إعدادات اللعبة غير متوفرة</value>
+    <comment>Error when GameSettingsService is unavailable</comment>
+  </data>
+  <data name="Errors.Operations.ServiceNotAvailable.ProfileContentLoader" xml:space="preserve">
+    <value>خدمة تحميل محتوى ملف التعريف غير متوفرة</value>
+    <comment>Error when ProfileContentLoader service is unavailable</comment>
+  </data>
+  <data name="Errors.Operations.UnexpectedError" xml:space="preserve">
+    <value>حدث خطأ غير متوقع</value>
+    <comment>Generic unexpected error message</comment>
+  </data>
+  <data name="Errors.Operations.UnexpectedErrorValidatingCulture" xml:space="preserve">
+    <value>خطأ غير متوقع أثناء التحقق من صحة اللغة: {0}</value>
+    <comment>Unexpected error during culture validation. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Operations.UnexpectedErrorWithDetails" xml:space="preserve">
+    <value>حدث خطأ غير متوقع: {0}</value>
+    <comment>Unexpected error with details. {0} is the error message</comment>
+  </data>
+  <data name="Errors.Operations.UpdateCheckFailed" xml:space="preserve">
+    <value>فشل التحقق من وجود تحديثات</value>
+    <comment>Error message when update check fails</comment>
+  </data>
+  <data name="Errors.Validation.BufferSizeOutOfRange" xml:space="preserve">
+    <value>يجب أن يكون حجم المخزن المؤقت بين {0} و {1} كيلوبايت</value>
+    <comment>Validation error for buffer size range. {0} is min KB, {1} is max KB</comment>
+  </data>
+  <data name="Errors.Validation.ConcurrentDownloadsOutOfRange" xml:space="preserve">
+    <value>يجب أن يكون عدد التنزيلات المتزامنة بين {0} و {1}</value>
+    <comment>Validation error for concurrent downloads range. {0} is min, {1} is max</comment>
+  </data>
+  <data name="Errors.Validation.CultureNotAvailable" xml:space="preserve">
+    <value>اللغة '{0}' غير متوفرة. الرجوع إلى '{1}'</value>
+    <comment>Warning when culture is not available. {0} is requested culture, {1} is fallback</comment>
+  </data>
+  <data name="Errors.Validation.CultureNotFound" xml:space="preserve">
+    <value>اللغة '{0}' غير موجودة. استخدام اللغة الثابتة</value>
+    <comment>Warning when culture is not found. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Validation.DownloadTimeoutOutOfRange" xml:space="preserve">
+    <value>يجب أن تكون مهلة التنزيل بين {0} و {1} ثانية</value>
+    <comment>Validation error for download timeout range. {0} is min seconds, {1} is max seconds</comment>
+  </data>
+  <data name="Errors.Validation.EnterProfileName" xml:space="preserve">
+    <value>يرجى إدخال اسم ملف التعريف</value>
+    <comment>Validation error when profile name is empty</comment>
+  </data>
+  <data name="Errors.Validation.GameInstallationRequired" xml:space="preserve">
+    <value>يجب تمكين تثبيت اللعبة حتى يمكن تشغيل ملف التعريف.</value>
+    <comment>Validation error when no game installation is enabled</comment>
+  </data>
+  <data name="Errors.Validation.InvalidCultureName" xml:space="preserve">
+    <value>اسم لغة غير صالح: {0}</value>
+    <comment>Error when culture name is invalid. {0} is the culture name</comment>
+  </data>
+  <data name="Errors.Validation.InvalidDownloadBufferSize" xml:space="preserve">
+    <value>قيمة DownloadBufferSizeKB غير صالحة: {0}. إعادة التعيين إلى 80 كيلوبايت.</value>
+    <comment>Validation error for download buffer size. {0} is the invalid value</comment>
+  </data>
+  <data name="Errors.Validation.InvalidFormat" xml:space="preserve">
+    <value>تنسيق غير صالح</value>
+    <comment>Generic invalid format validation message</comment>
+  </data>
+  <data name="Errors.Validation.InvalidMaxConcurrentDownloads" xml:space="preserve">
+    <value>قيمة MaxConcurrentDownloads غير صالحة: {0}. إعادة التعيين إلى 3.</value>
+    <comment>Validation error for max concurrent downloads. {0} is the invalid value</comment>
+  </data>
+  <data name="Errors.Validation.InvalidPath" xml:space="preserve">
+    <value>مسار غير صالح</value>
+    <comment>Generic invalid path validation message</comment>
+  </data>
+  <data name="Errors.Validation.InvalidUrl" xml:space="preserve">
+    <value>عنوان URL غير صالح</value>
+    <comment>Generic invalid URL validation message</comment>
+  </data>
+  <data name="Errors.Validation.PathDoesNotExist" xml:space="preserve">
+    <value>مسار تثبيت اللعبة المفضل غير موجود: {0}</value>
+    <comment>Validation warning when specified path doesn't exist. {0} is the path</comment>
+  </data>
+  <data name="Errors.Validation.RequiredField" xml:space="preserve">
+    <value>هذا الحقل مطلوب</value>
+    <comment>Generic required field validation message</comment>
+  </data>
+  <data name="Errors.Validation.SelectGameInstallation" xml:space="preserve">
+    <value>يرجى تحديد تثبيت اللعبة</value>
+    <comment>Validation error when no game installation is selected</comment>
+  </data>
+  <data name="Errors.Validation.SettingsDirectoryDoesNotExist" xml:space="preserve">
+    <value>دليل ملف الإعدادات غير موجود: {0}</value>
+    <comment>Validation warning when settings directory doesn't exist. {0} is the directory</comment>
+  </data>
+  <data name="Errors.Validation.ValueTooHigh" xml:space="preserve">
+    <value>القيمة مرتفعة جداً (الحد الأقصى: {0})</value>
+    <comment>Validation error when value is above maximum. {0} is the maximum value</comment>
+  </data>
+  <data name="Errors.Validation.ValueTooLow" xml:space="preserve">
+    <value>القيمة منخفضة جداً (الحد الأدنى: {0})</value>
+    <comment>Validation error when value is below minimum. {0} is the minimum value</comment>
+  </data>
+  <data name="GameProfiles.Badge.Admin" xml:space="preserve">
+    <value>مسؤول</value>
+    <comment>Badge indicating admin privileges required</comment>
+  </data>
+  <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
+    <value>إضافة ملف تعريف جديد</value>
+    <comment>Button to create a new game profile</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorCreatingNewProfile" xml:space="preserve">
+    <value>خطأ في إنشاء ملف تعريف جديد</value>
+    <comment>Generic error creating a new profile</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorDeletingProfile" xml:space="preserve">
+    <value>خطأ في حذف '{0}'</value>
+    <comment>Generic error deleting profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorLaunchingProfile" xml:space="preserve">
+    <value>خطأ في تشغيل '{0}'</value>
+    <comment>Generic error launching profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorPreparingWorkspace" xml:space="preserve">
+    <value>خطأ في إعداد مساحة العمل لـ '{0}'</value>
+    <comment>Generic error preparing workspace. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorSavingProfiles" xml:space="preserve">
+    <value>خطأ في حفظ ملفات التعريف</value>
+    <comment>Generic error saving profiles</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToDeleteProfile" xml:space="preserve">
+    <value>فشل حذف '{0}': {1}</value>
+    <comment>Error deleting profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToLaunchProfile" xml:space="preserve">
+    <value>فشل تشغيل '{0}': {1}</value>
+    <comment>Error launching profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToLoadProfile" xml:space="preserve">
+    <value>فشل تحميل ملف التعريف: {0}</value>
+    <comment>Error loading a specific profile. {0} = error details</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToLoadProfilesWithReason" xml:space="preserve">
+    <value>فشل تحميل ملفات التعريف: {0}</value>
+    <comment>Error loading profiles. {0} = error details</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToPrepareWorkspace" xml:space="preserve">
+    <value>فشل إعداد مساحة العمل لـ '{0}': {1}</value>
+    <comment>Error preparing workspace. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.FailedToStopProfile" xml:space="preserve">
+    <value>فشل إيقاف '{0}': {1}</value>
+    <comment>Error stopping profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="GameProfiles.Error.MainWindowNotFound" xml:space="preserve">
+    <value>تعذر العثور على النافذة الرئيسية لفتح الإعدادات</value>
+    <comment>Error when main window cannot be found</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileEditorNotAvailable" xml:space="preserve">
+    <value>محرر ملف التعريف غير متوفر</value>
+    <comment>Error when profile editor is unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileLauncherNotAvailable" xml:space="preserve">
+    <value>مشغل ملف التعريف غير متوفر</value>
+    <comment>Error when profile launcher is unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileManagerNotAvailable" xml:space="preserve">
+    <value>مدير ملف التعريف غير متوفر</value>
+    <comment>Error when profile manager service is unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileManagerNotInitialized" xml:space="preserve">
+    <value>خدمة مدير ملفات تعريف اللعبة لم تتم تهيئتها</value>
+    <comment>Error when profile manager is not initialized</comment>
+  </data>
+  <data name="GameProfiles.Error.ProfileSettingsNotAvailable" xml:space="preserve">
+    <value>إعدادات ملف التعريف غير متوفرة</value>
+    <comment>Error when profile settings are unavailable</comment>
+  </data>
+  <data name="GameProfiles.Error.ServiceNotAvailable" xml:space="preserve">
+    <value>خدمة تثبيت اللعبة غير متوفرة</value>
+    <comment>Error message shown when required service is not available</comment>
+  </data>
+  <data name="GameProfiles.GameType.Generals" xml:space="preserve">
+    <value>C&amp;C Generals</value>
+    <comment>Command and Conquer Generals game name</comment>
+  </data>
+  <data name="GameProfiles.GameType.ZeroHour" xml:space="preserve">
+    <value>C&amp;C Generals: Zero Hour</value>
+    <comment>Command and Conquer Generals Zero Hour game name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.CdIso" xml:space="preserve">
+    <value>قرص مضغوط / ISO</value>
+    <comment>CD/ISO installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.EaApp" xml:space="preserve">
+    <value>EA App</value>
+    <comment>EA App installation platform name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.FirstDecade" xml:space="preserve">
+    <value>The First Decade</value>
+    <comment>The First Decade installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.PcGame" xml:space="preserve">
+    <value>لعبة كمبيوتر (PC)</value>
+    <comment>Default PC game installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.Retail" xml:space="preserve">
+    <value>نسخة التجزئة (Retail)</value>
+    <comment>Retail installation type name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.Steam" xml:space="preserve">
+    <value>Steam</value>
+    <comment>Steam installation platform name</comment>
+  </data>
+  <data name="GameProfiles.InstallationType.Wine" xml:space="preserve">
+    <value>Wine</value>
+    <comment>Wine/Linux installation platform name</comment>
+  </data>
+  <data name="GameProfiles.Profile.AutoCreated" xml:space="preserve">
+    <value>ملف تعريف {0}</value>
+    <comment>Auto-generated profile name. {0} is the installation type</comment>
+  </data>
+  <data name="GameProfiles.Profile.AutoCreatedDescription" xml:space="preserve">
+    <value>ملف تعريف تم إنشاؤه تلقائياً لتثبيت {0} في {1}</value>
+    <comment>Auto-generated profile description. {0} is installation type, {1} is path</comment>
+  </data>
+  <data name="GameProfiles.Status.CreatingProfiles" xml:space="preserve">
+    <value>تم العثور على {0} من تثبيتات اللعبة، جارٍ إنشاء ملفات التعريف</value>
+    <comment>Status message during profile creation. {0} is installation count</comment>
+  </data>
+  <data name="GameProfiles.Status.DeletingProfile" xml:space="preserve">
+    <value>جارٍ حذف '{0}'...</value>
+    <comment>Status when deleting a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.EditModeDisabled" xml:space="preserve">
+    <value>تم تعطيل وضع التحرير</value>
+    <comment>Status when edit mode is turned off</comment>
+  </data>
+  <data name="GameProfiles.Status.EditModeEnabled" xml:space="preserve">
+    <value>تم تمكين وضع التحرير</value>
+    <comment>Status when edit mode is turned on</comment>
+  </data>
+  <data name="GameProfiles.Status.ErrorDuringScan" xml:space="preserve">
+    <value>خطأ أثناء الفحص</value>
+    <comment>Status message shown when an unexpected error occurs during scan</comment>
+  </data>
+  <data name="GameProfiles.Status.ErrorLoadingProfiles" xml:space="preserve">
+    <value>خطأ أثناء تحميل ملفات التعريف</value>
+    <comment>Status message shown when profile loading fails</comment>
+  </data>
+  <data name="GameProfiles.Status.LaunchingProfile" xml:space="preserve">
+    <value>جارٍ تشغيل '{0}'...</value>
+    <comment>Status when launching a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.LoadingProfiles" xml:space="preserve">
+    <value>جارٍ تحميل ملفات التعريف...</value>
+    <comment>Status message shown when loading game profiles</comment>
+  </data>
+  <data name="GameProfiles.Status.NewProfileWindowClosed" xml:space="preserve">
+    <value>تم إغلاق نافذة ملف التعريف الجديد</value>
+    <comment>Status when new profile window closes</comment>
+  </data>
+  <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيتات للعبة</value>
+    <comment>Message shown when no game installations are detected</comment>
+  </data>
+  <data name="GameProfiles.Status.PreparingWorkspace" xml:space="preserve">
+    <value>جارٍ إعداد مساحة العمل لـ '{0}'...</value>
+    <comment>Status when preparing workspace. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreated" xml:space="preserve">
+    <value>تم إنشاء ملف التعريف '{0}' للتثبيت {1}</value>
+    <comment>Log message for successful profile creation. {0} is profile name, {1} is installation ID</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreationComplete" xml:space="preserve">
+    <value>اكتمل إنشاء ملفات التعريف: تم إنشاء {0}، وفشل {1}</value>
+    <comment>Summary message after profile creation. {0} is success count, {1} is failure count</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreationFailed" xml:space="preserve">
+    <value>فشل إنشاء ملف التعريف للتثبيت {0}: {1}</value>
+    <comment>Log message for failed profile creation. {0} is installation ID, {1} is error message</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileDeletedSuccess" xml:space="preserve">
+    <value>تم حذف '{0}' بنجاح</value>
+    <comment>Success message after deleting. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileLaunchedSuccess" xml:space="preserve">
+    <value>تم تشغيل '{0}' بنجاح (معرّف العملية: {1})</value>
+    <comment>Success message after launching. {0} = profile name, {1} = process ID</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileStoppedSuccess" xml:space="preserve">
+    <value>تم إيقاف '{0}' بنجاح</value>
+    <comment>Success message after stopping. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileUpdatedSuccess" xml:space="preserve">
+    <value>تم تحديث ملف التعريف بنجاح</value>
+    <comment>Success message after updating a profile</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfilesLoaded" xml:space="preserve">
+    <value>تم تحميل ملفات التعريف</value>
+    <comment>Status message shown when profiles are successfully loaded</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfilesLoadedCount" xml:space="preserve">
+    <value>تم تحميل {0} من ملفات التعريف</value>
+    <comment>Status showing number of loaded profiles. {0} = count</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfilesSaved" xml:space="preserve">
+    <value>تم حفظ ملفات التعريف بنجاح</value>
+    <comment>Success message after saving profiles</comment>
+  </data>
+  <data name="GameProfiles.Status.SavingProfiles" xml:space="preserve">
+    <value>جارٍ حفظ ملفات التعريف...</value>
+    <comment>Status while saving profiles</comment>
+  </data>
+  <data name="GameProfiles.Status.ScanComplete" xml:space="preserve">
+    <value>اكتمل الفحص. تم العثور على {0} من تثبيتات اللعبة</value>
+    <comment>Status message shown when scan completes. {0} is the count of installations found</comment>
+  </data>
+  <data name="GameProfiles.Status.ScanFailed" xml:space="preserve">
+    <value>فشل الفحص: {0}</value>
+    <comment>Status message shown when scan fails. {0} is the error message</comment>
+  </data>
+  <data name="GameProfiles.Status.Scanning" xml:space="preserve">
+    <value>جارٍ الفحص...</value>
+    <comment>Status shown during game scanning</comment>
+  </data>
+  <data name="GameProfiles.Status.ScanningForGames" xml:space="preserve">
+    <value>جارٍ فحص النظام بحثاً عن الألعاب...</value>
+    <comment>Status message shown when scanning for game installations</comment>
+  </data>
+  <data name="GameProfiles.Status.StoppingProfile" xml:space="preserve">
+    <value>جارٍ إيقاف '{0}'...</value>
+    <comment>Status when stopping a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.WorkspacePrepared" xml:space="preserve">
+    <value>تم إعداد مساحة العمل لـ '{0}' في {1}</value>
+    <comment>Success message after workspace preparation. {0} = profile name, {1} = path</comment>
+  </data>
+  <data name="GameProfiles.Subtitle.GameProfiles" xml:space="preserve">
+    <value>حدد ملف تعريف للتشغيل أو أنشئ ملفاً جديداً</value>
+    <comment>Page subtitle for the Game Profiles section</comment>
+  </data>
+  <data name="GameProfiles.Title.GameProfiles" xml:space="preserve">
+    <value>ملفات تعريف اللعبة</value>
+    <comment>Page title for the Game Profiles section</comment>
+  </data>
+  <data name="GameProfiles.Warning.InstallationScanFailed" xml:space="preserve">
+    <value>فشل فحص تثبيت اللعبة: {0}</value>
+    <comment>Warning message when installation scan fails. {0} is error details</comment>
+  </data>
+  <data name="GameProfiles.Warning.LoggerNotAvailable" xml:space="preserve">
+    <value>المسجل غير متوفر - قد يستمر الفحص بدون تسجيل مفصل</value>
+    <comment>Warning message shown when logger is not available</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Copied" xml:space="preserve">
+    <value>منسوخ</value>
+    <comment>Workspace status when files are copied</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.HardLinked" xml:space="preserve">
+    <value>روابط صلبة (Hard Linked)</value>
+    <comment>Workspace status when using hard links</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Hybrid" xml:space="preserve">
+    <value>مختلط (Hybrid)</value>
+    <comment>Workspace status when using hybrid strategy</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.NotPrepared" xml:space="preserve">
+    <value>غير معد</value>
+    <comment>Workspace status when not yet prepared</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Prepared" xml:space="preserve">
+    <value>معد</value>
+    <comment>Generic workspace status when prepared</comment>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Symlinked" xml:space="preserve">
+    <value>روابط رمزية (Symlinked)</value>
+    <comment>Workspace status when using symlinks</comment>
+  </data>
+  <data name="Messages.Confirmations.ApplyChanges" xml:space="preserve">
+    <value>هل تريد تطبيق هذه التغييرات؟</value>
+    <comment>Confirmation message for applying changes</comment>
+  </data>
+  <data name="Messages.Confirmations.CancelOperation" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد إلغاء هذه العملية؟</value>
+    <comment>Confirmation message for canceling an operation</comment>
+  </data>
+  <data name="Messages.Confirmations.CloseWithUnsavedChanges" xml:space="preserve">
+    <value>لديك تغييرات غير محفوظة. هل تريد الحفظ قبل الإغلاق؟</value>
+    <comment>Confirmation message when closing with unsaved changes</comment>
+  </data>
+  <data name="Messages.Confirmations.ContinueWithWarnings" xml:space="preserve">
+    <value>توجد تحذيرات. هل تريد المتابعة على أي حال؟</value>
+    <comment>Confirmation message for continuing despite warnings</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteFile" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف هذا الملف؟</value>
+    <comment>Confirmation message for deleting a file</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteFiles" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف {0} من الملفات؟</value>
+    <comment>Confirmation message for deleting multiple files. {0} is file count</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteFolder" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف هذا المجلد وجميع محتوياته؟</value>
+    <comment>Confirmation message for deleting a folder</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteProfile" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف ملف التعريف هذا؟</value>
+    <comment>Confirmation message for deleting a profile</comment>
+  </data>
+  <data name="Messages.Confirmations.DeleteProfileWithName" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف ملف التعريف '{0}'؟</value>
+    <comment>Confirmation message for deleting a specific profile. {0} is profile name</comment>
+  </data>
+  <data name="Messages.Confirmations.DiscardChanges" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد تجاهل كافة التغييرات؟</value>
+    <comment>Confirmation message for discarding changes</comment>
+  </data>
+  <data name="Messages.Confirmations.ExitApplication" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد الخروج من التطبيق؟</value>
+    <comment>Confirmation message for exiting the application</comment>
+  </data>
+  <data name="Messages.Confirmations.ExportData" xml:space="preserve">
+    <value>هل تريد تصدير هذه البيانات؟</value>
+    <comment>Confirmation message for exporting data</comment>
+  </data>
+  <data name="Messages.Confirmations.ImportData" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد استيراد هذه البيانات؟ قد يتم استبدال البيانات الحالية.</value>
+    <comment>Confirmation message for importing data</comment>
+  </data>
+  <data name="Messages.Confirmations.InstallUpdate" xml:space="preserve">
+    <value>يوجد تحديث متاح. هل تريد تثبيته الآن؟</value>
+    <comment>Confirmation message for installing an update</comment>
+  </data>
+  <data name="Messages.Confirmations.OverwriteFile" xml:space="preserve">
+    <value>يوجد ملف بهذا الاسم بالفعل. هل تريد استبداله؟</value>
+    <comment>Confirmation message for overwriting a file</comment>
+  </data>
+  <data name="Messages.Confirmations.OverwriteProfile" xml:space="preserve">
+    <value>يوجد ملف تعريف بهذا الاسم بالفعل. هل تريد استبداله؟</value>
+    <comment>Confirmation message for overwriting a profile</comment>
+  </data>
+  <data name="Messages.Confirmations.ProceedWithAction" xml:space="preserve">
+    <value>هل تريد المتابعة في هذا الإجراء؟</value>
+    <comment>Generic confirmation message for proceeding with an action</comment>
+  </data>
+  <data name="Messages.Confirmations.ReplaceExisting" xml:space="preserve">
+    <value>هل تريد استبدال {0} الحالي؟</value>
+    <comment>Confirmation message for replacing existing item. {0} is item type</comment>
+  </data>
+  <data name="Messages.Confirmations.ResetCache" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد مسح ذاكرة التخزين المؤقت؟ لا يمكن التراجع عن هذا الإجراء.</value>
+    <comment>Confirmation message for clearing cache</comment>
+  </data>
+  <data name="Messages.Confirmations.ResetProfile" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد إعادة ضبط ملف التعريف هذا إلى الإعدادات الافتراضية؟</value>
+    <comment>Confirmation message for resetting a profile</comment>
+  </data>
+  <data name="Messages.Confirmations.ResetSettings" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد إعادة ضبط جميع الإعدادات إلى القيم الافتراضية؟</value>
+    <comment>Confirmation message for resetting settings</comment>
+  </data>
+  <data name="Messages.Confirmations.RestartToApplyUpdate" xml:space="preserve">
+    <value>يحتاج التطبيق إلى إعادة التشغيل لتطبيق التحديث. إعادة التشغيل الآن؟</value>
+    <comment>Confirmation message for restarting to apply update</comment>
+  </data>
+  <data name="Messages.Confirmations.StopDownload" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد إيقاف هذا التنزيل؟</value>
+    <comment>Confirmation message for stopping a download</comment>
+  </data>
+  <data name="Messages.Success.AddedDefaultCulture" xml:space="preserve">
+    <value>تمت إضافة اللغة الافتراضية: {0}</value>
+    <comment>Log message when default culture is added. {0} is culture name</comment>
+  </data>
+  <data name="Messages.Success.AvailableCulturesRefreshed" xml:space="preserve">
+    <value>تم تحديث اللغات المتاحة. تم العثور على {0} لغات</value>
+    <comment>Log message when available cultures are refreshed. {0} is culture count</comment>
+  </data>
+  <data name="Messages.Success.CreatedResourceManager" xml:space="preserve">
+    <value>تم إنشاء ResourceManager للاسم الأساسي: {0}</value>
+    <comment>Log message when ResourceManager is created. {0} is base name</comment>
+  </data>
+  <data name="Messages.Success.CultureChanged" xml:space="preserve">
+    <value>تم تغيير اللغة إلى: {0}</value>
+    <comment>Log message when culture is changed. {0} is the new culture name</comment>
+  </data>
+  <data name="Messages.Success.DataSaved" xml:space="preserve">
+    <value>تم حفظ البيانات بنجاح</value>
+    <comment>Generic data save success message</comment>
+  </data>
+  <data name="Messages.Success.DiscoveredLanguages" xml:space="preserve">
+    <value>تم اكتشاف {0} لغة متاحة: {1}</value>
+    <comment>Log message for discovered languages. {0} is count, {1} is comma-separated list</comment>
+  </data>
+  <data name="Messages.Success.ExportSuccessful" xml:space="preserve">
+    <value>اكتمل التصدير بنجاح</value>
+    <comment>Success message for export operations</comment>
+  </data>
+  <data name="Messages.Success.FoundSatelliteAssembly" xml:space="preserve">
+    <value>تم العثور على تجميع القمر الصناعي للغة: {0}</value>
+    <comment>Log message when satellite assembly is found. {0} is culture name</comment>
+  </data>
+  <data name="Messages.Success.GameProfileLauncherInitialized" xml:space="preserve">
+    <value>تمت تهيئة مشغل ملف تعريف اللعبة</value>
+    <comment>Log message when game profile launcher is initialized</comment>
+  </data>
+  <data name="Messages.Success.GameScanCompleted" xml:space="preserve">
+    <value>اكتمل فحص اللعبة بنجاح. تم العثور على {0} تثبيتات</value>
+    <comment>Success message when game scan completes. {0} is installation count</comment>
+  </data>
+  <data name="Messages.Success.ImportSuccessful" xml:space="preserve">
+    <value>اكتمل الاستيراد بنجاح</value>
+    <comment>Success message for import operations</comment>
+  </data>
+  <data name="Messages.Success.LocalizationServiceInitialized" xml:space="preserve">
+    <value>تمت تهيئة خدمة التعريب باللغة: {0}</value>
+    <comment>Log message when LocalizationService is initialized. {0} is culture name</comment>
+  </data>
+  <data name="Messages.Success.MainViewModelInitialized" xml:space="preserve">
+    <value>تمت تهيئة MainViewModel</value>
+    <comment>Log message when MainViewModel is initialized</comment>
+  </data>
+  <data name="Messages.Success.OperationCompleted" xml:space="preserve">
+    <value>اكتملت العملية بنجاح</value>
+    <comment>Generic operation completion message</comment>
+  </data>
+  <data name="Messages.Success.ProfileCreated" xml:space="preserve">
+    <value>تم إنشاء ملف التعريف بنجاح</value>
+    <comment>Success message when a profile is created</comment>
+  </data>
+  <data name="Messages.Success.ProfileDeleted" xml:space="preserve">
+    <value>تم حذف ملف التعريف بنجاح</value>
+    <comment>Success message when a profile is deleted</comment>
+  </data>
+  <data name="Messages.Success.ProfileUpdated" xml:space="preserve">
+    <value>تم تحديث ملف التعريف بنجاح</value>
+    <comment>Success message when a profile is updated</comment>
+  </data>
+  <data name="Messages.Success.ProfilesSaved" xml:space="preserve">
+    <value>تم حفظ ملفات التعريف بنجاح</value>
+    <comment>Success message when profiles are saved</comment>
+  </data>
+  <data name="Messages.Success.SettingsLoaded" xml:space="preserve">
+    <value>تم تحميل الإعدادات بنجاح</value>
+    <comment>Success message when settings are loaded</comment>
+  </data>
+  <data name="Messages.Success.SettingsReset" xml:space="preserve">
+    <value>تمت إعادة ضبط الإعدادات إلى الافتراضية</value>
+    <comment>Success message when settings are reset to defaults</comment>
+  </data>
+  <data name="Messages.Success.SettingsSaved" xml:space="preserve">
+    <value>تم حفظ الإعدادات بنجاح</value>
+    <comment>Success message when settings are saved</comment>
+  </data>
+  <data name="Messages.Success.UpdateCheckCompleted" xml:space="preserve">
+    <value>اكتمل التحقق من وجود تحديثات. التحديث متاح: {0}</value>
+    <comment>Log message when update check completes. {0} is true/false</comment>
+  </data>
+  <data name="Messages.Success.UpdateNotificationViewModelInitialized" xml:space="preserve">
+    <value>تمت تهيئة UpdateNotificationViewModel</value>
+    <comment>Log message when UpdateNotificationViewModel is initialized</comment>
+  </data>
+  <data name="Navigation.App.Tagline" xml:space="preserve">
+    <value>مشغل C&amp;C Generals</value>
+    <comment>Application tagline shown in navigation</comment>
+  </data>
+  <data name="Navigation.Downloads" xml:space="preserve">
+    <value>التنزيلات</value>
+    <comment>Downloads navigation tab.</comment>
+  </data>
+  <data name="Navigation.GameProfiles" xml:space="preserve">
+    <value>ملفات تعريف اللعبة</value>
+    <comment>Game Profiles navigation tab.</comment>
+  </data>
+  <data name="Navigation.Info" xml:space="preserve">
+    <value>معلومات</value>
+    <comment>Info navigation tab.</comment>
+  </data>
+  <data name="Navigation.Settings" xml:space="preserve">
+    <value>الإعدادات</value>
+    <comment>Settings navigation tab.</comment>
+  </data>
+  <data name="Navigation.Tab.About" xml:space="preserve">
+    <value>حول</value>
+    <comment>Navigation tab name for about section</comment>
+  </data>
+  <data name="Navigation.Tab.Content" xml:space="preserve">
+    <value>المحتوى</value>
+    <comment>Navigation tab name for content browser section</comment>
+  </data>
+  <data name="Navigation.Tab.Downloads" xml:space="preserve">
+    <value>التنزيلات</value>
+    <comment>Navigation tab name for downloads section</comment>
+  </data>
+  <data name="Navigation.Tab.GameProfiles" xml:space="preserve">
+    <value>ملفات تعريف اللعبة</value>
+    <comment>Navigation tab name for game profiles section</comment>
+  </data>
+  <data name="Navigation.Tab.Home" xml:space="preserve">
+    <value>الرئيسية</value>
+    <comment>Navigation tab name for home section</comment>
+  </data>
+  <data name="Navigation.Tab.Settings" xml:space="preserve">
+    <value>الإعدادات</value>
+    <comment>Navigation tab name for settings section</comment>
+  </data>
+  <data name="Navigation.Tab.Tools" xml:space="preserve">
+    <value>الأدوات</value>
+    <comment>Navigation tab name for tools section</comment>
+  </data>
+  <data name="Navigation.Tab.Updates" xml:space="preserve">
+    <value>التحديثات</value>
+    <comment>Navigation tab name for updates section</comment>
+  </data>
+  <data name="Navigation.Tools" xml:space="preserve">
+    <value>الأدوات</value>
+    <comment>Tools navigation tab.</comment>
+  </data>
+  <data name="Notifications.Title" xml:space="preserve">
+    <value>الإشعارات</value>
+    <comment>Title for notifications panel and button.</comment>
+  </data>
+  <data name="Settings.Appearance.Language.Description" xml:space="preserve">
+    <value>حدد لغة عرض واجهة المستخدم.</value>
+    <comment>Description for language selection.</comment>
+  </data>
+  <data name="Settings.Appearance.Language.Label" xml:space="preserve">
+    <value>اللغة</value>
+    <comment>Label for language selection.</comment>
+  </data>
+  <data name="Settings.Appearance.AccentColor.Description" xml:space="preserve">
+    <value>اختر سمة لون تمييز للأزرار وعلامات التبويب والتحديدات والتوهجات وأشرطة التمرير عبر GenHub.</value>
+    <comment>Description for accent color theme.</comment>
+  </data>
+  <data name="Settings.Appearance.AccentColor.Label" xml:space="preserve">
+    <value>سمة لون التمييز</value>
+    <comment>Label for theme selection.</comment>
+  </data>
+  <data name="Settings.Appearance.ActiveTheme" xml:space="preserve">
+    <value>السمة النشطة:</value>
+    <comment>Active theme indicator label.</comment>
+  </data>
+  <data name="Settings.Appearance.Header" xml:space="preserve">
+    <value>المظهر</value>
+    <comment>Header for appearance settings section.</comment>
+  </data>
+  <data name="Settings.Appearance.Theme.ActiveTheme" xml:space="preserve">
+    <value>السمة النشطة:</value>
+    <comment>Active theme indicator label.</comment>
+  </data>
+  <data name="Settings.Appearance.Theme.Description" xml:space="preserve">
+    <value>اختر سمة لون تمييز للأزرار وعلامات التبويب والتحديدات والتوهجات وأشرطة التمرير عبر GenHub.</value>
+    <comment>Description for accent color theme.</comment>
+  </data>
+  <data name="Settings.Appearance.Theme.Label" xml:space="preserve">
+    <value>سمة لون التمييز</value>
+    <comment>Label for theme selection.</comment>
+  </data>
+  <data name="Settings.Button.ResetToDefaults" xml:space="preserve">
+    <value>إعادة التعيين إلى الافتراضي</value>
+    <comment>Button to reset settings to default values</comment>
+  </data>
+  <data name="Settings.Button.SaveSettings" xml:space="preserve">
+    <value>حفظ الإعدادات</value>
+    <comment>Button text for saving settings</comment>
+  </data>
+  <data name="Settings.Button.Saving" xml:space="preserve">
+    <value>جارٍ الحفظ...</value>
+    <comment>Button text shown while saving is in progress</comment>
+  </data>
+  <data name="Settings.CAS.AutoGCInterval" xml:space="preserve">
+    <value>الفاصل الزمني لجمع المهملات التلقائي (بالأيام)</value>
+    <comment>Label for automatic garbage collection interval setting</comment>
+  </data>
+  <data name="Settings.CAS.EnableAutomaticGC" xml:space="preserve">
+    <value>تمكين جمع المهملات التلقائي</value>
+    <comment>Label for enable automatic garbage collection checkbox</comment>
+  </data>
+  <data name="Settings.CAS.GCGracePeriod" xml:space="preserve">
+    <value>فترة سماح جمع المهملات (بالأيام)</value>
+    <comment>Label for garbage collection grace period setting</comment>
+  </data>
+  <data name="Settings.CAS.MaxCacheSize" xml:space="preserve">
+    <value>الحد الأقصى لحجم ذاكرة التخزين المؤقت (غيغابايت)</value>
+    <comment>Label for maximum cache size setting</comment>
+  </data>
+  <data name="Settings.CAS.MaxConcurrentOperations" xml:space="preserve">
+    <value>الحد الأقصى للعمليات المتزامنة</value>
+    <comment>Label for maximum concurrent CAS operations</comment>
+  </data>
+  <data name="Settings.CAS.VerifyIntegrity" xml:space="preserve">
+    <value>التحقق من السلامة</value>
+    <comment>Label for verify integrity checkbox</comment>
+  </data>
+  <data name="Settings.Cas.AutoGc.Description" xml:space="preserve">
+    <value>تنظيف المحتوى غير المشار إليه تلقائياً لتحرير مساحة القرص</value>
+    <comment>Description for auto GC.</comment>
+  </data>
+  <data name="Settings.Cas.AutoGc.Label" xml:space="preserve">
+    <value>تمكين جمع المهملات التلقائي</value>
+    <comment>Label for auto GC.</comment>
+  </data>
+  <data name="Settings.Cas.AutoGcInterval.Description" xml:space="preserve">
+    <value>عدد مرات تشغيل جمع المهملات التلقائي (1-30 يوماً)</value>
+    <comment>Description for auto GC interval.</comment>
+  </data>
+  <data name="Settings.Cas.AutoGcInterval.Label" xml:space="preserve">
+    <value>الفاصل الزمني لجمع المهملات التلقائي (بالأيام)</value>
+    <comment>Label for auto GC interval.</comment>
+  </data>
+  <data name="Settings.Cas.GcGracePeriod.Description" xml:space="preserve">
+    <value>مدة الاحتفاظ بالمحتوى غير المشار إليه قبل الحذف (1-365 يوماً)</value>
+    <comment>Description for GC grace period.</comment>
+  </data>
+  <data name="Settings.Cas.GcGracePeriod.Label" xml:space="preserve">
+    <value>فترة سماح جمع المهملات (بالأيام)</value>
+    <comment>Label for GC grace period.</comment>
+  </data>
+  <data name="Settings.Cas.MaxCacheSize.Description" xml:space="preserve">
+    <value>الحد الأقصى لحجم تجمع CAS قبل تشغيل جمع المهملات (1-1000 غيغابايت)</value>
+    <comment>Description for max cache size.</comment>
+  </data>
+  <data name="Settings.Cas.MaxCacheSize.Label" xml:space="preserve">
+    <value>الحد الأقصى لحجم ذاكرة التخزين المؤقت (غيغابايت)</value>
+    <comment>Label for max cache size.</comment>
+  </data>
+  <data name="Settings.Cas.MaxConcurrent.Description" xml:space="preserve">
+    <value>عدد عمليات CAS المتزامنة (1-16، الافتراضي: 4)</value>
+    <comment>Description for max concurrent CAS operations.</comment>
+  </data>
+  <data name="Settings.Cas.MaxConcurrent.Label" xml:space="preserve">
+    <value>الحد الأقصى لعمليات CAS المتزامنة</value>
+    <comment>Label for max concurrent CAS operations.</comment>
+  </data>
+  <data name="Settings.Cas.RootDirectory.Description" xml:space="preserve">
+    <value>الدليل الذي يتم فيه تخزين المحتوى غير المكرر. تشير جميع مساحات العمل إلى الملفات من هنا.</value>
+    <comment>Description for CAS root directory.</comment>
+  </data>
+  <data name="Settings.Cas.RootDirectory.Label" xml:space="preserve">
+    <value>الدليل الجذر لـ CAS</value>
+    <comment>Label for CAS root directory.</comment>
+  </data>
+  <data name="Settings.Cas.RootDirectory.Watermark" xml:space="preserve">
+    <value>الافتراضي (%AppData%/GenHub/cas-pool)</value>
+    <comment>Watermark for CAS root directory.</comment>
+  </data>
+  <data name="Settings.Cas.VerifyIntegrity.Description" xml:space="preserve">
+    <value>فحص تجزئات الملفات لضمان سلامة البيانات (موصى به، تأثير طفيف على الأداء)</value>
+    <comment>Description for verify integrity.</comment>
+  </data>
+  <data name="Settings.Cas.VerifyIntegrity.Label" xml:space="preserve">
+    <value>التحقق من سلامة الملفات أثناء العمليات</value>
+    <comment>Label for verify integrity.</comment>
+  </data>
+  <data name="Settings.Content.Directories" xml:space="preserve">
+    <value>دلائل المحتوى</value>
+    <comment>Label for content directories setting</comment>
+  </data>
+  <data name="Settings.Content.GitHubRepositories" xml:space="preserve">
+    <value>مستودعات استكشاف GitHub</value>
+    <comment>Label for GitHub discovery repositories setting</comment>
+  </data>
+  <data name="Settings.DangerZone.CasStorage" xml:space="preserve">
+    <value>تخزين CAS:</value>
+    <comment>CAS storage label.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanCasPool" xml:space="preserve">
+    <value>تنظيف مجمع CAS</value>
+    <comment>Clean CAS pool button.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanManifests" xml:space="preserve">
+    <value>تنظيف البيانات التعريفية (Manifests)</value>
+    <comment>Clean manifests button.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanWorkspaces" xml:space="preserve">
+    <value>تنظيف مساحات العمل</value>
+    <comment>Clean workspaces button.</comment>
+  </data>
+  <data name="Settings.DangerZone.CleanupActions" xml:space="preserve">
+    <value>إجراءات التنظيف:</value>
+    <comment>Cleanup actions header.</comment>
+  </data>
+  <data name="Settings.DangerZone.CurrentDataUsage" xml:space="preserve">
+    <value>استخدام البيانات الحالي:</value>
+    <comment>Current data usage header.</comment>
+  </data>
+  <data name="Settings.DangerZone.Manifests" xml:space="preserve">
+    <value>البيانات التعريفية (Manifests):</value>
+    <comment>Manifests label.</comment>
+  </data>
+  <data name="Settings.DangerZone.ResetAll" xml:space="preserve">
+    <value>إعادة ضبط جميع بيانات GenHub</value>
+    <comment>Reset all data button.</comment>
+  </data>
+  <data name="Settings.DangerZone.ResetSettings" xml:space="preserve">
+    <value>إعادة ضبط الإعدادات</value>
+    <comment>Reset settings button.</comment>
+  </data>
+  <data name="Settings.DangerZone.Workspaces" xml:space="preserve">
+    <value>مساحات العمل:</value>
+    <comment>Workspaces label.</comment>
+  </data>
+  <data name="Settings.DataDirectories.SettingsFilePath.Description" xml:space="preserve">
+    <value>حدد موقعاً مخصصاً لملف الإعدادات الخاص بك. اتركه فارغاً للاكتشاف التلقائي.</value>
+    <comment>Description for settings file location.</comment>
+  </data>
+  <data name="Settings.DataDirectories.SettingsFilePath.Label" xml:space="preserve">
+    <value>موقع ملف الإعدادات</value>
+    <comment>Label for settings file location.</comment>
+  </data>
+  <data name="Settings.DataDirectories.SettingsFilePath.Watermark" xml:space="preserve">
+    <value>افتراضي (يعتمد على المنصة)</value>
+    <comment>Watermark for settings file location.</comment>
+  </data>
+  <data name="Settings.Description.AutoCheckUpdates" xml:space="preserve">
+    <value>التحقق تلقائياً من تحديثات GenHub عند بدء تشغيل التطبيق</value>
+    <comment>Description for auto check updates setting</comment>
+  </data>
+  <data name="Settings.Description.AutoGcInterval" xml:space="preserve">
+    <value>عدد مرات تشغيل جمع المهملات التلقائي (1-30 يوماً)</value>
+    <comment>Description for auto GC interval setting</comment>
+  </data>
+  <data name="Settings.Description.AutomaticGc" xml:space="preserve">
+    <value>تنظيف المحتوى غير المشار إليه تلقائياً لتحرير مساحة القرص</value>
+    <comment>Description for automatic GC setting</comment>
+  </data>
+  <data name="Settings.Description.BackgroundDownloads" xml:space="preserve">
+    <value>متابعة التنزيل عند تصغير التطبيق أو في الخلفية</value>
+    <comment>Description for background downloads setting</comment>
+  </data>
+  <data name="Settings.Description.BufferSize" xml:space="preserve">
+    <value>حجم المخزن المؤقت المستخدم لتنزيل الملفات (4 كيلوبايت - 1 ميغابايت، الافتراضي: 80 كيلوبايت)</value>
+    <comment>Description for buffer size setting</comment>
+  </data>
+  <data name="Settings.Description.CachePath" xml:space="preserve">
+    <value>تجاوز دليل ذاكرة التخزين المؤقت الافتراضي للتنزيلات والملفات المؤقتة.</value>
+    <comment>Description for cache path setting</comment>
+  </data>
+  <data name="Settings.Description.CasConcurrentOperations" xml:space="preserve">
+    <value>عدد عمليات CAS المتزامنة (1-16، الافتراضي: 4)</value>
+    <comment>Description for CAS concurrent operations setting</comment>
+  </data>
+  <data name="Settings.Description.CasRootPath" xml:space="preserve">
+    <value>الدليل الذي يتم فيه تخزين المحتوى غير المكرر. تشير جميع مساحات العمل إلى الملفات من هنا.</value>
+    <comment>Description for CAS root path setting</comment>
+  </data>
+  <data name="Settings.Description.ContentDirectories" xml:space="preserve">
+    <value>حدد الدلائل لفحص المحتوى المحلي. مسار واحد في كل سطر.</value>
+    <comment>Description for content directories setting</comment>
+  </data>
+  <data name="Settings.Description.ContentStoragePath" xml:space="preserve">
+    <value>تجاوز الدليل الافتراضي حيث يتم تخزين المحتوى الذي تم تنزيله بشكل دائم.</value>
+    <comment>Description for content storage path setting</comment>
+  </data>
+  <data name="Settings.Description.DetailedLogging" xml:space="preserve">
+    <value>تمكين التسجيل المفصل لاستكشاف الأخطاء وإصلاحها. قد يؤثر على الأداء.</value>
+    <comment>Description for detailed logging setting</comment>
+  </data>
+  <data name="Settings.Description.GamePath" xml:space="preserve">
+    <value>حدد المكان الذي تفضل تثبيت الألعاب فيه. اتركه فارغاً للاكتشاف التلقائي.</value>
+    <comment>Description for game path setting</comment>
+  </data>
+  <data name="Settings.Description.GcGracePeriod" xml:space="preserve">
+    <value>مدة الاحتفاظ بالمحتوى غير المشار إليه قبل الحذف (1-365 يوماً)</value>
+    <comment>Description for GC grace period setting</comment>
+  </data>
+  <data name="Settings.Description.GitHubRepositories" xml:space="preserve">
+    <value>حدد مستودعات GitHub للبحث عن الإصدارات. مالك/مستودع واحد في كل سطر.</value>
+    <comment>Description for GitHub repositories setting</comment>
+  </data>
+  <data name="Settings.Description.MaxCacheSize" xml:space="preserve">
+    <value>الحد الأقصى لحجم مجمع CAS قبل تشغيل جمع المهملات (1-1000 غيغابايت)</value>
+    <comment>Description for max cache size setting</comment>
+  </data>
+  <data name="Settings.Description.MaxConcurrent" xml:space="preserve">
+    <value>تحديد عدد التنزيلات المتزامنة لإدارة استهلاك النطاق الترددي (1-10)</value>
+    <comment>Description for max concurrent downloads setting</comment>
+  </data>
+  <data name="Settings.Description.MemoryUsage" xml:space="preserve">
+    <value>مراقبة استهلاك التطبيق للذاكرة</value>
+    <comment>Description for memory usage display</comment>
+  </data>
+  <data name="Settings.Description.SettingsFilePath" xml:space="preserve">
+    <value>حدد موقعاً مخصصاً لملف الإعدادات الخاص بك. اتركه فارغاً لاستخدام الموقع الافتراضي.</value>
+    <comment>Description for settings file path setting</comment>
+  </data>
+  <data name="Settings.Description.Theme" xml:space="preserve">
+    <value>الاختيار بين السمة الفاتحة والداكنة</value>
+    <comment>Description for theme setting</comment>
+  </data>
+  <data name="Settings.Description.Timeout" xml:space="preserve">
+    <value>المهلة المحددة لكل عملية تنزيل (10-3600 ثانية، الافتراضي: 600 ثانية)</value>
+    <comment>Description for timeout setting</comment>
+  </data>
+  <data name="Settings.Description.UserAgent" xml:space="preserve">
+    <value>سلسلة وكيل مستخدم HTTP المرسلة مع طلبات التنزيل</value>
+    <comment>Description for user agent setting</comment>
+  </data>
+  <data name="Settings.Description.VerifyIntegrity" xml:space="preserve">
+    <value>فحص تجزئات الملفات لضمان سلامة البيانات (موصى به، تأثير طفيف على الأداء)</value>
+    <comment>Description for verify integrity setting</comment>
+  </data>
+  <data name="Settings.Description.WorkspaceStrategy" xml:space="preserve">
+    <value>اختر كيفية إدارة الملفات في مساحات عمل اللعبة</value>
+    <comment>Description for workspace strategy setting</comment>
+  </data>
+  <data name="Settings.Dialog.SelectCasRootDirectory" xml:space="preserve">
+    <value>حدد الدليل الجذر لتخزين CAS</value>
+    <comment>Title for folder picker dialog when selecting CAS root directory</comment>
+  </data>
+  <data name="Settings.Dialog.SelectGameInstallDirectory" xml:space="preserve">
+    <value>حدد دليل تثبيت اللعبة</value>
+    <comment>Title for folder picker dialog when selecting game install directory</comment>
+  </data>
+  <data name="Settings.Dialog.SelectSettingsFileLocation" xml:space="preserve">
+    <value>حدد موقع ملف الإعدادات</value>
+    <comment>Title for file picker dialog when selecting settings file location</comment>
+  </data>
+  <data name="Settings.Download.AllowBackgroundDownloads" xml:space="preserve">
+    <value>السماح بالتنزيلات في الخلفية</value>
+    <comment>Label for allow background downloads checkbox</comment>
+  </data>
+  <data name="Settings.Download.BufferSize" xml:space="preserve">
+    <value>حجم المخزن المؤقت للتنزيل (كيلوبايت)</value>
+    <comment>Label for download buffer size setting</comment>
+  </data>
+  <data name="Settings.Download.MaxConcurrentDownloads" xml:space="preserve">
+    <value>الحد الأقصى للتنزيلات المتزامنة</value>
+    <comment>Label for maximum concurrent downloads setting</comment>
+  </data>
+  <data name="Settings.Download.Timeout" xml:space="preserve">
+    <value>مهلة التنزيل (بالثواني)</value>
+    <comment>Label for download timeout setting</comment>
+  </data>
+  <data name="Settings.Download.UserAgent" xml:space="preserve">
+    <value>وكيل مستخدم التنزيل</value>
+    <comment>Label for download user agent setting</comment>
+  </data>
+  <data name="Settings.Downloads.AllowBackground.Description" xml:space="preserve">
+    <value>متابعة التنزيل عند تصغير التطبيق أو في الخلفية</value>
+    <comment>Description for background downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.AllowBackground.Label" xml:space="preserve">
+    <value>السماح بالتنزيلات في الخلفية</value>
+    <comment>Checkbox label for background downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.BufferSize.Description" xml:space="preserve">
+    <value>حجم المخزن المؤقت المستخدم لتنزيل الملفات (4 كيلوبايت - 1 ميغابايت، الافتراضي: 80 كيلوبايت)</value>
+    <comment>Description for download buffer size.</comment>
+  </data>
+  <data name="Settings.Downloads.BufferSize.Label" xml:space="preserve">
+    <value>حجم المخزن المؤقت للتنزيل</value>
+    <comment>Label for download buffer size.</comment>
+  </data>
+  <data name="Settings.Downloads.MaxConcurrent.Description" xml:space="preserve">
+    <value>تحديد عدد التنزيلات المتزامنة لإدارة استهلاك النطاق الترددي (1-10)</value>
+    <comment>Description for max concurrent downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.MaxConcurrent.Label" xml:space="preserve">
+    <value>الحد الأقصى للتنزيلات المتزامنة</value>
+    <comment>Label for max concurrent downloads.</comment>
+  </data>
+  <data name="Settings.Downloads.Timeout.Description" xml:space="preserve">
+    <value>المهلة المحددة لكل عملية تنزيل (10-3600 ثانية، الافتراضي: 600 ثانية)</value>
+    <comment>Description for download timeout.</comment>
+  </data>
+  <data name="Settings.Downloads.Timeout.Label" xml:space="preserve">
+    <value>مهلة التنزيل</value>
+    <comment>Label for download timeout.</comment>
+  </data>
+  <data name="Settings.Downloads.UserAgent.Description" xml:space="preserve">
+    <value>سلسلة وكيل مستخدم HTTP المرسلة مع طلبات التنزيل</value>
+    <comment>Description for download user-agent.</comment>
+  </data>
+  <data name="Settings.Downloads.UserAgent.Label" xml:space="preserve">
+    <value>وكيل مستخدم التنزيل</value>
+    <comment>Label for download user-agent.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.Add" xml:space="preserve">
+    <value>إضافة تثبيت مخصص...</value>
+    <comment>Button to add custom installation.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.Description" xml:space="preserve">
+    <value>إضافة تثبيتات ألعاب مخصصة أو متتبعة عبر Git خارج Steam/EA App</value>
+    <comment>Description for custom game installations.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.Label" xml:space="preserve">
+    <value>تثبيتات اللعبة المخصصة</value>
+    <comment>Label for custom game installations.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.NoInstallations" xml:space="preserve">
+    <value>لا توجد تثبيتات مخصصة مسجلة</value>
+    <comment>Message when no custom installations exist.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.CustomInstallations.RemoveToolTip" xml:space="preserve">
+    <value>إزالة التثبيت المخصص</value>
+    <comment>Tooltip to remove custom installation.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.DefaultWorkspaceStrategy.Description" xml:space="preserve">
+    <value>اختر كيفية إدارة الملفات في مساحات عمل اللعبة</value>
+    <comment>Description for default workspace strategy.</comment>
+  </data>
+  <data name="Settings.GameConfiguration.DefaultWorkspaceStrategy.Label" xml:space="preserve">
+    <value>استراتيجية مساحة العمل الافتراضية</value>
+    <comment>Label for default workspace strategy.</comment>
+  </data>
+  <data name="Settings.General.AutoCheckForUpdates" xml:space="preserve">
+    <value>التحقق التلقائي من التحديثات عند بدء التشغيل</value>
+    <comment>Label for auto check for updates checkbox</comment>
+  </data>
+  <data name="Settings.General.DefaultWorkspaceStrategy" xml:space="preserve">
+    <value>استراتيجية مساحة العمل الافتراضية</value>
+    <comment>Label for default workspace strategy setting</comment>
+  </data>
+  <data name="Settings.General.EnableDetailedLogging" xml:space="preserve">
+    <value>تمكين التسجيل المفصل</value>
+    <comment>Label for enable detailed logging checkbox</comment>
+  </data>
+  <data name="Settings.GitHubDiscovery.Repositories.Description" xml:space="preserve">
+    <value>حدد مستودعات GitHub للبحث عن الإصدارات. مالك/مستودع واحد في كل سطر.</value>
+    <comment>Description for repositories.</comment>
+  </data>
+  <data name="Settings.GitHubDiscovery.Repositories.Label" xml:space="preserve">
+    <value>مستودعات GitHub (واحد في كل سطر، مالك/مستودع)</value>
+    <comment>Label for repositories.</comment>
+  </data>
+  <data name="Settings.GitHubDiscovery.Repositories.Watermark" xml:space="preserve">
+    <value>مثال: some-author/some-mod</value>
+    <comment>Watermark for repositories.</comment>
+  </data>
+  <data name="Settings.Hint.SettingsAutoSave" xml:space="preserve">
+    <value>يتم حفظ الإعدادات تلقائياً وستسري فوراً أو عند إعادة التشغيل التالية حسب الحاجة.</value>
+    <comment>Hint about settings auto-save behavior</comment>
+  </data>
+  <data name="Settings.Label.CacheDirectory" xml:space="preserve">
+    <value>دليل ذاكرة التخزين المؤقت</value>
+    <comment>Label for cache directory setting</comment>
+  </data>
+  <data name="Settings.Label.ContentDirectories" xml:space="preserve">
+    <value>دلائل المحتوى (واحد في كل سطر)</value>
+    <comment>Label for content directories setting</comment>
+  </data>
+  <data name="Settings.Label.ContentStorage" xml:space="preserve">
+    <value>دليل تخزين المحتوى</value>
+    <comment>Label for content storage directory setting</comment>
+  </data>
+  <data name="Settings.Label.GitHubRepositories" xml:space="preserve">
+    <value>مستودعات GitHub (واحد في كل سطر، مالك/مستودع)</value>
+    <comment>Label for GitHub repositories setting</comment>
+  </data>
+  <data name="Settings.Label.MemoryUsage" xml:space="preserve">
+    <value>استخدام الذاكرة</value>
+    <comment>Label for memory usage display</comment>
+  </data>
+  <data name="Settings.Label.PreferredGamePath" xml:space="preserve">
+    <value>مسار تثبيت اللعبة المفضل</value>
+    <comment>Label for preferred game path setting</comment>
+  </data>
+  <data name="Settings.LocalContent.Directories.Description" xml:space="preserve">
+    <value>حدد الدلائل لفحص المحتوى المحلي. مسار واحد في كل سطر.</value>
+    <comment>Description for content directories.</comment>
+  </data>
+  <data name="Settings.LocalContent.Directories.Label" xml:space="preserve">
+    <value>دلائل المحتوى (واحد في كل سطر)</value>
+    <comment>Label for content directories.</comment>
+  </data>
+  <data name="Settings.LocalContent.Directories.Watermark" xml:space="preserve">
+    <value>مثال: C:\Games\GenHub\Mods</value>
+    <comment>Watermark for content directories.</comment>
+  </data>
+  <data name="Settings.Logs.ApplicationLogs.Label" xml:space="preserve">
+    <value>سجلات التطبيق</value>
+    <comment>Label for application logs.</comment>
+  </data>
+  <data name="Settings.Logs.Clear" xml:space="preserve">
+    <value>مسح السجلات</value>
+    <comment>Button to clear logs.</comment>
+  </data>
+  <data name="Settings.Logs.CopyLatest" xml:space="preserve">
+    <value>نسخ أحدث سجل</value>
+    <comment>Button to copy latest log.</comment>
+  </data>
+  <data name="Settings.Logs.DetailedLogging.Description" xml:space="preserve">
+    <value>تمكين تسجيل تصحيح الأخطاء (DEBUG) المفصل لاستكشاف الأخطاء وإصلاحها. يسري المفعول فوراً.</value>
+    <comment>Description for detailed logging.</comment>
+  </data>
+  <data name="Settings.Logs.DetailedLogging.Label" xml:space="preserve">
+    <value>تمكين التسجيل المفصل</value>
+    <comment>Label for detailed logging.</comment>
+  </data>
+  <data name="Settings.Logs.OpenDirectory" xml:space="preserve">
+    <value>فتح دليل السجلات</value>
+    <comment>Button to open logs directory.</comment>
+  </data>
+  <data name="Settings.Logs.OpenLatest" xml:space="preserve">
+    <value>فتح أحدث سجل</value>
+    <comment>Button to open latest log.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.Button" xml:space="preserve">
+    <value>نقل موقع التثبيت</value>
+    <comment>Button to start migration.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.Description" xml:space="preserve">
+    <value>نقل ملفات تطبيق GenHub والملفات التنفيذية إلى محرك أقراص أو دليل آخر. مفيد لتحرير مساحة على قسم النظام.</value>
+    <comment>Description for migration.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.RelocateCas.Description" xml:space="preserve">
+    <value>ينقل ملفات التعديلات المخزنة مؤقتاً ومحتوى اللعبة ومساحات العمل إلى محرك الأقراص الجديد لزيادة المساحة المحررة على محرك الأقراص الحالي.</value>
+    <comment>Description for relocating CAS.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.RelocateCas.Label" xml:space="preserve">
+    <value>نقل تجمع تخزين CAS ومساحات عمل اللعبة أيضاً إلى الدليل الهدف</value>
+    <comment>Checkbox for relocating CAS.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.TargetPath.Description" xml:space="preserve">
+    <value>حدد مجلداً فارغاً أو جديداً على محرك الأقراص المفضل لديك.</value>
+    <comment>Description for target migration directory.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.TargetPath.Label" xml:space="preserve">
+    <value>دليل التثبيت الهدف</value>
+    <comment>Label for target migration directory.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.TargetPath.Watermark" xml:space="preserve">
+    <value>حدد أو أدخل دليل التثبيت الهدف...</value>
+    <comment>Watermark for target migration directory.</comment>
+  </data>
+  <data name="Settings.MigrateInstallation.Title" xml:space="preserve">
+    <value>نقل تثبيت GenHub</value>
+    <comment>Title for relocation panel.</comment>
+  </data>
+  <data name="Settings.Notification.SettingsSaved" xml:space="preserve">
+    <value>✓ تم حفظ الإعدادات بنجاح!</value>
+    <comment>Notification shown when settings are saved</comment>
+  </data>
+  <data name="Settings.Path.CachePath" xml:space="preserve">
+    <value>مسار ذاكرة التخزين المؤقت</value>
+    <comment>Label for cache path setting</comment>
+  </data>
+  <data name="Settings.Path.CasRootPath" xml:space="preserve">
+    <value>مسار جذر CAS</value>
+    <comment>Label for Content-Addressable Storage root path setting</comment>
+  </data>
+  <data name="Settings.Path.ContentStoragePath" xml:space="preserve">
+    <value>مسار تخزين المحتوى</value>
+    <comment>Label for content storage path setting</comment>
+  </data>
+  <data name="Settings.Path.SettingsFilePath" xml:space="preserve">
+    <value>مسار ملف الإعدادات</value>
+    <comment>Label for settings file path setting</comment>
+  </data>
+  <data name="Settings.Path.WorkspacePath" xml:space="preserve">
+    <value>مسار مساحة العمل</value>
+    <comment>Label for workspace path setting</comment>
+  </data>
+  <data name="Settings.Performance.MemoryUsage.Description" xml:space="preserve">
+    <value>مراقبة استهلاك التطبيق للذاكرة</value>
+    <comment>Description for memory usage.</comment>
+  </data>
+  <data name="Settings.Performance.MemoryUsage.Label" xml:space="preserve">
+    <value>استخدام الذاكرة</value>
+    <comment>Label for memory usage.</comment>
+  </data>
+  <data name="Settings.Section.Appearance" xml:space="preserve">
+    <value>المظهر</value>
+    <comment>Appearance settings section header.</comment>
+  </data>
+  <data name="Settings.Section.CAS" xml:space="preserve">
+    <value>🔗 التخزين القابل للتوجيه حسب المحتوى (CAS)</value>
+    <comment>Section header for CAS settings</comment>
+  </data>
+  <data name="Settings.Section.CasStorage" xml:space="preserve">
+    <value>تخزين CAS</value>
+    <comment>CAS storage section header.</comment>
+  </data>
+  <data name="Settings.Section.ContentDirectories" xml:space="preserve">
+    <value>📁 دلائل المحتوى المحلي</value>
+    <comment>Section header for content directories settings</comment>
+  </data>
+  <data name="Settings.Section.DangerZone" xml:space="preserve">
+    <value>منطقة الخطر</value>
+    <comment>Danger Zone section header.</comment>
+  </data>
+  <data name="Settings.Section.DataDirectories" xml:space="preserve">
+    <value>دلائل البيانات</value>
+    <comment>Data directories settings section header.</comment>
+  </data>
+  <data name="Settings.Section.Downloads" xml:space="preserve">
+    <value>التنزيلات</value>
+    <comment>Downloads settings section header.</comment>
+  </data>
+  <data name="Settings.Section.GameConfiguration" xml:space="preserve">
+    <value>إعدادات اللعبة</value>
+    <comment>Game Configuration section header.</comment>
+  </data>
+  <data name="Settings.Section.GitHubDiscovery" xml:space="preserve">
+    <value>استكشاف GitHub</value>
+    <comment>GitHub discovery section header.</comment>
+  </data>
+  <data name="Settings.Section.LocalContent" xml:space="preserve">
+    <value>المحتوى المحلي</value>
+    <comment>Local content section header.</comment>
+  </data>
+  <data name="Settings.Section.Logs" xml:space="preserve">
+    <value>السجلات</value>
+    <comment>Logs settings section header.</comment>
+  </data>
+  <data name="Settings.Section.MigrateInstallation" xml:space="preserve">
+    <value>نقل التثبيت</value>
+    <comment>Migrate installation section header.</comment>
+  </data>
+  <data name="Settings.Section.Performance" xml:space="preserve">
+    <value>الأداء</value>
+    <comment>Performance section header.</comment>
+  </data>
+  <data name="Settings.Section.Storage" xml:space="preserve">
+    <value>🗄️ التخزين</value>
+    <comment>Section header for storage settings</comment>
+  </data>
+  <data name="Settings.Section.Updates" xml:space="preserve">
+    <value>التحديثات</value>
+    <comment>Updates section header.</comment>
+  </data>
+  <data name="Settings.Subtitle.Settings" xml:space="preserve">
+    <value>تكوين تفضيلات GenHub وسلوك التطبيق</value>
+    <comment>Page subtitle for the Settings section</comment>
+  </data>
+  <data name="Settings.System.CurrentMemoryUsage" xml:space="preserve">
+    <value>استخدام الذاكرة الحالي (ميغابايت)</value>
+    <comment>Label for current memory usage display</comment>
+  </data>
+  <data name="Settings.Theme.Dark" xml:space="preserve">
+    <value>داكن</value>
+    <comment>Dark theme option</comment>
+  </data>
+  <data name="Settings.Theme.Label" xml:space="preserve">
+    <value>السمة</value>
+    <comment>Label for theme selection setting</comment>
+  </data>
+  <data name="Settings.Theme.Light" xml:space="preserve">
+    <value>فاتح</value>
+    <comment>Light theme option</comment>
+  </data>
+  <data name="Settings.Title.Settings" xml:space="preserve">
+    <value>الإعدادات</value>
+    <comment>Page title for the Settings section</comment>
+  </data>
+  <data name="Settings.Updates.CheckInterval.Description" xml:space="preserve">
+    <value>عدد مرات التحقق التلقائي من التحديثات (5-10080 دقيقة، الافتراضي: 30 دقيقة)</value>
+    <comment>Description for update check interval.</comment>
+  </data>
+  <data name="Settings.Updates.CheckInterval.Label" xml:space="preserve">
+    <value>الفاصل الزمني للتحقق من التحديثات (بالدقائق)</value>
+    <comment>Label for update check interval.</comment>
+  </data>
+  <data name="Settings.Updates.CheckPeriodically.Description" xml:space="preserve">
+    <value>التحقق تلقائياً من التحديثات في الخلفية على فترات منتظمة</value>
+    <comment>Description for periodic update check.</comment>
+  </data>
+  <data name="Settings.Updates.CheckPeriodically.Label" xml:space="preserve">
+    <value>التحقق من التحديثات دورياً</value>
+    <comment>Checkbox for periodic update check.</comment>
+  </data>
+  <data name="Settings.Updates.CheckStartup.Description" xml:space="preserve">
+    <value>التحقق تلقائياً من تحديثات GenHub عند بدء تشغيل التطبيق</value>
+    <comment>Description for startup update check.</comment>
+  </data>
+  <data name="Settings.Updates.CheckStartup.Label" xml:space="preserve">
+    <value>التحقق من وجود تحديثات عند بدء التشغيل</value>
+    <comment>Checkbox for startup update check.</comment>
+  </data>
+  <data name="Settings.Updates.CurrentVersion.Label" xml:space="preserve">
+    <value>الإصدار الحالي</value>
+    <comment>Label for current version.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.CreateButton" xml:space="preserve">
+    <value>إنشاء رمز PAT ←</value>
+    <comment>Button to create PAT on GitHub.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.CreateToolTip" xml:space="preserve">
+    <value>انقر لفتح صفحة إنشاء رمز الوصول الشخصي (PAT) على GitHub</value>
+    <comment>Tooltip for create PAT button.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.Label" xml:space="preserve">
+    <value>رمز الوصول الشخصي لـ GitHub (لتحديثات العناصر المُنشأة)</value>
+    <comment>Label for PAT.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.Remove" xml:space="preserve">
+    <value>إزالة رمز PAT</value>
+    <comment>Button to remove PAT.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.SaveAndTest" xml:space="preserve">
+    <value>حفظ واختبار</value>
+    <comment>Button to save and test PAT.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.ScopeDescription" xml:space="preserve">
+    <value>يلزم توفر رمز PAT بنطاق 'repo' للوصول إلى عناصر GitHub CI.</value>
+    <comment>Description for PAT scope.</comment>
+  </data>
+  <data name="Settings.Updates.GitHubPat.Warning" xml:space="preserve">
+    <value>للاشتراك في طلبات السحب (Pull Requests) أو اختبار فروع معينة، يجب عليك تكوين رمز الوصول أعلاه. يتيح ذلك لـ GenHub تنزيل البناء مباشرة من GitHub CI.</value>
+    <comment>Warning about PAT necessity.</comment>
+  </data>
+  <data name="Settings.Updates.ManageUpdatesButton" xml:space="preserve">
+    <value>إدارة التحديثات وطلبات السحب</value>
+    <comment>Button to open Updates window.</comment>
+  </data>
+  <data name="Settings.Updates.ManageUpdatesToolTip" xml:space="preserve">
+    <value>استعراض التحديثات المتاحة والاشتراك في طلبات السحب</value>
+    <comment>Tooltip for manage updates button.</comment>
+  </data>
+  <data name="Settings.Updates.SubscribedBranch.Description" xml:space="preserve">
+    <value>إدارة اشتراك الفرع الخاص بك في نافذة التحديثات وطلبات السحب.</value>
+    <comment>Description for subscribed branch.</comment>
+  </data>
+  <data name="Settings.Updates.SubscribedBranch.Label" xml:space="preserve">
+    <value>الفرع المشترك فيه</value>
+    <comment>Label for subscribed branch.</comment>
+  </data>
+  <data name="Settings.Watermark.DefaultCasPool" xml:space="preserve">
+    <value>افتراضي (%AppData%/GenHub/cas-pool)</value>
+    <comment>Placeholder for CAS root path</comment>
+  </data>
+  <data name="Settings.Watermark.DefaultContent" xml:space="preserve">
+    <value>افتراضي (%AppData%/GenHub/Content)</value>
+    <comment>Placeholder for content storage path</comment>
+  </data>
+  <data name="Settings.Watermark.DefaultPlatform" xml:space="preserve">
+    <value>افتراضي (يعتمد على المنصة)</value>
+    <comment>Placeholder for platform-dependent default paths</comment>
+  </data>
+  <data name="Settings.Watermark.GamePath" xml:space="preserve">
+    <value>اكتشاف مسار تثبيت اللعبة تلقائياً...</value>
+    <comment>Placeholder for game path input</comment>
+  </data>
+  <data name="Settings.Watermark.GitHubRepoExample" xml:space="preserve">
+    <value>مثال: some-author/some-mod</value>
+    <comment>Example placeholder for GitHub repository</comment>
+  </data>
+  <data name="Settings.Watermark.ModsExample" xml:space="preserve">
+    <value>مثال: C:\Games\GenHub\Mods</value>
+    <comment>Example placeholder for mods directory</comment>
+  </data>
+  <data name="Tools.Button.AddTool" xml:space="preserve">
+    <value>➕ إضافة أداة</value>
+    <comment>Button to add a new tool plugin</comment>
+  </data>
+  <data name="Tools.Button.CloseDialog" xml:space="preserve">
+    <value>إغلاق</value>
+    <comment>Button to close a dialog</comment>
+  </data>
+  <data name="Tools.Button.RefreshTools" xml:space="preserve">
+    <value>🔄 تحديث</value>
+    <comment>Button to refresh the tools list</comment>
+  </data>
+  <data name="Tools.Dialog.SelectToolAssembly" xml:space="preserve">
+    <value>حدد ملف تجميع ملحق الأداة</value>
+    <comment>File picker dialog title</comment>
+  </data>
+  <data name="Tools.Dialog.ToolDetails" xml:space="preserve">
+    <value>تفاصيل الأداة</value>
+    <comment>Dialog title for viewing tool details</comment>
+  </data>
+  <data name="Tools.EmptyState.NoTools" xml:space="preserve">
+    <value>لم يتم تثبيت أي أدوات بعد</value>
+    <comment>Empty state title when no tools are installed</comment>
+  </data>
+  <data name="Tools.EmptyState.NoToolsDescription" xml:space="preserve">
+    <value>انقر فوق 'إضافة أداة' لتثبيت أول ملحق أداة لك</value>
+    <comment>Empty state description when no tools are installed</comment>
+  </data>
+  <data name="Tools.EmptyState.SelectTool" xml:space="preserve">
+    <value>حدد أداة من القائمة</value>
+    <comment>Prompt to select a tool from the sidebar</comment>
+  </data>
+  <data name="Tools.Error.ErrorLoadingTool" xml:space="preserve">
+    <value>✗ خطأ أثناء تحميل الأداة '{0}': {1}</value>
+    <comment>Error message when a specific tool fails to load. {0} = tool name, {1} = error</comment>
+  </data>
+  <data name="Tools.Error.FailedToInstallTool" xml:space="preserve">
+    <value>✗ فشل تثبيت الأداة: {0}</value>
+    <comment>Error message when tool installation fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.Error.FailedToLoadTools" xml:space="preserve">
+    <value>⚠ فشل تحميل الأدوات: {0}</value>
+    <comment>Error message when loading tools fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.Error.FailedToRefreshTools" xml:space="preserve">
+    <value>⚠ فشل تحديث الأدوات: {0}</value>
+    <comment>Error message when tools refresh fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.Error.FailedToRemoveTool" xml:space="preserve">
+    <value>✗ فشل إزالة الأداة: {0}</value>
+    <comment>Error message when tool removal fails. {0} = error details</comment>
+  </data>
+  <data name="Tools.FileType.ToolPluginAssembly" xml:space="preserve">
+    <value>تجميع ملحق الأداة</value>
+    <comment>File type description for DLL files</comment>
+  </data>
+  <data name="Tools.Label.Author" xml:space="preserve">
+    <value>المؤلف</value>
+    <comment>Field label for tool author</comment>
+  </data>
+  <data name="Tools.Label.Description" xml:space="preserve">
+    <value>الوصف</value>
+    <comment>Field label for tool description</comment>
+  </data>
+  <data name="Tools.Label.InstalledTools" xml:space="preserve">
+    <value>الأدوات المثبتة</value>
+    <comment>Section label for installed tools list</comment>
+  </data>
+  <data name="Tools.Label.Name" xml:space="preserve">
+    <value>الاسم</value>
+    <comment>Field label for tool name</comment>
+  </data>
+  <data name="Tools.Label.ToolId" xml:space="preserve">
+    <value>معرّف الأداة</value>
+    <comment>Field label for tool identifier</comment>
+  </data>
+  <data name="Tools.Label.Version" xml:space="preserve">
+    <value>الإصدار</value>
+    <comment>Field label for tool version</comment>
+  </data>
+  <data name="Tools.MenuItem.RemoveTool" xml:space="preserve">
+    <value>إزالة الأداة</value>
+    <comment>Context menu item to remove a tool</comment>
+  </data>
+  <data name="Tools.MenuItem.ViewDetails" xml:space="preserve">
+    <value>عرض التفاصيل</value>
+    <comment>Context menu item to view tool details</comment>
+  </data>
+  <data name="Tools.Status.InstallingTool" xml:space="preserve">
+    <value>جارٍ تثبيت الأداة...</value>
+    <comment>Status during tool installation</comment>
+  </data>
+  <data name="Tools.Status.Loading" xml:space="preserve">
+    <value>جارٍ التحميل...</value>
+    <comment>Loading status message</comment>
+  </data>
+  <data name="Tools.Status.NoToolsInstalled" xml:space="preserve">
+    <value>لا توجد أدوات مثبتة. انقر فوق 'إضافة أداة' لتثبيت ملحق أداة.</value>
+    <comment>Status when no tools are installed</comment>
+  </data>
+  <data name="Tools.Status.RefreshingTools" xml:space="preserve">
+    <value>جارٍ تحديث الأدوات...</value>
+    <comment>Status during tools refresh</comment>
+  </data>
+  <data name="Tools.Status.RemovingTool" xml:space="preserve">
+    <value>جارٍ إزالة الأداة '{0}'...</value>
+    <comment>Status during tool removal. {0} = tool name</comment>
+  </data>
+  <data name="Tools.Status.ToolInstalledSuccess" xml:space="preserve">
+    <value>✓ تم تثبيت الأداة '{0}' الإصدار {1} بنجاح.</value>
+    <comment>Success message after installing a tool. {0} = tool name, {1} = version</comment>
+  </data>
+  <data name="Tools.Status.ToolRemovedSuccess" xml:space="preserve">
+    <value>✓ تمت إزالة الأداة '{0}' بنجاح.</value>
+    <comment>Success message after removing a tool. {0} = tool name</comment>
+  </data>
+  <data name="Tools.Status.ToolsRefreshedSuccess" xml:space="preserve">
+    <value>✓ تم تحديث {0} أداة (أدوات) بنجاح.</value>
+    <comment>Success message after refreshing tools. {0} = tool count</comment>
+  </data>
+  <data name="Tools.Subtitle.Tools" xml:space="preserve">
+    <value>إدارة ملحقات الأدوات واستخدامها لتوسيع وظائف GenHub</value>
+    <comment>Page subtitle for the Tools tab</comment>
+  </data>
+  <data name="Tools.Title.Tools" xml:space="preserve">
+    <value>الأدوات</value>
+    <comment>Page title for the Tools tab</comment>
+  </data>
+  <data name="Tools.Tooltip.CollapseSidebar" xml:space="preserve">
+    <value>طي الشريط الجانبي</value>
+    <comment>Tooltip for collapse sidebar button</comment>
+  </data>
+  <data name="Tools.Tooltip.ExpandSidebar" xml:space="preserve">
+    <value>توسيع الشريط الجانبي</value>
+    <comment>Tooltip for expand sidebar button</comment>
+  </data>
+  <data name="Tooltips.Button.Add" xml:space="preserve">
+    <value>إضافة عنصر جديد</value>
+    <comment>Tooltip for add button</comment>
+  </data>
+  <data name="Tooltips.Button.Browse" xml:space="preserve">
+    <value>استعراض للبحث عن ملف أو مجلد</value>
+    <comment>Tooltip for browse button</comment>
+  </data>
+  <data name="Tooltips.Button.Cancel" xml:space="preserve">
+    <value>إلغاء وتجاهل التغييرات</value>
+    <comment>Tooltip for cancel button</comment>
+  </data>
+  <data name="Tooltips.Button.Delete" xml:space="preserve">
+    <value>حذف العنصر المحدد</value>
+    <comment>Tooltip for delete button</comment>
+  </data>
+  <data name="Tooltips.Button.Edit" xml:space="preserve">
+    <value>تعديل العنصر المحدد</value>
+    <comment>Tooltip for edit button</comment>
+  </data>
+  <data name="Tooltips.Button.Refresh" xml:space="preserve">
+    <value>تحديث البيانات</value>
+    <comment>Tooltip for refresh button</comment>
+  </data>
+  <data name="Tooltips.Button.Reset" xml:space="preserve">
+    <value>إعادة التعيين إلى القيم الافتراضية</value>
+    <comment>Tooltip for reset button</comment>
+  </data>
+  <data name="Tooltips.Button.Save" xml:space="preserve">
+    <value>حفظ التغييرات</value>
+    <comment>Tooltip for save button</comment>
+  </data>
+  <data name="Tooltips.Content.Filter" xml:space="preserve">
+    <value>تصفية نتائج البحث</value>
+    <comment>Tooltip for content filter options</comment>
+  </data>
+  <data name="Tooltips.Content.Search" xml:space="preserve">
+    <value>البحث عن المحتوى</value>
+    <comment>Tooltip for content search button</comment>
+  </data>
+  <data name="Tooltips.Content.Sort" xml:space="preserve">
+    <value>فرز نتائج البحث</value>
+    <comment>Tooltip for content sort options</comment>
+  </data>
+  <data name="Tooltips.CopyVersionToClipboard" xml:space="preserve">
+    <value>انقر لنسخ الإصدار الكامل (بما في ذلك تجزئة git) إلى الحافظة</value>
+    <comment>Tooltip for version display button.</comment>
+  </data>
+  <data name="Tooltips.Icon.Error" xml:space="preserve">
+    <value>خطأ - فشل الإجراء</value>
+    <comment>Tooltip for error icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Help" xml:space="preserve">
+    <value>إظهار معلومات المساعدة</value>
+    <comment>Tooltip for help icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Info" xml:space="preserve">
+    <value>إظهار معلومات إضافية</value>
+    <comment>Tooltip for info icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Success" xml:space="preserve">
+    <value>نجاح - اكتمل الإجراء</value>
+    <comment>Tooltip for success icon</comment>
+  </data>
+  <data name="Tooltips.Icon.Warning" xml:space="preserve">
+    <value>تحذير - يلزم الانتباه</value>
+    <comment>Tooltip for warning icon</comment>
+  </data>
+  <data name="Tooltips.Nav.Content" xml:space="preserve">
+    <value>استعراض والبحث عن المحتوى</value>
+    <comment>Tooltip for content browser navigation tab</comment>
+  </data>
+  <data name="Tooltips.Nav.Downloads" xml:space="preserve">
+    <value>عرض وإدارة التنزيلات</value>
+    <comment>Tooltip for downloads navigation tab</comment>
+  </data>
+  <data name="Tooltips.Nav.GameProfiles" xml:space="preserve">
+    <value>إدارة وتشغيل ملفات تعريف اللعبة</value>
+    <comment>Tooltip for game profiles navigation tab</comment>
+  </data>
+  <data name="Tooltips.Nav.Settings" xml:space="preserve">
+    <value>تكوين إعدادات التطبيق</value>
+    <comment>Tooltip for settings navigation tab</comment>
+  </data>
+  <data name="Tooltips.Profile.CreateNew" xml:space="preserve">
+    <value>إنشاء ملف تعريف لعبة جديد</value>
+    <comment>Tooltip for create new profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.CreateShortcut" xml:space="preserve">
+    <value>إنشاء اختصار على سطح المكتب لملف التعريف هذا</value>
+    <comment>Tooltip for create shortcut button</comment>
+  </data>
+  <data name="Tooltips.Profile.Delete" xml:space="preserve">
+    <value>حذف ملف التعريف هذا</value>
+    <comment>Tooltip for delete profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.Edit" xml:space="preserve">
+    <value>تعديل إعدادات ملف التعريف</value>
+    <comment>Tooltip for edit profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.Launch" xml:space="preserve">
+    <value>تشغيل اللعبة باستخدام ملف التعريف هذا</value>
+    <comment>Tooltip for launch profile button</comment>
+  </data>
+  <data name="Tooltips.Profile.ScanForGames" xml:space="preserve">
+    <value>فحص النظام بحثاً عن الألعاب المثبتة</value>
+    <comment>Tooltip for scan for games button</comment>
+  </data>
+  <data name="Tooltips.Settings.AllowBackgroundDownloads" xml:space="preserve">
+    <value>السماح بمتابعة التنزيلات في الخلفية</value>
+    <comment>Tooltip for allow background downloads setting</comment>
+  </data>
+  <data name="Tooltips.Settings.AutoCheckUpdates" xml:space="preserve">
+    <value>التحقق تلقائياً من تحديثات التطبيق عند بدء التشغيل</value>
+    <comment>Tooltip for auto check updates setting</comment>
+  </data>
+  <data name="Tooltips.Settings.CasRootPath" xml:space="preserve">
+    <value>الدليل الجذر للتخزين القابل للتعيين حسب المحتوى (CAS)</value>
+    <comment>Tooltip for CAS root path setting</comment>
+  </data>
+  <data name="Tooltips.Settings.DefaultWorkspaceStrategy" xml:space="preserve">
+    <value>الاستراتيجية الافتراضية لإنشاء مساحات عمل اللعبة</value>
+    <comment>Tooltip for default workspace strategy setting</comment>
+  </data>
+  <data name="Tooltips.Settings.DownloadBufferSize" xml:space="preserve">
+    <value>حجم المخزن المؤقت للتنزيل بالكيلوبايت</value>
+    <comment>Tooltip for download buffer size setting</comment>
+  </data>
+  <data name="Tooltips.Settings.DownloadTimeout" xml:space="preserve">
+    <value>مدة مهلة التنزيل بالثواني</value>
+    <comment>Tooltip for download timeout setting</comment>
+  </data>
+  <data name="Tooltips.Settings.EnableAutomaticGC" xml:space="preserve">
+    <value>تنظيف ملفات ذاكرة التخزين المؤقت غير المستخدمة تلقائياً</value>
+    <comment>Tooltip for enable automatic GC setting</comment>
+  </data>
+  <data name="Tooltips.Settings.EnableDetailedLogging" xml:space="preserve">
+    <value>تمكين التسجيل المفصل لاستكشاف الأخطاء وإصلاحها</value>
+    <comment>Tooltip for enable detailed logging setting</comment>
+  </data>
+  <data name="Tooltips.Settings.MaxCacheSize" xml:space="preserve">
+    <value>الحد الأقصى لحجم ذاكرة التخزين المؤقت بالغيغابايت</value>
+    <comment>Tooltip for max cache size setting</comment>
+  </data>
+  <data name="Tooltips.Settings.MaxConcurrentDownloads" xml:space="preserve">
+    <value>الحد الأقصى لعدد التنزيلات المتزامنة (1-10)</value>
+    <comment>Tooltip for max concurrent downloads setting</comment>
+  </data>
+  <data name="Tooltips.Settings.Theme" xml:space="preserve">
+    <value>الاختيار بين السمة الداكنة والفاتحة</value>
+    <comment>Tooltip for theme setting</comment>
+  </data>
+  <data name="Tooltips.Settings.VerifyIntegrity" xml:space="preserve">
+    <value>التحقق من سلامة الملفات أثناء عمليات ذاكرة التخزين المؤقت</value>
+    <comment>Tooltip for verify integrity setting</comment>
+  </data>
+  <data name="Tooltips.Settings.WorkspacePath" xml:space="preserve">
+    <value>دليل مساحة العمل الافتراضي لملفات تعريف اللعبة</value>
+    <comment>Tooltip for workspace path setting</comment>
+  </data>
+  <data name="Tooltips.Update.CheckForUpdates" xml:space="preserve">
+    <value>التحقق من وجود تحديثات للتطبيق</value>
+    <comment>Tooltip for check for updates button</comment>
+  </data>
+  <data name="Tooltips.Update.Dismiss" xml:space="preserve">
+    <value>تجاهل إشعار التحديث</value>
+    <comment>Tooltip for dismiss update button</comment>
+  </data>
+  <data name="Tooltips.Update.InstallUpdate" xml:space="preserve">
+    <value>تنزيل التحديث وتثبيته</value>
+    <comment>Tooltip for install update button</comment>
+  </data>
+  <data name="Tooltips.Update.ViewReleaseNotes" xml:space="preserve">
+    <value>عرض ملاحظات الإصدار في المتصفح</value>
+    <comment>Tooltip for view release notes button</comment>
+  </data>
+  <data name="Updates.Button.InstallUpdate" xml:space="preserve">
+    <value>تثبيت التحديث</value>
+    <comment>Button text for installing update</comment>
+  </data>
+  <data name="Updates.Button.Installing" xml:space="preserve">
+    <value>جارٍ التثبيت...</value>
+    <comment>Button text shown while installing</comment>
+  </data>
+  <data name="Updates.Description.DefaultUpdateNotes" xml:space="preserve">
+    <value>يتضمن هذا التحديث إصلاحات للأخطاء وتحسينات في الأداء وميزات جديدة.</value>
+    <comment>Default text for update description when no specific notes</comment>
+  </data>
+  <data name="Updates.Error.FailedToCheckForUpdates" xml:space="preserve">
+    <value>فشل التحقق من وجود تحديثات: {0}</value>
+    <comment>Error message when update check fails. {0} is the error details</comment>
+  </data>
+  <data name="Updates.Error.NoCompatiblePackage" xml:space="preserve">
+    <value>لم يتم العثور على حزمة تحديث متوافقة مع منصتك.</value>
+    <comment>Error message when no compatible update package is found</comment>
+  </data>
+  <data name="Updates.Error.UpdateFailed" xml:space="preserve">
+    <value>فشل التحديث: {0}</value>
+    <comment>Error message when update fails. {0} is the error details</comment>
+  </data>
+  <data name="Updates.Label.VersionReady" xml:space="preserve">
+    <value>جاهز للتثبيت</value>
+    <comment>Partial text indicating version is ready</comment>
+  </data>
+  <data name="Updates.Label.WhatsNew" xml:space="preserve">
+    <value>ما الجديد:</value>
+    <comment>Label for release notes section</comment>
+  </data>
+  <data name="Updates.Progress.InstallationFailed" xml:space="preserve">
+    <value>فشل التثبيت</value>
+    <comment>Progress message when installation fails</comment>
+  </data>
+  <data name="Updates.Progress.PercentComplete" xml:space="preserve">
+    <value>% مكتمل</value>
+    <comment>Partial text for percentage completion</comment>
+  </data>
+  <data name="Updates.Progress.PreparingDownload" xml:space="preserve">
+    <value>جارٍ تحضير التنزيل...</value>
+    <comment>Progress message when preparing download</comment>
+  </data>
+  <data name="Updates.Progress.Ready" xml:space="preserve">
+    <value>جاهز</value>
+    <comment>Initial progress message</comment>
+  </data>
+  <data name="Updates.Progress.UpdatePreparedSuccessfully" xml:space="preserve">
+    <value>تم إعداد التحديث بنجاح! سيُعاد تشغيل التطبيق تلقائياً.</value>
+    <comment>Progress message when update is successfully prepared</comment>
+  </data>
+  <data name="Updates.Status.CheckingForUpdates" xml:space="preserve">
+    <value>جارٍ التحقق من وجود تحديثات...</value>
+    <comment>Status message while checking for updates</comment>
+  </data>
+  <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
+    <value>لا توجد تحديثات متاحة</value>
+    <comment>Status message when no updates are available</comment>
+  </data>
+  <data name="Updates.Status.PreparingDownload" xml:space="preserve">
+    <value>جارٍ التحضير لتنزيل التحديث...</value>
+    <comment>Status message when preparing to download update</comment>
+  </data>
+  <data name="Updates.Status.ReadyToCheck" xml:space="preserve">
+    <value>جاهز للتحقق من وجود تحديثات</value>
+    <comment>Initial status message before checking for updates</comment>
+  </data>
+  <data name="Updates.Status.UpToDate" xml:space="preserve">
+    <value>أنت تستخدم أحدث إصدار!</value>
+    <comment>Status message when app is already on latest version</comment>
+  </data>
+  <data name="Updates.Status.UpdateAvailable" xml:space="preserve">
+    <value>تحديث متاح: {0}</value>
+    <comment>Status message when update is available. {0} is the version number</comment>
+  </data>
+  <data name="Updates.Status.UpdateAvailableExclaim" xml:space="preserve">
+    <value>تحديث متاح!</value>
+    <comment>Heading when an update is available (with exclamation)</comment>
+  </data>
+  <data name="Updates.Status.UpdateCheckFailed" xml:space="preserve">
+    <value>فشل التحقق من وجود تحديثات</value>
+    <comment>Status message when update check fails</comment>
+  </data>
+  <data name="Updates.Status.UpdateFailed" xml:space="preserve">
+    <value>فشل التحديث</value>
+    <comment>Status message when update process fails</comment>
+  </data>
+  <data name="Updates.Status.UpdateInstallationFailed" xml:space="preserve">
+    <value>فشل تثبيت التحديث.</value>
+    <comment>Status message when update installation fails</comment>
+  </data>
+  <data name="Updates.Status.UpdatePreparedSuccessfully" xml:space="preserve">
+    <value>تم إعداد التحديث بنجاح! سيُعاد تشغيل التطبيق تلقائياً.</value>
+    <comment>Status message when update is successfully prepared</comment>
+  </data>
+  <data name="Updates.Version.Current" xml:space="preserve">
+    <value>الإصدار الحالي</value>
+    <comment>Label for current application version</comment>
+  </data>
+  <data name="Updates.Version.Default" xml:space="preserve">
+    <value>v0.0.0</value>
+    <comment>Default version display when no version is available</comment>
+  </data>
+  <data name="Updates.Version.Latest" xml:space="preserve">
+    <value>أحدث إصدار</value>
+    <comment>Label for latest available version</comment>
+  </data>
+  <data name="Window.Close" xml:space="preserve">
+    <value>إغلاق</value>
+    <comment>Close window.</comment>
+  </data>
+  <data name="Window.Maximize" xml:space="preserve">
+    <value>تكبير أو استعادة</value>
+    <comment>Maximize or restore window.</comment>
+  </data>
+  <data name="Window.MaximizeRestore" xml:space="preserve">
+    <value>تكبير أو استعادة</value>
+    <comment>Maximize or restore window.</comment>
+  </data>
+  <data name="Window.Minimize" xml:space="preserve">
+    <value>تصغير</value>
+    <comment>Minimize window.</comment>
+  </data>
+  <data name="Window.Restore" xml:space="preserve">
+    <value>استعادة</value>
+    <comment>Restore window.</comment>
+  </data>
+  <data name="Tooltips.Notifications" xml:space="preserve">
+    <value>الإشعارات</value>
+    <comment>Tooltip for the notification bell button.</comment>
+  </data>
+</root>
