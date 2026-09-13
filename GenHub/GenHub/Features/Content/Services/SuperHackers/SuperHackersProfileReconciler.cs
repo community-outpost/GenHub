@@ -505,7 +505,8 @@ public class SuperHackersProfileReconciler(
 
         var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
             "SuperHackers Update Available",
-            $"A new version of **The Super Hackers** is available ({updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
+            $"A new version of **The Super Hackers** is available ({updateResult.LatestVersion}).\n\nHow do you want to apply this update?",
+            shouldDeleteOldVersions);
 
         if (dialogResult == null)
         {
@@ -529,6 +530,7 @@ public class SuperHackersProfileReconciler(
         }
 
         strategy = dialogResult.Strategy;
+        shouldDeleteOldVersions = dialogResult.DeleteOldVersions;
 
         if (dialogResult.IsDoNotAskAgain)
         {
@@ -540,6 +542,7 @@ public class SuperHackersProfileReconciler(
                 if (sub != null)
                 {
                     sub.PreferredUpdateStrategy = strategy;
+                    sub.DeleteOldVersions = shouldDeleteOldVersions;
                 }
 
                 return true;

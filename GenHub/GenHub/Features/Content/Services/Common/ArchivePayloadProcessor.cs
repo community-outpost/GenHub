@@ -217,39 +217,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     }
 
     /// <summary>
-    /// Checks whether the specified file matches the BIG archive file header format.
+    /// Determines whether the specified file is a valid BIG archive based on its header magic bytes.
     /// </summary>
-    /// <param name="filePath">Path to the file to inspect.</param>
-    /// <returns>True if the file is a BIG archive; otherwise, false.</returns>
-    internal static bool IsBigArchiveFile(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(filePath);
-            if (stream.Length < 16)
-            {
-                return false;
-            }
-
-            Span<byte> header = stackalloc byte[4];
-            if (stream.Read(header) < 4)
-            {
-                return false;
-            }
-
-            return header[0] == (byte)'B' && header[1] == (byte)'I' && header[2] == (byte)'G' &&
-                   (header[3] == (byte)'4' || header[3] == (byte)'F' || header[3] == (byte)'E' || header[3] == 0);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    /// <param name="filePath">The absolute path to the file.</param>
+    /// <returns><c>true</c> if the file contains BIG archive magic bytes; otherwise, <c>false</c>.</returns>
+    internal static bool IsBigArchiveFile(string filePath) =>
+        BigArchiveClassifier.IsBigArchiveFile(filePath);
 
     /// <summary>
     /// Compares two files byte-by-byte to determine if their contents are identical.
@@ -728,34 +701,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
-    private static bool IsExecutableFile(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(filePath);
-            if (stream.Length < 2)
-            {
-                return false;
-            }
-
-            Span<byte> header = stackalloc byte[2];
-            if (stream.Read(header) < 2)
-            {
-                return false;
-            }
-
-            return header[0] == (byte)'M' && header[1] == (byte)'Z';
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private static bool IsExecutableFile(string filePath) =>
+        ExecutableFileClassifier.HasExecutableMagicBytes(filePath);
 
     private static void CopyEntryWithCap(
         Stream source,

@@ -10,6 +10,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentProviders;
@@ -23,6 +24,7 @@ public class AODMapsContentProvider(
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
+    AODMapsManifestFactory manifestFactory,
     ILogger<AODMapsContentProvider> logger,
     IContentValidator contentValidator,
     IInstallationInstructionsService installationInstructionsService)
@@ -57,4 +59,48 @@ public class AODMapsContentProvider(
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer => _httpDeliverer;
+
+    /// <inheritdoc />
+    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
+        string contentId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentId))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
+        }
+
+        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
+        var searchResult = await SearchAsync(query, cancellationToken);
+
+        if (!searchResult.Success || !searchResult.Data.Any())
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
+        }
+
+        var result = searchResult.Data.First();
+        var manifest = result.GetData<ContentManifest>();
+
+        return manifest != null
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+    }
+
+    /// <inheritdoc />
+    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+        ContentManifest manifest,
+        string workingDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        Logger.LogInformation("Preparing AODMaps content: {ManifestId} ({Name})", manifest.Id, manifest.Name);
+
+        return DeliverAndEnrichContentAsync(
+            _httpDeliverer,
+            manifestFactory,
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken);
+    }
 }

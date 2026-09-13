@@ -459,7 +459,7 @@ public static partial class ContentCardBadgeHelper
                (result.ProviderName?.Equals("Generals Online", StringComparison.OrdinalIgnoreCase) == true) ||
                (result.Id?.StartsWith("generalsonline.", StringComparison.OrdinalIgnoreCase) == true) ||
                (result.Id?.StartsWith("1.generalsonline.", StringComparison.OrdinalIgnoreCase) == true) ||
-               (result.Id?.StartsWith("GeneralsOnline_", StringComparison.OrdinalIgnoreCase) == true) ||
+               (result.Id?.StartsWith(GeneralsOnlineConstants.ContentIdPrefix, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.AuthorName?.Equals("Generals Online", StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var goOwner) == true &&
                 (goOwner.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||

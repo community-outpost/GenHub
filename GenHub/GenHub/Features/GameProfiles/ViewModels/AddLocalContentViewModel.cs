@@ -228,6 +228,26 @@ public partial class AddLocalContentViewModel(
         }
     }
 
+    private static string FormatNormalizationSuccessMessage(GenLauncherNormalizationResult result)
+    {
+        if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import completed.";
+        }
+
+        if (result.FailedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import completed.";
+        }
+
+        if (result.SkippedFiles.Count > 0)
+        {
+            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import completed.";
+        }
+
+        return $"Normalized {result.NormalizedCount} file(s). Import successful.";
+    }
+
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
 
     private string? _originalManifestId;
@@ -634,6 +654,7 @@ public partial class AddLocalContentViewModel(
                 $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
                 "This will:\n" +
                 $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
+                $"• Convert {GenLauncherConstants.CtrExtension} files to {GenLauncherConstants.BigExtension} or {GenLauncherConstants.ExeExtension} based on content\n" +
                 $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
                 "• Remove symbolic links";
 
@@ -681,12 +702,10 @@ public partial class AddLocalContentViewModel(
             _stagingPath,
             cancellationToken);
 
-        if (normalizationResult.Success)
+        if (normalizationResult.Success && normalizationResult.Data != null)
         {
             var result = normalizationResult.Data;
-            StatusMessage = result.IsFullySuccessful
-                ? $"Normalized {result.NormalizedCount} file(s). Import successful."
-                : $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+            StatusMessage = FormatNormalizationSuccessMessage(result);
             logger?.LogInformation(
                 "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
                 result.NormalizedCount,

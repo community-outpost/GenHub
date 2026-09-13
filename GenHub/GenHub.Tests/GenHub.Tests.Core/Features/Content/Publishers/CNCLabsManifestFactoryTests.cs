@@ -66,6 +66,46 @@ public sealed class CNCLabsManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that non-map archives (such as mods) route payloads to the Workspace directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_ModArchive_RoutesPayloadToWorkspaceAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "test-mod.zip");
+        using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            await using var writer = new StreamWriter(archive.CreateEntry("modfile.big").Open());
+            await writer.WriteAsync("big payload");
+        }
+
+        var hashProvider = new Mock<IFileHashProvider>();
+        hashProvider.Setup(provider => provider.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("content-hash");
+        var factory = new CNCLabsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            hashProvider.Object,
+            new Mock<ILogger<CNCLabsManifestFactory>>().Object);
+        var original = new ContentManifest
+        {
+            Id = "1.0.cnclabs.mod.testmod",
+            Name = "Test Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        // Act
+        var manifest = Assert.Single(await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+
+        // Assert
+        var file = Assert.Single(manifest.Files);
+        Assert.Equal(ContentInstallTarget.Workspace, file.InstallTarget);
+    }
+
+    /// <summary>
     /// Deletes the test staging directory.
     /// </summary>
     public void Dispose()

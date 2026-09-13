@@ -145,12 +145,8 @@ public class CommunityOutpostProfileReconcilerTests
         _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
 
         _dialogServiceMock
-            .Setup(x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
             .ReturnsAsync(new UpdateDialogResult { Action = "Skip" });
-
-        _userSettingsServiceMock
-            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
-            .ReturnsAsync(true);
 
         var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1");
 
@@ -239,5 +235,37 @@ public class CommunityOutpostProfileReconcilerTests
         _notificationServiceMock.Verify(
             x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that the reconciler forwards the persisted DeleteOldVersions preference to the update dialog.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_WhenPromptingUser_ForwardsPersistedDeleteOldVersionsPreferenceAsync()
+    {
+        _updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable("2.0.0", "1.0.0"));
+
+        var settings = new UserSettings();
+        var subscription = settings.GetOrCreateSubscription(CommunityOutpostConstants.PublisherType);
+        subscription.DeleteOldVersions = false;
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _dialogServiceMock
+            .Setup(x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), false))
+            .ReturnsAsync(new UpdateDialogResult { Action = "Skip" });
+
+        _userSettingsServiceMock
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .ReturnsAsync(true);
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1");
+
+        Assert.True(result.Success);
+        _dialogServiceMock.Verify(
+            x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), false),
+            Times.Once);
     }
 }

@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
@@ -60,9 +62,24 @@ public interface IGameSettingsService
     Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync();
 
     /// <summary>
+    /// Loads GeneralsOnline-specific settings from settings.json.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for cancelling the load operation.</param>
+    /// <returns>An operation result containing the loaded GeneralsOnline settings or errors.</returns>
+    Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Saves GeneralsOnline-specific settings to settings.json.
     /// </summary>
     /// <param name="settings">The GeneralsOnline settings to save.</param>
     /// <returns>An operation result indicating success or failure.</returns>
     Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings);
+
+    /// <summary>
+    /// Saves GeneralsOnline-specific settings to settings.json.
+    /// </summary>
+    /// <param name="settings">The GeneralsOnline settings to save.</param>
+    /// <param name="cancellationToken">Cancellation token for cancelling the save operation.</param>
+    /// <returns>An operation result indicating success or failure.</returns>
+    Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings, CancellationToken cancellationToken);
 }

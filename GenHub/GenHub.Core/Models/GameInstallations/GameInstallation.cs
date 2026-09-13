@@ -143,7 +143,7 @@ public class GameInstallation(
     /// </summary>
     /// <remarks>
     /// This method is primarily used for testing and initialization purposes.
-    /// For production code, prefer using <see cref="SetPaths(string?, string?)"/> with explicit paths technique.
+    /// For production code, prefer using <see cref="SetPaths(string?, string?)"/> with explicit paths.
     /// </remarks>
     public void Fetch()
     {

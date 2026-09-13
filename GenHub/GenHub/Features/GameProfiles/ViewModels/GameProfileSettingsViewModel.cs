@@ -222,6 +222,21 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         };
     }
 
+    /// <summary>
+    /// Updates the hotswap state for a sequence of content display items.
+    /// </summary>
+    /// <param name="items">The items to update.</param>
+    /// <param name="hotswapMode">Whether hotswap mode is currently active.</param>
+    private static void UpdateContentItemsHotswapState(IEnumerable<ContentDisplayItem> items, bool hotswapMode)
+    {
+        foreach (var item in items)
+        {
+            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
+            item.IsLocked = isLocked;
+            item.CanToggle = canToggle;
+        }
+    }
+
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
     {
         var (isLocked, canToggle) = GetItemHotswapState(IsHotswapMode, coreItem.ContentType, coreItem.Manifest);
@@ -250,19 +265,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private void UpdateAllItemsHotswapState()
     {
         var hotswapMode = IsHotswapMode;
-        foreach (var item in EnabledContent)
-        {
-            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
-            item.IsLocked = isLocked;
-            item.CanToggle = canToggle;
-        }
-
-        foreach (var item in AvailableContent)
-        {
-            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
-            item.IsLocked = isLocked;
-            item.CanToggle = canToggle;
-        }
+        UpdateContentItemsHotswapState(EnabledContent, hotswapMode);
+        UpdateContentItemsHotswapState(AvailableContent, hotswapMode);
 
         foreach (var item in AvailableGameInstallations)
         {
@@ -272,7 +276,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     }
 
     private readonly IGameProfileManager? _gameProfileManager;
-    private readonly IGameSettingsService? _gameSettingsService;
     private readonly IConfigurationProviderService? _configurationProvider;
     private readonly IProfileContentLoader? _profileContentLoader;
     private readonly Services.ProfileResourceService? _profileResourceService;
@@ -349,7 +352,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ILaunchRegistry? launchRegistry = null)
     {
         _gameProfileManager = gameProfileManager;
-        _gameSettingsService = gameSettingsService;
         _configurationProvider = configurationProvider;
         _profileContentLoader = profileContentLoader;
         _profileResourceService = profileResourceService;
@@ -636,6 +638,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             GameTypeFilter = value.GameType;
             _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", value.GameType);
         }
+
+        if (!IsInitializing && GameSettingsViewModel.SelectedGameType != value.GameType)
+        {
+            GameSettingsViewModel.SelectedGameType = value.GameType;
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
@@ -853,15 +860,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private async Task<ContentManifest?> GetOrSynthesizeManifestForContentAsync(ContentDisplayItem contentItem, CancellationToken cancellationToken = default)
     {
-        if (_manifestPool == null)
+        if (_manifestPool != null)
         {
-            return null;
+            var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentItem.ManifestId.Value), cancellationToken);
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                return manifestResult.Data;
+            }
         }
 
-        var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentItem.ManifestId.Value), cancellationToken);
-        if (manifestResult.Success && manifestResult.Data != null)
+        if (contentItem.Manifest != null)
         {
-            return manifestResult.Data;
+            return contentItem.Manifest;
         }
 
         if (contentItem.ContentType == ContentType.GameClient && !string.IsNullOrEmpty(contentItem.SourceId))
@@ -887,6 +897,142 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Gets all active game clients in <see cref="EnabledContent"/> that depend on the specified game installation.
+    /// </summary>
+    /// <param name="installation">The game installation item to check.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A list of active game client items that depend on the installation.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Operates on observable collection properties defined across partial view model classes")]
+    private async Task<List<ContentDisplayItem>> GetDependentActiveGameClientsAsync(
+        ContentDisplayItem installation,
+        CancellationToken cancellationToken = default)
+    {
+        var dependentClients = new List<ContentDisplayItem>();
+        var activeClients = EnabledContent
+            .Where(c => c.ContentType == ContentType.GameClient && c.IsEnabled)
+            .ToList();
+
+        if (activeClients.Count == 0)
+        {
+            return dependentClients;
+        }
+
+        foreach (var client in activeClients)
+        {
+            if (await DoesGameClientDependOnInstallationAsync(client, installation, cancellationToken))
+            {
+                dependentClients.Add(client);
+            }
+        }
+
+        return dependentClients;
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client depends on the given game installation.
+    /// </summary>
+    /// <param name="client">The game client content item.</param>
+    /// <param name="installation">The game installation content item.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns><c>true</c> if the game client depends on the game installation; otherwise, <c>false</c>.</returns>
+    private async Task<bool> DoesGameClientDependOnInstallationAsync(
+        ContentDisplayItem client,
+        ContentDisplayItem installation,
+        CancellationToken cancellationToken = default)
+    {
+        if (MatchesClientSourceId(client, installation))
+        {
+            return true;
+        }
+
+        var manifest = client.Manifest ?? await GetOrSynthesizeManifestForContentAsync(client, cancellationToken);
+        var installDependencies = manifest?.Dependencies?
+            .Where(d => d.DependencyType == ContentType.GameInstallation && !d.IsOptional)
+            .ToList();
+
+        if (installDependencies is { Count: > 0 })
+        {
+            return installDependencies.Any(dep => IsInstallationDependencySatisfiedBy(dep, installation, client.GameType));
+        }
+
+        if (manifest?.Dependencies?.Any(d => d.DependencyType == ContentType.GameInstallation) == true)
+        {
+            return false;
+        }
+
+        return client.GameType == installation.GameType ||
+               (SelectedGameInstallation != null &&
+                string.Equals(SelectedGameInstallation.ManifestId.Value, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
+    private bool MatchesClientSourceId(ContentDisplayItem client, ContentDisplayItem installation)
+    {
+        if (string.IsNullOrEmpty(client.SourceId))
+        {
+            return false;
+        }
+
+        return string.Equals(client.SourceId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(client.SourceId, installation.SourceId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
+    private bool MatchesDependencyGameType(ContentDependency dep, GameType installationGameType, GameType fallbackGameType)
+    {
+        if (dep.CompatibleGameTypes is { Count: > 0 })
+        {
+            return dep.CompatibleGameTypes.Contains(installationGameType);
+        }
+
+        return fallbackGameType == installationGameType;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
+    private bool MatchesInstallationDependencyId(string depId, ContentDisplayItem installation)
+    {
+        return string.Equals(depId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(depId, installation.SourceId, StringComparison.OrdinalIgnoreCase) ||
+               HasCompatibleCatalogMatch(depId, installation.ManifestId.Value);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper method for instance-level dependency resolution")]
+    private bool IsInstallationDependencySatisfiedBy(ContentDependency dep, ContentDisplayItem installation, GameType clientGameType)
+    {
+        var depId = dep.Id.ToString();
+        if (depId == ManifestConstants.DefaultContentDependencyId)
+        {
+            return MatchesDependencyGameType(dep, installation.GameType, clientGameType);
+        }
+
+        if (MatchesInstallationDependencyId(depId, installation))
+        {
+            return true;
+        }
+
+        // Publisher-agnostic dependencies (e.g. "1.104.genhub.gameinstallation.zerohour"
+        // with StrictPublisher = false) are satisfied by an installation of a compatible game type
+        // when CompatibleGameTypes is specified, or by matching content-type and content-name segments.
+        if (!dep.StrictPublisher)
+        {
+            if (dep.CompatibleGameTypes is { Count: > 0 })
+            {
+                return dep.CompatibleGameTypes.Contains(installation.GameType);
+            }
+
+            var depSegments = depId.Split('.');
+            var instSegments = installation.ManifestId.Value.Split('.');
+            if (depSegments.Length >= 5 && instSegments.Length >= 5)
+            {
+                return string.Equals(depSegments[3], instSegments[3], StringComparison.OrdinalIgnoreCase) &&
+                       string.Equals(depSegments[4], instSegments[4], StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        return false;
     }
 
     private void ResolveGameInstallationDependency(

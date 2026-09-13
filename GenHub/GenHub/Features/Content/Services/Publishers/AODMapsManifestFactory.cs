@@ -48,7 +48,14 @@ public partial class AODMapsManifestFactory(
         return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Creates enriched manifests from extracted content with optional progress reporting.
+    /// </summary>
+    /// <param name="originalManifest">The original manifest.</param>
+    /// <param name="extractedDirectory">The directory where content was extracted.</param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of enriched content manifests.</returns>
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
@@ -57,10 +64,17 @@ public partial class AODMapsManifestFactory(
     {
         logger.LogInformation("Processing AODMaps extracted content from: {Directory}", extractedDirectory);
 
+        if (!Directory.Exists(extractedDirectory))
+        {
+            logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
+            return [originalManifest];
+        }
+
         var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
         if (zipFiles.Length == 0)
         {
-            throw new InvalidDataException("AODMaps download did not produce a ZIP archive.");
+            logger.LogDebug("No ZIP files found in directory {Directory}, returning original manifest", extractedDirectory);
+            return [originalManifest];
         }
 
         foreach (var zipPath in zipFiles)
@@ -78,7 +92,7 @@ public partial class AODMapsManifestFactory(
             files.Add(new ManifestFile
             {
                 RelativePath = Path.GetRelativePath(extractedDirectory, filePath),
-                SourceType = ContentSourceType.ContentAddressable,
+                SourceType = ContentSourceType.ExtractedPackage,
                 Size = fileInfo.Length,
                 Hash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken),
 
@@ -90,6 +104,7 @@ public partial class AODMapsManifestFactory(
 
         if (files.Count == 0)
         {
+            logger.LogWarning("AODMaps archive contained no files in directory {Directory}", extractedDirectory);
             throw new InvalidDataException("AODMaps archive contained no files.");
         }
 
@@ -191,7 +206,10 @@ public partial class AODMapsManifestFactory(
         // AODMaps exposes a click-counter URL. The HTTP stack follows its redirect, while
         // this stable ZIP name ensures Stage 3 recognizes and extracts the real archive.
         var fileName = $"{contentName}.zip";
-        await manifestBuilder.AddRemoteFileAsync(fileName, details.DownloadUrl);
+        await manifestBuilder.AddRemoteFileAsync(
+            fileName,
+            details.DownloadUrl,
+            ContentSourceType.RemoteDownload);
 
         // 7. Add dependencies
         manifest = AddGameDependencies(manifest, details.TargetGame);
@@ -226,12 +244,22 @@ public partial class AODMapsManifestFactory(
         if (targetGame == GameType.ZeroHour)
         {
             // Type-only constraint: any platform's ZH installation satisfies this.
-            builder.AddDependency(id: ManifestId.Create(ManifestConstants.ZeroHourFoundationDependencyId), name: "Zero Hour Installation", dependencyType: ContentType.GameInstallation, installBehavior: DependencyInstallBehavior.RequireExisting, minVersion: ManifestConstants.ZeroHourManifestVersion);
+            builder.AddDependency(
+                id: ManifestId.Create(ManifestConstants.ZeroHourGameInstallationManifestId),
+                name: ManifestConstants.ZeroHourInstallationName,
+                dependencyType: ContentType.GameInstallation,
+                installBehavior: DependencyInstallBehavior.RequireExisting,
+                minVersion: ManifestConstants.ZeroHourManifestVersion);
         }
         else if (targetGame == GameType.Generals)
         {
             // Type-only constraint: any platform's Generals installation satisfies this.
-            builder.AddDependency(id: ManifestId.Create("1.108.any.gameinstallation.generals"), name: "Generals Installation", dependencyType: ContentType.GameInstallation, installBehavior: DependencyInstallBehavior.RequireExisting, minVersion: ManifestConstants.GeneralsManifestVersion);
+            builder.AddDependency(
+                id: ManifestId.Create(ManifestConstants.GeneralsGameInstallationManifestId),
+                name: ManifestConstants.GeneralsInstallationName,
+                dependencyType: ContentType.GameInstallation,
+                installBehavior: DependencyInstallBehavior.RequireExisting,
+                minVersion: ManifestConstants.GeneralsManifestVersion);
         }
 
         return builder;

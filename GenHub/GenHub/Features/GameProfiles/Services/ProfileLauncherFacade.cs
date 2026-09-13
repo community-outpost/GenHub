@@ -1195,7 +1195,22 @@ public class ProfileLauncherFacade(
 
             try
             {
-                await profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
+                var updateResult = await profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
+                if (updateResult.Success)
+                {
+                    logger.LogInformation(
+                        "Persisted active workspace ID '{WorkspaceId}' to profile '{ProfileId}'",
+                        launchInfo.WorkspaceId,
+                        profile.Id);
+                }
+                else
+                {
+                    logger.LogError(
+                        "Failed to persist active workspace ID '{WorkspaceId}' to profile '{ProfileId}': {Error}. The game is running; content reconciliation will not be able to invalidate this workspace.",
+                        launchInfo.WorkspaceId,
+                        profile.Id,
+                        updateResult.FirstError);
+                }
             }
             catch (Exception ex)
             {

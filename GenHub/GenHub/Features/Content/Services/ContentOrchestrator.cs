@@ -653,6 +653,21 @@ public class ContentOrchestrator(
         };
     }
 
+    private static void PopulateOriginalMetadata(ContentManifest manifest, ContentSearchResult searchResult)
+    {
+        if (string.IsNullOrEmpty(manifest.OriginalProviderName) && !string.IsNullOrEmpty(searchResult.ProviderName))
+        {
+            manifest.OriginalProviderName = searchResult.ProviderName;
+        }
+
+        if (string.IsNullOrEmpty(manifest.OriginalContentId))
+        {
+            string? parentId = null;
+            searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentId);
+            manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : searchResult.Id;
+        }
+    }
+
     private static bool MatchesVariant(ContentManifest m, ContentSearchResult searchResult)
     {
         var variantId = m.Metadata?.SelectedVariantId;
@@ -764,8 +779,7 @@ public class ContentOrchestrator(
             return OperationResult<ContentManifest>.CreateFailure($"Provider not found: {searchResult.ProviderName}");
         }
 
-        manifest.OriginalProviderName ??= searchResult.ProviderName;
-        manifest.OriginalContentId ??= searchResult.Id;
+        PopulateOriginalMetadata(manifest, searchResult);
 
         reportProgress(1, ResolvingContentPhase, 90, "Validating manifest...", false, null, 0, 0, 0, 0, null, default);
 
@@ -892,8 +906,7 @@ public class ContentOrchestrator(
 
         foreach (var processed in processedManifests)
         {
-            processed.OriginalProviderName ??= searchResult.ProviderName;
-            processed.OriginalContentId ??= searchResult.Id;
+            PopulateOriginalMetadata(processed, searchResult);
         }
 
         var primaryManifest = SelectPrimaryManifest(processedManifests, searchResult);

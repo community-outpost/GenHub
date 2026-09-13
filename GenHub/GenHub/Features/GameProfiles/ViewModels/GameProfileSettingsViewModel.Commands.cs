@@ -180,13 +180,64 @@ public partial class GameProfileSettingsViewModel
         await EnableContentInternal(contentItem, bypassLoadingGuard: false);
     }
 
+    private async Task<bool> ValidateInstallationRemovalAsync(
+        ContentDisplayItem contentItem,
+        string actionCommand,
+        string actionVerb,
+        string notificationTitle,
+        CancellationToken cancellationToken = default)
+    {
+        if (contentItem.ContentType != ContentType.GameInstallation)
+        {
+            return true;
+        }
+
+        var installation = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value) ?? contentItem;
+        var dependentClients = await GetDependentActiveGameClientsAsync(installation, cancellationToken);
+        if (dependentClients.Count == 0)
+        {
+            return true;
+        }
+
+        var clientNames = string.Join(", ", dependentClients.Select(c => $"'{c.DisplayName}'"));
+        StatusMessage = string.Format(
+            ProfileValidationConstants.InstallationActionBlockedStatusFormat,
+            actionVerb,
+            contentItem.DisplayName,
+            clientNames);
+        _logger?.LogWarning(
+            "{Action} blocked: Game Installation '{Installation}' is required by active Game Client(s) {Clients}",
+            actionCommand,
+            contentItem.DisplayName,
+            clientNames);
+
+        var notificationMessage = string.Format(
+            ProfileValidationConstants.InstallationActionBlockedNotificationFormat,
+            actionVerb,
+            contentItem.DisplayName,
+            clientNames);
+        _localNotificationService.ShowWarning(notificationTitle, notificationMessage);
+        _notificationService?.ShowWarning(notificationTitle, notificationMessage);
+        return false;
+    }
+
     [RelayCommand]
-    private async Task DisableContentAsync(ContentDisplayItem? contentItem)
+    private async Task DisableContentAsync(ContentDisplayItem? contentItem, CancellationToken cancellationToken = default)
     {
         if (contentItem == null)
         {
             StatusMessage = "No content selected";
             _logger?.LogWarning("DisableContent: contentItem parameter is null");
+            return;
+        }
+
+        if (!await ValidateInstallationRemovalAsync(
+                contentItem,
+                "DisableContent",
+                "remove",
+                ProfileValidationConstants.CannotRemoveInstallationTitle,
+                cancellationToken))
+        {
             return;
         }
 
@@ -202,6 +253,7 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = "This content item cannot be toggled";
             _logger?.LogWarning("DisableContent: Cannot disable non-toggleable item {DisplayName}", contentItem.DisplayName);
+            _localNotificationService.ShowWarning(ProfileValidationConstants.CannotModifyContentTitle, $"'{contentItem.DisplayName}' cannot be modified in this mode.");
             return;
         }
 
@@ -267,12 +319,22 @@ public partial class GameProfileSettingsViewModel
     }
 
     [RelayCommand]
-    private async Task DeleteContentAsync(ContentDisplayItem? contentItem)
+    private async Task DeleteContentAsync(ContentDisplayItem? contentItem, CancellationToken cancellationToken = default)
     {
         if (contentItem == null)
         {
             StatusMessage = "No content selected";
             _logger?.LogWarning("DeleteContent: contentItem parameter is null");
+            return;
+        }
+
+        if (!await ValidateInstallationRemovalAsync(
+                contentItem,
+                "DeleteContent",
+                "delete",
+                ProfileValidationConstants.CannotDeleteInstallationTitle,
+                cancellationToken))
+        {
             return;
         }
 
@@ -300,7 +362,7 @@ public partial class GameProfileSettingsViewModel
 
             _logger?.LogInformation("Attempting to delete content: {ContentName}", contentItem.DisplayName);
 
-            var result = await _localContentService.DeleteLocalContentAsync(contentItem.ManifestId.Value);
+            var result = await _localContentService.DeleteLocalContentAsync(contentItem.ManifestId.Value, cancellationToken);
 
             if (result.Success)
             {
@@ -365,12 +427,23 @@ public partial class GameProfileSettingsViewModel
             if (SelectedGameInstallation == null && !isStandaloneProfile)
             {
                 StatusMessage = "Please select a game installation";
+                _localNotificationService.ShowError(
+                    ProfileValidationConstants.MissingGameInstallationTitle,
+                    ProfileValidationConstants.SelectGameInstallationBeforeSaving);
+                _notificationService?.ShowError(
+                    ProfileValidationConstants.MissingGameInstallationTitle,
+                    ProfileValidationConstants.SelectGameInstallationBeforeSaving);
+                _logger?.LogWarning("Profile save blocked: No game installation selected");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(Name))
             {
                 StatusMessage = "Please enter a profile name";
+                _localNotificationService.ShowWarning(
+                    ProfileValidationConstants.MissingProfileNameTitle,
+                    ProfileValidationConstants.EnterProfileNameBeforeSaving);
+                _logger?.LogWarning("Profile save blocked: Profile name is empty");
                 return;
             }
 

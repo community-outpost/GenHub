@@ -122,7 +122,14 @@ public partial class CNCLabsManifestFactory(
         return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Creates enriched manifests from extracted content with optional progress reporting.
+    /// </summary>
+    /// <param name="originalManifest">The original manifest.</param>
+    /// <param name="extractedDirectory">The directory where content was extracted.</param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of enriched content manifests.</returns>
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
@@ -183,7 +190,7 @@ public partial class CNCLabsManifestFactory(
                     var manifestFile = new ManifestFile
                     {
                         RelativePath = relativePath,
-                        SourceType = ContentSourceType.ContentAddressable,
+                        SourceType = ContentSourceType.ExtractedPackage,
                         InstallTarget = originalManifest.ContentType == ContentType.Map
                             ? ContentInstallTarget.UserMapsDirectory
                             : ContentInstallTarget.Workspace,
@@ -203,6 +210,10 @@ public partial class CNCLabsManifestFactory(
                 // Delete ZIP file after successful extraction
                 File.Delete(zipPath);
                 logger.LogInformation("Deleted ZIP file after extraction: {ZipPath}", zipPath);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -284,6 +295,13 @@ public partial class CNCLabsManifestFactory(
         // 3. Format submission date as YYYYMMDD for version
         var releaseDate = details.SubmissionDate.ToString(CNCLabsConstants.ReleaseDateFormat);
 
+        var contentType = details.ContentType != ContentType.UnknownContentType
+            ? details.ContentType
+            : ContentType.Map;
+        var targetGame = details.TargetGame != GameType.Unknown
+            ? details.TargetGame
+            : GameType.ZeroHour;
+
         // 4. Obtain a fresh builder for this operation: the shared builder's internal state is
         // never reset, so a reused singleton would accumulate files/dependencies across calls.
         var builder = manifestBuilderFactory();
@@ -291,7 +309,7 @@ public partial class CNCLabsManifestFactory(
         // 5. Configure manifest
         builder
             .WithBasicInfo(publisherId, contentName, releaseDate)
-            .WithContentType(details.ContentType, details.TargetGame)
+            .WithContentType(contentType, targetGame)
             .WithPublisher(
                 CNCLabsConstants.PublisherName,
                 websiteUrl,
@@ -300,7 +318,7 @@ public partial class CNCLabsManifestFactory(
                 CNCLabsConstants.PublisherId)
             .WithMetadata(
                 details.Description,
-                GetTags(details),
+                GetTags(details with { ContentType = contentType, TargetGame = targetGame }),
                 details.PreviewImage,
                 details.Screenshots)
             .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy); // Default strategy
@@ -318,7 +336,10 @@ public partial class CNCLabsManifestFactory(
             throw new InvalidOperationException($"Download URL is missing for {details.Name}");
         }
 
-        await builder.AddRemoteFileAsync(fileName, details.DownloadUrl);
+        await builder.AddRemoteFileAsync(
+            fileName,
+            details.DownloadUrl,
+            ContentSourceType.RemoteDownload);
 
         return builder.Build();
     }

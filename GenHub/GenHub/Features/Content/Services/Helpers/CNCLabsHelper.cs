@@ -20,10 +20,11 @@ public static partial class CNCLabsHelper
     /// <summary>
     /// Tries to extract a numeric content identifier from a CNC Labs details URL.
     /// The method first ensures the URL is absolute and that its path contains the expected
-    /// marker (e.g., <c>details.aspx</c>). It then parses the <c>id</c> query parameter.
+    /// marker (e.g., <c>details</c>). It then checks for an <c>id</c> query parameter or a
+    /// path segment following <c>details/</c>.
     /// </summary>
     /// <param name="url">The URL string to inspect.</param>
-    /// <param name="pathMarker">A substring expected in the absolute path (e.g., "details.aspx").</param>
+    /// <param name="pathMarker">A substring expected in the absolute path (e.g., "details").</param>
     /// <param name="id">When this method returns, contains the parsed ID if successful; otherwise, <c>0</c>.</param>
     /// <returns><see langword="true"/> if an <c>id</c> value was found and parsed; otherwise, <see langword="false"/>.</returns>
     public static bool TryExtractMapIdFromUrl(string? url, string pathMarker, out int id)
@@ -46,7 +47,22 @@ public static partial class CNCLabsHelper
 
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var idStr = query[CNCLabsConstants.QueryStringIdParameter];
-        return int.TryParse(idStr, out id);
+        if (int.TryParse(idStr, out id))
+        {
+            return true;
+        }
+
+        var segments = uri.AbsolutePath.Trim('/').Split('/');
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            if (string.Equals(segments[i], "details", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(segments[i + 1], out id))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -157,29 +173,42 @@ public static partial class CNCLabsHelper
     /// Extracts and canonicalizes the category from the breadcrumb navigation of a document.
     /// </summary>
     /// <param name="document">
-    /// The <see cref="IDocument"/> instance to parse. The method searches within the
-    /// element specified by <c>CNCLabsConstants.BreadcrumbHeaderSelector</c>.
+    /// The <see cref="IDocument"/> instance to parse.
     /// </param>
     /// <returns>
     /// A tuple of (<see cref="GameType"/>, <see cref="ContentType"/>).
     /// </returns>
     public static (GameType GameType, ContentType ContentType) ExtractBreadcrumbCategory(IDocument document)
     {
-        var header = document.QuerySelector(CNCLabsConstants.BreadcrumbHeaderSelector);
-        if (header == null) return (GameType.Unknown, ContentType.UnknownContentType);
+        ArgumentNullException.ThrowIfNull(document);
 
-        var parts = header.TextContent
-            .Split(CNCLabsConstants.BreadcrumbSeparator)
-            .Select(s => s.Replace('\u00A0', ' ').Trim())
-            .Where(s => s.Length > 0)
-            .ToArray();
+        var fromNav = ExtractFromNavElements(document);
+        if (fromNav.ContentType != ContentType.UnknownContentType)
+        {
+            return fromNav;
+        }
 
-        if (parts.Length <= CNCLabsConstants.BreadcrumbCategoryIndex)
+        var fromTitle = ExtractFromTitle(document.Title);
+        if (fromTitle.ContentType != ContentType.UnknownContentType)
+        {
+            return fromTitle;
+        }
+
+        return ExtractFromLegacyHeader(document);
+    }
+
+    /// <summary>
+    /// Canonicalizes raw category text into (<see cref="GameType"/>, <see cref="ContentType"/>).
+    /// </summary>
+    /// <param name="raw">The raw category string.</param>
+    /// <returns>The resolved game and content type.</returns>
+    public static (GameType GameType, ContentType ContentType) ParseCategoryString(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
             return (GameType.Unknown, ContentType.UnknownContentType);
+        }
 
-        var raw = parts[CNCLabsConstants.BreadcrumbCategoryIndex];
-
-        // Canonicalize to the allowed values (case/spacing tolerant).
         return raw.Trim().ToLowerInvariant() switch
         {
             "generals maps" => (GameType.Generals, ContentType.Map),
@@ -245,14 +274,106 @@ public static partial class CNCLabsHelper
         };
     }
 
+    private static (GameType GameType, ContentType ContentType) ExtractFromNavElements(IDocument document)
+    {
+        var items = document.QuerySelectorAll(CNCLabsConstants.BreadcrumbItemsSelector);
+        foreach (var item in items)
+        {
+            var category = ParseCategoryString(item.TextContent);
+            if (category.ContentType != ContentType.UnknownContentType)
+            {
+                return category;
+            }
+
+            var href = item.QuerySelector("a")?.GetAttribute("href");
+            if (!string.IsNullOrWhiteSpace(href))
+            {
+                var fromHref = ParseCategoryFromHref(href);
+                if (fromHref.ContentType != ContentType.UnknownContentType)
+                {
+                    return fromHref;
+                }
+            }
+        }
+
+        return (GameType.Unknown, ContentType.UnknownContentType);
+    }
+
+    private static (GameType GameType, ContentType ContentType) ExtractFromTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return (GameType.Unknown, ContentType.UnknownContentType);
+        }
+
+        var parts = title.Split('-');
+        foreach (var part in parts)
+        {
+            var category = ParseCategoryString(part);
+            if (category.ContentType != ContentType.UnknownContentType)
+            {
+                return category;
+            }
+        }
+
+        return (GameType.Unknown, ContentType.UnknownContentType);
+    }
+
+    private static (GameType GameType, ContentType ContentType) ExtractFromLegacyHeader(IDocument document)
+    {
+        var header = document.QuerySelector(CNCLabsConstants.BreadcrumbHeaderSelector);
+        if (header == null)
+        {
+            return (GameType.Unknown, ContentType.UnknownContentType);
+        }
+
+        var parts = header.TextContent
+            .Split(CNCLabsConstants.BreadcrumbSeparator)
+            .Select(s => s.Replace('\u00A0', ' ').Trim())
+            .Where(s => s.Length > 0)
+            .ToArray();
+
+        if (parts.Length <= CNCLabsConstants.BreadcrumbCategoryIndex)
+        {
+            return (GameType.Unknown, ContentType.UnknownContentType);
+        }
+
+        return ParseCategoryString(parts[CNCLabsConstants.BreadcrumbCategoryIndex]);
+    }
+
+    private static (GameType GameType, ContentType ContentType) ParseCategoryFromHref(string href)
+    {
+        var lower = href.ToLowerInvariant();
+        if (lower.Contains("zerohour-maps") || lower.Contains("zerohour_maps"))
+        {
+            return (GameType.ZeroHour, ContentType.Map);
+        }
+
+        if (lower.Contains("generals-maps") || lower.Contains("generals_maps") || (lower.Contains("maps/generals") && !lower.Contains("zerohour")))
+        {
+            return (GameType.Generals, ContentType.Map);
+        }
+
+        if (lower.Contains("zerohour-missions") || lower.Contains("zerohour_missions"))
+        {
+            return (GameType.ZeroHour, ContentType.Mission);
+        }
+
+        if (lower.Contains("generals-missions") || lower.Contains("generals_missions"))
+        {
+            return (GameType.Generals, ContentType.Mission);
+        }
+
+        return (GameType.Unknown, ContentType.UnknownContentType);
+    }
+
     private static string DetermineBaseUrl(ContentType? contentType)
     {
         return contentType switch
         {
-            ContentType.Map => CNCLabsConstants.SearchMapsUrlBase,
-            ContentType.Mission => CNCLabsConstants.SearchMapsUrlBase,
             ContentType.Mod => CNCLabsConstants.SearchModsUrlBase,
-            _ => CNCLabsConstants.SearchDownloadsUrlBase,
+            ContentType.Patch or ContentType.Skin or ContentType.Screensaver or ContentType.Video or ContentType.ModdingTool => CNCLabsConstants.SearchDownloadsUrlBase,
+            _ => CNCLabsConstants.SearchMapsUrlBase,
         };
     }
 

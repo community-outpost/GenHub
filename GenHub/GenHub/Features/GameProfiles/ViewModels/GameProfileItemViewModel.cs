@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -8,6 +9,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -18,7 +20,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods access CommunityToolkit MVVM generated properties.")]
 public partial class GameProfileItemViewModel : ViewModelBase
 {
-    private const string LocalPublisherName = "Local";
+    private const string LocalPublisherName = PublisherInfoConstants.LocalInstallationPublisherName;
     private const string SteamPublisherName = "Steam";
 
     /// <summary>
@@ -441,20 +443,25 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Extract version and publisher info from enabled content manifest IDs (prioritize GameInstallation manifests)
         if (profile is GameProfile gameProfile)
         {
-            // First try to get info from enabled GameInstallation manifests (look for "-installation" suffix)
-            var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
-            if (!string.IsNullOrEmpty(installationManifestId))
-            {
-                // We use this to check for color/branding mostly?
-                // Actually ExtractManifestInfo primarily sets Publisher, Color, Cover.
-                // For branding, we want GameClient (Mod) to take precedence over Installation (Steam).
-                // So let's look at GameClient FIRST for branding/color.
-            }
-
             // Prioritize GameClient for branding (Colors/Covers) and Version
             if (gameProfile.GameClient != null)
             {
                 ExtractManifestInfo(gameProfile.GameClient.Id);
+
+                if (string.IsNullOrEmpty(_publisher))
+                {
+                    if (!string.IsNullOrEmpty(gameProfile.GameClient.PublisherType))
+                    {
+                        var pub = gameProfile.GameClient.PublisherType.ToLowerInvariant();
+                        _publisher = MapPublisherName(pub, gameProfile.GameClient.PublisherType);
+                        ApplyPublisherBranding(pub);
+                    }
+                    else if (gameProfile.GameClient.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _publisher = PublisherInfoConstants.GeneralsOnline.Name;
+                        ApplyPublisherBranding(PublisherTypeConstants.GeneralsOnline);
+                    }
+                }
 
                 // Fallback: use GameClient.Version directly if we couldn't extract from manifest
                 // But SKIP if the publisher is "Local" - we want NO version for local content
@@ -472,6 +479,17 @@ public partial class GameProfileItemViewModel : ViewModelBase
             UpdateDescription(gameProfile);
         }
 
+        // Set color value with game type defaults or profile theme
+        if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
+        {
+            _colorValue = gp.ThemeColor;
+        }
+        else if (string.IsNullOrEmpty(_colorValue))
+        {
+            // Only set default if ExtractManifestInfo didn't set a branded one
+            _colorValue = GetDefaultColorForGameType(profile.GameClient?.GameType);
+        }
+
         // If icon path is generic or default, upgrade to publisher logo if available
         if (string.IsNullOrEmpty(_iconPath) ||
             _iconPath.EndsWith("zerohour-icon.png", StringComparison.OrdinalIgnoreCase) ||
@@ -485,17 +503,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
             {
                 _iconPath = logo;
             }
-        }
-
-        // Set color value with game type defaults or profile theme
-        if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
-        {
-            _colorValue = gp.ThemeColor;
-        }
-        else if (string.IsNullOrEmpty(_colorValue))
-        {
-            // Only set default if ExtractManifestInfo didn't set a branded one
-            _colorValue = GetDefaultColorForGameType(profile.GameClient?.GameType);
         }
 
         // Set user-friendly source type name (use the game type as the source)
@@ -601,18 +608,51 @@ public partial class GameProfileItemViewModel : ViewModelBase
         {
             UpdateManifestAndVersionInfo(gameProfile);
             UpdateDescription(gameProfile);
-
             ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
             UseSteamLaunch = gameProfile.UseSteamLaunch ?? true;
-
             UpdateVisuals(gameProfile);
             CommandLineArguments = gameProfile.CommandLineArguments;
         }
 
+        // Notify UI of all property changes
         NotifyProfilePropertiesChanged();
-
         OnPropertyChanged(nameof(IsWorkspacePrepared));
         OnPropertyChanged(nameof(WorkspaceStatus));
+    }
+
+    /// <summary>
+    /// Normalizes old cover paths to new paths for backward compatibility.
+    /// Handles migration from Assets/Images/*.png to Assets/Covers/*.png.
+    /// </summary>
+    /// <param name="coverPath">The cover path to normalize.</param>
+    /// <returns>The normalized cover path.</returns>
+    internal static string NormalizeCoverPath(string coverPath)
+    {
+        if (string.IsNullOrEmpty(coverPath))
+        {
+            return coverPath;
+        }
+
+        // Map old paths to new paths for backward compatibility
+        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
+        return coverPath switch
+        {
+            var p when p.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase) =>
+                p.Replace("china-poster.png", "china-cover.png", StringComparison.OrdinalIgnoreCase)
+                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains("usa-poster.png", StringComparison.OrdinalIgnoreCase) =>
+                p.Replace("usa-poster.png", "usa-cover.png", StringComparison.OrdinalIgnoreCase)
+                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase) =>
+                p.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
+                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+
+            // Also handle just the directory change for any other files in Images/ that might reference covers
+            var p when p.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
+                       (p.Contains("cover", StringComparison.OrdinalIgnoreCase) || p.Contains("poster", StringComparison.OrdinalIgnoreCase)) =>
+                p.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+            _ => coverPath,
+        };
     }
 
     private static string MapPublisherName(string publisherSegment, string fallback) =>
@@ -678,31 +718,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
             GameType.Generals => "#BD5A0F",
             GameType.ZeroHour => "#1B6575",
             _ => "#2A2A2A",
-        };
-    }
-
-    private static string NormalizeCoverPath(string coverPath)
-    {
-        if (string.IsNullOrEmpty(coverPath))
-        {
-            return coverPath;
-        }
-
-        return coverPath switch
-        {
-            var p when p.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase) =>
-                p.Replace("china-poster.png", "china-cover.png", StringComparison.OrdinalIgnoreCase)
-                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-            var p when p.Contains("usa-poster.png", StringComparison.OrdinalIgnoreCase) =>
-                p.Replace("usa-poster.png", "usa-cover.png", StringComparison.OrdinalIgnoreCase)
-                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-            var p when p.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase) =>
-                p.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
-                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-            var p when p.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
-                       (p.Contains("cover", StringComparison.OrdinalIgnoreCase) || p.Contains("poster", StringComparison.OrdinalIgnoreCase)) =>
-                p.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-            _ => coverPath,
         };
     }
 
@@ -777,30 +792,23 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
-    private static (string Publisher, string? ColorValue, string? CoverImagePath) ResolvePublisherAndBranding(string publisherSegment, string fallbackRaw)
+    private void ApplyPublisherBranding(string publisherSegment)
     {
-        var publisher = MapPublisherName(publisherSegment, fallbackRaw.ToUpperInvariant());
-
-        string? colorValue = null;
-        string? coverImagePath = null;
-
         if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
         {
-            colorValue = SuperHackersConstants.ZeroHourThemeColor;
-            coverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+            ColorValue = SuperHackersConstants.ZeroHourThemeColor;
+            CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
         }
         else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
         {
-            colorValue = GeneralsOnlineConstants.ThemeColor;
-            coverImagePath = GeneralsOnlineConstants.CoverSource;
+            ColorValue = GeneralsOnlineConstants.ThemeColor;
+            CoverImagePath = GeneralsOnlineConstants.CoverSource;
         }
         else if (publisherSegment == CommunityOutpostConstants.PublisherType)
         {
-            colorValue = CommunityOutpostConstants.ThemeColor;
-            coverImagePath = CommunityOutpostConstants.CoverSource;
+            ColorValue = CommunityOutpostConstants.ThemeColor;
+            CoverImagePath = CommunityOutpostConstants.CoverSource;
         }
-
-        return (publisher, colorValue, coverImagePath);
     }
 
     private void UpdateManifestAndVersionInfo(GameProfile gameProfile)
@@ -808,16 +816,27 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Reset version info before re-extracting
         GameVersion = string.Empty;
         Publisher = string.Empty;
+        ContentType = string.Empty;
 
-        // First try to get info from enabled GameInstallation manifests
-        var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
-        if (!string.IsNullOrEmpty(installationManifestId))
-        {
-            ExtractManifestInfo(installationManifestId);
-        }
-        else if (gameProfile.GameClient != null)
+        // Prioritize GameClient for branding (Colors/Covers) and Version
+        if (gameProfile.GameClient != null)
         {
             ExtractManifestInfo(gameProfile.GameClient.Id);
+
+            if (string.IsNullOrEmpty(Publisher))
+            {
+                if (!string.IsNullOrEmpty(gameProfile.GameClient.PublisherType))
+                {
+                    var pub = gameProfile.GameClient.PublisherType.ToLowerInvariant();
+                    Publisher = MapPublisherName(pub, gameProfile.GameClient.PublisherType);
+                    ApplyPublisherBranding(pub);
+                }
+                else if (gameProfile.GameClient.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Publisher = PublisherInfoConstants.GeneralsOnline.Name;
+                    ApplyPublisherBranding(PublisherTypeConstants.GeneralsOnline);
+                }
+            }
 
             // Fallback: use GameClient.Version directly
             // But SKIP if the publisher is "Local"
@@ -829,10 +848,20 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
             }
         }
+        else
+        {
+            var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains(ContentConstants.InstallationManifestIdMarker, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrEmpty(installationManifestId))
+            {
+                ExtractManifestInfo(installationManifestId);
+            }
+        }
     }
 
     private void UpdateVisuals(GameProfile gameProfile)
     {
+        ColorValue = GetDefaultColorForGameType(gameProfile.GameClient?.GameType);
+
         if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
         {
             ColorValue = gameProfile.ThemeColor;
@@ -887,7 +916,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // If that failed or looked generic, try enabled content
         if (string.IsNullOrEmpty(installationSource) || installationSource == "Available" || installationSource == "Unknown")
         {
-            var installManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
+            var installManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains(ContentConstants.InstallationManifestIdMarker, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrEmpty(installManifestId))
             {
                 installationSource = GetPublisherNameFromId(installManifestId);
@@ -912,15 +941,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
         if (!string.IsNullOrEmpty(version)) parts.Add(version);
 
         // Only add publisher if it's different from installation source (don't say "Steam • 1.04 • Steam")
-        // And if it's not generic "Generals" if we already have context?
-        // User asked for "Generals Online" specifically.
         if (!string.IsNullOrEmpty(contentPublisher) &&
             !string.Equals(contentPublisher, installationSource, StringComparison.OrdinalIgnoreCase))
         {
             parts.Add(contentPublisher);
         }
-
-        // If publisher is missing, maybe add Game Type?
         else if (string.IsNullOrEmpty(contentPublisher))
         {
             parts.Add(GetFriendlyGameTypeName(gameProfile.GameClient?.GameType));
@@ -951,18 +976,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
         try
         {
             var publisherSegment = segments[2].ToLowerInvariant();
-            var (resolvedPublisher, resolvedColor, resolvedCover) = ResolvePublisherAndBranding(publisherSegment, segments[2]);
-            Publisher = resolvedPublisher;
-            if (!string.IsNullOrEmpty(resolvedColor))
-            {
-                ColorValue = resolvedColor;
-            }
-
-            if (!string.IsNullOrEmpty(resolvedCover))
-            {
-                CoverImagePath = resolvedCover;
-            }
-
+            Publisher = MapPublisherName(publisherSegment, segments[2].ToUpperInvariant());
+            ApplyPublisherBranding(publisherSegment);
             GameVersion = FormatManifestGameVersion(publisherSegment, segments[1]);
             ContentType = FormatManifestContentType(segments[3]);
         }

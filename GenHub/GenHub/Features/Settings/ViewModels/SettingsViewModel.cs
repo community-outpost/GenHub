@@ -268,7 +268,7 @@ public partial class SettingsViewModel(
     private string _gitHubPatInput = string.Empty;
 
     [ObservableProperty]
-    private bool _hasGitHubPat;
+    private bool _hasGitHubPat = gitHubTokenStorage?.HasToken() == true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PatStatusColor))]
@@ -303,10 +303,22 @@ public partial class SettingsViewModel(
     [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
     private bool _isLoadingSubscriptions;
 
+#pragma warning disable S2325 // Bound by Avalonia XAML and notified of instance state changes
+#pragma warning disable MVVMTK0034 // Accessing backing field to satisfy Sonar rule S2325
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
     /// </summary>
-    public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Minor Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
+    public bool ShowNoSubscriptions => !_isLoadingSubscriptions && _subscriptions.Count == 0;
+#pragma warning restore MVVMTK0034
+#pragma warning restore S2325
 
     private static ColorTheme ResolveInitialTheme(IThemeService? themeService, string themeId) =>
         (themeService?.AvailableThemes ?? ThemeConstants.AllThemes).FirstOrDefault(t =>

@@ -19,6 +19,11 @@ public class GenLauncherDetectionResult
     public List<string> GibFiles { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the list of .ctr files found.
+    /// </summary>
+    public List<string> CtrFiles { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets the list of files with .GLR suffix.
     /// </summary>
     public List<string> GlrFiles { get; set; } = [];
@@ -42,7 +47,7 @@ public class GenLauncherDetectionResult
     /// Gets the total count of affected files.
     /// </summary>
     public int TotalAffectedFiles =>
-        GibFiles.Count + GlrFiles.Count + GofFiles.Count + GltcFiles.Count + SymbolicLinks.Count;
+        GibFiles.Count + CtrFiles.Count + GlrFiles.Count + GofFiles.Count + GltcFiles.Count + SymbolicLinks.Count;
 
     /// <summary>
     /// Gets a user-friendly summary of detected files.
@@ -54,6 +59,11 @@ public class GenLauncherDetectionResult
         if (GibFiles.Count > 0)
         {
             parts.Add($"{GibFiles.Count} {GenLauncherConstants.GibExtension} file(s)");
+        }
+
+        if (CtrFiles.Count > 0)
+        {
+            parts.Add($"{CtrFiles.Count} {GenLauncherConstants.CtrExtension} file(s)");
         }
 
         if (GlrFiles.Count > 0)

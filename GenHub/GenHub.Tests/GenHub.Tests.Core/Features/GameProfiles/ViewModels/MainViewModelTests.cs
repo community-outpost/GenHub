@@ -36,6 +36,7 @@ using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
+using GenHub.Tests.Core.Features.Tools.Mocks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -111,31 +112,33 @@ public class MainViewModelTests
                 Assert.IsType<InfoViewModel>(currentViewModel);
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(tab), tab, "Unknown navigation tab");
+                Assert.Fail($"Unexpected tab type: {tab}");
+                break;
         }
     }
 
     /// <summary>
-    /// Tests that <see cref="MainViewModel.InitializeAsync"/> initializes tab viewmodels and background update coordinator.
+    /// Tests that <see cref="MainViewModel.InitializeAsync"/> completes without exceptions.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_InitializesTabsAndBackgroundCoordinatorAsync()
+    public async Task InitializeAsync_CompletesSuccessfullyAsync()
     {
         var mockBackgroundCoordinator = new Mock<IBackgroundUpdateCoordinator>();
         var vm = CreateMainViewModel(mockBackgroundCoordinator: mockBackgroundCoordinator);
 
-        await vm.InitializeAsync();
+        var exception = await Record.ExceptionAsync(() => vm.InitializeAsync());
 
+        Assert.Null(exception);
         mockBackgroundCoordinator.Verify(x => x.InitializeAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
-    /// Tests that multiple calls to <see cref="MainViewModel.InitializeAsync"/> are safe.
+    /// Tests that <see cref="MainViewModel.InitializeAsync"/> can be called multiple times safely.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_MultipleCallsAreSafeAsync()
+    public async Task InitializeAsync_CanBeCalledMultipleTimesAsync()
     {
         var mockBackgroundCoordinator = new Mock<IBackgroundUpdateCoordinator>();
         var vm = CreateMainViewModel(mockBackgroundCoordinator: mockBackgroundCoordinator);
@@ -170,6 +173,32 @@ public class MainViewModelTests
         var vm = CreateMainViewModel();
         vm.SelectTabCommand.Execute(NavigationTab.Settings);
         Assert.Equal(NavigationTab.Settings, vm.SelectedTab);
+    }
+
+    /// <summary>
+    /// Tests that selecting the Tools tab activates the tools tab, opens the pane, and restores the remembered tool.
+    /// </summary>
+    [Fact]
+    public void SelectTab_ToolsTab_ActivatesToolsTabAndRestoresRememberedTool()
+    {
+        var vm = CreateMainViewModel();
+        var tool = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Author");
+        vm.ToolsViewModel.InstalledTools.Add(tool);
+        vm.ToolsViewModel.SelectedTool = tool;
+        Assert.Equal(tool, vm.ToolsViewModel.SelectedTool);
+
+        // Simulate tab switch away from Tools and closing pane
+        vm.ToolsViewModel.SelectedTool = null;
+        vm.ToolsViewModel.IsPaneOpen = false;
+        vm.SelectTabCommand.Execute(NavigationTab.GameProfiles);
+
+        // Select Tools tab
+        vm.SelectTabCommand.Execute(NavigationTab.Tools);
+
+        // Assert
+        Assert.Equal(NavigationTab.Tools, vm.SelectedTab);
+        Assert.True(vm.ToolsViewModel.IsPaneOpen);
+        Assert.Equal(tool, vm.ToolsViewModel.SelectedTool);
     }
 
     private static MainViewModel CreateMainViewModel(

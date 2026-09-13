@@ -68,6 +68,28 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifests"/> throws <see cref="ArgumentException"/>
+    /// when the QFE value in the version string exceeds 9, preventing ambiguous legacy manifest IDs.
+    /// </summary>
+    [Fact]
+    public void CreateManifests_WithQfeExceedingNine_ThrowsArgumentException()
+    {
+        // Arrange
+        var release = new GeneralsOnlineRelease
+        {
+            Version = "101525_QFE10",
+            ReleaseDate = DateTime.UtcNow,
+            PortableUrl = "https://example.com/GeneralsOnline_portable_101525_QFE10.zip",
+            PortableSize = 1048576,
+            Changelog = "https://example.com/changelog",
+        };
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => _factory.CreateManifests(release));
+        Assert.Contains("exceeding 9", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifests"/> generates 3 manifests:
     /// 60Hz GameClient, QuickMatch MapPack, and GeneralsOnlineGameData data patch.
     /// </summary>
@@ -429,5 +451,33 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         Assert.Equal(expectedHash, gameClient.InstallationInstructions?.DownloadHash);
         var zipFile = Assert.Single(gameClient.Files);
         Assert.Equal(expectedHash, zipFile.Hash);
+    }
+
+    /// <summary>
+    /// Verifies that CreateManifests generates manifest IDs matching the frozen legacy encoding
+    /// for tagged and digit-bearing versions (e.g. EAC and X86 builds).
+    /// </summary>
+    /// <param name="version">The Generals Online release version string to parse.</param>
+    /// <param name="expectedClientId">The expected legacy manifest ID.</param>
+    [Theory]
+    [InlineData("042826_QFE3_EAC", "1.428263.generalsonline.gameclient.60hz")]
+    [InlineData("011526_QFE1_EAC_X86", "1.11526186.generalsonline.gameclient.60hz")]
+    public void CreateManifests_WithTaggedVersion_GeneratesExpectedManifestIdComponent(string version, string expectedClientId)
+    {
+        // Arrange
+        var release = new GeneralsOnlineRelease
+        {
+            Version = version,
+            ReleaseDate = DateTime.UtcNow,
+            PortableUrl = "https://example.com/test.zip",
+        };
+
+        // Act
+        var manifests = _factory.CreateManifests(release);
+        var gameClient = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+
+        // Assert
+        Assert.NotNull(gameClient);
+        Assert.Equal(expectedClientId, gameClient.Id.Value);
     }
 }

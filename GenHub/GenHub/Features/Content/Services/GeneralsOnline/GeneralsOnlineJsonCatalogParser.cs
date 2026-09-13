@@ -314,7 +314,7 @@ public class GeneralsOnlineJsonCatalogParser(
 
         var searchResult = new ContentSearchResult
         {
-            Id = $"GeneralsOnline_{release.Version}",
+            Id = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}",
             Name = GeneralsOnlineConstants.ContentName,
             Description = release.Changelog ?? provider.Description,
             Version = release.Version,

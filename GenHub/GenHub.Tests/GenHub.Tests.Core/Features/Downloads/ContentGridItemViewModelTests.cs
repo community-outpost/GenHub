@@ -364,6 +364,156 @@ public sealed class ContentGridItemViewModelTests
         Assert.False(viewModel.ShowDownloadButton);
     }
 
+    /// <summary>
+    /// Verifies that OnContentStateChanged handles CNC Labs manifest downloads initiated from detail view,
+    /// updating CurrentState, IsDownloaded, rewriting SearchResult.Id, and showing Add to Profile button.
+    /// </summary>
+    [Fact]
+    public void OnContentStateChanged_WhenManifestIdMatchesCncLabsCard_UpdatesStateAndRewritesId()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3394",
+            Name = "Defcon 8",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3394/",
+        };
+        searchResult.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3394";
+
+        var stateService = new Mock<IContentStateService>();
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+        viewModel.Initialize();
+
+        Assert.Equal(ContentState.NotDownloaded, viewModel.EffectiveCurrentState);
+        Assert.False(viewModel.EffectiveIsDownloaded);
+        Assert.True(viewModel.ShowDownloadButton);
+        Assert.False(viewModel.ShowAddToProfileButton);
+
+        // Simulate ContentStateChanged event raised from ContentDetailView download
+        var eventArgs = new ContentStateChangedEventArgs(
+            "file:https://www.cnclabs.com/downloads/file/3394/?token=test",
+            ContentState.Downloaded,
+            "1.0.cnclabs.map.defcon8");
+
+        stateService.Raise(s => s.ContentStateChanged += null, eventArgs);
+
+        Assert.Equal(ContentState.Downloaded, viewModel.CurrentState);
+        Assert.Equal(ContentState.Downloaded, viewModel.EffectiveCurrentState);
+        Assert.True(viewModel.IsDownloaded);
+        Assert.True(viewModel.EffectiveIsDownloaded);
+        Assert.Equal("1.0.cnclabs.map.defcon8", viewModel.SearchResult.Id);
+        Assert.False(viewModel.ShowDownloadButton);
+        Assert.True(viewModel.ShowAddToProfileButton);
+    }
+
+    /// <summary>
+    /// Verifies that OnContentStateChanged handles ModDB manifest downloads, updating state and rewriting ID.
+    /// </summary>
+    [Fact]
+    public void OnContentStateChanged_WhenManifestIdMatchesModDbCard_UpdatesStateAndRewritesId()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "moddb.mod.314093",
+            Name = "Generals Undone v1.01 Patch",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.moddb.com/mods/cc-generals-undone/downloads/cc-generals-undone-v101-patch",
+        };
+        searchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "314093";
+
+        var stateService = new Mock<IContentStateService>();
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+        viewModel.Initialize();
+
+        var eventArgs = new ContentStateChangedEventArgs(
+            "file:https://www.moddb.com/downloads/start/314093",
+            ContentState.Downloaded,
+            "1.20260807.moddb.mod.generalsundonev101patch");
+
+        stateService.Raise(s => s.ContentStateChanged += null, eventArgs);
+
+        Assert.Equal(ContentState.Downloaded, viewModel.CurrentState);
+        Assert.Equal(ContentState.Downloaded, viewModel.EffectiveCurrentState);
+        Assert.True(viewModel.IsDownloaded);
+        Assert.True(viewModel.EffectiveIsDownloaded);
+        Assert.Equal("1.20260807.moddb.mod.generalsundonev101patch", viewModel.SearchResult.Id);
+        Assert.False(viewModel.ShowDownloadButton);
+        Assert.True(viewModel.ShowAddToProfileButton);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshVariantStatesAsync for a downloaded CNC Labs card rewrites SearchResult.Id to the manifest ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshVariantStatesAsync_WhenCncLabsCardIsDownloaded_RewritesSearchResultIdToLocalManifestIdAsync()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3380",
+            Name = "ShipWar_V1",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3380/",
+        };
+        searchResult.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3380";
+
+        var stateService = new Mock<IContentStateService>();
+        stateService.Setup(s => s.GetStateAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+        stateService.Setup(s => s.GetLocalManifestIdAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.cnclabs.map.shipwarv1");
+
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+        viewModel.Initialize();
+
+        await viewModel.RefreshVariantStatesAsync();
+
+        Assert.True(viewModel.IsDownloaded);
+        Assert.True(viewModel.EffectiveIsDownloaded);
+        Assert.Equal("1.0.cnclabs.map.shipwarv1", viewModel.SearchResult.Id);
+        Assert.True(viewModel.ShowAddToProfileButton);
+        Assert.False(viewModel.ShowDownloadButton);
+    }
+
+    /// <summary>
+    /// Verifies that changing CurrentState or IsDownloaded fires PropertyChanged for EffectiveCurrentState and EffectiveIsDownloaded.
+    /// </summary>
+    [Fact]
+    public void PropertyChanged_WhenCurrentStateOrIsDownloadedChanges_NotifiesEffectiveProperties()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "test-card",
+            Name = "Test Card",
+        };
+        var viewModel = CreateViewModel(searchResult);
+
+        var notifiedProperties = new List<string>();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != null)
+            {
+                notifiedProperties.Add(e.PropertyName);
+            }
+        };
+
+        viewModel.CurrentState = ContentState.Downloaded;
+        Assert.Contains(nameof(ContentGridItemViewModel.EffectiveCurrentState), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.EffectiveIsDownloaded), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.ShowAddToProfileButton), notifiedProperties);
+
+        notifiedProperties.Clear();
+        viewModel.IsDownloaded = true;
+        Assert.Contains(nameof(ContentGridItemViewModel.EffectiveIsDownloaded), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.ShowAddToProfileButton), notifiedProperties);
+    }
+
     private static void MarkAllSelectedDownloaded(ContentGridItemViewModel viewModel)
     {
         foreach (var component in viewModel.BundleComponents)

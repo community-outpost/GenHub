@@ -104,12 +104,13 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
     }
 
     /// <inheritdoc/>
-    public async Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message)
+    public async Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message, bool initialDeleteOldVersions)
     {
         var viewModel = new UpdateOptionDialogViewModel
         {
             Title = title,
             Message = message,
+            DeleteOldVersions = initialDeleteOldVersions,
         };
 
         var window = new UpdateOptionDialogWindow
