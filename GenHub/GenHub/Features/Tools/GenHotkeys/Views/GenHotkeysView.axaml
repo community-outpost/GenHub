@@ -31,6 +31,12 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
+    <Style Selector="FlyoutPresenter.ModernFlyout">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+    </Style>
     <Style Selector="Button.KeyButton">
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="FontWeight" Value="Bold" />
@@ -108,33 +114,95 @@
               </ComboBox>
 
               <!-- Compact New Profile Button + Flyout -->
-              <Button Classes="Secondary" Padding="8,6" ToolTip.Tip="Create New Profile" AutomationProperties.Name="New Profile">
+              <Button x:Name="NewProfileButton" Classes="Secondary" Padding="8,6" ToolTip.Tip="Create New Profile" AutomationProperties.Name="New Profile">
                 <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
-                  <Flyout>
-                    <StackPanel Spacing="8" Width="220">
-                      <TextBlock Text="New Profile" FontWeight="SemiBold"/>
-                      <TextBox Text="{Binding NewProfileName, Mode=TwoWay}" Watermark="Enter profile name..."/>
-                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-                        <Button Content="Create" Command="{Binding CreateNewProfileCommand}" Classes="Primary" Padding="12,4"/>
+                  <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
+                    <Border Background="{DynamicResource SurfaceSubtleBrush}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="16"
+                            BoxShadow="0 8 24 0 #40000000">
+                      <StackPanel Spacing="12" Width="260">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                          <Border Width="28" Height="28" CornerRadius="6"
+                                  Background="{DynamicResource PrimaryGradientBrush}">
+                            <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                          </Border>
+                          <StackPanel Spacing="1">
+                            <TextBlock Text="New Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Create a custom hotkey set" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                          </StackPanel>
+                        </StackPanel>
+
+                        <TextBox x:Name="NewProfileTextBox"
+                                 Text="{Binding NewProfileName, Mode=TwoWay}"
+                                 Watermark="Profile name..."
+                                 Tag="Create"
+                                 KeyDown="OnFlyoutTextBoxKeyDown"
+                                 CornerRadius="6"
+                                 Padding="10,8"
+                                 FontSize="13"/>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                          <Button Grid.Column="1"
+                                  Content="Create"
+                                  Command="{Binding CreateNewProfileCommand}"
+                                  Click="OnCloseNewProfileFlyout"
+                                  Classes="Primary"
+                                  Padding="16,6"
+                                  FontWeight="SemiBold"/>
+                        </Grid>
                       </StackPanel>
-                    </StackPanel>
+                    </Border>
                   </Flyout>
                 </Button.Flyout>
               </Button>
 
               <!-- Rename Profile Button + Flyout -->
-              <Button Classes="Secondary" Padding="8,6" ToolTip.Tip="Rename Current Profile" AutomationProperties.Name="Rename Profile">
+              <Button x:Name="RenameProfileButton" Classes="Secondary" Padding="8,6" ToolTip.Tip="Rename Current Profile" AutomationProperties.Name="Rename Profile">
                 <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
-                  <Flyout>
-                    <StackPanel Spacing="8" Width="220">
-                      <TextBlock Text="Rename Profile" FontWeight="SemiBold"/>
-                      <TextBox Text="{Binding RenameProfileText, Mode=TwoWay}" Watermark="Enter new profile name..."/>
-                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-                        <Button Content="Save" Command="{Binding RenameCurrentProfileCommand}" Classes="Primary" Padding="12,4"/>
+                  <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
+                    <Border Background="{DynamicResource SurfaceSubtleBrush}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="16"
+                            BoxShadow="0 8 24 0 #40000000">
+                      <StackPanel Spacing="12" Width="260">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                          <Border Width="28" Height="28" CornerRadius="6"
+                                  Background="{DynamicResource SurfaceElevatedBrush}">
+                            <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" Foreground="{DynamicResource AccentPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                          </Border>
+                          <StackPanel Spacing="1">
+                            <TextBlock Text="Rename Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Update profile display name" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                          </StackPanel>
+                        </StackPanel>
+
+                        <TextBox x:Name="RenameProfileTextBox"
+                                 Text="{Binding RenameProfileText, Mode=TwoWay}"
+                                 Watermark="New profile name..."
+                                 Tag="Rename"
+                                 KeyDown="OnFlyoutTextBoxKeyDown"
+                                 CornerRadius="6"
+                                 Padding="10,8"
+                                 FontSize="13"/>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                          <Button Grid.Column="1"
+                                  Content="Save"
+                                  Command="{Binding RenameCurrentProfileCommand}"
+                                  Click="OnCloseRenameProfileFlyout"
+                                  Classes="Primary"
+                                  Padding="16,6"
+                                  FontWeight="SemiBold"/>
+                        </Grid>
                       </StackPanel>
-                    </StackPanel>
+                    </Border>
                   </Flyout>
                 </Button.Flyout>
               </Button>
@@ -187,7 +255,7 @@
             </StackPanel>
           </WrapPanel>
 
-          <!-- Dynamic Addon Action Button: Create Addon or Add to Profile -->
+          <!-- Addon Action Button: Always Create Addon -->
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
             <Button Command="{Binding HandleAddonActionCommand}"
                     Classes="Primary"
@@ -195,26 +263,25 @@
                     Padding="12,7"
                     ToolTip.Tip="{Binding AddonButtonToolTip}">
               <StackPanel Orientation="Horizontal" Spacing="7">
-                <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" IsVisible="{Binding HasExistingAddon}" Width="14" Height="14" VerticalAlignment="Center"/>
-                <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" IsVisible="{Binding !HasExistingAddon}" Width="14" Height="14" VerticalAlignment="Center"/>
+                <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="14" Height="14" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding AddonButtonText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
 
-            <!-- Re-create Addon Options Flyout when Addon already exists -->
+            <!-- Add to Game Profile Chevron Menu when Addon exists -->
             <Button Classes="Secondary"
                     Padding="6,7"
                     IsVisible="{Binding HasExistingAddon}"
                     IsEnabled="{Binding !IsBusy}"
-                    ToolTip.Tip="Addon Options (Re-create / Re-export)">
+                    ToolTip.Tip="Add to Game Profile">
               <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="10" Height="10" VerticalAlignment="Center"/>
               <Button.Flyout>
                 <MenuFlyout Placement="Bottom">
-                  <MenuItem Header="Re-create Addon (.BIG)"
-                            Command="{Binding ExportAddonCommand}"
-                            ToolTip.Tip="Rebuild .big archive and update manifest">
+                  <MenuItem Header="Add to Game Profile..."
+                            Command="{Binding OpenProfileSelectionCommand}"
+                            ToolTip.Tip="Add this hotkey addon to a game profile">
                     <MenuItem.Icon>
-                      <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="14" Height="14"/>
+                      <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="14" Height="14"/>
                     </MenuItem.Icon>
                   </MenuItem>
                 </MenuFlyout>
