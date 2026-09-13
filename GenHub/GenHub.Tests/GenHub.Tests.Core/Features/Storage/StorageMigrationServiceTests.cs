@@ -98,6 +98,8 @@ public class StorageMigrationServiceTests : IDisposable
     /// </summary>
     public void Dispose()
     {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        StorageMigrationService.WasEarlyAdopted = false;
         try
         {
             if (Directory.Exists(_tempRoot))
@@ -857,6 +859,46 @@ public class StorageMigrationServiceTests : IDisposable
         // Add file to target profiles
         File.WriteAllText(Path.Combine(defaultProfiles, "p1.json"), "{}");
         Assert.False(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+    }
+
+    /// <summary>
+    /// Verifies that EarlyAdoptIfConflict returns false when GenHub is running as a custom install root.
+    /// </summary>
+    [Fact]
+    public void EarlyAdoptIfConflict_WhenCustomInstallRoot_ReturnsFalse()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(true);
+        try
+        {
+            var result = StorageMigrationService.EarlyAdoptIfConflict(@"C:\CustomInstall");
+            Assert.False(result);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EarlyAdoptIfConflict returns false when candidate path is null or whitespace.
+    /// </summary>
+    /// <param name="candidate">The candidate path to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void EarlyAdoptIfConflict_WhenCandidateInvalid_ReturnsFalse(string? candidate)
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var result = StorageMigrationService.EarlyAdoptIfConflict(candidate);
+            Assert.False(result);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
     }
 
     private StorageMigrationService CreateService()

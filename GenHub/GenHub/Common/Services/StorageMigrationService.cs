@@ -47,6 +47,9 @@ public class StorageMigrationService(
         string FinalCasRoot,
         string FinalWorkspaceRoot);
 
+    private const string ImportUserDataFailureMessage =
+        "Failed to import user data from custom installation directory {CustomRoot}";
+
     private static readonly HashSet<string> ExcludedUserDataNames = new(PathHelper.PathComparer)
     {
         FileTypes.SettingsFileName,
@@ -72,6 +75,12 @@ public class StorageMigrationService(
     private static bool? _customInstallRootOverride;
 
     /// <summary>
+    /// Gets a value indicating whether user configuration was successfully adopted
+    /// during early startup prior to service container initialization.
+    /// </summary>
+    public static bool WasEarlyAdopted { get; internal set; }
+
+    /// <summary>
     /// Synchronously copies user settings and data from a custom installation before dependency injection
     /// registers services, ensuring UserSettingsService reads adopted configuration on initial startup.
     /// </summary>
@@ -85,38 +94,32 @@ public class StorageMigrationService(
             return false;
         }
 
-        if (HasDuplicateInstallationConflict(registeredCustomPath, out var detectedCustomPath) &&
-            !string.IsNullOrWhiteSpace(detectedCustomPath))
+        if (!HasDuplicateInstallationConflict(registeredCustomPath, out var detectedCustomPath) ||
+            string.IsNullOrWhiteSpace(detectedCustomPath))
         {
-            var defaultRoot = GetDefaultInstallRoot();
-            var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
-            var isPendingRetry = File.Exists(markerPath);
-            var hasExistingData = HasExistingUserData(defaultRoot);
-
-            if ((!hasExistingData || isPendingRetry) && HasExistingUserData(detectedCustomPath))
-            {
-                try
-                {
-                    if (!File.Exists(markerPath))
-                    {
-                        File.WriteAllText(markerPath, detectedCustomPath);
-                    }
-                }
-                catch (IOException ex)
-                {
-                    logger?.LogWarning(ex, "Failed to write adoption marker file");
-                }
-                catch (UnauthorizedAccessException ex)
-                {
-                    logger?.LogWarning(ex, "Failed to write adoption marker file");
-                }
-
-                logger?.LogInformation("Adopting configuration from '{Custom}' before service initialization", detectedCustomPath);
-                return TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
-            }
+            return false;
         }
 
-        return false;
+        var defaultRoot = GetDefaultInstallRoot();
+        var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
+        var isPendingRetry = File.Exists(markerPath);
+        var hasExistingData = HasExistingUserData(defaultRoot);
+
+        if ((hasExistingData && !isPendingRetry) || !HasExistingUserData(detectedCustomPath))
+        {
+            return false;
+        }
+
+        WriteAdoptionMarkerSafely(markerPath, detectedCustomPath, logger);
+
+        logger?.LogInformation("Adopting configuration from '{Custom}' before service initialization", detectedCustomPath);
+        var result = TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
+        if (result)
+        {
+            WasEarlyAdopted = true;
+        }
+
+        return result;
     }
 
     /// <inheritdoc />
@@ -384,10 +387,7 @@ public class StorageMigrationService(
             return false;
         }
 
-        var trimmedCandidate = candidateCustomPath.Trim().Trim('"');
-        if (trimmedCandidate.StartsWith(@"\\", StringComparison.Ordinal) ||
-            trimmedCandidate.StartsWith("//", StringComparison.Ordinal) ||
-            (Uri.TryCreate(trimmedCandidate, UriKind.Absolute, out var uri) && uri.IsUnc))
+        if (!PathHelper.TrySanitizeLocalPath(candidateCustomPath, out var sanitizedCandidate))
         {
             return false;
         }
@@ -395,7 +395,7 @@ public class StorageMigrationService(
         try
         {
             var currentRoot = GetSourceRootDirectory();
-            var normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(trimmedCandidate));
+            var normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sanitizedCandidate));
 
             if (PathHelper.AreSamePath(currentRoot, normalizedCandidate))
             {
@@ -537,27 +537,27 @@ public class StorageMigrationService(
         }
         catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
             return false;
         }
         catch (SecurityException ex)
         {
-            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
             return false;
         }
         catch (ArgumentException ex)
         {
-            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
             return false;
         }
         catch (NotSupportedException ex)
         {
-            logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
             return false;
         }
     }
@@ -822,6 +822,25 @@ public class StorageMigrationService(
         {
             TryDeleteDirectory(destDir);
             throw;
+        }
+    }
+
+    private static void WriteAdoptionMarkerSafely(string markerPath, string detectedCustomPath, ILogger? logger)
+    {
+        try
+        {
+            if (!File.Exists(markerPath))
+            {
+                File.WriteAllText(markerPath, detectedCustomPath);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, "Failed to write adoption marker file");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Failed to write adoption marker file");
         }
     }
 

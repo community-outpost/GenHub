@@ -3,6 +3,7 @@ using System.IO;
 using System.Security;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
@@ -18,6 +19,9 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
     private const string GenHubSubKey = RegistryConstants.GenHubSubKey;
     private const string CustomInstallPathValueName = RegistryConstants.CustomInstallPathValueName;
     private const string UriSchemeCommandKey = RegistryConstants.GenHubUriSchemeCommandKey;
+    private const string RecordLocationFailureMessage = "Failed to record installation location in registry.";
+    private const string ReadLocationFailureMessage = "Failed to read registered custom installation location from registry.";
+    private const string ClearLocationFailureMessage = "Failed to clear custom installation path from registry.";
 
     /// <summary>
     /// Records the current installation directory in the user registry when running from a custom install root.
@@ -44,23 +48,23 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         }
         catch (SecurityException ex)
         {
-            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
         catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
         catch (ArgumentException ex)
         {
-            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
         catch (InvalidOperationException ex)
         {
-            logger?.LogWarning(ex, "Failed to record installation location in registry.");
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
     }
 
@@ -79,30 +83,17 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         try
         {
             // 1. Direct GenHub registry key
-            using var key = Registry.CurrentUser.OpenSubKey(GenHubSubKey, writable: false);
-            if (key != null)
+            var pathFromKey = GetPathFromGenHubRegistryKey();
+            if (pathFromKey != null)
             {
-                var customPath = key.GetValue(CustomInstallPathValueName) as string;
-                if (IsValidLocalDirectoryPath(customPath))
-                {
-                    return customPath!.Trim().Trim('"');
-                }
+                return pathFromKey;
             }
 
             // 2. Fallback: inspect URI scheme handler command to see where genhub:// previously pointed
-            using var uriCommandKey = Registry.CurrentUser.OpenSubKey(UriSchemeCommandKey, writable: false);
-            if (uriCommandKey != null)
+            var pathFromUriScheme = GetPathFromUriSchemeRegistration();
+            if (pathFromUriScheme != null)
             {
-                var command = uriCommandKey.GetValue(string.Empty) as string;
-                if (!string.IsNullOrWhiteSpace(command))
-                {
-                    var candidate = ExtractDirectoryFromCommand(command);
-                    if (IsValidLocalDirectoryPath(candidate) &&
-                        StorageMigrationService.IsVelopackRoot(candidate!))
-                    {
-                        return candidate!.Trim().Trim('"');
-                    }
-                }
+                return pathFromUriScheme;
             }
 
             // 3. Fallback: check file installation tracker
@@ -114,23 +105,23 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         }
         catch (SecurityException ex)
         {
-            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
         catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
         catch (ArgumentException ex)
         {
-            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
         catch (InvalidOperationException ex)
         {
-            logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
 
         return null;
@@ -155,23 +146,23 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         }
         catch (SecurityException ex)
         {
-            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
         catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
         catch (ArgumentException ex)
         {
-            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
         catch (InvalidOperationException ex)
         {
-            logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
 
         FileInstallationLocationTracker.ClearCustomInstallPathStatic(logger);
@@ -186,26 +177,44 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
     /// <inheritdoc />
     public void ClearCustomInstallPath() => ClearCustomInstallPathStatic(logger);
 
+    private static string? GetPathFromGenHubRegistryKey()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(GenHubSubKey, writable: false);
+        if (key != null)
+        {
+            var customPath = key.GetValue(CustomInstallPathValueName) as string;
+            if (IsValidLocalDirectoryPath(customPath))
+            {
+                return customPath!.Trim().Trim('"');
+            }
+        }
+
+        return null;
+    }
+
+    private static string? GetPathFromUriSchemeRegistration()
+    {
+        using var uriCommandKey = Registry.CurrentUser.OpenSubKey(UriSchemeCommandKey, writable: false);
+        if (uriCommandKey != null)
+        {
+            var command = uriCommandKey.GetValue(string.Empty) as string;
+            if (!string.IsNullOrWhiteSpace(command))
+            {
+                var candidate = ExtractDirectoryFromCommand(command);
+                if (IsValidLocalDirectoryPath(candidate) &&
+                    StorageMigrationService.IsVelopackRoot(candidate!))
+                {
+                    return candidate!.Trim().Trim('"');
+                }
+            }
+        }
+
+        return null;
+    }
+
     private static bool IsValidLocalDirectoryPath(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        var trimmed = path.Trim().Trim('"');
-        if (trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
-            trimmed.StartsWith("//", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && uri.IsUnc)
-        {
-            return false;
-        }
-
-        return Directory.Exists(trimmed);
+        return PathHelper.TrySanitizeLocalPath(path, out var sanitized) && Directory.Exists(sanitized);
     }
 
     private static string? ExtractDirectoryFromCommand(string command)

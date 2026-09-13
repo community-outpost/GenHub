@@ -79,6 +79,32 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Validates whether a path is a non-UNC, locally-rooted directory path, sanitizing surrounding quotes and whitespace.
+    /// </summary>
+    /// <param name="path">The path to validate.</param>
+    /// <param name="sanitizedPath">The sanitized path if valid; otherwise, <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if the path is a valid non-UNC local path; otherwise, <see langword="false"/>.</returns>
+    public static bool TrySanitizeLocalPath(string? path, [NotNullWhen(true)] out string? sanitizedPath)
+    {
+        sanitizedPath = null;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var trimmed = path.Trim().Trim('"');
+        if (trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
+            trimmed.StartsWith("//", StringComparison.Ordinal) ||
+            (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && uri.IsUnc))
+        {
+            return false;
+        }
+
+        sanitizedPath = trimmed;
+        return true;
+    }
+
+    /// <summary>
     /// Determines whether two filesystem paths reside on the same drive volume.
     /// </summary>
     /// <param name="first">The first path.</param>

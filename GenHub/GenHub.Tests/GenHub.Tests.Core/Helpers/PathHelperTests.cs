@@ -341,6 +341,46 @@ public sealed class PathHelperTests
         }
     }
 
+    /// <summary>
+    /// Verifies that TrySanitizeLocalPath rejects UNC paths.
+    /// </summary>
+    /// <param name="uncPath">The UNC path to test.</param>
+    [Theory]
+    [InlineData(@"\\server\share\folder")]
+    [InlineData("//server/share/folder")]
+    public void TrySanitizeLocalPath_WhenUncPath_ReturnsFalse(string uncPath)
+    {
+        Assert.False(PathHelper.TrySanitizeLocalPath(uncPath, out var sanitized));
+        Assert.Null(sanitized);
+    }
+
+    /// <summary>
+    /// Verifies that TrySanitizeLocalPath rejects null or whitespace paths.
+    /// </summary>
+    /// <param name="path">The path to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void TrySanitizeLocalPath_WhenNullOrWhitespace_ReturnsFalse(string? path)
+    {
+        Assert.False(PathHelper.TrySanitizeLocalPath(path, out var sanitized));
+        Assert.Null(sanitized);
+    }
+
+    /// <summary>
+    /// Verifies that TrySanitizeLocalPath trims enclosing quotes and whitespace.
+    /// </summary>
+    [Fact]
+    public void TrySanitizeLocalPath_WhenQuoted_TrimsQuotesAndReturnsTrue()
+    {
+        var localPath = OperatingSystem.IsWindows() ? @"C:\Games\GenHub" : "/home/user/GenHub";
+        var quoted = $"  \"{localPath}\"  ";
+
+        Assert.True(PathHelper.TrySanitizeLocalPath(quoted, out var sanitized));
+        Assert.Equal(localPath, sanitized);
+    }
+
     private static string CreateWorkingDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "GenHubContainmentLinks", Guid.NewGuid().ToString("N"));

@@ -35,6 +35,7 @@ public class InstallationConflictServiceTests : System.IDisposable
     public void Dispose()
     {
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        StorageMigrationService.WasEarlyAdopted = false;
         try
         {
             if (Directory.Exists(_tempRoot))
@@ -121,7 +122,39 @@ public class InstallationConflictServiceTests : System.IDisposable
                 StorageMigrationConstants.DuplicateInstallationDetectedTitle,
                 It.Is<string>(msg => msg.Contains(customDir)),
                 It.IsAny<int?>(),
-                It.IsAny<bool>()),
+                true),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when WasEarlyAdopted is true, the notification displays preserved message and badge is true.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenWasEarlyAdopted_ShowsPreservedNotificationWithBadge()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.WasEarlyAdopted = true;
+
+        var customDir = Path.Combine(_tempRoot, "CustomInstallEarlyAdopted");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+        var service = new InstallationConflictService(
+            _mockTracker.Object,
+            _mockNotificationService.Object);
+
+        await service.CheckAndResolveConflictsAsync();
+
+        _mockTracker.Verify(t => t.ClearCustomInstallPath(), Times.Once);
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(
+                StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+                It.Is<string>(msg => msg.Contains("preserved") && msg.Contains(customDir)),
+                StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,
+                true),
             Times.Once);
     }
 }
