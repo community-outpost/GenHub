@@ -31,6 +31,9 @@ public static class Program
         {
             bootstrapLogger.LogInformation("Starting GenHub macOS application");
 
+            // Initialize configured data-path resolver before checking conflict so AppDataPath is respected
+            ConfigurationModule.InitializeConfiguredDataPathResolver();
+
             // Check for duplicate installation collision and adopt configuration early
             // before dependency injection initializes UserSettingsService.
             var registeredCustom = Common.Services.FileInstallationLocationTracker.GetRegisteredCustomInstallPathStatic(bootstrapLogger);

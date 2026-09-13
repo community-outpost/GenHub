@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
@@ -16,7 +17,9 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
+using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Tests.Core.Collections;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -1068,6 +1071,38 @@ public class StorageMigrationServiceTests : IDisposable
         {
             StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
             StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that InitializeConfiguredDataPathResolver sets the configured data path resolver
+    /// so that GetDefaultDataRoot respects AppDataPath from configuration.
+    /// </summary>
+    [Fact]
+    public void InitializeConfiguredDataPathResolver_SetsResolverForDefaultDataRoot()
+    {
+        var customDataDir = Path.Combine(_tempRoot, "ConfiguredDataRoot");
+        Directory.CreateDirectory(customDataDir);
+
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            [ConfigurationKeys.AppDataPath] = customDataDir,
+        };
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        try
+        {
+            ConfigurationModule.InitializeConfiguredDataPathResolver(configuration);
+            var resolvedRoot = StorageMigrationService.GetDefaultDataRoot();
+            Assert.True(PathHelper.AreSamePath(customDataDir, resolvedRoot));
+        }
+        finally
+        {
+            StorageMigrationService.SetConfiguredDataPathResolver(null);
+            ConfigurationModule.ResetCachedConfigurationForTesting();
         }
     }
 

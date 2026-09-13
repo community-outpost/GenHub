@@ -15,6 +15,43 @@ namespace GenHub.Infrastructure.DependencyInjection;
 /// </summary>
 public static class ConfigurationModule
 {
+    private static IConfiguration? _cachedConfiguration;
+
+    /// <summary>
+    /// Builds application configuration from appsettings files and environment variables.
+    /// </summary>
+    /// <returns>The constructed <see cref="IConfiguration"/> instance.</returns>
+    public static IConfiguration CreateConfiguration()
+    {
+        return new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+            .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
+            .AddEnvironmentVariables("GENHUB_")
+            .Build();
+    }
+
+    /// <summary>
+    /// Initializes the configured data-path resolver for storage services before early adoption executes.
+    /// </summary>
+    /// <param name="configuration">Optional pre-built configuration.</param>
+    /// <returns>The configured <see cref="IConfiguration"/> instance.</returns>
+    public static IConfiguration InitializeConfiguredDataPathResolver(IConfiguration? configuration = null)
+    {
+        var config = configuration ?? _cachedConfiguration ?? (_cachedConfiguration = CreateConfiguration());
+        _cachedConfiguration = config;
+        StorageMigrationService.SetConfiguredDataPathResolver(() => config[ConfigurationKeys.AppDataPath]);
+        return config;
+    }
+
+    /// <summary>
+    /// Resets the cached configuration instance (for unit testing).
+    /// </summary>
+    internal static void ResetCachedConfigurationForTesting()
+    {
+        _cachedConfiguration = null;
+    }
+
     /// <summary>
     /// Registers configuration services with the service collection.
     /// </summary>
@@ -29,17 +66,9 @@ public static class ConfigurationModule
             builder.SetMinimumLevel(LogLevel.Warning);
         });
 
-        // Register IConfiguration first - this is required by AppConfiguration
-        services.AddSingleton<IConfiguration>(provider =>
-        {
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
-                .AddEnvironmentVariables("GENHUB_");
-
-            return builder.Build();
-        });
+        // Initialize configured data-path resolver eagerly and register configuration instance
+        var config = InitializeConfiguredDataPathResolver();
+        services.AddSingleton<IConfiguration>(config);
 
         // Register bootstrap loggers for configuration services
         services.AddSingleton<ILogger<AppConfiguration>>(provider =>
@@ -56,13 +85,7 @@ public static class ConfigurationModule
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IAppConfiguration>(provider =>
         {
-            var config = provider.GetService<IConfiguration>();
             var logger = provider.GetService<ILogger<AppConfiguration>>();
-            if (config != null)
-            {
-                Common.Services.StorageMigrationService.SetConfiguredDataPathResolver(() => config[ConfigurationKeys.AppDataPath]);
-            }
-
             return new AppConfiguration(config, logger);
         });
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
@@ -74,9 +97,9 @@ public static class ConfigurationModule
         // Register image cache service with resolved configuration provider and logger
         services.AddSingleton<IImageCacheService>(provider =>
         {
-            var config = provider.GetRequiredService<IConfigurationProviderService>();
+            var configProvider = provider.GetRequiredService<IConfigurationProviderService>();
             var logger = provider.GetService<ILogger<ImageCacheService>>();
-            return new ImageCacheService(config, logger);
+            return new ImageCacheService(configProvider, logger);
         });
 
         return services;

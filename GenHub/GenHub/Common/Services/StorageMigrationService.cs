@@ -113,6 +113,18 @@ public class StorageMigrationService(
             return false;
         }
 
+        if (_configuredDataPathResolver == null)
+        {
+            try
+            {
+                Infrastructure.DependencyInjection.ConfigurationModule.InitializeConfiguredDataPathResolver();
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to initialize configured data path resolver during early adoption conflict resolution.");
+            }
+        }
+
         FileInstallationLocationTracker.RecordCustomInstallPathStatic(detectedCustomPath, logger);
 
         var defaultRoot = GetDefaultDataRoot();

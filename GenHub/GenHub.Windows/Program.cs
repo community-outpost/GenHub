@@ -156,6 +156,9 @@ public class Program
 
     private static void HandleEarlyInstallationConflict(ILogger logger)
     {
+        // Initialize configured data-path resolver before checking conflict so AppDataPath is respected
+        ConfigurationModule.InitializeConfiguredDataPathResolver();
+
         // Check for duplicate installation collision: if running from default %LOCALAPPDATA%
         // but a custom installation was previously registered or recorded, adopt user configuration early
         // before dependency injection initializes UserSettingsService.
