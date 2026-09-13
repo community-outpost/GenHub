@@ -1745,7 +1745,7 @@ public sealed class ProjectConfigService(
         await AtomicWriteJsonFileAsync(_recentProjectsPath, recentProjects, _jsonOptions, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task AtomicWriteJsonFileAsync<T>(
+    private async Task AtomicWriteJsonFileAsync<T>(
         string filePath,
         T value,
         JsonSerializerOptions options,
