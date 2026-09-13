@@ -169,6 +169,31 @@ public static class ModBuilderConstants
     public const string LowercaseConfigDir = "config";
 
     /// <summary>
+    /// Alternate lowercase directory name for plural configs directory.
+    /// </summary>
+    public const string LowercaseConfigsDir = "configs";
+
+    /// <summary>
+    /// Subdirectory name for caching sample project downloads.
+    /// </summary>
+    public const string SampleCacheDirName = "ModBuilderSampleCache";
+
+    /// <summary>
+    /// File name for ModFolders configuration.
+    /// </summary>
+    public const string ModFoldersFileName = "ModFolders.json";
+
+    /// <summary>
+    /// File name for ModJsonFiles configuration.
+    /// </summary>
+    public const string ModJsonFilesFileName = "ModJsonFiles.json";
+
+    /// <summary>
+    /// File name for bundles configuration.
+    /// </summary>
+    public const string BundlesConfigFileName = "bundles.json";
+
+    /// <summary>
     /// Directory name for ModBuilder cache.
     /// </summary>
     public const string CacheDirectoryName = ".modbuilder_cache";
@@ -182,11 +207,6 @@ public static class ModBuilderConstants
     /// File name for bundle packs configuration.
     /// </summary>
     public const string BundlePacksConfigFileName = "ModBundlePacks.json";
-
-    /// <summary>
-    /// Directory name for release packages.
-    /// </summary>
-    public const string PackagesDir = "Packages";
 
     /// <summary>
     /// Directory name for uncompressed release files.
@@ -301,4 +321,60 @@ public static class ModBuilderConstants
         "LeikezeHotkeys",
         "Hotkeys"
     ];
+
+    /// <summary>
+    /// Constants for ModBuilder sample project downloads and verification.
+    /// </summary>
+    public static class SampleProjects
+    {
+        /// <summary>
+        /// Download URL for Generals Community Patch 2.0 core INI sample assets.
+        /// </summary>
+        public const string GeneralsGamePatch2Url = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/download/1.0.1/500_900_CommunityPatch_CoreINI.zip";
+
+        /// <summary>
+        /// Expected SHA256 hash for Generals Community Patch 2.0 core INI BIG archive.
+        /// </summary>
+        public const string GeneralsGamePatch2Sha256 = "6a02aca9aebe6602b3e4bb76bf6e2cf35086a33fec7c6f000d8e7a4048629775";
+
+        /// <summary>
+        /// Download URL for Improved Menus widescreen sample assets.
+        /// </summary>
+        public const string ImprovedMenusUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
+
+        /// <summary>
+        /// Expected SHA256 hash for Improved Menus widescreen BIG archive.
+        /// </summary>
+        public const string ImprovedMenusSha256 = "3280056a2d7cf9bc5cbe8d4ac18fb082846e6db11ad7bb5c60f7c4619353f0a4";
+
+        /// <summary>
+        /// Download URL for Lemon Control Bar (1080p) sample assets.
+        /// </summary>
+        public const string LemonControlBarUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar (1080p) BIG archive.
+        /// </summary>
+        public const string LemonControlBarSha256 = "ce169f207867aeb7594e799e1cc67abd8561a1d1b5c6cb2e59af88f4caeca828";
+
+        /// <summary>
+        /// Download URL for Leikeze Hotkeys sample assets.
+        /// </summary>
+        public const string LeikezeHotkeysUrl = "https://legi.cc/gp2/f/hlei.dat";
+
+        /// <summary>
+        /// Expected SHA256 hash for Leikeze Hotkeys BIG archive.
+        /// </summary>
+        public const string LeikezeHotkeysSha256 = "b06677d18c83c108aaa482d571c99a5aad3365c8a492067ef6eaf09364d3ab88";
+
+        /// <summary>
+        /// Download URL for Hotkeys hleg asset.
+        /// </summary>
+        public const string HotkeysHlegUrl = "https://legi.cc/gp2/f/hleg.dat";
+
+        /// <summary>
+        /// Download URL for Hotkeys hlen asset.
+        /// </summary>
+        public const string HotkeysHlenUrl = "https://legi.cc/gp2/f/hlen.dat";
+    }
 }

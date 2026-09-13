@@ -49,7 +49,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithValidConfig_ReturnsConfiguration()
+    public async Task LoadConfigurationResultAsync_WithValidConfig_ReturnsConfiguration()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "config.json");
@@ -68,7 +68,9 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadConfigurationAsync(configPath);
+        var opResult = await _service.LoadConfigurationResultAsync(configPath);
+        opResult.Success.Should().BeTrue();
+        var result = opResult.Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -79,42 +81,51 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithNonExistentFile_ThrowsFileNotFoundException()
+    public async Task LoadConfigurationResultAsync_WithNonExistentFile_ReturnsFailure()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "nonexistent.json");
 
-        // Act & Assert
-        await Assert.ThrowsAsync<FileNotFoundException>(
-            async () => await _service.LoadConfigurationAsync(configPath));
+        // Act
+        var result = await _service.LoadConfigurationResultAsync(configPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithInvalidJson_ThrowsInvalidOperationException()
+    public async Task LoadConfigurationResultAsync_WithInvalidJson_ReturnsFailure()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "invalid.json");
         await File.WriteAllTextAsync(configPath, "{ invalid json }");
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await _service.LoadConfigurationAsync(configPath));
+        // Act
+        var result = await _service.LoadConfigurationResultAsync(configPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithEmptyFile_ThrowsInvalidOperationException()
+    public async Task LoadConfigurationResultAsync_WithEmptyFile_ReturnsFailure()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "empty.json");
         await File.WriteAllTextAsync(configPath, string.Empty);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await _service.LoadConfigurationAsync(configPath));
+        // Act
+        var result = await _service.LoadConfigurationResultAsync(configPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithComments_IgnoresComments()
+    public async Task LoadConfigurationResultAsync_WithComments_IgnoresComments()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "config.json");
@@ -126,7 +137,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadConfigurationAsync(configPath);
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -135,7 +146,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithTrailingCommas_HandlesCorrectly()
+    public async Task LoadConfigurationResultAsync_WithTrailingCommas_HandlesCorrectly()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "config.json");
@@ -148,7 +159,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadConfigurationAsync(configPath);
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -156,13 +167,13 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAndMergeConfigurationsAsync_WithEmptyList_ReturnsEmptyConfiguration()
+    public async Task LoadAndMergeConfigurationsResultAsync_WithEmptyList_ReturnsEmptyConfiguration()
     {
         // Arrange
         var configPaths = new List<string>();
 
         // Act
-        var result = await _service.LoadAndMergeConfigurationsAsync(configPaths);
+        var result = (await _service.LoadAndMergeConfigurationsResultAsync(configPaths)).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -171,7 +182,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAndMergeConfigurationsAsync_WithSingleConfig_ReturnsSameConfig()
+    public async Task LoadAndMergeConfigurationsResultAsync_WithSingleConfig_ReturnsSameConfig()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "config.json");
@@ -186,7 +197,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadAndMergeConfigurationsAsync(new[] { configPath });
+        var result = (await _service.LoadAndMergeConfigurationsResultAsync(new[] { configPath })).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -195,7 +206,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAndMergeConfigurationsAsync_WithMultipleConfigs_MergesCorrectly()
+    public async Task LoadAndMergeConfigurationsResultAsync_WithMultipleConfigs_MergesCorrectly()
     {
         // Arrange
         var config1Path = Path.Combine(_tempDirectory, "config1.json");
@@ -227,7 +238,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(config2Path, JsonSerializer.Serialize(config2));
 
         // Act
-        var result = await _service.LoadAndMergeConfigurationsAsync(new[] { config1Path, config2Path });
+        var result = (await _service.LoadAndMergeConfigurationsResultAsync(new[] { config1Path, config2Path })).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -376,7 +387,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithCaseInsensitiveProperties_ParsesCorrectly()
+    public async Task LoadConfigurationResultAsync_WithCaseInsensitiveProperties_ParsesCorrectly()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "config.json");
@@ -389,7 +400,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadConfigurationAsync(configPath);
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -438,7 +449,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithPythonBundlePackBig_MapsBigAndOutputFile()
+    public async Task LoadConfigurationResultAsync_WithPythonBundlePackBig_MapsBigAndOutputFile()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "bundle_packs.json");
@@ -457,7 +468,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadConfigurationAsync(configPath);
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -470,7 +481,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithSimplifiedBundlePackBig_MapsBig()
+    public async Task LoadConfigurationResultAsync_WithSimplifiedBundlePackBig_MapsBig()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "config.json");
@@ -486,7 +497,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadConfigurationAsync(configPath);
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
 
         // Assert
         result.Should().NotBeNull();
@@ -498,7 +509,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadConfigurationAsync_WithSimplifiedBundlePackBigFalseAndBigOutputFile_MapsBigFalse()
+    public async Task LoadConfigurationResultAsync_WithSimplifiedBundlePackBigFalseAndBigOutputFile_MapsBigFalse()
     {
         // Arrange
         var configPath = Path.Combine(_tempDirectory, "config.json");
@@ -515,7 +526,7 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         await File.WriteAllTextAsync(configPath, json);
 
         // Act
-        var result = await _service.LoadConfigurationAsync(configPath);
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
 
         // Assert
         result.Should().NotBeNull();

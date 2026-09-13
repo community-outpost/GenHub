@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Tools.ModBuilder;
 
@@ -222,8 +223,8 @@ public static class BigFilePacker
     /// <param name="overwrite">Whether to overwrite existing files.</param>
     /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The number of files extracted.</returns>
-    public static async Task<int> UnpackAsync(
+    /// <returns>An OperationResult containing the number of files extracted or error details.</returns>
+    public static async Task<OperationResult<int>> UnpackAsync(
         string bigPath,
         string destinationDirectory,
         bool overwrite = true,
@@ -232,25 +233,43 @@ public static class BigFilePacker
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!File.Exists(bigPath))
+        if (string.IsNullOrWhiteSpace(bigPath) || !File.Exists(bigPath))
         {
-            throw new FileNotFoundException($"BIG file not found: {bigPath}", bigPath);
+            return OperationResult<int>.CreateFailure($"BIG file not found: {bigPath}");
         }
 
-        Directory.CreateDirectory(destinationDirectory);
-        var destFullPath = Path.GetFullPath(destinationDirectory);
-        var destFullPathWithSep = destFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-
-        await using var fs = new FileStream(bigPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
-
-        List<BigArchiveEntryInfo> entries = [];
-        var (reader, entryCount) = ReadAndValidateBigHeader(fs);
-        using (reader)
+        try
         {
-            entries = ReadBigArchiveEntries(fs, reader, entryCount, validateOffsets: true, cancellationToken);
-        }
+            Directory.CreateDirectory(destinationDirectory);
+            var destFullPath = Path.GetFullPath(destinationDirectory);
+            var destFullPathWithSep = destFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
 
-        return await ExtractEntriesAsync(fs, entries, destFullPath, destFullPathWithSep, overwrite, progress, cancellationToken).ConfigureAwait(false);
+            await using var fs = new FileStream(bigPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
+
+            var headerResult = ReadAndValidateBigHeader(fs);
+            if (!headerResult.Success)
+            {
+                return OperationResult<int>.CreateFailure(headerResult.FirstError ?? "Invalid BIG archive header.");
+            }
+
+            var (reader, entryCount) = headerResult.Data;
+            List<BigArchiveEntryInfo> entries;
+            using (reader)
+            {
+                entries = ReadBigArchiveEntries(fs, reader, entryCount, validateOffsets: true, cancellationToken);
+            }
+
+            var count = await ExtractEntriesAsync(fs, entries, destFullPath, destFullPathWithSep, overwrite, progress, cancellationToken).ConfigureAwait(false);
+            return OperationResult<int>.CreateSuccess(count);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<int>.CreateFailure($"Failed to unpack BIG file {bigPath}: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -261,8 +280,8 @@ public static class BigFilePacker
     /// <param name="overwrite">Whether to overwrite existing files.</param>
     /// <param name="progress">Optional aggregated progress reporter (0.0 to 1.0).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The total count of extracted files across all archives.</returns>
-    public static async Task<int> UnpackMultipleAsync(
+    /// <returns>An OperationResult containing the total count of extracted files across all archives.</returns>
+    public static async Task<OperationResult<int>> UnpackMultipleAsync(
         IEnumerable<string> bigPaths,
         string destinationDirectory,
         bool overwrite = true,
@@ -274,7 +293,7 @@ public static class BigFilePacker
         var pathsList = bigPaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
         if (pathsList.Count == 0)
         {
-            return 0;
+            return OperationResult<int>.CreateSuccess(0);
         }
 
         var totalExtracted = 0;
@@ -289,17 +308,24 @@ public static class BigFilePacker
                 ? new Progress<double>(val => progress.Report(baseProgress + (val * stepProgress)))
                 : null;
 
-            totalExtracted += await UnpackAsync(p, destinationDirectory, overwrite, subProgress, cancellationToken).ConfigureAwait(false);
+            var result = await UnpackAsync(p, destinationDirectory, overwrite, subProgress, cancellationToken).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                return result;
+            }
+
+            totalExtracted += result.Data;
         }
 
-        return totalExtracted;
+        return OperationResult<int>.CreateSuccess(totalExtracted);
     }
 
-    private static (BinaryReader Reader, uint EntryCount) ReadAndValidateBigHeader(FileStream fs)
+    private static OperationResult<(BinaryReader Reader, uint EntryCount)> ReadAndValidateBigHeader(FileStream fs)
     {
         if (fs.Length < 16)
         {
-            throw new InvalidDataException($"BIG archive is too small to contain a valid header: {fs.Length} bytes.");
+            return OperationResult<(BinaryReader Reader, uint EntryCount)>.CreateFailure(
+                $"BIG archive is too small to contain a valid header: {fs.Length} bytes.");
         }
 
         var reader = new BinaryReader(fs, Encoding.ASCII, leaveOpen: true);
@@ -310,7 +336,8 @@ public static class BigFilePacker
             !string.Equals(sig, "BIG4", StringComparison.OrdinalIgnoreCase))
         {
             reader.Dispose();
-            throw new InvalidDataException($"Invalid BIG archive signature: '{sig}'. Expected 'BIGF' or 'BIG4'.");
+            return OperationResult<(BinaryReader Reader, uint EntryCount)>.CreateFailure(
+                $"Invalid BIG archive signature: '{sig}'. Expected 'BIGF' or 'BIG4'.");
         }
 
         _ = reader.ReadUInt32();
@@ -319,7 +346,8 @@ public static class BigFilePacker
         if (reader.Read(uintBuffer, 0, 4) < 4)
         {
             reader.Dispose();
-            throw new EndOfStreamException("Unexpected end of file while reading BIG entry count.");
+            return OperationResult<(BinaryReader Reader, uint EntryCount)>.CreateFailure(
+                "Unexpected end of file while reading BIG entry count.");
         }
 
         var entryCount = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
@@ -327,12 +355,13 @@ public static class BigFilePacker
         if (reader.Read(uintBuffer, 0, 4) < 4)
         {
             reader.Dispose();
-            throw new EndOfStreamException("Unexpected end of file while reading BIG header size.");
+            return OperationResult<(BinaryReader Reader, uint EntryCount)>.CreateFailure(
+                "Unexpected end of file while reading BIG header size.");
         }
 
         _ = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
 
-        return (reader, entryCount);
+        return OperationResult<(BinaryReader Reader, uint EntryCount)>.CreateSuccess((reader, entryCount));
     }
 
     private static List<BigArchiveEntryInfo> ReadBigArchiveEntries(
