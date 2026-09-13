@@ -122,7 +122,7 @@ public class MainViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_CompletesSuccessfully()
+    public async Task InitializeAsync_CompletesSuccessfullyAsync()
     {
         var vm = CreateMainViewModel();
 
@@ -136,7 +136,7 @@ public class MainViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_CanBeCalledMultipleTimes()
+    public async Task InitializeAsync_CanBeCalledMultipleTimesAsync()
     {
         var mockBackgroundCoordinator = new Mock<IBackgroundUpdateCoordinator>();
         var vm = CreateMainViewModel(mockBackgroundCoordinator: mockBackgroundCoordinator);
@@ -183,6 +183,7 @@ public class MainViewModelTests
         var tool = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Author");
         vm.ToolsViewModel.InstalledTools.Add(tool);
         vm.ToolsViewModel.SelectedTool = tool;
+        Assert.Equal(tool, vm.ToolsViewModel.SelectedTool);
 
         // Simulate tab switch away from Tools
         vm.ToolsViewModel.SelectedTool = null;

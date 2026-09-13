@@ -49,6 +49,7 @@ public class ToolsViewModelTests
         _viewModel.InstalledTools.Add(plugin2);
 
         _viewModel.SelectedTool = plugin2;
+        Assert.Equal(plugin2, _viewModel.SelectedTool);
         Assert.Equal(plugin2, _viewModel.LastOpenedTool);
 
         // Simulate tab switch reset
@@ -115,6 +116,7 @@ public class ToolsViewModelTests
         _viewModel.InstalledTools.Add(plugin1);
         _viewModel.InstalledTools.Add(plugin2);
         _viewModel.SelectedTool = plugin2;
+        Assert.Equal(plugin2, _viewModel.SelectedTool);
 
         _viewModel.SelectedTool = null;
         _viewModel.InstalledTools.Remove(plugin2);
