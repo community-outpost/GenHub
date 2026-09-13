@@ -66,9 +66,9 @@ public static class ConfigurationModule
             builder.SetMinimumLevel(LogLevel.Warning);
         });
 
-        // Initialize configured data-path resolver eagerly and register configuration instance
-        var config = InitializeConfiguredDataPathResolver();
-        services.AddSingleton<IConfiguration>(config);
+        // Initialize configured data-path resolver eagerly and register configuration factory
+        InitializeConfiguredDataPathResolver();
+        services.AddSingleton<IConfiguration>(_ => InitializeConfiguredDataPathResolver());
 
         // Register bootstrap loggers for configuration services
         services.AddSingleton<ILogger<AppConfiguration>>(provider =>
@@ -86,6 +86,7 @@ public static class ConfigurationModule
         services.AddSingleton<IAppConfiguration>(provider =>
         {
             var logger = provider.GetService<ILogger<AppConfiguration>>();
+            var config = provider.GetService<IConfiguration>();
             return new AppConfiguration(config, logger);
         });
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
