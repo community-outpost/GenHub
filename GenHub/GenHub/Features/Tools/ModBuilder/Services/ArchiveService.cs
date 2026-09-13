@@ -52,7 +52,6 @@ public sealed class ArchiveService(
 
             logger.LogInformation("Creating BIG archive: {Source} -> {Target}", sourceDirectory, targetBigPath);
 
-            // ensure target directory exists
             var targetDir = Path.GetDirectoryName(targetBigPath);
             if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
             {
@@ -63,42 +62,8 @@ public sealed class ArchiveService(
 
             try
             {
-                BigArchiveManifest? manifest = null;
-                if (!string.IsNullOrEmpty(manifestFilePath) && File.Exists(manifestFilePath))
-                {
-                    manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
-                    if (manifest != null)
-                    {
-                        logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
-                    }
-                }
-                else
-                {
-                    var targetFileName = Path.GetFileName(targetBigPath);
-                    var candidateLocations = new[]
-                    {
-                        Path.ChangeExtension(targetBigPath, ".manifest.json"),
-                        Path.Combine(sourceDirectory, "..", "config", $"{targetFileName}.manifest.json"),
-                        Path.Combine(sourceDirectory, "..", "..", "config", $"{targetFileName}.manifest.json"),
-                        Path.Combine(sourceDirectory, "..", "config", "BigLayout.json"),
-                    };
+                var manifest = await ResolveManifestAsync(sourceDirectory, targetBigPath, manifestFilePath, cancellationToken).ConfigureAwait(false);
 
-                    foreach (var candidate in candidateLocations)
-                    {
-                        var fullCandidate = Path.GetFullPath(candidate);
-                        if (File.Exists(fullCandidate))
-                        {
-                            manifest = await BigFilePacker.LoadManifestAsync(fullCandidate, cancellationToken).ConfigureAwait(false);
-                            if (manifest != null)
-                            {
-                                logger.LogInformation("Discovered BIG archive manifest at {Path}", fullCandidate);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // use existing BigFilePacker with manifest support
                 var duplicateCount = await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, manifest, cancellationToken).ConfigureAwait(false);
                 if (duplicateCount > 0)
                 {
@@ -115,17 +80,7 @@ public sealed class ArchiveService(
             }
             finally
             {
-                if (File.Exists(tempBigPath))
-                {
-                    try
-                    {
-                        File.Delete(tempBigPath);
-                    }
-                    catch
-                    {
-                        // Ignore cleanup errors
-                    }
-                }
+                CleanupTempFile(tempBigPath);
             }
 
             logger.LogInformation("Successfully created BIG archive: {Target}", targetBigPath);
@@ -138,8 +93,66 @@ public sealed class ArchiveService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating BIG archive: {Source} -> {Target}", sourceDirectory, targetBigPath);
-            return OperationResult<bool>.CreateFailure($"Error creating BIG archive: {ex.Message}");
+            logger.LogError(ex, "Failed to create BIG archive: {Target}", targetBigPath);
+            return OperationResult<bool>.CreateFailure($"Failed to create BIG archive: {ex.Message}");
+        }
+    }
+
+    private async Task<BigArchiveManifest?> ResolveManifestAsync(
+        string sourceDirectory,
+        string targetBigPath,
+        string? manifestFilePath,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(manifestFilePath) && File.Exists(manifestFilePath))
+        {
+            var manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
+            if (manifest != null)
+            {
+                logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
+            }
+
+            return manifest;
+        }
+
+        var targetFileName = Path.GetFileName(targetBigPath);
+        var candidateLocations = new[]
+        {
+            Path.ChangeExtension(targetBigPath, ".manifest.json"),
+            Path.Combine(sourceDirectory, "..", "config", $"{targetFileName}.manifest.json"),
+            Path.Combine(sourceDirectory, "..", "..", "config", $"{targetFileName}.manifest.json"),
+            Path.Combine(sourceDirectory, "..", "config", "BigLayout.json"),
+        };
+
+        foreach (var candidate in candidateLocations)
+        {
+            var fullCandidate = Path.GetFullPath(candidate);
+            if (File.Exists(fullCandidate))
+            {
+                var manifest = await BigFilePacker.LoadManifestAsync(fullCandidate, cancellationToken).ConfigureAwait(false);
+                if (manifest != null)
+                {
+                    logger.LogInformation("Discovered BIG archive manifest at {Path}", fullCandidate);
+                    return manifest;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static void CleanupTempFile(string tempPath)
+    {
+        if (File.Exists(tempPath))
+        {
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch
+            {
+                // Ignore cleanup errors on temp file
+            }
         }
     }
 

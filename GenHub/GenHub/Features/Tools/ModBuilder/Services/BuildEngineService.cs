@@ -315,7 +315,6 @@ public sealed class BuildEngineService(
 
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
-        var projectDir = setup.ProjectDir ?? Directory.GetCurrentDirectory();
 
         try
         {
@@ -744,33 +743,22 @@ public sealed class BuildEngineService(
                 ProcessedFiles = Volatile.Read(ref _filesProcessed),
             });
 
-            string? manifestPath = null;
-            if (!string.IsNullOrEmpty(pack.ManifestFile))
-            {
-                manifestPath = Path.IsPathRooted(pack.ManifestFile)
-                    ? pack.ManifestFile
-                    : Path.Combine(projectDir, pack.ManifestFile);
-            }
-
-            var archiveResult = pack.IsBigPack
-                ? await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, manifestPath, new Progress<double>(p =>
-                {
-                    progress?.Report(new BuildProgress
-                    {
-                        CurrentStage = BuildStage.Archiving,
-                        CurrentFile = packFileName,
-                        CurrentIndex = BuildIndex.ReleaseBundlePack,
-                        CurrentStep = $"Packing {packFileName} ({p:P0})",
-                        ProcessedFiles = Volatile.Read(ref _filesProcessed),
-                    });
-                }), cancellationToken).ConfigureAwait(false)
-                : await archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
+            var manifestPath = ResolvePackManifestPath(pack, projectDir);
+            var archiveResult = await CreatePackArchiveAsync(
+                pack,
+                packStagingDir,
+                packFilePath,
+                packFileName,
+                manifestPath,
+                compressionLevel,
+                progress,
+                cancellationToken).ConfigureAwait(false);
 
             if (!archiveResult.Success)
             {
                 Interlocked.Increment(ref _filesFailed);
                 logger.LogError("Failed to create archive for pack {PackName}: {Error}", pack.Name, archiveResult.FirstError);
-                _lastErrorMessage = $"Failed to create archive for pack {pack.Name}: {archiveResult.FirstError}";
+                _lastErrorMessage = $"Failed to create archive for pack '{pack.Name}': {archiveResult.FirstError}";
             }
             else
             {
@@ -779,41 +767,99 @@ public sealed class BuildEngineService(
 
                 if (pack.IsBigPack && File.Exists(packFilePath))
                 {
-                    using var sha = System.Security.Cryptography.SHA256.Create();
-                    using var stream = File.OpenRead(packFilePath);
-                    var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
-                    var builtSha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
-                    if (!string.IsNullOrEmpty(manifestPath) && File.Exists(manifestPath))
-                    {
-                        var manifest = await BigFilePacker.LoadManifestAsync(manifestPath, cancellationToken).ConfigureAwait(false);
-                        if (!string.IsNullOrEmpty(manifest?.Sha256))
-                        {
-                            if (string.Equals(builtSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
-                            {
-                                logger.LogInformation("BYTE-FOR-BYTE EXACT MATCH: Built BIG archive matches publisher SHA256: {Sha256}", builtSha256);
-                            }
-                            else
-                            {
-                                logger.LogWarning("BIG archive SHA256 mismatch with manifest! Expected {Expected}, got {Actual}", manifest.Sha256, builtSha256);
-                            }
-                        }
-                    }
+                    await VerifyBuiltArchiveHashAsync(packFilePath, manifestPath, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
         finally
         {
-            if (Directory.Exists(packStagingDir))
+            CleanupPackStagingDir(packStagingDir);
+        }
+    }
+
+    private static string? ResolvePackManifestPath(BundlePack pack, string projectDir)
+    {
+        if (string.IsNullOrEmpty(pack.ManifestFile))
+        {
+            return null;
+        }
+
+        return Path.IsPathRooted(pack.ManifestFile)
+            ? pack.ManifestFile
+            : Path.Combine(projectDir, pack.ManifestFile);
+    }
+
+    private async Task<OperationResult<bool>> CreatePackArchiveAsync(
+        BundlePack pack,
+        string packStagingDir,
+        string packFilePath,
+        string packFileName,
+        string? manifestPath,
+        System.IO.Compression.CompressionLevel compressionLevel,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (pack.IsBigPack)
+        {
+            var archiveProgress = new Progress<double>(p =>
             {
-                try
+                progress?.Report(new BuildProgress
                 {
-                    Directory.Delete(packStagingDir, true);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Failed to clean up pack staging directory: {StagingDir}", packStagingDir);
-                }
+                    CurrentStage = BuildStage.Archiving,
+                    CurrentFile = packFileName,
+                    CurrentIndex = BuildIndex.ReleaseBundlePack,
+                    CurrentStep = $"Packing {packFileName} ({p:P0})",
+                    ProcessedFiles = Volatile.Read(ref _filesProcessed),
+                });
+            });
+
+            return !string.IsNullOrEmpty(manifestPath)
+                ? await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, manifestPath, archiveProgress, cancellationToken).ConfigureAwait(false)
+                : await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, archiveProgress, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task VerifyBuiltArchiveHashAsync(string packFilePath, string? manifestPath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(manifestPath) || !File.Exists(manifestPath))
+        {
+            return;
+        }
+
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        using var stream = File.OpenRead(packFilePath);
+        var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
+        var builtSha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+        var manifest = await BigFilePacker.LoadManifestAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(manifest?.Sha256))
+        {
+            return;
+        }
+
+        if (string.Equals(builtSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("BYTE-FOR-BYTE EXACT MATCH: Built BIG archive matches publisher SHA256: {Sha256}", builtSha256);
+        }
+        else
+        {
+            logger.LogWarning("BIG archive SHA256 mismatch with manifest! Expected {Expected}, got {Actual}", manifest.Sha256, builtSha256);
+        }
+    }
+
+    private void CleanupPackStagingDir(string packStagingDir)
+    {
+        if (Directory.Exists(packStagingDir))
+        {
+            try
+            {
+                Directory.Delete(packStagingDir, true);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to clean up pack staging directory: {StagingDir}", packStagingDir);
             }
         }
     }

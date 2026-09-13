@@ -1201,64 +1201,79 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         if (simplifiedConfig.BundleItems != null)
         {
-            foreach (var simpItem in simplifiedConfig.BundleItems.Where(i => !string.IsNullOrWhiteSpace(i.Name)))
-            {
-                var item = new BundleItem
-                {
-                    Name = simpItem.Name!,
-                    IsBig = simpItem.Big ?? true,
-                };
-
-                var fileParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                if (simpItem.NoConvert == true)
-                {
-                    fileParams["noconvert"] = "true";
-                }
-
-                if (!string.IsNullOrEmpty(simpItem.OutputFormat))
-                {
-                    fileParams["outputformat"] = simpItem.OutputFormat;
-                    if (string.Equals(simpItem.OutputFormat, "RAW", StringComparison.OrdinalIgnoreCase))
-                    {
-                        fileParams["noconvert"] = "true";
-                    }
-                }
-
-                if (simpItem.SourceFiles != null)
-                {
-                    foreach (var pattern in simpItem.SourceFiles)
-                    {
-                        item.Files.Add(new BundleFile
-                        {
-                            AbsSourceParent = projectDir,
-                            AbsSourceFile = pattern,
-                            RelTargetFile = string.Empty,
-                            Params = fileParams.Count > 0 ? fileParams.ToDictionary(k => k.Key, v => (object)v.Value) : null,
-                        });
-                    }
-                }
-
-                config.Items.Add(item);
-            }
+            config.Items.AddRange(ConvertSimplifiedBundleItems(simplifiedConfig.BundleItems, projectDir));
         }
 
         if (simplifiedConfig.BundlePacks != null)
         {
-            foreach (var simpPack in simplifiedConfig.BundlePacks.Where(p => !string.IsNullOrWhiteSpace(p.Name)))
+            config.Packs.AddRange(ConvertSimplifiedBundlePacks(simplifiedConfig.BundlePacks));
+        }
+
+        return config;
+    }
+
+    private static IEnumerable<BundleItem> ConvertSimplifiedBundleItems(IEnumerable<SimplifiedBundleItem> simpItems, string projectDir)
+    {
+        foreach (var simpItem in simpItems.Where(i => !string.IsNullOrWhiteSpace(i.Name)))
+        {
+            yield return ConvertSimplifiedBundleItem(simpItem, projectDir);
+        }
+    }
+
+    private static BundleItem ConvertSimplifiedBundleItem(SimplifiedBundleItem simpItem, string projectDir)
+    {
+        var item = new BundleItem
+        {
+            Name = simpItem.Name!,
+            IsBig = simpItem.Big ?? true,
+        };
+
+        var fileParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (simpItem.NoConvert)
+        {
+            fileParams["noconvert"] = "true";
+        }
+
+        if (!string.IsNullOrEmpty(simpItem.OutputFormat))
+        {
+            fileParams["outputformat"] = simpItem.OutputFormat;
+            if (string.Equals(simpItem.OutputFormat, "RAW", StringComparison.OrdinalIgnoreCase))
             {
-                config.Packs.Add(new BundlePack
+                fileParams["noconvert"] = "true";
+            }
+        }
+
+        if (simpItem.SourceFiles != null)
+        {
+            foreach (var pattern in simpItem.SourceFiles)
+            {
+                item.Files.Add(new BundleFile
                 {
-                    Name = simpPack.Name!,
-                    ItemNames = simpPack.ItemNames ?? simpPack.Items ?? new List<string>(),
-                    AllowBuild = simpPack.AllowBuild ?? true,
-                    AllowInstall = simpPack.AllowInstall ?? true,
-                    Big = simpPack.Big ?? simpPack.OutputFile?.EndsWith(".big", StringComparison.OrdinalIgnoreCase) == true,
-                    OutputFile = simpPack.OutputFile,
-                    ManifestFile = simpPack.ManifestFile,
+                    AbsSourceParent = projectDir,
+                    AbsSourceFile = pattern,
+                    RelTargetFile = string.Empty,
+                    Params = fileParams.Count > 0 ? fileParams.ToDictionary(k => k.Key, v => (object)v.Value) : null,
                 });
             }
         }
 
-        return config;
+        return item;
+    }
+
+    private static IEnumerable<BundlePack> ConvertSimplifiedBundlePacks(IEnumerable<SimplifiedBundlePack> simpPacks)
+    {
+        foreach (var simpPack in simpPacks.Where(p => !string.IsNullOrWhiteSpace(p.Name)))
+        {
+            yield return new BundlePack
+            {
+                Name = simpPack.Name!,
+                ItemNames = simpPack.ItemNames ?? simpPack.Items ?? new List<string>(),
+                AllowBuild = simpPack.AllowBuild ?? true,
+                AllowInstall = simpPack.AllowInstall ?? true,
+                Big = simpPack.Big ?? (simpPack.OutputFile?.EndsWith(".big", StringComparison.OrdinalIgnoreCase) ?? false),
+                OutputFile = simpPack.OutputFile,
+                ManifestFile = simpPack.ManifestFile,
+            };
+        }
     }
 }
