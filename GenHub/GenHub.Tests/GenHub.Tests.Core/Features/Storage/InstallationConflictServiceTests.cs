@@ -82,6 +82,15 @@ public class InstallationConflictServiceTests : System.IDisposable
     }
 
     /// <summary>
+    /// Verifies that the constructor throws ArgumentNullException synchronously when the tracker is null.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithNullTracker_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new InstallationConflictService(null!));
+    }
+
+    /// <summary>
     /// Verifies that when running in a custom install root, the location is recorded and no warnings are shown.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -215,6 +224,9 @@ public class InstallationConflictServiceTests : System.IDisposable
         // Create default settings so hasExistingData is true and adoption is not attempted
         File.WriteAllText(Path.Combine(_defaultRoot, FileTypes.SettingsFileName), "{\"default\":true}");
 
+        // Pre-write a stale marker file to verify that the decline branch actively cleans it up
+        File.WriteAllText(_markerPath, customDir);
+
         _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
 
         var service = new InstallationConflictService(
@@ -347,6 +359,10 @@ public class InstallationConflictServiceTests : System.IDisposable
                 _ = Directory.GetFiles(lockedProfiles);
             }
             catch (UnauthorizedAccessException)
+            {
+                isActuallyDenied = true;
+            }
+            catch (IOException)
             {
                 isActuallyDenied = true;
             }

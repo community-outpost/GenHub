@@ -15,24 +15,40 @@ namespace GenHub.Common.Services;
 /// <summary>
 /// Service responsible for detecting and resolving conflicts between default and custom GenHub installations.
 /// </summary>
-/// <param name="installationLocationTracker">The installation location tracker.</param>
-/// <param name="notificationService">Optional notification service to alert the user about detected conflicts.</param>
-/// <param name="userSettingsService">Optional user settings service to reload settings after adoption.</param>
-/// <param name="logger">Optional logger for diagnostics.</param>
-public class InstallationConflictService(
-    IInstallationLocationTracker installationLocationTracker,
-    INotificationService? notificationService = null,
-    IUserSettingsService? userSettingsService = null,
-    ILogger<InstallationConflictService>? logger = null) : IInstallationConflictService
+public class InstallationConflictService : IInstallationConflictService
 {
     private const string ConflictCheckErrorMessage = "Error checking for installation location conflicts.";
     private const string RemoveMarkerErrorMessage = "Failed to remove adoption marker file at {MarkerPath}";
 
-    /// <inheritdoc />
-    public async Task CheckAndResolveConflictsAsync(CancellationToken cancellationToken = default)
+    private readonly IInstallationLocationTracker _installationLocationTracker;
+    private readonly INotificationService? _notificationService;
+    private readonly IUserSettingsService? _userSettingsService;
+    private readonly ILogger<InstallationConflictService>? _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InstallationConflictService"/> class.
+    /// </summary>
+    /// <param name="installationLocationTracker">The installation location tracker.</param>
+    /// <param name="notificationService">Optional notification service to alert the user about detected conflicts.</param>
+    /// <param name="userSettingsService">Optional user settings service to reload settings after adoption.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    public InstallationConflictService(
+        IInstallationLocationTracker installationLocationTracker,
+        INotificationService? notificationService = null,
+        IUserSettingsService? userSettingsService = null,
+        ILogger<InstallationConflictService>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(installationLocationTracker);
-        await Task.Run(() => ExecuteConflictResolution(cancellationToken), cancellationToken);
+        _installationLocationTracker = installationLocationTracker;
+        _notificationService = notificationService;
+        _userSettingsService = userSettingsService;
+        _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public Task CheckAndResolveConflictsAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.Run(() => ExecuteConflictResolution(cancellationToken), cancellationToken);
     }
 
     private void ExecuteConflictResolution(CancellationToken cancellationToken)
@@ -44,12 +60,12 @@ public class InstallationConflictService(
         {
             if (StorageMigrationService.IsCustomInstallRoot())
             {
-                installationLocationTracker.RecordInstallLocation();
+                _installationLocationTracker.RecordInstallLocation();
                 StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
                 return;
             }
 
-            var customPath = installationLocationTracker.GetRegisteredCustomInstallPath();
+            var customPath = _installationLocationTracker.GetRegisteredCustomInstallPath();
             if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var detectedCustomPath) &&
                 !string.IsNullOrWhiteSpace(detectedCustomPath))
             {
@@ -63,23 +79,23 @@ public class InstallationConflictService(
         }
         catch (IOException ex)
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (SecurityException ex)
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (ArgumentException ex)
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (InvalidOperationException ex)
         {
-            logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
     }
 
@@ -89,7 +105,7 @@ public class InstallationConflictService(
         string defaultRoot,
         CancellationToken cancellationToken)
     {
-        logger?.LogWarning(
+        _logger?.LogWarning(
             "Duplicate installation detected: GenHub is running from default location '{DefaultLocation}', " +
             "but an existing custom installation was found at '{CustomLocation}'.",
             defaultRoot,
@@ -108,7 +124,6 @@ public class InstallationConflictService(
                 return;
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
             NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
             return;
         }
@@ -126,24 +141,33 @@ public class InstallationConflictService(
         imported = false;
         if (!SetAdoptionMarker(markerPath, detectedCustomPath))
         {
-            logger?.LogWarning(
+            _logger?.LogWarning(
                 "Aborting user configuration adoption because writing adoption marker failed: {MarkerPath}",
                 markerPath);
+
+            if (StorageMigrationService.WasEarlyAdopted)
+            {
+                imported = true;
+                _userSettingsService?.Reload();
+                TryFinalizeAdoptionCleanup(detectedCustomPath, defaultRoot, markerPath);
+                return true;
+            }
+
             return false;
         }
 
-        logger?.LogInformation(
+        _logger?.LogInformation(
             "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
             detectedCustomPath,
             defaultRoot);
 
-        imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger, cancellationToken) ||
+        imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, _logger, cancellationToken) ||
                    StorageMigrationService.WasEarlyAdopted;
         cancellationToken.ThrowIfCancellationRequested();
 
         if (imported)
         {
-            userSettingsService?.Reload();
+            _userSettingsService?.Reload();
         }
 
         TryFinalizeAdoptionCleanup(detectedCustomPath, defaultRoot, markerPath);
@@ -160,13 +184,13 @@ public class InstallationConflictService(
         if (StorageMigrationService.WasEarlyAdopted)
         {
             imported = true;
-            userSettingsService?.Reload();
+            _userSettingsService?.Reload();
             TryFinalizeAdoptionCleanup(detectedCustomPath, defaultRoot, markerPath);
         }
         else
         {
             ClearAdoptionMarker(markerPath);
-            installationLocationTracker.ClearCustomInstallPath();
+            _installationLocationTracker.ClearCustomInstallPath();
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -179,13 +203,13 @@ public class InstallationConflictService(
         if (hasRemainingUnadopted == false)
         {
             ClearAdoptionMarker(markerPath);
-            installationLocationTracker.ClearCustomInstallPath();
+            _installationLocationTracker.ClearCustomInstallPath();
         }
     }
 
     private bool SetAdoptionMarker(string markerPath, string customPath)
     {
-        return StorageMigrationService.WriteAdoptionMarkerSafely(markerPath, customPath, logger);
+        return StorageMigrationService.WriteAdoptionMarkerSafely(markerPath, customPath, _logger);
     }
 
     private void ClearAdoptionMarker(string markerPath)
@@ -199,25 +223,25 @@ public class InstallationConflictService(
         }
         catch (IOException ex)
         {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
         catch (SecurityException ex)
         {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
         catch (ArgumentException ex)
         {
-            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
     }
 
     private void NotifyDuplicateInstallationConflict(string customPath, bool imported)
     {
-        if (notificationService == null)
+        if (_notificationService == null)
         {
             return;
         }
@@ -226,7 +250,7 @@ public class InstallationConflictService(
             ? string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat, customPath)
             : string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat, customPath);
 
-        notificationService.ShowWarning(
+        _notificationService.ShowWarning(
             StorageMigrationConstants.DuplicateInstallationDetectedTitle,
             message,
             StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,

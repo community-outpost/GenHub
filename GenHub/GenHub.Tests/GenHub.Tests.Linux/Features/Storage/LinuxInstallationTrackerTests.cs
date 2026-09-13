@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.Versioning;
 using GenHub.Common.Services;
 using GenHub.Linux.Features.Storage;
+using GenHub.Tests.Linux.Infrastructure.DependencyInjection;
 using Xunit;
 
 namespace GenHub.Tests.Linux.Features.Storage;
@@ -11,6 +12,7 @@ namespace GenHub.Tests.Linux.Features.Storage;
 /// Unit tests for <see cref="LinuxInstallationTracker"/>.
 /// </summary>
 [SupportedOSPlatform("linux")]
+[Collection(ApplicationCompositionCollection.Name)]
 public class LinuxInstallationTrackerTests
 {
     /// <summary>
@@ -76,7 +78,7 @@ public class LinuxInstallationTrackerTests
     }
 
     /// <summary>
-    /// Verifies that desktop entry parsing decodes freedesktop escapes.
+    /// Verifies that desktop entry parsing decodes freedesktop escapes including space \s and %%.
     /// </summary>
     [Fact]
     public void GetRegisteredCustomInstallPath_FromDesktopEntry_DecodesFreedesktopEscapes()
@@ -86,7 +88,7 @@ public class LinuxInstallationTrackerTests
         var appDir = Path.Combine(xdgDataHome, "applications");
         Directory.CreateDirectory(appDir);
 
-        var customInstall = Path.Combine(tempRoot, "Custom Install");
+        var customInstall = Path.Combine(tempRoot, "Custom 100% Install");
         Directory.CreateDirectory(customInstall);
         File.WriteAllText(Path.Combine(customInstall, "Update"), "stub");
 
@@ -96,8 +98,8 @@ public class LinuxInstallationTrackerTests
         File.WriteAllText(execTarget, "stub");
 
         // Escaped space \s and %%
-        var escapedTarget = execTarget.Replace("Custom Install", "Custom\\sInstall");
-        File.WriteAllText(desktopFile, $"[Desktop Entry]\nName=GenHub\nExec=\"{escapedTarget}\" %%u\n");
+        var escapedTarget = execTarget.Replace("Custom 100% Install", @"Custom\s100%%\sInstall");
+        File.WriteAllText(desktopFile, $"[Desktop Entry]\nName=GenHub\nExec=\"{escapedTarget}\" %u\n");
 
         FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(Path.Combine(tempRoot, "nonexistent-location"));
         var oldXdg = Environment.GetEnvironmentVariable("XDG_DATA_HOME");

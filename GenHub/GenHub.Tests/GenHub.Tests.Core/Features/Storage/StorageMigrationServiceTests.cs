@@ -101,6 +101,10 @@ public class StorageMigrationServiceTests : IDisposable
     public void Dispose()
     {
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+        StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(null);
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(null);
+        StorageMigrationService.SetConfiguredDataPathResolver(null);
         StorageMigrationService.WasEarlyAdopted = false;
         try
         {
@@ -996,13 +1000,18 @@ public class StorageMigrationServiceTests : IDisposable
     [Fact]
     public void IsDefaultInstallRoot_HonorsOverrides()
     {
-        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
-        Assert.True(StorageMigrationService.IsDefaultInstallRoot());
+        try
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
+            Assert.True(StorageMigrationService.IsDefaultInstallRoot());
 
-        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(false);
-        Assert.False(StorageMigrationService.IsDefaultInstallRoot());
-
-        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(false);
+            Assert.False(StorageMigrationService.IsDefaultInstallRoot());
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+        }
     }
 
     /// <summary>

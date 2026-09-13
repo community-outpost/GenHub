@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security;
 using GenHub.Common.Services;
@@ -183,9 +184,9 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         if (key != null)
         {
             var customPath = key.GetValue(CustomInstallPathValueName) as string;
-            if (IsValidLocalDirectoryPath(customPath) && StorageMigrationService.IsVelopackRoot(customPath!))
+            if (TryGetValidLocalDirectoryPath(customPath, out var sanitized) && StorageMigrationService.IsVelopackRoot(sanitized))
             {
-                return customPath!.Trim().Trim('"');
+                return sanitized;
             }
         }
 
@@ -201,10 +202,10 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
             if (!string.IsNullOrWhiteSpace(command))
             {
                 var candidate = ExtractDirectoryFromCommand(command);
-                if (IsValidLocalDirectoryPath(candidate) &&
-                    StorageMigrationService.IsVelopackRoot(candidate!))
+                if (TryGetValidLocalDirectoryPath(candidate, out var sanitized) &&
+                    StorageMigrationService.IsVelopackRoot(sanitized))
                 {
-                    return candidate!.Trim().Trim('"');
+                    return sanitized;
                 }
             }
         }
@@ -212,9 +213,15 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
         return null;
     }
 
-    private static bool IsValidLocalDirectoryPath(string? path)
+    private static bool TryGetValidLocalDirectoryPath(string? path, [NotNullWhen(true)] out string? sanitized)
     {
-        return PathHelper.TrySanitizeLocalPath(path, out var sanitized) && Directory.Exists(sanitized);
+        if (PathHelper.TrySanitizeLocalPath(path, out sanitized) && Directory.Exists(sanitized))
+        {
+            return true;
+        }
+
+        sanitized = null;
+        return false;
     }
 
     private static string? ExtractDirectoryFromCommand(string command)

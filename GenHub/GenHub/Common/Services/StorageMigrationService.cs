@@ -85,6 +85,7 @@ public class StorageMigrationService(
     private static bool? _defaultInstallRootOverride;
     private static string? _defaultInstallRootPathOverride;
     private static string? _defaultDataRootOverride;
+    private static Func<string?>? _configuredDataPathResolver;
 
     /// <summary>
     /// Gets a value indicating whether user configuration was successfully adopted
@@ -364,7 +365,13 @@ public class StorageMigrationService(
         }
 
         var sourceRoot = GetSourceRootDirectory();
-        return PathHelper.AreSamePath(sourceRoot, defaultInstallRoot);
+        if (PathHelper.AreSamePath(sourceRoot, defaultInstallRoot))
+        {
+            return true;
+        }
+
+        var sourceParent = Directory.GetParent(sourceRoot)?.FullName;
+        return sourceParent != null && PathHelper.AreSamePath(sourceParent, defaultInstallRoot);
     }
 
     /// <summary>
@@ -386,6 +393,12 @@ public class StorageMigrationService(
     internal static void SetDefaultDataRootOverrideForTesting(string? path) => _defaultDataRootOverride = path;
 
     /// <summary>
+    /// Sets a resolver callback for configured data path (e.g. from <c>IConfiguration</c>).
+    /// </summary>
+    /// <param name="resolver">The resolver function, or <see langword="null"/> to reset.</param>
+    internal static void SetConfiguredDataPathResolver(Func<string?>? resolver) => _configuredDataPathResolver = resolver;
+
+    /// <summary>
     /// Gets the default application data root directory in LocalApplicationData across all platforms.
     /// </summary>
     /// <returns>The path to the default application data root.</returns>
@@ -396,8 +409,13 @@ public class StorageMigrationService(
             return _defaultDataRootOverride;
         }
 
-        var configuredEnv = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
-        if (!string.IsNullOrWhiteSpace(configuredEnv) && PathHelper.TrySanitizeLocalPath(configuredEnv, out var sanitized))
+        var configured = _configuredDataPathResolver?.Invoke();
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            configured = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
+        }
+
+        if (!string.IsNullOrWhiteSpace(configured) && PathHelper.TrySanitizeLocalPath(configured, out var sanitized))
         {
             return sanitized;
         }
