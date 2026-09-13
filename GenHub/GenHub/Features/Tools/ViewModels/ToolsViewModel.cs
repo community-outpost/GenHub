@@ -167,15 +167,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         }
         else if (SelectedTool != null && CurrentToolControl == null)
         {
-            try
-            {
-                SelectedTool.OnActivated(serviceProvider);
-                CurrentToolControl = SelectedTool.CreateControl();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error activating tool '{ToolName}' on tab activation", SelectedTool.Metadata.Name);
-            }
+            ActivateTool(SelectedTool);
         }
     }
 
@@ -387,6 +379,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                 }
                 else
                 {
+                    SelectedTool = null;
                     _lastOpenedTool = null;
                     ShowStatusMessage("✓ Refreshed tools list.", MessageType.Success);
                 }
@@ -434,22 +427,27 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         // Activate and load the new tool
         if (newValue != null)
         {
-            try
-            {
-                newValue.OnActivated(serviceProvider);
-                CurrentToolControl = newValue.CreateControl();
-                logger.LogDebug("Activated tool: {ToolName}", newValue.Metadata.Name);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error activating tool: {ToolName}", newValue.Metadata.Name);
-                CurrentToolControl = null;
-                ShowStatusMessage($"✗ Error loading tool '{newValue.Metadata.Name}': {ex.Message}", MessageType.Error);
-            }
+            ActivateTool(newValue);
         }
         else
         {
             CurrentToolControl = null;
+        }
+    }
+
+    private void ActivateTool(IToolPlugin tool)
+    {
+        try
+        {
+            tool.OnActivated(serviceProvider);
+            CurrentToolControl = tool.CreateControl();
+            logger.LogDebug("Activated tool: {ToolName}", tool.Metadata.Name);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error activating tool: {ToolName}", tool.Metadata.Name);
+            CurrentToolControl = null;
+            ShowStatusMessage($"✗ Error loading tool '{tool.Metadata.Name}': {ex.Message}", MessageType.Error);
         }
     }
 

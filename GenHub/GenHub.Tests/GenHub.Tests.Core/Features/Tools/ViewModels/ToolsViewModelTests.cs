@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Tests.Core.Features.Tools.Mocks;
 using Microsoft.Extensions.Logging;
@@ -140,6 +141,39 @@ public class ToolsViewModelTests
         // Assert
         Assert.Null(_viewModel.SelectedTool);
         Assert.Null(_viewModel.LastOpenedTool);
+    }
+
+    /// <summary>
+    /// Tests that OnTabActivated shows error status and leaves CurrentToolControl null when tool activation throws.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_ShowsErrorStatus_WhenToolActivationThrows()
+    {
+        // Arrange
+        var pluginMock = new Mock<IToolPlugin>();
+        var metadata = new ToolMetadata
+        {
+            Id = "failing.tool",
+            Name = "Failing Tool",
+            Version = "1.0.0",
+            Author = "Author",
+            Description = "Failing tool description",
+        };
+        pluginMock.Setup(p => p.Metadata).Returns(metadata);
+        pluginMock.Setup(p => p.OnActivated(It.IsAny<IServiceProvider>()))
+            .Throws(new InvalidOperationException("Activation failed"));
+
+        _viewModel.InstalledTools.Add(pluginMock.Object);
+        _viewModel.SelectedTool = pluginMock.Object;
+        _viewModel.CurrentToolControl = null;
+
+        // Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.Null(_viewModel.CurrentToolControl);
+        Assert.True(_viewModel.IsStatusError);
+        Assert.Contains("Activation failed", _viewModel.StatusMessage);
     }
 
     /// <summary>
@@ -483,6 +517,31 @@ public class ToolsViewModelTests
 
         // Assert
         Assert.Equal(plugin2, _viewModel.SelectedTool);
+    }
+
+    /// <summary>
+    /// Tests that RefreshToolsAsync clears SelectedTool and LastOpenedTool when no tools remain after refresh.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshToolsAsync_ClearsSelectedTool_WhenNoToolsRemainAsync()
+    {
+        // Arrange
+        var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
+        _viewModel.InstalledTools.Add(plugin);
+        _viewModel.SelectedTool = plugin;
+
+        _mockToolService.Setup(x => x.LoadSavedToolsAsync())
+            .ReturnsAsync(OperationResult<List<IToolPlugin>>.CreateSuccess([]));
+
+        // Act
+        await _viewModel.RefreshToolsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Empty(_viewModel.InstalledTools);
+        Assert.False(_viewModel.HasTools);
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
     }
 
     /// <summary>

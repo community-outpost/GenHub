@@ -124,11 +124,13 @@ public class MainViewModelTests
     [Fact]
     public async Task InitializeAsync_CompletesSuccessfullyAsync()
     {
-        var vm = CreateMainViewModel();
+        var mockBackgroundCoordinator = new Mock<IBackgroundUpdateCoordinator>();
+        var vm = CreateMainViewModel(mockBackgroundCoordinator: mockBackgroundCoordinator);
 
         var exception = await Record.ExceptionAsync(() => vm.InitializeAsync());
 
         Assert.Null(exception);
+        mockBackgroundCoordinator.Verify(x => x.InitializeAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -185,8 +187,9 @@ public class MainViewModelTests
         vm.ToolsViewModel.SelectedTool = tool;
         Assert.Equal(tool, vm.ToolsViewModel.SelectedTool);
 
-        // Simulate tab switch away from Tools
+        // Simulate tab switch away from Tools and closing pane
         vm.ToolsViewModel.SelectedTool = null;
+        vm.ToolsViewModel.IsPaneOpen = false;
         vm.SelectTabCommand.Execute(NavigationTab.GameProfiles);
 
         // Select Tools tab
