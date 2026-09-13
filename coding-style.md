@@ -92,6 +92,13 @@ and additional project-specific preferences aligned with StyleCop, DeepSource, a
   - Use exceptions appropriately; avoid empty catch blocks.
   - Catch specific domain exceptions (`IOException`, `HttpRequestException`, `JsonException`) instead of generic `System.Exception`.
   - For predictable domain failures, prefer `OperationResult<T>` over throwing exceptions for control flow.
+- **Localization**:
+  - All user-facing UI text (labels, buttons, tooltips, placeholders, headers, dialog messages) must be defined in `GenHub/GenHub/Resources/Localization/Strings.resx`.
+  - In XAML: Declare `xmlns:localization="clr-namespace:GenHub.Common.Markup"` and bind using `{localization:Localize Key}`.
+  - In C#: Inject `ILocalizationService` and call `_localizationService.GetString("Key")` or `_localizationService.GetString("Key", args)`.
+  - Never hardcode user-facing English strings in XAML views or ViewModels.
+  - Resource keys must follow dot-separated hierarchical naming (`<Feature>.<Context>.<Element>`), e.g. `Settings.Appearance.Language.Label`.
+  - Do not localize developer-facing technical strings (log templates, protocol values, regexes, CLI arguments).
 - **Time and Dates**: Always use `DateTime.UtcNow` or `DateTimeOffset.UtcNow` for timestamps, file manifests, and metrics. Never use local `DateTime.Now`.
 - **Concurrency & Locking**: Never lock on `this`, `typeof(...)`, or string literals. Use a dedicated `private readonly object _syncLock = new();` or asynchronous synchronization primitives like `SemaphoreSlim`.
 - **Cancellation**: Long-running or asynchronous operations must accept and propagate a `CancellationToken`.

@@ -13,6 +13,7 @@ This document defines the mandatory UI standards and design patterns for Avaloni
 2. **Use shared controls.** Do not build one-off sidebars, search boxes, or card containers. Use existing controls in `GenHub.Common.Controls` (like `SidebarLayout`).
 3. **Inset pill navigation.** Sidebars and lists use inset rounded pills with consistent margins and padding, not full-bleed rectangles with sharp corners.
 4. **Theme support.** Colors must adapt dynamically when switching between factions, profiles, or themes.
+5. **No hardcoded text strings (Mandatory Localization).** Views and controls must never include raw hardcoded English text in `Text`, `Content`, `Header`, `Title`, `Watermark`, or `ToolTip.Tip` attributes. All user-facing strings must be defined in `GenHub/GenHub/Resources/Localization/Strings.resx` and bound via `{localization:Localize ResourceKey}`.
 
 ## Semantic theme tokens
 
@@ -241,3 +242,67 @@ Use standardized button classes rather than ad-hoc button styling:
 - [ ] List items use inset pill containers with 8px corner radii.
 - [ ] Buttons use standard action or icon classes.
 - [ ] Tested on dark theme and resizable window layouts.
+
+## Localization in views (LocalizeExtension)
+
+All user-facing strings must be bound using the `LocalizeExtension` markup extension. This ensures strings update dynamically when the active language changes at runtime, without recreating views or restarting the application.
+
+### XAML Namespace Declaration
+
+Declare the localization markup namespace on the root `<UserControl>` or `<Window>`:
+
+```xml
+<UserControl xmlns="https://github.com/avaloniaui"
+             ...
+             xmlns:localization="clr-namespace:GenHub.Common.Markup">
+```
+
+### Usage Patterns
+
+#### Text and Labels
+```xml
+<TextBlock Text="{localization:Localize Settings.Appearance.Title}"
+           Classes="SectionTitle" />
+```
+
+#### Buttons and Controls
+```xml
+<Button Content="{localization:Localize Common.Save}"
+        Command="{Binding SaveCommand}" />
+```
+
+#### Expanders and Section Headers
+```xml
+<Expander Header="{localization:Localize Settings.Appearance.Expander.Header}">
+    ...
+</Expander>
+```
+
+#### TextBoxes and Search Fields (Watermarks)
+```xml
+<TextBox Watermark="{localization:Localize Common.Search.Placeholder}"
+         Text="{Binding SearchQuery, Mode=TwoWay}" />
+```
+
+#### ToolTips
+```xml
+<Button ToolTip.Tip="{localization:Localize MainWindow.TitleBar.Settings.ToolTip}">
+    <material:MaterialIcon Kind="Cog" />
+</Button>
+```
+
+#### Selection Controls (e.g. Language Selector)
+```xml
+<ComboBox ItemsSource="{Binding AvailableLanguages}"
+          SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
+          HorizontalAlignment="Stretch">
+    <ComboBox.ItemTemplate>
+        <DataTemplate DataType="settingsModels:LanguageOption">
+            <TextBlock Text="{Binding DisplayName}" />
+        </DataTemplate>
+    </ComboBox.ItemTemplate>
+</ComboBox>
+```
+
+> [!IMPORTANT]
+> **Never hardcode string literals in XAML.** If you add a new UI element, always add its resource entry to `GenHub/GenHub/Resources/Localization/Strings.resx` using a hierarchical dot-separated key (`<Feature>.<Context>.<Element>`), and test that it renders correctly in Avalonia views.
