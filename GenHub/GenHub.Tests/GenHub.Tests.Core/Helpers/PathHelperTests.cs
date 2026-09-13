@@ -369,9 +369,6 @@ public sealed class PathHelperTests
     }
 
     /// <summary>
-    /// Verifies that TrySanitizeLocalPath trims enclosing quotes and whitespace.
-    /// </summary>
-    /// <summary>
     /// Verifies that TrySanitizeLocalPath rejects relative paths.
     /// </summary>
     /// <param name="relativePath">The relative path to test.</param>

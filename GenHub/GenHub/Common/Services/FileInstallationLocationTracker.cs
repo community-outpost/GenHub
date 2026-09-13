@@ -141,12 +141,19 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
         }
     }
 
+    private static string? _locationFilePathOverride;
+
     /// <summary>
     /// Gets the absolute path of the custom install location tracking file in the user profile directory.
     /// </summary>
     /// <returns>The path to the tracking file.</returns>
     public static string GetLocationFilePath()
     {
+        if (!string.IsNullOrWhiteSpace(_locationFilePathOverride))
+        {
+            return _locationFilePathOverride;
+        }
+
         var profileDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (string.IsNullOrWhiteSpace(profileDir))
         {
@@ -169,4 +176,10 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
 
     /// <inheritdoc />
     public virtual void ClearCustomInstallPath() => ClearCustomInstallPathStatic(logger);
+
+    /// <summary>
+    /// Sets an override for <see cref="GetLocationFilePath"/> for unit testing.
+    /// </summary>
+    /// <param name="path">The override path, or <see langword="null"/> to reset.</param>
+    internal static void SetLocationFilePathOverrideForTesting(string? path) => _locationFilePathOverride = path;
 }

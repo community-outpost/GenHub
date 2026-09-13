@@ -167,10 +167,10 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
     {
         return value
             .Replace("\\\"", "\"")
-            .Replace("\\\\", "\\")
             .Replace("\\$", "$")
             .Replace("\\`", "`")
             .Replace("\\n", "\n")
+            .Replace("\\\\", "\\")
             .Replace("%%", "%");
     }
 

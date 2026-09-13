@@ -102,7 +102,14 @@ public class InstallationConflictService(
 
         if (shouldAdopt)
         {
-            SetAdoptionMarker(markerPath, detectedCustomPath);
+            if (!SetAdoptionMarker(markerPath, detectedCustomPath))
+            {
+                logger?.LogWarning(
+                    "Failed to write adoption marker file at '{MarkerPath}'; aborting adoption to avoid stranding custom data.",
+                    markerPath);
+                NotifyDuplicateInstallationConflict(detectedCustomPath, false);
+                return;
+            }
 
             logger?.LogInformation(
                 "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
@@ -143,9 +150,9 @@ public class InstallationConflictService(
         NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
     }
 
-    private void SetAdoptionMarker(string markerPath, string customPath)
+    private bool SetAdoptionMarker(string markerPath, string customPath)
     {
-        StorageMigrationService.WriteAdoptionMarkerSafely(markerPath, customPath, logger);
+        return StorageMigrationService.WriteAdoptionMarkerSafely(markerPath, customPath, logger);
     }
 
     private void ClearAdoptionMarker(string markerPath)

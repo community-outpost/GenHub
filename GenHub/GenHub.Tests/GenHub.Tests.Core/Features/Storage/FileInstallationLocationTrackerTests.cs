@@ -14,8 +14,7 @@ namespace GenHub.Tests.Core.Features.Storage;
 public class FileInstallationLocationTrackerTests : IDisposable
 {
     private readonly string _tempRoot;
-    private readonly string _originalUserProfile;
-    private readonly string _originalHome;
+    private readonly string _testLocationFilePath;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileInstallationLocationTrackerTests"/> class.
@@ -25,11 +24,12 @@ public class FileInstallationLocationTrackerTests : IDisposable
         _tempRoot = Path.Combine(Path.GetTempPath(), "FileTrackerTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempRoot);
 
-        _originalUserProfile = Environment.GetEnvironmentVariable("USERPROFILE") ?? string.Empty;
-        _originalHome = Environment.GetEnvironmentVariable("HOME") ?? string.Empty;
+        _testLocationFilePath = Path.Combine(
+            _tempRoot,
+            StorageMigrationConstants.GenHubConfigDirectoryName,
+            StorageMigrationConstants.CustomInstallPathFileName);
 
-        Environment.SetEnvironmentVariable("USERPROFILE", _tempRoot);
-        Environment.SetEnvironmentVariable("HOME", _tempRoot);
+        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(_testLocationFilePath);
     }
 
     /// <summary>
@@ -37,10 +37,8 @@ public class FileInstallationLocationTrackerTests : IDisposable
     /// </summary>
     public void Dispose()
     {
+        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(null);
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
-
-        Environment.SetEnvironmentVariable("USERPROFILE", string.IsNullOrEmpty(_originalUserProfile) ? null : _originalUserProfile);
-        Environment.SetEnvironmentVariable("HOME", string.IsNullOrEmpty(_originalHome) ? null : _originalHome);
 
         if (Directory.Exists(_tempRoot))
         {
@@ -68,11 +66,19 @@ public class FileInstallationLocationTrackerTests : IDisposable
     [Fact]
     public void GetLocationFilePath_ContainsExpectedComponents()
     {
-        var path = FileInstallationLocationTracker.GetLocationFilePath();
+        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(null);
+        try
+        {
+            var path = FileInstallationLocationTracker.GetLocationFilePath();
 
-        Assert.False(string.IsNullOrWhiteSpace(path));
-        Assert.Contains(StorageMigrationConstants.GenHubConfigDirectoryName, path);
-        Assert.Contains(StorageMigrationConstants.CustomInstallPathFileName, path);
+            Assert.False(string.IsNullOrWhiteSpace(path));
+            Assert.Contains(StorageMigrationConstants.GenHubConfigDirectoryName, path);
+            Assert.Contains(StorageMigrationConstants.CustomInstallPathFileName, path);
+        }
+        finally
+        {
+            FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(_testLocationFilePath);
+        }
     }
 
     /// <summary>

@@ -351,12 +351,25 @@ public class StorageMigrationService(
     internal static void SetDefaultDataRootOverrideForTesting(string? path) => _defaultDataRootOverride = path;
 
     /// <summary>
-    /// Gets the default application data root directory in LocalApplicationData across all platforms.
+    /// Gets the default application data root directory across all platforms,
+    /// checking for custom configured data path overrides before falling back to LocalApplicationData.
     /// </summary>
     /// <returns>The path to the default application data root.</returns>
     internal static string GetDefaultDataRoot()
     {
-        return _defaultDataRootOverride ?? Path.Combine(
+        if (!string.IsNullOrWhiteSpace(_defaultDataRootOverride))
+        {
+            return _defaultDataRootOverride;
+        }
+
+        var configuredPath = Environment.GetEnvironmentVariable("GENHUB_GenHub__AppDataPath") ??
+                             Environment.GetEnvironmentVariable("GENHUB_AppDataPath");
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return configuredPath;
+        }
+
+        return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName);
     }

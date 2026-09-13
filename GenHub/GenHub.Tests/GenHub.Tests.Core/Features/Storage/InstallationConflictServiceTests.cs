@@ -221,6 +221,22 @@ public class InstallationConflictServiceTests : System.IDisposable
         {
             File.SetUnixFileMode(lockedProfiles, UnixFileMode.None);
 
+            // Probe whether access is actually denied; CAP_DAC_OVERRIDE / root execution bypasses mode bits
+            var isActuallyDenied = false;
+            try
+            {
+                _ = Directory.GetFiles(lockedProfiles);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                isActuallyDenied = true;
+            }
+
+            if (!isActuallyDenied)
+            {
+                return;
+            }
+
             await service.CheckAndResolveConflictsAsync();
 
             // Tracker must NOT be cleared because HasUnadoptedUserData returned null (error)
@@ -232,6 +248,108 @@ public class InstallationConflictServiceTests : System.IDisposable
         finally
         {
             File.SetUnixFileMode(lockedProfiles, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when default root already contains user data and no adoption was pending,
+    /// adoption is declined, tracker and marker are cleared, and a conflict notification without the preserved message is shown.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenDefaultAlreadyHasDataAndNoRetry_DeclinesAdoptionAndClearsTracker()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        // Pre-populate default root with existing data
+        File.WriteAllText(Path.Combine(_defaultRoot, FileTypes.SettingsFileName), "{\"default\":true}");
+
+        var customDir = Path.Combine(_tempRoot, "CustomInstallDeclined");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\":true}");
+
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+        var service = new InstallationConflictService(
+            _mockTracker.Object,
+            _mockNotificationService.Object);
+
+        await service.CheckAndResolveConflictsAsync();
+
+        // Tracker and marker are cleared upon acknowledging conflict
+        _mockTracker.Verify(t => t.ClearCustomInstallPath(), Times.Once);
+        Assert.False(File.Exists(_markerPath));
+
+        // Notification is shown without the "preserved" text
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(
+                StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+                It.Is<string>(msg => !msg.Contains("preserved") && msg.Contains(customDir)),
+                StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,
+                true),
+            Times.Once);
+
+        // Default settings were NOT overwritten by custom install settings
+        Assert.Equal("{\"default\":true}", File.ReadAllText(Path.Combine(_defaultRoot, FileTypes.SettingsFileName)));
+    }
+
+    /// <summary>
+    /// Verifies that when writing the adoption marker fails, adoption is aborted to avoid partial data stranding,
+    /// and the custom install tracker is NOT cleared.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenMarkerWriteFails_AbortsAdoptionAndLeavesTracker()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        var customDir = Path.Combine(_tempRoot, "CustomInstallWriteFail");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\":true}");
+
+        // Create markerPath as a directory with no write permissions so writing a file to it fails
+        Directory.CreateDirectory(_markerPath);
+        File.SetUnixFileMode(_markerPath, UnixFileMode.None);
+
+        try
+        {
+            var isActuallyDenied = false;
+            try
+            {
+                File.WriteAllText(Path.Combine(_markerPath, "test.tmp"), "test");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                isActuallyDenied = true;
+            }
+
+            if (!isActuallyDenied)
+            {
+                return;
+            }
+
+            _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+            var service = new InstallationConflictService(
+                _mockTracker.Object,
+                _mockNotificationService.Object);
+
+            await service.CheckAndResolveConflictsAsync();
+
+            // Tracker must NOT be cleared because adoption was aborted
+            _mockTracker.Verify(t => t.ClearCustomInstallPath(), Times.Never);
+        }
+        finally
+        {
+            File.SetUnixFileMode(_markerPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Directory.Delete(_markerPath, recursive: true);
         }
     }
 }
