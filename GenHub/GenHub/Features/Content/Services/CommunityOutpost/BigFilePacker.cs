@@ -148,10 +148,10 @@ public static class BigFilePacker
             var offset = ReadUInt32BigEndian(reader);
             var size = ReadUInt32BigEndian(reader);
             var nameBytes = new List<byte>();
-            byte b;
-            while ((b = reader.ReadByte()) != 0)
+            byte entryByte;
+            while ((entryByte = reader.ReadByte()) != 0)
             {
-                nameBytes.Add(b);
+                nameBytes.Add(entryByte);
             }
 
             var name = Encoding.ASCII.GetString(nameBytes.ToArray());
@@ -458,11 +458,10 @@ public static class BigFilePacker
         return extractedCount;
     }
 
-    private static (List<BigFileEntry> Entries, long HeaderSize, long TotalSize, byte[] TrailerBytes, int DuplicateCount) CollectBigEntries(
+    private static List<(string FullPath, string NormalizedRelPath, long Size)> CollectCandidateEntries(
         string sourceDirectory,
         string destinationFullPath,
         string? targetArchiveFullPath,
-        BigArchiveManifest? manifest,
         CancellationToken cancellationToken)
     {
         var rawRelPaths = EnumerateBigFiles(sourceDirectory, cancellationToken);
@@ -487,16 +486,21 @@ public static class BigFilePacker
             candidateEntries.Add((fullPath, normalizedRelPath, new FileInfo(fullPath).Length));
         }
 
-        // De-duplicate colliding normalized relative paths to guarantee total order and prevent duplicate archive entries
+        return candidateEntries;
+    }
+
+    private static (List<(string FullPath, string NormalizedRelPath, long Size)> Unique, int DuplicateCount) DeduplicateCandidates(
+        IEnumerable<(string FullPath, string NormalizedRelPath, long Size)> candidates)
+    {
         var seenRelPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var uniqueCandidateEntries = new List<(string FullPath, string NormalizedRelPath, long Size)>();
+        var uniqueCandidates = new List<(string FullPath, string NormalizedRelPath, long Size)>();
         var duplicateCount = 0;
 
-        foreach (var candidate in candidateEntries)
+        foreach (var candidate in candidates)
         {
             if (seenRelPaths.Add(candidate.NormalizedRelPath))
             {
-                uniqueCandidateEntries.Add(candidate);
+                uniqueCandidates.Add(candidate);
             }
             else
             {
@@ -504,84 +508,99 @@ public static class BigFilePacker
             }
         }
 
-        byte[] trailerBytes;
-        if (!string.IsNullOrEmpty(manifest?.TrailerHex))
+        return (uniqueCandidates, duplicateCount);
+    }
+
+    private static byte[] ResolveTrailerBytes(BigArchiveManifest? manifest)
+    {
+        if (string.IsNullOrEmpty(manifest?.TrailerHex))
         {
-            try
-            {
-                trailerBytes = Convert.FromHexString(manifest.TrailerHex);
-            }
-            catch
-            {
-                trailerBytes = new byte[8];
-            }
-        }
-        else
-        {
-            trailerBytes = new byte[8];
+            return new byte[8];
         }
 
+        try
+        {
+            return Convert.FromHexString(manifest.TrailerHex);
+        }
+        catch (FormatException)
+        {
+            return new byte[8];
+        }
+    }
+
+    private static List<BigFileEntry> OrderEntriesByManifest(
+        List<(string FullPath, string NormalizedRelPath, long Size)> uniqueCandidateEntries,
+        BigArchiveManifest manifest)
+    {
         var entries = new List<BigFileEntry>();
+        var availableDict = uniqueCandidateEntries.ToDictionary(e => e.NormalizedRelPath, StringComparer.OrdinalIgnoreCase);
+        var matchedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        foreach (var manifestPath in manifest.EntryOrder)
+        {
+            var normManifestPath = NormalizeBigPath(manifestPath.Replace('/', '\\'));
+            if (availableDict.TryGetValue(normManifestPath, out var foundCandidate))
+            {
+                entries.Add(new BigFileEntry
+                {
+                    FullPath = foundCandidate.FullPath,
+                    RelativePath = manifestPath.Replace('/', '\\'),
+                    Size = foundCandidate.Size,
+                });
+                matchedSet.Add(normManifestPath);
+            }
+        }
+
+        var extraEntries = uniqueCandidateEntries.Where(e => !matchedSet.Contains(e.NormalizedRelPath)).ToList();
+        extraEntries.Sort((a, b) => string.Compare(a.NormalizedRelPath, b.NormalizedRelPath, StringComparison.Ordinal));
+        foreach (var extra in extraEntries)
+        {
+            entries.Add(new BigFileEntry
+            {
+                FullPath = extra.FullPath,
+                RelativePath = extra.NormalizedRelPath,
+                Size = extra.Size,
+            });
+        }
+
+        return entries;
+    }
+
+    private static List<BigFileEntry> OrderBigEntries(
+        List<(string FullPath, string NormalizedRelPath, long Size)> uniqueCandidateEntries,
+        BigArchiveManifest? manifest)
+    {
         if (manifest != null && manifest.EntryOrder.Count > 0)
         {
-            // Build lookup by case-insensitive normalized path
-            var availableDict = uniqueCandidateEntries.ToDictionary(e => e.NormalizedRelPath, StringComparer.OrdinalIgnoreCase);
-            var matchedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var manifestPath in manifest.EntryOrder)
-            {
-                var normManifestPath = NormalizeBigPath(manifestPath.Replace('/', '\\'));
-                if (availableDict.TryGetValue(normManifestPath, out var foundCandidate))
-                {
-                    entries.Add(new BigFileEntry
-                    {
-                        FullPath = foundCandidate.FullPath,
-                        RelativePath = manifestPath.Replace('/', '\\'), // preserve exact publisher casing and backslashes
-                        Size = foundCandidate.Size,
-                    });
-                    matchedSet.Add(normManifestPath);
-                }
-            }
-
-            // Append any files present in source folder but not in manifest, sorted ordinally
-            var extraEntries = uniqueCandidateEntries.Where(e => !matchedSet.Contains(e.NormalizedRelPath)).ToList();
-            extraEntries.Sort((a, b) => string.Compare(a.NormalizedRelPath, b.NormalizedRelPath, StringComparison.Ordinal));
-            foreach (var extra in extraEntries)
-            {
-                entries.Add(new BigFileEntry
-                {
-                    FullPath = extra.FullPath,
-                    RelativePath = extra.NormalizedRelPath,
-                    Size = extra.Size,
-                });
-            }
+            return OrderEntriesByManifest(uniqueCandidateEntries, manifest);
         }
-        else
+
+        uniqueCandidateEntries.Sort((a, b) =>
         {
-            // Deterministic ordinal sort by normalized backslash relative path across all platforms;
-            // break ties with FullPath for total ordering
-            uniqueCandidateEntries.Sort((a, b) =>
-            {
-                var cmp = string.Compare(a.NormalizedRelPath, b.NormalizedRelPath, StringComparison.Ordinal);
-                return cmp != 0 ? cmp : string.Compare(a.FullPath, b.FullPath, StringComparison.Ordinal);
-            });
+            var cmp = string.Compare(a.NormalizedRelPath, b.NormalizedRelPath, StringComparison.Ordinal);
+            return cmp != 0 ? cmp : string.Compare(a.FullPath, b.FullPath, StringComparison.Ordinal);
+        });
 
-            foreach (var (fullPath, normalizedRelPath, size) in uniqueCandidateEntries)
-            {
-                entries.Add(new BigFileEntry
-                {
-                    FullPath = fullPath,
-                    RelativePath = normalizedRelPath,
-                    Size = size,
-                });
-            }
-        }
+        return uniqueCandidateEntries.Select(candidate => new BigFileEntry
+        {
+            FullPath = candidate.FullPath,
+            RelativePath = candidate.NormalizedRelPath,
+            Size = candidate.Size,
+        }).ToList();
+    }
 
-        // Calculate header size:
-        // 16 bytes base header
-        // For each entry: 4 (offset) + 4 (size) + name length + 1 (null terminator)
-        // Trailer bytes
+    private static (List<BigFileEntry> Entries, long HeaderSize, long TotalSize, byte[] TrailerBytes, int DuplicateCount) CollectBigEntries(
+        string sourceDirectory,
+        string destinationFullPath,
+        string? targetArchiveFullPath,
+        BigArchiveManifest? manifest,
+        CancellationToken cancellationToken)
+    {
+        var candidateEntries = CollectCandidateEntries(sourceDirectory, destinationFullPath, targetArchiveFullPath, cancellationToken);
+        var (uniqueCandidates, duplicateCount) = DeduplicateCandidates(candidateEntries);
+        var trailerBytes = ResolveTrailerBytes(manifest);
+        var entries = OrderBigEntries(uniqueCandidates, manifest);
+
         long calculatedTableEnd = 16;
         foreach (var entry in entries)
         {
@@ -590,13 +609,9 @@ public static class BigFilePacker
         }
 
         long firstDataOffset = calculatedTableEnd + trailerBytes.Length;
-        long headerSize = firstDataOffset;
-
-        // Apply manifest header size override only if entry count matches manifest
-        if (manifest?.HeaderSizeOverride.HasValue == true && entries.Count == manifest.EntryOrder.Count)
-        {
-            headerSize = manifest.HeaderSizeOverride.Value;
-        }
+        long headerSize = (manifest?.HeaderSizeOverride.HasValue == true && entries.Count == manifest.EntryOrder.Count)
+            ? manifest.HeaderSizeOverride.Value
+            : firstDataOffset;
 
         long totalSize = firstDataOffset + entries.Sum(e => e.Size);
         if (totalSize > uint.MaxValue)

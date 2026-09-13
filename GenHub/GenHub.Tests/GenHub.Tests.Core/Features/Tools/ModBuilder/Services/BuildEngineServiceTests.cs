@@ -94,6 +94,22 @@ public sealed class BuildEngineServiceTests : IDisposable
             })
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
 
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<double>?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, IProgress<double>?, CancellationToken>((_, target, _, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                if (!File.Exists(target))
+                {
+                    File.WriteAllText(target, "dummy big content");
+                }
+            })
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
         _mockArchiveService.Setup(x => x.CreateZipArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<System.IO.Compression.CompressionLevel>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
 

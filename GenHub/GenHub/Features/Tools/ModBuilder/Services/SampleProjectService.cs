@@ -44,6 +44,7 @@ public class SampleProjectService : ISampleProjectService
     private const string CustomIconsName = "CustomIcons";
 
     private const string UnknownError = "Unknown error";
+    private const string StagingCleanupFailedMessage = "Failed to clean up temporary staging directory {Dir}";
 
 #pragma warning disable S1075 // URIs should not be hardcoded
     private const string GeneralsGamePatch2Url = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/download/1.0.1/500_900_CommunityPatch_CoreINI.zip";
@@ -395,7 +396,7 @@ public class SampleProjectService : ISampleProjectService
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
+                _logger.LogDebug(ex, StagingCleanupFailedMessage, tempStaging);
             }
         }
     }
@@ -467,12 +468,12 @@ public class SampleProjectService : ISampleProjectService
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
+                _logger.LogDebug(ex, StagingCleanupFailedMessage, tempStaging);
             }
         }
     }
 
-    private static async Task TryExtractAndSaveManifestAsync(
+    private async Task TryExtractAndSaveManifestAsync(
         string bigFilePath,
         string gameFilesDir,
         CancellationToken cancellationToken)
@@ -497,9 +498,9 @@ public class SampleProjectService : ISampleProjectService
                 await BigFilePacker.SaveManifestAsync(manifest, manifestPath, cancellationToken).ConfigureAwait(false);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Manifest extraction is best-effort for reproducibility
+            _logger.LogWarning(ex, "Failed to extract or save archive manifest for {File}", bigFilePath);
         }
     }
 
@@ -560,7 +561,7 @@ public class SampleProjectService : ISampleProjectService
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
+                _logger.LogDebug(ex, StagingCleanupFailedMessage, tempStaging);
             }
         }
     }
@@ -639,7 +640,7 @@ public class SampleProjectService : ISampleProjectService
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to clean up temporary staging directory {Dir}", tempStaging);
+                _logger.LogDebug(ex, StagingCleanupFailedMessage, tempStaging);
             }
         }
     }
