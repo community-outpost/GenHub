@@ -211,9 +211,6 @@ public static class GenHotkeysConstants
     /// <summary>Preset path for English CSF (Vanilla Generals retail layout).</summary>
     public const string PresetsVanillaGenEn = "Presets/VanillaGEN.csf";
 
-    /// <summary>Preset path for English CSF (Vanilla layout, defaults to Zero Hour).</summary>
-    public const string PresetsVanillaEn = PresetsVanillaZhEn;
-
     /// <summary>Preset path for English CSF (Leikeze layout).</summary>
     public const string PresetsLeikezeEn = "Presets/LeikezeEN.csf";
 
