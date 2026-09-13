@@ -259,14 +259,19 @@ public class HotkeyProfileStorageService(
         }
         else
         {
-            // Sweep stale temp files from interrupted saves
+            // Sweep stale temp files from interrupted saves (only files older than 1 hour to protect in-flight saves)
             try
             {
+                var staleThreshold = DateTime.UtcNow.AddHours(-1);
                 foreach (var tempFile in Directory.EnumerateFiles(ProfilesDirectory, "*.tmp.*", SearchOption.TopDirectoryOnly))
                 {
                     try
                     {
-                        File.Delete(tempFile);
+                        var lastWriteTime = File.GetLastWriteTimeUtc(tempFile);
+                        if (lastWriteTime < staleThreshold)
+                        {
+                            File.Delete(tempFile);
+                        }
                     }
                     catch
                     {
