@@ -1102,7 +1102,6 @@ public class StorageMigrationServiceTests : IDisposable
         finally
         {
             StorageMigrationService.SetConfiguredDataPathResolver(null);
-            ConfigurationModule.ResetCachedConfigurationForTesting();
         }
     }
 
