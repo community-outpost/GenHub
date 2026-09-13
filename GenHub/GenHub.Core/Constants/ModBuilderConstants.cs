@@ -84,6 +84,16 @@ public static class ModBuilderConstants
     public const string InstallManifestFileName = ".modbuilder_install.json";
 
     /// <summary>
+    /// File name for generated manifest JSON.
+    /// </summary>
+    public const string ManifestFileName = "manifest.json";
+
+    /// <summary>
+    /// Fallback directory name in temporary storage for ModBuilder builds.
+    /// </summary>
+    public const string FallbackTempDirName = "GenHub_ModBuilder";
+
+    /// <summary>
     /// Backup file extension used during file installation.
     /// </summary>
     public const string BackupFileExtension = ".modbuilder_backup";
