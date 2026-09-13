@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 
 namespace GenHub.Core.Interfaces.Tools.ModBuilder;
@@ -16,6 +20,14 @@ public interface IConfigurationLoaderService
     Task<BuildConfiguration> LoadConfigurationAsync(string configPath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Loads a single configuration file returning a typed operation result instead of throwing.
+    /// </summary>
+    /// <param name="configPath">The absolute path to the configuration JSON file.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The project operation result containing the loaded build configuration or error messages.</returns>
+    Task<ProjectOperationResult<BuildConfiguration>> LoadConfigurationResultAsync(string configPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Loads and merges multiple configuration files.
     /// Later configurations override earlier ones.
     /// </summary>
@@ -23,6 +35,15 @@ public interface IConfigurationLoaderService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The merged build configuration.</returns>
     Task<BuildConfiguration> LoadAndMergeConfigurationsAsync(IReadOnlyList<string> configPaths, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads and merges multiple configuration files returning a typed operation result.
+    /// Later configurations override earlier ones.
+    /// </summary>
+    /// <param name="configPaths">The read-only list of configuration file paths to load.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The project operation result containing the merged build configuration or error messages.</returns>
+    Task<ProjectOperationResult<BuildConfiguration>> LoadAndMergeConfigurationsResultAsync(IReadOnlyList<string> configPaths, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resolves wildcard patterns in bundle file paths.

@@ -193,4 +193,25 @@ public static class ModBuilderConstants
         "-A8L8",
         "-A8R8G8B8"
     ];
+
+    /// <summary>
+    /// Names of deprecated sample mod projects that should be pruned or ignored.
+    /// </summary>
+    public static readonly IReadOnlyList<string> DeprecatedSampleNames =
+    [
+        "BasicMod",
+        "BalancePatch",
+        "TextureOverhaul",
+        "CustomIcons"
+    ];
+
+    /// <summary>
+    /// Names of allowed and provisioned sample project templates.
+    /// </summary>
+    public static readonly IReadOnlyList<string> AllowedSampleTemplateNames =
+    [
+        "GeneralsGamePatch2",
+        "ImprovedMenus",
+        "Hotkeys"
+    ];
 }

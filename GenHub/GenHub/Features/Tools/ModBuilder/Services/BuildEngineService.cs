@@ -26,16 +26,22 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// Central orchestrator for the 5-stage ModBuilder build pipeline.
 /// Manages change detection, event system, and build execution.
 /// </summary>
-public sealed class BuildEngineService : IBuildEngineService
+/// <param name="cacheService">The build cache service.</param>
+/// <param name="fileConversionService">The file conversion service.</param>
+/// <param name="hashProvider">The MD5 hash provider.</param>
+/// <param name="configurationLoaderService">The configuration loader service.</param>
+/// <param name="archiveService">The archive service.</param>
+/// <param name="serviceScopeFactory">The service scope factory for resolving scoped dependencies.</param>
+/// <param name="logger">The logger instance.</param>
+public sealed class BuildEngineService(
+    IBuildCacheService cacheService,
+    IFileConversionService fileConversionService,
+    IMd5HashProvider hashProvider,
+    IConfigurationLoaderService configurationLoaderService,
+    IArchiveService archiveService,
+    IServiceScopeFactory serviceScopeFactory,
+    ILogger<BuildEngineService> logger) : IBuildEngineService
 {
-    private readonly IBuildCacheService _cacheService;
-    private readonly IFileConversionService _fileConversionService;
-    private readonly IMd5HashProvider _hashProvider;
-    private readonly IConfigurationLoaderService _configurationLoaderService;
-    private readonly IArchiveService _archiveService;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly ILogger<BuildEngineService> _logger;
-
     private readonly SemaphoreSlim _buildLock = new(1, 1);
     private readonly object _abortLock = new();
 
@@ -49,33 +55,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private int _filesFailed;
     private string? _lastErrorMessage;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BuildEngineService"/> class.
-    /// </summary>
-    /// <param name="cacheService">The build cache service.</param>
-    /// <param name="fileConversionService">The file conversion service.</param>
-    /// <param name="hashProvider">The MD5 hash provider.</param>
-    /// <param name="configurationLoaderService">The configuration loader service.</param>
-    /// <param name="archiveService">The archive service.</param>
-    /// <param name="serviceScopeFactory">The service scope factory for resolving scoped dependencies.</param>
-    /// <param name="logger">The logger instance.</param>
-    public BuildEngineService(
-        IBuildCacheService cacheService,
-        IFileConversionService fileConversionService,
-        IMd5HashProvider hashProvider,
-        IConfigurationLoaderService configurationLoaderService,
-        IArchiveService archiveService,
-        IServiceScopeFactory serviceScopeFactory,
-        ILogger<BuildEngineService> logger)
-    {
-        _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
-        _fileConversionService = fileConversionService ?? throw new ArgumentNullException(nameof(fileConversionService));
-        _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
-        _configurationLoaderService = configurationLoaderService ?? throw new ArgumentNullException(nameof(configurationLoaderService));
-        _archiveService = archiveService ?? throw new ArgumentNullException(nameof(archiveService));
-        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    
 
     /// <summary>
     /// Event triggered when a bundle event occurs during the build process.
@@ -97,7 +77,7 @@ public sealed class BuildEngineService : IBuildEngineService
         if (IsPathInsideAppDirectory(project.ProjectDir))
         {
             var msg = $"Cannot execute build within the application installation directory: '{project.ProjectDir}'. The project must be located in a user directory.";
-            _logger.LogError(msg);
+            logger.LogError(msg);
             return BuildOperationResult.CreateFailure(msg);
         }
 
@@ -105,13 +85,13 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (!await _buildLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
-            _logger.LogWarning("Build already in progress");
+            logger.LogWarning("Build already in progress");
             return BuildOperationResult.CreateFailure("Build already in progress", 0, 0, 0, sw.Elapsed);
         }
 
         try
         {
-            _logger.LogInformation("ExecuteBuildAsync called for project: {ProjectName} with steps: {Steps}", project.Name, buildSteps);
+            logger.LogInformation("ExecuteBuildAsync called for project: {ProjectName} with steps: {Steps}", project.Name, buildSteps);
 
             // reset counters
             _filesProcessed = 0;
@@ -144,7 +124,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ExecuteBuildAsync failed");
+            logger.LogError(ex, "ExecuteBuildAsync failed");
             sw.Stop();
             return BuildOperationResult.CreateFailure($"Build failed: {ex.Message}", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
         }
@@ -170,7 +150,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             if (_isRunning && _abortTokenSource != null)
             {
-                _logger.LogInformation("Aborting build");
+                logger.LogInformation("Aborting build");
                 _abortTokenSource.Cancel();
             }
         }
@@ -181,7 +161,7 @@ public sealed class BuildEngineService : IBuildEngineService
     /// <inheritdoc/>
     public void InvalidateBuildStructureCache()
     {
-        _logger.LogDebug("Invalidating build structure cache");
+        logger.LogDebug("Invalidating build structure cache");
         _cachedBuildStructure = null;
         _cachedConfigHash = null;
         _cachedSourceToBundleFileMap = null;
@@ -200,19 +180,19 @@ public sealed class BuildEngineService : IBuildEngineService
                 _abortTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             }
 
-            _logger.LogInformation("Starting ModBuilder build pipeline");
+            logger.LogInformation("Starting ModBuilder build pipeline");
 
             var steps = ResolveBuildSteps(buildStructure.Setup.Step);
             if (steps == BuildStep.None)
             {
-                _logger.LogWarning("BuildStep is None, nothing to do");
+                logger.LogWarning("BuildStep is None, nothing to do");
                 return true;
             }
 
             _lastErrorMessage = null;
             var success = await ExecutePipelineStagesAsync(buildStructure, steps, progress, _abortTokenSource.Token).ConfigureAwait(false);
 
-            _logger.LogInformation("Build pipeline completed with success={Success}", success);
+            logger.LogInformation("Build pipeline completed with success={Success}", success);
             return success;
         }
         catch (OperationCanceledException)
@@ -222,7 +202,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Build pipeline failed with exception");
+            logger.LogError(ex, "Build pipeline failed with exception");
             _lastErrorMessage = ex.Message;
             return false;
         }
@@ -292,7 +272,7 @@ public sealed class BuildEngineService : IBuildEngineService
                         _lastErrorMessage = errorName;
                     }
 
-                    _logger.LogError("Stage {Stage} failed, aborting pipeline", step);
+                    logger.LogError("Stage {Stage} failed, aborting pipeline", step);
                     return false;
                 }
             }
@@ -307,19 +287,19 @@ public sealed class BuildEngineService : IBuildEngineService
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("PreBuild stage started (using cached build structure)");
+        logger.LogInformation("PreBuild stage started (using cached build structure)");
         progress?.Report(new BuildProgress { CurrentStage = BuildStage.Loading, CurrentStep = "PreBuild: Initializing build structure" });
 
         FireBundleEvent(BundleEventType.OnPreBuild, null);
 
         if (buildStructure.Configuration == null)
         {
-            _logger.LogError("Project configuration is null");
+            logger.LogError("Project configuration is null");
             _lastErrorMessage = "Configuration is null";
             return false;
         }
 
-        _logger.LogDebug(
+        logger.LogDebug(
             "Build structure contains {ItemCount} items and {PackCount} packs",
             buildStructure.BundleItems.Count,
             buildStructure.BundlePacks.Count);
@@ -331,7 +311,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private async Task<bool> CleanAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("Clean stage started");
+        logger.LogInformation("Clean stage started");
         progress?.Report(new BuildProgress { CurrentStage = BuildStage.Loading, CurrentStep = "Cleaning build directories" });
 
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
@@ -342,24 +322,24 @@ public sealed class BuildEngineService : IBuildEngineService
             if (Directory.Exists(buildDir))
             {
                 Directory.Delete(buildDir, true);
-                _logger.LogInformation("Deleted build directory: {BuildDir}", buildDir);
+                logger.LogInformation("Deleted build directory: {BuildDir}", buildDir);
             }
 
             if (Directory.Exists(releaseDir))
             {
                 Directory.Delete(releaseDir, true);
-                _logger.LogInformation("Deleted release directory: {ReleaseDir}", releaseDir);
+                logger.LogInformation("Deleted release directory: {ReleaseDir}", releaseDir);
             }
 
-            _cacheService.Clear();
-            _logger.LogInformation("Build cache cleared");
+            cacheService.Clear();
+            logger.LogInformation("Build cache cleared");
 
             await Task.CompletedTask.ConfigureAwait(false);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to clean build directories");
+            logger.LogError(ex, "Failed to clean build directories");
             _lastErrorMessage = $"Failed to clean build directories: {ex.Message}";
             return false;
         }
@@ -368,7 +348,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private async Task<bool> BuildAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("Build stage started");
+        logger.LogInformation("Build stage started");
 
         if (!string.IsNullOrEmpty(setup.Folders?.AbsBuildDir))
         {
@@ -390,7 +370,7 @@ public sealed class BuildEngineService : IBuildEngineService
         IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Building stage: {Stage}", stage);
+        logger.LogInformation("Building stage: {Stage}", stage);
         var currentBuildStage = stage switch
         {
             BuildIndex.BigBundleItem or BuildIndex.ReleaseBundlePack => BuildStage.Archiving,
@@ -418,25 +398,25 @@ public sealed class BuildEngineService : IBuildEngineService
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 cachingEnabled = false;
-                _logger.LogWarning(ex, "Could not create cache directory {CacheDir}, build caching disabled for this stage", cacheDir);
+                logger.LogWarning(ex, "Could not create cache directory {CacheDir}, build caching disabled for this stage", cacheDir);
             }
         }
 
         if (cachingEnabled)
         {
-            await _cacheService.LoadCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
+            await cacheService.LoadCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
         }
 
         var initialFailed = Volatile.Read(ref _filesFailed);
         var filesToProcess = GetFilesForStage(stage);
 
-        _logger.LogInformation("Processing {Count} files for stage {Stage}", filesToProcess.Count, stage);
+        logger.LogInformation("Processing {Count} files for stage {Stage}", filesToProcess.Count, stage);
 
         await ExecuteStageFilesAsync(stage, setup, progress, filesToProcess, cancellationToken).ConfigureAwait(false);
 
         if (cachingEnabled)
         {
-            await _cacheService.SaveCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
+            await cacheService.SaveCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
         }
 
         var finishEvent = GetFinishBuildEvent(stage);
@@ -554,7 +534,7 @@ public sealed class BuildEngineService : IBuildEngineService
                 var sourceFile = file.AbsSourceFile;
                 if (!File.Exists(sourceFile))
                 {
-                    _logger.LogWarning("File not found for BIG bundle: {FilePath}", sourceFile);
+                    logger.LogWarning("File not found for BIG bundle: {FilePath}", sourceFile);
                     Interlocked.Increment(ref _filesFailed);
                     _lastErrorMessage = $"File not found for BIG bundle: {sourceFile}";
                     continue;
@@ -602,18 +582,18 @@ public sealed class BuildEngineService : IBuildEngineService
                 });
             });
 
-            var archiveResult = await _archiveService.CreateBigArchiveAsync(stagingDir, bigFilePath, archiveProgress, cancellationToken)
+            var archiveResult = await archiveService.CreateBigArchiveAsync(stagingDir, bigFilePath, archiveProgress, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!archiveResult.Success)
             {
                 Interlocked.Increment(ref _filesFailed);
-                _logger.LogError("Failed to create BIG archive for item {ItemName}: {Error}", item.Name, archiveResult.FirstError);
+                logger.LogError("Failed to create BIG archive for item {ItemName}: {Error}", item.Name, archiveResult.FirstError);
                 _lastErrorMessage = $"Failed to create BIG archive for item {item.Name}: {archiveResult.FirstError}";
             }
             else
             {
-                _logger.LogInformation("Successfully created BIG archive: {Path}", bigFilePath);
+                logger.LogInformation("Successfully created BIG archive: {Path}", bigFilePath);
             }
         }
         finally
@@ -626,7 +606,7 @@ public sealed class BuildEngineService : IBuildEngineService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Failed to clean up staging directory: {StagingDir}", stagingDir);
+                    logger.LogDebug(ex, "Failed to clean up staging directory: {StagingDir}", stagingDir);
                 }
             }
         }
@@ -670,12 +650,12 @@ public sealed class BuildEngineService : IBuildEngineService
                 AllowBuild = true,
                 ItemNames = setup.Bundles.Items.Select(i => i.Name).ToList(),
             });
-            _logger.LogInformation("No bundle packs explicitly defined; created default release pack '{PackName}' for {ItemCount} items", defaultPackName, setup.Bundles.Items.Count);
+            logger.LogInformation("No bundle packs explicitly defined; created default release pack '{PackName}' for {ItemCount} items", defaultPackName, setup.Bundles.Items.Count);
         }
 
         if (candidatePacks.Count == 0)
         {
-            _logger.LogWarning("No bundle packs or items found to release");
+            logger.LogWarning("No bundle packs or items found to release");
             Interlocked.Increment(ref _filesFailed);
             _lastErrorMessage = "No bundle packs or items found to release. Please configure bundle items or packs in ModBuilder.";
             return;
@@ -697,7 +677,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (packs.Count == 0)
         {
-            _logger.LogWarning("No bundle packs enabled or selected for release");
+            logger.LogWarning("No bundle packs enabled or selected for release");
             Interlocked.Increment(ref _filesFailed);
             _lastErrorMessage = "No bundle packs are enabled or selected for release. Check 'Allow Build' in Bundle Pack settings.";
             return;
@@ -745,7 +725,7 @@ public sealed class BuildEngineService : IBuildEngineService
             if (stagedFiles.Length == 0)
             {
                 Interlocked.Increment(ref _filesFailed);
-                _logger.LogError("No files were staged for pack {PackName}; release archive cannot be created.", pack.Name);
+                logger.LogError("No files were staged for pack {PackName}; release archive cannot be created.", pack.Name);
                 _lastErrorMessage = $"No files were staged for pack '{pack.Name}'. Check that bundle items exist and contain files.";
                 return;
             }
@@ -760,7 +740,7 @@ public sealed class BuildEngineService : IBuildEngineService
             });
 
             var archiveResult = pack.IsBigPack
-                ? await _archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, new Progress<double>(p =>
+                ? await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, new Progress<double>(p =>
                 {
                     progress?.Report(new BuildProgress
                     {
@@ -771,18 +751,18 @@ public sealed class BuildEngineService : IBuildEngineService
                         ProcessedFiles = Volatile.Read(ref _filesProcessed),
                     });
                 }), cancellationToken).ConfigureAwait(false)
-                : await _archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
+                : await archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
 
             if (!archiveResult.Success)
             {
                 Interlocked.Increment(ref _filesFailed);
-                _logger.LogError("Failed to create archive for pack {PackName}: {Error}", pack.Name, archiveResult.FirstError);
+                logger.LogError("Failed to create archive for pack {PackName}: {Error}", pack.Name, archiveResult.FirstError);
                 _lastErrorMessage = $"Failed to create archive for pack {pack.Name}: {archiveResult.FirstError}";
             }
             else
             {
                 Interlocked.Increment(ref _filesProcessed);
-                _logger.LogInformation("Successfully created archive: {Path}", packFilePath);
+                logger.LogInformation("Successfully created archive: {Path}", packFilePath);
             }
         }
         finally
@@ -795,7 +775,7 @@ public sealed class BuildEngineService : IBuildEngineService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Failed to clean up pack staging directory: {StagingDir}", packStagingDir);
+                    logger.LogDebug(ex, "Failed to clean up pack staging directory: {StagingDir}", packStagingDir);
                 }
             }
         }
@@ -865,7 +845,7 @@ public sealed class BuildEngineService : IBuildEngineService
             return (flatTarget, convertedRel);
         }
 
-        _logger.LogWarning("Expected converted {Extension} output not found for {SourcePath}; falling back to raw source", targetExtension.ToUpperInvariant(), sourcePath);
+        logger.LogWarning("Expected converted {Extension} output not found for {SourcePath}; falling back to raw source", targetExtension.ToUpperInvariant(), sourcePath);
         return null;
     }
 
@@ -921,7 +901,7 @@ public sealed class BuildEngineService : IBuildEngineService
         var sourcePath = file.AbsSourceFile;
         if (!File.Exists(sourcePath))
         {
-            _logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", sourcePath, itemName);
+            logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", sourcePath, itemName);
             return;
         }
 
@@ -931,7 +911,7 @@ public sealed class BuildEngineService : IBuildEngineService
         var destPath = Path.Combine(packStagingDir, finalTargetRelPath);
         EnsureDestinationDirectory(destPath);
         File.Copy(actualSource, destPath, true);
-        _logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
+        logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
     }
 
     private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, CancellationToken cancellationToken)
@@ -961,7 +941,7 @@ public sealed class BuildEngineService : IBuildEngineService
         var srcBig = Path.Combine(bundlesDir, bigFileName);
         if (!File.Exists(srcBig))
         {
-            _logger.LogInformation("BIG bundle {BigFileName} missing in bundles directory; building it on demand...", bigFileName);
+            logger.LogInformation("BIG bundle {BigFileName} missing in bundles directory; building it on demand...", bigFileName);
             if (item.Files.Count > 0)
             {
                 if (!Directory.Exists(bundlesDir))
@@ -977,11 +957,11 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             var destBig = Path.Combine(packStagingDir, bigFileName);
             File.Copy(srcBig, destBig, true);
-            _logger.LogDebug("Staged .BIG archive {BigFileName} for pack {PackName}", bigFileName, packName);
+            logger.LogDebug("Staged .BIG archive {BigFileName} for pack {PackName}", bigFileName, packName);
         }
         else
         {
-            _logger.LogError("BIG bundle {BigFileName} missing for pack {PackName} and could not be built.", bigFileName, packName);
+            logger.LogError("BIG bundle {BigFileName} missing for pack {PackName} and could not be built.", bigFileName, packName);
             Interlocked.Increment(ref _filesFailed);
             _lastErrorMessage = $"BIG bundle '{bigFileName}' missing for pack '{packName}'.";
         }
@@ -994,7 +974,7 @@ public sealed class BuildEngineService : IBuildEngineService
             var sourcePath = file.AbsSourceFile;
             if (!File.Exists(sourcePath))
             {
-                _logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
+                logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
                 continue;
             }
 
@@ -1009,7 +989,7 @@ public sealed class BuildEngineService : IBuildEngineService
             var destPath = Path.Combine(packStagingDir, finalRelPath);
             EnsureDestinationDirectory(destPath);
             File.Copy(actualSource, destPath, true);
-            _logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", finalRelPath, packName);
+            logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", finalRelPath, packName);
         }
     }
 
@@ -1031,26 +1011,26 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning("File not found for stage {Stage}: {FilePath}", stage, filePath);
+            logger.LogWarning("File not found for stage {Stage}: {FilePath}", stage, filePath);
             Interlocked.Increment(ref _filesFailed);
             _lastErrorMessage = $"File not found: {filePath}";
             return;
         }
 
-        var currentMd5 = await _cacheService.ComputeOrReuseMd5Async(filePath, cancellationToken).ConfigureAwait(false);
-        var status = _cacheService.DetermineFileStatus(filePath, currentMd5, null);
+        var currentMd5 = await cacheService.ComputeOrReuseMd5Async(filePath, cancellationToken).ConfigureAwait(false);
+        var status = cacheService.DetermineFileStatus(filePath, currentMd5, null);
 
         if (status is BuildFileStatus.Unchanged or BuildFileStatus.Irrelevant)
         {
-            _logger.LogDebug("Skipping unchanged/irrelevant file: {FilePath}", filePath);
+            logger.LogDebug("Skipping unchanged/irrelevant file: {FilePath}", filePath);
             var fileInfo = new FileInfo(filePath);
             var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
-            _cacheService.AddFile(filePath, mtime, currentMd5);
+            cacheService.AddFile(filePath, mtime, currentMd5);
             Interlocked.Increment(ref _filesSkipped);
             return;
         }
 
-        _logger.LogDebug("Processing file: {FilePath} (Status: {Status})", filePath, status);
+        logger.LogDebug("Processing file: {FilePath} (Status: {Status})", filePath, status);
 
         // process file based on stage
         var success = stage switch
@@ -1063,7 +1043,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             var fileInfo = new FileInfo(filePath);
             var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
-            _cacheService.AddFile(filePath, mtime, currentMd5);
+            cacheService.AddFile(filePath, mtime, currentMd5);
 
             Interlocked.Increment(ref _filesProcessed);
             var fileExt = Path.GetExtension(filePath).ToLowerInvariant();
@@ -1080,7 +1060,7 @@ public sealed class BuildEngineService : IBuildEngineService
         else
         {
             Interlocked.Increment(ref _filesFailed);
-            _logger.LogError("Failed to process file: {FilePath}", filePath);
+            logger.LogError("Failed to process file: {FilePath}", filePath);
         }
     }
 
@@ -1101,7 +1081,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private async Task<bool> ConvertImageFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
     {
         var ddsTargetPath = Path.ChangeExtension(targetPath, ".dds");
-        var result = await _fileConversionService.ConvertFileAsync(sourcePath, ddsTargetPath, "DDS", null, cancellationToken)
+        var result = await fileConversionService.ConvertFileAsync(sourcePath, ddsTargetPath, "DDS", null, cancellationToken)
             .ConfigureAwait(false);
 
         return result.Success;
@@ -1110,7 +1090,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private async Task<bool> ConvertStringTableFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
     {
         var csfTargetPath = Path.ChangeExtension(targetPath, ".csf");
-        var result = await _fileConversionService.ConvertFileAsync(sourcePath, csfTargetPath, "CSF", null, cancellationToken)
+        var result = await fileConversionService.ConvertFileAsync(sourcePath, csfTargetPath, "CSF", null, cancellationToken)
             .ConfigureAwait(false);
 
         return result.Success;
@@ -1200,7 +1180,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private async Task<bool> PostBuildAsync(IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("PostBuild stage started");
+        logger.LogInformation("PostBuild stage started");
         progress?.Report(new BuildProgress { CurrentStage = BuildStage.Complete, CurrentStep = "PostBuild: Finalizing build" });
 
         FireBundleEvent(BundleEventType.OnPostBuild, null);
@@ -1211,7 +1191,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
     private async Task<bool> ReleaseAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Release stage started");
+        logger.LogInformation("Release stage started");
         progress?.Report(new BuildProgress
         {
             CurrentStage = BuildStage.Archiving,
@@ -1312,7 +1292,7 @@ public sealed class BuildEngineService : IBuildEngineService
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("CreateManifest stage started");
+        logger.LogInformation("CreateManifest stage started");
         progress?.Report(new BuildProgress
         {
             CurrentStage = BuildStage.Archiving,
@@ -1330,7 +1310,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (!await EnsureBundlesPreparedAsync(setup, bundlesDir, progress, cancellationToken).ConfigureAwait(false))
         {
-            _logger.LogError("No bundle files found in {BundlesDir} to create manifest.", bundlesDir);
+            logger.LogError("No bundle files found in {BundlesDir} to create manifest.", bundlesDir);
             _lastErrorMessage = $"No bundle files found in {bundlesDir}. Ensure bundle items have source files.";
             return false;
         }
@@ -1372,7 +1352,7 @@ public sealed class BuildEngineService : IBuildEngineService
             return false;
         }
 
-        _logger.LogInformation("No files found in bundles directory; preparing bundle files before creating manifest...");
+        logger.LogInformation("No files found in bundles directory; preparing bundle files before creating manifest...");
         foreach (var item in setup.Bundles.Items)
         {
             if (item.Files.Count == 0)
@@ -1415,7 +1395,7 @@ public sealed class BuildEngineService : IBuildEngineService
         IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
-        using var scope = _serviceScopeFactory.CreateScope();
+        using var scope = serviceScopeFactory.CreateScope();
         var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
 
         try
@@ -1434,13 +1414,13 @@ public sealed class BuildEngineService : IBuildEngineService
 
             if (!manifestResult.Success)
             {
-                _logger.LogError("Failed to create local content manifest: {Error}", manifestResult.FirstError);
+                logger.LogError("Failed to create local content manifest: {Error}", manifestResult.FirstError);
                 _lastErrorMessage = $"Failed to create manifest: {manifestResult.FirstError}";
                 return false;
             }
 
             var manifest = manifestResult.Data;
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Successfully created local ContentManifest '{ManifestId}' for project '{ProjectName}' in CAS",
                 manifest?.Id,
                 projectName);
@@ -1465,7 +1445,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception while creating local ContentManifest");
+            logger.LogError(ex, "Exception while creating local ContentManifest");
             _lastErrorMessage = $"Failed to create manifest: {ex.Message}";
             return false;
         }
@@ -1490,14 +1470,14 @@ public sealed class BuildEngineService : IBuildEngineService
         var manifestJson = JsonSerializer.Serialize(manifest, options);
         var buildManifestPath = Path.Combine(buildDir, "manifest.json");
         await File.WriteAllTextAsync(buildManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation("Saved manifest file to {Path}", buildManifestPath);
+        logger.LogInformation("Saved manifest file to {Path}", buildManifestPath);
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
             Directory.CreateDirectory(releaseDir);
             var releaseManifestPath = Path.Combine(releaseDir, "manifest.json");
             await File.WriteAllTextAsync(releaseManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
-            _logger.LogInformation("Saved manifest file to {Path}", releaseManifestPath);
+            logger.LogInformation("Saved manifest file to {Path}", releaseManifestPath);
         }
     }
 
@@ -1506,11 +1486,11 @@ public sealed class BuildEngineService : IBuildEngineService
         try
         {
             WeakReferenceMessenger.Default.Send(new ContentAcquiredMessage(manifest));
-            _logger.LogInformation("Published ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
+            logger.LogInformation("Published ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to publish ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
+            logger.LogWarning(ex, "Failed to publish ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
         }
     }
 
@@ -1527,7 +1507,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to clean up manifest staging directory: {StagingDir}", stagingDir);
+            logger.LogDebug(ex, "Failed to clean up manifest staging directory: {StagingDir}", stagingDir);
         }
     }
 
@@ -1606,7 +1586,7 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         try
         {
-            _logger.LogDebug("Firing bundle event: {EventType}", eventType);
+            logger.LogDebug("Firing bundle event: {EventType}", eventType);
             BundleEventTriggered?.Invoke(this, new BundleEventArgs
             {
                 EventType = eventType,
@@ -1615,7 +1595,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error firing bundle event {EventType}", eventType);
+            logger.LogWarning(ex, "Error firing bundle event {EventType}", eventType);
         }
     }
 
@@ -1629,12 +1609,12 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (_cachedBuildStructure != null && _cachedConfigHash == configHash)
         {
-            _logger.LogDebug("Reusing cached build structure (hash matches: {Hash})", configHash);
+            logger.LogDebug("Reusing cached build structure (hash matches: {Hash})", configHash);
             _cachedBuildStructure.Setup.Step = buildSteps;
             return _cachedBuildStructure;
         }
 
-        _logger.LogInformation("Creating new build structure (config changed or first build)");
+        logger.LogInformation("Creating new build structure (config changed or first build)");
 
         var buildStructure = await CreateBuildStructureAsync(project, configuration, buildSteps, cancellationToken)
             .ConfigureAwait(false);
@@ -1682,7 +1662,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             await File.WriteAllTextAsync(tempFile, combinedString, cancellationToken)
                 .ConfigureAwait(false);
-            return await _hashProvider.ComputeFileHashAsync(tempFile, cancellationToken)
+            return await hashProvider.ComputeFileHashAsync(tempFile, cancellationToken)
                 .ConfigureAwait(false);
         }
         finally
@@ -1825,8 +1805,8 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        _logger.LogDebug("Resolving wildcards in configuration");
-        configuration = await _configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
+        logger.LogDebug("Resolving wildcards in configuration");
+        configuration = await configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
             .ConfigureAwait(false);
 
         var projectDir = !string.IsNullOrWhiteSpace(project.ProjectDir) ? project.ProjectDir : Directory.GetCurrentDirectory();

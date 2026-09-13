@@ -637,6 +637,13 @@ public partial class FileManagerViewModel(
                 Directory.CreateDirectory(destDir);
             }
 
+            if (File.Exists(destPath))
+            {
+                var backupPath = $"{destPath}{ModBuilderConstants.BackupFileExtension}";
+                File.Copy(destPath, backupPath, overwrite: true);
+                logger.LogInformation("Existing file backed up to {BackupPath} before copy", backupPath);
+            }
+
             File.Copy(file.FullPath, destPath, overwrite: true);
             count++;
 
