@@ -406,7 +406,7 @@ main {
 }
 
 .pill-tab.active .pill-tab-badge {
-    background: rgba(255, 255, 255, 0.25);
+    background: #5b21b6;
     color: #ffffff;
 }
 
