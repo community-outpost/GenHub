@@ -1346,6 +1346,39 @@ public partial class GenHotkeysViewModel(
             string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static Dictionary<string, char>? ExtractLegionnaireMappings(HashSet<string> validActionKeys)
+    {
+        using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireEn);
+        if (stream == null)
+        {
+            return null;
+        }
+
+        var csf = CsfFile.Load(stream);
+        var extracted = new Dictionary<string, char>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in csf.Strings.Where(k => validActionKeys.Contains(k.Key)))
+        {
+            var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+            if (hotkey.HasValue)
+            {
+                extracted[kvp.Key] = hotkey.Value;
+            }
+        }
+
+        return extracted;
+    }
+
+    private static void PopulateProfileMappings(HotkeyProfile profile, string basePreset, Dictionary<string, char> mappings)
+    {
+        profile.BasePreset = basePreset;
+        profile.KeyMappings.Clear();
+        profile.ClearedKeys.Clear();
+        foreach (var (key, value) in mappings)
+        {
+            profile.KeyMappings[key] = value;
+        }
+    }
+
     private int ApplyKeyToMatchingActionsInFactions(
         string? targetName,
         string? targetHotkeyString,
@@ -1383,27 +1416,7 @@ public partial class GenHotkeysViewModel(
                 StringComparer.OrdinalIgnoreCase);
 
             var extractedMappings = await Task.Run(
-                () =>
-                {
-                    using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLegionnaireEn);
-                    if (stream == null)
-                    {
-                        return null;
-                    }
-
-                    var csf = CsfFile.Load(stream);
-                    var extracted = new Dictionary<string, char>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var kvp in csf.Strings.Where(k => validActionKeys.Contains(k.Key)))
-                    {
-                        var hotkey = CsfFile.ExtractHotkey(kvp.Value);
-                        if (hotkey.HasValue)
-                        {
-                            extracted[kvp.Key] = hotkey.Value;
-                        }
-                    }
-
-                    return extracted;
-                },
+                () => ExtractLegionnaireMappings(validActionKeys),
                 cancellationToken).ConfigureAwait(true);
 
             if (cancellationToken.IsCancellationRequested)
@@ -1417,13 +1430,7 @@ public partial class GenHotkeysViewModel(
                 return;
             }
 
-            targetProfile.BasePreset = GenHotkeysConstants.PresetLegionnaire;
-            targetProfile.KeyMappings.Clear();
-            targetProfile.ClearedKeys.Clear();
-            foreach (var kvp in extractedMappings)
-            {
-                targetProfile.KeyMappings[kvp.Key] = kvp.Value;
-            }
+            PopulateProfileMappings(targetProfile, GenHotkeysConstants.PresetLegionnaire, extractedMappings);
 
             HotkeyProfile? savedProfile = null;
             try
