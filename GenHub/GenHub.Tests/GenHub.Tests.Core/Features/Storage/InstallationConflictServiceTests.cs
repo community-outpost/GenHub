@@ -4,6 +4,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Tests.Core.Collections;
 using Moq;
 using Xunit;
 
@@ -12,11 +13,14 @@ namespace GenHub.Tests.Core.Features.Storage;
 /// <summary>
 /// Unit tests for <see cref="InstallationConflictService"/>.
 /// </summary>
+[Collection(StorageMigrationStaticStateCollection.Name)]
 public class InstallationConflictServiceTests : System.IDisposable
 {
     private readonly string _tempRoot;
     private readonly Mock<IInstallationLocationTracker> _mockTracker;
     private readonly Mock<INotificationService> _mockNotificationService;
+    private readonly string _defaultRoot;
+    private readonly string _markerPath;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InstallationConflictServiceTests"/> class.
@@ -25,6 +29,11 @@ public class InstallationConflictServiceTests : System.IDisposable
     {
         _tempRoot = Path.Combine(Path.GetTempPath(), "GenHubConflictTests_" + System.Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempRoot);
+        _defaultRoot = Path.Combine(_tempRoot, "DefaultDataRoot");
+        Directory.CreateDirectory(_defaultRoot);
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(_defaultRoot);
+
+        _markerPath = Path.Combine(_defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
         _mockTracker = new Mock<IInstallationLocationTracker>();
         _mockNotificationService = new Mock<INotificationService>();
     }
@@ -35,7 +44,21 @@ public class InstallationConflictServiceTests : System.IDisposable
     public void Dispose()
     {
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(null);
         StorageMigrationService.WasEarlyAdopted = false;
+
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (IOException)
+        {
+            // Ignore marker cleanup errors
+        }
+
         try
         {
             if (Directory.Exists(_tempRoot))
@@ -120,10 +143,13 @@ public class InstallationConflictServiceTests : System.IDisposable
         _mockNotificationService.Verify(
             n => n.ShowWarning(
                 StorageMigrationConstants.DuplicateInstallationDetectedTitle,
-                It.Is<string>(msg => msg.Contains(customDir)),
+                It.Is<string>(msg => msg.Contains("preserved") && msg.Contains(customDir)),
                 It.IsAny<int?>(),
                 true),
             Times.Once);
+
+        var defaultSettings = Path.Combine(_defaultRoot, FileTypes.SettingsFileName);
+        Assert.True(File.Exists(defaultSettings));
     }
 
     /// <summary>
@@ -156,5 +182,56 @@ public class InstallationConflictServiceTests : System.IDisposable
                 StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,
                 true),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when an inaccessible directory prevents full adoption inspection (tri-state null),
+    /// the adoption marker and tracker record are NOT cleared, preserving retry state.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenUnadoptedDataFailsInspection_PreservesMarkerAndTracker()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        var customDir = Path.Combine(_tempRoot, "CustomInstallLocked");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\":true}");
+
+        var defaultProfiles = Path.Combine(_defaultRoot, DirectoryNames.Profiles);
+        Directory.CreateDirectory(defaultProfiles);
+
+        var lockedProfiles = Path.Combine(customDir, DirectoryNames.Profiles, "LockedSub");
+        Directory.CreateDirectory(lockedProfiles);
+        File.WriteAllText(Path.Combine(lockedProfiles, "p.json"), "{}");
+
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+        var service = new InstallationConflictService(
+            _mockTracker.Object,
+            _mockNotificationService.Object);
+
+        try
+        {
+            File.SetUnixFileMode(lockedProfiles, UnixFileMode.None);
+
+            await service.CheckAndResolveConflictsAsync();
+
+            // Tracker must NOT be cleared because HasUnadoptedUserData returned null (error)
+            _mockTracker.Verify(t => t.ClearCustomInstallPath(), Times.Never);
+
+            // Adoption marker must still exist for retry
+            Assert.True(File.Exists(_markerPath));
+        }
+        finally
+        {
+            File.SetUnixFileMode(lockedProfiles, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
     }
 }

@@ -50,6 +50,13 @@ public class StorageMigrationService(
     private const string ImportUserDataFailureMessage =
         "Failed to import user data from custom installation directory {CustomRoot}";
 
+    private static readonly EnumerationOptions RecursiveEnumerationOptions = new()
+    {
+        IgnoreInaccessible = false,
+        AttributesToSkip = FileAttributes.None,
+        RecurseSubdirectories = true,
+    };
+
     private static readonly HashSet<string> ExcludedUserDataNames = new(PathHelper.PathComparer)
     {
         FileTypes.SettingsFileName,
@@ -73,6 +80,7 @@ public class StorageMigrationService(
 
     private static readonly Lazy<bool> CachedIsCustomInstallRoot = new(ComputeIsCustomInstallRoot);
     private static bool? _customInstallRootOverride;
+    private static string? _defaultDataRootOverride;
 
     /// <summary>
     /// Gets a value indicating whether user configuration was successfully adopted
@@ -100,9 +108,9 @@ public class StorageMigrationService(
             return false;
         }
 
-        var defaultRoot = GetDefaultInstallRoot();
+        var defaultRoot = GetDefaultDataRoot();
         var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
-        var isPendingRetry = File.Exists(markerPath);
+        var isPendingRetry = IsMarkerMatchingPath(markerPath, detectedCustomPath);
         var hasExistingData = HasExistingUserData(defaultRoot);
 
         if ((hasExistingData && !isPendingRetry) || !HasExistingUserData(detectedCustomPath))
@@ -110,7 +118,11 @@ public class StorageMigrationService(
             return false;
         }
 
-        WriteAdoptionMarkerSafely(markerPath, detectedCustomPath, logger);
+        if (!WriteAdoptionMarkerSafely(markerPath, detectedCustomPath, logger))
+        {
+            logger?.LogWarning("Aborting early adoption because adoption marker could not be written to {MarkerPath}", markerPath);
+            return false;
+        }
 
         logger?.LogInformation("Adopting configuration from '{Custom}' before service initialization", detectedCustomPath);
         var result = TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
@@ -293,7 +305,9 @@ public class StorageMigrationService(
         {
             if (OperatingSystem.IsMacOS() && directoryPath.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
             {
-                return true;
+                var contentsDir = Path.Combine(directoryPath, "Contents");
+                return Directory.Exists(contentsDir) &&
+                       (File.Exists(Path.Combine(contentsDir, "Info.plist")) || Directory.Exists(Path.Combine(contentsDir, "MacOS")));
             }
 
             var hasUpdateExe = File.Exists(Path.Combine(directoryPath, "Update.exe")) || File.Exists(Path.Combine(directoryPath, "Update"));
@@ -327,6 +341,23 @@ public class StorageMigrationService(
     /// </summary>
     /// <param name="isCustom">The override value, or <see langword="null"/> to reset.</param>
     internal static void SetCustomInstallRootOverrideForTesting(bool? isCustom) => _customInstallRootOverride = isCustom;
+
+    /// <summary>
+    /// Sets an override for <see cref="GetDefaultDataRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="path">The override directory path, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultDataRootOverrideForTesting(string? path) => _defaultDataRootOverride = path;
+
+    /// <summary>
+    /// Gets the default application data root directory in LocalApplicationData across all platforms.
+    /// </summary>
+    /// <returns>The path to the default application data root.</returns>
+    internal static string GetDefaultDataRoot()
+    {
+        return _defaultDataRootOverride ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName);
+    }
 
     /// <summary>
     /// Gets the default Velopack installation root directory in LocalApplicationData.
@@ -365,7 +396,7 @@ public class StorageMigrationService(
             return;
         }
 
-        CleanIfEmpty(GetDefaultInstallRoot());
+        CleanIfEmpty(GetDefaultDataRoot());
 
         CleanIfEmpty(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -493,8 +524,13 @@ public class StorageMigrationService(
     /// <param name="customRoot">The custom installation root directory to import from.</param>
     /// <param name="targetRoot">The target installation root directory.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
     /// <returns><see langword="true"/> if data was imported; otherwise, <see langword="false"/>.</returns>
-    internal static bool TryImportUserDataFromCustomInstall(string customRoot, string targetRoot, ILogger? logger = null)
+    internal static bool TryImportUserDataFromCustomInstall(
+        string customRoot,
+        string targetRoot,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
             !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
@@ -507,6 +543,8 @@ public class StorageMigrationService(
             var importedAny = false;
             var settingsSrc = Path.Combine(customRoot, FileTypes.SettingsFileName);
             var settingsDest = Path.Combine(targetRoot, FileTypes.SettingsFileName);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (File.Exists(settingsSrc) && !File.Exists(settingsDest))
             {
@@ -524,9 +562,10 @@ public class StorageMigrationService(
 
             foreach (var dirName in dirsToCopy)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var srcDir = Path.Combine(customRoot, dirName);
                 var destDir = Path.Combine(targetRoot, dirName);
-                if (Directory.Exists(srcDir) && CopyMissingFilesRecursive(srcDir, destDir))
+                if (Directory.Exists(srcDir) && CopyMissingFilesRecursive(srcDir, destDir, cancellationToken))
                 {
                     importedAny = true;
                     logger?.LogInformation("Imported {Directory} from custom installation: {Src} -> {Dest}", dirName, srcDir, destDir);
@@ -534,6 +573,10 @@ public class StorageMigrationService(
             }
 
             return importedAny;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
         catch (IOException ex)
         {
@@ -630,14 +673,16 @@ public class StorageMigrationService(
     /// </summary>
     /// <param name="srcDir">Source directory.</param>
     /// <param name="destDir">Destination directory.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
     /// <returns><see langword="true"/> if any file was copied; otherwise, <see langword="false"/>.</returns>
-    internal static bool CopyMissingFilesRecursive(string srcDir, string destDir)
+    internal static bool CopyMissingFilesRecursive(string srcDir, string destDir, CancellationToken cancellationToken = default)
     {
         var copiedAny = false;
         Directory.CreateDirectory(destDir);
 
-        foreach (var file in Directory.EnumerateFiles(srcDir, "*", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", RecursiveEnumerationOptions))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var relPath = Path.GetRelativePath(srcDir, file);
             var destFile = Path.Combine(destDir, relPath);
             if (!File.Exists(destFile))
@@ -671,10 +716,10 @@ public class StorageMigrationService(
 
         if (!Directory.Exists(destDir))
         {
-            return Directory.EnumerateFileSystemEntries(srcDir).Any();
+            return Directory.EnumerateFileSystemEntries(srcDir, "*", RecursiveEnumerationOptions).Any();
         }
 
-        foreach (var file in Directory.EnumerateFiles(srcDir, "*", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", RecursiveEnumerationOptions))
         {
             var relPath = Path.GetRelativePath(srcDir, file);
             var destFile = Path.Combine(destDir, relPath);
@@ -827,22 +872,106 @@ public class StorageMigrationService(
         }
     }
 
-    private static void WriteAdoptionMarkerSafely(string markerPath, string detectedCustomPath, ILogger? logger)
+    /// <summary>
+    /// Checks whether an adoption pending marker file exists and matches the specified custom installation path.
+    /// </summary>
+    /// <param name="markerPath">Path to the adoption pending marker file.</param>
+    /// <param name="customPath">The candidate custom installation path.</param>
+    /// <returns><see langword="true"/> if the marker exists and contains a non-empty path matching <paramref name="customPath"/>; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsMarkerMatchingPath(string markerPath, string customPath)
     {
+        if (string.IsNullOrWhiteSpace(markerPath) || string.IsNullOrWhiteSpace(customPath))
+        {
+            return false;
+        }
+
         try
         {
             if (!File.Exists(markerPath))
             {
+                return false;
+            }
+
+            var recorded = File.ReadAllText(markerPath).Trim();
+            if (string.IsNullOrWhiteSpace(recorded))
+            {
+                try
+                {
+                    File.Delete(markerPath);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+
+                return false;
+            }
+
+            return PathHelper.AreSamePath(recorded, customPath);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Writes the adoption pending marker file safely, ensuring directory existence and catching transient errors.
+    /// </summary>
+    /// <param name="markerPath">The path of the marker file to write.</param>
+    /// <param name="detectedCustomPath">The custom installation root path to record.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><see langword="true"/> if written successfully or already matches; otherwise, <see langword="false"/>.</returns>
+    internal static bool WriteAdoptionMarkerSafely(string markerPath, string detectedCustomPath, ILogger? logger = null)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(markerPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            if (!File.Exists(markerPath) || !PathHelper.AreSamePath(File.ReadAllText(markerPath).Trim(), detectedCustomPath))
+            {
                 File.WriteAllText(markerPath, detectedCustomPath);
             }
+
+            return true;
         }
         catch (IOException ex)
         {
             logger?.LogWarning(ex, "Failed to write adoption marker file");
+            return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger?.LogWarning(ex, "Failed to write adoption marker file");
+            return false;
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, "Failed to write adoption marker file");
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, "Failed to write adoption marker file");
+            return false;
         }
     }
 

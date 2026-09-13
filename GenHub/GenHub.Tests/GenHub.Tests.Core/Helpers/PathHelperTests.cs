@@ -371,6 +371,25 @@ public sealed class PathHelperTests
     /// <summary>
     /// Verifies that TrySanitizeLocalPath trims enclosing quotes and whitespace.
     /// </summary>
+    /// <summary>
+    /// Verifies that TrySanitizeLocalPath rejects relative paths.
+    /// </summary>
+    /// <param name="relativePath">The relative path to test.</param>
+    [Theory]
+    [InlineData("relative/path/to/dir")]
+    [InlineData(@"relative\path\to\dir")]
+    [InlineData("GenHub")]
+    [InlineData(".")]
+    [InlineData("..")]
+    public void TrySanitizeLocalPath_WhenRelativePath_ReturnsFalse(string relativePath)
+    {
+        Assert.False(PathHelper.TrySanitizeLocalPath(relativePath, out var sanitized));
+        Assert.Null(sanitized);
+    }
+
+    /// <summary>
+    /// Verifies that TrySanitizeLocalPath trims enclosing quotes and whitespace.
+    /// </summary>
     [Fact]
     public void TrySanitizeLocalPath_WhenQuoted_TrimsQuotesAndReturnsTrue()
     {

@@ -93,7 +93,8 @@ public static class PathHelper
         }
 
         var trimmed = path.Trim().Trim('"');
-        if (trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
+        if (!Path.IsPathRooted(trimmed) ||
+            trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
             trimmed.StartsWith("//", StringComparison.Ordinal) ||
             (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && uri.IsUnc))
         {

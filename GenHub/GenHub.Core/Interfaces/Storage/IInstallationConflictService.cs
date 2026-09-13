@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Storage;
@@ -12,6 +13,7 @@ public interface IInstallationConflictService
     /// Checks for duplicate installation conflicts, adopts user data from custom installations if applicable,
     /// and notifies the user in the UI.
     /// </summary>
+    /// <param name="cancellationToken">Optional token to cancel the asynchronous operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task CheckAndResolveConflictsAsync();
+    Task CheckAndResolveConflictsAsync(CancellationToken cancellationToken = default);
 }

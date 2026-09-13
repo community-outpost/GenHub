@@ -2,9 +2,9 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Security;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using Microsoft.Extensions.Logging;
@@ -24,48 +24,19 @@ public class InstallationConflictService(
     ILogger<InstallationConflictService>? logger = null) : IInstallationConflictService
 {
     private const string ConflictCheckErrorMessage = "Error checking for duplicate installation conflict on startup";
-    private const string CreateMarkerErrorMessage = "Failed to create adoption marker file at {MarkerPath}";
     private const string RemoveMarkerErrorMessage = "Failed to remove adoption marker file at {MarkerPath}";
 
     private readonly IInstallationLocationTracker _tracker = installationLocationTracker ?? throw new ArgumentNullException(nameof(installationLocationTracker));
-    private readonly INotificationService? _notificationService = notificationService;
-    private readonly ILogger<InstallationConflictService>? _logger = logger;
 
     /// <inheritdoc />
-    public async Task CheckAndResolveConflictsAsync()
+    public async Task CheckAndResolveConflictsAsync(CancellationToken cancellationToken = default)
     {
-        await Task.Run(ExecuteConflictResolution);
+        await Task.Run(() => ExecuteConflictResolution(cancellationToken), cancellationToken);
     }
 
-    private static bool IsMarkerMatchingPath(string markerPath, string customPath)
+    private void ExecuteConflictResolution(CancellationToken cancellationToken)
     {
-        try
-        {
-            if (!File.Exists(markerPath))
-            {
-                return false;
-            }
-
-            var recorded = File.ReadAllText(markerPath).Trim();
-            return string.IsNullOrWhiteSpace(recorded) || PathHelper.AreSamePath(recorded, customPath);
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (SecurityException)
-        {
-            return false;
-        }
-    }
-
-    private void ExecuteConflictResolution()
-    {
-        var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
+        var defaultRoot = StorageMigrationService.GetDefaultDataRoot();
         var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
 
         try
@@ -81,7 +52,7 @@ public class InstallationConflictService(
             if (StorageMigrationService.HasDuplicateInstallationConflict(customPath, out var detectedCustomPath) &&
                 !string.IsNullOrWhiteSpace(detectedCustomPath))
             {
-                ResolveDuplicateInstallationConflict(detectedCustomPath, markerPath, defaultRoot);
+                ResolveDuplicateInstallationConflict(detectedCustomPath, markerPath, defaultRoot, cancellationToken);
             }
             else
             {
@@ -91,35 +62,39 @@ public class InstallationConflictService(
         }
         catch (IOException ex)
         {
-            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (SecurityException ex)
         {
-            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (ArgumentException ex)
         {
-            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
         catch (InvalidOperationException ex)
         {
-            _logger?.LogWarning(ex, ConflictCheckErrorMessage);
+            logger?.LogWarning(ex, ConflictCheckErrorMessage);
         }
     }
 
-    private void ResolveDuplicateInstallationConflict(string detectedCustomPath, string markerPath, string defaultRoot)
+    private void ResolveDuplicateInstallationConflict(
+        string detectedCustomPath,
+        string markerPath,
+        string defaultRoot,
+        CancellationToken cancellationToken)
     {
-        _logger?.LogWarning(
+        logger?.LogWarning(
             "Duplicate installation detected: GenHub is running from default location '{DefaultLocation}', " +
             "but an existing custom installation was found at '{CustomLocation}'.",
             defaultRoot,
             detectedCustomPath);
 
-        var isPendingRetry = IsMarkerMatchingPath(markerPath, detectedCustomPath);
+        var isPendingRetry = StorageMigrationService.IsMarkerMatchingPath(markerPath, detectedCustomPath);
         var hasExistingData = StorageMigrationService.HasExistingUserData(defaultRoot);
         var shouldAdopt = (!hasExistingData || isPendingRetry) &&
                           StorageMigrationService.HasExistingUserData(detectedCustomPath);
@@ -129,12 +104,12 @@ public class InstallationConflictService(
         {
             SetAdoptionMarker(markerPath, detectedCustomPath);
 
-            _logger?.LogInformation(
+            logger?.LogInformation(
                 "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
                 detectedCustomPath,
                 defaultRoot);
 
-            imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, _logger) ||
+            imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger, cancellationToken) ||
                        StorageMigrationService.WasEarlyAdopted;
             var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
 
@@ -151,8 +126,12 @@ public class InstallationConflictService(
                 imported = true;
             }
 
-            ClearAdoptionMarker(markerPath);
-            _tracker.ClearCustomInstallPath();
+            var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
+            if (hasRemainingUnadopted == false)
+            {
+                ClearAdoptionMarker(markerPath);
+                _tracker.ClearCustomInstallPath();
+            }
         }
 
         NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
@@ -160,29 +139,7 @@ public class InstallationConflictService(
 
     private void SetAdoptionMarker(string markerPath, string customPath)
     {
-        try
-        {
-            if (!File.Exists(markerPath))
-            {
-                File.WriteAllText(markerPath, customPath);
-            }
-        }
-        catch (IOException ex)
-        {
-            _logger?.LogWarning(ex, CreateMarkerErrorMessage, markerPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger?.LogWarning(ex, CreateMarkerErrorMessage, markerPath);
-        }
-        catch (SecurityException ex)
-        {
-            _logger?.LogWarning(ex, CreateMarkerErrorMessage, markerPath);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger?.LogWarning(ex, CreateMarkerErrorMessage, markerPath);
-        }
+        StorageMigrationService.WriteAdoptionMarkerSafely(markerPath, customPath, logger);
     }
 
     private void ClearAdoptionMarker(string markerPath)
@@ -196,25 +153,25 @@ public class InstallationConflictService(
         }
         catch (IOException ex)
         {
-            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
         catch (SecurityException ex)
         {
-            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
         catch (ArgumentException ex)
         {
-            _logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
+            logger?.LogWarning(ex, RemoveMarkerErrorMessage, markerPath);
         }
     }
 
     private void NotifyDuplicateInstallationConflict(string customPath, bool imported)
     {
-        if (_notificationService == null)
+        if (notificationService == null)
         {
             return;
         }
@@ -223,7 +180,7 @@ public class InstallationConflictService(
             ? string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat, customPath)
             : string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat, customPath);
 
-        _notificationService.ShowWarning(
+        notificationService.ShowWarning(
             StorageMigrationConstants.DuplicateInstallationDetectedTitle,
             message,
             StorageMigrationConstants.DuplicateInstallationNotificationDismissMs,

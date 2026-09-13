@@ -16,6 +16,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -25,6 +26,7 @@ namespace GenHub.Tests.Core.Features.Storage;
 /// <summary>
 /// Unit tests for <see cref="StorageMigrationService"/>.
 /// </summary>
+[Collection(StorageMigrationStaticStateCollection.Name)]
 public class StorageMigrationServiceTests : IDisposable
 {
     private readonly string _tempRoot;
@@ -910,6 +912,66 @@ public class StorageMigrationServiceTests : IDisposable
         {
             StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
         }
+    }
+
+    /// <summary>
+    /// Tests that HasUnadoptedUserData returns null when an inaccessible directory prevents reading files.
+    /// </summary>
+    [Fact]
+    public void HasUnadoptedUserData_WhenDirectoryInaccessible_ReturnsNull()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var customDir = Path.Combine(_tempRoot, "InaccessibleSource");
+        var defaultDir = Path.Combine(_tempRoot, "InaccessibleDest");
+        Directory.CreateDirectory(customDir);
+        Directory.CreateDirectory(defaultDir);
+
+        // Ensure target Profiles directory exists so HasUnadoptedDirectoryData enumerates files and descends into subdirectories
+        var defaultProfiles = Path.Combine(defaultDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(defaultProfiles);
+
+        var subDir = Path.Combine(customDir, DirectoryNames.Profiles, "LockedDir");
+        Directory.CreateDirectory(subDir);
+        File.WriteAllText(Path.Combine(subDir, "locked.json"), "content");
+
+        try
+        {
+            File.SetUnixFileMode(subDir, UnixFileMode.None);
+
+            var result = StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir);
+            Assert.Null(result);
+        }
+        finally
+        {
+            File.SetUnixFileMode(subDir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
+    /// Tests that IsMarkerMatchingPath correctly validates marker content and deletes torn markers.
+    /// </summary>
+    [Fact]
+    public void IsMarkerMatchingPath_ValidatesContentAndDeletesTornMarkers()
+    {
+        var markerPath = Path.Combine(_tempRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
+        var targetPath = Path.Combine(_tempRoot, "TargetCustomDir");
+
+        Assert.False(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+
+        File.WriteAllText(markerPath, targetPath);
+        Assert.True(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+
+        File.WriteAllText(markerPath, "DifferentPath");
+        Assert.False(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+
+        // Torn/blank marker should be cleaned up and return false
+        File.WriteAllText(markerPath, "   ");
+        Assert.False(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+        Assert.False(File.Exists(markerPath));
     }
 
     private StorageMigrationService CreateService()

@@ -19,7 +19,7 @@ namespace GenHub.Linux.Features.Storage;
 public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger = null)
     : FileInstallationLocationTracker(logger), IInstallationLocationTracker
 {
-    private readonly ILogger<LinuxInstallationTracker>? _logger = logger;
+    private const string InspectDesktopEntriesFailureMessage = "Failed to inspect desktop entries for custom installation location";
 
     /// <summary>
     /// Records the current installation directory if running from a custom install root.
@@ -47,7 +47,7 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
     }
 
     /// <inheritdoc />
-    public override string? GetRegisteredCustomInstallPath() => GetRegisteredCustomInstallPathStatic(_logger);
+    public override string? GetRegisteredCustomInstallPath() => GetRegisteredCustomInstallPathStatic(logger);
 
     private static string? ResolveFromDesktopEntries(ILogger? logger)
     {
@@ -87,9 +87,21 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to inspect desktop entries for custom installation location");
+            logger?.LogWarning(ex, InspectDesktopEntriesFailureMessage);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, InspectDesktopEntriesFailureMessage);
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, InspectDesktopEntriesFailureMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, InspectDesktopEntriesFailureMessage);
         }
 
         return null;
@@ -103,14 +115,39 @@ public class LinuxInstallationTracker(ILogger<LinuxInstallationTracker>? logger 
             if (trimmed.StartsWith("Exec=", StringComparison.OrdinalIgnoreCase))
             {
                 var raw = trimmed["Exec=".Length..].Trim();
-                if (raw.StartsWith('"'))
+                string candidate;
+                if (raw.StartsWith('\"'))
                 {
-                    var closingQuote = raw.IndexOf('"', 1);
-                    return closingQuote > 1 ? raw[1..closingQuote] : raw.Trim('"');
+                    var closingQuote = -1;
+                    for (var i = 1; i < raw.Length; i++)
+                    {
+                        if (raw[i] == '\"' && raw[i - 1] != '\\')
+                        {
+                            closingQuote = i;
+                            break;
+                        }
+                    }
+
+                    var insideQuotes = closingQuote > 1 ? raw[1..closingQuote] : raw.Trim('\"');
+                    candidate = insideQuotes
+                        .Replace("\\\"", "\"")
+                        .Replace("\\\\", "\\")
+                        .Replace("\\$", "$")
+                        .Replace("\\`", "`")
+                        .Replace("\\n", "\n")
+                        .Replace("%%", "%");
+                }
+                else
+                {
+                    var firstSpace = raw.IndexOf(' ');
+                    var token = firstSpace > 0 ? raw[..firstSpace] : raw;
+                    candidate = token.Replace("%%", "%");
                 }
 
-                var firstSpace = raw.IndexOf(' ');
-                return firstSpace > 0 ? raw[..firstSpace] : raw;
+                if (!string.IsNullOrWhiteSpace(candidate) && Path.IsPathRooted(candidate))
+                {
+                    return candidate;
+                }
             }
         }
 

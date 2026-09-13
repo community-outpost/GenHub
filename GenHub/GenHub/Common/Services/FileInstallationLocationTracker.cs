@@ -13,7 +13,9 @@ namespace GenHub.Common.Services;
 /// <param name="logger">Optional logger for diagnostics.</param>
 public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTracker>? logger = null) : IInstallationLocationTracker
 {
-    private readonly ILogger<FileInstallationLocationTracker>? _logger = logger;
+    private const string RecordLocationFailureMessage = "Failed to record custom installation location to file.";
+    private const string ReadLocationFailureMessage = "Failed to read custom installation location from file.";
+    private const string ClearLocationFailureMessage = "Failed to clear custom installation location file.";
 
     /// <summary>
     /// Records the current installation directory in a user profile marker file when running from a custom install root.
@@ -37,9 +39,21 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
                 logger?.LogInformation("Recorded custom installation root in file: {CustomRoot}", customRoot);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to record custom installation location to file.");
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
         }
     }
 
@@ -62,9 +76,21 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to read custom installation location from file.");
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
         }
 
         return null;
@@ -85,9 +111,21 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
                 logger?.LogInformation("Cleared custom installation root file: {FilePath}", filePath);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException ex)
         {
-            logger?.LogWarning(ex, "Failed to clear custom installation location file.");
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, ClearLocationFailureMessage);
         }
     }
 
@@ -98,15 +136,25 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
     public static string GetLocationFilePath()
     {
         var profileDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(profileDir))
+        {
+            profileDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        }
+
+        if (string.IsNullOrWhiteSpace(profileDir))
+        {
+            profileDir = Path.GetTempPath();
+        }
+
         return Path.Combine(profileDir, StorageMigrationConstants.GenHubConfigDirectoryName, StorageMigrationConstants.CustomInstallPathFileName);
     }
 
     /// <inheritdoc />
-    public virtual void RecordInstallLocation() => RecordInstallLocationStatic(_logger);
+    public virtual void RecordInstallLocation() => RecordInstallLocationStatic(logger);
 
     /// <inheritdoc />
-    public virtual string? GetRegisteredCustomInstallPath() => GetRegisteredCustomInstallPathStatic(_logger);
+    public virtual string? GetRegisteredCustomInstallPath() => GetRegisteredCustomInstallPathStatic(logger);
 
     /// <inheritdoc />
-    public virtual void ClearCustomInstallPath() => ClearCustomInstallPathStatic(_logger);
+    public virtual void ClearCustomInstallPath() => ClearCustomInstallPathStatic(logger);
 }

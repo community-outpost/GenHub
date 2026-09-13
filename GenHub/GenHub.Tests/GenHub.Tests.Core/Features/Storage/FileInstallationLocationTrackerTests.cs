@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Tests.Core.Collections;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Storage;
@@ -9,10 +10,12 @@ namespace GenHub.Tests.Core.Features.Storage;
 /// <summary>
 /// Unit tests for <see cref="FileInstallationLocationTracker"/>.
 /// </summary>
+[Collection(StorageMigrationStaticStateCollection.Name)]
 public class FileInstallationLocationTrackerTests : IDisposable
 {
     private readonly string _tempRoot;
     private readonly string _originalUserProfile;
+    private readonly string _originalHome;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileInstallationLocationTrackerTests"/> class.
@@ -22,7 +25,11 @@ public class FileInstallationLocationTrackerTests : IDisposable
         _tempRoot = Path.Combine(Path.GetTempPath(), "FileTrackerTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempRoot);
 
-        _originalUserProfile = Environment.GetEnvironmentVariable("USERPROFILE") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        _originalUserProfile = Environment.GetEnvironmentVariable("USERPROFILE") ?? string.Empty;
+        _originalHome = Environment.GetEnvironmentVariable("HOME") ?? string.Empty;
+
+        Environment.SetEnvironmentVariable("USERPROFILE", _tempRoot);
+        Environment.SetEnvironmentVariable("HOME", _tempRoot);
     }
 
     /// <summary>
@@ -31,6 +38,9 @@ public class FileInstallationLocationTrackerTests : IDisposable
     public void Dispose()
     {
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+
+        Environment.SetEnvironmentVariable("USERPROFILE", string.IsNullOrEmpty(_originalUserProfile) ? null : _originalUserProfile);
+        Environment.SetEnvironmentVariable("HOME", string.IsNullOrEmpty(_originalHome) ? null : _originalHome);
 
         if (Directory.Exists(_tempRoot))
         {
@@ -72,14 +82,26 @@ public class FileInstallationLocationTrackerTests : IDisposable
     public void GetRegisteredCustomInstallPath_WhenNotConfigured_ReturnsNull()
     {
         var tracker = new FileInstallationLocationTracker();
-
-        // Since test environment likely doesn't have ~/.genhub/install-location pointing to a valid dir:
         var path = tracker.GetRegisteredCustomInstallPath();
 
-        // Should be null or a valid directory string if one existed
-        if (path != null)
-        {
-            Assert.True(Directory.Exists(path));
-        }
+        Assert.Null(path);
+    }
+
+    /// <summary>
+    /// Verifies that recording an install location writes to the user profile file and can be cleared.
+    /// </summary>
+    [Fact]
+    public void RecordInstallLocation_WhenCustomRoot_RecordsAndClearsSuccessfully()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(true);
+
+        var tracker = new FileInstallationLocationTracker();
+        tracker.RecordInstallLocation();
+
+        var filePath = FileInstallationLocationTracker.GetLocationFilePath();
+        Assert.True(File.Exists(filePath));
+
+        tracker.ClearCustomInstallPath();
+        Assert.False(File.Exists(filePath));
     }
 }

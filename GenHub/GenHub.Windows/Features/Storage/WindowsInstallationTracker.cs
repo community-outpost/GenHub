@@ -34,37 +34,37 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
             return;
         }
 
-        try
+        if (StorageMigrationService.IsCustomInstallRoot())
         {
-            if (StorageMigrationService.IsCustomInstallRoot())
+            try
             {
                 var customRoot = StorageMigrationService.GetSourceRootDirectory();
                 using var key = Registry.CurrentUser.CreateSubKey(GenHubSubKey, writable: true);
                 key.SetValue(CustomInstallPathValueName, customRoot);
                 logger?.LogInformation("Recorded custom installation root in registry: {CustomRoot}", customRoot);
-
-                FileInstallationLocationTracker.RecordInstallLocationStatic(logger);
             }
-        }
-        catch (SecurityException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (ArgumentException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger?.LogWarning(ex, RecordLocationFailureMessage);
+            catch (SecurityException ex)
+            {
+                logger?.LogWarning(ex, RecordLocationFailureMessage);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger?.LogWarning(ex, RecordLocationFailureMessage);
+            }
+            catch (IOException ex)
+            {
+                logger?.LogWarning(ex, RecordLocationFailureMessage);
+            }
+            catch (ArgumentException ex)
+            {
+                logger?.LogWarning(ex, RecordLocationFailureMessage);
+            }
+            catch (InvalidOperationException ex)
+            {
+                logger?.LogWarning(ex, RecordLocationFailureMessage);
+            }
+
+            FileInstallationLocationTracker.RecordInstallLocationStatic(logger);
         }
     }
 
