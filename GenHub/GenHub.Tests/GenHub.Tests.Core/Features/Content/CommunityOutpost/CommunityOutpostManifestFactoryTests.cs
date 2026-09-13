@@ -169,6 +169,11 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-ru", ruManifest.Id.Value);
         Assert.Equal("Leikeze's Hotkeys (RU)", ruManifest.Name);
         Assert.Equal("zerohour-ru", ruManifest.Metadata?.SelectedVariantId);
+
+        var enManifest = manifests.FirstOrDefault(m => m.Metadata?.SelectedVariantId == "zerohour-en");
+        Assert.NotNull(enManifest);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-en", enManifest.Id.Value);
+        Assert.Equal("Leikeze's Hotkeys (EN)", enManifest.Name);
     }
 
     /// <summary>
@@ -347,8 +352,9 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
 
         // Assert
         Assert.Equal(4, manifests.Count);
-        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-ru");
-        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-de");
+        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-ru" && m.Name == "Leikeze's Hotkeys (RU)");
+        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-de" && m.Name == "Leikeze's Hotkeys (DE)");
         Assert.DoesNotContain(manifests, m => m.Id.Value.Contains("hleizerohourru-zerohour"));
+        Assert.DoesNotContain(manifests, m => m.Name.Contains("Leikeze's Hotkeys (RU) - Leikeze's Hotkeys"));
     }
 }

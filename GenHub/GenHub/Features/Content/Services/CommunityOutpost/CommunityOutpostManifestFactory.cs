@@ -528,9 +528,15 @@ public class CommunityOutpostManifestFactory(
             manifestId = ManifestId.Create($"{idParts[0]}.{idParts[1]}.{idParts[2]}.{idParts[3]}.{variantContentName}");
         }
 
-        manifestName = variant.Name.StartsWith(originalManifest.Name, StringComparison.OrdinalIgnoreCase)
-            ? variant.Name
-            : $"{originalManifest.Name} - {variant.Name}";
+        var baseDisplayName = !string.IsNullOrWhiteSpace(contentMetadata.DisplayName)
+            ? contentMetadata.DisplayName
+            : originalManifest.Name;
+
+        manifestName = !string.IsNullOrWhiteSpace(variant.Name)
+            ? (variant.Name.StartsWith(baseDisplayName, StringComparison.OrdinalIgnoreCase) || variant.Name.Contains(baseDisplayName, StringComparison.OrdinalIgnoreCase)
+                ? variant.Name
+                : $"{baseDisplayName} - {variant.Name}")
+            : originalManifest.Name;
         logger.LogInformation(
             "Creating variant manifest: {ManifestId} ({ManifestName}) with {FileCount} files",
             manifestId,

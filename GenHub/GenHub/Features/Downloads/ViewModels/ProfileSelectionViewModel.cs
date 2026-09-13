@@ -375,6 +375,9 @@ public sealed partial class ProfileSelectionViewModel(
                     profile.Name,
                     result.FirstError);
                 ErrorMessage = result.FirstError ?? "Failed to add content to profile";
+                notificationService.ShowError(
+                    "Failed to Add to Profile",
+                    ErrorMessage);
                 WasSuccessful = false;
             }
         }
@@ -388,6 +391,9 @@ public sealed partial class ProfileSelectionViewModel(
         {
             logger.LogError(ex, "Error adding content to profile '{ProfileName}'", profile.Name);
             ErrorMessage = ex.Message;
+            notificationService.ShowError(
+                "Failed to Add to Profile",
+                $"An error occurred: {ex.Message}");
             WasSuccessful = false;
         }
     }
@@ -437,7 +443,7 @@ public sealed partial class ProfileSelectionViewModel(
                 ManifestId.Create(ContentManifestId),
                 _cts.Token);
 
-            var (selectedManifestId, selectedContentName) = manifestResult.Success && manifestResult.Data != null
+            var (selectedManifestId, selectedContentName) = manifestResult?.Success == true && manifestResult.Data != null
                 ? (manifestResult.Data.Id.Value, manifestResult.Data.Name)
                 : (ContentManifestId, ContentName ?? "New Profile");
 
@@ -466,6 +472,9 @@ public sealed partial class ProfileSelectionViewModel(
             if (result.Success && result.Data != null)
             {
                 logger.LogInformation("Successfully created profile '{ProfileName}'", result.Data.Name);
+                notificationService.ShowSuccess(
+                    "Profile Created",
+                    $"Created profile '{result.Data.Name}' with '{selectedContentName}'.");
                 SelectedProfileName = result.Data.Name;
                 WasSuccessful = true;
                 RequestClose?.Invoke(this, EventArgs.Empty);
@@ -505,7 +514,7 @@ public sealed partial class ProfileSelectionViewModel(
         var selectedManifestResult = await manifestPool.GetManifestAsync(
             ManifestId.Create(selectedManifestId),
             _cts.Token);
-        var selectedManifest = selectedManifestResult.Success ? selectedManifestResult.Data : null;
+        var selectedManifest = selectedManifestResult?.Success == true ? selectedManifestResult.Data : null;
         string baseName;
         if (selectedManifest?.ContentType == ContentType.GameClient &&
             !string.IsNullOrWhiteSpace(selectedManifest.Name))
@@ -592,6 +601,14 @@ public sealed partial class ProfileSelectionViewModel(
                 result.SwappedContentName,
                 selectedContentName,
                 profile.Name);
+
+            var replacedText = !string.IsNullOrWhiteSpace(result.SwappedContentName)
+                ? $"Replaced '{result.SwappedContentName}' with '{selectedContentName}' in profile '{profile.Name}'."
+                : $"Updated '{selectedContentName}' in profile '{profile.Name}'.";
+
+            notificationService.ShowSuccess(
+                "Content Updated",
+                replacedText);
         }
         else
         {
@@ -599,8 +616,8 @@ public sealed partial class ProfileSelectionViewModel(
 
             // Show success notification for new content addition
             notificationService.ShowSuccess(
-                "Content Added",
-                $"Added '{selectedContentName}' to profile '{profile.Name}'");
+                "Added to Profile",
+                $"'{selectedContentName}' has been added to profile '{profile.Name}'.");
         }
 
         SelectedProfileName = profile.Name;

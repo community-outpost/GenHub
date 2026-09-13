@@ -687,7 +687,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             var baseName = !string.IsNullOrEmpty(primaryItem.VariantFamilyName) ? primaryItem.VariantFamilyName : primaryItem.Name;
-            var variantName = !string.IsNullOrEmpty(v.Name) && v.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase)
+            var variantName = !string.IsNullOrEmpty(v.Name) && (v.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase) || v.Name.Contains(baseName, StringComparison.OrdinalIgnoreCase))
                 ? v.Name
                 : $"{baseName} - {v.Name}";
 
@@ -2461,9 +2461,6 @@ public sealed partial class DownloadsBrowserViewModel(
             if (profileSelectionVm.WasSuccessful && !string.IsNullOrEmpty(profileSelectionVm.SelectedProfileName))
             {
                 item.DownloadStatus = $"{ContentConstants.AddedToProfileStatusPrefix}{profileSelectionVm.SelectedProfileName}";
-                notificationService.ShowSuccess(
-                    "Added to Profile",
-                    $"'{item.Name}' has been added to profile '{profileSelectionVm.SelectedProfileName}'.");
 
                 // Send profile updated message to notify other components
                 try
@@ -2485,9 +2482,6 @@ public sealed partial class DownloadsBrowserViewModel(
             else if (!profileSelectionVm.WasSuccessful && !profileSelectionVm.WasCancelled && !string.IsNullOrEmpty(profileSelectionVm.ErrorMessage))
             {
                 item.DownloadStatus = $"{ContentConstants.FailedStatusPrefix}{profileSelectionVm.ErrorMessage}";
-                notificationService.ShowError(
-                    "Failed to Add to Profile",
-                    profileSelectionVm.ErrorMessage);
                 logger.LogError("Failed to add content to profile: {Error}", profileSelectionVm.ErrorMessage);
             }
             else
