@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Storage.Services;
@@ -60,19 +61,30 @@ public class ContentStorageServiceTests : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        try
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes resources.
+    /// </summary>
+    /// <param name="disposing">Whether managed resources should be disposed.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
         {
-            if (Directory.Exists(_tempRoot))
+            try
             {
-                Directory.Delete(_tempRoot, true);
+                if (Directory.Exists(_tempRoot))
+                {
+                    Directory.Delete(_tempRoot, true);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
             }
         }
-        catch
-        {
-            // Allowed to fail during cleanup
-        }
-
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -83,20 +95,21 @@ public class ContentStorageServiceTests : IDisposable
     public async Task StoreContentAsync_WithTraversingSourcePath_ShouldFailAsync()
     {
         // Arrange
-        // Source Dir: /Temp/Source
-        // File SourcePath: /Temp/Other/secret.txt (Traverses out of Source)
-        var sourceDir = Path.Combine(_tempRoot, "Source");
+        // Source Dir: /Temp/SafeDir
+        // Secret Dir: /Temp/SecretDir/secret.txt
+        // File SourcePath: /Temp/SafeDir/../../SecretDir/secret.txt (Traverses out of Source Dir)
+        var sourceDir = Path.Combine(_tempRoot, "SafeDir");
         Directory.CreateDirectory(sourceDir);
 
-        var otherDir = Path.Combine(_tempRoot, "Other");
-        Directory.CreateDirectory(otherDir);
-        var secretFile = Path.Combine(otherDir, "secret.txt");
-        await File.WriteAllTextAsync(secretFile, "secret");
+        var secretDir = Path.Combine(_tempRoot, "SecretDir");
+        Directory.CreateDirectory(secretDir);
+        var secretFile = Path.Combine(secretDir, "secret.txt");
+        await File.WriteAllTextAsync(secretFile, "classified");
 
         var manifest = new ContentManifest
         {
-            Id = "1.0.publisher.gameclient.traversal",
-            ContentType = ContentType.GameClient,
+            Id = "1.0.publisher.gameinstallation.hack",
+            ContentType = ContentType.GameInstallation,
             Files =
             [
                 new()
@@ -171,8 +184,8 @@ public class ContentStorageServiceTests : IDisposable
         await File.WriteAllTextAsync(addonFile, "sample-addon-bytes");
 
         _casServiceMock
-            .Setup(c => c.StoreFileAsync(addonFile, It.IsAny<CancellationToken>()))
-            .ReturnsAsync("cas_hash_addon_123");
+            .Setup(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("cas_hash_addon_123"));
 
         var manifest = new ContentManifest
         {
@@ -194,7 +207,7 @@ public class ContentStorageServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
-        _casServiceMock.Verify(c => c.StoreFileAsync(addonFile, It.IsAny<CancellationToken>()), Times.Once);
+        _casServiceMock.Verify(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()), Times.Once);
         Assert.NotNull(result.Data);
         Assert.Single(result.Data.Files);
         Assert.Equal("cas_hash_addon_123", result.Data.Files[0].Hash);
