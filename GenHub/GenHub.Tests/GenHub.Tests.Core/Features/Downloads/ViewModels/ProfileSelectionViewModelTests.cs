@@ -59,7 +59,7 @@ public sealed class ProfileSelectionViewModelTests
 
         manifestPoolMock
             .Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("Not found"));
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
 
         var vm = new ProfileSelectionViewModel(
             NullLogger<ProfileSelectionViewModel>.Instance,
@@ -129,7 +129,7 @@ public sealed class ProfileSelectionViewModelTests
         await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
 
         // Assert
-        Assert.True(vm.WasSuccessful);
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
         Assert.True(closeRequested);
         Assert.Equal("Zero Hour Profile", vm.SelectedProfileName);
         profileContentMock.Verify(
@@ -188,7 +188,7 @@ public sealed class ProfileSelectionViewModelTests
         await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
 
         // Assert
-        Assert.True(vm.WasSuccessful);
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
         Assert.True(closeRequested);
         notificationMock.Verify(
             x => x.ShowSuccess("Content Updated", "Replaced 'Old Content' with 'New Content' in profile 'Zero Hour Profile'.", It.IsAny<int?>(), It.IsAny<bool>()),
@@ -245,7 +245,7 @@ public sealed class ProfileSelectionViewModelTests
         await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
 
         // Assert
-        Assert.True(vm.WasSuccessful);
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
         Assert.True(closeRequested);
         profileContentMock.Verify(
             x => x.AddContentToProfileAsync("zh-profile-1", It.Is<IReadOnlyList<string>>(l => l.Count == 3), It.IsAny<CancellationToken>()),
@@ -341,7 +341,7 @@ public sealed class ProfileSelectionViewModelTests
 
         manifestPoolMock
             .Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("Not found"));
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
 
         profileContentMock
             .Setup(x => x.CreateProfileWithContentAsync(It.IsAny<string>(), "1.0.test.manifest", It.IsAny<CancellationToken>()))
@@ -363,7 +363,7 @@ public sealed class ProfileSelectionViewModelTests
         await vm.CreateNewProfileCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.True(vm.WasSuccessful);
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
         Assert.True(closeRequested);
         Assert.Equal("New ZH Profile", vm.SelectedProfileName);
         notificationMock.Verify(
