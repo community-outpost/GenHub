@@ -353,8 +353,22 @@ public class GitHubContentDeliverer(
                 }
             }
 
-            // Return primary manifest
-            var primaryManifest = manifests[0];
+            // Return primary manifest matching requested variant or target game if specified
+            var requestedVariant = originalManifest.Metadata?.SelectedVariantId
+                ?? originalManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
+                ?? originalManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
+                ?? originalManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1];
+
+            var primaryManifest = (!string.IsNullOrEmpty(requestedVariant)
+                ? manifests.FirstOrDefault(m =>
+                    string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase) ||
+                    m.Id.Value.EndsWith($"-{requestedVariant}", StringComparison.OrdinalIgnoreCase))
+                  ?? manifests.FirstOrDefault(m =>
+                    m.Metadata?.Tags?.Any(t => string.Equals(t, $"variant:{requestedVariant}", StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(t, $"selectedVariant:{requestedVariant}", StringComparison.OrdinalIgnoreCase)) == true)
+                : null)
+                ?? manifests.FirstOrDefault(m => m.TargetGame == originalManifest.TargetGame)
+                ?? manifests[0];
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }

@@ -100,11 +100,13 @@ public class CommunityOutpostResolver(
                 fileSize);
 
             // Generate a deterministic content name from the content code.
-            // Preserve a catalog variant suffix (e.g. cbpr-1080p) so the factory builds
-            // only the selected resolution instead of every variant.
+            // For multi-variant packages (e.g. hlei, cbpr), keep the base content code so the
+            // resolved package ID matches 1.0.communityoutpost.<type>.<code\> and the factory can
+            // produce canonical variant manifest IDs (e.g. 1.0.communityoutpost.addon.hlei-zerohour-ru).
             var contentName = GenerateContentName(contentCode, contentMetadata);
             var requestedVariantSuffix = TryExtractVariantSuffix(discoveredItem, contentMetadata);
-            if (!string.IsNullOrEmpty(requestedVariantSuffix) &&
+            if (!contentMetadata.SupportsVariants &&
+                !string.IsNullOrEmpty(requestedVariantSuffix) &&
                 contentName.IndexOf('-') < 0)
             {
                 contentName = $"{contentCode}-{requestedVariantSuffix}".ToLowerInvariant();

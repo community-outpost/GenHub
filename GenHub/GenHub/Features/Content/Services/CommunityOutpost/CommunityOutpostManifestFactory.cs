@@ -509,12 +509,24 @@ public class CommunityOutpostManifestFactory(
         var idParts = originalManifest.Id.Value.Split('.');
         if (idParts.Length >= 5)
         {
-            var contentCode = idParts[4];
-            var variantContentName = $"{contentCode}-{variant.Id}";
+            var contentCode = GetContentCodeFromManifest(originalManifest);
+            if (string.IsNullOrEmpty(contentCode))
+            {
+                contentCode = idParts[4];
+                var hyphenIdx = contentCode.IndexOf('-');
+                if (hyphenIdx > 0)
+                {
+                    contentCode = contentCode[..hyphenIdx];
+                }
+            }
+
+            var variantContentName = $"{contentCode}-{variant.Id}".ToLowerInvariant();
             manifestId = ManifestId.Create($"{idParts[0]}.{idParts[1]}.{idParts[2]}.{idParts[3]}.{variantContentName}");
         }
 
-        manifestName = $"{originalManifest.Name} - {variant.Name}";
+        manifestName = variant.Name.StartsWith(originalManifest.Name, StringComparison.OrdinalIgnoreCase)
+            ? variant.Name
+            : $"{originalManifest.Name} - {variant.Name}";
         logger.LogInformation(
             "Creating variant manifest: {ManifestId} ({ManifestName}) with {FileCount} files",
             manifestId,
@@ -532,6 +544,15 @@ public class CommunityOutpostManifestFactory(
         string manifestName,
         List<ManifestFile> fileEntries)
     {
+        var variantTags = originalManifest.Metadata?.Tags != null
+            ? originalManifest.Metadata.Tags
+                .Where(t => !t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase) &&
+                            !t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase) &&
+                            !t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))
+                .Concat(variant != null ? [$"variant:{variant.Id}", $"selectedVariant:{variant.Id}"] : Enumerable.Empty<string>())
+                .ToList()
+            : (variant != null ? [$"variant:{variant.Id}", $"selectedVariant:{variant.Id}"] : []);
+
         var manifest = new ContentManifest
         {
             Id = manifestId,
@@ -546,14 +567,14 @@ public class CommunityOutpostManifestFactory(
             Publisher = originalManifest.Publisher,
             Metadata = new ContentMetadata
             {
-                Description = originalManifest.Metadata.Description,
-                ReleaseDate = originalManifest.Metadata.ReleaseDate,
+                Description = originalManifest.Metadata?.Description ?? string.Empty,
+                ReleaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.UtcNow,
                 IconUrl = CommunityOutpostConstants.LogoSource,
                 CoverUrl = CommunityOutpostConstants.CoverSource,
                 ThemeColor = CommunityOutpostConstants.ThemeColor,
-                ScreenshotUrls = originalManifest.Metadata.ScreenshotUrls,
-                Tags = originalManifest.Metadata.Tags,
-                ChangelogUrl = originalManifest.Metadata.ChangelogUrl,
+                ScreenshotUrls = originalManifest.Metadata?.ScreenshotUrls ?? [],
+                Tags = variantTags,
+                ChangelogUrl = originalManifest.Metadata?.ChangelogUrl,
                 Variants = variant != null ? [] : (contentMetadata.Variants ?? []),
                 RequiresVariantSelection = false,
                 SelectedVariantId = variant?.Id,

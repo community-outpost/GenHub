@@ -499,10 +499,24 @@ public class CommunityOutpostDeliverer(
                 CurrentOperation = "Community Outpost content delivered successfully",
             });
 
-            var primaryManifest = manifests.FirstOrDefault() ?? packageManifest;
+            var requestedVariant = packageManifest.Metadata?.SelectedVariantId
+                ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
+                ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
+                ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1];
+
+            var primaryManifest = (!string.IsNullOrEmpty(requestedVariant)
+                ? manifests.FirstOrDefault(m =>
+                    string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase) ||
+                    m.Id.Value.EndsWith($"-{requestedVariant}", StringComparison.OrdinalIgnoreCase))
+                  ?? manifests.FirstOrDefault(m =>
+                    m.Metadata?.Tags?.Any(t => string.Equals(t, $"variant:{requestedVariant}", StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(t, $"selectedVariant:{requestedVariant}", StringComparison.OrdinalIgnoreCase)) == true)
+                : null) ?? manifests.FirstOrDefault() ?? packageManifest;
+
             logger.LogInformation(
-                "Successfully delivered Community Outpost content: {ManifestCount} manifest(s) created",
-                manifests.Count);
+                "Successfully delivered Community Outpost content: {ManifestCount} manifest(s) created, returning primary manifest {PrimaryManifestId}",
+                manifests.Count,
+                primaryManifest.Id);
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }
