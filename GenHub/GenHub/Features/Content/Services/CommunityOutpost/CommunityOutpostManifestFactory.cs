@@ -544,14 +544,20 @@ public class CommunityOutpostManifestFactory(
         string manifestName,
         List<ManifestFile> fileEntries)
     {
-        var variantTags = originalManifest.Metadata?.Tags != null
-            ? originalManifest.Metadata.Tags
-                .Where(t => !t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase) &&
-                            !t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase) &&
-                            !t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))
-                .Concat(variant != null ? [$"variant:{variant.Id}", $"selectedVariant:{variant.Id}"] : Enumerable.Empty<string>())
-                .ToList()
-            : (variant != null ? [$"variant:{variant.Id}", $"selectedVariant:{variant.Id}"] : []);
+        var variantTags = new List<string>();
+        if (originalManifest.Metadata?.Tags != null)
+        {
+            variantTags.AddRange(originalManifest.Metadata.Tags.Where(t =>
+                !t.StartsWith("selectedVariant:", StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (variant != null)
+        {
+            variantTags.Add($"variant:{variant.Id}");
+            variantTags.Add($"selectedVariant:{variant.Id}");
+        }
 
         var manifest = new ContentManifest
         {

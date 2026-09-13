@@ -504,14 +504,18 @@ public class CommunityOutpostDeliverer(
                 ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("requestedVariant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1]
                 ?? packageManifest.Metadata?.Tags?.FirstOrDefault(t => t.StartsWith("variant:", StringComparison.OrdinalIgnoreCase))?.Split(':')[1];
 
-            var primaryManifest = (!string.IsNullOrEmpty(requestedVariant)
-                ? manifests.FirstOrDefault(m =>
+            ContentManifest? primaryManifest = null;
+            if (!string.IsNullOrEmpty(requestedVariant))
+            {
+                primaryManifest = manifests.FirstOrDefault(m =>
                     string.Equals(m.Metadata?.SelectedVariantId, requestedVariant, StringComparison.OrdinalIgnoreCase) ||
                     m.Id.Value.EndsWith($"-{requestedVariant}", StringComparison.OrdinalIgnoreCase))
                   ?? manifests.FirstOrDefault(m =>
                     m.Metadata?.Tags?.Any(t => string.Equals(t, $"variant:{requestedVariant}", StringComparison.OrdinalIgnoreCase) ||
-                                               string.Equals(t, $"selectedVariant:{requestedVariant}", StringComparison.OrdinalIgnoreCase)) == true)
-                : null) ?? manifests.FirstOrDefault() ?? packageManifest;
+                                               string.Equals(t, $"selectedVariant:{requestedVariant}", StringComparison.OrdinalIgnoreCase)) == true);
+            }
+
+            primaryManifest ??= manifests.FirstOrDefault() ?? packageManifest;
 
             logger.LogInformation(
                 "Successfully delivered Community Outpost content: {ManifestCount} manifest(s) created, returning primary manifest {PrimaryManifestId}",
