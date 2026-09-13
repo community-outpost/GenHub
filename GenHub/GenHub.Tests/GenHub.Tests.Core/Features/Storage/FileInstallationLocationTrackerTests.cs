@@ -106,4 +106,63 @@ public class FileInstallationLocationTrackerTests : IDisposable
         tracker.ClearCustomInstallPath();
         Assert.False(File.Exists(filePath));
     }
+
+    /// <summary>
+    /// Verifies that when the tracking file contains a UNC or invalid local path, it is safely rejected without error.
+    /// </summary>
+    [Fact]
+    public void GetRegisteredCustomInstallPath_WhenUncOrInvalid_ReturnsNull()
+    {
+        var dir = Path.GetDirectoryName(_customLocationFile)!;
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(_customLocationFile, "\\\\malicious-server\\share\\fake");
+
+        var tracker = new FileInstallationLocationTracker();
+        var result = tracker.GetRegisteredCustomInstallPath();
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Verifies that when the tracking file points to the default install root, it returns null.
+    /// </summary>
+    [Fact]
+    public void GetRegisteredCustomInstallPath_WhenPointsToDefaultRoot_ReturnsNull()
+    {
+        var dir = Path.GetDirectoryName(_customLocationFile)!;
+        Directory.CreateDirectory(dir);
+        var defaultDir = Path.Combine(_tempRoot, "DefaultInstallRoot");
+        Directory.CreateDirectory(defaultDir);
+        File.WriteAllText(Path.Combine(defaultDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+
+        File.WriteAllText(_customLocationFile, defaultDir);
+
+        try
+        {
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(defaultDir);
+            var tracker = new FileInstallationLocationTracker();
+            var result = tracker.GetRegisteredCustomInstallPath();
+
+            Assert.Null(result);
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that RecordCustomInstallPathStatic writes the explicit custom path to the tracking file.
+    /// </summary>
+    [Fact]
+    public void RecordCustomInstallPathStatic_WritesPathToFile()
+    {
+        var customPath = Path.Combine(_tempRoot, "ExplicitCustomRoot");
+        Directory.CreateDirectory(customPath);
+
+        FileInstallationLocationTracker.RecordCustomInstallPathStatic(customPath);
+
+        Assert.True(File.Exists(_customLocationFile));
+        Assert.Equal(customPath, File.ReadAllText(_customLocationFile).Trim());
+    }
 }

@@ -100,6 +100,14 @@ public class Program
         var registeredCustom = Features.Storage.WindowsInstallationTracker.GetRegisteredCustomInstallPathStatic(bootstrapLogger);
         Common.Services.StorageMigrationService.EarlyAdoptIfConflict(registeredCustom, bootstrapLogger);
 
+        // If a duplicate custom installation was discovered during conflict check or adoption,
+        // persist it in Windows registry before URI scheme re-registration overwrites the open command.
+        if (Common.Services.StorageMigrationService.HasDuplicateInstallationConflict(registeredCustom, out var detectedCustom) &&
+            !string.IsNullOrWhiteSpace(detectedCustom))
+        {
+            Features.Storage.WindowsInstallationTracker.RecordCustomInstallPathStatic(detectedCustom, bootstrapLogger);
+        }
+
         // Record custom installation location in registry if running outside default root
         Features.Storage.WindowsInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
 

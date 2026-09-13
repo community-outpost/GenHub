@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Security;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -25,21 +26,36 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
     /// <param name="logger">Optional logger for diagnostics.</param>
     public static void RecordInstallLocationStatic(ILogger? logger = null)
     {
+        if (StorageMigrationService.IsCustomInstallRoot())
+        {
+            var customRoot = StorageMigrationService.GetSourceRootDirectory();
+            RecordCustomInstallPathStatic(customRoot, logger);
+        }
+    }
+
+    /// <summary>
+    /// Records an explicitly specified custom installation directory in the user profile marker file.
+    /// </summary>
+    /// <param name="customPath">The custom installation root directory path to record.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    public static void RecordCustomInstallPathStatic(string customPath, ILogger? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(customPath))
+        {
+            return;
+        }
+
         try
         {
-            if (StorageMigrationService.IsCustomInstallRoot())
+            var filePath = GetLocationFilePath();
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
-                var customRoot = StorageMigrationService.GetSourceRootDirectory();
-                var filePath = GetLocationFilePath();
-                var directory = Path.GetDirectoryName(filePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                File.WriteAllText(filePath, customRoot);
-                logger?.LogInformation("Recorded custom installation root in file: {CustomRoot}", customRoot);
+                Directory.CreateDirectory(directory);
             }
+
+            File.WriteAllText(filePath, customPath);
+            logger?.LogInformation("Recorded custom installation root in file: {CustomRoot}", customPath);
         }
         catch (IOException ex)
         {
@@ -76,9 +92,24 @@ public class FileInstallationLocationTracker(ILogger<FileInstallationLocationTra
             if (File.Exists(filePath))
             {
                 var path = File.ReadAllText(filePath).Trim();
-                if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path) && StorageMigrationService.IsVelopackRoot(path))
+                if (PathHelper.TrySanitizeLocalPath(path, out var sanitized))
                 {
-                    return path;
+                    var currentRoot = StorageMigrationService.GetSourceRootDirectory();
+                    if (PathHelper.AreSamePath(sanitized, currentRoot))
+                    {
+                        return null;
+                    }
+
+                    var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
+                    if (!string.IsNullOrWhiteSpace(defaultRoot) && PathHelper.AreSamePath(sanitized, defaultRoot))
+                    {
+                        return null;
+                    }
+
+                    if (Directory.Exists(sanitized) && StorageMigrationService.IsVelopackRoot(sanitized))
+                    {
+                        return sanitized;
+                    }
                 }
             }
         }

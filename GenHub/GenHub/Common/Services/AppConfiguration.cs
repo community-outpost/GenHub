@@ -19,17 +19,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     private const string FailedToGetConfiguredAppDataPathMessage = "Failed to get configured AppDataPath, using default";
     private const string FailedToResolveCustomInstallRootMessage = "Failed to resolve custom install root for configured data path, falling back to default";
 
-    private readonly IConfiguration? _configuration = InitializeConfiguration(configuration);
-
-    private static IConfiguration? InitializeConfiguration(IConfiguration? config)
-    {
-        if (config != null)
-        {
-            StorageMigrationService.SetConfiguredDataPathResolver(() => config[ConfigurationKeys.AppDataPath]);
-        }
-
-        return config;
-    }
+    private readonly IConfiguration? _configuration = configuration;
 
     private readonly ILogger<AppConfiguration>? _logger = logger;
 

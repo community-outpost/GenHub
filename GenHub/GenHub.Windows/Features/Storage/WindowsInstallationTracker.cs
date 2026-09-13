@@ -37,36 +37,51 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
 
         if (StorageMigrationService.IsCustomInstallRoot())
         {
-            try
-            {
-                var customRoot = StorageMigrationService.GetSourceRootDirectory();
-                using var key = Registry.CurrentUser.CreateSubKey(GenHubSubKey, writable: true);
-                key.SetValue(CustomInstallPathValueName, customRoot);
-                logger?.LogInformation("Recorded custom installation root in registry: {CustomRoot}", customRoot);
-            }
-            catch (SecurityException ex)
-            {
-                logger?.LogWarning(ex, RecordLocationFailureMessage);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger?.LogWarning(ex, RecordLocationFailureMessage);
-            }
-            catch (IOException ex)
-            {
-                logger?.LogWarning(ex, RecordLocationFailureMessage);
-            }
-            catch (ArgumentException ex)
-            {
-                logger?.LogWarning(ex, RecordLocationFailureMessage);
-            }
-            catch (InvalidOperationException ex)
-            {
-                logger?.LogWarning(ex, RecordLocationFailureMessage);
-            }
-
-            FileInstallationLocationTracker.RecordInstallLocationStatic(logger);
+            var customRoot = StorageMigrationService.GetSourceRootDirectory();
+            RecordCustomInstallPathStatic(customRoot, logger);
         }
+    }
+
+    /// <summary>
+    /// Records an explicitly specified custom installation directory in the user registry and file tracker.
+    /// </summary>
+    /// <param name="customPath">The custom installation root directory path to record.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    public static void RecordCustomInstallPathStatic(string customPath, ILogger? logger = null)
+    {
+        if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(customPath))
+        {
+            return;
+        }
+
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(GenHubSubKey, writable: true);
+            key.SetValue(CustomInstallPathValueName, customPath);
+            logger?.LogInformation("Recorded custom installation root in registry: {CustomRoot}", customPath);
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger?.LogWarning(ex, RecordLocationFailureMessage);
+        }
+
+        FileInstallationLocationTracker.RecordCustomInstallPathStatic(customPath, logger);
     }
 
     /// <summary>
@@ -81,48 +96,25 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
             return null;
         }
 
-        try
+        // 1. Direct GenHub registry key
+        var pathFromKey = GetPathFromGenHubRegistryKey(logger);
+        if (pathFromKey != null)
         {
-            // 1. Direct GenHub registry key
-            var pathFromKey = GetPathFromGenHubRegistryKey();
-            if (pathFromKey != null)
-            {
-                return pathFromKey;
-            }
+            return pathFromKey;
+        }
 
-            // 2. Fallback: inspect URI scheme handler command to see where genhub:// previously pointed
-            var pathFromUriScheme = GetPathFromUriSchemeRegistration();
-            if (pathFromUriScheme != null)
-            {
-                return pathFromUriScheme;
-            }
+        // 2. Fallback: inspect URI scheme handler command to see where genhub:// previously pointed
+        var pathFromUriScheme = GetPathFromUriSchemeRegistration(logger);
+        if (pathFromUriScheme != null)
+        {
+            return pathFromUriScheme;
+        }
 
-            // 3. Fallback: check file installation tracker
-            var fromFile = FileInstallationLocationTracker.GetRegisteredCustomInstallPathStatic(logger);
-            if (!string.IsNullOrWhiteSpace(fromFile))
-            {
-                return fromFile;
-            }
-        }
-        catch (SecurityException ex)
+        // 3. Fallback: check file installation tracker
+        var fromFile = FileInstallationLocationTracker.GetRegisteredCustomInstallPathStatic(logger);
+        if (!string.IsNullOrWhiteSpace(fromFile))
         {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (IOException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (ArgumentException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger?.LogWarning(ex, ReadLocationFailureMessage);
+            return fromFile;
         }
 
         return null;
@@ -178,39 +170,85 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
     /// <inheritdoc />
     public void ClearCustomInstallPath() => ClearCustomInstallPathStatic(logger);
 
-    private static string? GetPathFromGenHubRegistryKey()
+    private static string? GetPathFromGenHubRegistryKey(ILogger? logger = null)
     {
-        using var key = Registry.CurrentUser.OpenSubKey(GenHubSubKey, writable: false);
-        if (key != null)
+        try
         {
-            var customPath = key.GetValue(CustomInstallPathValueName) as string;
-            if (TryGetValidLocalDirectoryPath(customPath, out var sanitized) && StorageMigrationService.IsVelopackRoot(sanitized))
+            using var key = Registry.CurrentUser.OpenSubKey(GenHubSubKey, writable: false);
+            if (key != null)
             {
-                return sanitized;
-            }
-        }
-
-        return null;
-    }
-
-    private static string? GetPathFromUriSchemeRegistration()
-    {
-        using var uriCommandKey = Registry.CurrentUser.OpenSubKey(UriSchemeCommandKey, writable: false);
-        if (uriCommandKey != null)
-        {
-            var command = uriCommandKey.GetValue(string.Empty) as string;
-            if (!string.IsNullOrWhiteSpace(command))
-            {
-                var candidate = ExtractDirectoryFromCommand(command);
-                if (TryGetValidLocalDirectoryPath(candidate, out var sanitized) &&
-                    StorageMigrationService.IsVelopackRoot(sanitized))
+                var customPath = key.GetValue(CustomInstallPathValueName) as string;
+                if (TryGetValidLocalDirectoryPath(customPath, out var sanitized) &&
+                    IsValidCustomInstallCandidate(sanitized))
                 {
                     return sanitized;
                 }
             }
         }
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
+        {
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
+        }
 
         return null;
+    }
+
+    private static string? GetPathFromUriSchemeRegistration(ILogger? logger = null)
+    {
+        try
+        {
+            using var uriCommandKey = Registry.CurrentUser.OpenSubKey(UriSchemeCommandKey, writable: false);
+            if (uriCommandKey != null)
+            {
+                var command = uriCommandKey.GetValue(string.Empty) as string;
+                if (!string.IsNullOrWhiteSpace(command))
+                {
+                    var candidate = ExtractDirectoryFromCommand(command);
+                    if (TryGetValidLocalDirectoryPath(candidate, out var sanitized) &&
+                        IsValidCustomInstallCandidate(sanitized))
+                    {
+                        return sanitized;
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
+        {
+            logger?.LogWarning(ex, ReadLocationFailureMessage);
+        }
+
+        return null;
+    }
+
+    private static bool IsValidCustomInstallCandidate(string path)
+    {
+        if (!StorageMigrationService.IsVelopackRoot(path))
+        {
+            return false;
+        }
+
+        var currentRoot = StorageMigrationService.GetSourceRootDirectory();
+        if (PathHelper.AreSamePath(path, currentRoot))
+        {
+            return false;
+        }
+
+        var defaultRoot = StorageMigrationService.GetDefaultInstallRoot();
+        if (!string.IsNullOrWhiteSpace(defaultRoot))
+        {
+            if (PathHelper.AreSamePath(path, defaultRoot))
+            {
+                return false;
+            }
+
+            var parent = Directory.GetParent(path)?.FullName;
+            if (parent != null && PathHelper.AreSamePath(parent, defaultRoot))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool TryGetValidLocalDirectoryPath(string? path, [NotNullWhen(true)] out string? sanitized)
@@ -228,9 +266,9 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
     {
         // Format typically: "C:\path\to\GenHub.Windows.exe" "%1"
         var trimmed = command.Trim();
-        if (trimmed.StartsWith('"'))
+        if (trimmed.StartsWith('\"'))
         {
-            var endQuote = trimmed.IndexOf('"', 1);
+            var endQuote = trimmed.IndexOf('\"', 1);
             if (endQuote > 1)
             {
                 var exePath = trimmed[1..endQuote];

@@ -1,5 +1,6 @@
 using System;
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
@@ -53,7 +54,17 @@ public static class ConfigurationModule
             bootstrapLoggerFactory.CreateLogger<ThemeService>());
         services.AddSingleton<ISessionPreferenceService, SessionPreferenceService>();
         services.AddSingleton<IDialogService, DialogService>();
-        services.AddSingleton<IAppConfiguration, AppConfiguration>();
+        services.AddSingleton<IAppConfiguration>(provider =>
+        {
+            var config = provider.GetService<IConfiguration>();
+            var logger = provider.GetService<ILogger<AppConfiguration>>();
+            if (config != null)
+            {
+                Common.Services.StorageMigrationService.SetConfiguredDataPathResolver(() => config[ConfigurationKeys.AppDataPath]);
+            }
+
+            return new AppConfiguration(config, logger);
+        });
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
         services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
         services.TryAddSingleton<IStorageWritabilityProbe, StorageWritabilityProbe>();

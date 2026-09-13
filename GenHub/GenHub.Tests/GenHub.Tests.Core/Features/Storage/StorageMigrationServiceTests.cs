@@ -1015,6 +1015,39 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that IsDefaultInstallRoot returns true when the default install root matches
+    /// either the source root itself or its parent directory (widening for Velopack app-* version folders).
+    /// </summary>
+    [Fact]
+    public void IsDefaultInstallRoot_WhenParentMatchesDefaultInstallRoot_ReturnsTrue()
+    {
+        try
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+            var sourceRoot = StorageMigrationService.GetSourceRootDirectory();
+            var parentDir = Directory.GetParent(sourceRoot)?.FullName;
+
+            if (parentDir != null)
+            {
+                StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(parentDir);
+                Assert.True(StorageMigrationService.IsDefaultInstallRoot());
+            }
+
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(sourceRoot);
+            Assert.True(StorageMigrationService.IsDefaultInstallRoot());
+
+            var unrelated = Path.Combine(_tempRoot, "UnrelatedDirectory");
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(unrelated);
+            Assert.False(StorageMigrationService.IsDefaultInstallRoot());
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(null);
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
     /// Tests that HasDuplicateInstallationConflict returns false when not running from default install root.
     /// </summary>
     [Fact]

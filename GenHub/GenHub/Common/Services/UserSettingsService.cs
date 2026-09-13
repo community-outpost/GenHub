@@ -259,7 +259,7 @@ public class UserSettingsService : IUserSettingsService
 
                 _target = TargetFor(writePath, outcome);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or JsonException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Failed to reload settings, continuing with defaults and without persistence");
                 if (string.IsNullOrWhiteSpace(_target.Path))

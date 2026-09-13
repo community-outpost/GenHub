@@ -113,6 +113,8 @@ public class StorageMigrationService(
             return false;
         }
 
+        FileInstallationLocationTracker.RecordCustomInstallPathStatic(detectedCustomPath, logger);
+
         var defaultRoot = GetDefaultDataRoot();
         var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
         var isPendingRetry = IsMarkerMatchingPath(markerPath, detectedCustomPath);
@@ -254,9 +256,10 @@ public class StorageMigrationService(
         if (parentDir != null)
         {
             // Check for Velopack markers (Update.exe / Update, packages dir, app-* directories, or companion executable)
-            var hasUpdateExe = File.Exists(Path.Combine(parentDir, "Update.exe")) || File.Exists(Path.Combine(parentDir, "Update"));
-            var hasPackagesDir = Directory.Exists(Path.Combine(parentDir, "packages"));
-            var hasAppDirs = Directory.GetDirectories(parentDir, "app-*").Length > 0;
+            var hasUpdateExe = File.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackUpdateExe)) ||
+                               File.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackUpdateUnix));
+            var hasPackagesDir = Directory.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackPackagesDirectoryName));
+            var hasAppDirs = Directory.GetDirectories(parentDir, StorageMigrationConstants.VelopackAppDirectoryPattern).Length > 0;
 
             if (hasUpdateExe || hasPackagesDir || hasAppDirs)
             {
@@ -315,9 +318,10 @@ public class StorageMigrationService(
                        (File.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacInfoPlistFileName)) || Directory.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacOsDirectoryName)));
             }
 
-            var hasUpdateExe = File.Exists(Path.Combine(directoryPath, "Update.exe")) || File.Exists(Path.Combine(directoryPath, "Update"));
-            var hasPackagesDir = Directory.Exists(Path.Combine(directoryPath, "packages"));
-            var hasAppDirs = Directory.GetDirectories(directoryPath, "app-*").Length > 0;
+            var hasUpdateExe = File.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackUpdateExe)) ||
+                               File.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackUpdateUnix));
+            var hasPackagesDir = Directory.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackPackagesDirectoryName));
+            var hasAppDirs = Directory.GetDirectories(directoryPath, StorageMigrationConstants.VelopackAppDirectoryPattern).Length > 0;
             return hasUpdateExe || hasPackagesDir || hasAppDirs;
         }
         catch (IOException)
@@ -1083,9 +1087,18 @@ public class StorageMigrationService(
             var sourceRoot = GetSourceRootDirectory();
             var defaultInstallRoot = GetDefaultInstallRoot();
 
-            if (string.Equals(sourceRoot, defaultInstallRoot, PathHelper.PathComparison))
+            if (!string.IsNullOrWhiteSpace(defaultInstallRoot))
             {
-                return false;
+                if (PathHelper.AreSamePath(sourceRoot, defaultInstallRoot))
+                {
+                    return false;
+                }
+
+                var sourceParent = Directory.GetParent(sourceRoot)?.FullName;
+                if (sourceParent != null && PathHelper.AreSamePath(sourceParent, defaultInstallRoot))
+                {
+                    return false;
+                }
             }
 
             return IsVelopackRoot(sourceRoot);

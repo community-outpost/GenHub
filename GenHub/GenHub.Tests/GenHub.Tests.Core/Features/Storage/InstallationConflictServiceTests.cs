@@ -82,15 +82,6 @@ public class InstallationConflictServiceTests : System.IDisposable
     }
 
     /// <summary>
-    /// Verifies that the constructor throws ArgumentNullException synchronously when the tracker is null.
-    /// </summary>
-    [Fact]
-    public void Constructor_WithNullTracker_ThrowsArgumentNullException()
-    {
-        Assert.Throws<ArgumentNullException>(() => new InstallationConflictService(null!));
-    }
-
-    /// <summary>
     /// Verifies that when running in a custom install root, the location is recorded and no warnings are shown.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -384,5 +375,50 @@ public class InstallationConflictServiceTests : System.IDisposable
         {
             File.SetUnixFileMode(lockedProfiles, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
+    }
+
+    /// <summary>
+    /// Verifies that when early adopt records the custom path in the adoption marker, but subsequent
+    /// tracker queries return the default install root (e.g. URI scheme re-registered to default),
+    /// the conflict service resolves the conflict using the marker, notifies the user, and does
+    /// not delete the marker until adoption is complete.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenTrackerResolvesToDefaultRootAfterEarlyAdopt_ResolvesFromMarker()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        var customDir = Path.Combine(_tempRoot, "CustomInstall");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\":true}");
+
+        // Simulate: early adopt ran and wrote marker pointing to customDir
+        File.WriteAllText(_markerPath, customDir);
+        StorageMigrationService.WasEarlyAdopted = true;
+
+        // Simulate: URI scheme overwritten to default install root, so tracker returns default root
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(_defaultRoot);
+
+        var service = new InstallationConflictService(
+            _mockTracker.Object,
+            _mockNotificationService.Object,
+            _mockUserSettingsService.Object);
+
+        await service.CheckAndResolveConflictsAsync();
+
+        // Notification must still fire acknowledging the custom installation
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(
+                StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+                It.Is<string>(msg => msg.Contains("preserved") && msg.Contains(customDir)),
+                It.IsAny<int?>(),
+                true),
+            Times.Once);
+
+        _mockUserSettingsService.Verify(s => s.Reload(), Times.Once);
+        _mockTracker.Verify(t => t.ClearCustomInstallPath(), Times.Once);
+        Assert.False(File.Exists(_markerPath));
     }
 }

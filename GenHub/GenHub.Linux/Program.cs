@@ -36,7 +36,7 @@ public class Program
         VelopackApp.Build().Run();
 
         // Create lockfile to guarantee that only one instance is running on linux
-        var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub", "lock");
+        var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), StorageMigrationConstants.GenHubConfigDirectoryName, "lock");
         Directory.CreateDirectory(Path.GetDirectoryName(lockFilePath)!);
         FileStream? lockFile = null;
         try
