@@ -120,7 +120,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
             {
                 Name = "SmallBenchmark",
                 ProjectDir = _smallProjectPath,
-                Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+                Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
             };
             var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
             var result = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -170,7 +170,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
             {
                 Name = "MediumBenchmark",
                 ProjectDir = _mediumProjectPath,
-                Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+                Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
             };
             var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
             var result = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -217,7 +217,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         {
             Name = "LargeBenchmark",
             ProjectDir = _largeProjectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var result = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -251,7 +251,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         {
             Name = "IncrementalBenchmark",
             ProjectDir = _mediumProjectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -288,7 +288,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         {
             Name = "ParallelBenchmark",
             ProjectDir = _mediumProjectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var result = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);

@@ -867,12 +867,21 @@ public sealed class ProjectConfigService(
 
             logger.LogInformation("Importing {Count} BIG file(s) into project {ProjectPath} ({DestDir})", bigList.Count, projectPath, destinationDir);
 
-            var totalExtracted = await BigFilePacker.UnpackMultipleAsync(
+            var unpackResult = await BigFilePacker.UnpackMultipleAsync(
                 bigList,
                 destinationDir,
                 overwrite: true,
                 progress: progress,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (!unpackResult.Success)
+            {
+                sw.Stop();
+                logger.LogError("Failed to unpack BIG archives for project {ProjectPath}: {Error}", projectPath, unpackResult.FirstError);
+                return ProjectOperationResult<int>.CreateFailure(unpackResult.Errors, sw.Elapsed);
+            }
+
+            var totalExtracted = unpackResult.Data;
 
             if (createBundlePackForBig)
             {

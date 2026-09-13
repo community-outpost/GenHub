@@ -21,12 +21,6 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// </summary>
 public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logger) : IConfigurationLoaderService
 {
-    private const string ConfigDirLower = ModBuilderConstants.LowercaseConfigDir;
-    private const string ConfigsDirLower = "configs";
-    private const string ModFoldersFileName = "ModFolders.json";
-    private const string ModJsonFilesFileName = "ModJsonFiles.json";
-    private const string BundlesConfigFileName = "bundles.json";
-
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -34,24 +28,6 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         AllowTrailingCommas = true,
         WriteIndented = true,
     };
-
-    /// <inheritdoc />
-    public async Task<BuildConfiguration> LoadConfigurationAsync(string configPath, CancellationToken cancellationToken = default)
-    {
-        var result = await LoadConfigurationResultAsync(configPath, cancellationToken).ConfigureAwait(false);
-        if (!result.Success || result.Data == null)
-        {
-            var firstError = result.Errors.FirstOrDefault() ?? $"Failed to load configuration: {configPath}";
-            if (!File.Exists(configPath))
-            {
-                throw new FileNotFoundException(firstError, configPath);
-            }
-
-            throw new InvalidOperationException(firstError);
-        }
-
-        return result.Data;
-    }
 
     /// <inheritdoc />
     public async Task<ProjectOperationResult<BuildConfiguration>> LoadConfigurationResultAsync(
@@ -102,19 +78,6 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             logger.LogError(ex, "Failed to load configuration: {ConfigPath}", configPath);
             return ProjectOperationResult<BuildConfiguration>.CreateFailure($"Failed to load configuration: {configPath}: {ex.Message}");
         }
-    }
-
-    /// <inheritdoc />
-    public async Task<BuildConfiguration> LoadAndMergeConfigurationsAsync(IReadOnlyList<string> configPaths, CancellationToken cancellationToken = default)
-    {
-        var result = await LoadAndMergeConfigurationsResultAsync(configPaths, cancellationToken).ConfigureAwait(false);
-        if (!result.Success || result.Data == null)
-        {
-            var firstError = result.Errors.FirstOrDefault() ?? "Failed to load and merge configurations";
-            throw new InvalidOperationException(firstError);
-        }
-
-        return result.Data;
     }
 
     /// <inheritdoc />
@@ -334,8 +297,8 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     private static bool IsConfigDirectoryName(string folderName)
     {
         return folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
-               folderName.Equals(ConfigDirLower, StringComparison.OrdinalIgnoreCase) ||
-               folderName.Equals(ConfigsDirLower, StringComparison.OrdinalIgnoreCase);
+               folderName.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase) ||
+               folderName.Equals(ModBuilderConstants.LowercaseConfigsDir, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool TryLoadSimplifiedConfig(string json, string configPath, out BuildConfiguration? config)
@@ -722,10 +685,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     private async Task<List<string>> TryDiscoverFromModJsonFilesAsync(string projectDir, CancellationToken cancellationToken)
     {
         var result = new List<string>();
-        var modJsonFilesPath = Path.Combine(projectDir, ModJsonFilesFileName);
+        var modJsonFilesPath = Path.Combine(projectDir, ModBuilderConstants.ModJsonFilesFileName);
         if (!File.Exists(modJsonFilesPath))
         {
-            modJsonFilesPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ModJsonFilesFileName);
+            modJsonFilesPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ModBuilderConstants.ModJsonFilesFileName);
         }
 
         if (!File.Exists(modJsonFilesPath))
@@ -768,8 +731,8 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         var candidateDirs = new[]
         {
             Path.Combine(projectDir, ModBuilderConstants.ConfigDir),
-            Path.Combine(projectDir, ConfigsDirLower),
-            Path.Combine(projectDir, ConfigDirLower),
+            Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigsDir),
+            Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir),
         };
 
         foreach (var configDir in candidateDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -789,7 +752,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
             if (configFiles.Count == 0)
             {
-                var legacyBundlesPath = Path.Combine(configDir, BundlesConfigFileName);
+                var legacyBundlesPath = Path.Combine(configDir, ModBuilderConstants.BundlesConfigFileName);
                 if (File.Exists(legacyBundlesPath))
                 {
                     configFiles.Add(legacyBundlesPath);
@@ -842,10 +805,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     {
         var candidatePaths = new[]
         {
-            Path.Combine(projectDir, ModFoldersFileName),
-            Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ModFoldersFileName),
-            Path.Combine(projectDir, ConfigsDirLower, ModFoldersFileName),
-            Path.Combine(projectDir, ConfigDirLower, ModFoldersFileName),
+            Path.Combine(projectDir, ModBuilderConstants.ModFoldersFileName),
+            Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ModBuilderConstants.ModFoldersFileName),
+            Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigsDir, ModBuilderConstants.ModFoldersFileName),
+            Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir, ModBuilderConstants.ModFoldersFileName),
         };
 
         var modFoldersPath = candidatePaths.FirstOrDefault(File.Exists);

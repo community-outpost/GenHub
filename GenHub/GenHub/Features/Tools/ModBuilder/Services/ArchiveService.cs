@@ -119,9 +119,9 @@ public sealed class ArchiveService(
         var candidateLocations = new[]
         {
             Path.ChangeExtension(targetBigPath, ".manifest.json"),
-            Path.Combine(sourceDirectory, "..", "config", $"{targetFileName}.manifest.json"),
-            Path.Combine(sourceDirectory, "..", "..", "config", $"{targetFileName}.manifest.json"),
-            Path.Combine(sourceDirectory, "..", "config", "BigLayout.json"),
+            Path.Combine(sourceDirectory, "..", ModBuilderConstants.LowercaseConfigDir, $"{targetFileName}.manifest.json"),
+            Path.Combine(sourceDirectory, "..", "..", ModBuilderConstants.LowercaseConfigDir, $"{targetFileName}.manifest.json"),
+            Path.Combine(sourceDirectory, "..", ModBuilderConstants.LowercaseConfigDir, "BigLayout.json"),
         };
 
         foreach (var candidate in candidateLocations)
@@ -174,10 +174,15 @@ public sealed class ArchiveService(
 
             logger.LogInformation("Extracting BIG archive: {Source} -> {Target}", bigFilePath, targetDirectory);
 
-            var count = await BigFilePacker.UnpackAsync(bigFilePath, targetDirectory, overwrite, progress, cancellationToken).ConfigureAwait(false);
+            var unpackResult = await BigFilePacker.UnpackAsync(bigFilePath, targetDirectory, overwrite, progress, cancellationToken).ConfigureAwait(false);
+            if (!unpackResult.Success)
+            {
+                logger.LogError("Error extracting BIG archive {Source}: {Error}", bigFilePath, unpackResult.FirstError);
+                return unpackResult;
+            }
 
-            logger.LogInformation("Successfully extracted {Count} files from BIG archive {Source}", count, bigFilePath);
-            return OperationResult<int>.CreateSuccess(count);
+            logger.LogInformation("Successfully extracted {Count} files from BIG archive {Source}", unpackResult.Data, bigFilePath);
+            return unpackResult;
         }
         catch (OperationCanceledException)
         {
@@ -221,10 +226,15 @@ public sealed class ArchiveService(
 
             logger.LogInformation("Extracting {Count} BIG archives to {Target}", filesList.Count, targetDirectory);
 
-            var count = await BigFilePacker.UnpackMultipleAsync(filesList, targetDirectory, overwrite, progress, cancellationToken).ConfigureAwait(false);
+            var unpackResult = await BigFilePacker.UnpackMultipleAsync(filesList, targetDirectory, overwrite, progress, cancellationToken).ConfigureAwait(false);
+            if (!unpackResult.Success)
+            {
+                logger.LogError("Error extracting multiple BIG archives to {Target}: {Error}", targetDirectory, unpackResult.FirstError);
+                return unpackResult;
+            }
 
-            logger.LogInformation("Successfully extracted total of {Count} files from {ArchiveCount} BIG archives", count, filesList.Count);
-            return OperationResult<int>.CreateSuccess(count);
+            logger.LogInformation("Successfully extracted total of {Count} files from {ArchiveCount} BIG archives", unpackResult.Data, filesList.Count);
+            return unpackResult;
         }
         catch (OperationCanceledException)
         {

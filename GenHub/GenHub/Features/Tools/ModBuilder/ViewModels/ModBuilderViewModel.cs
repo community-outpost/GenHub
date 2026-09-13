@@ -158,7 +158,7 @@ public partial class ModBuilderViewModel(
             OutputFileName = "500_900_CommunityPatch_CoreINI.big",
             Tag = "Balance & Bugfix",
             IsReproducibleVerified = true,
-            ExpectedSha256 = "6a02aca9aebe6602b3e4bb76bf6e2cf35086a33fec7c6f000d8e7a4048629775",
+            ExpectedSha256 = ModBuilderConstants.SampleProjects.GeneralsGamePatch2Sha256,
         },
         new SampleProjectShowcaseItem
         {
@@ -170,7 +170,7 @@ public partial class ModBuilderViewModel(
             OutputFileName = "0_ImprovedMenusEnglish.big",
             Tag = "Widescreen UI",
             IsReproducibleVerified = true,
-            ExpectedSha256 = "3280056a2d7cf9bc5cbe8d4ac18fb082846e6db11ad7bb5c60f7c4619353f0a4",
+            ExpectedSha256 = ModBuilderConstants.SampleProjects.ImprovedMenusSha256,
         },
         new SampleProjectShowcaseItem
         {
@@ -182,7 +182,7 @@ public partial class ModBuilderViewModel(
             OutputFileName = "340_ControlBarProLemonEdition1080ZH.big",
             Tag = "Control Bar",
             IsReproducibleVerified = true,
-            ExpectedSha256 = "ce169f207867aeb7594e799e1cc67abd8561a1d1b5c6cb2e59af88f4caeca828",
+            ExpectedSha256 = ModBuilderConstants.SampleProjects.LemonControlBarSha256,
         },
         new SampleProjectShowcaseItem
         {
@@ -194,7 +194,7 @@ public partial class ModBuilderViewModel(
             OutputFileName = "!HotkeysLeikezeENZH.big",
             Tag = "Competitive Hotkeys",
             IsReproducibleVerified = true,
-            ExpectedSha256 = "b06677d18c83c108aaa482d571c99a5aad3365c8a492067ef6eaf09364d3ab88",
+            ExpectedSha256 = ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256,
         },
     ];
 
@@ -1540,6 +1540,15 @@ public partial class ModBuilderViewModel(
             var oldProjectDir = Path.GetDirectoryName(oldProjectPath);
             if (string.IsNullOrEmpty(oldProjectDir))
             {
+                return null;
+            }
+
+            var baseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var normalizedOldDir = Path.GetFullPath(oldProjectDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(normalizedOldDir, baseDir, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning("Project directory {Dir} is the application root directory; cannot migrate entire app directory.", oldProjectDir);
+                await projectConfigService.RemoveFromRecentProjectsAsync(oldProjectPath, CancellationToken.None).ConfigureAwait(false);
                 return null;
             }
 

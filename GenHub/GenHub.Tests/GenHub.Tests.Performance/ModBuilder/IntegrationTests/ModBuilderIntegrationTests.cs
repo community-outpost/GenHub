@@ -118,7 +118,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         {
             Name = "SmallTest",
             ProjectDir = projectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var result = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -159,7 +159,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         {
             Name = "IncrementalTest",
             ProjectDir = projectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var firstBuild = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -198,7 +198,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         {
             Name = "MD5Test",
             ProjectDir = projectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var firstBuild = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -225,7 +225,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         var configPath = Path.Combine(_smallProjectPath, "ModBundles.json");
 
         // Act
-        var config = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None);
+        var config = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!;
 
         // Assert
         config.Should().NotBeNull();
@@ -338,7 +338,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         {
             Name = "MultiThreadTest",
             ProjectDir = projectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var result = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -370,7 +370,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         {
             Name = "CacheTest",
             ProjectDir = projectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var firstBuild = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
@@ -416,7 +416,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         {
             Name = "PerfTest",
             ProjectDir = projectPath,
-            Configuration = await _configLoader.LoadConfigurationAsync(configPath, CancellationToken.None)
+            Configuration = (await _configLoader.LoadConfigurationResultAsync(configPath, CancellationToken.None)).Data!
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var result = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);

@@ -12,29 +12,12 @@ namespace GenHub.Core.Interfaces.Tools.ModBuilder;
 public interface IConfigurationLoaderService
 {
     /// <summary>
-    /// Loads a single configuration file from the specified path.
-    /// </summary>
-    /// <param name="configPath">The absolute path to the configuration JSON file.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The loaded build configuration.</returns>
-    Task<BuildConfiguration> LoadConfigurationAsync(string configPath, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Loads a single configuration file returning a typed operation result instead of throwing.
     /// </summary>
     /// <param name="configPath">The absolute path to the configuration JSON file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The project operation result containing the loaded build configuration or error messages.</returns>
     Task<ProjectOperationResult<BuildConfiguration>> LoadConfigurationResultAsync(string configPath, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Loads and merges multiple configuration files.
-    /// Later configurations override earlier ones.
-    /// </summary>
-    /// <param name="configPaths">The read-only list of configuration file paths to load.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The merged build configuration.</returns>
-    Task<BuildConfiguration> LoadAndMergeConfigurationsAsync(IReadOnlyList<string> configPaths, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Loads and merges multiple configuration files returning a typed operation result.
