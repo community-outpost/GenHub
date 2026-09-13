@@ -439,16 +439,17 @@ public sealed partial class ProfileSelectionViewModel(
                 ContentManifestId);
 
             // Check whether this content is a member of a downloaded variant family.
-            OperationResult<ContentManifest?>? manifestResult = null;
+            ContentManifest? selectedManifest = null;
             if (!string.IsNullOrWhiteSpace(ContentManifestId) && ManifestId.TryCreate(ContentManifestId, out var parsedManifestId))
             {
-                manifestResult = await manifestPool.GetManifestAsync(
+                var manifestResult = await manifestPool.GetManifestAsync(
                     parsedManifestId,
                     _cts.Token);
+                selectedManifest = manifestResult?.Success == true ? manifestResult.Data : null;
             }
 
-            var (selectedManifestId, selectedContentName) = manifestResult?.Success == true && manifestResult.Data != null
-                ? (manifestResult.Data.Id.Value, manifestResult.Data.Name)
+            var (selectedManifestId, selectedContentName) = selectedManifest != null
+                ? (selectedManifest.Id.Value, selectedManifest.Name)
                 : (ContentManifestId, ContentName ?? "New Profile");
 
             var profileName = await ResolveUniqueProfileNameAsync(selectedManifestId, selectedContentName);
@@ -523,6 +524,7 @@ public sealed partial class ProfileSelectionViewModel(
                 _cts.Token);
             selectedManifest = selectedManifestResult?.Success == true ? selectedManifestResult.Data : null;
         }
+
         string baseName;
         if (selectedManifest?.ContentType == ContentType.GameClient &&
             !string.IsNullOrWhiteSpace(selectedManifest.Name))
