@@ -779,8 +779,13 @@ public partial class ModBuilderViewModel(
         logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
         AppendBuildLog($"Importing {selectedPaths.Count} .BIG archive(s) into project...");
 
-        _buildCancellationTokenSource?.Cancel();
-        _buildCancellationTokenSource?.Dispose();
+        if (_buildCancellationTokenSource != null)
+        {
+            await _buildCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+            _buildCancellationTokenSource.Dispose();
+            _buildCancellationTokenSource = null;
+        }
+
         var cts = new CancellationTokenSource();
         _buildCancellationTokenSource = cts;
 
@@ -1311,18 +1316,15 @@ public partial class ModBuilderViewModel(
             Path.Combine(projectDir, ModBuilderConstants.CacheDirectoryName),
         };
 
-        foreach (var dir in knownDirs)
+        foreach (var dir in knownDirs.Where(Directory.Exists))
         {
-            if (Directory.Exists(dir))
+            try
             {
-                try
-                {
-                    Directory.Delete(dir, recursive: true);
-                }
-                catch
-                {
-                    // Ignore deletion errors on subdirectories
-                }
+                Directory.Delete(dir, recursive: true);
+            }
+            catch
+            {
+                // Ignore deletion errors on subdirectories
             }
         }
 
