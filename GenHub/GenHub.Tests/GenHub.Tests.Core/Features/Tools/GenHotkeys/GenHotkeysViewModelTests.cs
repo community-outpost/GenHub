@@ -390,6 +390,28 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that CreateNewProfileAsync does not add a profile if saving returns null.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateNewProfileAsync_WhenSaveReturnsNull_DoesNotAddProfileAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        vm.Dispose();
+        vm.NewProfileName = "New Profile";
+
+        await vm.CreateNewProfileAsync();
+
+        Assert.Empty(vm.Profiles);
+        Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Verifies that RenameCurrentProfileAsync does not allow duplicate profile names.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

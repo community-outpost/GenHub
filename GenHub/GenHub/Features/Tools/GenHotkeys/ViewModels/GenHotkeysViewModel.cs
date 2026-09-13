@@ -507,10 +507,16 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            await SaveProfileSerializedAsync(newProfile, cancellationToken);
-            Profiles.Add(newProfile);
+            var savedProfile = await SaveProfileSerializedAsync(newProfile, cancellationToken);
+            if (savedProfile == null)
+            {
+                StatusMessage = $"Failed to save profile '{name}'.";
+                return;
+            }
 
-            SortProfilesByName(newProfile);
+            Profiles.Add(savedProfile);
+
+            SortProfilesByName(savedProfile);
             NewProfileName = string.Empty;
             StatusMessage = $"Created profile '{name}'.";
         }
