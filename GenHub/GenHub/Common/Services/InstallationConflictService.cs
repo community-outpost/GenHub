@@ -109,6 +109,7 @@ public class InstallationConflictService(
                 logger?.LogWarning(
                     "Aborting user configuration adoption because writing adoption marker failed: {MarkerPath}",
                     markerPath);
+                NotifyDuplicateInstallationConflict(detectedCustomPath, imported: false);
                 return;
             }
 

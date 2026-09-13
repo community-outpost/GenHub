@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using GenHub.Common.Services;
@@ -233,6 +234,74 @@ public class InstallationConflictServiceTests : System.IDisposable
                 true),
             Times.Once);
         _mockUserSettingsService.Verify(s => s.Reload(), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when writing the adoption marker fails, adoption is aborted,
+    /// the tracker is preserved, and the detected-conflict notification is shown.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenAdoptionMarkerWriteFails_AbortsAdoptionAndNotifies()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        var customDir = Path.Combine(_tempRoot, "CustomInstallMarkerFail");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\":true}");
+
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+        var service = new InstallationConflictService(
+            _mockTracker.Object,
+            _mockNotificationService.Object,
+            _mockUserSettingsService.Object);
+
+        try
+        {
+            File.SetUnixFileMode(_defaultRoot, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+            var isActuallyDenied = false;
+            try
+            {
+                File.WriteAllText(_markerPath, "test");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                isActuallyDenied = true;
+            }
+            catch (IOException)
+            {
+                isActuallyDenied = true;
+            }
+
+            if (!isActuallyDenied)
+            {
+                return;
+            }
+
+            await service.CheckAndResolveConflictsAsync();
+
+            _mockTracker.Verify(t => t.ClearCustomInstallPath(), Times.Never);
+            _mockUserSettingsService.Verify(s => s.Reload(), Times.Never);
+            _mockNotificationService.Verify(
+                n => n.ShowWarning(
+                    StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+                    It.Is<string>(msg => !msg.Contains("preserved") && msg.Contains(customDir)),
+                    StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
+                    true),
+                Times.Once);
+        }
+        finally
+        {
+            File.SetUnixFileMode(_defaultRoot, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
     }
 
     /// <summary>

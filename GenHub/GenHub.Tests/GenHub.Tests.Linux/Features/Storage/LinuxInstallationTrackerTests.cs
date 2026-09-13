@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Runtime.Versioning;
+using GenHub.Common.Services;
 using GenHub.Linux.Features.Storage;
 using Xunit;
 
@@ -34,7 +35,7 @@ public class LinuxInstallationTrackerTests
     [Fact]
     public void GetRegisteredCustomInstallPath_FromDesktopEntry_ResolvesCustomVelopackRoot()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "GenHubLinuxTrackerTests_" + System.Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(Path.GetTempPath(), "GenHubLinuxTrackerTests_" + Guid.NewGuid().ToString("N"));
         var xdgDataHome = Path.Combine(tempRoot, "share");
         var appDir = Path.Combine(xdgDataHome, "applications");
         Directory.CreateDirectory(appDir);
@@ -50,6 +51,7 @@ public class LinuxInstallationTrackerTests
 
         File.WriteAllText(desktopFile, $"[Desktop Entry]\nName=GenHub\nExec=\"{execTarget}\" %u\n");
 
+        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(Path.Combine(tempRoot, "nonexistent-location"));
         var oldXdg = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
         try
         {
@@ -60,6 +62,7 @@ public class LinuxInstallationTrackerTests
         }
         finally
         {
+            FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(null);
             Environment.SetEnvironmentVariable("XDG_DATA_HOME", oldXdg);
             try
             {
@@ -96,6 +99,7 @@ public class LinuxInstallationTrackerTests
         var escapedTarget = execTarget.Replace("Custom Install", "Custom\\sInstall");
         File.WriteAllText(desktopFile, $"[Desktop Entry]\nName=GenHub\nExec=\"{escapedTarget}\" %%u\n");
 
+        FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(Path.Combine(tempRoot, "nonexistent-location"));
         var oldXdg = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
         try
         {
@@ -106,6 +110,7 @@ public class LinuxInstallationTrackerTests
         }
         finally
         {
+            FileInstallationLocationTracker.SetLocationFilePathOverrideForTesting(null);
             Environment.SetEnvironmentVariable("XDG_DATA_HOME", oldXdg);
             try
             {
