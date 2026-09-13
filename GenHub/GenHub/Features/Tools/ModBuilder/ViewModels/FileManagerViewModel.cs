@@ -26,9 +26,11 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 public partial class FileManagerViewModel(
     IGameInstallationService gameInstallationService,
     INotificationService notificationService,
-    ILogger<FileManagerViewModel> logger) : ObservableObject
+    ILogger<FileManagerViewModel> logger) : ObservableObject, IDisposable
 {
     private readonly ConcurrentDictionary<string, (long Length, DateTime LastWriteTimeUtc, string Hash)> _fileHashCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private CancellationTokenSource? _reloadCts;
     private string? _projectPath;
     private string? _gameInstallationPath;
     private string? _gameFilesEditedDir;
@@ -58,18 +60,35 @@ public partial class FileManagerViewModel(
             _gameInstallationPath = value.Path;
             if (!IsLoading)
             {
+                _reloadCts?.Cancel();
+                _reloadCts?.Dispose();
+                var cts = new CancellationTokenSource();
+                _reloadCts = cts;
+
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        await LoadGameFilesAsync(default).ConfigureAwait(false);
-                        await LoadProjectFilesAsync(default).ConfigureAwait(false);
+                        await _loadLock.WaitAsync(cts.Token).ConfigureAwait(false);
+                        try
+                        {
+                            await LoadGameFilesAsync(cts.Token).ConfigureAwait(false);
+                            await LoadProjectFilesAsync(cts.Token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            _loadLock.Release();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Expected on rapid selection change
                     }
                     catch (Exception ex)
                     {
                         logger.LogError(ex, "Failed to reload files on installation change");
                     }
-                });
+                }, cts.Token);
             }
         }
     }
@@ -200,6 +219,7 @@ public partial class FileManagerViewModel(
         string? gameFilesEditedDir = null,
         CancellationToken cancellationToken = default)
     {
+        await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             IsLoading = true;
@@ -229,6 +249,7 @@ public partial class FileManagerViewModel(
         finally
         {
             IsLoading = false;
+            _loadLock.Release();
         }
     }
 
@@ -844,6 +865,27 @@ public partial class FileManagerViewModel(
         if (!string.IsNullOrEmpty(_projectPath))
         {
             await InitializeAsync(_projectPath, _gameFilesEditedDir).ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes managed resources.
+    /// </summary>
+    /// <param name="disposing">Whether to dispose managed resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
+            _loadLock.Dispose();
         }
     }
 }

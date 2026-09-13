@@ -271,7 +271,7 @@ public class UserSettings
             ExplicitlySetProperties = [.. ExplicitlySetProperties],
             CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
             ExecutedInstallationSteps = ExecutedInstallationSteps != null ? [.. ExecutedInstallationSteps] : [],
-            CsvCatalogConfiguration = (CsvCatalogConfiguration?)CsvCatalogConfiguration?.Clone() ?? new CsvCatalogConfiguration(),
+            CsvCatalogConfiguration = CsvCatalogConfiguration?.Clone() ?? new CsvCatalogConfiguration(),
             SkippedUpdateVersions = SkippedUpdateVersions != null ? new Dictionary<string, string>(SkippedUpdateVersions) : [],
             PreferredUpdateStrategy = PreferredUpdateStrategy,
             PublisherSubscriptions = PublisherSubscriptions != null

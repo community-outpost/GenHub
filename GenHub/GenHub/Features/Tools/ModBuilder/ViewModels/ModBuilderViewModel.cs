@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,7 +58,7 @@ public partial class ModBuilderViewModel(
 {
     private const string ModBuilderLiteral = "ModBuilder";
     private const string MbprojFilter = "*.mbproj";
-    private const string SampleProjectsDirLiteral = "SampleProjects";
+    private const string SampleProjectsDirLiteral = ModBuilderConstants.SampleProjectsDirectoryName;
     private const string NoProjectTitle = "No Project";
     private const string NoProjectMessage = "Please load or create a project first";
     private const string ReadyStatusLiteral = "Ready";
@@ -70,6 +71,7 @@ public partial class ModBuilderViewModel(
     private FileManagerViewModel? _fileManager;
     private CancellationTokenSource? _buildCancellationTokenSource;
     private bool _isPopulatingBundles;
+    private readonly StringBuilder _buildOutputBuilder = new();
     private bool _disposed;
 
     /// <summary>
@@ -303,7 +305,7 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Gets the build output as a formatted string for display.
     /// </summary>
-    public string BuildOutput => string.Join(Environment.NewLine, BuildLog);
+    public string BuildOutput => _buildOutputBuilder.ToString();
 
     /// <summary>
     /// Gets or sets the build status text.
@@ -2008,7 +2010,11 @@ public partial class ModBuilderViewModel(
 
         if (!string.IsNullOrEmpty(ProjectPath))
         {
-            await projectConfigService.UpdateLastBuildTimeAsync(ProjectPath).ConfigureAwait(false);
+            var updateResult = await projectConfigService.UpdateLastBuildTimeAsync(ProjectPath).ConfigureAwait(false);
+            if (!updateResult.Success)
+            {
+                logger.LogWarning("Failed to update last build time for project {ProjectPath}: {Error}", ProjectPath, updateResult.FirstError);
+            }
         }
     }
 
@@ -2293,8 +2299,12 @@ public partial class ModBuilderViewModel(
     [RelayCommand]
     private async Task RefreshFileCountAsync(CancellationToken cancellationToken = default)
     {
-        FilesToBuildCount = await CountFilesToBuildAsync(cancellationToken).ConfigureAwait(false);
-        StatusMessage = $"Files to build: {FilesToBuildCount}";
+        var count = await CountFilesToBuildAsync(cancellationToken).ConfigureAwait(false);
+        PostToUIThread(() =>
+        {
+            FilesToBuildCount = count;
+            StatusMessage = $"Files to build: {FilesToBuildCount}";
+        });
     }
 
     /// <summary>
@@ -2551,6 +2561,7 @@ public partial class ModBuilderViewModel(
         PostToUIThread(() =>
         {
             BuildLog.Clear();
+            _buildOutputBuilder.Clear();
             OnPropertyChanged(nameof(BuildOutput));
         });
         StatusMessage = "Build output cleared";
@@ -2705,7 +2716,14 @@ public partial class ModBuilderViewModel(
         PostToUIThread(() =>
         {
             var timestamp = DateTime.UtcNow.ToString("HH:mm:ss");
-            BuildLog.Add($"[{timestamp}] {message}");
+            var line = $"[{timestamp}] {message}";
+            BuildLog.Add(line);
+            if (_buildOutputBuilder.Length > 0)
+            {
+                _buildOutputBuilder.AppendLine();
+            }
+
+            _buildOutputBuilder.Append(line);
             OnPropertyChanged(nameof(BuildOutput));
         });
     }
@@ -2830,7 +2848,8 @@ public partial class ModBuilderViewModel(
         }
         else
         {
-            await Dispatcher.UIThread.InvokeAsync(action);
+            var innerTask = await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
+            await innerTask.ConfigureAwait(false);
         }
     }
 

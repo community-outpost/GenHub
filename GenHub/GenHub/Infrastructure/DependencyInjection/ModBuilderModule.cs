@@ -24,7 +24,12 @@ public static class ModBuilderModule
         services.AddSingleton<IProjectConfigService, ProjectConfigService>();
         services.AddSingleton<IConfigurationLoaderService, ConfigurationLoaderService>();
         services.AddSingleton<IFileConversionService, FileConversionService>();
-        services.AddSingleton<IImageConversionService, ImageConversionService>();
+        services.AddSingleton<ImageConversionService>();
+        services.AddSingleton<CrunchImageConversionService>();
+        services.AddSingleton<IImageConversionService>(sp =>
+            CrunchImageConversionService.IsCrunchAvailable()
+                ? sp.GetRequiredService<CrunchImageConversionService>()
+                : sp.GetRequiredService<ImageConversionService>());
         services.AddSingleton<IStringTableConversionService, StringTableConversionService>();
         services.AddSingleton<ITextProcessingService, TextProcessingService>();
         services.AddSingleton<IArchiveService, ArchiveService>();
@@ -38,6 +43,7 @@ public static class ModBuilderModule
         // ViewModels
         services.AddTransient<ModBuilderViewModel>();
         services.AddTransient<FileManagerViewModel>();
+        services.AddTransient<ProjectDashboardViewModel>();
 
         // Tool Plugin
         services.AddSingleton<IToolPlugin, ModBuilderToolPlugin>();

@@ -336,7 +336,7 @@ public sealed class ProjectConfigService(
 
             return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to validate project at {ProjectPath}", projectPath);
             sw.Stop();
@@ -573,7 +573,7 @@ public sealed class ProjectConfigService(
             sw.Stop();
             return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to add project to recent projects: {ProjectPath}", projectPath);
             sw.Stop();
@@ -614,7 +614,7 @@ public sealed class ProjectConfigService(
             sw.Stop();
             return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to remove project from recent projects: {ProjectPath}", projectPath);
             sw.Stop();
@@ -769,7 +769,7 @@ public sealed class ProjectConfigService(
             sw.Stop();
             return ProjectOperationResult<List<string>>.CreateSuccess(bundleConfigPaths, sw.Elapsed);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to get bundle configs for project at {ProjectPath}", projectPath);
             sw.Stop();
@@ -809,7 +809,7 @@ public sealed class ProjectConfigService(
 
             return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to update last build time for project at {ProjectPath}", projectPath);
             sw.Stop();
@@ -855,8 +855,16 @@ public sealed class ProjectConfigService(
             }
 
             var projectLoadResult = await LoadProjectAsync(projectPath, false, cancellationToken).ConfigureAwait(false);
+            if (!projectLoadResult.Success || projectLoadResult.Data == null)
+            {
+                sw.Stop();
+                return ProjectOperationResult<int>.CreateFailure(
+                    projectLoadResult.Errors.Count > 0 ? projectLoadResult.Errors : [$"Failed to load project at {projectPath}"],
+                    sw.Elapsed);
+            }
+
             var project = projectLoadResult.Data;
-            var destinationDir = Path.Combine(projectDir, project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir);
+            var destinationDir = Path.Combine(projectDir, project.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir);
             Directory.CreateDirectory(destinationDir);
 
             logger.LogInformation("Importing {Count} BIG file(s) into project {ProjectPath} ({DestDir})", bigList.Count, projectPath, destinationDir);
@@ -1766,15 +1774,24 @@ public sealed class ProjectConfigService(
                 stream.Flush(true);
             }
 
-            try
+            const int maxRetries = 3;
+            for (var attempt = 1; attempt <= maxRetries; attempt++)
             {
-                File.Move(tempPath, filePath, overwrite: true);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Fallback on Windows if file handle is momentarily held or locked
-                File.Copy(tempPath, filePath, overwrite: true);
-                File.Delete(tempPath);
+                try
+                {
+                    File.Move(tempPath, filePath, overwrite: true);
+                    break;
+                }
+                catch (UnauthorizedAccessException ex) when (attempt < maxRetries)
+                {
+                    logger.LogDebug(ex, "Atomic write file move attempt {Attempt} failed due to lock, retrying...", attempt);
+                    await Task.Delay(50 * attempt, cancellationToken).ConfigureAwait(false);
+                }
+                catch (IOException ex) when (attempt < maxRetries)
+                {
+                    logger.LogDebug(ex, "Atomic write file move attempt {Attempt} failed due to I/O lock, retrying...", attempt);
+                    await Task.Delay(50 * attempt, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
         finally

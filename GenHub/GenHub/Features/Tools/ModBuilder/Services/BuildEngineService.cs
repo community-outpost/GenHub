@@ -103,7 +103,7 @@ public sealed class BuildEngineService(
             var buildStructure = await GetOrCreateBuildStructureAsync(project, configuration, buildSteps, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (selectedBundlePacks != null && buildStructure.Setup != null)
+            if (buildStructure.Setup != null)
             {
                 buildStructure.Setup.SelectedPacks = selectedBundlePacks;
             }
@@ -337,7 +337,11 @@ public sealed class BuildEngineService(
             await Task.CompletedTask.ConfigureAwait(false);
             return true;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to clean build directories");
             _lastErrorMessage = $"Failed to clean build directories: {ex.Message}";
@@ -785,7 +789,7 @@ public sealed class BuildEngineService(
     {
         if (pack.IsBigPack)
         {
-            StageBigPackFiles(pack, items, packStagingDir, buildDir);
+            StageBigPackFiles(pack, items, packStagingDir, buildDir, cancellationToken);
         }
         else
         {
@@ -793,10 +797,11 @@ public sealed class BuildEngineService(
         }
     }
 
-    private void StageBigPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir, string buildDir)
+    private void StageBigPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir, string buildDir, CancellationToken cancellationToken)
     {
         foreach (var itemName in pack.ItemNames)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
             if (item == null)
             {
@@ -805,6 +810,7 @@ public sealed class BuildEngineService(
 
             foreach (var file in item.Files)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 StageBigPackFile(file, packStagingDir, pack.Name, item.Name, buildDir);
             }
         }
@@ -918,6 +924,7 @@ public sealed class BuildEngineService(
     {
         foreach (var itemName in pack.ItemNames)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
             if (item == null)
             {
@@ -930,7 +937,7 @@ public sealed class BuildEngineService(
             }
             else
             {
-                StageRawBundleFiles(item, packStagingDir, pack.Name, buildDir);
+                StageRawBundleFiles(item, packStagingDir, pack.Name, buildDir, cancellationToken);
             }
         }
     }
@@ -939,6 +946,7 @@ public sealed class BuildEngineService(
     {
         var bigFileName = GetBigFileName(item);
         var srcBig = Path.Combine(bundlesDir, bigFileName);
+        var buildAttempted = false;
         if (!File.Exists(srcBig))
         {
             logger.LogInformation("BIG bundle {BigFileName} missing in bundles directory; building it on demand...", bigFileName);
@@ -949,6 +957,7 @@ public sealed class BuildEngineService(
                     Directory.CreateDirectory(bundlesDir);
                 }
 
+                buildAttempted = true;
                 await BuildSingleBigBundleItemAsync(item, bundlesDir, null, 1, 1, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -962,19 +971,24 @@ public sealed class BuildEngineService(
         else
         {
             logger.LogError("BIG bundle {BigFileName} missing for pack {PackName} and could not be built.", bigFileName, packName);
-            Interlocked.Increment(ref _filesFailed);
-            _lastErrorMessage = $"BIG bundle '{bigFileName}' missing for pack '{packName}'.";
+            if (!buildAttempted)
+            {
+                Interlocked.Increment(ref _filesFailed);
+                _lastErrorMessage = $"BIG bundle '{bigFileName}' missing for pack '{packName}'.";
+            }
         }
     }
 
-    private void StageRawBundleFiles(BundleItem item, string packStagingDir, string packName, string? buildDir = null)
+    private void StageRawBundleFiles(BundleItem item, string packStagingDir, string packName, string? buildDir = null, CancellationToken cancellationToken = default)
     {
         foreach (var file in item.Files)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var sourcePath = file.AbsSourceFile;
             if (!File.Exists(sourcePath))
             {
                 logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
+                Interlocked.Increment(ref _filesFailed);
                 continue;
             }
 
@@ -1024,7 +1038,7 @@ public sealed class BuildEngineService(
         {
             logger.LogDebug("Skipping unchanged/irrelevant file: {FilePath}", filePath);
             var fileInfo = new FileInfo(filePath);
-            var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
+            var mtime = fileInfo.LastWriteTimeUtc.Subtract(DateTime.UnixEpoch).TotalSeconds;
             cacheService.AddFile(filePath, mtime, currentMd5);
             Interlocked.Increment(ref _filesSkipped);
             return;
@@ -1042,7 +1056,7 @@ public sealed class BuildEngineService(
         if (success)
         {
             var fileInfo = new FileInfo(filePath);
-            var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
+            var mtime = fileInfo.LastWriteTimeUtc.Subtract(DateTime.UnixEpoch).TotalSeconds;
             cacheService.AddFile(filePath, mtime, currentMd5);
 
             Interlocked.Increment(ref _filesProcessed);
@@ -1352,9 +1366,11 @@ public sealed class BuildEngineService(
             return false;
         }
 
+        var initialFailed = _filesFailed;
         logger.LogInformation("No files found in bundles directory; preparing bundle files before creating manifest...");
         foreach (var item in setup.Bundles.Items)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (item.Files.Count == 0)
             {
                 continue;
@@ -1362,15 +1378,26 @@ public sealed class BuildEngineService(
 
             if (item.IsBig)
             {
-                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
+                var bigSuccess = await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
+                if (!bigSuccess)
+                {
+                    logger.LogError("Failed to build required BIG bundle item {ItemName} during manifest preparation", item.Name);
+                    return false;
+                }
             }
             else
             {
-                StageRawBundleFiles(item, bundlesDir, item.Name, setup.Folders?.AbsBuildDir);
+                StageRawBundleFiles(item, bundlesDir, item.Name, setup.Folders?.AbsBuildDir, cancellationToken);
             }
         }
 
-        return Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories).Length > 0;
+        if (_filesFailed > initialFailed)
+        {
+            logger.LogError("One or more files failed to stage during bundle preparation");
+            return false;
+        }
+
+        return Directory.Exists(bundlesDir) && Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories).Length > 0;
     }
 
     private static string PrepareManifestContentDirectory(BuildSetup setup, string bundlesDir, string stagingDir)
@@ -1864,7 +1891,7 @@ public sealed class BuildEngineService(
         };
     }
 
-    private static Dictionary<BuildIndex, List<string>> PopulateStageFiles(
+    private Dictionary<BuildIndex, List<string>> PopulateStageFiles(
         BuildSetup setup,
         BuildConfiguration configuration)
     {
@@ -1882,14 +1909,22 @@ public sealed class BuildEngineService(
         return stageFiles;
     }
 
-    private static List<string> CollectRawBundleItemFiles(BuildConfiguration configuration)
+    private List<string> CollectRawBundleItemFiles(BuildConfiguration configuration)
     {
-        return configuration.Items
-            .SelectMany(item => item.Files)
-            .Select(file => file.AbsSourceFile)
-            .Where(File.Exists)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var existing = new List<string>();
+        foreach (var file in configuration.Items.SelectMany(item => item.Files))
+        {
+            if (File.Exists(file.AbsSourceFile))
+            {
+                existing.Add(file.AbsSourceFile);
+            }
+            else
+            {
+                logger.LogWarning("Configured bundle source file does not exist: {File}", file.AbsSourceFile);
+            }
+        }
+
+        return existing.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private static List<string> CollectBigBundleItemFiles(BuildSetup setup, BuildConfiguration configuration)

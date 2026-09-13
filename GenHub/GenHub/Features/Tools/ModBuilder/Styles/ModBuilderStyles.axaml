@@ -33,9 +33,9 @@
   <SolidColorBrush x:Key="ErrorBrush" Color="{DynamicResource ErrorColor}"/>
   <SolidColorBrush x:Key="InfoBrush" Color="{DynamicResource AccentColor}"/>
 
-  <SolidColorBrush x:Key="SuccessBadgeBackgroundBrush" Color="#2010B981"/>
-  <SolidColorBrush x:Key="WarningBadgeBackgroundBrush" Color="#20F59E0B"/>
-  <SolidColorBrush x:Key="ErrorBadgeBackgroundBrush" Color="#20EF4444"/>
+  <SolidColorBrush x:Key="SuccessBadgeBackgroundBrush" Color="{DynamicResource SuccessColor}" Opacity="0.13"/>
+  <SolidColorBrush x:Key="WarningBadgeBackgroundBrush" Color="{DynamicResource WarningColor}" Opacity="0.13"/>
+  <SolidColorBrush x:Key="ErrorBadgeBackgroundBrush" Color="{DynamicResource ErrorColor}" Opacity="0.13"/>
 
   <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimaryColor}"/>
   <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondaryColor}"/>
@@ -51,8 +51,8 @@
   <SolidColorBrush x:Key="AccentPrimary" Color="{DynamicResource AccentColor}"/>
   <SolidColorBrush x:Key="TextTertiary" Color="{DynamicResource TextMutedColor}"/>
 
-  <SolidColorBrush x:Key="OverlayBrush" Color="#CC08080C"/>
-  <SolidColorBrush x:Key="OverlayLightBrush" Color="#8008080C"/>
+  <SolidColorBrush x:Key="OverlayBrush" Color="{DynamicResource SurfaceBackgroundDark}" Opacity="0.8"/>
+  <SolidColorBrush x:Key="OverlayLightBrush" Color="{DynamicResource SurfaceBackgroundDark}" Opacity="0.5"/>
 
   <!-- Gradient Brushes -->
   <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0%,0%" EndPoint="100%,100%">

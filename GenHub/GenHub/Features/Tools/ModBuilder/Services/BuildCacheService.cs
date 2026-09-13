@@ -55,6 +55,10 @@ public sealed class BuildCacheService(
             logger.LogDebug("Cache file not found at {CachePath}", cachePath);
             return false;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             lock (_cacheLock)

@@ -105,6 +105,7 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 timeoutCts.CancelAfter(TimeSpan.FromSeconds(ModBuilderConstants.ExternalToolTimeoutSeconds));
                 await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+                process.WaitForExit();
             }
             catch (OperationCanceledException ex)
             {
