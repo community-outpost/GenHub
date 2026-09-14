@@ -144,40 +144,56 @@
     }
 
     // Notification Bell & Flyout
-    const notifTbBtn = document.getElementById('ghTbBtnNotifications');
+    const notifTbBtn = document.getElementById('ghTbBtnBell') || document.getElementById('ghTbBtnNotifications');
     const notifFlyout = document.getElementById('ghNotificationFlyout');
-    const notifBadge = document.getElementById('ghNotifBadge');
+    const notifBadge = document.getElementById('ghBellBadge') || document.getElementById('ghTbBellBadge') || document.getElementById('ghNotifBadge');
+    const notifFlyoutBadge = document.getElementById('ghNotifFlyoutBadge');
 
     if (notifTbBtn && notifFlyout) {
         notifTbBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isActive = notifFlyout.classList.toggle('active');
+            notifTbBtn.classList.toggle('active', isActive);
             if (isActive && notifBadge) {
                 notifBadge.style.display = 'none';
+                if (notifFlyoutBadge) notifFlyoutBadge.textContent = '0 Unread';
             }
         });
 
         document.addEventListener('click', (e) => {
-            if (!notifFlyout.contains(e.target) && e.target !== notifTbBtn) {
+            if (!notifFlyout.contains(e.target) && !notifTbBtn.contains(e.target)) {
                 notifFlyout.classList.remove('active');
+                notifTbBtn.classList.remove('active');
             }
         });
     }
 
-    const clearNotifsBtn = document.getElementById('ghClearNotifsBtn');
+    const clearNotifsBtn = document.getElementById('ghNotifClearBtn') || document.getElementById('ghClearNotifsBtn');
     if (clearNotifsBtn) {
         clearNotifsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const list = document.getElementById('ghNotifList');
             if (list) {
                 list.innerHTML = `
-                    <div style="padding: 24px 16px; text-align: center; color: #64748b; font-size: 12px;">
+                    <div style="padding: 28px 16px; text-align: center; color: #64748b; font-size: 12.5px;">
                         No pending notifications
                     </div>
                 `;
             }
             if (notifBadge) notifBadge.style.display = 'none';
+            if (notifFlyoutBadge) notifFlyoutBadge.textContent = '0 Unread';
             window.showGenHubToast('Info', 'Notifications Cleared', 'All feed alerts have been marked as read.');
+        });
+    }
+
+    const muteNotifsBtn = document.getElementById('ghNotifMuteBtn');
+    if (muteNotifsBtn) {
+        let isMuted = false;
+        muteNotifsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isMuted = !isMuted;
+            muteNotifsBtn.style.color = isMuted ? '#ef4444' : '#94a3b8';
+            window.showGenHubToast('Info', isMuted ? 'Notifications Muted' : 'Notifications Unmuted', isMuted ? 'Toast popups silenced for session.' : 'Toast popups enabled.');
         });
     }
 
@@ -870,22 +886,54 @@
     // SETTINGS TAB INTERACTIVITY
     // -------------------------------------------------------------
     const settingNavBtns = document.querySelectorAll('.gh-setting-nav-btn');
+    const settingsContent = document.querySelector('.gh-settings-content');
     settingNavBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
             settingNavBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
             const targetId = btn.getAttribute('data-s-target');
             const targetEl = document.getElementById(targetId);
-            if (targetEl) {
-                targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (targetEl && settingsContent) {
+                const targetTop = targetEl.offsetTop - settingsContent.offsetTop;
+                settingsContent.scrollTo({
+                    top: Math.max(0, targetTop - 12),
+                    behavior: 'smooth'
+                });
             }
         });
     });
 
     function applyThemeAccent(colorHex) {
-        document.documentElement.style.setProperty('--accent-glow', `rgba(${parseInt(colorHex.slice(1,3),16)}, ${parseInt(colorHex.slice(3,5),16)}, ${parseInt(colorHex.slice(5,7),16)}, 0.4)`);
-        document.documentElement.style.setProperty('--accent-color', colorHex);
+        if (!colorHex) return;
+        const r = parseInt(colorHex.slice(1,3), 16) || 139;
+        const g = parseInt(colorHex.slice(3,5), 16) || 92;
+        const b = parseInt(colorHex.slice(5,7), 16) || 246;
+
+        const rDark = Math.max(0, Math.round(r * 0.82));
+        const gDark = Math.max(0, Math.round(g * 0.82));
+        const bDark = Math.max(0, Math.round(b * 0.82));
+        const colorHover = `rgb(${rDark}, ${gDark}, ${bDark})`;
+
+        const glow = `rgba(${r}, ${g}, ${b}, 0.45)`;
+        const light = `rgba(${r}, ${g}, ${b}, 0.18)`;
+        const border = `rgba(${r}, ${g}, ${b}, 0.5)`;
+
+        const appEl = document.querySelector('.genhub-app-window');
+        const targets = [document.documentElement, document.body, appEl].filter(Boolean);
+
+        targets.forEach(el => {
+            el.style.setProperty('--gh-accent', colorHex);
+            el.style.setProperty('--gh-accent-hover', colorHover);
+            el.style.setProperty('--gh-accent-glow', glow);
+            el.style.setProperty('--gh-accent-light', light);
+            el.style.setProperty('--gh-accent-border', border);
+            el.style.setProperty('--accent-glow', glow);
+            el.style.setProperty('--accent-color', colorHex);
+        });
 
         document.querySelectorAll('.gh-theme-swatch').forEach(sw => {
             sw.classList.toggle('active', sw.getAttribute('data-color') === colorHex);
