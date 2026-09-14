@@ -106,6 +106,57 @@ public class SampleProjectService(
             return false;
         }
 
+        var projectName = Path.GetFileName(projectDir);
+        var canonicalName = ResolveCanonicalProjectName(projectName, projectDir);
+
+        return canonicalName switch
+        {
+            LemonControlBarName => HasLemonControlBarAssets(gameFilesDir),
+            ImprovedMenusName => HasImprovedMenusAssets(gameFilesDir),
+            GeneralsGamePatch2Name => HasGeneralsGamePatch2Assets(gameFilesDir),
+            LeikezeHotkeysName => HasLeikezeHotkeysAssets(gameFilesDir),
+            _ => HasGenericSampleAssets(gameFilesDir),
+        };
+    }
+
+    private static bool HasLemonControlBarAssets(string gameFilesDir)
+    {
+        var artDir = Path.Combine(gameFilesDir, "Art");
+        var wndDir = Path.Combine(gameFilesDir, "Window");
+        var dataDir = Path.Combine(gameFilesDir, "Data");
+
+        return Directory.Exists(artDir) &&
+               Directory.EnumerateFiles(artDir, "*.*", SearchOption.AllDirectories).Any() &&
+               Directory.Exists(wndDir) &&
+               Directory.EnumerateFiles(wndDir, "*.wnd", SearchOption.AllDirectories).Any() &&
+               Directory.Exists(dataDir) &&
+               Directory.EnumerateFiles(dataDir, "*.ini", SearchOption.AllDirectories).Any();
+    }
+
+    private static bool HasImprovedMenusAssets(string gameFilesDir)
+    {
+        var wndDir = Path.Combine(gameFilesDir, "Window");
+        var artDir = Path.Combine(gameFilesDir, "Art");
+        return Directory.Exists(wndDir) &&
+               Directory.EnumerateFiles(wndDir, "*.wnd", SearchOption.AllDirectories).Any() &&
+               Directory.Exists(artDir) &&
+               Directory.EnumerateFiles(artDir, "*.*", SearchOption.AllDirectories).Any();
+    }
+
+    private static bool HasGeneralsGamePatch2Assets(string gameFilesDir)
+    {
+        var iniDir = Path.Combine(gameFilesDir, "Data", "INI");
+        return Directory.Exists(iniDir) &&
+               Directory.EnumerateFiles(iniDir, "*.ini", SearchOption.AllDirectories).Any();
+    }
+
+    private static bool HasLeikezeHotkeysAssets(string gameFilesDir)
+    {
+        return Directory.EnumerateFiles(gameFilesDir, "*.csf", SearchOption.AllDirectories).Any();
+    }
+
+    private static bool HasGenericSampleAssets(string gameFilesDir)
+    {
         return Directory.EnumerateFileSystemEntries(gameFilesDir, "*", SearchOption.AllDirectories)
             .Any(file =>
             {
@@ -594,9 +645,12 @@ public class SampleProjectService(
             }
 
             var primaryBig = bigFiles[0];
-            await VerifyFileSha256Async(primaryBig, ModBuilderConstants.SampleProjects.ImprovedMenusSha256, cancellationToken).ConfigureAwait(false);
+            if (!await VerifyFileSha256Async(primaryBig, ModBuilderConstants.SampleProjects.ImprovedMenusSha256, cancellationToken).ConfigureAwait(false))
+            {
+                return OperationResult<bool>.CreateFailure("Improved Menus English .big file failed SHA-256 integrity verification.");
+            }
 
-            progress?.Report("Unpacking English menu windows and textures...");
+            progress?.Report("Unpacking English menu files...");
             var unpackStaging = Path.Combine(enStaging, UnpackedFolderName);
             Directory.CreateDirectory(unpackStaging);
             var unpackResult = await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -606,14 +660,15 @@ public class SampleProjectService(
             }
 
             CopyDirectoryContents(unpackStaging, gameFilesDir, cancellationToken);
-            await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+            CopyMovieFiles(enStaging, gameFilesDir);
 
             if (!string.IsNullOrEmpty(releaseDir))
             {
-                File.Copy(primaryBig, Path.Combine(releaseDir, Path.GetFileName(primaryBig)), overwrite: true);
+                var destBig = Path.Combine(releaseDir, Path.GetFileName(primaryBig));
+                File.Copy(primaryBig, destBig, overwrite: true);
             }
 
-            CopyMovieFiles(enStaging, gameFilesDir);
+            await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
             return OperationResult<bool>.CreateSuccess(true);
         }
         finally
@@ -642,35 +697,41 @@ public class SampleProjectService(
         try
         {
             progress?.Report($"Downloading {spec.AssetLabel}...");
-            var dlResult = await EnsureAssetDownloadedAsync(
+            var result = await EnsureAssetDownloadedAsync(
                 spec.ZipUrl,
                 spec.ZipPath,
-                1_000_000,
+                500_000,
                 spec.AssetLabel,
                 cancellationToken).ConfigureAwait(false);
 
-            if (!dlResult.Success)
+            if (!result.Success)
             {
+                logger.LogWarning("Skipping {Label} download: {Error}", spec.AssetLabel, result.FirstError);
                 return;
             }
 
+            progress?.Report($"Extracting {spec.AssetLabel}...");
             var staging = Path.Combine(Path.GetTempPath(), $"genhub_menus_{spec.LanguageSubDir.ToLowerInvariant()}_{Guid.NewGuid():N}");
             try
             {
                 Directory.CreateDirectory(staging);
                 await ExtractArchiveFileAsync(spec.ZipPath, staging, cancellationToken).ConfigureAwait(false);
-                var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories);
-                if (bigFiles.Length > 0)
-                {
-                    var big = bigFiles[0];
-                    var unpackDir = Path.Combine(staging, UnpackedFolderName);
-                    Directory.CreateDirectory(unpackDir);
-                    await BigFilePacker.UnpackAsync(big, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-                    var langTexDir = Path.Combine(unpackDir, "Data", spec.LanguageSubDir);
+                var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories);
+                foreach (var big in bigFiles)
+                {
+                    var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(big)}");
+                    Directory.CreateDirectory(unpackDir);
+                    var unpackRes = await BigFilePacker.UnpackAsync(big, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    if (!unpackRes.Success)
+                    {
+                        continue;
+                    }
+
+                    var langTexDir = Path.Combine(unpackDir, "Art", "Textures", spec.LanguageSubDir);
                     if (Directory.Exists(langTexDir))
                     {
-                        var targetDir = Path.Combine(gameFilesDir, "Data", spec.LanguageSubDir);
+                        var targetDir = Path.Combine(gameFilesDir, "Art", "Textures", spec.LanguageSubDir);
                         CopyDirectoryContents(langTexDir, targetDir, cancellationToken);
                     }
 
@@ -812,43 +873,73 @@ public class SampleProjectService(
             await ExtractArchiveFileAsync(zipPath, staging, cancellationToken).ConfigureAwait(false);
 
             var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories);
-            var targetBig = bigFiles.FirstOrDefault(b => Path.GetFileName(b).Equals(bigName, StringComparison.OrdinalIgnoreCase)) ?? bigFiles.FirstOrDefault();
-
-            if (targetBig == null || !File.Exists(targetBig))
+            if (bigFiles.Length == 0)
             {
+                logger.LogWarning("No BIG archives found in Lemon Control Bar archive: {Path}", zipPath);
                 return false;
             }
 
-            var unpackDir = Path.Combine(staging, UnpackedFolderName);
-            Directory.CreateDirectory(unpackDir);
-            var unpackRes = await BigFilePacker.UnpackAsync(targetBig, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!unpackRes.Success)
+            var processedAny = false;
+            foreach (var bigFile in bigFiles)
             {
-                return false;
-            }
+                var fileName = Path.GetFileName(bigFile);
+                var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(fileName)}");
+                Directory.CreateDirectory(unpackDir);
 
-            if (isPrimary)
-            {
+                var unpackRes = await BigFilePacker.UnpackAsync(bigFile, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (!unpackRes.Success)
+                {
+                    logger.LogWarning("Failed to unpack BIG file {File}: {Error}", fileName, unpackRes.FirstError);
+                    continue;
+                }
+
+                processedAny = true;
+
+                // 1. Art textures: AmericaCommandBarPro_4096_1024.dds, BlankTexture_16.tga, etc.
                 var artDir = Path.Combine(unpackDir, "Art");
                 if (Directory.Exists(artDir))
                 {
                     CopyDirectoryContents(artDir, Path.Combine(gameFilesDir, "Art"), cancellationToken);
                 }
+
+                // 2. Data INIs: ControlBarScheme.ini, InGameUI.ini, MappedImages, HeaderTemplate.ini, etc.
+                var dataDir = Path.Combine(unpackDir, "Data");
+                if (Directory.Exists(dataDir))
+                {
+                    CopyDirectoryContents(dataDir, Path.Combine(gameFilesDir, "Data"), cancellationToken);
+                }
+
+                // 3. Window layouts:
+                // ControlBar.wnd, ReplayControl.wnd, Diplomacy.wnd (from Data big) and Menus/*.wnd (from resolution big)
+                var wndDir = Path.Combine(unpackDir, "Window");
+                if (Directory.Exists(wndDir))
+                {
+                    CopyDirectoryContents(wndDir, Path.Combine(gameFilesDir, "Window", resolution), cancellationToken);
+                }
+
+                // 4. GenTool fullviewport.dat & documentation
+                var genToolDir = Path.Combine(unpackDir, "GenTool");
+                if (Directory.Exists(genToolDir))
+                {
+                    CopyDirectoryContents(genToolDir, Path.Combine(gameFilesDir, "GenTool"), cancellationToken);
+                }
+
+                var cbProTxt = Path.Combine(unpackDir, "ControlBarPro.txt");
+                if (File.Exists(cbProTxt))
+                {
+                    File.Copy(cbProTxt, Path.Combine(gameFilesDir, "ControlBarPro.txt"), overwrite: true);
+                }
+
+                // 5. Prebuilt release BIG files
+                if (!string.IsNullOrEmpty(releaseDir))
+                {
+                    File.Copy(bigFile, Path.Combine(releaseDir, fileName), overwrite: true);
+                }
+
+                await TryExtractAndSaveManifestAsync(bigFile, gameFilesDir, cancellationToken).ConfigureAwait(false);
             }
 
-            var wndDir = Path.Combine(unpackDir, "Window");
-            if (Directory.Exists(wndDir))
-            {
-                CopyDirectoryContents(wndDir, Path.Combine(gameFilesDir, "Window", resolution), cancellationToken);
-            }
-
-            if (!string.IsNullOrEmpty(releaseDir))
-            {
-                File.Copy(targetBig, Path.Combine(releaseDir, Path.GetFileName(targetBig)), overwrite: true);
-            }
-
-            await TryExtractAndSaveManifestAsync(targetBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
-            return true;
+            return processedAny;
         }
         finally
         {
@@ -885,7 +976,7 @@ public class SampleProjectService(
             (Resolution: "1080p", Url: ModBuilderConstants.SampleProjects.LemonControlBar1080pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_1920x1080.zip", BigName: "340_ControlBarProLemonEdition1080ZH.big", IsPrimary: true),
             (Resolution: "720p", Url: ModBuilderConstants.SampleProjects.LemonControlBar720pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_1280x720.zip", BigName: "340_ControlBarProLemonEdition720ZH.big", IsPrimary: false),
             (Resolution: "1440p", Url: ModBuilderConstants.SampleProjects.LemonControlBar1440pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_2560x1440.zip", BigName: "340_ControlBarProLemonEdition1440ZH.big", IsPrimary: false),
-            (Resolution: "4K", Url: ModBuilderConstants.SampleProjects.LemonControlBar4KUrl, FileName: "ControlBarProLemonEditionZH_v1.3_3840x2160.zip", BigName: "340_ControlBarProLemonEdition4KZH.big", IsPrimary: false),
+            (Resolution: "4K", Url: ModBuilderConstants.SampleProjects.LemonControlBar4KUrl, FileName: "ControlBarProLemonEditionZH_v1.3_3840x2160.zip", BigName: "340_ControlBarProLemonEdition2160ZH.big", IsPrimary: false),
         };
 
         var primarySucceeded = false;
@@ -945,50 +1036,61 @@ public class SampleProjectService(
     }
 
     private async Task SetupLeikezeVariantIfPresentAsync(
-        string? sourceCsf,
+        string? csfPath,
         LeikezeVariantSpec spec,
-        string tempStaging,
         string gameFilesDir,
         string? releaseDir,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(sourceCsf) || !File.Exists(sourceCsf))
+        if (string.IsNullOrEmpty(csfPath) || !File.Exists(csfPath))
         {
             return;
         }
 
-        await SetupLeikezeVariantAsync(
-            sourceCsf,
-            spec,
-            tempStaging,
-            gameFilesDir,
-            releaseDir,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task SetupLeikezeVariantAsync(
-        string sourceCsf,
-        LeikezeVariantSpec spec,
-        string tempStaging,
-        string gameFilesDir,
-        string? releaseDir,
-        CancellationToken cancellationToken)
-    {
         var targetDir = Path.Combine(gameFilesDir, spec.TargetGameSubDir);
         Directory.CreateDirectory(targetDir);
         var destCsf = Path.Combine(targetDir, GeneralsCsfFileName);
-        File.Copy(sourceCsf, destCsf, overwrite: true);
+        File.Copy(csfPath, destCsf, overwrite: true);
+
+        if (stringTableConverter != null)
+        {
+            var strPath = Path.Combine(targetDir, "generals.str");
+            try
+            {
+                await stringTableConverter.ConvertCsfToStrAsync(destCsf, strPath, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Optional CSF to STR conversion skipped for {Path}", destCsf);
+            }
+        }
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
-            var packDir = Path.Combine(tempStaging, spec.PackSubDir);
-            var innerDir = Path.Combine(packDir, "Data", spec.LanguageFolder);
-            Directory.CreateDirectory(innerDir);
-            File.Copy(destCsf, Path.Combine(innerDir, GeneralsCsfFileName), overwrite: true);
+            try
+            {
+                var packStaging = Path.Combine(Path.GetTempPath(), $"genhub_leikeze_pack_{Guid.NewGuid():N}");
+                var stagingLangDir = Path.Combine(packStaging, "Data", spec.LanguageFolder);
+                Directory.CreateDirectory(stagingLangDir);
+                File.Copy(destCsf, Path.Combine(stagingLangDir, GeneralsCsfFileName), overwrite: true);
 
-            var outBig = Path.Combine(releaseDir, spec.BigFileName);
-            await BigFilePacker.PackAsync(packDir, outBig, cancellationToken: cancellationToken).ConfigureAwait(false);
-            await TryExtractAndSaveManifestAsync(outBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+                var outBigPath = Path.Combine(releaseDir, spec.BigFileName);
+                await BigFilePacker.PackAsync(packStaging, outBigPath, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await TryExtractAndSaveManifestAsync(outBigPath, gameFilesDir, cancellationToken).ConfigureAwait(false);
+
+                try
+                {
+                    Directory.Delete(packStaging, recursive: true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, StagingCleanupFailedMessage, packStaging);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to create prebuilt release BIG for Leikeze {Big}", spec.BigFileName);
+            }
         }
     }
 
@@ -1036,44 +1138,29 @@ public class SampleProjectService(
                 Path.Combine("ZeroHour", EnglishLanguageName, "Data", EnglishLanguageName),
                 "pack_zhen",
                 EnglishLanguageName,
-                "!HotkeysLeikezeENZH.big");
-            await SetupLeikezeVariantIfPresentAsync(
-                FindZhEnglishCsf(csfFiles),
-                zhEnSpec,
-                tempStaging,
-                gameFilesDir,
-                releaseDir,
-                cancellationToken).ConfigureAwait(false);
+                "400_Hotkeys_ZH_EN.big");
+            var zhEnCsf = FindZhEnglishCsf(csfFiles);
+            await SetupLeikezeVariantIfPresentAsync(zhEnCsf, zhEnSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
-            // 2. Generals English
+            // 2. Generals Classic English
             var genEnSpec = new LeikezeVariantSpec(
                 Path.Combine("Generals", EnglishLanguageName, "Data", EnglishLanguageName),
                 "pack_genen",
                 EnglishLanguageName,
-                "!HotkeysLeikezeEN.big");
-            await SetupLeikezeVariantIfPresentAsync(
-                FindGeneralsEnglishCsf(csfFiles),
-                genEnSpec,
-                tempStaging,
-                gameFilesDir,
-                releaseDir,
-                cancellationToken).ConfigureAwait(false);
+                "400_Hotkeys_Generals_EN.big");
+            var genEnCsf = FindGeneralsEnglishCsf(csfFiles);
+            await SetupLeikezeVariantIfPresentAsync(genEnCsf, genEnSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
             // 3. Zero Hour German
-            var deSpec = new LeikezeVariantSpec(
+            var zhDeSpec = new LeikezeVariantSpec(
                 Path.Combine("ZeroHour", GermanLanguageName, "Data", GermanLanguageName),
                 "pack_zhde",
                 GermanLanguageName,
-                "!HotkeysLeikezeDEZH.big");
-            await SetupLeikezeVariantIfPresentAsync(
-                FindGermanCsf(csfFiles),
-                deSpec,
-                tempStaging,
-                gameFilesDir,
-                releaseDir,
-                cancellationToken).ConfigureAwait(false);
+                "400_Hotkeys_ZH_DE.big");
+            var zhDeCsf = FindGermanCsf(csfFiles);
+            await SetupLeikezeVariantIfPresentAsync(zhDeCsf, zhDeSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
-            logger.LogInformation("Successfully unpacked Leikeze Hotkeys into {Dir}", gameFilesDir);
+            logger.LogInformation("Successfully unpacked Leikeze Hotkeys string tables into {Dir}", gameFilesDir);
             return OperationResult<bool>.CreateSuccess(true);
         }
         finally

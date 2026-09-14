@@ -1307,6 +1307,10 @@ public partial class ModBuilderViewModel(
         {
             await ProvisionSampleTemplateAsync(sampleId, projectDir, cancellationToken).ConfigureAwait(false);
         }
+        else
+        {
+            await SyncSampleTemplateConfigsAsync(sampleId, projectDir, cancellationToken).ConfigureAwait(false);
+        }
 
         if (File.Exists(projectFile))
         {
@@ -1314,6 +1318,37 @@ public partial class ModBuilderViewModel(
         }
 
         return await FindDiscoveredSampleProjectAsync(sampleId).ConfigureAwait(false);
+    }
+
+    private async Task SyncSampleTemplateConfigsAsync(string sampleId, string projectDir, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var baseTemplateDir = FindBaseSampleTemplateDirectory(sampleId);
+        if (string.IsNullOrEmpty(baseTemplateDir) || !Directory.Exists(baseTemplateDir))
+        {
+            return;
+        }
+
+        var templateConfigDir = Path.Combine(baseTemplateDir, ModBuilderConstants.LowercaseConfigDir);
+        var userConfigDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
+        if (Directory.Exists(templateConfigDir))
+        {
+            Directory.CreateDirectory(userConfigDir);
+            foreach (var configFile in Directory.GetFiles(templateConfigDir, "*.json"))
+            {
+                var targetFile = Path.Combine(userConfigDir, Path.GetFileName(configFile));
+                File.Copy(configFile, targetFile, overwrite: true);
+            }
+        }
+
+        var templateProjFile = Path.Combine(baseTemplateDir, $"{sampleId}{ModBuilderConstants.ProjectFileExtension}");
+        var userProjFile = Path.Combine(projectDir, $"{sampleId}{ModBuilderConstants.ProjectFileExtension}");
+        if (File.Exists(templateProjFile))
+        {
+            File.Copy(templateProjFile, userProjFile, overwrite: true);
+        }
+
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     private async Task ProvisionSampleTemplateAsync(string sampleId, string projectDir, CancellationToken cancellationToken)
@@ -1362,6 +1397,8 @@ public partial class ModBuilderViewModel(
     private async Task LoadSampleProjectAsync()
     {
         logger.LogInformation("LoadSampleProjectAsync requested");
+        var cts = new CancellationTokenSource();
+        _importCancellationTokenSource = cts;
         try
         {
             var samplePath = await ResolveSampleProjectPathAsync().ConfigureAwait(false);
@@ -1391,7 +1428,7 @@ public partial class ModBuilderViewModel(
                     AppendBuildLog(msg);
                 });
 
-                var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress, _buildCancellationTokenSource?.Token ?? CancellationToken.None).ConfigureAwait(false);
+                var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress, cts.Token).ConfigureAwait(false);
                 if (!assetResult.Success)
                 {
                     notificationService.ShowError("Asset Acquisition Failed", $"Could not acquire sample assets: {assetResult.FirstError}");
@@ -1403,10 +1440,24 @@ public partial class ModBuilderViewModel(
             logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
             await LoadProjectFromPathAsync(samplePath).ConfigureAwait(false);
         }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "LoadSampleProjectAsync cancelled");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load sample project");
             notificationService.ShowError("Load Failed", $"Failed to load sample project: {ex.Message}");
+        }
+        finally
+        {
+            if (_importCancellationTokenSource == cts)
+            {
+                _importCancellationTokenSource = null;
+            }
+
+            cts.Dispose();
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
         }
     }
 
@@ -2585,7 +2636,14 @@ public partial class ModBuilderViewModel(
             {
                 var fileCount = await Task.Run(
                     () => Directory.EnumerateFiles(editFolder, "*.*", SearchOption.AllDirectories)
-                        .Count(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase)),
+                        .Count(f =>
+                        {
+                            var name = Path.GetFileName(f);
+                            return !name.Equals("README.md", StringComparison.OrdinalIgnoreCase) &&
+                                   !name.Equals("README.txt", StringComparison.OrdinalIgnoreCase) &&
+                                   !name.Equals(".gitkeep", StringComparison.OrdinalIgnoreCase) &&
+                                   !name.StartsWith(".git", StringComparison.OrdinalIgnoreCase);
+                        }),
                     cancellationToken).ConfigureAwait(false);
 
                 if (fileCount > 0)

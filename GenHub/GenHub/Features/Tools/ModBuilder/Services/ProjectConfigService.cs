@@ -1498,6 +1498,10 @@ public sealed class ProjectConfigService(
             {
                 await CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
+            else if (template?.Name == "LemonControlBar" || template?.Name == "ControlBar")
+            {
+                await CreateLemonControlBarSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
+            }
             else
             {
                 await CreateBasicModSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
@@ -1688,6 +1692,165 @@ public sealed class ProjectConfigService(
         if (!File.Exists(texReadme))
         {
             await File.WriteAllTextAsync(texReadme, "Place your 32-bit RGBA .tga icon sheets here.\nModBuilder will automatically compress them to DXT5 DDS during build.\n", cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task CreateLemonControlBarSampleFilesAsync(
+        string projectDir,
+        ProjectDirectories directories,
+        string configsDir,
+        CancellationToken cancellationToken)
+    {
+        var baseTemplateDirs = new[]
+        {
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar"),
+            Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar"),
+            Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar"),
+            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar")),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar")),
+        };
+
+        var foundTemplateDir = baseTemplateDirs.FirstOrDefault(Directory.Exists);
+        if (!string.IsNullOrEmpty(foundTemplateDir))
+        {
+            var templateConfigs = Path.Combine(foundTemplateDir, ModBuilderConstants.LowercaseConfigDir);
+            if (Directory.Exists(templateConfigs))
+            {
+                foreach (var configFile in Directory.GetFiles(templateConfigs, "*.json"))
+                {
+                    var dest = Path.Combine(configsDir, Path.GetFileName(configFile));
+                    File.Copy(configFile, dest, overwrite: true);
+                }
+
+                return;
+            }
+        }
+
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        if (!File.Exists(itemsPath))
+        {
+            var bundleItemsConfig = new
+            {
+                BundleItems = new object[]
+                {
+                    new
+                    {
+                        Name = "LemonControlBarArt",
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Art/**/*.dds",
+                            $"{directories.GameFilesEdited}/Art/**/*.tga",
+                        },
+                        OutputFormat = "BIG",
+                        Description = "Lemon Control Bar UI textures (America, China, GLA command bars)",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBarData",
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/GenTool/**/*",
+                            $"{directories.GameFilesEdited}/ControlBarPro.txt",
+                        },
+                        OutputFormat = "BIG",
+                        Description = "Lemon Control Bar INI layouts, scheme configurations, and GenTool support files",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBarWindows_720p",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/720p/**/*.wnd" },
+                        BaseDir = $"{directories.GameFilesEdited}/Window/720p",
+                        TargetDir = "Window",
+                        OutputFormat = "BIG",
+                        Description = "1280x720 window layouts and control bar UI",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBarWindows_1080p",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1080p/**/*.wnd" },
+                        BaseDir = $"{directories.GameFilesEdited}/Window/1080p",
+                        TargetDir = "Window",
+                        OutputFormat = "BIG",
+                        Description = "1920x1080 window layouts and control bar UI",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBarWindows_1440p",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1440p/**/*.wnd" },
+                        BaseDir = $"{directories.GameFilesEdited}/Window/1440p",
+                        TargetDir = "Window",
+                        OutputFormat = "BIG",
+                        Description = "2560x1440 window layouts and control bar UI",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBarWindows_4K",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/4K/**/*.wnd" },
+                        BaseDir = $"{directories.GameFilesEdited}/Window/4K",
+                        TargetDir = "Window",
+                        OutputFormat = "BIG",
+                        Description = "3840x2160 (4K) window layouts and control bar UI",
+                    },
+                },
+            };
+
+            var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+            await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+        }
+
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+        if (!File.Exists(packsPath))
+        {
+            var bundlePacksConfig = new
+            {
+                BundlePacks = new[]
+                {
+                    new
+                    {
+                        Name = "LemonControlBar_720p",
+                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_720p" },
+                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_720p" },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition720ZH.big",
+                        Description = "Lemon Control Bar - 1280x720 (720p) resolution variant",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBar_1080p",
+                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1080p" },
+                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1080p" },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1080ZH.big",
+                        Description = "Lemon Control Bar - 1920x1080 (1080p) resolution variant",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBar_1440p",
+                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1440p" },
+                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1440p" },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1440ZH.big",
+                        Description = "Lemon Control Bar - 2560x1440 (1440p) resolution variant",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBar_4K",
+                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_4K" },
+                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_4K" },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition2160ZH.big",
+                        Description = "Lemon Control Bar - 3840x2160 (4K) resolution variant",
+                    },
+                },
+            };
+
+            var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+            await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
         }
     }
 
