@@ -446,42 +446,47 @@ public partial class GenHotkeysViewModel(
         }
         else
         {
-            targetProfile.BasePreset = presetName;
-            targetProfile.KeyMappings.Clear();
-            targetProfile.ClearedKeys.Clear();
+            await ApplyCustomPresetAsync(targetProfile, presetName, cancellationToken);
+        }
+    }
 
-            HotkeyProfile? savedProfile = null;
-            try
-            {
-                savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to save profile after applying preset '{Preset}'", presetName);
-            }
+    private async Task ApplyCustomPresetAsync(HotkeyProfile targetProfile, string presetName, CancellationToken cancellationToken)
+    {
+        targetProfile.BasePreset = presetName;
+        targetProfile.KeyMappings.Clear();
+        targetProfile.ClearedKeys.Clear();
 
-            if (ReferenceEquals(SelectedProfile, targetProfile))
-            {
-                ApplyProfileMappingsToViewModels();
-                ValidateConflicts();
-            }
+        HotkeyProfile? savedProfile = null;
+        try
+        {
+            savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to save profile after applying preset '{Preset}'", presetName);
+        }
 
-            var message = savedProfile == null
-                ? $"Failed to save profile after applying preset '{presetName}'."
-                : $"Applied '{presetName}' preset hotkeys.";
-            StatusMessage = message;
-            if (savedProfile != null)
-            {
-                notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
-            }
-            else
-            {
-                notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
-            }
+        if (ReferenceEquals(SelectedProfile, targetProfile))
+        {
+            ApplyProfileMappingsToViewModels();
+            ValidateConflicts();
+        }
+
+        var message = savedProfile == null
+            ? $"Failed to save profile after applying preset '{presetName}'."
+            : $"Applied '{presetName}' preset hotkeys.";
+        StatusMessage = message;
+        if (savedProfile != null)
+        {
+            notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
+        }
+        else
+        {
+            notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
         }
     }
 
@@ -698,7 +703,7 @@ public partial class GenHotkeysViewModel(
     {
         if (SelectedProfile == null || manifestPool == null)
         {
-            UpdateAddonMatchState(null);
+            UpdateAddonMatchState(this, null);
             return;
         }
 
@@ -718,7 +723,7 @@ public partial class GenHotkeysViewModel(
 
             if (manifestsResult is not { Success: true, Data: not null })
             {
-                UpdateAddonMatchState(null);
+                UpdateAddonMatchState(this, null);
                 return;
             }
 
@@ -730,7 +735,7 @@ public partial class GenHotkeysViewModel(
                 return;
             }
 
-            UpdateAddonMatchState(match);
+            UpdateAddonMatchState(this, match);
         }
         catch (OperationCanceledException)
         {
@@ -746,24 +751,24 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private void UpdateAddonMatchState(ContentManifest? match)
+    private static void UpdateAddonMatchState(GenHotkeysViewModel vm, ContentManifest? match)
     {
-        ExistingAddonManifest = match;
-        HasExistingAddon = match is not null;
+        vm.ExistingAddonManifest = match;
+        vm.HasExistingAddon = match is not null;
         if (match is not null)
         {
-            if (SelectedProfile != null)
+            if (vm.SelectedProfile != null)
             {
-                SelectedProfile.AddonManifestId = match.Id.Value;
+                vm.SelectedProfile.AddonManifestId = match.Id.Value;
             }
 
-            AddonButtonText = UpdateAddonText;
-            AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+            vm.AddonButtonText = UpdateAddonText;
+            vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
         }
         else
         {
-            AddonButtonText = CreateAddonText;
-            AddonButtonToolTip = CreateAddonToolTip;
+            vm.AddonButtonText = CreateAddonText;
+            vm.AddonButtonToolTip = CreateAddonToolTip;
         }
     }
 
