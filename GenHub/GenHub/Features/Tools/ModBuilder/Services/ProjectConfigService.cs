@@ -11,6 +11,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Content.Services.CommunityOutpost;
@@ -415,6 +416,11 @@ public sealed class ProjectConfigService(
             return ModBuilderConstants.ConfigDir;
         }
 
+        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigsDir)))
+        {
+            return ModBuilderConstants.LowercaseConfigsDir;
+        }
+
         if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
         {
             return ModBuilderConstants.LowercaseConfigDir;
@@ -692,7 +698,13 @@ public sealed class ProjectConfigService(
             return candidateInAltConfigs;
         }
 
-        return FallbackPrefixedConfigPath(projectDir, candidateInConfigDir, candidateInAltConfig, candidateInAltConfigs);
+        var candidateInAltConfigsLower = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigsDir, subPath);
+        if (File.Exists(candidateInAltConfigsLower))
+        {
+            return candidateInAltConfigsLower;
+        }
+
+        return FallbackPrefixedConfigPath(projectDir, candidateInConfigDir, candidateInAltConfig, candidateInAltConfigs, candidateInAltConfigsLower);
     }
 
     private static string? ExtractConfigSubPath(string normalizedConfig, string effectiveConfigsDirName)
@@ -700,6 +712,11 @@ public sealed class ProjectConfigService(
         if (normalizedConfig.StartsWith(ModBuilderConstants.LowercaseConfigDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
             return normalizedConfig.Substring(ModBuilderConstants.LowercaseConfigDir.Length + 1);
+        }
+
+        if (normalizedConfig.StartsWith(ModBuilderConstants.LowercaseConfigsDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            return normalizedConfig.Substring(ModBuilderConstants.LowercaseConfigsDir.Length + 1);
         }
 
         if (normalizedConfig.StartsWith(ModBuilderConstants.ConfigDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
@@ -716,7 +733,7 @@ public sealed class ProjectConfigService(
         return null;
     }
 
-    private static string FallbackPrefixedConfigPath(string projectDir, string inConfigDir, string inAltConfig, string inAltConfigs)
+    private static string FallbackPrefixedConfigPath(string projectDir, string inConfigDir, string inAltConfig, string inAltConfigs, string inAltConfigsLower)
     {
         if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
         {
@@ -726,6 +743,11 @@ public sealed class ProjectConfigService(
         if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
         {
             return inAltConfigs;
+        }
+
+        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigsDir)))
+        {
+            return inAltConfigsLower;
         }
 
         return inConfigDir;
@@ -886,11 +908,12 @@ public sealed class ProjectConfigService(
             if (createBundlePackForBig)
             {
                 var packsConfigured = await ConfigureBundlePacksForImportedBigsAsync(projectDir, bigList, cancellationToken, project).ConfigureAwait(false);
-                if (!packsConfigured)
+                if (!packsConfigured.Success)
                 {
                     sw.Stop();
-                    logger.LogError("Failed to configure bundle packs in ModBundlePacks.json for imported BIG files in project {ProjectPath}", projectPath);
-                    return ProjectOperationResult<int>.CreateFailure("Failed to update ModBundlePacks.json for imported BIG archives", sw.Elapsed);
+                    var errorDetail = packsConfigured.FirstError ?? "Failed to update ModBundlePacks.json for imported BIG archives";
+                    logger.LogError("Failed to configure bundle packs in ModBundlePacks.json for imported BIG files in project {ProjectPath}: {Error}", projectPath, errorDetail);
+                    return ProjectOperationResult<int>.CreateFailure(errorDetail, sw.Elapsed);
                 }
             }
 
@@ -984,7 +1007,7 @@ public sealed class ProjectConfigService(
     /// <summary>
     /// Configures ModBundleItems.json and ModBundlePacks.json for imported BIG archives.
     /// </summary>
-    private async Task<bool> ConfigureBundlePacksForImportedBigsAsync(
+    private async Task<OperationResult<bool>> ConfigureBundlePacksForImportedBigsAsync(
         string projectDir,
         List<string> bigFilePaths,
         CancellationToken cancellationToken,
@@ -1165,7 +1188,7 @@ public sealed class ProjectConfigService(
         logger.LogDebug("Created ModBundleItems.json for imported BIG files at {Path}", itemsPath);
     }
 
-    private async Task<bool> EnsureImportedBundlePacksAsync(
+    private async Task<OperationResult<bool>> EnsureImportedBundlePacksAsync(
         string packsPath,
         List<string> bigFilePaths,
         List<string> itemNames,
@@ -1176,13 +1199,13 @@ public sealed class ProjectConfigService(
 
         if (packsToAdd.Count == 0)
         {
-            return true;
+            return OperationResult<bool>.CreateSuccess(true);
         }
 
         if (!File.Exists(packsPath))
         {
             await CreateBundlePacksFileAsync(packsPath, packsToAdd, cancellationToken).ConfigureAwait(false);
-            return true;
+            return OperationResult<bool>.CreateSuccess(true);
         }
         else
         {
@@ -1309,7 +1332,7 @@ public sealed class ProjectConfigService(
         logger.LogDebug("Created ModBundlePacks.json for imported BIG files at {Path}", packsPath);
     }
 
-    private async Task<bool> AppendPacksToExistingBundleFileAsync(string packsPath, List<object> packsToAdd, CancellationToken cancellationToken)
+    private async Task<OperationResult<bool>> AppendPacksToExistingBundleFileAsync(string packsPath, List<object> packsToAdd, CancellationToken cancellationToken)
     {
         try
         {
@@ -1326,7 +1349,7 @@ public sealed class ProjectConfigService(
                 AppendPacksToJsonObject(rootObj, packsToAdd);
                 await AtomicWriteJsonFileAsync(packsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
-                return true;
+                return OperationResult<bool>.CreateSuccess(true);
             }
 
             if (node is JsonArray rootArray)
@@ -1334,16 +1357,22 @@ public sealed class ProjectConfigService(
                 AppendPacksToJsonArray(rootArray, packsToAdd);
                 await AtomicWriteJsonFileAsync(packsPath, rootArray, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
-                return true;
+                return OperationResult<bool>.CreateSuccess(true);
             }
 
-            logger.LogWarning("Existing ModBundlePacks.json at {Path} is neither an object nor an array; preserving file without changes", packsPath);
-            return false;
+            var errMsg = $"Existing ModBundlePacks.json at {packsPath} is neither an object nor an array; preserving file without changes";
+            logger.LogWarning("{ErrorMessage}", errMsg);
+            return OperationResult<bool>.CreateFailure(errMsg);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
         {
-            logger.LogWarning(ex, "Failed to append new packs to existing ModBundlePacks.json at '{Path}'; preserving file without overwriting", packsPath);
-            return false;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var errMsg = $"Failed to append new packs to existing ModBundlePacks.json at '{packsPath}': {ex.Message}";
+            logger.LogWarning(ex, "{ErrorMessage}", errMsg);
+            return OperationResult<bool>.CreateFailure(errMsg);
         }
     }
 

@@ -149,9 +149,19 @@ public static class BigFilePacker
             var offset = ReadUInt32BigEndian(reader);
             var size = ReadUInt32BigEndian(reader);
             var nameBytes = new List<byte>();
-            byte entryByte;
-            while ((entryByte = reader.ReadByte()) != 0)
+            while (true)
             {
+                if (stream.CanSeek && stream.Position >= stream.Length)
+                {
+                    throw new EndOfStreamException($"Unexpected end of stream while reading name for BIG entry {i}.");
+                }
+
+                var entryByte = reader.ReadByte();
+                if (entryByte == 0)
+                {
+                    break;
+                }
+
                 nameBytes.Add(entryByte);
             }
 
@@ -401,6 +411,11 @@ public static class BigFilePacker
             var nameBytes = new List<byte>(128);
             while (true)
             {
+                if (fs.Position >= fs.Length)
+                {
+                    throw new EndOfStreamException($"Unexpected end of stream while reading name for BIG entry {i}.");
+                }
+
                 var b = reader.ReadByte();
                 if (b == 0)
                 {

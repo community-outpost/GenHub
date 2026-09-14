@@ -557,6 +557,10 @@ public class SampleProjectService(
                 await BigFilePacker.SaveManifestAsync(manifest, manifestPath, cancellationToken).ConfigureAwait(false);
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to extract or save archive manifest for {File}", bigFilePath);
@@ -650,7 +654,8 @@ public class SampleProjectService(
             datCachePath,
             500_000,
             "Leikeze Hotkeys",
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256).ConfigureAwait(false);
 
         if (!downloadResult.Success)
         {

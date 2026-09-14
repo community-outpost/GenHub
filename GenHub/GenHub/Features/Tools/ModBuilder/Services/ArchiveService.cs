@@ -104,15 +104,34 @@ public sealed class ArchiveService(
         string? manifestFilePath,
         CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(manifestFilePath) && File.Exists(manifestFilePath))
+        if (!string.IsNullOrEmpty(manifestFilePath))
         {
-            var manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
-            if (manifest != null)
+            if (File.Exists(manifestFilePath))
             {
-                logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
+                try
+                {
+                    var manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
+                    if (manifest != null)
+                    {
+                        logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
+                        return manifest;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to load explicit BIG archive manifest from {Path}", manifestFilePath);
+                }
+            }
+            else
+            {
+                logger.LogWarning("Configured manifest file does not exist: {Path}", manifestFilePath);
             }
 
-            return manifest;
+            return null;
         }
 
         var targetFileName = Path.GetFileName(targetBigPath);
@@ -129,11 +148,22 @@ public sealed class ArchiveService(
             var fullCandidate = Path.GetFullPath(candidate);
             if (File.Exists(fullCandidate))
             {
-                var manifest = await BigFilePacker.LoadManifestAsync(fullCandidate, cancellationToken).ConfigureAwait(false);
-                if (manifest != null)
+                try
                 {
-                    logger.LogInformation("Discovered BIG archive manifest at {Path}", fullCandidate);
-                    return manifest;
+                    var manifest = await BigFilePacker.LoadManifestAsync(fullCandidate, cancellationToken).ConfigureAwait(false);
+                    if (manifest != null)
+                    {
+                        logger.LogInformation("Discovered BIG archive manifest at {Path}", fullCandidate);
+                        return manifest;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to load discovered BIG archive manifest at {Path}; skipping candidate", fullCandidate);
                 }
             }
         }
@@ -233,7 +263,7 @@ public sealed class ArchiveService(
                 return unpackResult;
             }
 
-            logger.LogInformation("Successfully extracted total of {Count} files from {ArchiveCount} BIG archives", unpackResult.Data, filesList.Count);
+            logger.LogInformation("Successfully extracted total of {FileCount} files from {ArchiveCount} BIG archives", unpackResult.Data, filesList.Count);
             return unpackResult;
         }
         catch (OperationCanceledException)

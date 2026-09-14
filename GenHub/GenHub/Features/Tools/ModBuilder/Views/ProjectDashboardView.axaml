@@ -408,7 +408,8 @@
                             Background="{DynamicResource SurfaceVariant}"
                             CornerRadius="6"
                             Padding="8,4"
-                            Margin="0,0,0,8">
+                            Margin="0,0,0,8"
+                            IsVisible="{Binding IsReproducibleVerified}">
                       <Grid ColumnDefinitions="Auto,*">
                         <Path Grid.Column="0"
                               Width="12" Height="12"

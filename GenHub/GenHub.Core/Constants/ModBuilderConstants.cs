@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace GenHub.Core.Constants;
@@ -325,6 +326,7 @@ public static class ModBuilderConstants
     /// <summary>
     /// Constants for ModBuilder sample project downloads and verification.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized static URL constants repository")]
     public static class SampleProjects
     {
         /// <summary>
