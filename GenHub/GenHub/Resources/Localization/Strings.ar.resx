@@ -3147,4 +3147,331 @@
     <value>استعادة</value>
     <comment>Restore window.</comment>
   </data>
+  <data name="Tools.GenPatcher.Subtitle" xml:space="preserve">
+    <value>الإصلاحات والتحسينات الأساسية لـ Command &amp; Conquer</value>
+  </data>
+  <data name="Tools.GenPatcher.TargetInstallation" xml:space="preserve">
+    <value>التثبيت المستهدف:</value>
+  </data>
+  <data name="Tools.GenPatcher.ApplyAllRecommended" xml:space="preserve">
+    <value>تطبيق كل التوصيات</value>
+  </data>
+  <data name="Tools.GenPatcher.CancelBatch" xml:space="preserve">
+    <value>إلغاء الدفعة</value>
+  </data>
+  <data name="Tools.GenPatcher.SearchWatermark" xml:space="preserve">
+    <value>البحث في الإصلاحات...</value>
+  </data>
+  <data name="Tools.GenPatcher.ForceReapply" xml:space="preserve">
+    <value>فرض إعادة التطبيق (تجريبي)</value>
+  </data>
+  <data name="Tools.GenPatcher.Badge.Core" xml:space="preserve">
+    <value>أساسي</value>
+  </data>
+  <data name="Tools.GenPatcher.Badge.Crucial" xml:space="preserve">
+    <value>حاسم</value>
+  </data>
+  <data name="Tools.GenPatcher.WhyNeeded" xml:space="preserve">
+    <value>سبب الحاجة لهذا الإصلاح وما يفعله:</value>
+  </data>
+  <data name="Tools.GenPatcher.LastExecutionResult" xml:space="preserve">
+    <value>نتيجة التنفيذ الأخيرة:</value>
+  </data>
+  <data name="Tools.GenPatcher.Details" xml:space="preserve">
+    <value>التفاصيل</value>
+  </data>
+  <data name="Tools.GenPatcher.Apply" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="Tools.GenPatcher.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.Applied" xml:space="preserve">
+    <value>تم التطبيق</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplied" xml:space="preserve">
+    <value>لم يتم التطبيق</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplicable" xml:space="preserve">
+    <value>غير قابل للتطبيق</value>
+  </data>
+  <data name="Tools.GenPatcher.ProgressSummary" xml:space="preserve">
+    <value>تم تطبيق {0}/{1} من الإصلاحات</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.AllCount" xml:space="preserve">
+    <value>الكل ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CoreCount" xml:space="preserve">
+    <value>الأساس والاستقرار ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CompatibilityCount" xml:space="preserve">
+    <value>التوافق ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.MultiplayerCount" xml:space="preserve">
+    <value>متعدد اللاعبين ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.QolCount" xml:space="preserve">
+    <value>تحسين التجربة ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.AdminRequired" xml:space="preserve">
+    <value>مطلوب حقوق المسؤول</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.AdminRequiredDesc" xml:space="preserve">
+    <value>يتطلب GenPatcher امتيازات إدارية لتثبيت الإصلاحات في ملفات البرنامج.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.CancellingTitle" xml:space="preserve">
+    <value>جارٍ الإلغاء</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.CancellingDesc" xml:space="preserve">
+    <value>جارٍ إلغاء تطبيق الدفعة بعد اكتمال الإصلاح الحالي...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadingTitle" xml:space="preserve">
+    <value>جارٍ تحميل GenPatcher</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadingDesc" xml:space="preserve">
+    <value>جارٍ الكشف عن تثبيتات اللعبة وتحميل الإصلاحات المتاحة...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.DetectionFailedTitle" xml:space="preserve">
+    <value>فشل الكشف</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.DetectionFailedDesc" xml:space="preserve">
+    <value>فشل الكشف عن تثبيتات اللعبة: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallFoundTitle" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيت للعبة</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallFoundDesc" xml:space="preserve">
+    <value>يرجى التأكد من تثبيت Command &amp; Conquer Generals أو Zero Hour.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadFixesFailedTitle" xml:space="preserve">
+    <value>فشل تحميل الإصلاحات</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadFixesFailedDesc" xml:space="preserve">
+    <value>حدث خطأ أثناء تحميل الإصلاحات: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadedTitle" xml:space="preserve">
+    <value>تم تحميل GenPatcher</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadedDesc" xml:space="preserve">
+    <value>تم تحميل {0} من الإصلاحات لـ {1} بنجاح.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallSelectedTitle" xml:space="preserve">
+    <value>لم يتم تحديد أي تثبيت</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallSelectedDesc" xml:space="preserve">
+    <value>يرجى تحديد تثبيت اللعبة قبل تطبيق الإصلاحات.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchCancelledTitle" xml:space="preserve">
+    <value>تم إلغاء الدفعة</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchCancelledDesc" xml:space="preserve">
+    <value>تم إلغاء تطبيق دفعة الإصلاحات.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchApplyErrorTitle" xml:space="preserve">
+    <value>خطأ في تطبيق الدفعة</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchSuccessTitle" xml:space="preserve">
+    <value>تم تطبيق كافة الإصلاحات بنجاح</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchSuccessDesc" xml:space="preserve">
+    <value>تم تطبيق جميع الإصلاحات الـ {0} بنجاح لـ {1}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchPartialTitle" xml:space="preserve">
+    <value>اكتملت الإصلاحات مع وجود أخطاء</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchPartialDesc" xml:space="preserve">
+    <value>تم تطبيق {0}/{1} من الإصلاحات بنجاح لـ {2}.</value>
+  </data>
+  <data name="Info.Sidebar.Title" xml:space="preserve">
+    <value>المعلومات</value>
+  </data>
+  <data name="Info.Module.GenHubGuide" xml:space="preserve">
+    <value>دليل GenHub</value>
+  </data>
+  <data name="Info.Module.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Info.Module.GeneralsOnline" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Info.Guide.DetailedGuide" xml:space="preserve">
+    <value>دليل مفصل</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Title" xml:space="preserve">
+    <value>عرض توضيحي: بطاقة الملف الشخصي</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Subtitle" xml:space="preserve">
+    <value>مرجع التفاعل الأساسي.</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Hint" xml:space="preserve">
+    <value>حاول تمرير المؤشر أو النقر على الأزرار أعلاه!</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Title" xml:space="preserve">
+    <value>عرض توضيحي: اختصارات سطح المكتب</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Subtitle" xml:space="preserve">
+    <value>عملية إنشاء الاختصار.</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step1" xml:space="preserve">
+    <value>1. انقر بزر الماوس الأيمن على الملف الشخصي</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step1Hint" xml:space="preserve">
+    <value>انقر فوق أيقونة التثبيت المميزة</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step2" xml:space="preserve">
+    <value>2. يتم إنشاؤه على سطح المكتب</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.DesktopIconText" xml:space="preserve">
+    <value>عرض Zero Hour</value>
+  </data>
+  <data name="Info.Demo.Steam.Title" xml:space="preserve">
+    <value>عرض توضيحي: حالة Steam</value>
+  </data>
+  <data name="Info.Demo.Steam.Subtitle" xml:space="preserve">
+    <value>حالة المؤشر المرئي.</value>
+  </data>
+  <data name="Info.Demo.Steam.Hint" xml:space="preserve">
+    <value>انقر فوق أيقونة Steam المميزة لتبديل التكامل.</value>
+  </data>
+  <data name="Info.Demo.Steam.ActiveHint" xml:space="preserve">
+    <value>(يتحول لون الأيقونة إلى الأزرق عند التفعيل)</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AutoUpdatesTitle" xml:space="preserve">
+    <value>التحديثات التلقائية</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AutoUpdatesSubtitle" xml:space="preserve">
+    <value>يستخدم GenHub محرك Velopack للتحديثات السلسة في الخلفية. استخدم شريط الإشعارات هذا لإدارة الإصدارات الرسمية.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.BrowseBuildsHint" xml:space="preserve">
+    <value>حاول النقر على &apos;استعراض الإصدارات&apos; لرؤية الإصدارات التجريبية للمطورين!</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
+    <value>متقدم: عناصر CI ورمز وصول GitHub</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
+    <value>اشترك في طلبات السحب أو فروع معينة لاختبار الميزات الجديدة قبل دمجها.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiDescription" xml:space="preserve">
+    <value>عناصر CI (التكامل المستمر) هي إصدارات مؤتمتة تم إنشاؤها بواسطة GitHub لكل تغيير في التعليمات البرمجية. للوصول إلى هذه الموارد المحمية، يتطلب GenHub رمز وصول شخصي.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatTitle" xml:space="preserve">
+    <value>رمز الوصول الشخصي لـ GitHub</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
+    <value>جرب إدخال &apos;ghp_demo&apos; والنقر فوق حفظ واختبار لرؤية التحقق أثناء عمله!</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
+    <value>عرض توضيحي: تكوين Options.ini</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Subtitle" xml:space="preserve">
+    <value>تعديل إعدادات اللعبة الخاصة بالملف الشخصي.</value>
+  </data>
+  <data name="Info.Demo.ResizeTip" xml:space="preserve">
+    <value>نصيحة: يمكنك تغيير حجم نافذة العرض هذه بسحب الحافة اليمنى أو السفلية!</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Hint" xml:space="preserve">
+    <value>جرب تبديل الدقة المخصصة أو النقر فوق أزرار الاستعراض!</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Title" xml:space="preserve">
+    <value>عرض توضيحي: تحديد المحتوى</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Subtitle" xml:space="preserve">
+    <value>تعيين التعديلات والخرائط لملف شخصي.</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Description" xml:space="preserve">
+    <value>محرر المحتوى هو المكان الذي تقوم فيه بإنشاء قائمة تشغيل المحتوى لملف شخصي محدد.</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Hint" xml:space="preserve">
+    <value>جرب تبديل التعديلات أو إعادة ترتيب المحتوى أو النقر فوق إضافة محلي!</value>
+  </data>
+  <data name="Info.Demo.Tools.ReplayManagerTitle" xml:space="preserve">
+    <value>إدارة الإعادات</value>
+  </data>
+  <data name="Info.Demo.Tools.ReplayManagerSubtitle" xml:space="preserve">
+    <value>إدارة ملفات الإعادة المحلية.</value>
+  </data>
+  <data name="Info.Demo.Tools.MapManagerTitle" xml:space="preserve">
+    <value>إدارة الخرائط</value>
+  </data>
+  <data name="Info.Demo.Tools.MapManagerSubtitle" xml:space="preserve">
+    <value>إدارة دلائل الخرائط.</value>
+  </data>
+  <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
+    <value>معالج الفحص</value>
+  </data>
+  <data name="Info.Demo.ScanWizard.Subtitle" xml:space="preserve">
+    <value>الكشف التلقائي وإدارة المكتبة.</value>
+  </data>
+  <data name="Info.Demo.LocalContent.Title" xml:space="preserve">
+    <value>عرض توضيحي تفاعلي: إضافة محتوى محلي</value>
+  </data>
+  <data name="Info.Demo.LocalContent.Subtitle" xml:space="preserve">
+    <value>استكشف حالات الاستخدام الحقيقية: التعديلات مع أرشيفات .big والخرائط، وإصدارات المحرك المخصصة، وأدوات التعديل، والمحررات المستقلة.</value>
+  </data>
+  <data name="Info.Demo.LocalContent.RealUseCases" xml:space="preserve">
+    <value>حالات الاستخدام الحقيقية:</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetMod" xml:space="preserve">
+    <value>تعديل (أرشيفات .BIG والملفات)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetClient" xml:space="preserve">
+    <value>عميل اللعبة (TheSuperHackers)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetTool" xml:space="preserve">
+    <value>أداة التعديل (GenHotkeys)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetExe" xml:space="preserve">
+    <value>ملف تنفيذي (WorldBuilder)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.AddLocalContentTitle" xml:space="preserve">
+    <value>إضافة محتوى محلي</value>
+  </data>
+  <data name="Info.Demo.LocalContent.InteractivePreview" xml:space="preserve">
+    <value>معاينة تفاعلية</value>
+  </data>
+  <data name="Info.Demo.Workspace.Title" xml:space="preserve">
+    <value>محاكي مساحة العمل</value>
+  </data>
+  <data name="Info.Demo.Workspace.Subtitle" xml:space="preserve">
+    <value>يوضح بناء نظام الملفات الظاهري عبر الروابط الرمزية.</value>
+  </data>
+  <data name="Updates.Sort.LastUpdated" xml:space="preserve">
+    <value>آخر تحديث</value>
+  </data>
+  <data name="Updates.Sort.PrNumberDesc" xml:space="preserve">
+    <value>رقم طلب السحب (تنازلي)</value>
+  </data>
+  <data name="Updates.Sort.PrNumberAsc" xml:space="preserve">
+    <value>رقم طلب السحب (تصاعدي)</value>
+  </data>
+  <data name="Updates.Status.CheckingVersion" xml:space="preserve">
+    <value>GenHub {0} - جارٍ التحقق من وجود تحديثات...</value>
+  </data>
+  <data name="Updates.Status.NewPrBuild" xml:space="preserve">
+    <value>يتوفر إصدار PR جديد: {0}</value>
+  </data>
+  <data name="Updates.Status.PrDismissed" xml:space="preserve">
+    <value>لقد تجاهلت التحديث لطلب السحب #{0}</value>
+  </data>
+  <data name="Updates.Status.PrLatest" xml:space="preserve">
+    <value>أنت على أحدث إصدار لطلب السحب #{0}</value>
+  </data>
+  <data name="Updates.Status.NewBranchBuild" xml:space="preserve">
+    <value>يتوفر إصدار جديد من فرع {0}: {1}</value>
+  </data>
+  <data name="Updates.Status.BranchDismissed" xml:space="preserve">
+    <value>لقد تجاهلت التحديث للفرع &apos;{0}&apos;</value>
+  </data>
+  <data name="Updates.Status.BranchLatest" xml:space="preserve">
+    <value>أنت على أحدث إصدار للفرع {0}</value>
+  </data>
+  <data name="Updates.Placeholder.LoadingVersions" xml:space="preserve">
+    <value>جارٍ تحميل الإصدارات...</value>
+  </data>
+  <data name="Updates.Placeholder.SelectVersion" xml:space="preserve">
+    <value>حدد الإصدار المراد تثبيته...</value>
+  </data>
+  <data name="Updates.Placeholder.NoVersionsFound" xml:space="preserve">
+    <value>لم يتم العثور على إصدارات</value>
+  </data>
 </root>

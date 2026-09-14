@@ -54,26 +54,34 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
-        var configuredLanguage = _userSettingsService?.Get()?.Language;
-        if (!string.IsNullOrWhiteSpace(configuredLanguage) && _localizationService != null)
+        try
         {
-            try
+            var configuredLanguage = _userSettingsService?.Get()?.Language;
+            if (!string.IsNullOrWhiteSpace(configuredLanguage) && _localizationService != null)
             {
-                var result = _localizationService.SetCulture(new CultureInfo(configuredLanguage));
-                if (!result.Success)
+                try
+                {
+                    var result = _localizationService.SetCulture(new CultureInfo(configuredLanguage));
+                    if (!result.Success)
+                    {
+                        var logger = _serviceProvider?.GetService<ILogger<App>>();
+                        logger?.LogWarning(
+                            "Failed to apply configured language '{Language}': {Errors}; falling back to default",
+                            configuredLanguage,
+                            string.Join(", ", result.Errors));
+                    }
+                }
+                catch (CultureNotFoundException ex)
                 {
                     var logger = _serviceProvider?.GetService<ILogger<App>>();
-                    logger?.LogWarning(
-                        "Failed to apply configured language '{Language}': {Errors}; falling back to default",
-                        configuredLanguage,
-                        string.Join(", ", result.Errors));
+                    logger?.LogWarning(ex, "Configured language '{Language}' was not recognized; falling back to default", configuredLanguage);
                 }
             }
-            catch (CultureNotFoundException ex)
-            {
-                var logger = _serviceProvider?.GetService<ILogger<App>>();
-                logger?.LogWarning(ex, "Configured language '{Language}' was not recognized; falling back to default", configuredLanguage);
-            }
+        }
+        catch (Exception ex)
+        {
+            var logger = _serviceProvider?.GetService<ILogger<App>>();
+            logger?.LogWarning(ex, "Failed to load or apply configured language; falling back to default");
         }
 
         // Make localization available while application XAML resources are loading.

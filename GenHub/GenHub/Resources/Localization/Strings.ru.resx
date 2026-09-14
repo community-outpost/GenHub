@@ -3147,4 +3147,331 @@
     <value>Восстановить</value>
     <comment>Restore window.</comment>
   </data>
+  <data name="Tools.GenPatcher.Subtitle" xml:space="preserve">
+    <value>Необходимые исправления и улучшения для Command &amp; Conquer</value>
+  </data>
+  <data name="Tools.GenPatcher.TargetInstallation" xml:space="preserve">
+    <value>Целевая установка:</value>
+  </data>
+  <data name="Tools.GenPatcher.ApplyAllRecommended" xml:space="preserve">
+    <value>Применить все рекомендованные</value>
+  </data>
+  <data name="Tools.GenPatcher.CancelBatch" xml:space="preserve">
+    <value>Отменить пакет</value>
+  </data>
+  <data name="Tools.GenPatcher.SearchWatermark" xml:space="preserve">
+    <value>Поиск исправлений...</value>
+  </data>
+  <data name="Tools.GenPatcher.ForceReapply" xml:space="preserve">
+    <value>Принудительно применить повторно (тест)</value>
+  </data>
+  <data name="Tools.GenPatcher.Badge.Core" xml:space="preserve">
+    <value>ОСНОВНОЙ</value>
+  </data>
+  <data name="Tools.GenPatcher.Badge.Crucial" xml:space="preserve">
+    <value>КРИТИЧЕСКИЙ</value>
+  </data>
+  <data name="Tools.GenPatcher.WhyNeeded" xml:space="preserve">
+    <value>Зачем нужно это исправление и что оно делает:</value>
+  </data>
+  <data name="Tools.GenPatcher.LastExecutionResult" xml:space="preserve">
+    <value>Результат последнего выполнения:</value>
+  </data>
+  <data name="Tools.GenPatcher.Details" xml:space="preserve">
+    <value>Подробности</value>
+  </data>
+  <data name="Tools.GenPatcher.Apply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Tools.GenPatcher.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.Applied" xml:space="preserve">
+    <value>ПРИМЕНЕНО</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplied" xml:space="preserve">
+    <value>НЕ ПРИМЕНЕНО</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplicable" xml:space="preserve">
+    <value>НЕПРИМЕНИМО</value>
+  </data>
+  <data name="Tools.GenPatcher.ProgressSummary" xml:space="preserve">
+    <value>Применено {0}/{1} исправлений</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.AllCount" xml:space="preserve">
+    <value>Все ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CoreCount" xml:space="preserve">
+    <value>Основа и стабильность ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CompatibilityCount" xml:space="preserve">
+    <value>Совместимость ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.MultiplayerCount" xml:space="preserve">
+    <value>Сетевая игра ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.QolCount" xml:space="preserve">
+    <value>Удобство игры ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.AdminRequired" xml:space="preserve">
+    <value>Требуются права администратора</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.AdminRequiredDesc" xml:space="preserve">
+    <value>GenPatcher требуются права администратора для установки исправлений в файлы программы.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.CancellingTitle" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.CancellingDesc" xml:space="preserve">
+    <value>Отмена пакетного применения после завершения текущего исправления...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadingTitle" xml:space="preserve">
+    <value>Загрузка GenPatcher</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadingDesc" xml:space="preserve">
+    <value>Обнаружение установленных игр и загрузка доступных исправлений...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.DetectionFailedTitle" xml:space="preserve">
+    <value>Обнаружение не удалось</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.DetectionFailedDesc" xml:space="preserve">
+    <value>Не удалось обнаружить установленные игры: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallFoundTitle" xml:space="preserve">
+    <value>Установленная игра не найдена</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallFoundDesc" xml:space="preserve">
+    <value>Пожалуйста, убедитесь, что Command &amp; Conquer Generals или Zero Hour установлена.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadFixesFailedTitle" xml:space="preserve">
+    <value>Не удалось загрузить исправления</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadFixesFailedDesc" xml:space="preserve">
+    <value>Произошла ошибка при загрузке исправлений: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadedTitle" xml:space="preserve">
+    <value>GenPatcher загружен</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadedDesc" xml:space="preserve">
+    <value>Успешно загружено {0} исправлений для {1}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallSelectedTitle" xml:space="preserve">
+    <value>Установка не выбрана</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallSelectedDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите установку игры перед применением исправлений.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchCancelledTitle" xml:space="preserve">
+    <value>Пакет отменен</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchCancelledDesc" xml:space="preserve">
+    <value>Пакетное применение исправлений отменено.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchApplyErrorTitle" xml:space="preserve">
+    <value>Ошибка пакетного применения</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchSuccessTitle" xml:space="preserve">
+    <value>Все исправления успешно применены</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchSuccessDesc" xml:space="preserve">
+    <value>Успешно применены все {0} исправлений для {1}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchPartialTitle" xml:space="preserve">
+    <value>Исправления завершены с ошибками</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchPartialDesc" xml:space="preserve">
+    <value>{0}/{1} исправлений успешно применено для {2}.</value>
+  </data>
+  <data name="Info.Sidebar.Title" xml:space="preserve">
+    <value>Справка</value>
+  </data>
+  <data name="Info.Module.GenHubGuide" xml:space="preserve">
+    <value>Руководство GenHub</value>
+  </data>
+  <data name="Info.Module.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Info.Module.GeneralsOnline" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Info.Guide.DetailedGuide" xml:space="preserve">
+    <value>ПОДРОБНОЕ РУКОВОДСТВО</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Title" xml:space="preserve">
+    <value>Демо: Карточка профиля</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Subtitle" xml:space="preserve">
+    <value>Базовый пример взаимодействия.</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Hint" xml:space="preserve">
+    <value>Попробуйте навести курсор или нажать на кнопки выше!</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Title" xml:space="preserve">
+    <value>Демо: Ярлыки на рабочем столе</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Subtitle" xml:space="preserve">
+    <value>Процесс создания ярлыка.</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step1" xml:space="preserve">
+    <value>1. Кликните правой кнопкой по профилю</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step1Hint" xml:space="preserve">
+    <value>Нажмите выделенный значок булавки</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step2" xml:space="preserve">
+    <value>2. Создано на рабочем столе</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.DesktopIconText" xml:space="preserve">
+    <value>Демо Zero Hour</value>
+  </data>
+  <data name="Info.Demo.Steam.Title" xml:space="preserve">
+    <value>Демо: Статус Steam</value>
+  </data>
+  <data name="Info.Demo.Steam.Subtitle" xml:space="preserve">
+    <value>Состояние визуального индикатора.</value>
+  </data>
+  <data name="Info.Demo.Steam.Hint" xml:space="preserve">
+    <value>Нажмите выделенный значок Steam для переключения интеграции.</value>
+  </data>
+  <data name="Info.Demo.Steam.ActiveHint" xml:space="preserve">
+    <value>(Значок становится синим при активации)</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AutoUpdatesTitle" xml:space="preserve">
+    <value>Автоматические обновления</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AutoUpdatesSubtitle" xml:space="preserve">
+    <value>GenHub использует движок Velopack для фоновых обновлений. Используйте эту панель для управления официальными выпусками.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.BrowseBuildsHint" xml:space="preserve">
+    <value>Попробуйте нажать «Обзор сборок», чтобы увидеть экспериментальные версии!</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
+    <value>Дополнительно: CI-артефакты и токен GitHub</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
+    <value>Подписывайтесь на pull request или ветки, чтобы тестировать новые возможности до их слияния.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiDescription" xml:space="preserve">
+    <value>CI-артефакты — это автоматические сборки GitHub для каждого изменения кода. Для доступа к ним требуется персональный токен (PAT).</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatTitle" xml:space="preserve">
+    <value>Персональный токен GitHub (PAT)</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
+    <value>Попробуйте ввести «ghp_demo» и нажать «Сохранить и проверить», чтобы увидеть проверку в действии!</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
+    <value>Демо: Настройка Options.ini</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Subtitle" xml:space="preserve">
+    <value>Изменение параметров игры для конкретного профиля.</value>
+  </data>
+  <data name="Info.Demo.ResizeTip" xml:space="preserve">
+    <value>СОВЕТ: Вы можете изменить размер этого окна, потянув за правый или нижний край!</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Hint" xml:space="preserve">
+    <value>Попробуйте переключить пользовательское разрешение или нажать кнопку обзора!</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Title" xml:space="preserve">
+    <value>Демо: Выбор контента</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Subtitle" xml:space="preserve">
+    <value>Назначение модов и карт профилю.</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Description" xml:space="preserve">
+    <value>Редактор контента позволяет составить список материалов для конкретного профиля.</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Hint" xml:space="preserve">
+    <value>Попробуйте переключить моды, изменить порядок или нажать «Добавить локальный»!</value>
+  </data>
+  <data name="Info.Demo.Tools.ReplayManagerTitle" xml:space="preserve">
+    <value>Менеджер повторов</value>
+  </data>
+  <data name="Info.Demo.Tools.ReplayManagerSubtitle" xml:space="preserve">
+    <value>Управление локальными файлами повторов.</value>
+  </data>
+  <data name="Info.Demo.Tools.MapManagerTitle" xml:space="preserve">
+    <value>Менеджер карт</value>
+  </data>
+  <data name="Info.Demo.Tools.MapManagerSubtitle" xml:space="preserve">
+    <value>Управление папками карт.</value>
+  </data>
+  <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
+    <value>Мастер сканирования</value>
+  </data>
+  <data name="Info.Demo.ScanWizard.Subtitle" xml:space="preserve">
+    <value>Автоматическое обнаружение и управление библиотекой.</value>
+  </data>
+  <data name="Info.Demo.LocalContent.Title" xml:space="preserve">
+    <value>Интерактивное демо: Добавление локального контента</value>
+  </data>
+  <data name="Info.Demo.LocalContent.Subtitle" xml:space="preserve">
+    <value>Изучите реальные сценарии: моды с архивами .big и картами, пользовательские сборки движка, утилиты и редакторы.</value>
+  </data>
+  <data name="Info.Demo.LocalContent.RealUseCases" xml:space="preserve">
+    <value>Реальные сценарии:</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetMod" xml:space="preserve">
+    <value>Мод (Архивы .BIG и ресурсы)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetClient" xml:space="preserve">
+    <value>Игровой клиент (TheSuperHackers)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetTool" xml:space="preserve">
+    <value>Инструмент для модификаций (GenHotkeys)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetExe" xml:space="preserve">
+    <value>Исполняемый файл (WorldBuilder)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.AddLocalContentTitle" xml:space="preserve">
+    <value>Добавить локальный контент</value>
+  </data>
+  <data name="Info.Demo.LocalContent.InteractivePreview" xml:space="preserve">
+    <value>Интерактивный предпросмотр</value>
+  </data>
+  <data name="Info.Demo.Workspace.Title" xml:space="preserve">
+    <value>Симулятор рабочей области</value>
+  </data>
+  <data name="Info.Demo.Workspace.Subtitle" xml:space="preserve">
+    <value>Визуализация создания виртуальной файловой системы через симлинки.</value>
+  </data>
+  <data name="Updates.Sort.LastUpdated" xml:space="preserve">
+    <value>Последнее обновление</value>
+  </data>
+  <data name="Updates.Sort.PrNumberDesc" xml:space="preserve">
+    <value>Номер PR (по убыванию)</value>
+  </data>
+  <data name="Updates.Sort.PrNumberAsc" xml:space="preserve">
+    <value>Номер PR (по возрастанию)</value>
+  </data>
+  <data name="Updates.Status.CheckingVersion" xml:space="preserve">
+    <value>GenHub {0} — Проверка обновлений...</value>
+  </data>
+  <data name="Updates.Status.NewPrBuild" xml:space="preserve">
+    <value>Доступна новая сборка PR: {0}</value>
+  </data>
+  <data name="Updates.Status.PrDismissed" xml:space="preserve">
+    <value>Вы отклонили обновление для PR #{0}</value>
+  </data>
+  <data name="Updates.Status.PrLatest" xml:space="preserve">
+    <value>У вас установлена последняя сборка для PR #{0}</value>
+  </data>
+  <data name="Updates.Status.NewBranchBuild" xml:space="preserve">
+    <value>Доступна новая сборка {0}: {1}</value>
+  </data>
+  <data name="Updates.Status.BranchDismissed" xml:space="preserve">
+    <value>Вы отклонили обновление для ветки «{0}»</value>
+  </data>
+  <data name="Updates.Status.BranchLatest" xml:space="preserve">
+    <value>У вас установлена последняя сборка для {0}</value>
+  </data>
+  <data name="Updates.Placeholder.LoadingVersions" xml:space="preserve">
+    <value>Загрузка версий...</value>
+  </data>
+  <data name="Updates.Placeholder.SelectVersion" xml:space="preserve">
+    <value>Выберите версию для установки...</value>
+  </data>
+  <data name="Updates.Placeholder.NoVersionsFound" xml:space="preserve">
+    <value>Версии не найдены</value>
+  </data>
 </root>

@@ -1,7 +1,8 @@
 using System;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Data.Converters;
-using CommunityToolkit.Mvvm.DependencyInjection;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
@@ -21,21 +22,28 @@ public class LocalizedToolNameConverter : IValueConverter
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var localizationService = Ioc.Default.GetService<ILocalizationService>();
-
-        if (value is IToolPlugin plugin)
+        try
         {
-            return GetLocalizedName(localizationService, plugin.Metadata.Id, plugin.Metadata.Name);
+            var localizationService = ResolveLocalizationService();
+
+            if (value is IToolPlugin plugin)
+            {
+                return GetLocalizedName(localizationService, plugin.Metadata.Id, plugin.Metadata.Name);
+            }
+
+            if (value is ToolMetadata metadata)
+            {
+                return GetLocalizedName(localizationService, metadata.Id, metadata.Name);
+            }
+
+            if (value is string text && !string.IsNullOrWhiteSpace(text))
+            {
+                return GetLocalizedName(localizationService, text, text);
+            }
         }
-
-        if (value is ToolMetadata metadata)
+        catch
         {
-            return GetLocalizedName(localizationService, metadata.Id, metadata.Name);
-        }
-
-        if (value is string text && !string.IsNullOrWhiteSpace(text))
-        {
-            return GetLocalizedName(localizationService, text, text);
+            // Converter must never throw
         }
 
         return value?.ToString() ?? string.Empty;
@@ -44,6 +52,24 @@ public class LocalizedToolNameConverter : IValueConverter
     /// <inheritdoc/>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
+
+    private static ILocalizationService? ResolveLocalizationService()
+    {
+        try
+        {
+            if (Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, null, out var res) == true &&
+                res is ILocalizationService service)
+            {
+                return service;
+            }
+        }
+        catch
+        {
+            // Fallback safely if application context is not yet available
+        }
+
+        return null;
+    }
 
     private static string GetLocalizedName(ILocalizationService? localizationService, string id, string fallback)
     {

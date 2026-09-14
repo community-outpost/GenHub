@@ -3147,4 +3147,331 @@
     <value>Restore</value>
     <comment>Restore window.</comment>
   </data>
+  <data name="Tools.GenPatcher.Subtitle" xml:space="preserve">
+    <value>Essential fixes and enhancements for Command &amp; Conquer</value>
+  </data>
+  <data name="Tools.GenPatcher.TargetInstallation" xml:space="preserve">
+    <value>Target Installation:</value>
+  </data>
+  <data name="Tools.GenPatcher.ApplyAllRecommended" xml:space="preserve">
+    <value>Apply All Recommended</value>
+  </data>
+  <data name="Tools.GenPatcher.CancelBatch" xml:space="preserve">
+    <value>Cancel Batch</value>
+  </data>
+  <data name="Tools.GenPatcher.SearchWatermark" xml:space="preserve">
+    <value>Search fixes...</value>
+  </data>
+  <data name="Tools.GenPatcher.ForceReapply" xml:space="preserve">
+    <value>Force Re-Apply (Testing)</value>
+  </data>
+  <data name="Tools.GenPatcher.Badge.Core" xml:space="preserve">
+    <value>CORE</value>
+  </data>
+  <data name="Tools.GenPatcher.Badge.Crucial" xml:space="preserve">
+    <value>CRUCIAL</value>
+  </data>
+  <data name="Tools.GenPatcher.WhyNeeded" xml:space="preserve">
+    <value>Why this fix is needed &amp; what it does:</value>
+  </data>
+  <data name="Tools.GenPatcher.LastExecutionResult" xml:space="preserve">
+    <value>Last Execution Result:</value>
+  </data>
+  <data name="Tools.GenPatcher.Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="Tools.GenPatcher.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Tools.GenPatcher.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.Applied" xml:space="preserve">
+    <value>APPLIED</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplied" xml:space="preserve">
+    <value>NOT APPLIED</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplicable" xml:space="preserve">
+    <value>NOT APPLICABLE</value>
+  </data>
+  <data name="Tools.GenPatcher.ProgressSummary" xml:space="preserve">
+    <value>{0}/{1} Fixes Applied</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.AllCount" xml:space="preserve">
+    <value>All ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CoreCount" xml:space="preserve">
+    <value>Core &amp; Stability ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CompatibilityCount" xml:space="preserve">
+    <value>Compatibility ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.MultiplayerCount" xml:space="preserve">
+    <value>Multiplayer ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.QolCount" xml:space="preserve">
+    <value>Quality of Life ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.AdminRequired" xml:space="preserve">
+    <value>Administrator Rights Required</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.AdminRequiredDesc" xml:space="preserve">
+    <value>GenPatcher requires administrative privileges to install fixes to program files.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.CancellingTitle" xml:space="preserve">
+    <value>Cancelling</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.CancellingDesc" xml:space="preserve">
+    <value>Cancelling batch application after the current fix completes...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadingTitle" xml:space="preserve">
+    <value>Loading GenPatcher</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadingDesc" xml:space="preserve">
+    <value>Detecting game installations and loading available fixes...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.DetectionFailedTitle" xml:space="preserve">
+    <value>Detection Failed</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.DetectionFailedDesc" xml:space="preserve">
+    <value>Failed to detect game installations: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallFoundTitle" xml:space="preserve">
+    <value>No Game Installation Found</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallFoundDesc" xml:space="preserve">
+    <value>Please ensure Command &amp; Conquer Generals or Zero Hour is installed.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadFixesFailedTitle" xml:space="preserve">
+    <value>Failed to Load Fixes</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadFixesFailedDesc" xml:space="preserve">
+    <value>An error occurred while loading fixes: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadedTitle" xml:space="preserve">
+    <value>GenPatcher Loaded</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.LoadedDesc" xml:space="preserve">
+    <value>Successfully loaded {0} fixes for {1}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallSelectedTitle" xml:space="preserve">
+    <value>No Installation Selected</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.NoInstallSelectedDesc" xml:space="preserve">
+    <value>Please select a game installation before applying fixes.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchCancelledTitle" xml:space="preserve">
+    <value>Batch Cancelled</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchCancelledDesc" xml:space="preserve">
+    <value>Batch fix application was cancelled.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchApplyErrorTitle" xml:space="preserve">
+    <value>Batch Apply Error</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchSuccessTitle" xml:space="preserve">
+    <value>All Fixes Applied Successfully</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchSuccessDesc" xml:space="preserve">
+    <value>Successfully applied all {0} fixes for {1}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchPartialTitle" xml:space="preserve">
+    <value>Fixes Completed with Errors</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchPartialDesc" xml:space="preserve">
+    <value>{0}/{1} fixes applied successfully for {2}.</value>
+  </data>
+  <data name="Info.Sidebar.Title" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="Info.Module.GenHubGuide" xml:space="preserve">
+    <value>GenHub Guide</value>
+  </data>
+  <data name="Info.Module.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Info.Module.GeneralsOnline" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Info.Guide.DetailedGuide" xml:space="preserve">
+    <value>DETAILED GUIDE</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Title" xml:space="preserve">
+    <value>Demo: Profile Card</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Subtitle" xml:space="preserve">
+    <value>Basic interaction reference.</value>
+  </data>
+  <data name="Info.Demo.ProfileCard.Hint" xml:space="preserve">
+    <value>Try hovering or clicking the buttons above!</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Title" xml:space="preserve">
+    <value>Demo: Desktop Shortcuts</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Subtitle" xml:space="preserve">
+    <value>Shortcut creation process.</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step1" xml:space="preserve">
+    <value>1. Right-Click Profile</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step1Hint" xml:space="preserve">
+    <value>Click the highlighted Pin icon</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.Step2" xml:space="preserve">
+    <value>2. Created on Desktop</value>
+  </data>
+  <data name="Info.Demo.Shortcuts.DesktopIconText" xml:space="preserve">
+    <value>Zero Hour Demo</value>
+  </data>
+  <data name="Info.Demo.Steam.Title" xml:space="preserve">
+    <value>Demo: Steam Status</value>
+  </data>
+  <data name="Info.Demo.Steam.Subtitle" xml:space="preserve">
+    <value>Visual indicator state.</value>
+  </data>
+  <data name="Info.Demo.Steam.Hint" xml:space="preserve">
+    <value>Click the highlighted Steam icon to toggle integration.</value>
+  </data>
+  <data name="Info.Demo.Steam.ActiveHint" xml:space="preserve">
+    <value>(Icon turns Blue when Active)</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AutoUpdatesTitle" xml:space="preserve">
+    <value>Automatic Updates</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AutoUpdatesSubtitle" xml:space="preserve">
+    <value>GenHub uses the Velopack engine for seamless background updates. Use this notification bar to manage official releases.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.BrowseBuildsHint" xml:space="preserve">
+    <value>Try clicking &apos;Browse Builds&apos; to see experimental developer versions!</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
+    <value>Advanced: CI Artifacts &amp; GitHub PAT</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
+    <value>Subscribe to pull requests or specific branches to test new features before they are merged.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.CiDescription" xml:space="preserve">
+    <value>CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatTitle" xml:space="preserve">
+    <value>GitHub Personal Access Token</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
+    <value>Try entering &apos;ghp_demo&apos; and clicking Save &amp; Test to see the validation in action!</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
+    <value>Demo: Options.ini Configuration</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Subtitle" xml:space="preserve">
+    <value>Modifying profile-specific game settings.</value>
+  </data>
+  <data name="Info.Demo.ResizeTip" xml:space="preserve">
+    <value>TIP: You can resize this demo window by dragging the right or bottom edge!</value>
+  </data>
+  <data name="Info.Demo.GameSettings.Hint" xml:space="preserve">
+    <value>Try toggling custom resolution or clicking the browse buttons!</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Title" xml:space="preserve">
+    <value>Demo: Content Selection</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Subtitle" xml:space="preserve">
+    <value>Assigning Mods and Maps to a profile.</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Description" xml:space="preserve">
+    <value>The Content Editor is where you construct the &apos;Playlist&apos; of content for a specific profile.</value>
+  </data>
+  <data name="Info.Demo.ContentSelection.Hint" xml:space="preserve">
+    <value>Try toggling mods, reordering content, or clicking Add Local!</value>
+  </data>
+  <data name="Info.Demo.Tools.ReplayManagerTitle" xml:space="preserve">
+    <value>Replay Manager</value>
+  </data>
+  <data name="Info.Demo.Tools.ReplayManagerSubtitle" xml:space="preserve">
+    <value>Manage local replay files.</value>
+  </data>
+  <data name="Info.Demo.Tools.MapManagerTitle" xml:space="preserve">
+    <value>Map Manager</value>
+  </data>
+  <data name="Info.Demo.Tools.MapManagerSubtitle" xml:space="preserve">
+    <value>Manage map directories.</value>
+  </data>
+  <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
+    <value>Scan Wizard</value>
+  </data>
+  <data name="Info.Demo.ScanWizard.Subtitle" xml:space="preserve">
+    <value>Automatic detection and library management.</value>
+  </data>
+  <data name="Info.Demo.LocalContent.Title" xml:space="preserve">
+    <value>Interactive Demo: Add Local Content</value>
+  </data>
+  <data name="Info.Demo.LocalContent.Subtitle" xml:space="preserve">
+    <value>Explore real use cases: mods with .big archives and maps, custom engine builds, modding tools with executable selection, and standalone editors.</value>
+  </data>
+  <data name="Info.Demo.LocalContent.RealUseCases" xml:space="preserve">
+    <value>Real Use Cases:</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetMod" xml:space="preserve">
+    <value>Mod (.BIG Archives &amp; Assets)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetClient" xml:space="preserve">
+    <value>Game Client (TheSuperHackers)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetTool" xml:space="preserve">
+    <value>Modding Tool (GenHotkeys)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.PresetExe" xml:space="preserve">
+    <value>Executable (WorldBuilder)</value>
+  </data>
+  <data name="Info.Demo.LocalContent.AddLocalContentTitle" xml:space="preserve">
+    <value>Add Local Content</value>
+  </data>
+  <data name="Info.Demo.LocalContent.InteractivePreview" xml:space="preserve">
+    <value>Interactive Preview</value>
+  </data>
+  <data name="Info.Demo.Workspace.Title" xml:space="preserve">
+    <value>Workspace Simulator</value>
+  </data>
+  <data name="Info.Demo.Workspace.Subtitle" xml:space="preserve">
+    <value>Visualizes virtual file system construction via symlinks.</value>
+  </data>
+  <data name="Updates.Sort.LastUpdated" xml:space="preserve">
+    <value>Last Updated</value>
+  </data>
+  <data name="Updates.Sort.PrNumberDesc" xml:space="preserve">
+    <value>PR Number (Desc)</value>
+  </data>
+  <data name="Updates.Sort.PrNumberAsc" xml:space="preserve">
+    <value>PR Number (Asc)</value>
+  </data>
+  <data name="Updates.Status.CheckingVersion" xml:space="preserve">
+    <value>GenHub {0} - Checking for updates...</value>
+  </data>
+  <data name="Updates.Status.NewPrBuild" xml:space="preserve">
+    <value>New PR build available: {0}</value>
+  </data>
+  <data name="Updates.Status.PrDismissed" xml:space="preserve">
+    <value>You dismissed the update for PR #{0}</value>
+  </data>
+  <data name="Updates.Status.PrLatest" xml:space="preserve">
+    <value>You are on the latest build for PR #{0}</value>
+  </data>
+  <data name="Updates.Status.NewBranchBuild" xml:space="preserve">
+    <value>New {0} build available: {1}</value>
+  </data>
+  <data name="Updates.Status.BranchDismissed" xml:space="preserve">
+    <value>You dismissed the update for branch &apos;{0}&apos;</value>
+  </data>
+  <data name="Updates.Status.BranchLatest" xml:space="preserve">
+    <value>You are on the latest build for {0}</value>
+  </data>
+  <data name="Updates.Placeholder.LoadingVersions" xml:space="preserve">
+    <value>Loading versions...</value>
+  </data>
+  <data name="Updates.Placeholder.SelectVersion" xml:space="preserve">
+    <value>Select version to install...</value>
+  </data>
+  <data name="Updates.Placeholder.NoVersionsFound" xml:space="preserve">
+    <value>No versions found</value>
+  </data>
 </root>

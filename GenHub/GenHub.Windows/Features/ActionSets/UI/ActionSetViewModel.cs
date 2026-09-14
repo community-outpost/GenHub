@@ -1,4 +1,4 @@
-namespace GenHub.Windows.Features.ActionSets.UI;
+﻿namespace GenHub.Windows.Features.ActionSets.UI;
 
 using System;
 using System.Threading;
@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,8 @@ public partial class ActionSetViewModel(
     ILogger logger,
     Action? onStatusChanged = null,
     Action? onBusyChanged = null,
-    Func<bool>? isParentBusy = null) : ObservableObject
+    Func<bool>? isParentBusy = null,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     /// <summary>
     /// Gets the underlying action set.
@@ -117,9 +119,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusDisplay => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "APPLIED",
-        (false, true) => "NOT APPLIED",
-        (false, false) => "NOT APPLICABLE",
+        (true, _) => localizationService?.GetString("Tools.GenPatcher.Status.Applied") ?? "APPLIED",
+        (false, true) => localizationService?.GetString("Tools.GenPatcher.Status.NotApplied") ?? "NOT APPLIED",
+        (false, false) => localizationService?.GetString("Tools.GenPatcher.Status.NotApplicable") ?? "NOT APPLICABLE",
     };
 
     /// <summary>
@@ -209,6 +211,18 @@ public partial class ActionSetViewModel(
         ForceApplyCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Notifies the UI that the culture/localization has changed.
+    /// </summary>
+    public void NotifyLocalizationChanged()
+    {
+        OnPropertyChanged(nameof(StatusDisplay));
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(DetailedDescription));
+        OnPropertyChanged(nameof(Category));
+    }
+
     partial void OnIsApplyingChanged(bool value)
     {
         onBusyChanged?.Invoke();
@@ -239,7 +253,9 @@ public partial class ActionSetViewModel(
         {
             logger.LogInformation("User cancelled application of {Title} (ID={Id})", ActionSet.Title, ActionSet.Id);
             await _applyCts.CancelAsync();
-            notificationService.ShowWarning("Cancelling", $"Cancelling application of {ActionSet.Title}...");
+            notificationService.ShowWarning(
+                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingTitle") ?? "Cancelling",
+                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingDesc") ?? $"Cancelling application of {ActionSet.Title}...");
         }
     }
 
@@ -286,7 +302,9 @@ public partial class ActionSetViewModel(
         catch (OperationCanceledException ex) when (ct.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Application of {Title} was cancelled by user", ActionSet.Title);
-            notificationService.ShowWarning("Apply Cancelled", $"Application of {ActionSet.Title} was cancelled.");
+            notificationService.ShowWarning(
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchCancelledTitle") ?? "Apply Cancelled",
+                $"Application of {ActionSet.Title} was cancelled.");
         }
         catch (Exception ex)
         {

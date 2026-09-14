@@ -1,17 +1,34 @@
+using System;
 using System.Globalization;
+using System.Linq;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
 /// <summary>
 /// Unit tests verifying DI registration and live culture resolution in <see cref="LocalizationModule"/>.
 /// </summary>
-public class LocalizationModuleTests
+[Collection(LocalizationCultureCollection.Name)]
+public sealed class LocalizationModuleTests : IDisposable
 {
+    private readonly CultureInfo? _originalDefaultUiCulture = CultureInfo.DefaultThreadCurrentUICulture;
+    private readonly CultureInfo _originalThreadUiCulture = CultureInfo.CurrentUICulture;
+
     /// <summary>
-    /// Verifies that localization services are registered as singletons and implement required contracts.
+    /// Restores process-wide UI culture defaults changed by localization resolution.
+    /// </summary>
+    public void Dispose()
+    {
+        CultureInfo.CurrentUICulture = _originalThreadUiCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = _originalDefaultUiCulture;
+    }
+
+    /// <summary>
+    /// Verifies that localization resolves as one shared service with default English resources.
     /// </summary>
     [Fact]
     public void AddLocalizationServices_RegistersSingletonAndContract()
@@ -26,6 +43,27 @@ public class LocalizationModuleTests
 
         Assert.NotNull(service1);
         Assert.Same(service1, service2);
+        Assert.Equal("en", service1.CurrentCulture.Name);
+        Assert.Equal("GenHub", service1.GetString("App.Name"));
+    }
+
+    /// <summary>
+    /// Verifies that Russian and Arabic satellite assemblies are discovered automatically.
+    /// </summary>
+    [Fact]
+    public void AddLocalizationServices_DiscoversRussianAndArabicCultures()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLocalizationServices();
+
+        using var provider = services.BuildServiceProvider();
+        var localizationService = provider.GetRequiredService<ILocalizationService>();
+        var cultureNames = localizationService.AvailableCultures.Select(c => c.Name).ToList();
+
+        Assert.Contains("en", cultureNames);
+        Assert.Contains("ru", cultureNames);
+        Assert.Contains("ar", cultureNames);
     }
 
     /// <summary>

@@ -6,6 +6,7 @@
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:infoViews="clr-namespace:GenHub.Features.Info.Views"
              xmlns:controls="clr-namespace:GenHub.Common.Controls"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Features.Info.Views.InfoView"
              x:DataType="vm:InfoViewModel">
@@ -37,7 +38,7 @@
     </Style>
   </UserControl.Styles>
 
-  <controls:SidebarLayout PaneTitle="Info"
+  <controls:SidebarLayout PaneTitle="{localization:Localize Info.Sidebar.Title}"
                           ItemsSource="{Binding SidebarItems}"
                           SelectedItem="{Binding SelectedSidebarItem, Mode=TwoWay}"
                           IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
@@ -49,7 +50,7 @@
                   HorizontalAlignment="Stretch">
               <ComboBox.ItemTemplate>
                   <DataTemplate>
-                      <TextBlock Text="{Binding}" Foreground="{DynamicResource TextPrimary}" />
+                      <TextBlock Text="{Binding Converter={StaticResource LocalizedInfoModuleNameConverter}}" Foreground="{DynamicResource TextPrimary}" />
                   </DataTemplate>
               </ComboBox.ItemTemplate>
         </ComboBox>

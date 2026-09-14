@@ -13,6 +13,7 @@
              xmlns:conv="using:Avalonia.Data.Converters"
              xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
              x:Class="GenHub.Features.Info.Views.GenHubInfoSectionView"
              x:DataType="vm:GenHubInfoSectionViewModel">
@@ -201,8 +202,8 @@
         <Border IsVisible="{Binding IsGameProfilesSelected}" Margin="0,0,0,50">
           <StackPanel>
              <StackPanel HorizontalAlignment="Left">
-                <TextBlock Text="Demo: Profile Card" Classes="demo-title"/>
-                <TextBlock Text="Basic interaction reference." Classes="demo-subtitle"/>
+                <TextBlock Text="{localization:Localize Info.Demo.ProfileCard.Title}" Classes="demo-title"/>
+                <TextBlock Text="{localization:Localize Info.Demo.ProfileCard.Subtitle}" Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
@@ -213,7 +214,7 @@
                         <local:GameProfileCardView DataContext="{Binding DemoProfileCard}" Width="300" Height="400"/>
                     </Viewbox>
 
-                  <TextBlock Text="Try hovering or clicking the buttons above!"
+                  <TextBlock Text="{localization:Localize Info.Demo.ProfileCard.Hint}"
                              FontSize="13" Foreground="#666666" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Viewbox>
@@ -230,8 +231,8 @@
              </Border.IsVisible>
              <StackPanel>
                 <StackPanel HorizontalAlignment="Left">
-                    <TextBlock Text="Demo: Desktop Shortcuts" Classes="demo-title"/>
-                    <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
+                    <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Title}" Classes="demo-title"/>
+                    <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Subtitle}" Classes="demo-subtitle"/>
                 </StackPanel>
 
                 <Border Classes="demo-container">
@@ -240,12 +241,12 @@
 
                          <!-- 1. The Source: Profile Card -->
                          <StackPanel Spacing="10">
-                             <TextBlock Text="1. Right-Click Profile" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
+                             <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step1}" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
                              <Viewbox Stretch="Uniform" Width="240">
                                 <!-- Using actual component for fidelity -->
                                 <local:GameProfileCardView DataContext="{Binding DemoShortcutProfile}" Width="300" Height="400"/>
                              </Viewbox>
-                             <TextBlock Text="Click the highlighted Pin icon" FontSize="11" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
+                             <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.PinHint}" FontSize="11" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
                          </StackPanel>
 
                         <!-- Arrow -->
@@ -253,7 +254,7 @@
 
                         <!-- 2. The Result: Desktop Icon -->
                         <StackPanel Spacing="10">
-                            <TextBlock Text="2. Created on Desktop" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step2}" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
                             <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="8" Width="120" Margin="0,50,0,0">
                                  <!-- Windows Desktop Icon Look-alike -->
                                  <Border Background="Transparent" Padding="8">
@@ -287,20 +288,20 @@
              </Border.IsVisible>
              <StackPanel>
                 <StackPanel HorizontalAlignment="Left">
-                    <TextBlock Text="Demo: Steam Status" Classes="demo-title"/>
-                    <TextBlock Text="Visual indicator state." Classes="demo-subtitle"/>
+                    <TextBlock Text="{localization:Localize Info.Demo.Steam.Title}" Classes="demo-title"/>
+                    <TextBlock Text="{localization:Localize Info.Demo.Steam.Subtitle}" Classes="demo-subtitle"/>
                 </StackPanel>
 
                 <Border Classes="demo-container">
                     <StackPanel HorizontalAlignment="Center" Spacing="20">
-                        <TextBlock Text="Click the highlighted Steam icon to toggle integration."
+                        <TextBlock Text="{localization:Localize Info.Demo.Steam.Hint}"
                                    FontSize="13" Foreground="#666666" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
 
                         <Viewbox Stretch="Uniform" MaxHeight="400">
                              <local:GameProfileCardView DataContext="{Binding DemoSteamProfile}" Width="300" Height="400"/>
                         </Viewbox>
 
-                         <TextBlock Text="(Icon turns Blue when Active)" Foreground="#00CCFF" FontSize="12" HorizontalAlignment="Center"/>
+                         <TextBlock Text="{localization:Localize Info.Demo.Steam.ActiveIndicator}" Foreground="#00CCFF" FontSize="12" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -316,9 +317,9 @@
                 <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="Auto,*">
                         <material:MaterialIcon Grid.Column="0" Kind="CloudDownload" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
-                        <TextBlock Grid.Column="1" Text="Automatic Updates" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <TextBlock Grid.Column="1" Text="{localization:Localize Info.Demo.AppUpdate.AutoTitle}" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     </Grid>
-                    <TextBlock Text="GenHub uses the Velopack engine for seamless background updates. Use this notification bar to manage official releases."
+                    <TextBlock Text="{localization:Localize Info.Demo.AppUpdate.AutoSubtitle}"
                                Classes="demo-subtitle"/>
                 </StackPanel>
 
@@ -327,7 +328,7 @@
                     <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource CardBackground}" ClipToBounds="True" MaxWidth="600">
                         <update:UpdateNotificationView DataContext="{Binding DemoUpdateNotification}"/>
                     </Border>
-                    <TextBlock Text="Try clicking 'Browse Builds' to see experimental developer versions!"
+                    <TextBlock Text="{localization:Localize Info.Demo.AppUpdate.BrowseHint}"
                                FontSize="12" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center"/>
                   </StackPanel>
                 </Border>
@@ -338,14 +339,14 @@
                 <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="Auto,*">
                         <material:MaterialIcon Grid.Column="0" Kind="Github" Width="24" Height="24" Foreground="{DynamicResource SystemAccentColorBrush}"/>
-                        <TextBlock Grid.Column="1" Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <TextBlock Grid.Column="1" Text="{localization:Localize Info.Demo.AppUpdate.CiTitle}" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     </Grid>
-                    <TextBlock Text="Subscribe to pull requests or specific branches to test new features before they are merged."
+                    <TextBlock Text="{localization:Localize Info.Demo.AppUpdate.CiSubtitle}"
                                Classes="demo-subtitle"/>
 
                     <!-- Detailed explanations (PAT & CI) -->
                     <StackPanel Margin="0,12,0,0" Spacing="15">
-                        <TextBlock Text="CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token."
+                        <TextBlock Text="{localization:Localize Info.Demo.AppUpdate.CiDesc}"
                                    FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="1000"/>
 
                         <Border Classes="demo-container" Margin="0,10,0,0">
@@ -354,7 +355,7 @@
                                 <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
                                      <StackPanel Orientation="Horizontal" Spacing="12">
                                         <TextBlock Text="🔑" FontSize="20" VerticalAlignment="Center" />
-                                        <TextBlock Text="GitHub Personal Access Token"
+                                        <TextBlock Text="{localization:Localize Info.Demo.AppUpdate.PatTitle}"
                                                    FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
                                      </StackPanel>
 
@@ -378,7 +379,7 @@
                                                      Height="40"
                                                      Margin="0,0,12,0"/>
                                             <Button Grid.Column="1"
-                                                    Content="Save &amp; Test"
+                                                    Content="{localization:Localize Info.Demo.AppUpdate.PatSaveTest}"
                                                     Command="{Binding TestPatCommand}"
                                                     Background="{DynamicResource SystemAccentColorBrush}"
                                                     Foreground="White"
@@ -387,7 +388,7 @@
                                                     FontWeight="SemiBold"
                                                     CornerRadius="4" />
                                          </Grid>
-                                         <TextBlock Text="Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!"
+                                         <TextBlock Text="{localization:Localize Info.Demo.AppUpdate.PatHint}"
                                                    FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Left" Margin="2,0,0,0" />
                                      </StackPanel>
                                 </StackPanel>
@@ -406,13 +407,13 @@
         <Border IsVisible="{Binding IsGameSettingsSelected}" Margin="0,0,0,50">
           <StackPanel>
              <StackPanel HorizontalAlignment="Left" Spacing="8">
-                <TextBlock Text="Demo: Options.ini Configuration" Classes="demo-title"/>
-                <TextBlock Text="Modifying profile-specific game settings." Classes="demo-subtitle"/>
+                <TextBlock Text="{localization:Localize Info.Demo.GameSettings.Title}" Classes="demo-title"/>
+                <TextBlock Text="{localization:Localize Info.Demo.GameSettings.Subtitle}" Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="{localization:Localize Info.Demo.GameSettings.ResizeTip}"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
@@ -468,7 +469,7 @@
                     </Grid>
                   </Viewbox>
 
-                  <TextBlock Text="Try toggling custom resolution or clicking the browse buttons!"
+                  <TextBlock Text="{localization:Localize Info.Demo.GameSettings.InteractiveHint}"
                              FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
                </StackPanel>
             </Border>
@@ -481,19 +482,19 @@
         <Border IsVisible="{Binding IsGameProfileContentSelected}" Margin="0,0,0,50">
           <StackPanel Spacing="20">
              <StackPanel HorizontalAlignment="Left" Spacing="8">
-                <TextBlock Text="Demo: Content Selection" Classes="demo-title"/>
-                <TextBlock Text="Assigning Mods and Maps to a profile." Classes="demo-subtitle"/>
+                <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Title}" Classes="demo-title"/>
+                <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Subtitle}" Classes="demo-subtitle"/>
 
                 <!-- Detailed explanations -->
                 <StackPanel Margin="0,12,0,0" Spacing="6">
-                    <TextBlock Text="The Content Editor is where you construct the 'Playlist' of content for a specific profile."
+                    <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Desc}"
                                FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="900"/>
                 </StackPanel>
             </StackPanel>
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="{localization:Localize Info.Demo.GameSettings.ResizeTip}"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
@@ -549,7 +550,7 @@
                     </Grid>
                   </Viewbox>
 
-                  <TextBlock Text="Try toggling mods, reordering content, or clicking Add Local!"
+                  <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Hint}"
                              FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
                </StackPanel>
             </Border>
@@ -566,8 +567,8 @@
                 <StackPanel Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
-                        <TextBlock Text="Replay Manager" Classes="demo-title"/>
-                        <TextBlock Text="Manage local replay files." Classes="demo-subtitle"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.ReplayManager.Title}" Classes="demo-title"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.ReplayManager.Subtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
                     <!-- Interactive Demo -->
@@ -586,8 +587,8 @@
                 <StackPanel Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
-                        <TextBlock Text="Map Manager" Classes="demo-title"/>
-                        <TextBlock Text="Manage map directories." Classes="demo-subtitle"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.MapManager.Title}" Classes="demo-title"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.MapManager.Subtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
                     <!-- Interactive Demo -->
@@ -611,8 +612,8 @@
         <Border IsVisible="{Binding IsScanForGamesSelected}" Margin="0,0,0,50">
           <StackPanel>
             <StackPanel HorizontalAlignment="Left">
-                <TextBlock Text="Scan Wizard" Classes="demo-title"/>
-                <TextBlock Text="Automatic detection and library management." Classes="demo-subtitle"/>
+                <TextBlock Text="{localization:Localize Info.Demo.ScanWizard.Title}" Classes="demo-title"/>
+                <TextBlock Text="{localization:Localize Info.Demo.ScanWizard.Subtitle}" Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
@@ -629,8 +630,8 @@
         <Border IsVisible="{Binding IsLocalContentSelected}" Margin="0,0,0,50">
              <StackPanel Spacing="18">
                 <StackPanel HorizontalAlignment="Left" Spacing="6">
-                    <TextBlock Text="Interactive Demo: Add Local Content" Classes="demo-title"/>
-                    <TextBlock Text="Explore real use cases: mods with .big archives and maps, custom engine builds, modding tools with executable selection, and standalone editors." Classes="demo-subtitle"/>
+                    <TextBlock Text="{localization:Localize Info.Demo.AddLocal.Title}" Classes="demo-title"/>
+                    <TextBlock Text="{localization:Localize Info.Demo.AddLocal.Subtitle}" Classes="demo-subtitle"/>
                 </StackPanel>
 
                 <!-- Demo Presets Switcher Bar -->
@@ -642,28 +643,28 @@
                     <Grid ColumnDefinitions="Auto,*">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,14,0">
                             <material:MaterialIcon Kind="TuneVariant" Width="18" Height="18" Foreground="{DynamicResource AccentLightBrush}"/>
-                            <TextBlock Text="Real Use Cases:" FontWeight="SemiBold" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.AddLocal.RealUseCases}" FontWeight="SemiBold" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
                         </StackPanel>
                         <WrapPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal">
-                            <Button Content="Mod (.BIG Archives &amp; Assets)"
+                            <Button Content="{localization:Localize Info.Demo.AddLocal.PresetMod}"
                                     Command="{Binding DemoAddLocalContent.LoadModPresetCommand}"
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsModPresetActive}"
                                     Classes="preset-btn"
                                     Margin="0,0,8,0"
                                     ToolTip.Tip="ShockWave mod package with .big archives, INIs, and maps. No executable needed."/>
-                            <Button Content="Game Client (TheSuperHackers)"
+                            <Button Content="{localization:Localize Info.Demo.AddLocal.PresetClient}"
                                     Command="{Binding DemoAddLocalContent.LoadGameClientPresetCommand}"
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsGameClientPresetActive}"
                                     Classes="preset-btn"
                                     Margin="0,0,8,0"
                                     ToolTip.Tip="Custom engine client build with generals.exe marked as the game binary."/>
-                            <Button Content="Modding Tool (GenHotkeys)"
+                            <Button Content="{localization:Localize Info.Demo.AddLocal.PresetTool}"
                                     Command="{Binding DemoAddLocalContent.LoadModdingToolPresetCommand}"
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsModdingToolPresetActive}"
                                     Classes="preset-btn"
                                     Margin="0,0,8,0"
                                     ToolTip.Tip="Modding utility showing interactive executable selection in the preview tree."/>
-                            <Button Content="Executable (WorldBuilder)"
+                            <Button Content="{localization:Localize Info.Demo.AddLocal.PresetExe}"
                                     Command="{Binding DemoAddLocalContent.LoadExecutablePresetCommand}"
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsExecutablePresetActive}"
                                     Classes="preset-btn"
@@ -700,7 +701,7 @@
                                         <!-- Window Title -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <material:MaterialIcon Kind="PlusCircleOutline" Width="14" Height="14" Foreground="{DynamicResource TextSecondary}"/>
-                                            <TextBlock Text="Add Local Content"
+                                            <TextBlock Text="{localization:Localize Info.Demo.AddLocal.WindowTitle}"
                                                        Foreground="{DynamicResource TextSecondary}"
                                                        FontSize="12"
                                                        FontWeight="SemiBold"/>
@@ -708,7 +709,7 @@
 
                                         <!-- Subtitle Hint -->
                                         <TextBlock Grid.Column="2"
-                                                   Text="Interactive Preview"
+                                                   Text="{localization:Localize Info.Demo.AddLocal.WindowHint}"
                                                    Foreground="{DynamicResource TextMuted}"
                                                    FontSize="11"
                                                    VerticalAlignment="Center"/>
@@ -746,8 +747,8 @@
         <Border IsVisible="{Binding IsWorkspaceSelected}" Margin="0,0,0,50">
           <StackPanel>
             <StackPanel HorizontalAlignment="Left">
-                <TextBlock Text="Workspace Simulator" Classes="demo-title"/>
-                <TextBlock Text="Visualizes virtual file system construction via symlinks." Classes="demo-subtitle"/>
+                <TextBlock Text="{localization:Localize Info.Demo.Workspace.Title}" Classes="demo-title"/>
+                <TextBlock Text="{localization:Localize Info.Demo.Workspace.Subtitle}" Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
@@ -821,7 +822,7 @@
                               Padding="20"
                               Margin="0,0,0,24">
                         <StackPanel>
-                            <TextBlock Text="DETAILED GUIDE" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,12"/>
+                            <TextBlock Text="{localization:Localize Info.Card.DetailedGuide}" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,12"/>
                             <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}" Classes="card-content" FontSize="14" Foreground="#BBB"/>
                         </StackPanel>
                       </Border>

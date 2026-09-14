@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
              xmlns:cv="using:GenHub.Infrastructure.Converters"
@@ -125,7 +125,13 @@
                           MinWidth="160"
                           FontSize="12"
                           Padding="8,4"
-                          CornerRadius="6"/>
+                          CornerRadius="6">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Converter={StaticResource LocalizedUpdateSortOptionConverter}}" Foreground="{DynamicResource TextPrimary}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
             </StackPanel>
         </Grid>
 

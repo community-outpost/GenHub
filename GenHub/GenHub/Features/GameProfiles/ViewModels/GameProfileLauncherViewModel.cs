@@ -153,6 +153,8 @@ public partial class GameProfileLauncherViewModel(
                     });
 
                 gameProcessManager.ProcessExited += OnProcessExited;
+                localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+                localizationService.PropertyChanged += OnLocalizationPropertyChanged;
             }
 
             StatusMessage = localizationService["GameProfiles.Status.LoadingProfiles"];
@@ -224,6 +226,15 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService["GameProfiles.Status.ErrorLoadingProfiles"];
             ErrorMessage = ex.Message;
             IsServiceAvailable = false;
+        }
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
+        {
+            var profileCount = Math.Max(0, Profiles.Count - 1);
+            StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
         }
     }
 

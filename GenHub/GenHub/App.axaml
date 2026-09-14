@@ -18,6 +18,9 @@
             <local:EqualityConverter x:Key="EqualityConverter" />
             <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
             <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
+            <local:LocalizedToolNameConverter x:Key="LocalizedToolNameConverter" />
+            <local:LocalizedUpdateSortOptionConverter x:Key="LocalizedUpdateSortOptionConverter" />
+            <local:LocalizedInfoModuleNameConverter x:Key="LocalizedInfoModuleNameConverter" />
         </ResourceDictionary>
     </Application.Resources>
 

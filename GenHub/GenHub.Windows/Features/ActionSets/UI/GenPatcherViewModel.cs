@@ -1,8 +1,9 @@
-namespace GenHub.Windows.Features.ActionSets.UI;
+﻿namespace GenHub.Windows.Features.ActionSets.UI;
 
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,7 +31,8 @@ public partial class GenPatcherViewModel(
     IRegistryService registryService,
     INotificationService notificationService,
     IDialogService dialogService,
-    ILogger<GenPatcherViewModel> logger) : ObservableObject
+    ILogger<GenPatcherViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     [ObservableProperty]
     private ObservableCollection<GameInstallation> availableInstallations = [];
@@ -86,6 +88,31 @@ public partial class GenPatcherViewModel(
     [ObservableProperty]
     private int qolCategoryCount;
 
+    /// <summary>
+    /// Gets the localized text for All category chip.
+    /// </summary>
+    public string AllCategoryText => localizationService?.GetString("Tools.GenPatcher.Category.AllCount", AllCategoryCount) ?? $"All ({AllCategoryCount})";
+
+    /// <summary>
+    /// Gets the localized text for Core &amp; Stability category chip.
+    /// </summary>
+    public string CoreCategoryText => localizationService?.GetString("Tools.GenPatcher.Category.CoreCount", CoreCategoryCount) ?? $"Core & Stability ({CoreCategoryCount})";
+
+    /// <summary>
+    /// Gets the localized text for Compatibility category chip.
+    /// </summary>
+    public string CompatibilityCategoryText => localizationService?.GetString("Tools.GenPatcher.Category.CompatibilityCount", CompatibilityCategoryCount) ?? $"Compatibility ({CompatibilityCategoryCount})";
+
+    /// <summary>
+    /// Gets the localized text for Multiplayer category chip.
+    /// </summary>
+    public string MultiplayerCategoryText => localizationService?.GetString("Tools.GenPatcher.Category.MultiplayerCount", MultiplayerCategoryCount) ?? $"Multiplayer ({MultiplayerCategoryCount})";
+
+    /// <summary>
+    /// Gets the localized text for Quality of Life category chip.
+    /// </summary>
+    public string QolCategoryText => localizationService?.GetString("Tools.GenPatcher.Category.QolCount", QolCategoryCount) ?? $"Quality of Life ({QolCategoryCount})";
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ApplyAllFixesCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelBatchApplyCommand))]
@@ -109,6 +136,12 @@ public partial class GenPatcherViewModel(
     {
         logger.LogInformation("[GENPATCHER_INIT_001] GenPatcher tool opened by user");
 
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+            localizationService.PropertyChanged += OnLocalizationChanged;
+        }
+
         var isAdmin = await Task.Run(() => registryService.IsRunningAsAdministrator(), CancellationToken.None);
         var osVersion = Environment.OSVersion.VersionString;
         var dotnetVersion = Environment.Version.ToString();
@@ -123,11 +156,20 @@ public partial class GenPatcherViewModel(
         {
             logger.LogWarning("GenPatcher running without administrator privileges - some fixes may fail");
             notificationService.ShowWarning(
-                "Administrator Rights Required",
-                "Please restart GenHub as Administrator to ensure GenPatcher can apply registry-based fixes.");
+                localizationService?.GetString("Tools.GenPatcher.Notify.AdminRequired") ?? "Administrator Rights Required",
+                localizationService?.GetString("Tools.GenPatcher.Notify.AdminRequiredDesc") ?? "Please restart GenHub as Administrator to ensure GenPatcher can apply registry-based fixes.");
         }
 
         await LoadFixesCommand.ExecuteAsync(null);
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        UpdateMetrics();
+        foreach (var vm in ActionSets)
+        {
+            vm.NotifyLocalizationChanged();
+        }
     }
 
     private static bool MatchesCategory(ActionSetViewModel vm, string category) =>
@@ -188,7 +230,9 @@ public partial class GenPatcherViewModel(
         {
             logger.LogInformation("User cancelled batch fix application");
             _batchCts.Cancel();
-            notificationService.ShowWarning("Cancelling", "Cancelling batch application after the current fix completes...");
+            notificationService.ShowWarning(
+                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingTitle") ?? "Cancelling",
+                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingDesc") ?? "Cancelling batch application after the current fix completes...");
         }
     }
 
@@ -247,8 +291,8 @@ public partial class GenPatcherViewModel(
         {
             logger.LogInformation("[GENPATCHER_LOAD_002] Detecting game installations...");
             notificationService.ShowInfo(
-                "Loading GenPatcher",
-                "Detecting game installations and loading available fixes...");
+                localizationService?.GetString("Tools.GenPatcher.Notify.LoadingTitle") ?? "Loading GenPatcher",
+                localizationService?.GetString("Tools.GenPatcher.Notify.LoadingDesc") ?? "Detecting game installations and loading available fixes...");
 
             var result = await Task.Run(() => installationDetector.DetectInstallationsAsync(CancellationToken.None), CancellationToken.None);
             if (!result.Success)
@@ -256,8 +300,8 @@ public partial class GenPatcherViewModel(
                 var errorSummary = result.Errors.Count > 0 ? string.Join("; ", result.Errors) : "Installation detection failed.";
                 logger.LogError("[GENPATCHER_LOAD_003] Failed to detect game installations: {Error}", errorSummary);
                 notificationService.ShowError(
-                    "Detection Failed",
-                    $"Failed to detect game installations: {errorSummary}");
+                    localizationService?.GetString("Tools.GenPatcher.Notify.DetectionFailedTitle") ?? "Detection Failed",
+                    localizationService?.GetString("Tools.GenPatcher.Notify.DetectionFailedDesc", errorSummary) ?? $"Failed to detect game installations: {errorSummary}");
                 return;
             }
 
@@ -288,8 +332,8 @@ public partial class GenPatcherViewModel(
             {
                 logger.LogError("[GENPATCHER_LOAD_003] No valid game installation found for GenPatcher");
                 notificationService.ShowError(
-                    "No Game Installation Found",
-                    "Please ensure Command & Conquer Generals or Zero Hour is installed.");
+                    localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallFoundTitle") ?? "No Game Installation Found",
+                    localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallFoundDesc") ?? "Please ensure Command & Conquer Generals or Zero Hour is installed.");
                 return;
             }
 
@@ -306,8 +350,8 @@ public partial class GenPatcherViewModel(
         {
             logger.LogError(ex, "[GENPATCHER_LOAD_004] Failed to load fixes");
             notificationService.ShowError(
-                "Failed to Load Fixes",
-                $"An error occurred while loading fixes: {ex.Message}");
+                localizationService?.GetString("Tools.GenPatcher.Notify.LoadFixesFailedTitle") ?? "Failed to Load Fixes",
+                localizationService?.GetString("Tools.GenPatcher.Notify.LoadFixesFailedDesc", ex.Message) ?? $"An error occurred while loading fixes: {ex.Message}");
         }
     }
 
@@ -397,8 +441,8 @@ public partial class GenPatcherViewModel(
         {
             logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
             notificationService.ShowError(
-                "Failed to Load Fixes",
-                $"An error occurred while loading fixes: {ex.Message}");
+                localizationService?.GetString("Tools.GenPatcher.Notify.LoadFixesFailedTitle") ?? "Failed to Load Fixes",
+                localizationService?.GetString("Tools.GenPatcher.Notify.LoadFixesFailedDesc", ex.Message) ?? $"An error occurred while loading fixes: {ex.Message}");
         }
         else
         {
@@ -423,7 +467,8 @@ public partial class GenPatcherViewModel(
                     logger,
                     () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
                     () => Avalonia.Threading.Dispatcher.UIThread.Post(NotifyExecutionStateChanged),
-                    () => IsBatchApplying || ActionSets.Any(x => !string.Equals(x.ActionSet.Id, fix.Id, StringComparison.OrdinalIgnoreCase) && x.IsApplying))
+                    () => IsBatchApplying || ActionSets.Any(x => !string.Equals(x.ActionSet.Id, fix.Id, StringComparison.OrdinalIgnoreCase) && x.IsApplying),
+                    localizationService)
                 {
                     IsBatchApplying = IsBatchApplying,
                 };
@@ -459,8 +504,8 @@ public partial class GenPatcherViewModel(
             notApplicableCount);
 
         notificationService.ShowSuccess(
-            "GenPatcher Loaded",
-            $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
+            localizationService?.GetString("Tools.GenPatcher.Notify.LoadedTitle") ?? "GenPatcher Loaded",
+            localizationService?.GetString("Tools.GenPatcher.Notify.LoadedDesc", ActionSets.Count, installation.InstallationType) ?? $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
     }
 
     private bool CanExecuteApplyAllFixes() => !IsBatchApplying && SelectedInstallation != null && ActionSets.All(x => !x.IsApplying);
@@ -486,7 +531,9 @@ public partial class GenPatcherViewModel(
         if (SelectedInstallation == null)
         {
             logger.LogError("[GENPATCHER_APPLY_004] Cannot apply fixes - no installation selected");
-            notificationService.ShowError("No Installation Selected", "Please select a game installation before applying fixes.");
+            notificationService.ShowError(
+                localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallSelectedTitle") ?? "No Installation Selected",
+                localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallSelectedDesc") ?? "Please select a game installation before applying fixes.");
             return;
         }
 
@@ -496,7 +543,7 @@ public partial class GenPatcherViewModel(
         {
             logger.LogWarning("[GENPATCHER_APPLY_005] Apply batch rejected - not running as administrator");
             notificationService.ShowError(
-                "Administrator Rights Required",
+                localizationService?.GetString("Tools.GenPatcher.Notify.AdminRequired") ?? "Administrator Rights Required",
                 "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator.");
             return;
         }
@@ -534,8 +581,8 @@ public partial class GenPatcherViewModel(
 
                 logger.LogInformation("No fixes to apply - {Applied}/{Total} already applied", alreadyApplied, totalSets);
                 notificationService.ShowInfo(
-                    "No Fixes to Apply",
-                    $"All {alreadyApplied}/{totalSets} applicable fixes are already applied for {targetInstallation.InstallationType}.");
+                    localizationService?.GetString("Tools.GenPatcher.Notify.NoFixesToApplyTitle") ?? "No Fixes to Apply",
+                    localizationService?.GetString("Tools.GenPatcher.Notify.NoFixesToApplyDesc", alreadyApplied, totalSets, targetInstallation.InstallationType) ?? $"All {alreadyApplied}/{totalSets} applicable fixes are already applied for {targetInstallation.InstallationType}.");
                 return;
             }
 
@@ -547,8 +594,8 @@ public partial class GenPatcherViewModel(
                 string.Join(", ", applicableFixes.Select(f => f.Id)));
 
             notificationService.ShowInfo(
-                "Applying Fixes",
-                $"Applying {applicableFixes.Count} recommended fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})...");
+                localizationService?.GetString("Tools.GenPatcher.Notify.ApplyingFixesTitle") ?? "Applying Fixes",
+                localizationService?.GetString("Tools.GenPatcher.Notify.ApplyingFixesDesc", applicableFixes.Count, targetInstallation.InstallationType) ?? $"Applying {applicableFixes.Count} recommended fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})...");
 
             var startTime = DateTime.UtcNow;
             var batchResult = await orchestrator.ApplyActionSetsAsync(targetInstallation, applicableFixes, ct);
@@ -560,12 +607,16 @@ public partial class GenPatcherViewModel(
         catch (OperationCanceledException ex)
         {
             logger.LogWarning(ex, "Batch fix application was cancelled by user");
-            notificationService.ShowWarning("Batch Cancelled", "Batch fix application was cancelled.");
+            notificationService.ShowWarning(
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchCancelledTitle") ?? "Batch Cancelled",
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchCancelledDesc") ?? "Batch fix application was cancelled.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Fatal error during batch fix application");
-            notificationService.ShowError("Batch Apply Error", $"An error occurred: {ex.Message}");
+            notificationService.ShowError(
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchApplyErrorTitle") ?? "Batch Apply Error",
+                $"An error occurred: {ex.Message}");
         }
         finally
         {
@@ -624,8 +675,8 @@ public partial class GenPatcherViewModel(
                 targetInstallation.InstallationType);
 
             notificationService.ShowSuccess(
-                "All Fixes Applied Successfully",
-                $"✓ Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchSuccessTitle") ?? "All Fixes Applied Successfully",
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchSuccessDesc", successCount, targetInstallation.InstallationType) ?? $"✓ Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
         }
         else
         {
@@ -636,7 +687,7 @@ public partial class GenPatcherViewModel(
                 : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n\nErrors:\n{errorDetails}";
 
             notificationService.ShowError(
-                $"Fixes Completed with Errors ({successCount}/{totalApplicable} successful)",
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchPartialTitle") ?? $"Fixes Completed with Errors ({successCount}/{totalApplicable} successful)",
                 failureSummary);
         }
     }
@@ -695,13 +746,20 @@ public partial class GenPatcherViewModel(
             ? (double)AppliedFixesCount / ApplicableFixesCount * 100.0
             : 0.0;
 
-        ProgressSummaryText = $"{AppliedFixesCount} of {ApplicableFixesCount} applied";
+        ProgressSummaryText = localizationService?.GetString("Tools.GenPatcher.ProgressSummary", AppliedFixesCount, ApplicableFixesCount)
+            ?? $"{AppliedFixesCount} of {ApplicableFixesCount} applied";
 
         AllCategoryCount = ActionSets.Count;
         CoreCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.CoreAndStability, StringComparison.OrdinalIgnoreCase));
         CompatibilityCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Compatibility, StringComparison.OrdinalIgnoreCase));
         MultiplayerCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Multiplayer, StringComparison.OrdinalIgnoreCase));
         QolCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.QualityOfLife, StringComparison.OrdinalIgnoreCase));
+
+        OnPropertyChanged(nameof(AllCategoryText));
+        OnPropertyChanged(nameof(CoreCategoryText));
+        OnPropertyChanged(nameof(CompatibilityCategoryText));
+        OnPropertyChanged(nameof(MultiplayerCategoryText));
+        OnPropertyChanged(nameof(QolCategoryText));
     }
 
     private void SortActionSets()
