@@ -25,6 +25,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Content.Services.SuperHackers;
@@ -1190,30 +1191,40 @@ public class ProfileLauncherFacade(
         return manifestSourcePaths;
     }
 
-/// <summary>
+    /// <summary>
     /// Checks if a version string is compatible with dependency requirements.
+    /// Unparseable version strings that do not match <see cref="ContentDependency.CompatibleVersions"/>
+    /// intentionally fail numeric min/max range checks by design.
     /// </summary>
     /// <param name="version">The version to check.</param>
     /// <param name="dependency">The dependency with version requirements.</param>
     /// <returns>True if compatible, false otherwise.</returns>
     private bool IsVersionCompatible(string version, ContentDependency dependency)
     {
-        // If compatible versions list is specified, check exact match
-        if (dependency.CompatibleVersions.Count > 0)
+        // If compatible versions list is specified, check exact match or numeric equivalence
+        if (dependency.CompatibleVersions is { Count: > 0 })
         {
-            return dependency.CompatibleVersions.Contains(version, StringComparer.OrdinalIgnoreCase);
+            return dependency.CompatibleVersions.Any(cv =>
+                string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
+                CatalogManifestIdentity.CompareVersions(cv, version) == 0);
         }
 
-        // Simple string comparison for min/max versions (semantic versioning would be better in production)
-        // For now, we use string comparison which works for versions like "1.04", "1.08", etc.
-        if (!string.IsNullOrEmpty(dependency.MinVersion) && string.Compare(version, dependency.MinVersion, StringComparison.OrdinalIgnoreCase) < 0)
+        if (!string.IsNullOrEmpty(dependency.MinVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(version, dependency.MinVersion);
+            if (dependency.MinInclusive ? comparison < 0 : comparison <= 0)
+            {
+                return false;
+            }
         }
 
-        if (!string.IsNullOrEmpty(dependency.MaxVersion) && string.Compare(version, dependency.MaxVersion, StringComparison.OrdinalIgnoreCase) > 0)
+        if (!string.IsNullOrEmpty(dependency.MaxVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(version, dependency.MaxVersion);
+            if (dependency.MaxInclusive ? comparison > 0 : comparison >= 0)
+            {
+                return false;
+            }
         }
 
         return true;
@@ -1226,7 +1237,7 @@ public class ProfileLauncherFacade(
     /// <returns>A string describing the version requirements.</returns>
     private string BuildVersionRequirementString(ContentDependency dependency)
     {
-        if (dependency.CompatibleVersions.Count > 0)
+        if (dependency.CompatibleVersions is { Count: > 0 })
         {
             return $"(version: {string.Join(" or ", dependency.CompatibleVersions)})";
         }
@@ -1234,12 +1245,14 @@ public class ProfileLauncherFacade(
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(dependency.MinVersion))
         {
-            parts.Add($"version >= {dependency.MinVersion}");
+            var op = dependency.MinInclusive ? ">=" : ">";
+            parts.Add($"version {op} {dependency.MinVersion}");
         }
 
         if (!string.IsNullOrEmpty(dependency.MaxVersion))
         {
-            parts.Add($"version <= {dependency.MaxVersion}");
+            var op = dependency.MaxInclusive ? "<=" : "<";
+            parts.Add($"version {op} {dependency.MaxVersion}");
         }
 
         return parts.Count > 0 ? $"({string.Join(" and ", parts)})" : string.Empty;
@@ -1419,11 +1432,12 @@ public class ProfileLauncherFacade(
         {
             requiredManifest = exactMatch;
         }
-        else if (!dependency.StrictPublisher)
+        else
         {
             var depIdSegments = dependency.Id.ToString().Split('.');
             if (depIdSegments.Length >= 5)
             {
+                var depPublisher = depIdSegments[2];
                 var depContentType = depIdSegments[3];
                 var depContentName = depIdSegments[4];
 
@@ -1432,10 +1446,19 @@ public class ProfileLauncherFacade(
                     var manifestIdSegments = m.Id.ToString().Split('.');
                     if (manifestIdSegments.Length >= 5)
                     {
+                        var manifestPublisher = manifestIdSegments[2];
                         var manifestContentType = manifestIdSegments[3];
                         var manifestContentName = manifestIdSegments[4];
-                        return string.Equals(manifestContentType, depContentType, StringComparison.OrdinalIgnoreCase) &&
-                               string.Equals(manifestContentName, depContentName, StringComparison.OrdinalIgnoreCase);
+
+                        var publisherMatches = !dependency.StrictPublisher ||
+                                               string.Equals(manifestPublisher, depPublisher, StringComparison.OrdinalIgnoreCase);
+
+                        var typeMatches = string.Equals(manifestContentType, depContentType, StringComparison.OrdinalIgnoreCase);
+
+                        var nameMatches = string.Equals(manifestContentName, depContentName, StringComparison.OrdinalIgnoreCase) ||
+                                          manifestContentName.StartsWith(depContentName, StringComparison.OrdinalIgnoreCase);
+
+                        return publisherMatches && typeMatches && nameMatches;
                     }
 
                     return false;
@@ -1444,9 +1467,10 @@ public class ProfileLauncherFacade(
                 if (requiredManifest != null)
                 {
                     logger.LogDebug(
-                        "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher=false)",
+                        "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher={StrictPublisher})",
                         dependency.Id,
-                        requiredManifest.Id);
+                        requiredManifest.Id,
+                        dependency.StrictPublisher);
                 }
             }
         }

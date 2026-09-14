@@ -39,6 +39,19 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = true;
+            if (!vm.IsLoadingSubscriptions)
+            {
+                _ = vm.LoadSubscriptionsCommand.ExecuteAsync(null).ContinueWith(
+                    t =>
+                    {
+                        if (t.IsFaulted && t.Exception != null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to load subscriptions: {t.Exception.GetBaseException().Message}");
+                        }
+                    },
+                    System.Threading.Tasks.TaskScheduler.Default);
+            }
+
             HookViewModel(vm);
             if (vm.SelectedSection != null)
             {
@@ -127,6 +140,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionLocalContent => "Expander_LocalContent",
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
+            SettingsConstants.SectionSubscriptions => "Expander_Subscriptions",
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };

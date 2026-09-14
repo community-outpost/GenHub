@@ -66,7 +66,7 @@
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,0,6,4"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
@@ -156,7 +156,7 @@
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
                                 <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
@@ -205,7 +205,7 @@
                                 <Button Content="Retry"
                                         Command="{Binding InitializeCommand}"
                                         Background="{DynamicResource AccentBrush}"
-                                        Foreground="White"
+                                        Foreground="{DynamicResource TextPrimary}"
                                         FontWeight="Bold"
                                         Padding="20,8"
                                         CornerRadius="8" />
@@ -494,7 +494,7 @@
 
                 <!-- Row 2: Inline Action Error Alert Banner (When catalog is loaded but an action/confirmation fails) -->
                 <Border Grid.Row="2"
-                        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        IsVisible="{Binding ShowActionError}"
                         Background="{DynamicResource CardBackground}"
                         BorderBrush="{DynamicResource ErrorBrush}"
                         BorderThickness="1"
@@ -539,7 +539,7 @@
                             Command="{Binding ConfirmCommand}"
                             IsEnabled="{Binding CanConfirm}"
                             Background="{DynamicResource AccentBrush}"
-                            Foreground="White"
+                            Foreground="{DynamicResource TextPrimary}"
                             FontWeight="Bold"
                             Padding="28,9"
                             CornerRadius="8" />

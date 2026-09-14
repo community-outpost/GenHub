@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -19,17 +20,18 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Content.Services.Catalog;
 
 /// <summary>
-/// Resolves GenHub-schema catalog items into <see cref="ContentManifest"/>s for install.
+/// Resolves a ContentSearchResult (from GenericCatalogDiscoverer) into a full ContentManifest.
 /// </summary>
-/// <remarks>
-/// Paired with <see cref="GenericCatalogDiscoverer"/> for any subscribed catalog — the modular
-/// path that avoids per-publisher resolvers. Uses <see cref="IContentManifestBuilder"/> for
-/// download, archive extraction, and CAS registration.
-/// </remarks>
-public class GenericCatalogResolver(
+public partial class GenericCatalogResolver(
     ILogger<GenericCatalogResolver> logger,
     Func<IContentManifestBuilder> manifestBuilderFactory) : IContentResolver
 {
+    private readonly record struct ManifestResolutionContext(
+        string DeclaredPublisherId,
+        string ResolvedName,
+        string? SearchResultId,
+        GameType ResolvedTargetGame);
+
     /// <inheritdoc />
     public string ResolverId => CatalogConstants.GenericCatalogResolverId;
 
@@ -42,21 +44,37 @@ public class GenericCatalogResolver(
 
         try
         {
-            if (!TryExtractCatalogMetadata(
-                discoveredItem,
-                out var release,
-                out var contentItem,
-                out var publisher,
-                out var errorMessage))
+            // Extract catalog item and release metadata
+            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.ReleaseJsonMetadataKey, out var releaseJson))
             {
-                return OperationResult<ContentManifest>.CreateFailure(errorMessage ?? "Catalog metadata extraction failed");
+                return OperationResult<ContentManifest>.CreateFailure("Missing release metadata");
+            }
+
+            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var contentItemJson))
+            {
+                return OperationResult<ContentManifest>.CreateFailure("Missing content item metadata");
+            }
+
+            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherJson))
+            {
+                return OperationResult<ContentManifest>.CreateFailure("Missing publisher profile");
+            }
+
+            // Deserialize from JSON
+            var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
+            var contentItem = JsonSerializer.Deserialize<CatalogContentItem>(contentItemJson);
+            var publisher = JsonSerializer.Deserialize<PublisherProfile>(publisherJson);
+
+            if (release == null || contentItem == null || publisher == null)
+            {
+                return OperationResult<ContentManifest>.CreateFailure("Failed to deserialize catalog metadata");
             }
 
             logger.LogInformation(
                 "Resolving content '{ContentName}' v{Version} from publisher '{PublisherId}'",
-                contentItem!.Name,
-                release!.Version,
-                publisher!.Id);
+                contentItem.Name,
+                release.Version,
+                publisher.Id);
 
             var declaredPublisherId = CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
 
@@ -103,7 +121,15 @@ public class GenericCatalogResolver(
                 contentItem,
                 primaryArtifact);
 
-            AddDependencies(builder, release, contentItem, resolvedTargetGame);
+            var dependencyError = AddDependencies(logger, builder, discoveredItem, release, contentItem, resolvedTargetGame);
+            if (dependencyError != null)
+            {
+                logger.LogWarning(
+                    "Failed to reconcile dependencies for content '{ContentName}': {Error}",
+                    contentItem.Name,
+                    dependencyError);
+                return OperationResult<ContentManifest>.CreateFailure(dependencyError);
+            }
 
             var manifest = builder.Build();
 
@@ -111,9 +137,11 @@ public class GenericCatalogResolver(
                 manifest,
                 contentItem,
                 primaryArtifact,
-                declaredPublisherId,
-                resolvedName,
-                discoveredItem.Id,
+                new ManifestResolutionContext(
+                    declaredPublisherId,
+                    resolvedName,
+                    discoveredItem.Id,
+                    resolvedTargetGame),
                 artifactHashes);
 
             logger.LogInformation(
@@ -132,49 +160,6 @@ public class GenericCatalogResolver(
             logger.LogError(ex, "Failed to resolve content from catalog");
             return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
-    }
-
-    private static bool TryExtractCatalogMetadata(
-        ContentSearchResult discoveredItem,
-        out ContentRelease? release,
-        out CatalogContentItem? contentItem,
-        out PublisherProfile? publisher,
-        out string? errorMessage)
-    {
-        release = null;
-        contentItem = null;
-        publisher = null;
-        errorMessage = null;
-
-        if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.ReleaseJsonMetadataKey, out var releaseJson))
-        {
-            errorMessage = "Missing release metadata";
-            return false;
-        }
-
-        if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var contentItemJson))
-        {
-            errorMessage = "Missing content item metadata";
-            return false;
-        }
-
-        if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherJson))
-        {
-            errorMessage = "Missing publisher profile";
-            return false;
-        }
-
-        release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
-        contentItem = JsonSerializer.Deserialize<CatalogContentItem>(contentItemJson);
-        publisher = JsonSerializer.Deserialize<PublisherProfile>(publisherJson);
-
-        if (release == null || contentItem == null || publisher == null)
-        {
-            errorMessage = "Failed to deserialize catalog metadata";
-            return false;
-        }
-
-        return true;
     }
 
     private static string ResolveManifestName(
@@ -197,20 +182,21 @@ public class GenericCatalogResolver(
         ReleaseArtifact? primaryArtifact,
         ContentSearchResult searchResult)
     {
-        if (primaryArtifact?.VariantAxis?.Equals("game-type", StringComparison.OrdinalIgnoreCase) == true)
+        if (primaryArtifact?.VariantAxis?.Equals(CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) == true)
         {
-            if (primaryArtifact.Variant?.Equals("Generals", StringComparison.OrdinalIgnoreCase) == true)
+            if (primaryArtifact.Variant?.Equals(CatalogConstants.GeneralsVariantLabel, StringComparison.OrdinalIgnoreCase) == true)
             {
                 return GameType.Generals;
             }
 
-            if (primaryArtifact.Variant?.Equals("Zero Hour", StringComparison.OrdinalIgnoreCase) == true ||
-                primaryArtifact.Variant?.Equals("ZeroHour", StringComparison.OrdinalIgnoreCase) == true)
+            if (primaryArtifact.Variant?.Equals(CatalogConstants.ZeroHourVariantLabel, StringComparison.OrdinalIgnoreCase) == true ||
+                primaryArtifact.Variant?.Equals(CatalogConstants.ZeroHourCompactVariantLabel, StringComparison.OrdinalIgnoreCase) == true)
             {
                 return GameType.ZeroHour;
             }
         }
-        else if (searchResult.TargetGame != GameType.Unknown)
+
+        if (searchResult.TargetGame != GameType.Unknown)
         {
             return searchResult.TargetGame;
         }
@@ -247,70 +233,403 @@ public class GenericCatalogResolver(
     private static string DisambiguateFilename(HashSet<string> usedFilenames, string baseFilename)
     {
         var filename = baseFilename;
-        var disambiguationIndex = 1;
+        var counter = 1;
+        var stem = Path.GetFileNameWithoutExtension(baseFilename);
+        var ext = Path.GetExtension(baseFilename);
+
         while (usedFilenames.Contains(filename))
         {
-            var nameWithoutExt = Path.GetFileNameWithoutExtension(baseFilename);
-            var ext = Path.GetExtension(baseFilename);
-            filename = $"{nameWithoutExt}_{disambiguationIndex++}{ext}";
+            filename = $"{stem}_{counter}{ext}";
+            counter++;
         }
 
         return filename;
     }
 
-    private static void AddDependencies(
+    /// <summary>
+    /// Sanitizes a filename by replacing invalid filesystem characters with underscores.
+    /// </summary>
+    /// <param name="filename">The filename to sanitize.</param>
+    /// <returns>A sanitized filename, or <see cref="CatalogConstants.DefaultDownloadFilename"/> if the input is null or whitespace.</returns>
+    private static string SanitizeFileName(string? filename)
+    {
+        if (string.IsNullOrWhiteSpace(filename))
+        {
+            return CatalogConstants.DefaultDownloadFilename;
+        }
+
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = string.Concat(filename.Select(c => invalidChars.Contains(c) ? '_' : c));
+        return string.IsNullOrWhiteSpace(sanitized) ? CatalogConstants.DefaultDownloadFilename : sanitized;
+    }
+
+    private static string? AddDependencies(
+        ILogger logger,
         IContentManifestBuilder builder,
+        ContentSearchResult discoveredItem,
         ContentRelease release,
         CatalogContentItem contentItem,
         GameType resolvedTargetGame)
     {
+        var (bundleComponents, deserializeError) = TryDeserializeBundleComponents(logger, discoveredItem, contentItem.Id);
+        if (deserializeError != null)
+        {
+            return deserializeError;
+        }
+
+        if (release.Dependencies == null || release.Dependencies.Count == 0)
+        {
+            return null;
+        }
+
         foreach (var dependency in release.Dependencies)
         {
             var dependencyType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, contentItem);
+            var constraint = ParseVersionConstraint(dependency.VersionConstraint);
 
-            if (dependencyType == ContentType.GameInstallation)
+            if (dependencyType == ContentType.GameInstallation ||
+                CatalogManifestIdentity.IsBaseGameDependency(dependency))
             {
-                var isGenerals = dependency.ContentId.Equals("generals", StringComparison.OrdinalIgnoreCase) ||
-                                 resolvedTargetGame == GameType.Generals;
-                var foundation = isGenerals &&
-                                 !dependency.ContentId.Equals("zerohour", StringComparison.OrdinalIgnoreCase)
-                    ? BaseDependencyBuilder.CreateGenerals108Dependency()
-                    : BaseDependencyBuilder.CreateZeroHour104Dependency();
+                var error = AddBaseGameDependency(
+                    builder,
+                    dependency,
+                    resolvedTargetGame,
+                    constraint);
 
-                builder.AddDependency(
-                    id: foundation.Id,
-                    name: foundation.Name,
-                    dependencyType: ContentType.GameInstallation,
-                    installBehavior: DependencyInstallBehavior.RequireExisting,
-                    minVersion: dependency.VersionConstraint ?? foundation.MinVersion ?? string.Empty,
-                    compatibleGameTypes: foundation.CompatibleGameTypes);
+                if (error != null)
+                {
+                    return error;
+                }
+
                 continue;
             }
 
-            var dependencyId = CatalogManifestIdentity.CreateContentId(
-                dependency.PublisherId,
+            var catError = AddCatalogDependency(
+                builder,
+                dependency,
                 dependencyType,
-                dependency.ContentId,
-                dependency.VersionConstraint);
+                contentItem,
+                bundleComponents,
+                constraint,
+                logger);
 
-            var installBehavior = DependencyInstallBehavior.RequireExisting;
-            if (dependency.IsOptional)
+            if (catError != null)
             {
-                installBehavior = DependencyInstallBehavior.Optional;
+                return catError;
             }
-            else if (contentItem.ContentType == ContentType.ContentBundle)
+        }
+
+        return null;
+    }
+
+    private static (List<CatalogBundleComponentDescriptor>? Components, string? Error) TryDeserializeBundleComponents(
+        ILogger logger,
+        ContentSearchResult discoveredItem,
+        string contentItemId)
+    {
+        if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.BundleComponentsJsonMetadataKey, out var bundleJson) ||
+            string.IsNullOrWhiteSpace(bundleJson))
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            var components = JsonSerializer.Deserialize<List<CatalogBundleComponentDescriptor>>(bundleJson);
+            if (components == null)
             {
-                installBehavior = DependencyInstallBehavior.AutoInstall;
+                logger.LogWarning("Bundle component metadata for '{ContentId}' deserialized to null", contentItemId);
+                return (null, $"Bundle component metadata for '{contentItemId}' is invalid.");
             }
 
-            builder.AddDependency(
-                id: ManifestId.Create(dependencyId),
-                name: dependency.ContentId,
-                dependencyType: dependencyType,
-                installBehavior: installBehavior,
-                minVersion: dependency.VersionConstraint ?? string.Empty);
+            return (components, null);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to deserialize bundle component metadata for '{ContentId}'", contentItemId);
+            return (null, $"Bundle component metadata for '{contentItemId}' is invalid: {ex.Message}");
         }
     }
+
+    private static string? AddBaseGameDependency(
+        IContentManifestBuilder builder,
+        CatalogDependency dependency,
+        GameType resolvedTargetGame,
+        ParsedVersionConstraint constraint)
+    {
+        var isGenerals = dependency.ContentId.Equals(CatalogConstants.GeneralsContentId, StringComparison.OrdinalIgnoreCase) ||
+                         resolvedTargetGame == GameType.Generals;
+        var foundation = isGenerals &&
+                         !dependency.ContentId.Equals(CatalogConstants.ZeroHourContentId, StringComparison.OrdinalIgnoreCase)
+            ? BaseDependencyBuilder.CreateGenerals108Dependency()
+            : BaseDependencyBuilder.CreateZeroHour104Dependency();
+
+        var foundationMin = foundation.MinVersion ?? string.Empty;
+
+        var (compatibleError, effectiveCompatibleVersions) = ReconcileCompatibleVersionsFloor(
+            dependency.ContentId,
+            foundationMin,
+            constraint.CompatibleVersions);
+
+        if (compatibleError != null)
+        {
+            return compatibleError;
+        }
+
+        var (effectiveMinVersion, effectiveMinInclusive) = ComputeEffectiveBaseGameMinVersion(
+            foundationMin,
+            constraint);
+
+        var isReconciled = !string.Equals(effectiveMinVersion, constraint.MinVersion, StringComparison.OrdinalIgnoreCase) ||
+                           effectiveMinInclusive != constraint.MinInclusive;
+
+        var boundsError = ValidateVersionBounds(
+            dependency.ContentId,
+            effectiveMinVersion,
+            constraint.MaxVersion,
+            effectiveMinInclusive,
+            constraint.MaxInclusive,
+            isReconciled: isReconciled);
+
+        if (boundsError != null)
+        {
+            return boundsError;
+        }
+
+        builder.AddDependency(
+            id: foundation.Id,
+            name: foundation.Name,
+            dependencyType: ContentType.GameInstallation,
+            installBehavior: DependencyInstallBehavior.RequireExisting,
+            minVersion: effectiveMinVersion,
+            maxVersion: constraint.MaxVersion,
+            compatibleVersions: effectiveCompatibleVersions,
+            isExclusive: false,
+            conflictsWith: null,
+            compatibleGameTypes: foundation.CompatibleGameTypes,
+            minInclusive: effectiveMinInclusive,
+            maxInclusive: constraint.MaxInclusive);
+
+        return null;
+    }
+
+    private static (string? Error, List<string>? ReconciledVersions) ReconcileCompatibleVersionsFloor(
+        string contentId,
+        string foundationMin,
+        List<string>? compatibleVersions)
+    {
+        if (compatibleVersions is not { Count: > 0 } || string.IsNullOrEmpty(foundationMin))
+        {
+            return (null, compatibleVersions);
+        }
+
+        var filtered = compatibleVersions
+            .Where(v => CatalogManifestIdentity.CompareVersions(v, foundationMin) >= 0)
+            .ToList();
+
+        if (filtered.Count == 0)
+        {
+            return (
+                $"Dependency '{contentId}' has unsatisfiable version bounds after reconciliation: all compatible versions are below the minimum foundation floor '{foundationMin}'.",
+                null);
+        }
+
+        return (null, filtered);
+    }
+
+    private static (string EffectiveMinVersion, bool EffectiveMinInclusive) ComputeEffectiveBaseGameMinVersion(
+        string foundationMinVersion,
+        ParsedVersionConstraint constraint)
+    {
+        var effectiveMinVersion = foundationMinVersion;
+        var effectiveMinInclusive = true;
+
+        if (!string.IsNullOrEmpty(constraint.MinVersion))
+        {
+            if (string.IsNullOrEmpty(effectiveMinVersion) ||
+                CatalogManifestIdentity.CompareVersions(constraint.MinVersion, effectiveMinVersion) > 0)
+            {
+                effectiveMinVersion = constraint.MinVersion;
+                effectiveMinInclusive = constraint.MinInclusive;
+            }
+            else if (CatalogManifestIdentity.CompareVersions(constraint.MinVersion, effectiveMinVersion) == 0)
+            {
+                effectiveMinInclusive = constraint.MinInclusive;
+            }
+        }
+        else if (constraint.CompatibleVersions is { Count: > 0 })
+        {
+            effectiveMinVersion = string.Empty;
+        }
+
+        return (effectiveMinVersion, effectiveMinInclusive);
+    }
+
+    private static string? ValidateVersionBounds(
+        string contentId,
+        string minVersion,
+        string maxVersion,
+        bool minInclusive,
+        bool maxInclusive,
+        bool isReconciled = false)
+    {
+        if (string.IsNullOrEmpty(minVersion) || string.IsNullOrEmpty(maxVersion))
+        {
+            return null;
+        }
+
+        var comparison = CatalogManifestIdentity.CompareVersions(maxVersion, minVersion);
+        var context = isReconciled ? " after reconciliation" : string.Empty;
+
+        if (comparison < 0)
+        {
+            return $"Dependency '{contentId}' has unsatisfiable version bounds{context}: min '{minVersion}' > max '{maxVersion}'.";
+        }
+
+        if (comparison == 0 && (!minInclusive || !maxInclusive))
+        {
+            return $"Dependency '{contentId}' has unsatisfiable version bounds{context}: min '{minVersion}' and max '{maxVersion}' produce an empty range.";
+        }
+
+        return null;
+    }
+
+    private static string? AddCatalogDependency(
+        IContentManifestBuilder builder,
+        CatalogDependency dependency,
+        ContentType initialDependencyType,
+        CatalogContentItem contentItem,
+        List<CatalogBundleComponentDescriptor>? bundleComponents,
+        ParsedVersionConstraint constraint,
+        ILogger logger)
+    {
+        var (depPublisherId, depVersion, dependencyType) = ResolveDependencyIdentity(dependency, initialDependencyType, contentItem, bundleComponents, logger);
+
+        if (string.IsNullOrWhiteSpace(depPublisherId))
+        {
+            return $"Dependency '{dependency.ContentId}' has no publisher specified and host publisher could not be determined";
+        }
+
+        var matchedComponent = bundleComponents?.FirstOrDefault(c =>
+            string.Equals(c.ContentId, dependency.ContentId, StringComparison.OrdinalIgnoreCase));
+        var defaultVariant = matchedComponent?.Variants.FirstOrDefault(v => v.IsDefault) ?? matchedComponent?.Variants.FirstOrDefault();
+
+        var dependencyId = defaultVariant != null && !string.IsNullOrWhiteSpace(defaultVariant.CatalogId)
+            ? defaultVariant.CatalogId
+            : CatalogManifestIdentity.CreateContentId(
+                depPublisherId,
+                dependencyType,
+                dependency.ContentId,
+                depVersion);
+
+        var installBehavior = DependencyInstallBehavior.RequireExisting;
+        if (dependency.IsOptional)
+        {
+            installBehavior = DependencyInstallBehavior.Optional;
+        }
+        else if (contentItem.ContentType == ContentType.ContentBundle)
+        {
+            installBehavior = DependencyInstallBehavior.AutoInstall;
+        }
+
+        var boundsError = ValidateVersionBounds(
+            dependency.ContentId,
+            constraint.MinVersion,
+            constraint.MaxVersion,
+            constraint.MinInclusive,
+            constraint.MaxInclusive,
+            isReconciled: false);
+
+        if (boundsError != null)
+        {
+            return boundsError;
+        }
+
+        builder.AddDependency(
+            id: ManifestId.Create(dependencyId),
+            name: dependency.ContentId,
+            dependencyType: dependencyType,
+            installBehavior: installBehavior,
+            minVersion: constraint.MinVersion,
+            maxVersion: constraint.MaxVersion,
+            compatibleVersions: constraint.CompatibleVersions,
+            isExclusive: false,
+            conflictsWith: null,
+            compatibleGameTypes: null,
+            minInclusive: constraint.MinInclusive,
+            maxInclusive: constraint.MaxInclusive,
+            strictPublisher: true,
+            publisherType: depPublisherId);
+
+        return null;
+    }
+
+    private static (string PublisherId, string Version, ContentType DependencyType) ResolveDependencyIdentity(
+        CatalogDependency dependency,
+        ContentType initialDependencyType,
+        CatalogContentItem contentItem,
+        List<CatalogBundleComponentDescriptor>? bundleComponents,
+        ILogger logger)
+    {
+        var cleanConstraint = CatalogManifestIdentity.StripVersionConstraint(dependency.VersionConstraint);
+        var depPublisherId = !string.IsNullOrWhiteSpace(dependency.PublisherId)
+            ? CatalogManifestIdentity.ResolveDeclaredPublisherType(dependency.PublisherId)
+            : CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
+
+        var depVersion = cleanConstraint;
+        var dependencyType = initialDependencyType;
+
+        if (bundleComponents?.FirstOrDefault(c => string.Equals(c.ContentId, dependency.ContentId, StringComparison.OrdinalIgnoreCase)) is { } matched)
+        {
+            if (!string.IsNullOrWhiteSpace(matched.PublisherId))
+            {
+                depPublisherId = CatalogManifestIdentity.ResolveDeclaredPublisherType(matched.PublisherId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(matched.ReleaseVersion))
+            {
+                depVersion = matched.ReleaseVersion;
+            }
+
+            dependencyType = ResolveMatchedComponentType(matched, initialDependencyType, dependency.ContentId, logger);
+        }
+
+        return (depPublisherId, depVersion, dependencyType);
+    }
+
+    private static ContentType ResolveMatchedComponentType(
+        CatalogBundleComponentDescriptor matched,
+        ContentType fallbackType,
+        string contentId,
+        ILogger logger)
+    {
+        if (!string.IsNullOrWhiteSpace(matched.CatalogItemJson))
+        {
+            try
+            {
+                var sibling = JsonSerializer.Deserialize<CatalogContentItem>(matched.CatalogItemJson);
+                if (sibling != null)
+                {
+                    return sibling.ContentType;
+                }
+            }
+            catch (JsonException ex)
+            {
+                logger.LogDebug(ex, "Failed to deserialize sibling catalog item JSON for dependency '{DependencyId}'", contentId);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(matched.ContentType) &&
+            CatalogManifestIdentity.TryParseDeclaredContentType(matched.ContentType, out var matchedType))
+        {
+            return matchedType;
+        }
+
+        return fallbackType;
+    }
+
+    private static ParsedVersionConstraint ParseVersionConstraint(string? constraint) =>
+        CatalogManifestIdentity.ParseVersionConstraint(constraint);
 
     private static void ApplyFileHashes(
         ContentManifest manifest,
@@ -318,7 +637,7 @@ public class GenericCatalogResolver(
         ReleaseArtifact? primaryArtifact,
         IReadOnlyDictionary<string, string>? artifactHashes)
     {
-        if (artifactHashes?.Count > 0)
+        if (artifactHashes is { Count: > 0 })
         {
             foreach (var file in manifest.Files)
             {
@@ -339,39 +658,32 @@ public class GenericCatalogResolver(
         }
     }
 
-    private static void ApplyDependencyGameTypes(ContentManifest manifest, GameType targetGame)
-    {
-        foreach (var dep in manifest.Dependencies)
-        {
-            if (dep.DependencyType == ContentType.GameInstallation && dep.CompatibleGameTypes.Count == 0)
-            {
-                dep.CompatibleGameTypes.Add(targetGame);
-            }
-        }
-    }
-
     private static void ApplyManifestPostProcessing(
         ContentManifest manifest,
         CatalogContentItem contentItem,
         ReleaseArtifact? primaryArtifact,
-        string declaredPublisherId,
-        string resolvedName,
-        string? searchResultId,
+        ManifestResolutionContext context,
         IReadOnlyDictionary<string, string>? artifactHashes = null)
     {
         ApplyFileHashes(manifest, contentItem, primaryArtifact, artifactHashes);
 
-        if (!string.IsNullOrWhiteSpace(searchResultId) &&
-            ManifestIdValidator.IsValid(searchResultId, out _))
+        if (!string.IsNullOrWhiteSpace(context.SearchResultId) &&
+            ManifestIdValidator.IsValid(context.SearchResultId, out _))
         {
-            manifest.Id = ManifestId.Create(searchResultId);
+            manifest.Id = ManifestId.Create(context.SearchResultId);
         }
 
-        manifest.Name = resolvedName;
-        manifest.OriginalProviderName = declaredPublisherId;
-        manifest.OriginalContentId = searchResultId ?? contentItem.Id;
+        manifest.Name = context.ResolvedName;
+        manifest.OriginalProviderName = context.DeclaredPublisherId;
+        manifest.OriginalContentId = context.SearchResultId ?? contentItem.Id;
 
-        ApplyDependencyGameTypes(manifest, contentItem.TargetGame);
+        foreach (var dep in manifest.Dependencies)
+        {
+            if (dep.DependencyType == ContentType.GameInstallation && dep.CompatibleGameTypes.Count == 0)
+            {
+                dep.CompatibleGameTypes.Add(context.ResolvedTargetGame);
+            }
+        }
 
         manifest.Metadata.Description = contentItem.Description;
         manifest.Metadata.Tags = [.. contentItem.Tags];
@@ -391,19 +703,6 @@ public class GenericCatalogResolver(
         }
     }
 
-    private static string SanitizeFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            return "download.zip";
-        }
-
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
-
-        return string.IsNullOrWhiteSpace(sanitized) ? "download.zip" : sanitized;
-    }
-
     private async Task<Dictionary<string, string>> RegisterRemoteFilesAsync(
         IContentManifestBuilder builder,
         ContentRelease release,
@@ -411,7 +710,7 @@ public class GenericCatalogResolver(
         ReleaseArtifact? primaryArtifact)
     {
         var artifactHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (release.Artifacts?.Count > 0)
+        if (release.Artifacts is { Count: > 0 })
         {
             var usedFilenames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

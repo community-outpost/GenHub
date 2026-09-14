@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Manifest;
@@ -146,7 +147,9 @@ public class ManifestDiscoveryService(
     {
         foreach (var dependency in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
         {
-            if (!availableManifests.TryGetValue(dependency.Id, out ContentManifest? dependencyManifest))
+            var dependencyManifest = FindMatchingDependencyManifest(dependency, availableManifests);
+
+            if (dependencyManifest == null)
             {
                 logger.LogWarning(
                     "Missing required dependency {DependencyId} for manifest {ManifestId}",
@@ -155,10 +158,25 @@ public class ManifestDiscoveryService(
                 return false;
             }
 
+            if (dependency.CompatibleVersions is { Count: > 0 } &&
+                dependency.CompatibleVersions.All(cv =>
+                    !string.Equals(cv, dependencyManifest.Version, StringComparison.OrdinalIgnoreCase) &&
+                    CatalogManifestIdentity.CompareVersions(cv, dependencyManifest.Version) != 0))
+            {
+                logger.LogWarning(
+                    "Dependency {DependencyId} version {Version} is not in compatible versions list [{CompatibleVersions}]",
+                    dependency.Id,
+                    dependencyManifest.Version,
+                    string.Join(", ", dependency.CompatibleVersions));
+                return false;
+            }
+
             if (!IsVersionCompatible(
                 dependencyManifest.Version,
                 dependency.MinVersion ?? string.Empty,
-                dependency.MaxVersion ?? string.Empty))
+                dependency.MaxVersion ?? string.Empty,
+                dependency.MinInclusive,
+                dependency.MaxInclusive))
             {
                 logger.LogWarning(
                     "Dependency {DependencyId} version {Version} is not compatible with required range {MinVersion}-{MaxVersion}",
@@ -173,21 +191,81 @@ public class ManifestDiscoveryService(
         return true;
     }
 
+    private static ContentManifest? FindMatchingDependencyManifest(
+        ContentDependency dependency,
+        Dictionary<string, ContentManifest> availableManifests)
+    {
+        if (availableManifests.TryGetValue(dependency.Id, out var directMatch))
+        {
+            return directMatch;
+        }
+
+        var depIdSegments = dependency.Id.ToString().Split('.');
+        if (depIdSegments.Length < 5)
+        {
+            return null;
+        }
+
+        var depPublisher = depIdSegments[2];
+        var depContentType = depIdSegments[3];
+        var depContentName = depIdSegments[4];
+
+        return availableManifests.Values.FirstOrDefault(m =>
+        {
+            var mSegments = m.Id.ToString().Split('.');
+            if (mSegments.Length < 5)
+            {
+                return false;
+            }
+
+            var mPublisher = mSegments[2];
+            var mContentType = mSegments[3];
+            var mContentName = mSegments[4];
+
+            var publisherMatches = !dependency.StrictPublisher ||
+                                   string.Equals(mPublisher, depPublisher, StringComparison.OrdinalIgnoreCase);
+
+            var typeMatches = string.Equals(mContentType, depContentType, StringComparison.OrdinalIgnoreCase);
+
+            var nameMatches = string.Equals(mContentName, depContentName, StringComparison.OrdinalIgnoreCase) ||
+                              mContentName.StartsWith(depContentName, StringComparison.OrdinalIgnoreCase);
+
+            return publisherMatches && typeMatches && nameMatches;
+        });
+    }
+
     private static bool IsSkippableEnumerationException(Exception exception)
     {
         return exception is UnauthorizedAccessException or IOException;
     }
 
-    private static bool IsVersionCompatible(string actualVersion, string minVersion, string maxVersion)
+    /// <summary>
+    /// Checks whether an actual version satisfies min and max version constraints.
+    /// Unparseable version strings intentionally fail numeric min/max range checks by design.
+    /// </summary>
+    private static bool IsVersionCompatible(
+        string actualVersion,
+        string minVersion,
+        string maxVersion,
+        bool minInclusive = true,
+        bool maxInclusive = true)
     {
-        if (!string.IsNullOrEmpty(minVersion) && string.Compare(actualVersion, minVersion, StringComparison.OrdinalIgnoreCase) < 0)
+        if (!string.IsNullOrEmpty(minVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(actualVersion, minVersion);
+            if (minInclusive ? comparison < 0 : comparison <= 0)
+            {
+                return false;
+            }
         }
 
-        if (!string.IsNullOrEmpty(maxVersion) && string.Compare(actualVersion, maxVersion, StringComparison.OrdinalIgnoreCase) > 0)
+        if (!string.IsNullOrEmpty(maxVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(actualVersion, maxVersion);
+            if (maxInclusive ? comparison > 0 : comparison >= 0)
+            {
+                return false;
+            }
         }
 
         return true;
