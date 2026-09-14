@@ -387,50 +387,63 @@ public static class BigFilePacker
         for (var i = 0; i < entryCount; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            if (reader.Read(uintBuffer, 0, 4) < 4)
-            {
-                throw new EndOfStreamException($"Unexpected end of stream while reading offset for BIG entry {i}.");
-            }
-
-            var offset = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
-
-            if (reader.Read(uintBuffer, 0, 4) < 4)
-            {
-                throw new EndOfStreamException($"Unexpected end of stream while reading size for BIG entry {i}.");
-            }
-
-            var size = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
-
-            if (validateOffsets && (ulong)offset + size > (ulong)fs.Length)
-            {
-                throw new InvalidDataException(
-                    $"BIG entry {i} data range [{offset}..{offset + size}) exceeds archive size ({fs.Length} bytes). Archive may be corrupted or truncated.");
-            }
-
-            var nameBytes = new List<byte>(128);
-            while (true)
-            {
-                if (fs.Position >= fs.Length)
-                {
-                    throw new EndOfStreamException($"Unexpected end of stream while reading name for BIG entry {i}.");
-                }
-
-                var b = reader.ReadByte();
-                if (b == 0)
-                {
-                    break;
-                }
-
-                nameBytes.Add(b);
-            }
-
-            var relativePath = Encoding.ASCII.GetString(nameBytes.ToArray());
-
-            entries.Add(new BigArchiveEntryInfo(relativePath, offset, size));
+            entries.Add(ReadBigArchiveEntry(fs, reader, uintBuffer, i, validateOffsets));
         }
 
         return entries;
+    }
+
+    private static BigArchiveEntryInfo ReadBigArchiveEntry(
+        FileStream fs,
+        BinaryReader reader,
+        byte[] uintBuffer,
+        int entryIndex,
+        bool validateOffsets)
+    {
+        if (reader.Read(uintBuffer, 0, 4) < 4)
+        {
+            throw new EndOfStreamException($"Unexpected end of stream while reading offset for BIG entry {entryIndex}.");
+        }
+
+        var offset = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
+
+        if (reader.Read(uintBuffer, 0, 4) < 4)
+        {
+            throw new EndOfStreamException($"Unexpected end of stream while reading size for BIG entry {entryIndex}.");
+        }
+
+        var size = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
+
+        if (validateOffsets && (ulong)offset + size > (ulong)fs.Length)
+        {
+            throw new InvalidDataException(
+                $"BIG entry {entryIndex} data range [{offset}..{offset + size}) exceeds archive size ({fs.Length} bytes). Archive may be corrupted or truncated.");
+        }
+
+        var relativePath = ReadBigArchiveEntryName(fs, reader, entryIndex);
+        return new BigArchiveEntryInfo(relativePath, offset, size);
+    }
+
+    private static string ReadBigArchiveEntryName(FileStream fs, BinaryReader reader, int entryIndex)
+    {
+        var nameBytes = new List<byte>(128);
+        while (true)
+        {
+            if (fs.Position >= fs.Length)
+            {
+                throw new EndOfStreamException($"Unexpected end of stream while reading name for BIG entry {entryIndex}.");
+            }
+
+            var b = reader.ReadByte();
+            if (b == 0)
+            {
+                break;
+            }
+
+            nameBytes.Add(b);
+        }
+
+        return Encoding.ASCII.GetString(nameBytes.ToArray());
     }
 
     private static async Task<int> ExtractEntriesAsync(

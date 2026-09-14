@@ -106,34 +106,34 @@ public sealed class ArchiveService(
     {
         if (!string.IsNullOrEmpty(manifestFilePath))
         {
-            if (File.Exists(manifestFilePath))
-            {
-                try
-                {
-                    var manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
-                    if (manifest != null)
-                    {
-                        logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
-                        return manifest;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to load explicit BIG archive manifest from {Path}", manifestFilePath);
-                }
-            }
-            else
-            {
-                logger.LogWarning("Configured manifest file does not exist: {Path}", manifestFilePath);
-            }
+            return await LoadExplicitManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
+        }
 
+        return await DiscoverManifestAsync(sourceDirectory, targetBigPath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<BigArchiveManifest?> LoadExplicitManifestAsync(
+        string manifestFilePath,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(manifestFilePath))
+        {
+            logger.LogWarning("Configured manifest file does not exist: {Path}", manifestFilePath);
             return null;
         }
 
+        return await TryLoadManifestCandidateAsync(
+            manifestFilePath,
+            "Using explicit BIG archive manifest from {Path}",
+            "Failed to load explicit BIG archive manifest from {Path}",
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<BigArchiveManifest?> DiscoverManifestAsync(
+        string sourceDirectory,
+        string targetBigPath,
+        CancellationToken cancellationToken)
+    {
         var targetFileName = Path.GetFileName(targetBigPath);
         var candidateLocations = new[]
         {
@@ -145,27 +145,49 @@ public sealed class ArchiveService(
 
         foreach (var candidate in candidateLocations)
         {
-            var fullCandidate = Path.GetFullPath(candidate);
-            if (File.Exists(fullCandidate))
+            var manifest = await TryLoadManifestCandidateAsync(
+                candidate,
+                "Discovered BIG archive manifest at {Path}",
+                "Failed to load discovered BIG archive manifest at {Path}; skipping candidate",
+                cancellationToken).ConfigureAwait(false);
+
+            if (manifest != null)
             {
-                try
-                {
-                    var manifest = await BigFilePacker.LoadManifestAsync(fullCandidate, cancellationToken).ConfigureAwait(false);
-                    if (manifest != null)
-                    {
-                        logger.LogInformation("Discovered BIG archive manifest at {Path}", fullCandidate);
-                        return manifest;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to load discovered BIG archive manifest at {Path}; skipping candidate", fullCandidate);
-                }
+                return manifest;
             }
+        }
+
+        return null;
+    }
+
+    private async Task<BigArchiveManifest?> TryLoadManifestCandidateAsync(
+        string manifestPath,
+        string logSuccessMessage,
+        string logWarningMessage,
+        CancellationToken cancellationToken)
+    {
+        var fullCandidate = Path.GetFullPath(manifestPath);
+        if (!File.Exists(fullCandidate))
+        {
+            return null;
+        }
+
+        try
+        {
+            var manifest = await BigFilePacker.LoadManifestAsync(fullCandidate, cancellationToken).ConfigureAwait(false);
+            if (manifest != null)
+            {
+                logger.LogInformation(logSuccessMessage, fullCandidate);
+                return manifest;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, logWarningMessage, fullCandidate);
         }
 
         return null;
