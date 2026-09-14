@@ -1310,17 +1310,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 return;
             }
 
-            // Determine version for manifest
-            var version = baseGameClient.Version;
-            if (string.IsNullOrEmpty(version) ||
-                version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-                version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
-                version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                version = gameType == GameType.ZeroHour
-                    ? ManifestConstants.ZeroHourManifestVersion
-                    : ManifestConstants.GeneralsManifestVersion;
-            }
+            var version = GameVersionHelper.ResolveInstallationVersion(baseGameClient.Version, gameType);
 
             // Create the GameInstallation manifest
             var manifestBuilder = await manifestGenerationService.CreateGameInstallationManifestAsync(
