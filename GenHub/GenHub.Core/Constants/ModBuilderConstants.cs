@@ -681,7 +681,7 @@ public static class ModBuilderConstants
                 }
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             // Ignore path evaluation errors
         }

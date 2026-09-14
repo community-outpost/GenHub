@@ -178,4 +178,32 @@ public sealed class SampleProjectServiceTests : IDisposable
             d => d.DownloadFileAsync(It.IsAny<Uri>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<GenHub.Core.Models.Common.DownloadProgress>?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
+    [Fact]
+    public async Task EnsureSampleAssetsAsync_WhenAcquisitionFails_PreservesPreExistingUserFiles()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "GeneralsGamePatch2_UserEdits");
+        var editedDir = Path.Combine(projectDir, "GameFilesEdited");
+        Directory.CreateDirectory(editedDir);
+        var customUserFile = Path.Combine(editedDir, "CustomUserScript.txt");
+        File.WriteAllText(customUserFile, "User's valuable mod data");
+
+        _mockDownloadService
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<GenHub.Core.Models.Common.DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Simulated network download failure"));
+
+        // Act
+        var result = await _service.EnsureSampleAssetsAsync(projectDir, "GeneralsGamePatch2");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        File.Exists(customUserFile).Should().BeTrue("pre-existing user files must not be deleted on download failure");
+        File.ReadAllText(customUserFile).Should().Be("User's valuable mod data");
+    }
 }

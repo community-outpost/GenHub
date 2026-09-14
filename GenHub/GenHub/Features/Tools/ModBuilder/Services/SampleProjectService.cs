@@ -353,18 +353,15 @@ public class SampleProjectService(
         try
         {
             var currentFiles = Directory.GetFiles(gameFilesDir, "*", SearchOption.AllDirectories);
-            foreach (var file in currentFiles)
+            foreach (var file in currentFiles.Where(file => !preExistingFiles.Contains(file)))
             {
-                if (!preExistingFiles.Contains(file))
+                try
                 {
-                    try
-                    {
-                        File.Delete(file);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "Failed to delete partially acquired file {File}", file);
-                    }
+                    File.Delete(file);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to delete partially acquired file {File}", file);
                 }
             }
 
