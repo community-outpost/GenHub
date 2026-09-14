@@ -397,6 +397,24 @@ public sealed class PathHelperTests
         Assert.Equal(localPath, sanitized);
     }
 
+    /// <summary>
+    /// Verifies that IsPathInsideAppDirectory returns true for paths within the application base directory
+    /// and false for paths outside or for null/whitespace.
+    /// </summary>
+    [Fact]
+    public void IsPathInsideAppDirectory_ValidatesAppDirectoryContainment()
+    {
+        Assert.False(PathHelper.IsPathInsideAppDirectory(null));
+        Assert.False(PathHelper.IsPathInsideAppDirectory("   "));
+
+        var appBase = AppDomain.CurrentDomain.BaseDirectory;
+        Assert.True(PathHelper.IsPathInsideAppDirectory(appBase));
+        Assert.True(PathHelper.IsPathInsideAppDirectory(Path.Combine(appBase, "subfolder", "file.txt")));
+
+        var outsidePath = Path.Combine(Path.GetTempPath(), "definitely_outside_app_dir_" + Guid.NewGuid().ToString("N"));
+        Assert.False(PathHelper.IsPathInsideAppDirectory(outsidePath));
+    }
+
     private static string CreateWorkingDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "GenHubContainmentLinks", Guid.NewGuid().ToString("N"));

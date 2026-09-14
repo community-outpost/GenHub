@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using MessagePack;
@@ -34,7 +35,7 @@ public sealed class BuildCacheService(
         try
         {
             // Try MessagePack format first (.msgpack extension)
-            var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");
+            var msgpackPath = Path.ChangeExtension(cachePath, ModBuilderConstants.MsgPackExtension);
             if (File.Exists(msgpackPath))
             {
                 return await LoadMessagePackCacheAsync(msgpackPath, cancellationToken).ConfigureAwait(false);
@@ -169,7 +170,7 @@ public sealed class BuildCacheService(
             var cacheSnapshot = GetCacheSnapshot();
 
             // Save as MessagePack format (10x faster than JSON)
-            var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");
+            var msgpackPath = Path.ChangeExtension(cachePath, ModBuilderConstants.MsgPackExtension);
             await using var stream = File.Create(msgpackPath);
             await MessagePackSerializer.SerializeAsync(
                 stream,

@@ -92,4 +92,21 @@ public class FileManagerViewModelTests : IDisposable
         Assert.NotNull(viewModel.SelectedInstallation);
         Assert.NotEmpty(viewModel.FileTypeFilters);
     }
+
+    [Fact]
+    public async Task InitializeAsync_WhenCancelled_SetsCancelledStatusAndDoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var viewModel = new FileManagerViewModel(
+            _mockGameInstallService.Object,
+            _mockNotificationService.Object,
+            _mockLogger.Object);
+
+        await viewModel.InitializeAsync(_projectDir, cancellationToken: cts.Token);
+
+        Assert.Equal("File loading canceled", viewModel.StatusMessage);
+        Assert.False(viewModel.IsLoading);
+    }
 }

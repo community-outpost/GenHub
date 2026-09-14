@@ -226,9 +226,12 @@ public partial class FileManagerViewModel(
         string? gameFilesEditedDir = null,
         CancellationToken cancellationToken = default)
     {
-        await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var lockAcquired = false;
         try
         {
+            await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            lockAcquired = true;
+
             IsLoading = true;
             IsIndeterminateProgress = true;
             StatusMessage = "Initializing file manager...";
@@ -248,6 +251,11 @@ public partial class FileManagerViewModel(
 
             StatusMessage = $"Loaded {TotalFiles} project files";
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogDebug("Initialization of file manager was canceled");
+            StatusMessage = "File loading canceled";
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to initialize file manager");
@@ -256,7 +264,10 @@ public partial class FileManagerViewModel(
         finally
         {
             IsLoading = false;
-            _loadLock.Release();
+            if (lockAcquired)
+            {
+                _loadLock.Release();
+            }
         }
     }
 
@@ -520,6 +531,10 @@ public partial class FileManagerViewModel(
             return string.Equals(projectHash, gameHash, StringComparison.OrdinalIgnoreCase)
                 ? FileStatus.Unchanged
                 : FileStatus.Modified;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
