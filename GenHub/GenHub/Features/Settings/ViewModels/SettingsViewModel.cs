@@ -1575,9 +1575,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     return;
                 }
             }
-            else if (_updateManager != null)
+            else
             {
-                _ = await _updateManager.CheckForArtifactUpdatesAsync(cancellationToken);
+                PatStatusMessage = "GitHub API client not available";
+                IsPatValid = false;
+                return;
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);

@@ -92,7 +92,7 @@
                             Foreground="#CCCCCC"
                             BorderThickness="0"
                             Width="32" Height="32"
-                            AutomationProperties.Name="Close"
+                            AutomationProperties.Name="{localization:Localize Window.Close}"
                             AutomationProperties.AccessKey="Alt+F4"
                             ToolTip.Tip="{localization:Localize Common.Tooltip.CloseWindow}"
                             Click="CloseButton_Click">

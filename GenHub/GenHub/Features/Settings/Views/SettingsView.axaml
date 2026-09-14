@@ -391,7 +391,7 @@
 
               <!-- Active theme indicator -->
               <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
-                <TextBlock Text="{localization:Localize Settings.Appearance.ActiveTheme}" FontSize="12.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                <TextBlock Text="{localization:Localize Settings.Appearance.Theme.ActiveTheme}" FontSize="12.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
                 <Border Width="10" Height="10" CornerRadius="5" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding SelectedTheme.DisplayName, FallbackValue='Void Purple'}"
                            FontSize="12.5"

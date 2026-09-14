@@ -160,7 +160,7 @@
                     <Button Classes="titlebar-action-btn"
                             Classes.active="{Binding NotificationFeed.IsFeedOpen}"
                             Command="{Binding NotificationFeed.ToggleFeedCommand}"
-                            ToolTip.Tip="{localization:Localize Tooltips.Notifications}">
+                            ToolTip.Tip="{localization:Localize Navigation.Notifications}">
                         <Grid Width="26" Height="26">
                             <!-- Bell Icon -->
                             <Path Fill="{Binding $parent[Button].Foreground}"

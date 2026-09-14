@@ -136,6 +136,15 @@
     <value>Stop</value>
     <comment>Button to stop a running process</comment>
   </data>
+  <data name="Common.Checkbox.DontAskAgain" xml:space="preserve">
+    <value>Don't ask again</value>
+  </data>
+  <data name="Common.Checkbox.DontAskAgain.Tooltip" xml:space="preserve">
+    <value>Remember this choice for future updates</value>
+  </data>
+  <data name="Common.Checkbox.DontShowAgain" xml:space="preserve">
+    <value>Don't show this again</value>
+  </data>
   <data name="Common.Label.By" xml:space="preserve">
     <value>by</value>
     <comment>Author attribution label (lowercase)</comment>
@@ -143,6 +152,12 @@
   <data name="Common.Label.Version" xml:space="preserve">
     <value>version</value>
     <comment>Version label (lowercase)</comment>
+  </data>
+  <data name="Common.State.Disabled" xml:space="preserve">
+    <value>disabled</value>
+  </data>
+  <data name="Common.State.Enabled" xml:space="preserve">
+    <value>enabled</value>
   </data>
   <data name="Common.Status.Complete" xml:space="preserve">
     <value>Complete</value>
@@ -195,6 +210,42 @@
   <data name="Common.Status.Warning" xml:space="preserve">
     <value>Warning</value>
     <comment>Generic warning status</comment>
+  </data>
+  <data name="Common.Tooltip.CloseSidebar" xml:space="preserve">
+    <value>Close Sidebar</value>
+  </data>
+  <data name="Common.Tooltip.CloseWindow" xml:space="preserve">
+    <value>Close window</value>
+  </data>
+  <data name="Common.Tooltip.ExpandSidebar" xml:space="preserve">
+    <value>Expand Sidebar</value>
+  </data>
+  <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
+    <value>Maximize / Restore</value>
+  </data>
+  <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="Dialog.UpdateOption.Checkbox.DeleteOldVersions" xml:space="preserve">
+    <value>Delete superseded version files from storage</value>
+  </data>
+  <data name="Dialog.UpdateOption.Description.CreateNewProfile" xml:space="preserve">
+    <value>Creates a new companion profile for the new version, keeping your current version, files, and profile intact.</value>
+  </data>
+  <data name="Dialog.UpdateOption.Description.Replace" xml:space="preserve">
+    <value>Updates the current version in existing profiles. Superseded version files (old game client, map pack, data patch) will be deleted to save disk space.</value>
+  </data>
+  <data name="Dialog.UpdateOption.Radio.CreateNewProfile" xml:space="preserve">
+    <value>Create New Profile</value>
+  </data>
+  <data name="Dialog.UpdateOption.Radio.Replace" xml:space="preserve">
+    <value>Replace (Update current version)</value>
+  </data>
+  <data name="Dialog.UpdateOption.Tooltip.Cancel" xml:space="preserve">
+    <value>Cancel this update (no files will be downloaded or modified)</value>
+  </data>
+  <data name="Dialog.UpdateOption.Tooltip.DeleteOldVersions" xml:space="preserve">
+    <value>Removes previous version files from local storage to prevent accumulating unused versions</value>
   </data>
   <data name="Downloads.Category.GitHubBuilds" xml:space="preserve">
     <value>GitHub Builds</value>
@@ -508,13 +559,64 @@
     <value>Add New Profile</value>
     <comment>Button to create a new game profile</comment>
   </data>
+  <data name="GameProfiles.Button.Scan" xml:space="preserve">
+    <value>SCAN</value>
+  </data>
+  <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
+    <value>LAUNCH</value>
+  </data>
+  <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
+    <value>STOP</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.CopyProfile" xml:space="preserve">
+    <value>Copy Profile</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.CreateShortcut" xml:space="preserve">
+    <value>Create Shortcut</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.DeleteProfile" xml:space="preserve">
+    <value>Delete Profile</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.EditProfile" xml:space="preserve">
+    <value>Edit Profile</value>
+  </data>
+  <data name="GameProfiles.Card.Status.Running" xml:space="preserve">
+    <value>RUNNING</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.CopyProfile" xml:space="preserve">
+    <value>Copy Profile</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.CreateShortcut" xml:space="preserve">
+    <value>Create Desktop Shortcut</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.DeleteProfile" xml:space="preserve">
+    <value>Delete Profile</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.EditProfile" xml:space="preserve">
+    <value>Edit Profile</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
+    <value>Edit Profile (Hotswap Content)</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
+    <value>Toggle Steam Integration</value>
+  </data>
+  <data name="GameProfiles.Error.ErrorCopyingProfile" xml:space="preserve">
+    <value>Error copying profile '{0}'</value>
+  </data>
   <data name="GameProfiles.Error.ErrorCreatingNewProfile" xml:space="preserve">
     <value>Error creating new profile</value>
     <comment>Generic error creating a new profile</comment>
   </data>
+  <data name="GameProfiles.Error.ErrorCreatingShortcut" xml:space="preserve">
+    <value>Error creating shortcut for profile '{0}'</value>
+  </data>
   <data name="GameProfiles.Error.ErrorDeletingProfile" xml:space="preserve">
     <value>Error deleting {0}</value>
     <comment>Generic error deleting profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorEditingProfile" xml:space="preserve">
+    <value>Error editing profile '{0}'</value>
   </data>
   <data name="GameProfiles.Error.ErrorLaunchingProfile" xml:space="preserve">
     <value>Error launching {0}</value>
@@ -527,6 +629,18 @@
   <data name="GameProfiles.Error.ErrorSavingProfiles" xml:space="preserve">
     <value>Error saving profiles</value>
     <comment>Generic error saving profiles</comment>
+  </data>
+  <data name="GameProfiles.Error.ErrorStoppingProfile" xml:space="preserve">
+    <value>Error stopping profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Error.ErrorUpdatingLaunchMode" xml:space="preserve">
+    <value>Error updating launch mode for profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Error.FailedToCopyProfile" xml:space="preserve">
+    <value>Failed to copy profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Error.FailedToCreateShortcut" xml:space="preserve">
+    <value>Failed to create shortcut for profile '{0}': {1}</value>
   </data>
   <data name="GameProfiles.Error.FailedToDeleteProfile" xml:space="preserve">
     <value>Failed to delete {0}: {1}</value>
@@ -616,6 +730,219 @@
     <value>Wine</value>
     <comment>Wine/Linux installation platform name</comment>
   </data>
+  <data name="GameProfiles.Notification.CopyError.Message" xml:space="preserve">
+    <value>Error copying profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyError.Title" xml:space="preserve">
+    <value>Copy Error</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyFailed.Message" xml:space="preserve">
+    <value>Failed to copy profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyFailed.Title" xml:space="preserve">
+    <value>Copy Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyFailedSource.Message" xml:space="preserve">
+    <value>Failed to copy profile: source profile '{0}' not found: {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.CopySuccess.Message" xml:space="preserve">
+    <value>Profile '{0}' copied to '{1}' successfully</value>
+  </data>
+  <data name="GameProfiles.Notification.CopySuccess.Title" xml:space="preserve">
+    <value>Profile Copied</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteError.Message" xml:space="preserve">
+    <value>Error deleting profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteError.Title" xml:space="preserve">
+    <value>Delete Error</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteFailed.Message" xml:space="preserve">
+    <value>Failed to delete profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteFailed.Title" xml:space="preserve">
+    <value>Delete Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.DirectoryNotFound.Message" xml:space="preserve">
+    <value>The directory does not exist: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.DirectoryNotFound.Title" xml:space="preserve">
+    <value>Directory Not Found</value>
+  </data>
+  <data name="GameProfiles.Notification.Error.Title" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="GameProfiles.Notification.GameLaunched.Message" xml:space="preserve">
+    <value>Profile '{0}' launched successfully</value>
+  </data>
+  <data name="GameProfiles.Notification.GameLaunched.Title" xml:space="preserve">
+    <value>Game Launched</value>
+  </data>
+  <data name="GameProfiles.Notification.GameStopped.Message" xml:space="preserve">
+    <value>Profile '{0}' stopped successfully</value>
+  </data>
+  <data name="GameProfiles.Notification.GameStopped.Title" xml:space="preserve">
+    <value>Game Stopped</value>
+  </data>
+  <data name="GameProfiles.Notification.HotswapMode.Message" xml:space="preserve">
+    <value>Profile '{0}' is running. Entering hotswap edit mode.</value>
+  </data>
+  <data name="GameProfiles.Notification.HotswapMode.Title" xml:space="preserve">
+    <value>Hotswap Mode</value>
+  </data>
+  <data name="GameProfiles.Notification.InvalidDirectory.Message" xml:space="preserve">
+    <value>The selected directory does not contain valid game executables.</value>
+  </data>
+  <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
+    <value>Invalid Directory</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchError.Message" xml:space="preserve">
+    <value>Error launching profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchError.Title" xml:space="preserve">
+    <value>Launch Error</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchFailed.Message" xml:space="preserve">
+    <value>Failed to launch profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchFailed.Title" xml:space="preserve">
+    <value>Launch Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchSuccess.Message" xml:space="preserve">
+    <value>Profile '{0}' launched successfully (PID: {1})</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchSuccess.Title" xml:space="preserve">
+    <value>Game Launched</value>
+  </data>
+  <data name="GameProfiles.Notification.LoadFailed.Message" xml:space="preserve">
+    <value>Failed to load profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.LoadFailed.Title" xml:space="preserve">
+    <value>Failed to Load Profiles</value>
+  </data>
+  <data name="GameProfiles.Notification.OpenDirectoryFailed.Message" xml:space="preserve">
+    <value>Could not open directory: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.OpenDirectoryFailed.Title" xml:space="preserve">
+    <value>Failed to Open Directory</value>
+  </data>
+  <data name="GameProfiles.Notification.OpenNewProfileError.Message" xml:space="preserve">
+    <value>Failed to open new profile dialog: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ProcessDirectoryError.Message" xml:space="preserve">
+    <value>Failed to process selected directory: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopied.Message" xml:space="preserve">
+    <value>Profile copied as '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopied.Title" xml:space="preserve">
+    <value>Profile Copied</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopyFailed.Message" xml:space="preserve">
+    <value>Failed to copy profile: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopyFailed.Title" xml:space="preserve">
+    <value>Copy Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileDeleted.Message" xml:space="preserve">
+    <value>Profile '{0}' deleted successfully</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileDeleted.Title" xml:space="preserve">
+    <value>Profile Deleted</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.Message" xml:space="preserve">
+    <value>Game scan complete! Created {0} new profiles.</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.Title" xml:space="preserve">
+    <value>Scan Complete</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanFailed" xml:space="preserve">
+    <value>Scan failed: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutCreated.Message" xml:space="preserve">
+    <value>Desktop shortcut created for profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutCreated.Title" xml:space="preserve">
+    <value>Shortcut Created</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutError.Message" xml:space="preserve">
+    <value>Error creating shortcut for profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutError.Title" xml:space="preserve">
+    <value>Shortcut Error</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutFailed.Message" xml:space="preserve">
+    <value>Failed to create shortcut for profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutFailed.Title" xml:space="preserve">
+    <value>Shortcut Creation Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamDisabled.Message" xml:space="preserve">
+    <value>Steam integration disabled for profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamDisabled.Title" xml:space="preserve">
+    <value>Steam Integration Disabled</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamEnabled.Message" xml:space="preserve">
+    <value>Steam integration enabled for profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamEnabled.Title" xml:space="preserve">
+    <value>Steam Integration Enabled</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegration.Message" xml:space="preserve">
+    <value>Steam integration {0} for profile '{1}'</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegration.Title" xml:space="preserve">
+    <value>Steam Integration</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegrationError.Message" xml:space="preserve">
+    <value>Failed to update Steam integration for profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegrationError.Title" xml:space="preserve">
+    <value>Steam Integration Error</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamToggleFailed.Message" xml:space="preserve">
+    <value>Failed to update Steam integration: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamToggleFailed.Title" xml:space="preserve">
+    <value>Steam Integration Error</value>
+  </data>
+  <data name="GameProfiles.Notification.StopError.Message" xml:space="preserve">
+    <value>Error stopping profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.StopError.Title" xml:space="preserve">
+    <value>Stop Error</value>
+  </data>
+  <data name="GameProfiles.Notification.StopFailed.Message" xml:space="preserve">
+    <value>Failed to stop profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.StopFailed.Title" xml:space="preserve">
+    <value>Stop Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.StopSuccess.Message" xml:space="preserve">
+    <value>Profile '{0}' stopped successfully</value>
+  </data>
+  <data name="GameProfiles.Notification.StopSuccess.Title" xml:space="preserve">
+    <value>Game Stopped</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceError.Message" xml:space="preserve">
+    <value>Failed to prepare workspace for profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceError.Title" xml:space="preserve">
+    <value>Workspace Error</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceFailed.Message" xml:space="preserve">
+    <value>Failed to prepare workspace for profile '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceFailed.Title" xml:space="preserve">
+    <value>Workspace Preparation Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceReady.Message" xml:space="preserve">
+    <value>Workspace ready for profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceReady.Title" xml:space="preserve">
+    <value>Workspace Prepared</value>
+  </data>
   <data name="GameProfiles.Profile.AutoCreated" xml:space="preserve">
     <value>{0} Profile</value>
     <comment>Auto-generated profile name. {0} is the installation type</comment>
@@ -624,13 +951,28 @@
     <value>Auto-created profile for {0} installation at {1}</value>
     <comment>Auto-generated profile description. {0} is installation type, {1} is path</comment>
   </data>
+  <data name="GameProfiles.Status.AlreadyLaunching" xml:space="preserve">
+    <value>A game is already launching or running. Please wait or stop it first.</value>
+  </data>
+  <data name="GameProfiles.Status.CopyingProfile" xml:space="preserve">
+    <value>Copying profile '{0}'...</value>
+  </data>
   <data name="GameProfiles.Status.CreatingProfiles" xml:space="preserve">
     <value>Found {0} game installations, creating profiles</value>
     <comment>Status message during profile creation. {0} is installation count</comment>
   </data>
+  <data name="GameProfiles.Status.CreatingShortcut" xml:space="preserve">
+    <value>Creating desktop shortcut for profile '{0}'...</value>
+  </data>
+  <data name="GameProfiles.Status.DeleteFailed" xml:space="preserve">
+    <value>Failed to delete profile: {0}</value>
+  </data>
   <data name="GameProfiles.Status.DeletingProfile" xml:space="preserve">
     <value>Deleting {0}...</value>
     <comment>Status when deleting a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.EditCancelled" xml:space="preserve">
+    <value>Profile editing cancelled</value>
   </data>
   <data name="GameProfiles.Status.EditModeDisabled" xml:space="preserve">
     <value>Edit mode disabled</value>
@@ -648,9 +990,21 @@
     <value>Error loading profiles</value>
     <comment>Status message shown when profile loading fails</comment>
   </data>
+  <data name="GameProfiles.Status.FailedToLoad" xml:space="preserve">
+    <value>Failed to load profiles: {0}</value>
+  </data>
+  <data name="GameProfiles.Status.InvalidProfile" xml:space="preserve">
+    <value>Selected profile is invalid</value>
+  </data>
+  <data name="GameProfiles.Status.LaunchFailed" xml:space="preserve">
+    <value>Failed to launch profile: {0}</value>
+  </data>
   <data name="GameProfiles.Status.LaunchingProfile" xml:space="preserve">
     <value>Launching {0}...</value>
     <comment>Status when launching a profile. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.LoadedProfiles" xml:space="preserve">
+    <value>Loaded {0} profiles</value>
   </data>
   <data name="GameProfiles.Status.LoadingProfiles" xml:space="preserve">
     <value>Loading profiles...</value>
@@ -668,9 +1022,18 @@
     <value>Preparing workspace for {0}...</value>
     <comment>Status when preparing workspace. {0} = profile name</comment>
   </data>
+  <data name="GameProfiles.Status.ProfileCopiedSuccess" xml:space="preserve">
+    <value>Profile '{0}' copied to '{1}' successfully</value>
+  </data>
   <data name="GameProfiles.Status.ProfileCreated" xml:space="preserve">
     <value>Created profile '{0}' for installation {1}</value>
     <comment>Log message for successful profile creation. {0} is profile name, {1} is installation ID</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreatedSuccess" xml:space="preserve">
+    <value>Profile created successfully</value>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreationCancelled" xml:space="preserve">
+    <value>Profile creation cancelled</value>
   </data>
   <data name="GameProfiles.Status.ProfileCreationComplete" xml:space="preserve">
     <value>Profile creation complete: {0} created, {1} failed</value>
@@ -680,9 +1043,15 @@
     <value>Failed to create profile for installation {0}: {1}</value>
     <comment>Log message for failed profile creation. {0} is installation ID, {1} is error message</comment>
   </data>
+  <data name="GameProfiles.Status.ProfileDeleted" xml:space="preserve">
+    <value>Deleted profile: {0}</value>
+  </data>
   <data name="GameProfiles.Status.ProfileDeletedSuccess" xml:space="preserve">
     <value>{0} deleted successfully</value>
     <comment>Success message after deleting. {0} = profile name</comment>
+  </data>
+  <data name="GameProfiles.Status.ProfileLaunched" xml:space="preserve">
+    <value>Launched profile: {0}</value>
   </data>
   <data name="GameProfiles.Status.ProfileLaunchedSuccess" xml:space="preserve">
     <value>{0} launched successfully (Process ID: {1})</value>
@@ -716,6 +1085,15 @@
     <value>Scan complete. Found {0} game installations</value>
     <comment>Status message shown when scan completes. {0} is the count of installations found</comment>
   </data>
+  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
+    <value>Scan complete. Found {0} installations, created {1} profiles</value>
+  </data>
+  <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
+    <value>Scan complete! No new installations found</value>
+  </data>
+  <data name="GameProfiles.Status.ScanCompleteNone" xml:space="preserve">
+    <value>Scan complete. No game installations were found.</value>
+  </data>
   <data name="GameProfiles.Status.ScanFailed" xml:space="preserve">
     <value>Scan failed: {0}</value>
     <comment>Status message shown when scan fails. {0} is the error message</comment>
@@ -728,13 +1106,28 @@
     <value>Scanning for games...</value>
     <comment>Status message shown when scanning for game installations</comment>
   </data>
+  <data name="GameProfiles.Status.ShortcutCreatedSuccess" xml:space="preserve">
+    <value>Shortcut created for profile '{0}'</value>
+  </data>
+  <data name="GameProfiles.Status.SteamLaunchUpdated" xml:space="preserve">
+    <value>Steam launch {0} for profile '{1}'</value>
+  </data>
   <data name="GameProfiles.Status.StoppingProfile" xml:space="preserve">
     <value>Stopping {0}...</value>
     <comment>Status when stopping a profile. {0} = profile name</comment>
   </data>
+  <data name="GameProfiles.Status.UpdatingLaunchMode" xml:space="preserve">
+    <value>Updating launch mode for profile '{0}'...</value>
+  </data>
+  <data name="GameProfiles.Status.Validating" xml:space="preserve">
+    <value>Validating {0}...</value>
+  </data>
   <data name="GameProfiles.Status.WorkspacePrepared" xml:space="preserve">
     <value>Workspace prepared for {0} at {1}</value>
     <comment>Success message after workspace preparation. {0} = profile name, {1} = path</comment>
+  </data>
+  <data name="GameProfiles.Status.WorkspaceReady" xml:space="preserve">
+    <value>Workspace ready: {0}</value>
   </data>
   <data name="GameProfiles.Subtitle.GameProfiles" xml:space="preserve">
     <value>Select a profile to launch or create a new one</value>
@@ -775,6 +1168,165 @@
   <data name="GameProfiles.WorkspaceStatus.Symlinked" xml:space="preserve">
     <value>Symlinked</value>
     <comment>Workspace status when using symlinks</comment>
+  </data>
+  <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
+    <value>Clear All History</value>
+  </data>
+  <data name="Maps.Button.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Maps.Button.Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Maps.Button.Pack" xml:space="preserve">
+    <value>Pack</value>
+  </data>
+  <data name="Maps.Button.Uncompress" xml:space="preserve">
+    <value>Uncompress</value>
+  </data>
+  <data name="Maps.Button.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Maps.Button.Zip" xml:space="preserve">
+    <value>Zip</value>
+  </data>
+  <data name="Maps.Column.Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="Maps.Column.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Maps.Column.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Maps.Column.Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Maps.DragDrop.Subtitle" xml:space="preserve">
+    <value>Release to import maps or map archives</value>
+  </data>
+  <data name="Maps.DragDrop.Title" xml:space="preserve">
+    <value>Drop Maps Here</value>
+  </data>
+  <data name="Maps.Empty.Description" xml:space="preserve">
+    <value>Import maps using the toolbar above or drag and drop archives here</value>
+  </data>
+  <data name="Maps.Empty.NoHistory" xml:space="preserve">
+    <value>No upload history</value>
+  </data>
+  <data name="Maps.Empty.Title" xml:space="preserve">
+    <value>No Maps Found</value>
+  </data>
+  <data name="Maps.Label.Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Maps.Label.Expired" xml:space="preserve">
+    <value>Expired</value>
+  </data>
+  <data name="Maps.Label.Selected" xml:space="preserve">
+    <value>Selected:</value>
+  </data>
+  <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
+    <value>Uploaded files are retained for 30 days. Max file size: 50MB. Duplicate files are automatically deduplicated.</value>
+  </data>
+  <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
+    <value>LOADED</value>
+  </data>
+  <data name="Maps.MapPack.Button.Create" xml:space="preserve">
+    <value>Create MapPack</value>
+  </data>
+  <data name="Maps.MapPack.CreateNew" xml:space="preserve">
+    <value>Create New</value>
+  </data>
+  <data name="Maps.MapPack.CreatedDatePrefix" xml:space="preserve">
+    <value>Created:</value>
+  </data>
+  <data name="Maps.MapPack.ExistingPacks" xml:space="preserve">
+    <value>Existing Map Packs</value>
+  </data>
+  <data name="Maps.MapPack.MapsCountSuffix" xml:space="preserve">
+    <value>Maps</value>
+  </data>
+  <data name="Maps.MapPack.NoMapsSelected" xml:space="preserve">
+    <value>No maps selected</value>
+  </data>
+  <data name="Maps.MapPack.NoPacksFound" xml:space="preserve">
+    <value>No map packs found</value>
+  </data>
+  <data name="Maps.MapPack.PackName" xml:space="preserve">
+    <value>Pack Name</value>
+  </data>
+  <data name="Maps.MapPack.SelectedMaps" xml:space="preserve">
+    <value>Selected Maps</value>
+  </data>
+  <data name="Maps.MapPack.Subtitle" xml:space="preserve">
+    <value>Create and manage your map collections</value>
+  </data>
+  <data name="Maps.MapPack.Title" xml:space="preserve">
+    <value>MapPack Manager</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.Delete" xml:space="preserve">
+    <value>Delete this MapPack.</value>
+  </data>
+  <data name="Maps.MapPack.Watermark" xml:space="preserve">
+    <value>e.g., Tournament Maps 2024</value>
+  </data>
+  <data name="Maps.Tab.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Maps.Tab.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Maps.Tooltip.BrowseFiles" xml:space="preserve">
+    <value>Browse for files</value>
+  </data>
+  <data name="Maps.Tooltip.ClearHistory" xml:space="preserve">
+    <value>Clear all history</value>
+  </data>
+  <data name="Maps.Tooltip.CopyLink" xml:space="preserve">
+    <value>Copy link to clipboard</value>
+  </data>
+  <data name="Maps.Tooltip.DeleteHistoryItem" xml:space="preserve">
+    <value>Remove from history</value>
+  </data>
+  <data name="Maps.Tooltip.DeleteSelected" xml:space="preserve">
+    <value>Permanently delete the selected maps from your computer.</value>
+  </data>
+  <data name="Maps.Tooltip.ImportFromUrl" xml:space="preserve">
+    <value>Import from URL</value>
+  </data>
+  <data name="Maps.Tooltip.MapPackManager" xml:space="preserve">
+    <value>MapPack Manager</value>
+  </data>
+  <data name="Maps.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="Maps.Tooltip.RefreshList" xml:space="preserve">
+    <value>Refresh list</value>
+  </data>
+  <data name="Maps.Tooltip.UncompressSelected" xml:space="preserve">
+    <value>Extract maps from the selected ZIP archives.</value>
+  </data>
+  <data name="Maps.Tooltip.UploadAndShare" xml:space="preserve">
+    <value>Upload and generate temporary shareable link</value>
+  </data>
+  <data name="Maps.Tooltip.ViewHistory" xml:space="preserve">
+    <value>View upload history</value>
+  </data>
+  <data name="Maps.Tooltip.ZipName" xml:space="preserve">
+    <value>Filename for the new ZIP archive. The .zip extension will be added automatically.</value>
+  </data>
+  <data name="Maps.Tooltip.ZipSelected" xml:space="preserve">
+    <value>Create a new ZIP archive containing the selected map files.</value>
+  </data>
+  <data name="Maps.Watermark.ImportUrl" xml:space="preserve">
+    <value>Paste map URL...</value>
+  </data>
+  <data name="Maps.Watermark.Search" xml:space="preserve">
+    <value>Search...</value>
+  </data>
+  <data name="Maps.Watermark.ZipName" xml:space="preserve">
+    <value>ZIP Name (.zip added)</value>
   </data>
   <data name="Messages.Confirmations.ApplyChanges" xml:space="preserve">
     <value>Do you want to apply these changes?</value>
@@ -976,6 +1528,10 @@
     <value>Info</value>
     <comment>Info navigation tab.</comment>
   </data>
+  <data name="Navigation.Notifications" xml:space="preserve">
+    <value>Notifications</value>
+    <comment>Navigation tooltip for notifications</comment>
+  </data>
   <data name="Navigation.Settings" xml:space="preserve">
     <value>Settings</value>
     <comment>Settings navigation tab.</comment>
@@ -1016,9 +1572,157 @@
     <value>Tools</value>
     <comment>Tools navigation tab.</comment>
   </data>
+  <data name="Notifications.Button.ClearAll" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="Notifications.Empty.AllCaughtUp" xml:space="preserve">
+    <value>All caught up!</value>
+  </data>
+  <data name="Notifications.Options.Enable" xml:space="preserve">
+    <value>Enable Notifications</value>
+  </data>
+  <data name="Notifications.Options.MutePermanently" xml:space="preserve">
+    <value>Mute permanently</value>
+  </data>
+  <data name="Notifications.Options.MuteSession" xml:space="preserve">
+    <value>Mute for this session</value>
+  </data>
   <data name="Notifications.Title" xml:space="preserve">
     <value>Notifications</value>
     <comment>Title for notifications panel and button.</comment>
+  </data>
+  <data name="Notifications.Tooltip.Dismiss" xml:space="preserve">
+    <value>Dismiss notification</value>
+  </data>
+  <data name="Notifications.Tooltip.Options" xml:space="preserve">
+    <value>Notification options</value>
+  </data>
+  <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
+    <value>Clear All History</value>
+  </data>
+  <data name="Replays.Button.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Replays.Button.Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Replays.Button.Parse" xml:space="preserve">
+    <value>PARSE</value>
+  </data>
+  <data name="Replays.Button.Uncompress" xml:space="preserve">
+    <value>Uncompress</value>
+  </data>
+  <data name="Replays.Button.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Replays.Button.Zip" xml:space="preserve">
+    <value>Zip</value>
+  </data>
+  <data name="Replays.Column.Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Replays.Column.Filename" xml:space="preserve">
+    <value>Filename</value>
+  </data>
+  <data name="Replays.Column.Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="Replays.Column.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Replays.DragDrop.Subtitle" xml:space="preserve">
+    <value>Single .rep files or ZIP archives only</value>
+  </data>
+  <data name="Replays.DragDrop.Title" xml:space="preserve">
+    <value>Drop replays or ZIPs to import</value>
+  </data>
+  <data name="Replays.Empty.Description" xml:space="preserve">
+    <value>Drag and drop .rep or .zip files here, or paste a replay URL above</value>
+  </data>
+  <data name="Replays.Empty.NoHistory" xml:space="preserve">
+    <value>No history yet</value>
+  </data>
+  <data name="Replays.Empty.Title" xml:space="preserve">
+    <value>No replays found</value>
+  </data>
+  <data name="Replays.Label.Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Replays.Label.Expired" xml:space="preserve">
+    <value>Expired</value>
+  </data>
+  <data name="Replays.Label.Selected" xml:space="preserve">
+    <value>Selected:</value>
+  </data>
+  <data name="Replays.Notice.StorageQuota" xml:space="preserve">
+    <value>Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit). Duplicate files are automatically deduplicated.</value>
+  </data>
+  <data name="Replays.Tab.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Replays.Tab.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Replays.Tooltip.BrowseFiles" xml:space="preserve">
+    <value>Browse for files</value>
+  </data>
+  <data name="Replays.Tooltip.ClearHistory" xml:space="preserve">
+    <value>Delete all uploaded files from cloud storage and clear history.</value>
+  </data>
+  <data name="Replays.Tooltip.CopyLink" xml:space="preserve">
+    <value>Copy the download link for this replay.</value>
+  </data>
+  <data name="Replays.Tooltip.DeleteHistoryItem" xml:space="preserve">
+    <value>Delete this file from cloud storage and remove from history.</value>
+  </data>
+  <data name="Replays.Tooltip.DeleteSelected" xml:space="preserve">
+    <value>Permanently delete the selected replay files from your computer.</value>
+  </data>
+  <data name="Replays.Tooltip.ImportFromUrl" xml:space="preserve">
+    <value>Import from URL</value>
+  </data>
+  <data name="Replays.Tooltip.ImportUrlFormats" xml:space="preserve">
+    <value>Supported formats:
+• Generals Online URL or Match ID (e.g. 151553)
+• GenTool Replay URL
+• GenHub / UploadThing Link
+• Direct download link (.rep/.zip)</value>
+  </data>
+  <data name="Replays.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="Replays.Tooltip.ParseDetails" xml:space="preserve">
+    <value>Parse replay details (Coming Soon)</value>
+  </data>
+  <data name="Replays.Tooltip.RefreshList" xml:space="preserve">
+    <value>Refresh list</value>
+  </data>
+  <data name="Replays.Tooltip.RevealInExplorer" xml:space="preserve">
+    <value>Reveal in explorer</value>
+  </data>
+  <data name="Replays.Tooltip.UncompressSelected" xml:space="preserve">
+    <value>Extract replay files from the selected ZIP archives.</value>
+  </data>
+  <data name="Replays.Tooltip.UploadAndShare" xml:space="preserve">
+    <value>Upload selected replays to cloud and copy share link.</value>
+  </data>
+  <data name="Replays.Tooltip.ViewHistory" xml:space="preserve">
+    <value>View the history of your uploaded replays.</value>
+  </data>
+  <data name="Replays.Tooltip.ZipName" xml:space="preserve">
+    <value>Filename for the new ZIP archive</value>
+  </data>
+  <data name="Replays.Tooltip.ZipSelected" xml:space="preserve">
+    <value>Create a new ZIP archive containing the selected replay files.</value>
+  </data>
+  <data name="Replays.Watermark.ImportUrl" xml:space="preserve">
+    <value>Paste Replay URL or Match ID...</value>
+  </data>
+  <data name="Replays.Watermark.Search" xml:space="preserve">
+    <value>Search replays...</value>
+  </data>
+  <data name="Replays.Watermark.ZipName" xml:space="preserve">
+    <value>ZIP Name</value>
   </data>
   <data name="Settings.Appearance.Language.Description" xml:space="preserve">
     <value>Select the user interface display language.</value>
@@ -1027,22 +1731,6 @@
   <data name="Settings.Appearance.Language.Label" xml:space="preserve">
     <value>Language</value>
     <comment>Label for language selection.</comment>
-  </data>
-  <data name="Settings.Appearance.AccentColor.Description" xml:space="preserve">
-    <value>Choose an accent color theme for buttons, tabs, highlights, glows, and scrollbars across GenHub.</value>
-    <comment>Description for accent color theme.</comment>
-  </data>
-  <data name="Settings.Appearance.AccentColor.Label" xml:space="preserve">
-    <value>Accent Color Theme</value>
-    <comment>Label for theme selection.</comment>
-  </data>
-  <data name="Settings.Appearance.ActiveTheme" xml:space="preserve">
-    <value>Active Theme:</value>
-    <comment>Active theme indicator label.</comment>
-  </data>
-  <data name="Settings.Appearance.Header" xml:space="preserve">
-    <value>Appearance</value>
-    <comment>Header for appearance settings section.</comment>
   </data>
   <data name="Settings.Appearance.Theme.ActiveTheme" xml:space="preserve">
     <value>Active Theme:</value>
@@ -1184,9 +1872,42 @@
     <value>Current Data Usage:</value>
     <comment>Current data usage header.</comment>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData" xml:space="preserve">
+    <value>DELETE ALL APPLICATION DATA</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
+    <value>Delete CAS Storage</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.ToolTip" xml:space="preserve">
+    <value>Deletes all cached game files</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteManifests" xml:space="preserve">
+    <value>Delete Manifests</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteManifests.ToolTip" xml:space="preserve">
+    <value>Removes all content metadata</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteProfiles" xml:space="preserve">
+    <value>Delete Profiles</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteProfiles.ToolTip" xml:space="preserve">
+    <value>Permanently removes all user profiles</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteWorkspaces" xml:space="preserve">
+    <value>Delete Workspaces</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteWorkspaces.ToolTip" xml:space="preserve">
+    <value>Cleans up all temporary game workspaces</value>
+  </data>
+  <data name="Settings.DangerZone.DestructiveActions" xml:space="preserve">
+    <value>Destructive Actions:</value>
+  </data>
   <data name="Settings.DangerZone.Manifests" xml:space="preserve">
     <value>Manifests:</value>
     <comment>Manifests label.</comment>
+  </data>
+  <data name="Settings.DangerZone.Profiles" xml:space="preserve">
+    <value>Profiles:</value>
   </data>
   <data name="Settings.DangerZone.ResetAll" xml:space="preserve">
     <value>Reset All GenHub Data</value>
@@ -1196,9 +1917,36 @@
     <value>Reset Settings</value>
     <comment>Reset settings button.</comment>
   </data>
+  <data name="Settings.DangerZone.UninstallGenHub" xml:space="preserve">
+    <value>Uninstall GenHub (Keep Data)</value>
+  </data>
+  <data name="Settings.DangerZone.UninstallGenHub.ToolTip" xml:space="preserve">
+    <value>Uninstall does not delete data only uninstalls GenHub</value>
+  </data>
   <data name="Settings.DangerZone.Workspaces" xml:space="preserve">
     <value>Workspaces:</value>
     <comment>Workspaces label.</comment>
+  </data>
+  <data name="Settings.DataDirectories.AppFolders.Description" xml:space="preserve">
+    <value>Quickly access application data, profiles, and manifests for troubleshooting or manual management.</value>
+  </data>
+  <data name="Settings.DataDirectories.AppFolders.Label" xml:space="preserve">
+    <value>Application Data Folders</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenAppData" xml:space="preserve">
+    <value>Open AppData</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenCasPool" xml:space="preserve">
+    <value>Open CAS Pool</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenManifests" xml:space="preserve">
+    <value>Open Manifests</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenProfiles" xml:space="preserve">
+    <value>Open Profiles</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenWorkspaces" xml:space="preserve">
+    <value>Open Workspaces</value>
   </data>
   <data name="Settings.DataDirectories.SettingsFilePath.Description" xml:space="preserve">
     <value>Specify a custom location for your settings file. Leave empty for auto-detection.</value>
@@ -1744,6 +2492,9 @@
     <value>➕ Add Tool</value>
     <comment>Button to add a new tool plugin</comment>
   </data>
+  <data name="Tools.Button.AddToolAction" xml:space="preserve">
+    <value>Add Tool</value>
+  </data>
   <data name="Tools.Button.CloseDialog" xml:space="preserve">
     <value>Close</value>
     <comment>Button to close a dialog</comment>
@@ -1751,6 +2502,9 @@
   <data name="Tools.Button.RefreshTools" xml:space="preserve">
     <value>🔄 Refresh</value>
     <comment>Button to refresh the tools list</comment>
+  </data>
+  <data name="Tools.Button.RefreshToolsAction" xml:space="preserve">
+    <value>Refresh Tools</value>
   </data>
   <data name="Tools.Dialog.SelectToolAssembly" xml:space="preserve">
     <value>Select Tool Plugin Assembly</value>
@@ -1812,6 +2566,9 @@
     <value>Name</value>
     <comment>Field label for tool name</comment>
   </data>
+  <data name="Tools.Label.SelectToolPlaceholder" xml:space="preserve">
+    <value>Select a tool from the sidebar to view details</value>
+  </data>
   <data name="Tools.Label.ToolId" xml:space="preserve">
     <value>Tool ID</value>
     <comment>Field label for tool identifier</comment>
@@ -1820,6 +2577,30 @@
     <value>Version</value>
     <comment>Field label for tool version</comment>
   </data>
+  <data name="Tools.MapManager.Button.Pack" xml:space="preserve">
+    <value>Pack</value>
+  </data>
+  <data name="Tools.MapManager.DragDrop.Subtitle" xml:space="preserve">
+    <value>Map folders or ZIP archives containing map files</value>
+  </data>
+  <data name="Tools.MapManager.DragDrop.Title" xml:space="preserve">
+    <value>Drop maps or ZIPs to import</value>
+  </data>
+  <data name="Tools.MapManager.Empty.Subtitle" xml:space="preserve">
+    <value>Drag and drop map folders or ZIPs here, or paste a map URL above</value>
+  </data>
+  <data name="Tools.MapManager.Empty.Title" xml:space="preserve">
+    <value>No maps found</value>
+  </data>
+  <data name="Tools.MapManager.Status.Loaded" xml:space="preserve">
+    <value>Loaded {0} maps.</value>
+  </data>
+  <data name="Tools.MapManager.Tooltip.MapPackManager" xml:space="preserve">
+    <value>MapPack Manager</value>
+  </data>
+  <data name="Tools.MapManager.Watermark.PasteMapUrl" xml:space="preserve">
+    <value>Paste Map URL...</value>
+  </data>
   <data name="Tools.MenuItem.RemoveTool" xml:space="preserve">
     <value>Remove Tool</value>
     <comment>Context menu item to remove a tool</comment>
@@ -1827,6 +2608,118 @@
   <data name="Tools.MenuItem.ViewDetails" xml:space="preserve">
     <value>View Details</value>
     <comment>Context menu item to view tool details</comment>
+  </data>
+  <data name="Tools.Plugin.genpatcher.Name" xml:space="preserve">
+    <value>GenPatcher</value>
+  </data>
+  <data name="Tools.Plugin.map-manager.Name" xml:space="preserve">
+    <value>Map Manager</value>
+  </data>
+  <data name="Tools.Plugin.replay-manager.Name" xml:space="preserve">
+    <value>Replay Manager</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Parse" xml:space="preserve">
+    <value>PARSE</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Uncompress" xml:space="preserve">
+    <value>Uncompress</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Zip" xml:space="preserve">
+    <value>Zip</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Filename" xml:space="preserve">
+    <value>Filename</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Tools.ReplayManager.DragDrop.Subtitle" xml:space="preserve">
+    <value>Single .rep files or ZIP archives only</value>
+  </data>
+  <data name="Tools.ReplayManager.DragDrop.Title" xml:space="preserve">
+    <value>Drop replays or ZIPs to import</value>
+  </data>
+  <data name="Tools.ReplayManager.Empty.Subtitle" xml:space="preserve">
+    <value>Drag and drop .rep or .zip files here, or paste a replay URL above</value>
+  </data>
+  <data name="Tools.ReplayManager.Empty.Title" xml:space="preserve">
+    <value>No replays found</value>
+  </data>
+  <data name="Tools.ReplayManager.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Tools.ReplayManager.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Tools.ReplayManager.Label.Selected" xml:space="preserve">
+    <value>Selected:</value>
+  </data>
+  <data name="Tools.ReplayManager.Label.StorageQuotaNotice" xml:space="preserve">
+    <value>Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.Loaded" xml:space="preserve">
+    <value>Loaded {0} replays.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.BrowseFiles" xml:space="preserve">
+    <value>Browse for files</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.DeleteSelected" xml:space="preserve">
+    <value>Permanently delete the selected replay files from your computer.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ImportFromUrl" xml:space="preserve">
+    <value>Import from URL</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ParseDetails" xml:space="preserve">
+    <value>Parse replay details (Coming Soon)</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RefreshList" xml:space="preserve">
+    <value>Refresh list</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RevealExplorer" xml:space="preserve">
+    <value>Reveal in explorer</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.SupportedFormats" xml:space="preserve">
+    <value>Supported formats:
+• Generals Online URL or Match ID (e.g. 151553)
+• GenTool Replay URL
+• GenHub / UploadThing Link
+• Direct download link (.rep/.zip)</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.UncompressSelected" xml:space="preserve">
+    <value>Extract replay files from the selected ZIP archives.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.UploadReplay" xml:space="preserve">
+    <value>Upload the selected replay to Generals Online</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ZipName" xml:space="preserve">
+    <value>Filename for the new ZIP archive</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ZipSelected" xml:space="preserve">
+    <value>Create a new ZIP archive containing the selected replay files.</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.ImportUrl" xml:space="preserve">
+    <value>Paste Replay URL or Match ID...</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.SearchReplays" xml:space="preserve">
+    <value>Search replays...</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.ZipName" xml:space="preserve">
+    <value>ZIP Name</value>
   </data>
   <data name="Tools.Status.InstallingTool" xml:space="preserve">
     <value>Installing tool...</value>
@@ -1960,6 +2853,10 @@
     <value>Configure application settings</value>
     <comment>Tooltip for settings navigation tab</comment>
   </data>
+  <data name="Tooltips.Notifications" xml:space="preserve">
+    <value>Notifications</value>
+    <comment>Tooltip for the notification bell button.</comment>
+  </data>
   <data name="Tooltips.Profile.CreateNew" xml:space="preserve">
     <value>Create a new game profile</value>
     <comment>Tooltip for create new profile button</comment>
@@ -2052,6 +2949,12 @@
     <value>View release notes in browser</value>
     <comment>Tooltip for view release notes button</comment>
   </data>
+  <data name="Updates.Branches.Label" xml:space="preserve">
+    <value>Branches</value>
+  </data>
+  <data name="Updates.Button.CheckForUpdates" xml:space="preserve">
+    <value>Check for Updates</value>
+  </data>
   <data name="Updates.Button.InstallUpdate" xml:space="preserve">
     <value>Install Update</value>
     <comment>Button text for installing update</comment>
@@ -2059,6 +2962,21 @@
   <data name="Updates.Button.Installing" xml:space="preserve">
     <value>Installing...</value>
     <comment>Button text shown while installing</comment>
+  </data>
+  <data name="Updates.Button.Subscribe" xml:space="preserve">
+    <value>Subscribe</value>
+  </data>
+  <data name="Updates.Button.Subscribed" xml:space="preserve">
+    <value>Subscribed</value>
+  </data>
+  <data name="Updates.Button.Unsubscribe" xml:space="preserve">
+    <value>Unsubscribe</value>
+  </data>
+  <data name="Updates.Button.ViewReleaseNotes" xml:space="preserve">
+    <value>View Release Notes</value>
+  </data>
+  <data name="Updates.Card.AvailableTitle" xml:space="preserve">
+    <value>Update Available!</value>
   </data>
   <data name="Updates.Description.DefaultUpdateNotes" xml:space="preserve">
     <value>This update includes bug fixes, performance improvements, and new features.</value>
@@ -2076,6 +2994,29 @@
     <value>Update failed: {0}</value>
     <comment>Error message when update fails. {0} is the error details</comment>
   </data>
+  <data name="Updates.InstallationSource.Label" xml:space="preserve">
+    <value>Installation Source</value>
+  </data>
+  <data name="Updates.Label.By" xml:space="preserve">
+    <value>by</value>
+    <comment>Prefix for author/creator</comment>
+  </data>
+  <data name="Updates.Label.CurrentVersionColon" xml:space="preserve">
+    <value>Current Version:</value>
+    <comment>Label for current version with colon</comment>
+  </data>
+  <data name="Updates.Label.IsReady" xml:space="preserve">
+    <value>is ready</value>
+    <comment>Label for is ready status</comment>
+  </data>
+  <data name="Updates.Label.UpdatedColon" xml:space="preserve">
+    <value>Updated:</value>
+    <comment>Label for updated timestamp with colon</comment>
+  </data>
+  <data name="Updates.Label.Version" xml:space="preserve">
+    <value>Version</value>
+    <comment>Label for version</comment>
+  </data>
   <data name="Updates.Label.VersionReady" xml:space="preserve">
     <value>is ready to install</value>
     <comment>Partial text indicating version is ready</comment>
@@ -2083,6 +3024,9 @@
   <data name="Updates.Label.WhatsNew" xml:space="preserve">
     <value>What's new:</value>
     <comment>Label for release notes section</comment>
+  </data>
+  <data name="Updates.OpenPRs.Label" xml:space="preserve">
+    <value>Open Pull Requests</value>
   </data>
   <data name="Updates.Progress.InstallationFailed" xml:space="preserve">
     <value>Installation failed</value>
@@ -2103,6 +3047,12 @@
   <data name="Updates.Progress.UpdatePreparedSuccessfully" xml:space="preserve">
     <value>Update prepared successfully! The application will restart automatically.</value>
     <comment>Progress message when update is successfully prepared</comment>
+  </data>
+  <data name="Updates.SelectVersion.Label" xml:space="preserve">
+    <value>Select Version</value>
+  </data>
+  <data name="Updates.SortBy.Label" xml:space="preserve">
+    <value>Sort by:</value>
   </data>
   <data name="Updates.Status.CheckingForUpdates" xml:space="preserve">
     <value>Checking for updates...</value>
@@ -2148,6 +3098,24 @@
     <value>Update prepared successfully! The application will restart automatically.</value>
     <comment>Status message when update is successfully prepared</comment>
   </data>
+  <data name="Updates.Tab.BrowseBuilds" xml:space="preserve">
+    <value>Browse Builds</value>
+  </data>
+  <data name="Updates.Tab.Update" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="Updates.Tooltip.CheckForUpdates" xml:space="preserve">
+    <value>Manually check for updates and restore dismissed notifications</value>
+  </data>
+  <data name="Updates.Tooltip.Dismiss" xml:space="preserve">
+    <value>Dismiss Update</value>
+  </data>
+  <data name="Updates.Tooltip.ForceRefresh" xml:space="preserve">
+    <value>Force Refresh Updates</value>
+  </data>
+  <data name="Updates.Tooltip.OpenPR" xml:space="preserve">
+    <value>Open pull request on GitHub</value>
+  </data>
   <data name="Updates.Version.Current" xml:space="preserve">
     <value>Current Version</value>
     <comment>Label for current application version</comment>
@@ -2159,6 +3127,9 @@
   <data name="Updates.Version.Latest" xml:space="preserve">
     <value>Latest Version</value>
     <comment>Label for latest available version</comment>
+  </data>
+  <data name="Updates.Window.Title" xml:space="preserve">
+    <value>GenHub Updates</value>
   </data>
   <data name="Window.Close" xml:space="preserve">
     <value>Close</value>
@@ -2175,968 +3146,5 @@
   <data name="Window.Restore" xml:space="preserve">
     <value>Restore</value>
     <comment>Restore window.</comment>
-  </data>
-  <data name="Tooltips.Notifications" xml:space="preserve">
-    <value>Notifications</value>
-    <comment>Tooltip for the notification bell button.</comment>
-  </data>
-  <data name="GameProfiles.Button.Scan" xml:space="preserve">
-    <value>SCAN</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteAllData" xml:space="preserve">
-    <value>DELETE ALL APPLICATION DATA</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
-    <value>Delete CAS Storage</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteCasStorage.ToolTip" xml:space="preserve">
-    <value>Deletes all cached game files</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteManifests" xml:space="preserve">
-    <value>Delete Manifests</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteManifests.ToolTip" xml:space="preserve">
-    <value>Removes all content metadata</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteProfiles" xml:space="preserve">
-    <value>Delete Profiles</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteProfiles.ToolTip" xml:space="preserve">
-    <value>Permanently removes all user profiles</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteWorkspaces" xml:space="preserve">
-    <value>Delete Workspaces</value>
-  </data>
-  <data name="Settings.DangerZone.DeleteWorkspaces.ToolTip" xml:space="preserve">
-    <value>Cleans up all temporary game workspaces</value>
-  </data>
-  <data name="Settings.DangerZone.DestructiveActions" xml:space="preserve">
-    <value>Destructive Actions:</value>
-  </data>
-  <data name="Settings.DangerZone.Profiles" xml:space="preserve">
-    <value>Profiles:</value>
-  </data>
-  <data name="Settings.DangerZone.UninstallGenHub" xml:space="preserve">
-    <value>Uninstall GenHub (Keep Data)</value>
-  </data>
-  <data name="Settings.DangerZone.UninstallGenHub.ToolTip" xml:space="preserve">
-    <value>Uninstall does not delete data only uninstalls GenHub</value>
-  </data>
-  <data name="Settings.DataDirectories.AppFolders.Description" xml:space="preserve">
-    <value>Quickly access application data, profiles, and manifests for troubleshooting or manual management.</value>
-  </data>
-  <data name="Settings.DataDirectories.AppFolders.Label" xml:space="preserve">
-    <value>Application Data Folders</value>
-  </data>
-  <data name="Settings.DataDirectories.OpenAppData" xml:space="preserve">
-    <value>Open AppData</value>
-  </data>
-  <data name="Settings.DataDirectories.OpenCasPool" xml:space="preserve">
-    <value>Open CAS Pool</value>
-  </data>
-  <data name="Settings.DataDirectories.OpenManifests" xml:space="preserve">
-    <value>Open Manifests</value>
-  </data>
-  <data name="Settings.DataDirectories.OpenProfiles" xml:space="preserve">
-    <value>Open Profiles</value>
-  </data>
-  <data name="Settings.DataDirectories.OpenWorkspaces" xml:space="preserve">
-    <value>Open Workspaces</value>
-  </data>
-  <data name="Tools.Label.SelectToolPlaceholder" xml:space="preserve">
-    <value>Select a tool from the sidebar to view details</value>
-  </data>
-  <data name="Tools.MapManager.Button.Pack" xml:space="preserve">
-    <value>Pack</value>
-  </data>
-  <data name="Tools.MapManager.DragDrop.Subtitle" xml:space="preserve">
-    <value>Map folders or ZIP archives containing map files</value>
-  </data>
-  <data name="Tools.MapManager.DragDrop.Title" xml:space="preserve">
-    <value>Drop maps or ZIPs to import</value>
-  </data>
-  <data name="Tools.MapManager.Empty.Subtitle" xml:space="preserve">
-    <value>Drag and drop map folders or ZIPs here, or paste a map URL above</value>
-  </data>
-  <data name="Tools.MapManager.Empty.Title" xml:space="preserve">
-    <value>No maps found</value>
-  </data>
-  <data name="Tools.MapManager.Status.Loaded" xml:space="preserve">
-    <value>Loaded {0} maps.</value>
-  </data>
-  <data name="Tools.MapManager.Tooltip.MapPackManager" xml:space="preserve">
-    <value>MapPack Manager</value>
-  </data>
-  <data name="Tools.MapManager.Watermark.PasteMapUrl" xml:space="preserve">
-    <value>Paste Map URL...</value>
-  </data>
-  <data name="Tools.Plugin.genpatcher.Name" xml:space="preserve">
-    <value>GenPatcher</value>
-  </data>
-  <data name="Tools.Plugin.map-manager.Name" xml:space="preserve">
-    <value>Map Manager</value>
-  </data>
-  <data name="Tools.Plugin.replay-manager.Name" xml:space="preserve">
-    <value>Replay Manager</value>
-  </data>
-  <data name="Tools.ReplayManager.Button.Import" xml:space="preserve">
-    <value>Import</value>
-  </data>
-  <data name="Tools.ReplayManager.Button.Parse" xml:space="preserve">
-    <value>PARSE</value>
-  </data>
-  <data name="Tools.ReplayManager.Button.Uncompress" xml:space="preserve">
-    <value>Uncompress</value>
-  </data>
-  <data name="Tools.ReplayManager.Button.Upload" xml:space="preserve">
-    <value>Upload</value>
-  </data>
-  <data name="Tools.ReplayManager.Button.Zip" xml:space="preserve">
-    <value>Zip</value>
-  </data>
-  <data name="Tools.ReplayManager.Column.Actions" xml:space="preserve">
-    <value>Actions</value>
-  </data>
-  <data name="Tools.ReplayManager.Column.Filename" xml:space="preserve">
-    <value>Filename</value>
-  </data>
-  <data name="Tools.ReplayManager.Column.Modified" xml:space="preserve">
-    <value>Modified</value>
-  </data>
-  <data name="Tools.ReplayManager.Column.Size" xml:space="preserve">
-    <value>Size</value>
-  </data>
-  <data name="Tools.ReplayManager.DragDrop.Subtitle" xml:space="preserve">
-    <value>Single .rep files or ZIP archives only</value>
-  </data>
-  <data name="Tools.ReplayManager.DragDrop.Title" xml:space="preserve">
-    <value>Drop replays or ZIPs to import</value>
-  </data>
-  <data name="Tools.ReplayManager.Empty.Subtitle" xml:space="preserve">
-    <value>Drag and drop .rep or .zip files here, or paste a replay URL above</value>
-  </data>
-  <data name="Tools.ReplayManager.Empty.Title" xml:space="preserve">
-    <value>No replays found</value>
-  </data>
-  <data name="Tools.ReplayManager.Game.Generals" xml:space="preserve">
-    <value>Generals</value>
-  </data>
-  <data name="Tools.ReplayManager.Game.ZeroHour" xml:space="preserve">
-    <value>Zero Hour</value>
-  </data>
-  <data name="Tools.ReplayManager.Label.Selected" xml:space="preserve">
-    <value>Selected:</value>
-  </data>
-  <data name="Tools.ReplayManager.Label.StorageQuotaNotice" xml:space="preserve">
-    <value>Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit).</value>
-  </data>
-  <data name="Tools.ReplayManager.Status.Loaded" xml:space="preserve">
-    <value>Loaded {0} replays.</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.BrowseFiles" xml:space="preserve">
-    <value>Browse for files</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.DeleteSelected" xml:space="preserve">
-    <value>Permanently delete the selected replay files from your computer.</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.ImportFromUrl" xml:space="preserve">
-    <value>Import from URL</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.OpenFolder" xml:space="preserve">
-    <value>Open folder</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.ParseDetails" xml:space="preserve">
-    <value>Parse replay details (Coming Soon)</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.RefreshList" xml:space="preserve">
-    <value>Refresh list</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.RevealExplorer" xml:space="preserve">
-    <value>Reveal in explorer</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.SupportedFormats" xml:space="preserve">
-    <value>Supported formats:
-• Generals Online URL or Match ID (e.g. 151553)
-• GenTool Replay URL
-• GenHub / UploadThing Link
-• Direct download link (.rep/.zip)</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.UncompressSelected" xml:space="preserve">
-    <value>Extract replay files from the selected ZIP archives.</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.UploadReplay" xml:space="preserve">
-    <value>Upload the selected replay to Generals Online</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.ZipName" xml:space="preserve">
-    <value>Filename for the new ZIP archive</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.ZipSelected" xml:space="preserve">
-    <value>Create a new ZIP archive containing the selected replay files.</value>
-  </data>
-  <data name="Tools.ReplayManager.Watermark.ImportUrl" xml:space="preserve">
-    <value>Paste Replay URL or Match ID...</value>
-  </data>
-  <data name="Tools.ReplayManager.Watermark.SearchReplays" xml:space="preserve">
-    <value>Search replays...</value>
-  </data>
-  <data name="Tools.ReplayManager.Watermark.ZipName" xml:space="preserve">
-    <value>ZIP Name</value>
-  </data>
-  <data name="GameProfiles.Status.LoadedProfiles" xml:space="preserve">
-    <value>Loaded {0} profiles</value>
-  </data>
-  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
-    <value>Scan complete. Found {0} installations, created {1} profiles</value>
-  </data>
-  <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
-    <value>Scan complete! No new installations found</value>
-  </data>
-  <data name="GameProfiles.Status.ProfileLaunched" xml:space="preserve">
-    <value>Launched profile: {0}</value>
-  </data>
-  <data name="GameProfiles.Status.LaunchFailed" xml:space="preserve">
-    <value>Failed to launch profile: {0}</value>
-  </data>
-  <data name="GameProfiles.Status.ProfileDeleted" xml:space="preserve">
-    <value>Deleted profile: {0}</value>
-  </data>
-  <data name="GameProfiles.Status.DeleteFailed" xml:space="preserve">
-    <value>Failed to delete profile: {0}</value>
-  </data>
-  <data name="Replays.Tab.Generals" xml:space="preserve">
-    <value>Generals</value>
-  </data>
-  <data name="Replays.Tab.ZeroHour" xml:space="preserve">
-    <value>Zero Hour</value>
-  </data>
-  <data name="Replays.Watermark.ImportUrl" xml:space="preserve">
-    <value>Paste Replay URL or Match ID...</value>
-  </data>
-  <data name="Replays.Tooltip.ImportUrlFormats" xml:space="preserve">
-    <value>Supported formats:
-• Generals Online URL or Match ID (e.g. 151553)
-• GenTool Replay URL
-• GenHub / UploadThing Link
-• Direct download link (.rep/.zip)</value>
-  </data>
-  <data name="Replays.Button.Import" xml:space="preserve">
-    <value>Import</value>
-  </data>
-  <data name="Replays.Tooltip.ImportFromUrl" xml:space="preserve">
-    <value>Import from URL</value>
-  </data>
-  <data name="Replays.Tooltip.BrowseFiles" xml:space="preserve">
-    <value>Browse for files</value>
-  </data>
-  <data name="Replays.Watermark.Search" xml:space="preserve">
-    <value>Search replays...</value>
-  </data>
-  <data name="Replays.Tooltip.RefreshList" xml:space="preserve">
-    <value>Refresh list</value>
-  </data>
-  <data name="Replays.Tooltip.OpenFolder" xml:space="preserve">
-    <value>Open folder</value>
-  </data>
-  <data name="Replays.Column.Filename" xml:space="preserve">
-    <value>Filename</value>
-  </data>
-  <data name="Replays.Column.Size" xml:space="preserve">
-    <value>Size</value>
-  </data>
-  <data name="Replays.Column.Modified" xml:space="preserve">
-    <value>Modified</value>
-  </data>
-  <data name="Replays.Column.Actions" xml:space="preserve">
-    <value>Actions</value>
-  </data>
-  <data name="Replays.Tooltip.RevealInExplorer" xml:space="preserve">
-    <value>Reveal in explorer</value>
-  </data>
-  <data name="Replays.Tooltip.ParseDetails" xml:space="preserve">
-    <value>Parse replay details (Coming Soon)</value>
-  </data>
-  <data name="Replays.Button.Parse" xml:space="preserve">
-    <value>PARSE</value>
-  </data>
-  <data name="Replays.Empty.Title" xml:space="preserve">
-    <value>No replays found</value>
-  </data>
-  <data name="Replays.Empty.Description" xml:space="preserve">
-    <value>Drag and drop .rep or .zip files here, or paste a replay URL above</value>
-  </data>
-  <data name="Replays.DragDrop.Title" xml:space="preserve">
-    <value>Drop replays or ZIPs to import</value>
-  </data>
-  <data name="Replays.DragDrop.Subtitle" xml:space="preserve">
-    <value>Single .rep files or ZIP archives only</value>
-  </data>
-  <data name="Replays.Label.Selected" xml:space="preserve">
-    <value>Selected:</value>
-  </data>
-  <data name="Replays.Button.Delete" xml:space="preserve">
-    <value>Delete</value>
-  </data>
-  <data name="Replays.Tooltip.DeleteSelected" xml:space="preserve">
-    <value>Permanently delete the selected replay files from your computer.</value>
-  </data>
-  <data name="Replays.Button.Uncompress" xml:space="preserve">
-    <value>Uncompress</value>
-  </data>
-  <data name="Replays.Tooltip.UncompressSelected" xml:space="preserve">
-    <value>Extract replay files from the selected ZIP archives.</value>
-  </data>
-  <data name="Replays.Watermark.ZipName" xml:space="preserve">
-    <value>ZIP Name</value>
-  </data>
-  <data name="Replays.Tooltip.ZipName" xml:space="preserve">
-    <value>Filename for the new ZIP archive</value>
-  </data>
-  <data name="Replays.Button.Zip" xml:space="preserve">
-    <value>Zip</value>
-  </data>
-  <data name="Replays.Tooltip.ZipSelected" xml:space="preserve">
-    <value>Create a new ZIP archive containing the selected replay files.</value>
-  </data>
-  <data name="Replays.Button.Upload" xml:space="preserve">
-    <value>Upload</value>
-  </data>
-  <data name="Replays.Tooltip.UploadAndShare" xml:space="preserve">
-    <value>Upload selected replays to cloud and copy share link.</value>
-  </data>
-  <data name="Replays.Tooltip.ViewHistory" xml:space="preserve">
-    <value>View the history of your uploaded replays.</value>
-  </data>
-  <data name="Replays.Label.Active" xml:space="preserve">
-    <value>Active</value>
-  </data>
-  <data name="Replays.Label.Expired" xml:space="preserve">
-    <value>Expired</value>
-  </data>
-  <data name="Replays.Tooltip.CopyLink" xml:space="preserve">
-    <value>Copy the download link for this replay.</value>
-  </data>
-  <data name="Replays.Tooltip.DeleteHistoryItem" xml:space="preserve">
-    <value>Delete this file from cloud storage and remove from history.</value>
-  </data>
-  <data name="Replays.Empty.NoHistory" xml:space="preserve">
-    <value>No history yet</value>
-  </data>
-  <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
-    <value>Clear All History</value>
-  </data>
-  <data name="Replays.Tooltip.ClearHistory" xml:space="preserve">
-    <value>Delete all uploaded files from cloud storage and clear history.</value>
-  </data>
-  <data name="Replays.Notice.StorageQuota" xml:space="preserve">
-    <value>Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit). Duplicate files are automatically deduplicated.</value>
-  </data>
-  <data name="Maps.Tab.Generals" xml:space="preserve">
-    <value>Generals</value>
-  </data>
-  <data name="Maps.Tab.ZeroHour" xml:space="preserve">
-    <value>Zero Hour</value>
-  </data>
-  <data name="Maps.Watermark.ImportUrl" xml:space="preserve">
-    <value>Paste map URL...</value>
-  </data>
-  <data name="Maps.Button.Import" xml:space="preserve">
-    <value>Import</value>
-  </data>
-  <data name="Maps.Tooltip.ImportFromUrl" xml:space="preserve">
-    <value>Import from URL</value>
-  </data>
-  <data name="Maps.Tooltip.BrowseFiles" xml:space="preserve">
-    <value>Browse for files</value>
-  </data>
-  <data name="Maps.Watermark.Search" xml:space="preserve">
-    <value>Search...</value>
-  </data>
-  <data name="Maps.Tooltip.RefreshList" xml:space="preserve">
-    <value>Refresh list</value>
-  </data>
-  <data name="Maps.Tooltip.OpenFolder" xml:space="preserve">
-    <value>Open folder</value>
-  </data>
-  <data name="Maps.Button.Pack" xml:space="preserve">
-    <value>Pack</value>
-  </data>
-  <data name="Maps.Tooltip.MapPackManager" xml:space="preserve">
-    <value>MapPack Manager</value>
-  </data>
-  <data name="Maps.Column.Name" xml:space="preserve">
-    <value>Name</value>
-  </data>
-  <data name="Maps.Column.Size" xml:space="preserve">
-    <value>Size</value>
-  </data>
-  <data name="Maps.Column.Type" xml:space="preserve">
-    <value>Type</value>
-  </data>
-  <data name="Maps.Column.Modified" xml:space="preserve">
-    <value>Modified</value>
-  </data>
-  <data name="Maps.Empty.Title" xml:space="preserve">
-    <value>No Maps Found</value>
-  </data>
-  <data name="Maps.Empty.Description" xml:space="preserve">
-    <value>Import maps using the toolbar above or drag and drop archives here</value>
-  </data>
-  <data name="Maps.DragDrop.Title" xml:space="preserve">
-    <value>Drop Maps Here</value>
-  </data>
-  <data name="Maps.DragDrop.Subtitle" xml:space="preserve">
-    <value>Release to import maps or map archives</value>
-  </data>
-  <data name="Maps.Label.Selected" xml:space="preserve">
-    <value>Selected:</value>
-  </data>
-  <data name="Maps.Button.Delete" xml:space="preserve">
-    <value>Delete</value>
-  </data>
-  <data name="Maps.Tooltip.DeleteSelected" xml:space="preserve">
-    <value>Permanently delete the selected maps from your computer.</value>
-  </data>
-  <data name="Maps.Button.Uncompress" xml:space="preserve">
-    <value>Uncompress</value>
-  </data>
-  <data name="Maps.Tooltip.UncompressSelected" xml:space="preserve">
-    <value>Extract maps from the selected ZIP archives.</value>
-  </data>
-  <data name="Maps.Watermark.ZipName" xml:space="preserve">
-    <value>ZIP Name (.zip added)</value>
-  </data>
-  <data name="Maps.Tooltip.ZipName" xml:space="preserve">
-    <value>Filename for the new ZIP archive. The .zip extension will be added automatically.</value>
-  </data>
-  <data name="GameProfiles.Card.Menu.EditProfile" xml:space="preserve">
-    <value>Edit Profile</value>
-  </data>
-  <data name="GameProfiles.Card.Menu.CreateShortcut" xml:space="preserve">
-    <value>Create Shortcut</value>
-  </data>
-  <data name="GameProfiles.Card.Menu.CopyProfile" xml:space="preserve">
-    <value>Copy Profile</value>
-  </data>
-  <data name="GameProfiles.Card.Menu.DeleteProfile" xml:space="preserve">
-    <value>Delete Profile</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
-    <value>Toggle Steam Integration</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.EditProfile" xml:space="preserve">
-    <value>Edit Profile</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.CopyProfile" xml:space="preserve">
-    <value>Copy Profile</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.CreateShortcut" xml:space="preserve">
-    <value>Create Desktop Shortcut</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.DeleteProfile" xml:space="preserve">
-    <value>Delete Profile</value>
-  </data>
-  <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>LAUNCH</value>
-  </data>
-  <data name="Maps.MapPack.Title" xml:space="preserve">
-    <value>MapPack Manager</value>
-  </data>
-  <data name="Maps.MapPack.Subtitle" xml:space="preserve">
-    <value>Create and manage your map collections</value>
-  </data>
-  <data name="Maps.MapPack.CreateNew" xml:space="preserve">
-    <value>Create New</value>
-  </data>
-  <data name="Maps.MapPack.SelectedMaps" xml:space="preserve">
-    <value>Selected Maps</value>
-  </data>
-  <data name="Maps.MapPack.NoMapsSelected" xml:space="preserve">
-    <value>No maps selected</value>
-  </data>
-  <data name="Maps.MapPack.PackName" xml:space="preserve">
-    <value>Pack Name</value>
-  </data>
-  <data name="Maps.MapPack.Watermark" xml:space="preserve">
-    <value>e.g., Tournament Maps 2024</value>
-  </data>
-  <data name="Maps.MapPack.Button.Create" xml:space="preserve">
-    <value>Create MapPack</value>
-  </data>
-  <data name="Maps.MapPack.ExistingPacks" xml:space="preserve">
-    <value>Existing Map Packs</value>
-  </data>
-  <data name="Maps.MapPack.NoPacksFound" xml:space="preserve">
-    <value>No map packs found</value>
-  </data>
-  <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
-    <value>LOADED</value>
-  </data>
-  <data name="Maps.MapPack.Tooltip.Delete" xml:space="preserve">
-    <value>Delete this MapPack.</value>
-  </data>
-  <data name="Updates.Window.Title" xml:space="preserve">
-    <value>GenHub Updates</value>
-  </data>
-  <data name="Updates.Tab.Update" xml:space="preserve">
-    <value>Update</value>
-  </data>
-  <data name="Updates.Tab.BrowseBuilds" xml:space="preserve">
-    <value>Browse Builds</value>
-  </data>
-  <data name="Updates.SortBy.Label" xml:space="preserve">
-    <value>Sort by:</value>
-  </data>
-  <data name="Updates.Card.AvailableTitle" xml:space="preserve">
-    <value>Update Available!</value>
-  </data>
-  <data name="Updates.Tooltip.ForceRefresh" xml:space="preserve">
-    <value>Force Refresh Updates</value>
-  </data>
-  <data name="Updates.Tooltip.Dismiss" xml:space="preserve">
-    <value>Dismiss Update</value>
-  </data>
-  <data name="Updates.Button.ViewReleaseNotes" xml:space="preserve">
-    <value>View Release Notes</value>
-  </data>
-  <data name="Updates.InstallationSource.Label" xml:space="preserve">
-    <value>Installation Source</value>
-  </data>
-  <data name="Updates.Button.Unsubscribe" xml:space="preserve">
-    <value>Unsubscribe</value>
-  </data>
-  <data name="Updates.SelectVersion.Label" xml:space="preserve">
-    <value>Select Version</value>
-  </data>
-  <data name="Updates.OpenPRs.Label" xml:space="preserve">
-    <value>Open Pull Requests</value>
-  </data>
-  <data name="Updates.Tooltip.OpenPR" xml:space="preserve">
-    <value>Open pull request on GitHub</value>
-  </data>
-  <data name="Updates.Branches.Label" xml:space="preserve">
-    <value>Branches</value>
-  </data>
-  <data name="Updates.Button.CheckForUpdates" xml:space="preserve">
-    <value>Check for Updates</value>
-  </data>
-  <data name="Updates.Tooltip.CheckForUpdates" xml:space="preserve">
-    <value>Manually check for updates and restore dismissed notifications</value>
-  </data>
-  <data name="Updates.Button.Subscribe" xml:space="preserve">
-    <value>Subscribe</value>
-  </data>
-  <data name="Updates.Button.Subscribed" xml:space="preserve">
-    <value>Subscribed</value>
-  </data>
-  <data name="Tools.Button.AddToolAction" xml:space="preserve">
-    <value>Add Tool</value>
-  </data>
-  <data name="Tools.Button.RefreshToolsAction" xml:space="preserve">
-    <value>Refresh Tools</value>
-  </data>
-  <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
-    <value>Maximize / Restore</value>
-  </data>
-  <data name="Common.Tooltip.CloseWindow" xml:space="preserve">
-    <value>Close window</value>
-  </data>
-  <data name="GameProfiles.Status.FailedToLoad" xml:space="preserve">
-    <value>Failed to load profiles: {0}</value>
-  </data>
-  <data name="GameProfiles.Status.AlreadyLaunching" xml:space="preserve">
-    <value>A game is already launching or running. Please wait or stop it first.</value>
-  </data>
-  <data name="GameProfiles.Status.Validating" xml:space="preserve">
-    <value>Validating {0}...</value>
-  </data>
-  <data name="GameProfiles.Status.ScanCompleteNone" xml:space="preserve">
-    <value>Scan complete. No game installations were found.</value>
-  </data>
-  <data name="GameProfiles.Status.WorkspaceReady" xml:space="preserve">
-    <value>Workspace ready: {0}</value>
-  </data>
-  <data name="GameProfiles.Notification.ScanFailed" xml:space="preserve">
-    <value>Scan failed: {0}</value>
-  </data>
-  <data name="GameProfiles.Notification.LaunchSuccess.Title" xml:space="preserve">
-    <value>Game Launched</value>
-  </data>
-  <data name="GameProfiles.Notification.LaunchSuccess.Message" xml:space="preserve">
-    <value>Profile '{0}' launched successfully (PID: {1})</value>
-  </data>
-  <data name="GameProfiles.Notification.LaunchFailed.Title" xml:space="preserve">
-    <value>Launch Failed</value>
-  </data>
-  <data name="GameProfiles.Notification.LaunchFailed.Message" xml:space="preserve">
-    <value>Failed to launch profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Notification.StopSuccess.Title" xml:space="preserve">
-    <value>Game Stopped</value>
-  </data>
-  <data name="GameProfiles.Notification.StopSuccess.Message" xml:space="preserve">
-    <value>Profile '{0}' stopped successfully</value>
-  </data>
-  <data name="GameProfiles.Notification.StopFailed.Title" xml:space="preserve">
-    <value>Stop Failed</value>
-  </data>
-  <data name="GameProfiles.Notification.StopFailed.Message" xml:space="preserve">
-    <value>Failed to stop profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Notification.HotswapMode.Title" xml:space="preserve">
-    <value>Hotswap Mode</value>
-  </data>
-  <data name="GameProfiles.Notification.HotswapMode.Message" xml:space="preserve">
-    <value>Profile '{0}' is running. Entering hotswap edit mode.</value>
-  </data>
-  <data name="GameProfiles.Notification.ProfileDeleted.Title" xml:space="preserve">
-    <value>Profile Deleted</value>
-  </data>
-  <data name="GameProfiles.Notification.ProfileDeleted.Message" xml:space="preserve">
-    <value>Profile '{0}' deleted successfully</value>
-  </data>
-  <data name="GameProfiles.Notification.WorkspaceReady.Title" xml:space="preserve">
-    <value>Workspace Prepared</value>
-  </data>
-  <data name="GameProfiles.Notification.WorkspaceReady.Message" xml:space="preserve">
-    <value>Workspace ready for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.WorkspaceFailed.Title" xml:space="preserve">
-    <value>Workspace Preparation Failed</value>
-  </data>
-  <data name="GameProfiles.Notification.WorkspaceFailed.Message" xml:space="preserve">
-    <value>Failed to prepare workspace for profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Notification.ShortcutCreated.Title" xml:space="preserve">
-    <value>Shortcut Created</value>
-  </data>
-  <data name="GameProfiles.Notification.ShortcutCreated.Message" xml:space="preserve">
-    <value>Desktop shortcut created for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.ShortcutFailed.Title" xml:space="preserve">
-    <value>Shortcut Creation Failed</value>
-  </data>
-  <data name="GameProfiles.Notification.ShortcutFailed.Message" xml:space="preserve">
-    <value>Failed to create shortcut for profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamEnabled.Title" xml:space="preserve">
-    <value>Steam Integration Enabled</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamEnabled.Message" xml:space="preserve">
-    <value>Steam integration enabled for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamDisabled.Title" xml:space="preserve">
-    <value>Steam Integration Disabled</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamDisabled.Message" xml:space="preserve">
-    <value>Steam integration disabled for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamToggleFailed.Title" xml:space="preserve">
-    <value>Steam Integration Error</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamToggleFailed.Message" xml:space="preserve">
-    <value>Failed to update Steam integration: {0}</value>
-  </data>
-  <data name="GameProfiles.Notification.ProfileCopied.Title" xml:space="preserve">
-    <value>Profile Copied</value>
-  </data>
-  <data name="GameProfiles.Notification.ProfileCopied.Message" xml:space="preserve">
-    <value>Profile copied as '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.ProfileCopyFailed.Title" xml:space="preserve">
-    <value>Copy Failed</value>
-  </data>
-  <data name="GameProfiles.Notification.ProfileCopyFailed.Message" xml:space="preserve">
-    <value>Failed to copy profile: {0}</value>
-  </data>
-  <data name="GameProfiles.Notification.DirectoryNotFound.Title" xml:space="preserve">
-    <value>Directory Not Found</value>
-  </data>
-  <data name="GameProfiles.Notification.DirectoryNotFound.Message" xml:space="preserve">
-    <value>The directory does not exist: {0}</value>
-  </data>
-  <data name="GameProfiles.Notification.OpenDirectoryFailed.Title" xml:space="preserve">
-    <value>Failed to Open Directory</value>
-  </data>
-  <data name="GameProfiles.Notification.OpenDirectoryFailed.Message" xml:space="preserve">
-    <value>Could not open directory: {0}</value>
-  </data>
-  <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
-    <value>STOP</value>
-  </data>
-  <data name="GameProfiles.Card.Status.Running" xml:space="preserve">
-    <value>RUNNING</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
-    <value>Edit Profile (Hotswap Content)</value>
-  </data>
-  <data name="Notifications.Tooltip.Options" xml:space="preserve">
-    <value>Notification options</value>
-  </data>
-  <data name="Notifications.Options.Enable" xml:space="preserve">
-    <value>Enable Notifications</value>
-  </data>
-  <data name="Notifications.Options.MuteSession" xml:space="preserve">
-    <value>Mute for this session</value>
-  </data>
-  <data name="Notifications.Options.MutePermanently" xml:space="preserve">
-    <value>Mute permanently</value>
-  </data>
-  <data name="Notifications.Button.ClearAll" xml:space="preserve">
-    <value>Clear All</value>
-  </data>
-  <data name="Notifications.Empty.AllCaughtUp" xml:space="preserve">
-    <value>All caught up!</value>
-  </data>
-  <data name="Notifications.Tooltip.Dismiss" xml:space="preserve">
-    <value>Dismiss notification</value>
-  </data>
-  <data name="Common.Checkbox.DontAskAgain" xml:space="preserve">
-    <value>Don't ask again</value>
-  </data>
-  <data name="Common.Checkbox.DontAskAgain.Tooltip" xml:space="preserve">
-    <value>Remember this choice for future updates</value>
-  </data>
-  <data name="Common.Checkbox.DontShowAgain" xml:space="preserve">
-    <value>Don't show this again</value>
-  </data>
-  <data name="Common.Tooltip.CloseSidebar" xml:space="preserve">
-    <value>Close Sidebar</value>
-  </data>
-  <data name="Common.Tooltip.ExpandSidebar" xml:space="preserve">
-    <value>Expand Sidebar</value>
-  </data>
-  <data name="Dialog.UpdateOption.Radio.Replace" xml:space="preserve">
-    <value>Replace (Update current version)</value>
-  </data>
-  <data name="Dialog.UpdateOption.Description.Replace" xml:space="preserve">
-    <value>Updates the current version in existing profiles. Superseded version files (old game client, map pack, data patch) will be deleted to save disk space.</value>
-  </data>
-  <data name="Dialog.UpdateOption.Checkbox.DeleteOldVersions" xml:space="preserve">
-    <value>Delete superseded version files from storage</value>
-  </data>
-  <data name="Dialog.UpdateOption.Tooltip.DeleteOldVersions" xml:space="preserve">
-    <value>Removes previous version files from local storage to prevent accumulating unused versions</value>
-  </data>
-  <data name="Dialog.UpdateOption.Radio.CreateNewProfile" xml:space="preserve">
-    <value>Create New Profile</value>
-  </data>
-  <data name="Dialog.UpdateOption.Description.CreateNewProfile" xml:space="preserve">
-    <value>Creates a new companion profile for the new version, keeping your current version, files, and profile intact.</value>
-  </data>
-  <data name="Dialog.UpdateOption.Tooltip.Cancel" xml:space="preserve">
-    <value>Cancel this update (no files will be downloaded or modified)</value>
-  </data>
-  <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
-    <value>Update</value>
-  </data>
-  <data name="Maps.Button.Zip" xml:space="preserve">
-    <value>Zip</value>
-  </data>
-  <data name="Maps.Tooltip.UploadAndShare" xml:space="preserve">
-    <value>Upload and generate temporary shareable link</value>
-  </data>
-  <data name="Maps.Button.Upload" xml:space="preserve">
-    <value>Upload</value>
-  </data>
-  <data name="Maps.Tooltip.ViewHistory" xml:space="preserve">
-    <value>View upload history</value>
-  </data>
-  <data name="Maps.Label.Active" xml:space="preserve">
-    <value>Active</value>
-  </data>
-  <data name="Maps.Label.Expired" xml:space="preserve">
-    <value>Expired</value>
-  </data>
-  <data name="Maps.Tooltip.CopyLink" xml:space="preserve">
-    <value>Copy link to clipboard</value>
-  </data>
-  <data name="Maps.Tooltip.DeleteHistoryItem" xml:space="preserve">
-    <value>Remove from history</value>
-  </data>
-  <data name="Maps.Empty.NoHistory" xml:space="preserve">
-    <value>No upload history</value>
-  </data>
-  <data name="Maps.Tooltip.ClearHistory" xml:space="preserve">
-    <value>Clear all history</value>
-  </data>
-  <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
-    <value>Clear All History</value>
-  </data>
-  <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
-    <value>Uploaded files are retained for 30 days. Max file size: 50MB. Duplicate files are automatically deduplicated.</value>
-  </data>
-  <data name="Maps.Tooltip.ZipSelected" xml:space="preserve">
-    <value>Create a new ZIP archive containing the selected map files.</value>
-  </data>
-  <data name="GameProfiles.Notification.GameStopped.Title" xml:space="preserve">
-    <value>Game Stopped</value>
-  </data>
-  <data name="GameProfiles.Notification.GameStopped.Message" xml:space="preserve">
-    <value>Profile '{0}' stopped successfully</value>
-  </data>
-  <data name="GameProfiles.Notification.LoadFailed.Title" xml:space="preserve">
-    <value>Failed to Load Profiles</value>
-  </data>
-  <data name="GameProfiles.Notification.LoadFailed.Message" xml:space="preserve">
-    <value>Failed to load profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Status.ProfileCreatedSuccess" xml:space="preserve">
-    <value>Profile created successfully</value>
-  </data>
-  <data name="GameProfiles.Notification.CopySuccess.Title" xml:space="preserve">
-    <value>Profile Copied</value>
-  </data>
-  <data name="GameProfiles.Notification.CopySuccess.Message" xml:space="preserve">
-    <value>Profile '{0}' copied to '{1}' successfully</value>
-  </data>
-  <data name="GameProfiles.Notification.StopError.Title" xml:space="preserve">
-    <value>Stop Error</value>
-  </data>
-  <data name="GameProfiles.Notification.StopError.Message" xml:space="preserve">
-    <value>Error stopping profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Error.FailedToCopyProfile" xml:space="preserve">
-    <value>Failed to copy profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Error.ErrorCopyingProfile" xml:space="preserve">
-    <value>Error copying profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.CopyError.Title" xml:space="preserve">
-    <value>Copy Error</value>
-  </data>
-  <data name="GameProfiles.Notification.CopyError.Message" xml:space="preserve">
-    <value>Error copying profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.CopyFailed.Title" xml:space="preserve">
-    <value>Copy Failed</value>
-  </data>
-  <data name="GameProfiles.Notification.CopyFailed.Message" xml:space="preserve">
-    <value>Failed to copy profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Notification.CopyFailedSource.Message" xml:space="preserve">
-    <value>Failed to copy profile: source profile '{0}' not found: {1}</value>
-  </data>
-  <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
-    <value>Invalid Directory</value>
-  </data>
-  <data name="GameProfiles.Notification.InvalidDirectory.Message" xml:space="preserve">
-    <value>The selected directory does not contain valid game executables.</value>
-  </data>
-  <data name="GameProfiles.Notification.ProcessDirectoryError.Message" xml:space="preserve">
-    <value>Failed to process selected directory: {0}</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamIntegration.Title" xml:space="preserve">
-    <value>Steam Integration</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamIntegration.Message" xml:space="preserve">
-    <value>Steam integration {0} for profile '{1}'</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamIntegrationError.Title" xml:space="preserve">
-    <value>Steam Integration Error</value>
-  </data>
-  <data name="GameProfiles.Notification.SteamIntegrationError.Message" xml:space="preserve">
-    <value>Failed to update Steam integration for profile '{0}': {1}</value>
-  </data>
-  <data name="Common.State.Enabled" xml:space="preserve">
-    <value>enabled</value>
-  </data>
-  <data name="Common.State.Disabled" xml:space="preserve">
-    <value>disabled</value>
-  </data>
-  <data name="GameProfiles.Notification.GameLaunched.Title" xml:space="preserve">
-    <value>Game Launched</value>
-  </data>
-  <data name="GameProfiles.Notification.GameLaunched.Message" xml:space="preserve">
-    <value>Profile '{0}' launched successfully</value>
-  </data>
-  <data name="GameProfiles.Notification.LaunchError.Title" xml:space="preserve">
-    <value>Launch Error</value>
-  </data>
-  <data name="GameProfiles.Notification.LaunchError.Message" xml:space="preserve">
-    <value>Error launching profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Notification.WorkspaceError.Title" xml:space="preserve">
-    <value>Workspace Error</value>
-  </data>
-  <data name="GameProfiles.Notification.WorkspaceError.Message" xml:space="preserve">
-    <value>Failed to prepare workspace for profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Status.ShortcutCreatedSuccess" xml:space="preserve">
-    <value>Shortcut created for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.OpenNewProfileError.Message" xml:space="preserve">
-    <value>Failed to open new profile dialog: {0}</value>
-  </data>
-  <data name="GameProfiles.Notification.ShortcutError.Title" xml:space="preserve">
-    <value>Shortcut Error</value>
-  </data>
-  <data name="GameProfiles.Notification.ShortcutError.Message" xml:space="preserve">
-    <value>Error creating shortcut for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Status.InvalidProfile" xml:space="preserve">
-    <value>Selected profile is invalid</value>
-  </data>
-  <data name="GameProfiles.Notification.ScanComplete.Title" xml:space="preserve">
-    <value>Scan Complete</value>
-  </data>
-  <data name="GameProfiles.Notification.ScanComplete.Message" xml:space="preserve">
-    <value>Game scan complete! Created {0} new profiles.</value>
-  </data>
-  <data name="GameProfiles.Notification.DeleteError.Title" xml:space="preserve">
-    <value>Delete Error</value>
-  </data>
-  <data name="GameProfiles.Notification.DeleteError.Message" xml:space="preserve">
-    <value>Error deleting profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Notification.DeleteFailed.Title" xml:space="preserve">
-    <value>Delete Failed</value>
-  </data>
-  <data name="GameProfiles.Notification.DeleteFailed.Message" xml:space="preserve">
-    <value>Failed to delete profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Status.UpdatingLaunchMode" xml:space="preserve">
-    <value>Updating launch mode for profile '{0}'...</value>
-  </data>
-  <data name="GameProfiles.Error.ErrorUpdatingLaunchMode" xml:space="preserve">
-    <value>Error updating launch mode for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Status.CopyingProfile" xml:space="preserve">
-    <value>Copying profile '{0}'...</value>
-  </data>
-  <data name="GameProfiles.Status.SteamLaunchUpdated" xml:space="preserve">
-    <value>Steam launch {0} for profile '{1}'</value>
-  </data>
-  <data name="GameProfiles.Error.FailedToCreateShortcut" xml:space="preserve">
-    <value>Failed to create shortcut for profile '{0}': {1}</value>
-  </data>
-  <data name="GameProfiles.Status.CreatingShortcut" xml:space="preserve">
-    <value>Creating desktop shortcut for profile '{0}'...</value>
-  </data>
-  <data name="GameProfiles.Error.ErrorStoppingProfile" xml:space="preserve">
-    <value>Error stopping profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Error.ErrorCreatingShortcut" xml:space="preserve">
-    <value>Error creating shortcut for profile '{0}'</value>
-  </data>
-  <data name="GameProfiles.Status.EditCancelled" xml:space="preserve">
-    <value>Profile editing cancelled</value>
-  </data>
-  <data name="GameProfiles.Notification.Error.Title" xml:space="preserve">
-    <value>Error</value>
-  </data>
-  <data name="GameProfiles.Status.ProfileCopiedSuccess" xml:space="preserve">
-    <value>Profile '{0}' copied to '{1}' successfully</value>
-  </data>
-  <data name="GameProfiles.Status.ProfileCreationCancelled" xml:space="preserve">
-    <value>Profile creation cancelled</value>
-  </data>
-  <data name="GameProfiles.Error.ErrorEditingProfile" xml:space="preserve">
-    <value>Error editing profile '{0}'</value>
-  </data>
-  <data name="Maps.MapPack.CreatedDatePrefix" xml:space="preserve">
-    <value>Created:</value>
-  </data>
-  <data name="Maps.MapPack.MapsCountSuffix" xml:space="preserve">
-    <value>Maps</value>
   </data>
 </root>

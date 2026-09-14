@@ -1257,6 +1257,27 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that TestPatAsync sets error state and does not save token when API client is null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenApiClientIsNull_SetsErrorStateAndDoesNotSaveTokenAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: null);
+        viewModel.GitHubPatInput = "ghp_validToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        Assert.Contains("GitHub API client not available", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that TestPatAsync restores existing token when token storage SaveTokenAsync throws.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

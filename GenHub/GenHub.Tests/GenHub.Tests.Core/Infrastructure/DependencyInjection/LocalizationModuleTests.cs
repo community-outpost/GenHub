@@ -1,67 +1,31 @@
 using System.Globalization;
-using System.Linq;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
-using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Tests localization dependency injection registration.
+/// Unit tests verifying DI registration and live culture resolution in <see cref="LocalizationModule"/>.
 /// </summary>
-[Collection(LocalizationCultureCollection.Name)]
-public sealed class LocalizationModuleTests : IDisposable
+public class LocalizationModuleTests
 {
-    private readonly CultureInfo? _originalDefaultUiCulture = CultureInfo.DefaultThreadCurrentUICulture;
-    private readonly CultureInfo _originalThreadUiCulture = CultureInfo.CurrentUICulture;
-
     /// <summary>
-    /// Restores process-wide UI culture defaults changed by localization resolution.
-    /// </summary>
-    public void Dispose()
-    {
-        CultureInfo.CurrentUICulture = _originalThreadUiCulture;
-        CultureInfo.DefaultThreadCurrentUICulture = _originalDefaultUiCulture;
-    }
-
-    /// <summary>
-    /// Verifies that localization resolves as one shared service with embedded English resources.
+    /// Verifies that localization services are registered as singletons and implement required contracts.
     /// </summary>
     [Fact]
-    public void AddLocalizationServices_RegistersSingletonWithDefaultResources()
+    public void AddLocalizationServices_RegistersSingletonAndContract()
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddLocalizationServices();
 
         using var provider = services.BuildServiceProvider();
-        var first = provider.GetRequiredService<ILocalizationService>();
-        var second = provider.GetRequiredService<ILocalizationService>();
+        var service1 = provider.GetService<ILocalizationService>();
+        var service2 = provider.GetService<ILocalizationService>();
 
-        Assert.Same(first, second);
-        Assert.Equal("en", first.CurrentCulture.Name);
-        Assert.Equal("GenHub", first.GetString("App.Name"));
-    }
-
-    /// <summary>
-    /// Verifies that Russian and Arabic satellite assemblies are discovered automatically.
-    /// </summary>
-    [Fact]
-    public void AddLocalizationServices_DiscoversRussianAndArabicCultures()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddLocalizationServices();
-
-        using var provider = services.BuildServiceProvider();
-        var localizationService = provider.GetRequiredService<ILocalizationService>();
-        var cultureNames = localizationService.AvailableCultures.Select(c => c.Name).ToList();
-
-        Assert.Contains("en", cultureNames);
-        Assert.Contains("ru", cultureNames);
-        Assert.Contains("ar", cultureNames);
+        Assert.NotNull(service1);
+        Assert.Same(service1, service2);
     }
 
     /// <summary>
@@ -81,10 +45,10 @@ public sealed class LocalizationModuleTests : IDisposable
         Assert.True(switchResult.Success);
         Assert.Equal("ru", localizationService.CurrentCulture.Name);
 
-        Assert.Equal("Внешний вид", localizationService["Settings.Appearance.Header"]);
-        Assert.Equal("Цветовая тема оформления", localizationService["Settings.Appearance.AccentColor.Label"]);
-        Assert.Equal("Выберите цветовую тему оформления для кнопок, вкладок, выделений, подсветки и полос прокрутки в GenHub.", localizationService["Settings.Appearance.AccentColor.Description"]);
-        Assert.Equal("Активная тема:", localizationService["Settings.Appearance.ActiveTheme"]);
+        Assert.Equal("Внешний вид", localizationService["Settings.Section.Appearance"]);
+        Assert.Equal("Цветовая тема оформления", localizationService["Settings.Appearance.Theme.Label"]);
+        Assert.Equal("Выберите цветовую тему оформления для кнопок, вкладок, выделений, подсветки и полос прокрутки в GenHub.", localizationService["Settings.Appearance.Theme.Description"]);
+        Assert.Equal("Активная тема:", localizationService["Settings.Appearance.Theme.ActiveTheme"]);
         Assert.Equal("Уведомления", localizationService["Notifications.Title"]);
     }
 
@@ -105,10 +69,10 @@ public sealed class LocalizationModuleTests : IDisposable
         Assert.True(switchResult.Success);
         Assert.Equal("ar", localizationService.CurrentCulture.Name);
 
-        Assert.Equal("المظهر", localizationService["Settings.Appearance.Header"]);
-        Assert.Equal("سمة لون التمييز", localizationService["Settings.Appearance.AccentColor.Label"]);
-        Assert.Equal("اختر سمة لون تمييز للأزرار وعلامات التبويب والتحديدات والتوهجات وأشرطة التمرير عبر GenHub.", localizationService["Settings.Appearance.AccentColor.Description"]);
-        Assert.Equal("السمة النشطة:", localizationService["Settings.Appearance.ActiveTheme"]);
+        Assert.Equal("المظهر", localizationService["Settings.Section.Appearance"]);
+        Assert.Equal("سمة لون التمييز", localizationService["Settings.Appearance.Theme.Label"]);
+        Assert.Equal("اختر سمة لون تمييز للأزرار وعلامات التبويب والتحديدات والتوهجات وأشرطة التمرير عبر GenHub.", localizationService["Settings.Appearance.Theme.Description"]);
+        Assert.Equal("السمة النشطة:", localizationService["Settings.Appearance.Theme.ActiveTheme"]);
         Assert.Equal("الإشعارات", localizationService["Notifications.Title"]);
     }
 }

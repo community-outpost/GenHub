@@ -164,7 +164,11 @@
                                         </Button>
                                     </StackPanel>
                                 </Grid>
-                                <TextBlock Text="{Binding DisplayLatestVersion, StringFormat='Version {0} is ready'}" FontSize="14" Foreground="#CCFFFFFF" Margin="0,4,0,0"/>
+                                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
+                                    <TextBlock Text="{localization:Localize Updates.Label.Version}" FontSize="14" Foreground="#CCFFFFFF"/>
+                                    <TextBlock Text="{Binding DisplayLatestVersion}" FontSize="14" Foreground="#CCFFFFFF"/>
+                                    <TextBlock Text="{localization:Localize Updates.Label.IsReady}" FontSize="14" Foreground="#CCFFFFFF"/>
+                                </StackPanel>
                             </StackPanel>
 
                             <!-- Release Notes Link -->
@@ -178,8 +182,10 @@
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="{localization:Localize Updates.InstallationSource.Label}" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="{Binding InstalledVersionDisplay, StringFormat='Current Version: {0}'}"
-                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Text="{localization:Localize Updates.Label.CurrentVersionColon}" FontSize="12" Foreground="#888888"/>
+                                    <TextBlock Text="{Binding InstalledVersionDisplay}" FontSize="12" Foreground="#888888"/>
+                                </StackPanel>
                             </Grid>
 
                             <!-- Current Source Display -->
@@ -260,11 +266,17 @@
 
                                                     <!-- Row 1: Author, Branch, Date -->
                                                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Opacity="0.6" Margin="0,4,0,0">
-                                                        <TextBlock Text="{Binding Author, StringFormat='by {0}'}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                        <StackPanel Orientation="Horizontal" Spacing="3">
+                                                            <TextBlock Text="{localization:Localize Updates.Label.By}" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Author}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                        </StackPanel>
                                                         <TextBlock Text="•" FontSize="12"/>
                                                         <TextBlock Text="{Binding BranchName}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="160"/>
                                                         <TextBlock Text="•" FontSize="12" IsVisible="{Binding UpdatedAt, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                                        <TextBlock Text="{Binding UpdatedAt, StringFormat='Updated: {0:g}'}" FontSize="12" IsVisible="{Binding UpdatedAt, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                                        <StackPanel Orientation="Horizontal" Spacing="3" IsVisible="{Binding UpdatedAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                            <TextBlock Text="{localization:Localize Updates.Label.UpdatedColon}" FontSize="12"/>
+                                                            <TextBlock Text="{Binding UpdatedAt, StringFormat='{}{0:g}'}" FontSize="12"/>
+                                                        </StackPanel>
                                                     </StackPanel>
                                                 </Grid>
 
