@@ -351,7 +351,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the status color for the PAT indicator.
     /// </summary>
-    public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+    public string PatStatusColor => _isPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.
@@ -1416,7 +1416,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Tests the entered GitHub PAT by making an API call.
     /// </summary>
     [RelayCommand]
-    private async Task TestPatAsync()
+    private async Task TestPatAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(GitHubPatInput))
         {
@@ -1445,15 +1445,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             if (_gitHubApiClient != null)
             {
-                var user = await _gitHubApiClient.GetAuthenticatedUserAsync();
+                var user = await _gitHubApiClient.GetAuthenticatedUserAsync(cancellationToken);
                 if (user == null)
                 {
-                    throw new InvalidOperationException("GitHub authentication failed. Please verify that your token is valid.");
+                    await RestoreExistingTokenAsync();
+                    PatStatusMessage = "GitHub authentication failed. Please verify that your token is valid.";
+                    IsPatValid = false;
+                    return;
                 }
             }
             else if (_updateManager != null)
             {
-                _ = await _updateManager.CheckForArtifactUpdatesAsync();
+                _ = await _updateManager.CheckForArtifactUpdatesAsync(cancellationToken);
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
