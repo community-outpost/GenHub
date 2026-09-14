@@ -125,7 +125,7 @@ private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
 > All title bar action buttons (Settings, Info, Notifications, Minimize, Maximize, Close) must have localized `ToolTip.Tip` bindings referencing `GenHub/GenHub/Resources/Localization/Strings.resx` via `{localization:Localize ...}`:
 > ```xml
 > <Button Classes="TitleBarButton"
->         ToolTip.Tip="{localization:Localize MainWindow.TitleBar.Settings.ToolTip}"
+>         ToolTip.Tip="{localization:Localize Navigation.Settings}"
 >         Command="{Binding OpenSettingsCommand}">
 >     <material:MaterialIcon Kind="Cog" />
 > </Button>

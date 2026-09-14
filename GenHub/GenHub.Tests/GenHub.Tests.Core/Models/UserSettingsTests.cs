@@ -107,4 +107,25 @@ public class UserSettingsTests
         // Assert
         Assert.Equal("ar-SA", clone.Language);
     }
+
+    /// <summary>
+    /// Verifies that Language survives JSON serialization round-trip.
+    /// </summary>
+    [Fact]
+    public void Language_SerializesAndDeserializesCorrectly()
+    {
+        // Arrange
+        var settings = new UserSettings
+        {
+            Language = "ru-RU",
+        };
+
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(settings);
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(json);
+
+        // Assert
+        Assert.NotNull(deserialized);
+        Assert.Equal("ru-RU", deserialized.Language);
+    }
 }

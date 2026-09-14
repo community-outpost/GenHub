@@ -612,11 +612,11 @@ public class GameProfileLauncherViewModelTests
         mock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
             .Returns<string, object?[]>((key, args) =>
             {
-                var val = resourceManager.GetString(key) ?? key;
+                var val = resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key;
                 return args != null && args.Length > 0 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
             });
         mock.Setup(m => m[It.IsAny<string>()])
-            .Returns<string>(key => resourceManager.GetString(key) ?? key);
+            .Returns<string>(key => resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key);
         return mock.Object;
     }
 }

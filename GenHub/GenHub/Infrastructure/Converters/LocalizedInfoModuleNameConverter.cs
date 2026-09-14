@@ -1,8 +1,6 @@
 using System;
 using System.Globalization;
-using Avalonia;
 using Avalonia.Data.Converters;
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 
 namespace GenHub.Infrastructure.Converters;
@@ -22,7 +20,7 @@ public class LocalizedInfoModuleNameConverter : IValueConverter
 
         try
         {
-            var localizationService = ResolveLocalizationService();
+            var localizationService = LocalizationConverterHelper.ResolveLocalizationService();
             if (localizationService == null)
             {
                 return moduleName;
@@ -45,22 +43,4 @@ public class LocalizedInfoModuleNameConverter : IValueConverter
     /// <inheritdoc/>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
-
-    private static ILocalizationService? ResolveLocalizationService()
-    {
-        try
-        {
-            if (Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, null, out var res) == true &&
-                res is ILocalizationService service)
-            {
-                return service;
-            }
-        }
-        catch
-        {
-            // Fallback gracefully if resource not present
-        }
-
-        return null;
-    }
 }

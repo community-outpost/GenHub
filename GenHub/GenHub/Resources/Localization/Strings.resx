@@ -3343,7 +3343,7 @@
     <value>GenHub uses the Velopack engine for seamless background updates. Use this notification bar to manage official releases.</value>
   </data>
   <data name="Info.Demo.AppUpdates.BrowseBuildsHint" xml:space="preserve">
-    <value>Try clicking &apos;Browse Builds&apos; to see experimental developer versions!</value>
+    <value>Try clicking 'Browse Builds' to see experimental developer versions!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
     <value>Advanced: CI Artifacts &amp; GitHub PAT</value>
@@ -3358,7 +3358,7 @@
     <value>GitHub Personal Access Token</value>
   </data>
   <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
-    <value>Try entering &apos;ghp_demo&apos; and clicking Save &amp; Test to see the validation in action!</value>
+    <value>Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!</value>
   </data>
   <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
     <value>Demo: Options.ini Configuration</value>
@@ -3379,7 +3379,7 @@
     <value>Assigning Mods and Maps to a profile.</value>
   </data>
   <data name="Info.Demo.ContentSelection.Description" xml:space="preserve">
-    <value>The Content Editor is where you construct the &apos;Playlist&apos; of content for a specific profile.</value>
+    <value>The Content Editor is where you construct the 'Playlist' of content for a specific profile.</value>
   </data>
   <data name="Info.Demo.ContentSelection.Hint" xml:space="preserve">
     <value>Try toggling mods, reordering content, or clicking Add Local!</value>
@@ -3460,7 +3460,7 @@
     <value>New {0} build available: {1}</value>
   </data>
   <data name="Updates.Status.BranchDismissed" xml:space="preserve">
-    <value>You dismissed the update for branch &apos;{0}&apos;</value>
+    <value>You dismissed the update for branch '{0}'</value>
   </data>
   <data name="Updates.Status.BranchLatest" xml:space="preserve">
     <value>You are on the latest build for {0}</value>
@@ -3473,5 +3473,813 @@
   </data>
   <data name="Updates.Placeholder.NoVersionsFound" xml:space="preserve">
     <value>No versions found</value>
+  </data>
+
+  <data name="Common.BrowseEllipsis" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Common.CloseEsc" xml:space="preserve">
+    <value>Close (Esc)</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Common.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Common.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Common.ReadMore" xml:space="preserve">
+    <value>Read More</value>
+  </data>
+  <data name="Common.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Common.ShowLess" xml:space="preserve">
+    <value>Show Less</value>
+  </data>
+  <data name="GameProfiles.Window.Title" xml:space="preserve">
+    <value>Profile Settings</value>
+  </data>
+  <data name="GameProfiles.Window.Subtitle" xml:space="preserve">
+    <value>Profile Settings</value>
+  </data>
+  <data name="GameProfiles.Window.HotswapMode" xml:space="preserve">
+    <value>HOTSWAP MODE</value>
+  </data>
+  <data name="GameProfiles.Window.RandomizeColor" xml:space="preserve">
+    <value>Randomize Color</value>
+  </data>
+  <data name="GameProfiles.Window.ToggleFullscreen" xml:space="preserve">
+    <value>Toggle Fullscreen</value>
+  </data>
+  <data name="GameProfiles.Window.LoadError" xml:space="preserve">
+    <value>Failed to load profile settings</value>
+  </data>
+  <data name="GameProfiles.Window.SaveTooltip" xml:space="preserve">
+    <value>Save changes and close</value>
+  </data>
+  <data name="GameProfiles.LocalContent.DialogTitle" xml:space="preserve">
+    <value>Add Local Content</value>
+  </data>
+  <data name="GameProfiles.LocalContent.SelectedFolder" xml:space="preserve">
+    <value>Selected Folder</value>
+  </data>
+  <data name="GameProfiles.LocalContent.ContentName" xml:space="preserve">
+    <value>Content Name</value>
+  </data>
+  <data name="GameProfiles.LocalContent.ContentNameWatermark" xml:space="preserve">
+    <value>Enter name for this content...</value>
+  </data>
+  <data name="GameProfiles.LocalContent.ContentType" xml:space="preserve">
+    <value>Content Type</value>
+  </data>
+  <data name="GameProfiles.LocalContent.PublisherNote" xml:space="preserve">
+    <value>Publisher will be set to 'Local Content'</value>
+  </data>
+  <data name="GameProfiles.LocalContent.TargetGame" xml:space="preserve">
+    <value>Target Game</value>
+  </data>
+  <data name="GameProfiles.LocalContent.TargetGameNote" xml:space="preserve">
+    <value>Which game version this content is designed for</value>
+  </data>
+  <data name="GameProfiles.LocalContent.AddContentButton" xml:space="preserve">
+    <value>Add Content</value>
+  </data>
+  <data name="GameProfiles.Content.TabEnabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="GameProfiles.Content.TabAvailable" xml:space="preserve">
+    <value>Available</value>
+  </data>
+  <data name="GameProfiles.Content.EnabledContentTitle" xml:space="preserve">
+    <value>Enabled Content</value>
+  </data>
+  <data name="GameProfiles.Content.RefreshInstalledTip" xml:space="preserve">
+    <value>Refresh installed content</value>
+  </data>
+  <data name="GameProfiles.Content.NoContentWarning" xml:space="preserve">
+    <value>No content currently enabled. Add at least one Game Client or Executable to launch this profile.</value>
+  </data>
+  <data name="GameProfiles.Content.EditContentToolTip" xml:space="preserve">
+    <value>Edit Content</value>
+  </data>
+  <data name="GameProfiles.Content.AddContentTitle" xml:space="preserve">
+    <value>Add Content</value>
+  </data>
+  <data name="GameProfiles.Content.AddLocalButton" xml:space="preserve">
+    <value>Add Local Folder</value>
+  </data>
+  <data name="GameProfiles.Content.AddLocalTooltip" xml:space="preserve">
+    <value>Import content from disk</value>
+  </data>
+  <data name="GameProfiles.Content.FilterGameLabel" xml:space="preserve">
+    <value>Filter:</value>
+  </data>
+  <data name="GameProfiles.General.TabIdentity" xml:space="preserve">
+    <value>Identity</value>
+  </data>
+  <data name="GameProfiles.General.TabAppearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="GameProfiles.General.TabLaunch" xml:space="preserve">
+    <value>Launch</value>
+  </data>
+  <data name="GameProfiles.General.TabTheme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="GameProfiles.General.BasicInformation" xml:space="preserve">
+    <value>Basic Information</value>
+  </data>
+  <data name="GameProfiles.General.ProfileName" xml:space="preserve">
+    <value>Profile Name</value>
+  </data>
+  <data name="GameProfiles.General.ProfileNameWatermark" xml:space="preserve">
+    <value>Enter profile name</value>
+  </data>
+  <data name="GameProfiles.General.Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="GameProfiles.General.DescriptionWatermark" xml:space="preserve">
+    <value>Optional description</value>
+  </data>
+  <data name="GameProfiles.General.IconAndCover" xml:space="preserve">
+    <value>Icon &amp; Cover</value>
+  </data>
+  <data name="GameProfiles.General.ProfileIcon" xml:space="preserve">
+    <value>Profile Icon</value>
+  </data>
+  <data name="GameProfiles.General.ProfileCover" xml:space="preserve">
+    <value>Profile Cover</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfiguration" xml:space="preserve">
+    <value>Launch Configuration</value>
+  </data>
+  <data name="GameProfiles.General.WorkspaceStrategy" xml:space="preserve">
+    <value>Workspace Strategy</value>
+  </data>
+  <data name="GameProfiles.General.WorkspaceStrategyDescription" xml:space="preserve">
+    <value>Determines how content files are mapped into the game folder.</value>
+  </data>
+  <data name="GameProfiles.General.CommandLineArguments" xml:space="preserve">
+    <value>Command Line Arguments</value>
+  </data>
+  <data name="GameProfiles.General.CommandLineArgumentsWatermark" xml:space="preserve">
+    <value>-win -quickstart -mod GenEvo</value>
+  </data>
+  <data name="GameProfiles.General.ThemeCustomization" xml:space="preserve">
+    <value>Theme Customization</value>
+  </data>
+  <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
+    <value>Interface Primary Color</value>
+  </data>
+  <data name="GameProfiles.Navigation.ContentTooltip" xml:space="preserve">
+    <value>Content</value>
+  </data>
+  <data name="GameProfiles.Navigation.ProfileSettingsTooltip" xml:space="preserve">
+    <value>Profile Settings</value>
+  </data>
+  <data name="GameProfiles.Navigation.GameSettingsTooltip" xml:space="preserve">
+    <value>Game Settings</value>
+  </data>
+  <data name="GameSettings.Category.Video" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="GameSettings.Category.Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="GameSettings.Category.Controls" xml:space="preserve">
+    <value>Controls</value>
+  </data>
+  <data name="GameSettings.Category.TheSuperHackers" xml:space="preserve">
+    <value>TheSuperHackers</value>
+  </data>
+  <data name="GameSettings.Category.GeneralsOnline" xml:space="preserve">
+    <value>Generals Online</value>
+  </data>
+  <data name="GameSettings.Video.Title" xml:space="preserve">
+    <value>Video Settings</value>
+  </data>
+  <data name="GameSettings.Video.Resolution" xml:space="preserve">
+    <value>Resolution</value>
+  </data>
+  <data name="GameSettings.Video.DetailLevel" xml:space="preserve">
+    <value>Detail Level (LOD)</value>
+  </data>
+  <data name="GameSettings.Video.TextureQuality" xml:space="preserve">
+    <value>Texture Quality</value>
+  </data>
+  <data name="GameSettings.Video.Brightness" xml:space="preserve">
+    <value>Brightness</value>
+  </data>
+  <data name="GameSettings.Video.AntiAliasing" xml:space="preserve">
+    <value>Anti-Aliasing</value>
+  </data>
+  <data name="GameSettings.Video.MaxParticleCount" xml:space="preserve">
+    <value>Max Particle Count</value>
+  </data>
+  <data name="GameSettings.Video.WindowedMode" xml:space="preserve">
+    <value>Windowed Mode</value>
+  </data>
+  <data name="GameSettings.Video.DynamicLod" xml:space="preserve">
+    <value>Dynamic LOD</value>
+  </data>
+  <data name="GameSettings.Video.AdvancedDisplayOptions" xml:space="preserve">
+    <value>Advanced Display Options</value>
+  </data>
+  <data name="GameSettings.Video.3DShadows" xml:space="preserve">
+    <value>3D Shadows</value>
+  </data>
+  <data name="GameSettings.Video.2DShadows" xml:space="preserve">
+    <value>2D Shadows</value>
+  </data>
+  <data name="GameSettings.Video.CloudShadows" xml:space="preserve">
+    <value>Cloud Shadows</value>
+  </data>
+  <data name="GameSettings.Video.ExtraGroundLighting" xml:space="preserve">
+    <value>Extra Ground Lighting</value>
+  </data>
+  <data name="GameSettings.Video.SmoothWaterBorders" xml:space="preserve">
+    <value>Smooth Water Borders</value>
+  </data>
+  <data name="GameSettings.Video.BehindBuildings" xml:space="preserve">
+    <value>Behind Buildings</value>
+  </data>
+  <data name="GameSettings.Video.HeatEffects" xml:space="preserve">
+    <value>Heat Effects</value>
+  </data>
+  <data name="GameSettings.Video.BuildingAnimations" xml:space="preserve">
+    <value>Building Animations</value>
+  </data>
+  <data name="GameSettings.Video.ExtraAnimations" xml:space="preserve">
+    <value>Extra Animations</value>
+  </data>
+  <data name="GameSettings.Video.ParticleEffects" xml:space="preserve">
+    <value>Particle Effects</value>
+  </data>
+  <data name="GameSettings.Video.ShowProps" xml:space="preserve">
+    <value>Show Props</value>
+  </data>
+  <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
+    <value>Show Trees</value>
+  </data>
+  <data name="GameSettings.Audio.Title" xml:space="preserve">
+    <value>Audio Settings</value>
+  </data>
+  <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
+    <value>Audio Enabled</value>
+  </data>
+  <data name="GameSettings.Audio.SoundVolume" xml:space="preserve">
+    <value>Sound FX Volume</value>
+  </data>
+  <data name="GameSettings.Audio.ThreeDSoundVolume" xml:space="preserve">
+    <value>3D Sound Volume</value>
+  </data>
+  <data name="GameSettings.Audio.MusicVolume" xml:space="preserve">
+    <value>Music Volume</value>
+  </data>
+  <data name="GameSettings.Audio.SpeechVolume" xml:space="preserve">
+    <value>Speech Volume</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
+    <value>Audio Channels</value>
+  </data>
+  <data name="GameSettings.Controls.Title" xml:space="preserve">
+    <value>Controls &amp; Gameplay</value>
+  </data>
+  <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
+    <value>Scroll Speed</value>
+  </data>
+  <data name="GameSettings.Controls.AlternateMouseSetup" xml:space="preserve">
+    <value>Alternate Mouse Setup (Right Click Move)</value>
+  </data>
+  <data name="GameSettings.Controls.DoubleClickAttack" xml:space="preserve">
+    <value>Double Click Attack Move</value>
+  </data>
+  <data name="GameSettings.Controls.AutoRetaliation" xml:space="preserve">
+    <value>Automatic Unit Retaliation</value>
+  </data>
+  <data name="GameSettings.Controls.FastSendDelay" xml:space="preserve">
+    <value>Send Delay (ms)</value>
+  </data>
+  <data name="GameSettings.Controls.DrawScrollAnchor" xml:space="preserve">
+    <value>Draw Scroll Anchor</value>
+  </data>
+  <data name="GameSettings.Controls.MoveScrollAnchor" xml:space="preserve">
+    <value>Move Scroll Anchor</value>
+  </data>
+  <data name="GameSettings.Controls.LanguageFilter" xml:space="preserve">
+    <value>Profanity Filter</value>
+  </data>
+  <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
+    <value>In-Game Clock Font Size</value>
+  </data>
+  <data name="GameSettings.Tsh.Title" xml:space="preserve">
+    <value>TheSuperHackers Settings</value>
+  </data>
+  <data name="GameSettings.Tsh.GeneralFeatures" xml:space="preserve">
+    <value>General Features</value>
+  </data>
+  <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
+    <value>Archive Replays</value>
+  </data>
+  <data name="GameSettings.Tsh.ShowMoneyPerMin" xml:space="preserve">
+    <value>Show Money / Min</value>
+  </data>
+  <data name="GameSettings.Tsh.ObserverMode" xml:space="preserve">
+    <value>Observer Mode</value>
+  </data>
+  <data name="GameSettings.Tsh.SkipIntro" xml:space="preserve">
+    <value>Skip Intro Movies</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCapture" xml:space="preserve">
+    <value>Cursor Clipping / Capture</value>
+  </data>
+  <data name="GameSettings.Tsh.FullscreenGame" xml:space="preserve">
+    <value>Fullscreen in Game</value>
+  </data>
+  <data name="GameSettings.Tsh.FullscreenMenu" xml:space="preserve">
+    <value>Fullscreen in Menus</value>
+  </data>
+  <data name="GameSettings.Tsh.WindowedGame" xml:space="preserve">
+    <value>Windowed in Game</value>
+  </data>
+  <data name="GameSettings.Tsh.WindowedMenu" xml:space="preserve">
+    <value>Windowed in Menus</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScroll" xml:space="preserve">
+    <value>Screen Edge Scrolling</value>
+  </data>
+  <data name="GameSettings.Tsh.InFullscreen" xml:space="preserve">
+    <value>In Fullscreen</value>
+  </data>
+  <data name="GameSettings.Tsh.InWindowed" xml:space="preserve">
+    <value>In Windowed</value>
+  </data>
+  <data name="GameSettings.Tsh.InterfaceFontSizes" xml:space="preserve">
+    <value>Interface &amp; Font Sizes</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTime" xml:space="preserve">
+    <value>System Time Font Size</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplay" xml:space="preserve">
+    <value>Ping Display Font Size</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplay" xml:space="preserve">
+    <value>FPS Display Font Size</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffset" xml:space="preserve">
+    <value>Resolution Font Offset</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolume" xml:space="preserve">
+    <value>Transaction Volume</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
+    <value>Transition Speed</value>
+  </data>
+  <data name="GameSettings.Go.Title" xml:space="preserve">
+    <value>Generals Online Settings</value>
+  </data>
+  <data name="GameSettings.Go.IdentityAndLogin" xml:space="preserve">
+    <value>Identity &amp; Login</value>
+  </data>
+  <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
+    <value>Auto Login</value>
+  </data>
+  <data name="GameSettings.Go.RememberMe" xml:space="preserve">
+    <value>Remember Me</value>
+  </data>
+  <data name="GameSettings.Go.ShowRanks" xml:space="preserve">
+    <value>Show Ranks</value>
+  </data>
+  <data name="GameSettings.Go.PerformanceAndVisuals" xml:space="preserve">
+    <value>Performance &amp; Visuals</value>
+  </data>
+  <data name="GameSettings.Go.FpsCap" xml:space="preserve">
+    <value>FPS Cap</value>
+  </data>
+  <data name="GameSettings.Go.StatsOverlay" xml:space="preserve">
+    <value>Stats Overlay</value>
+  </data>
+  <data name="GameSettings.Go.ShowPing" xml:space="preserve">
+    <value>Show Ping</value>
+  </data>
+  <data name="GameSettings.Go.ShowFps" xml:space="preserve">
+    <value>Show FPS</value>
+  </data>
+  <data name="GameSettings.Go.VerboseLogging" xml:space="preserve">
+    <value>Verbose Logging</value>
+  </data>
+  <data name="GameSettings.Go.EngineFpsLimit" xml:space="preserve">
+    <value>Engine FPS Limit</value>
+  </data>
+  <data name="GameSettings.Go.CameraSettings" xml:space="preserve">
+    <value>Camera Settings</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeight" xml:space="preserve">
+    <value>Min Camera Height</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeight" xml:space="preserve">
+    <value>Max Camera Height</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeed" xml:space="preserve">
+    <value>Camera Move Speed</value>
+  </data>
+  <data name="GameSettings.Go.SocialAndNotifications" xml:space="preserve">
+    <value>Social &amp; Notifications</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotifications" xml:space="preserve">
+    <value>Global Notifications</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotifications" xml:space="preserve">
+    <value>Sound Notifications</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSize" xml:space="preserve">
+    <value>Chat Font Size</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeout" xml:space="preserve">
+    <value>Chat Fadeout (Seconds)</value>
+  </data>
+  <data name="GameSettings.Go.DetailedNotifications" xml:space="preserve">
+    <value>Detailed Notifications</value>
+  </data>
+  <data name="GameSettings.Go.FriendOnlineInGame" xml:space="preserve">
+    <value>Friend Online (In Game)</value>
+  </data>
+  <data name="GameSettings.Go.FriendOfflineInGame" xml:space="preserve">
+    <value>Friend Offline (In Game)</value>
+  </data>
+  <data name="GameSettings.Go.AcceptInGame" xml:space="preserve">
+    <value>Accept Game (In Game)</value>
+  </data>
+  <data name="GameSettings.Go.RequestInGame" xml:space="preserve">
+    <value>Request Game (In Game)</value>
+  </data>
+  <data name="GameSettings.Go.FriendOnlineMenu" xml:space="preserve">
+    <value>Friend Online (Menu)</value>
+  </data>
+  <data name="GameSettings.Go.FriendOfflineMenu" xml:space="preserve">
+    <value>Friend Offline (Menu)</value>
+  </data>
+  <data name="GameSettings.Go.AcceptMenu" xml:space="preserve">
+    <value>Accept Game (Menu)</value>
+  </data>
+  <data name="GameSettings.Go.RequestMenu" xml:space="preserve">
+    <value>Request Game (Menu)</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpOverride" xml:space="preserve">
+    <value>GameSpy IP Override</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpWatermark" xml:space="preserve">
+    <value>Enter custom IP/Domain for GameSpy...</value>
+  </data>
+  <data name="Theme.Color.Red" xml:space="preserve">
+    <value>Red</value>
+  </data>
+  <data name="Theme.Color.Pink" xml:space="preserve">
+    <value>Pink</value>
+  </data>
+  <data name="Theme.Color.DeepPink" xml:space="preserve">
+    <value>Deep Pink</value>
+  </data>
+  <data name="Theme.Color.Purple" xml:space="preserve">
+    <value>Purple</value>
+  </data>
+  <data name="Theme.Color.DeepPurple" xml:space="preserve">
+    <value>Deep Purple</value>
+  </data>
+  <data name="Theme.Color.Indigo" xml:space="preserve">
+    <value>Indigo</value>
+  </data>
+  <data name="Theme.Color.DeepIndigo" xml:space="preserve">
+    <value>Deep Indigo</value>
+  </data>
+  <data name="Theme.Color.Blue" xml:space="preserve">
+    <value>Blue</value>
+  </data>
+  <data name="Theme.Color.DarkBlue" xml:space="preserve">
+    <value>Dark Blue</value>
+  </data>
+  <data name="Theme.Color.LightBlue" xml:space="preserve">
+    <value>Light Blue</value>
+  </data>
+  <data name="Theme.Color.CyanBlue" xml:space="preserve">
+    <value>Cyan Blue</value>
+  </data>
+  <data name="Theme.Color.Cyan" xml:space="preserve">
+    <value>Cyan</value>
+  </data>
+  <data name="Theme.Color.DarkCyan" xml:space="preserve">
+    <value>Dark Cyan</value>
+  </data>
+  <data name="Theme.Color.Teal" xml:space="preserve">
+    <value>Teal</value>
+  </data>
+  <data name="Theme.Color.DarkTeal" xml:space="preserve">
+    <value>Dark Teal</value>
+  </data>
+  <data name="Theme.Color.Green" xml:space="preserve">
+    <value>Green</value>
+  </data>
+  <data name="Theme.Color.DarkGreen" xml:space="preserve">
+    <value>Dark Green</value>
+  </data>
+  <data name="Theme.Color.LightGreen" xml:space="preserve">
+    <value>Light Green</value>
+  </data>
+  <data name="Theme.Color.OliveGreen" xml:space="preserve">
+    <value>Olive Green</value>
+  </data>
+  <data name="Theme.Color.Lime" xml:space="preserve">
+    <value>Lime</value>
+  </data>
+  <data name="Theme.Color.Yellow" xml:space="preserve">
+    <value>Yellow</value>
+  </data>
+  <data name="Theme.Color.Amber" xml:space="preserve">
+    <value>Amber</value>
+  </data>
+  <data name="Theme.Color.Orange" xml:space="preserve">
+    <value>Orange</value>
+  </data>
+  <data name="Theme.Color.DarkOrange" xml:space="preserve">
+    <value>Dark Orange</value>
+  </data>
+  <data name="Theme.Color.DeepOrange" xml:space="preserve">
+    <value>Deep Orange</value>
+  </data>
+  <data name="Theme.Color.DarkOrangeRed" xml:space="preserve">
+    <value>Dark Orange Red</value>
+  </data>
+  <data name="Theme.Color.Brown" xml:space="preserve">
+    <value>Brown</value>
+  </data>
+  <data name="Theme.Color.BlueGrey" xml:space="preserve">
+    <value>Blue Grey</value>
+  </data>
+  <data name="Theme.Color.DarkGrey" xml:space="preserve">
+    <value>Dark Grey</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.AuthFailed" xml:space="preserve">
+    <value>GitHub authentication failed. Please verify that your token is valid.</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.ClientNotAvailable" xml:space="preserve">
+    <value>GitHub API client not available</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.PleaseEnter" xml:space="preserve">
+    <value>Please enter a GitHub PAT</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.Removed" xml:space="preserve">
+    <value>GitHub PAT removed</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.RemovedWithEnv" xml:space="preserve">
+    <value>GitHub PAT removed (env var deactivated for this session)</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.StorageNotAvailable" xml:space="preserve">
+    <value>Token storage not available</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.Testing" xml:space="preserve">
+    <value>Testing PAT...</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
+    <value>PAT validated successfully ✓</value>
+  </data>
+  <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
+    <value>Tool Plugin Assembly</value>
+  </data>
+  <data name="Tools.Dialog.SelectPluginAssembly" xml:space="preserve">
+    <value>Select Tool Plugin Assembly</value>
+  </data>
+  <data name="Tools.Status.RefreshedListSuccess" xml:space="preserve">
+    <value>Refreshed tools list</value>
+  </data>
+  <data name="Tools.Plugin.genpatcher.Description" xml:space="preserve">
+    <value>Essential fixes and enhancements for Command &amp; Conquer Generals and Zero Hour.</value>
+  </data>
+  <data name="Tools.Plugin.map-manager.Description" xml:space="preserve">
+    <value>Install, organize, pack, and manage custom multiplayer maps.</value>
+  </data>
+  <data name="Tools.Plugin.replay-manager.Description" xml:space="preserve">
+    <value>Browse, organize, parse, and upload replay files to Generals Online.</value>
+  </data>
+  <data name="Updates.Hero.Title" xml:space="preserve">
+    <value>GenHub Updates</value>
+  </data>
+  <data name="Updates.Tab.DevelopmentBuilds" xml:space="preserve">
+    <value>Development Builds</value>
+  </data>
+  <data name="Updates.Tab.ReleaseUpdates" xml:space="preserve">
+    <value>Release Updates</value>
+  </data>
+  <data name="Updates.Tooltip.RemindMeLater" xml:space="preserve">
+    <value>Remind me later</value>
+  </data>
+  <data name="Updates.Status.VersionReady" xml:space="preserve">
+    <value>Version {0} is ready to install</value>
+  </data>
+  <data name="Updates.Label.CurrentVersionFormat" xml:space="preserve">
+    <value>Current: {0}</value>
+  </data>
+  <data name="Updates.Label.PublishedByFormat" xml:space="preserve">
+    <value>by {0}</value>
+  </data>
+  <data name="Updates.Label.UpdatedDateFormat" xml:space="preserve">
+    <value>Updated: {0}</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatSaveTest" xml:space="preserve">
+    <value>Save &amp; Test</value>
+  </data>
+  <data name="ContentType.GameInstallation" xml:space="preserve">
+    <value>Game Installation</value>
+  </data>
+  <data name="ContentType.GameClient" xml:space="preserve">
+    <value>Game Client</value>
+  </data>
+  <data name="ContentType.Mod" xml:space="preserve">
+    <value>Mod</value>
+  </data>
+  <data name="ContentType.Patch" xml:space="preserve">
+    <value>Patch</value>
+  </data>
+  <data name="ContentType.Addon" xml:space="preserve">
+    <value>Addon</value>
+  </data>
+  <data name="ContentType.MapPack" xml:space="preserve">
+    <value>Map Pack</value>
+  </data>
+  <data name="ContentType.LanguagePack" xml:space="preserve">
+    <value>Language Pack</value>
+  </data>
+  <data name="ContentType.ContentBundle" xml:space="preserve">
+    <value>Content Bundle</value>
+  </data>
+  <data name="ContentType.PublisherReferral" xml:space="preserve">
+    <value>Publisher Referral</value>
+  </data>
+  <data name="ContentType.ContentReferral" xml:space="preserve">
+    <value>Content Referral</value>
+  </data>
+  <data name="ContentType.Mission" xml:space="preserve">
+    <value>Mission</value>
+  </data>
+  <data name="ContentType.Map" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="ContentType.Skin" xml:space="preserve">
+    <value>Skin</value>
+  </data>
+  <data name="ContentType.Video" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="ContentType.Replay" xml:space="preserve">
+    <value>Replay</value>
+  </data>
+  <data name="ContentType.Screensaver" xml:space="preserve">
+    <value>Screensaver</value>
+  </data>
+  <data name="ContentType.Executable" xml:space="preserve">
+    <value>Executable</value>
+  </data>
+  <data name="ContentType.ModdingTool" xml:space="preserve">
+    <value>Modding Tool</value>
+  </data>
+  <data name="ContentType.UnknownContentType" xml:space="preserve">
+    <value>Unknown Content</value>
+  </data>
+  <data name="Info.Section.quickstart.Title" xml:space="preserve">
+    <value>Quickstart Guide</value>
+  </data>
+  <data name="Info.Section.quickstart.Description" xml:space="preserve">
+    <value>Learn the absolute basics to launch and enjoy Command &amp; Conquer in seconds.</value>
+  </data>
+  <data name="Info.Section.game-profiles.Title" xml:space="preserve">
+    <value>Game Profiles</value>
+  </data>
+  <data name="Info.Section.game-profiles.Description" xml:space="preserve">
+    <value>The heart of GenHub: manage isolated installations, mods, patches, and configurations.</value>
+  </data>
+  <data name="Info.Section.game-settings.Title" xml:space="preserve">
+    <value>Game Settings (Options.ini)</value>
+  </data>
+  <data name="Info.Section.game-settings.Description" xml:space="preserve">
+    <value>Fine-tune modern resolutions, visual effects, and advanced options without breaking the game.</value>
+  </data>
+  <data name="Info.Section.game-profile-content.Title" xml:space="preserve">
+    <value>Profile Content Selection</value>
+  </data>
+  <data name="Info.Section.game-profile-content.Description" xml:space="preserve">
+    <value>Mix and match mods, custom game clients, and utilities per profile seamlessly.</value>
+  </data>
+  <data name="Info.Section.shortcuts.Title" xml:space="preserve">
+    <value>Desktop Shortcuts</value>
+  </data>
+  <data name="Info.Section.shortcuts.Description" xml:space="preserve">
+    <value>Generate one-click desktop shortcuts with custom icons to launch your favorite profiles immediately.</value>
+  </data>
+  <data name="Info.Section.steam-integration.Title" xml:space="preserve">
+    <value>Steam Integration</value>
+  </data>
+  <data name="Info.Section.steam-integration.Description" xml:space="preserve">
+    <value>Seamlessly track playtime and status on Steam while enjoying any mod or custom client.</value>
+  </data>
+  <data name="Info.Section.local-content.Title" xml:space="preserve">
+    <value>Local Content Support</value>
+  </data>
+  <data name="Info.Section.local-content.Description" xml:space="preserve">
+    <value>Import custom folders, mods, map packs, or standalone tools from your local drive.</value>
+  </data>
+  <data name="Info.Section.tools.Title" xml:space="preserve">
+    <value>GenHub Tools</value>
+  </data>
+  <data name="Info.Section.tools.Description" xml:space="preserve">
+    <value>Built-in power tools: Replay Manager, MapPack Manager, and modular plugin tools.</value>
+  </data>
+  <data name="Info.Section.generals-online-faq.Title" xml:space="preserve">
+    <value>Generals Online FAQ</value>
+  </data>
+  <data name="Info.Section.generals-online-faq.Description" xml:space="preserve">
+    <value>Frequently asked questions regarding matchmaking, anti-cheat, and modern multiplayer.</value>
+  </data>
+  <data name="Info.Section.generals-online-changelog.Title" xml:space="preserve">
+    <value>Generals Online Changelog</value>
+  </data>
+  <data name="Info.Section.generals-online-changelog.Description" xml:space="preserve">
+    <value>View recent releases, server fixes, and client update changelogs for Generals Online.</value>
+  </data>
+  <data name="Info.Section.scan-games.Title" xml:space="preserve">
+    <value>Game Detection &amp; Library</value>
+  </data>
+  <data name="Info.Section.scan-games.Description" xml:space="preserve">
+    <value>Automatically discover Steam, EA App, The First Decade, and custom installations.</value>
+  </data>
+  <data name="Info.Section.scan-for-games.Title" xml:space="preserve">
+    <value>Scan For Games</value>
+  </data>
+  <data name="Info.Section.scan-for-games.Description" xml:space="preserve">
+    <value>Scan your computer to detect installed versions of Generals and Zero Hour.</value>
+  </data>
+  <data name="Info.Section.workspaces.Title" xml:space="preserve">
+    <value>Workspace Technology</value>
+  </data>
+  <data name="Info.Section.workspaces.Description" xml:space="preserve">
+    <value>How GenHub keeps your game directory clean using advanced file system virtualization.</value>
+  </data>
+  <data name="Info.Section.app-updates.Title" xml:space="preserve">
+    <value>Application Updates &amp; CI</value>
+  </data>
+  <data name="Info.Section.app-updates.Description" xml:space="preserve">
+    <value>Learn how GenHub automatically updates and how to test experimental PR builds.</value>
+  </data>
+  <data name="Info.Section.changelogs.Title" xml:space="preserve">
+    <value>Changelogs &amp; Release Notes</value>
+  </data>
+  <data name="Info.Section.changelogs.Description" xml:space="preserve">
+    <value>Detailed history of improvements, fixes, and features across all GenHub versions.</value>
+  </data>
+<data name="Settings.GitHubPat.Status.Configured" xml:space="preserve"><value>GitHub PAT configured ✓</value></data><data name="Settings.GitHubPat.Status.EnvConfigured" xml:space="preserve"><value>Configured via environment variable</value></data><data name="Settings.GitHubPat.Status.NotConfigured" xml:space="preserve"><value>No GitHub PAT configured</value></data><data name="Settings.GitHubPat.Status.CheckError" xml:space="preserve"><value>Error checking PAT status</value></data><data name="Settings.GitHubPat.Status.InvalidFormat" xml:space="preserve"><value>Invalid PAT: {0}</value></data><data name="Settings.GitHubPat.Status.ErrorFormat" xml:space="preserve"><value>Error: {0}</value></data>  <data name="Tools.GenPatcher.Notify.CancellingFixDesc" xml:space="preserve">
+    <value>Cancelling application of {0}...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixCancelledTitle" xml:space="preserve">
+    <value>Fix Cancelled</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixCancelledDesc" xml:space="preserve">
+    <value>Application of {0} was cancelled.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixApplyFailedTitle" xml:space="preserve">
+    <value>Failed to Apply Fix</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixForceApplyFailedTitle" xml:space="preserve">
+    <value>Failed to Force Apply Fix</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixApplyFailedDesc" xml:space="preserve">
+    <value>Could not apply {0}: {1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchApplyErrorDesc" xml:space="preserve">
+    <value>An error occurred: {0}</value>
+  </data>
+  <data name="Updates.Status.NewBuild" xml:space="preserve">
+    <value>New build available: {0}</value>
+  </data>
+  <data name="Updates.Status.BuildDismissed" xml:space="preserve">
+    <value>You dismissed update {0}</value>
+  </data>
+  <data name="Updates.Status.BuildLatest" xml:space="preserve">
+    <value>You are on the latest build ({0})</value>
+  </data>
+  <data name="Maps.MapPack.CreatedDateFormat" xml:space="preserve">
+    <value>Created: {0:d}</value>
+  </data>
+  <data name="Maps.MapPack.MapsCountFormat" xml:space="preserve">
+    <value>{0} Maps</value>
   </data>
 </root>

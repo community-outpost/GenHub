@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -176,7 +177,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the list of available sort options for pull requests.
     /// </summary>
-    public IReadOnlyList<string> AvailableSortOptions { get; } =
+    [ObservableProperty]
+    private IReadOnlyList<string> _availableSortOptions =
     [
         AppUpdateConstants.SortOptionLastUpdated,
         AppUpdateConstants.SortOptionPrNumberDesc,
@@ -348,11 +350,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         if (_localizationService != null)
         {
-            _localizationService.PropertyChanged += (s, e) =>
-            {
-                OnPropertyChanged(nameof(InstallButtonText));
-                OnPropertyChanged(nameof(VersionPlaceholderText));
-            };
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
         }
 
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync, () => !IsChecking);
@@ -630,6 +628,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         _disposed = true;
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+        }
+
         _loadArtifactsCts?.Cancel();
         _loadArtifactsCts?.Dispose();
         _loadArtifactsCts = null;
@@ -738,7 +741,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    StatusMessage = FormatLocalizedString("Updates.Status.NewPrBuild", "New build available: {0}", value.DisplayVersion);
+                    StatusMessage = FormatLocalizedString("Updates.Status.NewBuild", "New build available: {0}", value.DisplayVersion);
                 }
 
                 return;
@@ -747,7 +750,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             IsUpdateAvailable = false;
             LatestVersion = string.Empty;
             ReleaseNotesUrl = string.Empty;
-            StatusMessage = FormatLocalizedString("Updates.Status.PrDismissed", "You dismissed update {0}", value.DisplayVersion);
+            StatusMessage = FormatLocalizedString("Updates.Status.BuildDismissed", "You dismissed update {0}", value.DisplayVersion);
             return;
         }
 
@@ -767,7 +770,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             }
             else
             {
-                StatusMessage = FormatLocalizedString("Updates.Status.BranchLatest", "You are on the latest build ({0})", value.DisplayVersion);
+                StatusMessage = FormatLocalizedString("Updates.Status.BuildLatest", "You are on the latest build ({0})", value.DisplayVersion);
             }
         }
         else
@@ -1646,4 +1649,18 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void UnsubscribeFromPr() => Unsubscribe();
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(InstallButtonText));
+        OnPropertyChanged(nameof(VersionPlaceholderText));
+        AvailableSortOptions =
+        [
+            AppUpdateConstants.SortOptionLastUpdated,
+            AppUpdateConstants.SortOptionPrNumberDesc,
+            AppUpdateConstants.SortOptionPrNumberAsc,
+        ];
+        OnPropertyChanged(nameof(SelectedSortOption));
+    }
+
 }

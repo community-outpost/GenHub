@@ -103,11 +103,11 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - **Coding Style Authority:** Follow `coding-style.md` and repository [`.editorconfig`](.editorconfig).
 - **Localization Standards:** All user-facing UI text (labels, buttons, tooltips, dialogs, validation messages) must be placed in `GenHub/GenHub/Resources/Localization/Strings.resx`.
   - Maintain strict 1:1 parity across `Strings.resx`, `Strings.ar.resx`, and `Strings.ru.resx`. No keys should be missing from satellite resources.
-  - Use dot-separated hierarchical keys (`<Feature>.<Context>.<Element>` e.g., `Settings.Appearance.Language.Label`, `MainWindow.TitleBar.Settings.ToolTip`).
+  - Use dot-separated hierarchical keys (`<Feature>.<Context>.<Element>` e.g., `Settings.Appearance.Language.Label`, `Navigation.Settings`).
   - In XAML views: declare `xmlns:localization="clr-namespace:GenHub.Common.Markup"` and bind using `{localization:Localize Key}`.
   - In C# ViewModels / Services: inject `ILocalizationService` and call `_localizationService.GetString("Key")` or `_localizationService.GetString("Key", args)`.
   - For dynamic navigation lists (e.g., `SettingsViewModel.Sections`), subscribe to `ILocalizationService.PropertyChanged` on `CurrentCulture` to re-localize sidebar items live upon language switches.
-  - For tool names and plugins, use `LocalizedToolNameConverter` for dynamic translation with manifest fallback.
+  - For tool names and plugins, use `LocalizedToolNameConverter` for dynamic translation falling back to the plugin's metadata title.
   - Avoid duplicate keys differing only by case (MSBuild resource generation is case-insensitive on Windows).
   - Do NOT localize internal/technical strings: log templates, JSON property names, protocol values, CLI arguments, or exception messages intended for developers.
 - **Primary Constructors:** Always use primary constructors for classes and records when dependencies are injected. Remove redundant private instance fields (e.g., `_logger = logger;`) and use constructor parameters directly in class members.

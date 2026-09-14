@@ -8,6 +8,7 @@
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="1200"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileContentSettingsView"
              x:DataType="vm:GameProfileSettingsViewModel">
@@ -40,12 +41,6 @@
         <Style Selector="Grid.content-card:pointerover Button.delete-reveal-btn">
             <Setter Property="Opacity" Value="1" />
         </Style>
-        <Style Selector="Grid.content-card:focus-within Button.delete-reveal-btn">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-        <Style Selector="Button.delete-reveal-btn:focus">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
     </UserControl.Styles>
 
     <Grid>
@@ -58,7 +53,7 @@
                 <Border Classes="settings-card">
                     <StackPanel Spacing="16">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Classes="section-header" Text="Enabled Content" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Grid.Column="0" Classes="section-header" Text="{localization:Localize GameProfiles.Content.EnabledContentTitle}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
                             <Button Grid.Column="1"
                                     Command="{Binding LoadAvailableContentCommand}"
                                     Background="Transparent"
@@ -68,7 +63,7 @@
                                     VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
-                                    <TextBlock Text="Refresh" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Common.Refresh}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -83,7 +78,7 @@
                                 IsVisible="{Binding EnabledContent.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=0}">
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <material:MaterialIcon Kind="AlertCircleOutline" Width="20" Height="20" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="No content currently enabled. Add at least one Game Client or Executable to launch this profile."
+                                <TextBlock Text="{localization:Localize GameProfiles.Content.NoContentWarning}"
                                            FontSize="13" Foreground="{DynamicResource TextPrimary}" Opacity="0.9" TextWrapping="Wrap" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
@@ -116,14 +111,15 @@
                                                 </StackPanel>
                                             </Button>
 
+                                            <!-- Edit Button (Only for Local/Editable content) -->
                                             <Button Grid.Column="1" Classes="delete-reveal-btn edit-content-btn"
                                                     Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding IsEditable}"
                                                     Background="Transparent"
                                                     Padding="8" Margin="8,0,12,0"
-                                                    AutomationProperties.Name="Edit"
-                                                    ToolTip.Tip="Edit">
+                                                    AutomationProperties.Name="{localization:Localize Common.Edit}"
+                                                    ToolTip.Tip="{localization:Localize Common.Edit}">
                                                 <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
                                             </Button>
                                         </Grid>
@@ -138,7 +134,7 @@
                 <Control x:Name="DiscoverySection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
                     <StackPanel Spacing="20">
-                        <TextBlock Classes="section-header" Text="Available Content" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.Content.AddContentTitle}" Foreground="{DynamicResource TextPrimary}"/>
 
                         <!-- Filter Pills -->
                         <ItemsControl ItemsSource="{Binding VisibleFilters}">
@@ -155,7 +151,7 @@
                                             CommandParameter="{Binding ContentType}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <PathIcon Data="{Binding IconData}" Width="16" Height="16" />
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="12" />
+                                            <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="12" />
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -167,19 +163,19 @@
                             <Button Grid.Column="0" Classes="filter-pill"
                                     Command="{Binding AddLocalContentCommand}"
                                     Padding="16,8"
-                                    ToolTip.Tip="Import content from disk">
+                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <material:MaterialIcon Kind="FolderPlusOutline" Width="16" Height="16"/>
-                                    <TextBlock Text="Add Local Folder" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
-                                <Button Classes="filter-pill" Content="Generals"
+                                <Button Classes="filter-pill" Content="{localization:Localize Common.Game.Generals}"
                                         Classes.selected="{Binding GameTypeFilter, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:GameType.Generals}}"
                                         Command="{Binding SelectGameTypeFilterCommand}"
                                         CommandParameter="{x:Static models:GameType.Generals}" />
-                                <Button Classes="filter-pill" Content="Zero Hour"
+                                <Button Classes="filter-pill" Content="{localization:Localize Common.Game.ZeroHour}"
                                         Classes.selected="{Binding GameTypeFilter, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:GameType.ZeroHour}}"
                                         Command="{Binding SelectGameTypeFilterCommand}"
                                         CommandParameter="{x:Static models:GameType.ZeroHour}" />
@@ -222,7 +218,7 @@
                                                          IsVisible="{Binding IsEditable}"
                                                          Background="Transparent"
                                                          Padding="8" Margin="8,0,0,0"
-                                                         ToolTip.Tip="Edit">
+                                                         ToolTip.Tip="{localization:Localize Common.Edit}">
                                                      <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
                                                  </Button>
 
@@ -231,7 +227,7 @@
                                                          CommandParameter="{Binding}"
                                                          Background="Transparent"
                                                          Padding="8" Margin="4,0,0,0"
-                                                         ToolTip.Tip="Delete">
+                                                         ToolTip.Tip="{localization:Localize Common.Delete}">
                                                      <material:MaterialIcon Kind="DeleteOutline" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
                                                  </Button>
                                             </Grid>

@@ -1,9 +1,6 @@
 using System;
 using System.Globalization;
-using Avalonia;
 using Avalonia.Data.Converters;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -22,7 +19,7 @@ public class BoolToExpandTextConverter : IValueConverter
     /// <returns>The text string.</returns>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var localizationService = ResolveLocalizationService();
+        var localizationService = LocalizationConverterHelper.ResolveLocalizationService();
         var showLess = localizationService?.GetString("Common.ShowLess") ?? "Show Less";
         var readMore = localizationService?.GetString("Common.ReadMore") ?? "Read More";
 
@@ -45,23 +42,5 @@ public class BoolToExpandTextConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();
-    }
-
-    private static ILocalizationService? ResolveLocalizationService()
-    {
-        try
-        {
-            if (Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, null, out var res) == true &&
-                res is ILocalizationService service)
-            {
-                return service;
-            }
-        }
-        catch
-        {
-            // Fallback safely if application context is not yet available
-        }
-
-        return null;
     }
 }

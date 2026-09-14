@@ -3343,7 +3343,7 @@
     <value>يستخدم GenHub محرك Velopack للتحديثات السلسة في الخلفية. استخدم شريط الإشعارات هذا لإدارة الإصدارات الرسمية.</value>
   </data>
   <data name="Info.Demo.AppUpdates.BrowseBuildsHint" xml:space="preserve">
-    <value>حاول النقر على &apos;استعراض الإصدارات&apos; لرؤية الإصدارات التجريبية للمطورين!</value>
+    <value>حاول النقر على 'استعراض الإصدارات' لرؤية الإصدارات التجريبية للمطورين!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
     <value>متقدم: عناصر CI ورمز وصول GitHub</value>
@@ -3358,7 +3358,7 @@
     <value>رمز الوصول الشخصي لـ GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
-    <value>جرب إدخال &apos;ghp_demo&apos; والنقر فوق حفظ واختبار لرؤية التحقق أثناء عمله!</value>
+    <value>جرب إدخال 'ghp_demo' والنقر فوق حفظ واختبار لرؤية التحقق أثناء عمله!</value>
   </data>
   <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
     <value>عرض توضيحي: تكوين Options.ini</value>
@@ -3460,7 +3460,7 @@
     <value>يتوفر إصدار جديد من فرع {0}: {1}</value>
   </data>
   <data name="Updates.Status.BranchDismissed" xml:space="preserve">
-    <value>لقد تجاهلت التحديث للفرع &apos;{0}&apos;</value>
+    <value>لقد تجاهلت التحديث للفرع '{0}'</value>
   </data>
   <data name="Updates.Status.BranchLatest" xml:space="preserve">
     <value>أنت على أحدث إصدار للفرع {0}</value>
@@ -3473,5 +3473,813 @@
   </data>
   <data name="Updates.Placeholder.NoVersionsFound" xml:space="preserve">
     <value>لم يتم العثور على إصدارات</value>
+  </data>
+
+  <data name="Common.BrowseEllipsis" xml:space="preserve">
+    <value>استعراض...</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="Common.CloseEsc" xml:space="preserve">
+    <value>إغلاق (Esc)</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Common.Edit" xml:space="preserve">
+    <value>تعديل</value>
+  </data>
+  <data name="Common.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Common.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Common.ReadMore" xml:space="preserve">
+    <value>اقرأ المزيد</value>
+  </data>
+  <data name="Common.Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Common.ShowLess" xml:space="preserve">
+    <value>عرض أقل</value>
+  </data>
+  <data name="GameProfiles.Window.Title" xml:space="preserve">
+    <value>إعدادات الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.Window.Subtitle" xml:space="preserve">
+    <value>إعدادات الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.Window.HotswapMode" xml:space="preserve">
+    <value>وضع التبديل السريع</value>
+  </data>
+  <data name="GameProfiles.Window.RandomizeColor" xml:space="preserve">
+    <value>لون عشوائي</value>
+  </data>
+  <data name="GameProfiles.Window.ToggleFullscreen" xml:space="preserve">
+    <value>تبديل وضع ملء الشاشة</value>
+  </data>
+  <data name="GameProfiles.Window.LoadError" xml:space="preserve">
+    <value>فشل تحميل إعدادات الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.Window.SaveTooltip" xml:space="preserve">
+    <value>حفظ التغييرات والإغلاق</value>
+  </data>
+  <data name="GameProfiles.LocalContent.DialogTitle" xml:space="preserve">
+    <value>إضافة محتوى محلي</value>
+  </data>
+  <data name="GameProfiles.LocalContent.SelectedFolder" xml:space="preserve">
+    <value>المجلد المحدد</value>
+  </data>
+  <data name="GameProfiles.LocalContent.ContentName" xml:space="preserve">
+    <value>اسم المحتوى</value>
+  </data>
+  <data name="GameProfiles.LocalContent.ContentNameWatermark" xml:space="preserve">
+    <value>أدخل اسم هذا المحتوى...</value>
+  </data>
+  <data name="GameProfiles.LocalContent.ContentType" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="GameProfiles.LocalContent.PublisherNote" xml:space="preserve">
+    <value>سيتم تعيين الناشر كـ 'محتوى محلي'</value>
+  </data>
+  <data name="GameProfiles.LocalContent.TargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة</value>
+  </data>
+  <data name="GameProfiles.LocalContent.TargetGameNote" xml:space="preserve">
+    <value>نسخة اللعبة الموجه إليها هذا المحتوى</value>
+  </data>
+  <data name="GameProfiles.LocalContent.AddContentButton" xml:space="preserve">
+    <value>إضافة المحتوى</value>
+  </data>
+  <data name="GameProfiles.Content.TabEnabled" xml:space="preserve">
+    <value>المفعل</value>
+  </data>
+  <data name="GameProfiles.Content.TabAvailable" xml:space="preserve">
+    <value>المتاح</value>
+  </data>
+  <data name="GameProfiles.Content.EnabledContentTitle" xml:space="preserve">
+    <value>المحتوى المفعل</value>
+  </data>
+  <data name="GameProfiles.Content.RefreshInstalledTip" xml:space="preserve">
+    <value>تحديث المحتوى المثبت</value>
+  </data>
+  <data name="GameProfiles.Content.NoContentWarning" xml:space="preserve">
+    <value>لا يوجد محتوى مفعل حالياً. أضف عميلاً للعبة أو ملفاً تنفيذياً واحداً على الأقل لتشغيل هذا الملف الشخصي.</value>
+  </data>
+  <data name="GameProfiles.Content.EditContentToolTip" xml:space="preserve">
+    <value>تعديل المحتوى</value>
+  </data>
+  <data name="GameProfiles.Content.AddContentTitle" xml:space="preserve">
+    <value>إضافة محتوى</value>
+  </data>
+  <data name="GameProfiles.Content.AddLocalButton" xml:space="preserve">
+    <value>إضافة مجلد محلي</value>
+  </data>
+  <data name="GameProfiles.Content.AddLocalTooltip" xml:space="preserve">
+    <value>استيراد محتوى من القرص</value>
+  </data>
+  <data name="GameProfiles.Content.FilterGameLabel" xml:space="preserve">
+    <value>تصفية:</value>
+  </data>
+  <data name="GameProfiles.General.TabIdentity" xml:space="preserve">
+    <value>الهوية</value>
+  </data>
+  <data name="GameProfiles.General.TabAppearance" xml:space="preserve">
+    <value>المظهر</value>
+  </data>
+  <data name="GameProfiles.General.TabLaunch" xml:space="preserve">
+    <value>التشغيل</value>
+  </data>
+  <data name="GameProfiles.General.TabTheme" xml:space="preserve">
+    <value>السمة</value>
+  </data>
+  <data name="GameProfiles.General.BasicInformation" xml:space="preserve">
+    <value>المعلومات الأساسية</value>
+  </data>
+  <data name="GameProfiles.General.ProfileName" xml:space="preserve">
+    <value>اسم الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.General.ProfileNameWatermark" xml:space="preserve">
+    <value>أدخل اسم الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.General.Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="GameProfiles.General.DescriptionWatermark" xml:space="preserve">
+    <value>وصف اختياري</value>
+  </data>
+  <data name="GameProfiles.General.IconAndCover" xml:space="preserve">
+    <value>الأيقونة والغلاف</value>
+  </data>
+  <data name="GameProfiles.General.ProfileIcon" xml:space="preserve">
+    <value>أيقونة الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.General.ProfileCover" xml:space="preserve">
+    <value>غلاف الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfiguration" xml:space="preserve">
+    <value>تكوين التشغيل</value>
+  </data>
+  <data name="GameProfiles.General.WorkspaceStrategy" xml:space="preserve">
+    <value>استراتيجية مساحة العمل</value>
+  </data>
+  <data name="GameProfiles.General.WorkspaceStrategyDescription" xml:space="preserve">
+    <value>يحدد كيفية تعيين ملفات المحتوى في مجلد اللعبة.</value>
+  </data>
+  <data name="GameProfiles.General.CommandLineArguments" xml:space="preserve">
+    <value>وسائط سطر الأوامر</value>
+  </data>
+  <data name="GameProfiles.General.CommandLineArgumentsWatermark" xml:space="preserve">
+    <value>-win -quickstart -mod GenEvo</value>
+  </data>
+  <data name="GameProfiles.General.ThemeCustomization" xml:space="preserve">
+    <value>تخصيص السمة</value>
+  </data>
+  <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
+    <value>اللون الأساسي للواجهة</value>
+  </data>
+  <data name="GameProfiles.Navigation.ContentTooltip" xml:space="preserve">
+    <value>المحتوى</value>
+  </data>
+  <data name="GameProfiles.Navigation.ProfileSettingsTooltip" xml:space="preserve">
+    <value>إعدادات الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.Navigation.GameSettingsTooltip" xml:space="preserve">
+    <value>إعدادات اللعبة</value>
+  </data>
+  <data name="GameSettings.Category.Video" xml:space="preserve">
+    <value>الفيديو</value>
+  </data>
+  <data name="GameSettings.Category.Audio" xml:space="preserve">
+    <value>الصوت</value>
+  </data>
+  <data name="GameSettings.Category.Controls" xml:space="preserve">
+    <value>التحكم</value>
+  </data>
+  <data name="GameSettings.Category.TheSuperHackers" xml:space="preserve">
+    <value>TheSuperHackers</value>
+  </data>
+  <data name="GameSettings.Category.GeneralsOnline" xml:space="preserve">
+    <value>Generals Online</value>
+  </data>
+  <data name="GameSettings.Video.Title" xml:space="preserve">
+    <value>إعدادات الفيديو</value>
+  </data>
+  <data name="GameSettings.Video.Resolution" xml:space="preserve">
+    <value>دقة الشاشة</value>
+  </data>
+  <data name="GameSettings.Video.DetailLevel" xml:space="preserve">
+    <value>مستوى التفاصيل (LOD)</value>
+  </data>
+  <data name="GameSettings.Video.TextureQuality" xml:space="preserve">
+    <value>جودة الإكساءات</value>
+  </data>
+  <data name="GameSettings.Video.Brightness" xml:space="preserve">
+    <value>السطوع</value>
+  </data>
+  <data name="GameSettings.Video.AntiAliasing" xml:space="preserve">
+    <value>تنعيم الحواف</value>
+  </data>
+  <data name="GameSettings.Video.MaxParticleCount" xml:space="preserve">
+    <value>الحد الأقصى للجسيمات</value>
+  </data>
+  <data name="GameSettings.Video.WindowedMode" xml:space="preserve">
+    <value>الوضع في نافذة</value>
+  </data>
+  <data name="GameSettings.Video.DynamicLod" xml:space="preserve">
+    <value>مستوى تفاصيل ديناميكي</value>
+  </data>
+  <data name="GameSettings.Video.AdvancedDisplayOptions" xml:space="preserve">
+    <value>خيارات عرض متقدمة</value>
+  </data>
+  <data name="GameSettings.Video.3DShadows" xml:space="preserve">
+    <value>ظلال ثلاثية الأبعاد</value>
+  </data>
+  <data name="GameSettings.Video.2DShadows" xml:space="preserve">
+    <value>ظلال ثنائية الأبعاد</value>
+  </data>
+  <data name="GameSettings.Video.CloudShadows" xml:space="preserve">
+    <value>ظلال السحب</value>
+  </data>
+  <data name="GameSettings.Video.ExtraGroundLighting" xml:space="preserve">
+    <value>إضاءة أرضية إضافية</value>
+  </data>
+  <data name="GameSettings.Video.SmoothWaterBorders" xml:space="preserve">
+    <value>حواف مياه ناعمة</value>
+  </data>
+  <data name="GameSettings.Video.BehindBuildings" xml:space="preserve">
+    <value>خلف المباني</value>
+  </data>
+  <data name="GameSettings.Video.HeatEffects" xml:space="preserve">
+    <value>تأثيرات الحرارة</value>
+  </data>
+  <data name="GameSettings.Video.BuildingAnimations" xml:space="preserve">
+    <value>حركات المباني</value>
+  </data>
+  <data name="GameSettings.Video.ExtraAnimations" xml:space="preserve">
+    <value>حركات إضافية</value>
+  </data>
+  <data name="GameSettings.Video.ParticleEffects" xml:space="preserve">
+    <value>تأثيرات الجسيمات</value>
+  </data>
+  <data name="GameSettings.Video.ShowProps" xml:space="preserve">
+    <value>إظهار الدعائم</value>
+  </data>
+  <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
+    <value>إظهار الأشجار</value>
+  </data>
+  <data name="GameSettings.Audio.Title" xml:space="preserve">
+    <value>إعدادات الصوت</value>
+  </data>
+  <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
+    <value>تفعيل الصوت</value>
+  </data>
+  <data name="GameSettings.Audio.SoundVolume" xml:space="preserve">
+    <value>مستوى صوت المؤثرات</value>
+  </data>
+  <data name="GameSettings.Audio.ThreeDSoundVolume" xml:space="preserve">
+    <value>مستوى الصوت ثلاثي الأبعاد</value>
+  </data>
+  <data name="GameSettings.Audio.MusicVolume" xml:space="preserve">
+    <value>مستوى صوت الموسيقى</value>
+  </data>
+  <data name="GameSettings.Audio.SpeechVolume" xml:space="preserve">
+    <value>مستوى صوت الحوار</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
+    <value>قنوات الصوت</value>
+  </data>
+  <data name="GameSettings.Controls.Title" xml:space="preserve">
+    <value>التحكم وأسلوب اللعب</value>
+  </data>
+  <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
+    <value>سرعة التمرير</value>
+  </data>
+  <data name="GameSettings.Controls.AlternateMouseSetup" xml:space="preserve">
+    <value>إعداد ماوس بديل (التحرك بالزر الأيمن)</value>
+  </data>
+  <data name="GameSettings.Controls.DoubleClickAttack" xml:space="preserve">
+    <value>التحرك الهجومي بالنقر المزدوج</value>
+  </data>
+  <data name="GameSettings.Controls.AutoRetaliation" xml:space="preserve">
+    <value>الرد التلقائي للوحدات</value>
+  </data>
+  <data name="GameSettings.Controls.FastSendDelay" xml:space="preserve">
+    <value>تأخير الإرسال (مللي ثانية)</value>
+  </data>
+  <data name="GameSettings.Controls.DrawScrollAnchor" xml:space="preserve">
+    <value>رسم نقطة تثبيت التمرير</value>
+  </data>
+  <data name="GameSettings.Controls.MoveScrollAnchor" xml:space="preserve">
+    <value>تحريك نقطة تثبيت التمرير</value>
+  </data>
+  <data name="GameSettings.Controls.LanguageFilter" xml:space="preserve">
+    <value>مرشح الكلمات النابية</value>
+  </data>
+  <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
+    <value>حجم خط ساعة اللعبة</value>
+  </data>
+  <data name="GameSettings.Tsh.Title" xml:space="preserve">
+    <value>إعدادات TheSuperHackers</value>
+  </data>
+  <data name="GameSettings.Tsh.GeneralFeatures" xml:space="preserve">
+    <value>ميزات عامة</value>
+  </data>
+  <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
+    <value>أرشفة الإعادات</value>
+  </data>
+  <data name="GameSettings.Tsh.ShowMoneyPerMin" xml:space="preserve">
+    <value>إظهار الأموال / الدقيقة</value>
+  </data>
+  <data name="GameSettings.Tsh.ObserverMode" xml:space="preserve">
+    <value>وضع المشاهد</value>
+  </data>
+  <data name="GameSettings.Tsh.SkipIntro" xml:space="preserve">
+    <value>تخطي مقاطع المقدمة</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCapture" xml:space="preserve">
+    <value>حصر المؤشر داخل الشاشة</value>
+  </data>
+  <data name="GameSettings.Tsh.FullscreenGame" xml:space="preserve">
+    <value>شاشة كاملة أثناء اللعب</value>
+  </data>
+  <data name="GameSettings.Tsh.FullscreenMenu" xml:space="preserve">
+    <value>شاشة كاملة في القوائم</value>
+  </data>
+  <data name="GameSettings.Tsh.WindowedGame" xml:space="preserve">
+    <value>وضع النافذة أثناء اللعب</value>
+  </data>
+  <data name="GameSettings.Tsh.WindowedMenu" xml:space="preserve">
+    <value>وضع النافذة в меню</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScroll" xml:space="preserve">
+    <value>التمرير عند حافة الشاشة</value>
+  </data>
+  <data name="GameSettings.Tsh.InFullscreen" xml:space="preserve">
+    <value>في وضع ملء الشاشة</value>
+  </data>
+  <data name="GameSettings.Tsh.InWindowed" xml:space="preserve">
+    <value>في وضع النافذة</value>
+  </data>
+  <data name="GameSettings.Tsh.InterfaceFontSizes" xml:space="preserve">
+    <value>الواجهة وأحجام الخطوط</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTime" xml:space="preserve">
+    <value>حجم خط وقت النظام</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplay" xml:space="preserve">
+    <value>حجم خط عرض الاتصال (البينغ)</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplay" xml:space="preserve">
+    <value>حجم خط عرض الإطارات</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffset" xml:space="preserve">
+    <value>إزاحة خط الدقة</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolume" xml:space="preserve">
+    <value>مستوى صوت العمليات</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
+    <value>سرعة الانتقال</value>
+  </data>
+  <data name="GameSettings.Go.Title" xml:space="preserve">
+    <value>إعدادات Generals Online</value>
+  </data>
+  <data name="GameSettings.Go.IdentityAndLogin" xml:space="preserve">
+    <value>الهوية وتسجيل الدخول</value>
+  </data>
+  <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
+    <value>تسجيل دخول تلقائي</value>
+  </data>
+  <data name="GameSettings.Go.RememberMe" xml:space="preserve">
+    <value>تذكرني</value>
+  </data>
+  <data name="GameSettings.Go.ShowRanks" xml:space="preserve">
+    <value>إظهار الرتب</value>
+  </data>
+  <data name="GameSettings.Go.PerformanceAndVisuals" xml:space="preserve">
+    <value>الأداء والرسوميات</value>
+  </data>
+  <data name="GameSettings.Go.FpsCap" xml:space="preserve">
+    <value>الحد الأقصى للإطارات</value>
+  </data>
+  <data name="GameSettings.Go.StatsOverlay" xml:space="preserve">
+    <value>تراكب الإحصائيات</value>
+  </data>
+  <data name="GameSettings.Go.ShowPing" xml:space="preserve">
+    <value>إظهار البينغ</value>
+  </data>
+  <data name="GameSettings.Go.ShowFps" xml:space="preserve">
+    <value>إظهار معدل الإطارات</value>
+  </data>
+  <data name="GameSettings.Go.VerboseLogging" xml:space="preserve">
+    <value>تسجيل مفصل</value>
+  </data>
+  <data name="GameSettings.Go.EngineFpsLimit" xml:space="preserve">
+    <value>حد إطارات المحرك</value>
+  </data>
+  <data name="GameSettings.Go.CameraSettings" xml:space="preserve">
+    <value>إعدادات الكاميرا</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeight" xml:space="preserve">
+    <value>الحد الأدنى لارتفاع الكاميرا</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeight" xml:space="preserve">
+    <value>الحد الأقصى لارتفاع الكاميرا</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeed" xml:space="preserve">
+    <value>سرعة تحريك الكاميرا</value>
+  </data>
+  <data name="GameSettings.Go.SocialAndNotifications" xml:space="preserve">
+    <value>التواصل والإشعارات</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotifications" xml:space="preserve">
+    <value>إشعارات عامة</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotifications" xml:space="preserve">
+    <value>إشعارات صوتية</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSize" xml:space="preserve">
+    <value>حجم خط الدردشة</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeout" xml:space="preserve">
+    <value>تلاشي الدردشة (بالثواني)</value>
+  </data>
+  <data name="GameSettings.Go.DetailedNotifications" xml:space="preserve">
+    <value>إشعارات مفصلة</value>
+  </data>
+  <data name="GameSettings.Go.FriendOnlineInGame" xml:space="preserve">
+    <value>صديق متصل (أثناء اللعب)</value>
+  </data>
+  <data name="GameSettings.Go.FriendOfflineInGame" xml:space="preserve">
+    <value>صдиг غير متصل (أثناء اللعب)</value>
+  </data>
+  <data name="GameSettings.Go.AcceptInGame" xml:space="preserve">
+    <value>قبول اللعبة (أثناء اللعب)</value>
+  </data>
+  <data name="GameSettings.Go.RequestInGame" xml:space="preserve">
+    <value>طلب لعبة (أثناء اللعب)</value>
+  </data>
+  <data name="GameSettings.Go.FriendOnlineMenu" xml:space="preserve">
+    <value>صдиг متصل (في القائمة)</value>
+  </data>
+  <data name="GameSettings.Go.FriendOfflineMenu" xml:space="preserve">
+    <value>صдиг غير متصل (في القائمة)</value>
+  </data>
+  <data name="GameSettings.Go.AcceptMenu" xml:space="preserve">
+    <value>قبول اللعبة (في القائمة)</value>
+  </data>
+  <data name="GameSettings.Go.RequestMenu" xml:space="preserve">
+    <value>طلب لعبة (في القائمة)</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpOverride" xml:space="preserve">
+    <value>تجاوز عنوان IP الخاص بـ GameSpy</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpWatermark" xml:space="preserve">
+    <value>أدخل عنوان IP أو النطاق لـ GameSpy...</value>
+  </data>
+  <data name="Theme.Color.Red" xml:space="preserve">
+    <value>أحمر</value>
+  </data>
+  <data name="Theme.Color.Pink" xml:space="preserve">
+    <value>وردي</value>
+  </data>
+  <data name="Theme.Color.DeepPink" xml:space="preserve">
+    <value>وردي غامق</value>
+  </data>
+  <data name="Theme.Color.Purple" xml:space="preserve">
+    <value>أرجواني</value>
+  </data>
+  <data name="Theme.Color.DeepPurple" xml:space="preserve">
+    <value>أرجواني غامق</value>
+  </data>
+  <data name="Theme.Color.Indigo" xml:space="preserve">
+    <value>نيلي</value>
+  </data>
+  <data name="Theme.Color.DeepIndigo" xml:space="preserve">
+    <value>نيلي داكن</value>
+  </data>
+  <data name="Theme.Color.Blue" xml:space="preserve">
+    <value>أزرق</value>
+  </data>
+  <data name="Theme.Color.DarkBlue" xml:space="preserve">
+    <value>أزرق داكن</value>
+  </data>
+  <data name="Theme.Color.LightBlue" xml:space="preserve">
+    <value>أزرق فاتح</value>
+  </data>
+  <data name="Theme.Color.CyanBlue" xml:space="preserve">
+    <value>أزرق سماوي</value>
+  </data>
+  <data name="Theme.Color.Cyan" xml:space="preserve">
+    <value>سماوي</value>
+  </data>
+  <data name="Theme.Color.DarkCyan" xml:space="preserve">
+    <value>سماوي داكن</value>
+  </data>
+  <data name="Theme.Color.Teal" xml:space="preserve">
+    <value>أزرق مخضر</value>
+  </data>
+  <data name="Theme.Color.DarkTeal" xml:space="preserve">
+    <value>أزرق مخضر داكن</value>
+  </data>
+  <data name="Theme.Color.Green" xml:space="preserve">
+    <value>أخضر</value>
+  </data>
+  <data name="Theme.Color.DarkGreen" xml:space="preserve">
+    <value>أخضر داكن</value>
+  </data>
+  <data name="Theme.Color.LightGreen" xml:space="preserve">
+    <value>أخضر فاتح</value>
+  </data>
+  <data name="Theme.Color.OliveGreen" xml:space="preserve">
+    <value>أخضر زيتي</value>
+  </data>
+  <data name="Theme.Color.Lime" xml:space="preserve">
+    <value>ليموني</value>
+  </data>
+  <data name="Theme.Color.Yellow" xml:space="preserve">
+    <value>أصفر</value>
+  </data>
+  <data name="Theme.Color.Amber" xml:space="preserve">
+    <value>كهرماني</value>
+  </data>
+  <data name="Theme.Color.Orange" xml:space="preserve">
+    <value>برتقالي</value>
+  </data>
+  <data name="Theme.Color.DarkOrange" xml:space="preserve">
+    <value>برتقالي داكن</value>
+  </data>
+  <data name="Theme.Color.DeepOrange" xml:space="preserve">
+    <value>برتقالي عميق</value>
+  </data>
+  <data name="Theme.Color.DarkOrangeRed" xml:space="preserve">
+    <value>أحمر برتقالي داكن</value>
+  </data>
+  <data name="Theme.Color.Brown" xml:space="preserve">
+    <value>بني</value>
+  </data>
+  <data name="Theme.Color.BlueGrey" xml:space="preserve">
+    <value>رمادي مزرق</value>
+  </data>
+  <data name="Theme.Color.DarkGrey" xml:space="preserve">
+    <value>رمادي داكن</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.AuthFailed" xml:space="preserve">
+    <value>فشلت مصادقة GitHub. يرجى التحقق من صحة الرمز المميز الخاص بك.</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.ClientNotAvailable" xml:space="preserve">
+    <value>عميل واجهة برمجة تطبيقات GitHub غير متوفر</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.PleaseEnter" xml:space="preserve">
+    <value>يرجى إدخال GitHub PAT</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.Removed" xml:space="preserve">
+    <value>تمت إزالة GitHub PAT</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.RemovedWithEnv" xml:space="preserve">
+    <value>تمت إزالة GitHub PAT (تم إلغاء تنشيط متغير البيئة لهذه الجلسة)</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.StorageNotAvailable" xml:space="preserve">
+    <value>تخزين الرمز المميز غير متوفر</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.Testing" xml:space="preserve">
+    <value>جارٍ اختبار PAT...</value>
+  </data>
+  <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
+    <value>تم التحقق من PAT بنجاح ✓</value>
+  </data>
+  <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
+    <value>تجميعة ملحقات الأدوات</value>
+  </data>
+  <data name="Tools.Dialog.SelectPluginAssembly" xml:space="preserve">
+    <value>حدد تجميعة ملحق الأداة</value>
+  </data>
+  <data name="Tools.Status.RefreshedListSuccess" xml:space="preserve">
+    <value>تم تحديث قائمة الأدوات</value>
+  </data>
+  <data name="Tools.Plugin.genpatcher.Description" xml:space="preserve">
+    <value>إصلاحات وتحسينات أساسية للعبة Command &amp; Conquer Generals و Zero Hour.</value>
+  </data>
+  <data name="Tools.Plugin.map-manager.Description" xml:space="preserve">
+    <value>تثبيت وتنظيم وضغط وإدارة خرائط اللعب الجماعي المخصصة.</value>
+  </data>
+  <data name="Tools.Plugin.replay-manager.Description" xml:space="preserve">
+    <value>استعراض وتنظيم وتحليل ورفع ملفات الإعادة إلى Generals Online.</value>
+  </data>
+  <data name="Updates.Hero.Title" xml:space="preserve">
+    <value>تحديثات GenHub</value>
+  </data>
+  <data name="Updates.Tab.DevelopmentBuilds" xml:space="preserve">
+    <value>إصدارات التطوير</value>
+  </data>
+  <data name="Updates.Tab.ReleaseUpdates" xml:space="preserve">
+    <value>تحديثات الإصدارات</value>
+  </data>
+  <data name="Updates.Tooltip.RemindMeLater" xml:space="preserve">
+    <value>تذكيري لاحقاً</value>
+  </data>
+  <data name="Updates.Status.VersionReady" xml:space="preserve">
+    <value>الإصدار {0} جاهز للتثبيت</value>
+  </data>
+  <data name="Updates.Label.CurrentVersionFormat" xml:space="preserve">
+    <value>الحالية: {0}</value>
+  </data>
+  <data name="Updates.Label.PublishedByFormat" xml:space="preserve">
+    <value>بواسطة {0}</value>
+  </data>
+  <data name="Updates.Label.UpdatedDateFormat" xml:space="preserve">
+    <value>تم التحديث: {0}</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.PatSaveTest" xml:space="preserve">
+    <value>حفظ واختبار</value>
+  </data>
+  <data name="ContentType.GameInstallation" xml:space="preserve">
+    <value>تثبيت اللعبة</value>
+  </data>
+  <data name="ContentType.GameClient" xml:space="preserve">
+    <value>عميل اللعبة</value>
+  </data>
+  <data name="ContentType.Mod" xml:space="preserve">
+    <value>تعديل</value>
+  </data>
+  <data name="ContentType.Patch" xml:space="preserve">
+    <value>تصحيح</value>
+  </data>
+  <data name="ContentType.Addon" xml:space="preserve">
+    <value>ملحق</value>
+  </data>
+  <data name="ContentType.MapPack" xml:space="preserve">
+    <value>حزمة خرائط</value>
+  </data>
+  <data name="ContentType.LanguagePack" xml:space="preserve">
+    <value>حزمة لغة</value>
+  </data>
+  <data name="ContentType.ContentBundle" xml:space="preserve">
+    <value>حزمة محتوى</value>
+  </data>
+  <data name="ContentType.PublisherReferral" xml:space="preserve">
+    <value>إحالة الناشر</value>
+  </data>
+  <data name="ContentType.ContentReferral" xml:space="preserve">
+    <value>إحالة المحتوى</value>
+  </data>
+  <data name="ContentType.Mission" xml:space="preserve">
+    <value>مهمة</value>
+  </data>
+  <data name="ContentType.Map" xml:space="preserve">
+    <value>خريطة</value>
+  </data>
+  <data name="ContentType.Skin" xml:space="preserve">
+    <value>مظهر</value>
+  </data>
+  <data name="ContentType.Video" xml:space="preserve">
+    <value>فيديو</value>
+  </data>
+  <data name="ContentType.Replay" xml:space="preserve">
+    <value>إعادة</value>
+  </data>
+  <data name="ContentType.Screensaver" xml:space="preserve">
+    <value>شاشة توقف</value>
+  </data>
+  <data name="ContentType.Executable" xml:space="preserve">
+    <value>ملف تنفيذي</value>
+  </data>
+  <data name="ContentType.ModdingTool" xml:space="preserve">
+    <value>أداة تعديل</value>
+  </data>
+  <data name="ContentType.UnknownContentType" xml:space="preserve">
+    <value>محتوى غير معروف</value>
+  </data>
+  <data name="Info.Section.quickstart.Title" xml:space="preserve">
+    <value>دليل البدء السريع</value>
+  </data>
+  <data name="Info.Section.quickstart.Description" xml:space="preserve">
+    <value>تعلم الأساسيات الضرورية لتشغيل Command &amp; Conquer والاستمتاع بها في ثوانٍ.</value>
+  </data>
+  <data name="Info.Section.game-profiles.Title" xml:space="preserve">
+    <value>ملفات تعريف اللعبة</value>
+  </data>
+  <data name="Info.Section.game-profiles.Description" xml:space="preserve">
+    <value>قلب GenHub النابض: إدارة التثبيتات المعزولة، التعديلات، التحديثات والتكوينات.</value>
+  </data>
+  <data name="Info.Section.game-settings.Title" xml:space="preserve">
+    <value>إعدادات اللعبة (Options.ini)</value>
+  </data>
+  <data name="Info.Section.game-settings.Description" xml:space="preserve">
+    <value>اضبط الدقة الحديثة والتأثيرات البصرية والخيارات المتقدمة دون تعطل اللعبة.</value>
+  </data>
+  <data name="Info.Section.game-profile-content.Title" xml:space="preserve">
+    <value>اختيار محتوى الملف التعريفي</value>
+  </data>
+  <data name="Info.Section.game-profile-content.Description" xml:space="preserve">
+    <value>امزج ووفق بين التعديلات وعملاء اللعبة المخصصين والأدوات لكل ملف تعريفي بسلاسة.</value>
+  </data>
+  <data name="Info.Section.shortcuts.Title" xml:space="preserve">
+    <value>اختصارات سطح المكتب</value>
+  </data>
+  <data name="Info.Section.shortcuts.Description" xml:space="preserve">
+    <value>أنشئ اختصارات بنقرة واحدة على سطح المكتب مع أيقونات مخصصة لتشغيل ملفاتك المفضلة فوراً.</value>
+  </data>
+  <data name="Info.Section.steam-integration.Title" xml:space="preserve">
+    <value>التكامل مع Steam</value>
+  </data>
+  <data name="Info.Section.steam-integration.Description" xml:space="preserve">
+    <value>تتبع وقت اللعب والحالة على Steam بسلاسة أثناء الاستمتاع بأي تعديل أو عميل مخصص.</value>
+  </data>
+  <data name="Info.Section.local-content.Title" xml:space="preserve">
+    <value>دعم المحتوى المحلي</value>
+  </data>
+  <data name="Info.Section.local-content.Description" xml:space="preserve">
+    <value>استورد المجلدات المخصصة، التعديلات، حزم الخرائط، أو الأدوات المستقلة من محرك الأقراص المحلي.</value>
+  </data>
+  <data name="Info.Section.tools.Title" xml:space="preserve">
+    <value>أدوات GenHub</value>
+  </data>
+  <data name="Info.Section.tools.Description" xml:space="preserve">
+    <value>أدوات مدمجة قوية: مدير الإعادات، مدير حزم الخرائط، وأدوات الإضافات المعيارية.</value>
+  </data>
+  <data name="Info.Section.generals-online-faq.Title" xml:space="preserve">
+    <value>الأسئلة الشائعة لـ Generals Online</value>
+  </data>
+  <data name="Info.Section.generals-online-faq.Description" xml:space="preserve">
+    <value>الأسئلة الشائعة بخصوص التوفيق بين اللاعبين، مكافحة الغش، واللعب الجماعي الحديث.</value>
+  </data>
+  <data name="Info.Section.generals-online-changelog.Title" xml:space="preserve">
+    <value>سجل تغييرات Generals Online</value>
+  </data>
+  <data name="Info.Section.generals-online-changelog.Description" xml:space="preserve">
+    <value>استعرض أحدث الإصدارات وإصلاحات الخادم وسجلات تحديث العميل لـ Generals Online.</value>
+  </data>
+  <data name="Info.Section.scan-games.Title" xml:space="preserve">
+    <value>اكتشاف الألعاب والمكتبة</value>
+  </data>
+  <data name="Info.Section.scan-games.Description" xml:space="preserve">
+    <value>اكتشف تلقائياً تثبيتات Steam و EA App و The First Decade والتثبيتات المخصصة.</value>
+  </data>
+  <data name="Info.Section.scan-for-games.Title" xml:space="preserve">
+    <value>البحث عن الألعاب</value>
+  </data>
+  <data name="Info.Section.scan-for-games.Description" xml:space="preserve">
+    <value>امسح جهاز الكمبيوتر لاكتشاف الإصدارات المثبتة من Generals و Zero Hour.</value>
+  </data>
+  <data name="Info.Section.workspaces.Title" xml:space="preserve">
+    <value>تقنية مساحات العمل</value>
+  </data>
+  <data name="Info.Section.workspaces.Description" xml:space="preserve">
+    <value>كيف تحافظ GenHub على نظافة مجلد اللعبة باستخدام المحاكاة الافتراضية المتقدمة لنظام الملفات.</value>
+  </data>
+  <data name="Info.Section.app-updates.Title" xml:space="preserve">
+    <value>تحديثات التطبيق و CI</value>
+  </data>
+  <data name="Info.Section.app-updates.Description" xml:space="preserve">
+    <value>تعرف على كيفية تحديث GenHub تلقائياً وكيفية اختبار إصدارات العلاقات التجريبية (PR).</value>
+  </data>
+  <data name="Info.Section.changelogs.Title" xml:space="preserve">
+    <value>سجلات التغيير وملاحظات الإصدار</value>
+  </data>
+  <data name="Info.Section.changelogs.Description" xml:space="preserve">
+    <value>سجل مفصل للتحسينات والإصلاحات والميزات عبر جميع إصدارات GenHub.</value>
+  </data>
+<data name="Settings.GitHubPat.Status.Configured" xml:space="preserve"><value>تم تكوين GitHub PAT ✓</value></data><data name="Settings.GitHubPat.Status.EnvConfigured" xml:space="preserve"><value>تم التكوين عبر متغير البيئة</value></data><data name="Settings.GitHubPat.Status.NotConfigured" xml:space="preserve"><value>لم يتم تكوين GitHub PAT</value></data><data name="Settings.GitHubPat.Status.CheckError" xml:space="preserve"><value>خطأ في التحقق من حالة PAT</value></data><data name="Settings.GitHubPat.Status.InvalidFormat" xml:space="preserve"><value>PAT غير صالح: {0}</value></data><data name="Settings.GitHubPat.Status.ErrorFormat" xml:space="preserve"><value>خطأ: {0}</value></data>  <data name="Tools.GenPatcher.Notify.CancellingFixDesc" xml:space="preserve">
+    <value>جارٍ إلغاء تطبيق {0}...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixCancelledTitle" xml:space="preserve">
+    <value>تم إلغاء الإصلاح</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixCancelledDesc" xml:space="preserve">
+    <value>تم إلغاء تطبيق {0}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixApplyFailedTitle" xml:space="preserve">
+    <value>فشل تطبيق الإصلاح</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixForceApplyFailedTitle" xml:space="preserve">
+    <value>فشل فرض تطبيق الإصلاح</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixApplyFailedDesc" xml:space="preserve">
+    <value>تعذر تطبيق {0}: {1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.BatchApplyErrorDesc" xml:space="preserve">
+    <value>حدث خطأ: {0}</value>
+  </data>
+  <data name="Updates.Status.NewBuild" xml:space="preserve">
+    <value>يتوفر إصدار جديد: {0}</value>
+  </data>
+  <data name="Updates.Status.BuildDismissed" xml:space="preserve">
+    <value>لقد تجاهلت التحديث {0}</value>
+  </data>
+  <data name="Updates.Status.BuildLatest" xml:space="preserve">
+    <value>أنت تستخدم أحدث إصدار ({0})</value>
+  </data>
+  <data name="Maps.MapPack.CreatedDateFormat" xml:space="preserve">
+    <value>تاريخ الإنشاء: {0:d}</value>
+  </data>
+  <data name="Maps.MapPack.MapsCountFormat" xml:space="preserve">
+    <value>{0} من الخرائط</value>
   </data>
 </root>

@@ -56,8 +56,8 @@ public partial class App : Application
     {
         try
         {
-            var configuredLanguage = _userSettingsService?.Get()?.Language;
-            if (!string.IsNullOrWhiteSpace(configuredLanguage) && _localizationService != null)
+            var configuredLanguage = _userSettingsService.Get()?.Language;
+            if (!string.IsNullOrWhiteSpace(configuredLanguage))
             {
                 try
                 {

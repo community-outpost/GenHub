@@ -1388,7 +1388,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             HasGitHubPat = _gitHubTokenStorage?.HasToken() == true;
             if (HasGitHubPat)
             {
-                PatStatusMessage = "GitHub PAT configured ✓";
+                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Configured") ?? "GitHub PAT configured ✓";
                 IsPatValid = true;
             }
             else
@@ -1396,12 +1396,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var isAuth = _gitHubApiClient != null && await _gitHubApiClient.EnsureAuthenticatedAsync();
                 if (isAuth)
                 {
-                    PatStatusMessage = "Configured via environment variable";
+                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.EnvConfigured") ?? "Configured via environment variable";
                     IsPatValid = true;
                 }
                 else
                 {
-                    PatStatusMessage = "No GitHub PAT configured";
+                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.NotConfigured") ?? "No GitHub PAT configured";
                     IsPatValid = false;
                 }
             }
@@ -1409,7 +1409,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load PAT status");
-            PatStatusMessage = "Error checking PAT status";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.CheckError") ?? "Error checking PAT status";
             HasGitHubPat = false;
             IsPatValid = false;
         }
@@ -1541,18 +1541,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrWhiteSpace(GitHubPatInput))
         {
-            PatStatusMessage = "Please enter a GitHub PAT";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.PleaseEnter") ?? "Please enter a GitHub PAT";
             return;
         }
 
         if (_gitHubTokenStorage == null)
         {
-            PatStatusMessage = "Token storage not available";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.StorageNotAvailable") ?? "Token storage not available";
             return;
         }
 
         IsTestingPat = true;
-        PatStatusMessage = "Testing PAT...";
+        PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Testing") ?? "Testing PAT...";
 
         try
         {
@@ -1570,24 +1570,38 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 if (user == null)
                 {
                     await RestoreExistingTokenAsync();
-                    PatStatusMessage = "GitHub authentication failed. Please verify that your token is valid.";
+                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.AuthFailed") ?? "GitHub authentication failed. Please verify that your token is valid.";
                     IsPatValid = false;
                     return;
                 }
             }
             else
             {
-                PatStatusMessage = "GitHub API client not available";
+                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ClientNotAvailable") ?? "GitHub API client not available";
                 IsPatValid = false;
                 return;
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
-            PatStatusMessage = "PAT validated successfully ✓";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓";
             IsPatValid = true;
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await RestoreExistingTokenAsync();
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after cancellation");
+            }
+
+            _logger.LogInformation("PAT validation was cancelled");
+            PatStatusMessage = string.Empty;
         }
         catch (Exception ex)
         {
@@ -1601,7 +1615,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             _logger.LogError(ex, "PAT validation failed");
-            PatStatusMessage = $"Invalid PAT: {ex.Message}";
+            var invalidFormat = _localizationService?.GetString("Settings.GitHubPat.Status.InvalidFormat") ?? "Invalid PAT: {0}";
+            PatStatusMessage = string.Format(CultureInfo.InvariantCulture, invalidFormat, ex.Message);
             IsPatValid = false;
         }
         finally
@@ -1650,13 +1665,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(GitHubConstants.GitHubTokenEnvVar));
 
             PatStatusMessage = hasEnvToken
-                ? "GitHub PAT removed (env var deactivated for this session)"
-                : "GitHub PAT removed";
+                ? (_localizationService?.GetString("Settings.GitHubPat.Status.RemovedWithEnv") ?? "GitHub PAT removed (env var deactivated for this session)")
+                : (_localizationService?.GetString("Settings.GitHubPat.Status.Removed") ?? "GitHub PAT removed");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete PAT");
-            PatStatusMessage = $"Error: {ex.Message}";
+            var errorFormat = _localizationService?.GetString("Settings.GitHubPat.Status.ErrorFormat") ?? "Error: {0}";
+            PatStatusMessage = string.Format(CultureInfo.InvariantCulture, errorFormat, ex.Message);
         }
     }
 

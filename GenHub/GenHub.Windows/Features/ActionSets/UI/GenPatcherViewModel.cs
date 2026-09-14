@@ -465,10 +465,11 @@ public partial class GenPatcherViewModel(
                     installation,
                     notificationService,
                     logger,
-                    () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
-                    () => Avalonia.Threading.Dispatcher.UIThread.Post(NotifyExecutionStateChanged),
-                    () => IsBatchApplying || ActionSets.Any(x => !string.Equals(x.ActionSet.Id, fix.Id, StringComparison.OrdinalIgnoreCase) && x.IsApplying),
-                    localizationService)
+                    callbacks: new ActionSetCallbacks(
+                        OnStatusChanged: () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
+                        OnBusyChanged: () => Avalonia.Threading.Dispatcher.UIThread.Post(NotifyExecutionStateChanged),
+                        IsParentBusy: () => IsBatchApplying || ActionSets.Any(x => !string.Equals(x.ActionSet.Id, fix.Id, StringComparison.OrdinalIgnoreCase) && x.IsApplying)),
+                    localizationService: localizationService)
                 {
                     IsBatchApplying = IsBatchApplying,
                 };
@@ -544,7 +545,7 @@ public partial class GenPatcherViewModel(
             logger.LogWarning("[GENPATCHER_APPLY_005] Apply batch rejected - not running as administrator");
             notificationService.ShowError(
                 localizationService?.GetString("Tools.GenPatcher.Notify.AdminRequired") ?? "Administrator Rights Required",
-                "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator.");
+                localizationService?.GetString("Tools.GenPatcher.Notify.AdminRequiredDesc") ?? "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator.");
             return;
         }
 
@@ -616,7 +617,7 @@ public partial class GenPatcherViewModel(
             logger.LogError(ex, "Fatal error during batch fix application");
             notificationService.ShowError(
                 localizationService?.GetString("Tools.GenPatcher.Notify.BatchApplyErrorTitle") ?? "Batch Apply Error",
-                $"An error occurred: {ex.Message}");
+                localizationService?.GetString("Tools.GenPatcher.Notify.BatchApplyErrorDesc", ex.Message) ?? $"An error occurred: {ex.Message}");
         }
         finally
         {
@@ -686,9 +687,12 @@ public partial class GenPatcherViewModel(
                 ? $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n⚠ Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}"
                 : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n\nErrors:\n{errorDetails}";
 
+            var gameTitle = targetInstallation.InstallationType.ToString();
+            var partialDesc = localizationService?.GetString("Tools.GenPatcher.Notify.BatchPartialDesc", successCount, totalApplicable, gameTitle)
+                ?? $"{successCount}/{totalApplicable} fixes applied successfully for {gameTitle}.";
             notificationService.ShowError(
                 localizationService?.GetString("Tools.GenPatcher.Notify.BatchPartialTitle") ?? $"Fixes Completed with Errors ({successCount}/{totalApplicable} successful)",
-                failureSummary);
+                $"{partialDesc}\n\n{failureSummary}");
         }
     }
 

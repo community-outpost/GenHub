@@ -1,4 +1,4 @@
-﻿namespace GenHub.Windows.Features.ActionSets.UI;
+namespace GenHub.Windows.Features.ActionSets.UI;
 
 using System;
 using System.Threading;
@@ -15,6 +15,14 @@ using Microsoft.Extensions.Logging;
 #pragma warning disable S2325 // Methods/properties bound by Avalonia XAML or Command patterns must be instance members
 
 /// <summary>
+/// Callbacks and external state accessors for an <see cref="ActionSetViewModel"/>.
+/// </summary>
+public sealed record ActionSetCallbacks(
+    Action? OnStatusChanged = null,
+    Action? OnBusyChanged = null,
+    Func<bool>? IsParentBusy = null);
+
+/// <summary>
 /// View model for an individual action set.
 /// </summary>
 public partial class ActionSetViewModel(
@@ -22,9 +30,7 @@ public partial class ActionSetViewModel(
     GameInstallation installation,
     INotificationService notificationService,
     ILogger logger,
-    Action? onStatusChanged = null,
-    Action? onBusyChanged = null,
-    Func<bool>? isParentBusy = null,
+    ActionSetCallbacks? callbacks = null,
     ILocalizationService? localizationService = null) : ObservableObject
 {
     /// <summary>
@@ -154,7 +160,7 @@ public partial class ActionSetViewModel(
         (false, false) => ActionSetConstants.StatusColors.NotApplicableBorder,
     };
 
-    private bool IsParentBusy => isParentBusy?.Invoke() == true;
+    private bool IsParentBusy => callbacks?.IsParentBusy?.Invoke() == true;
 
     /// <summary>
     /// Checks the status of the action set (applicable and applied).
@@ -225,7 +231,7 @@ public partial class ActionSetViewModel(
 
     partial void OnIsApplyingChanged(bool value)
     {
-        onBusyChanged?.Invoke();
+        callbacks?.OnBusyChanged?.Invoke();
     }
 
     private bool CanExecuteApply() => CanApply;
@@ -255,7 +261,7 @@ public partial class ActionSetViewModel(
             await _applyCts.CancelAsync();
             notificationService.ShowWarning(
                 localizationService?.GetString("Tools.GenPatcher.Notify.CancellingTitle") ?? "Cancelling",
-                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingDesc") ?? $"Cancelling application of {ActionSet.Title}...");
+                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingFixDesc", ActionSet.Title) ?? $"Cancelling application of {ActionSet.Title}...");
         }
     }
 
@@ -303,8 +309,8 @@ public partial class ActionSetViewModel(
         {
             logger.LogWarning(ex, "Application of {Title} was cancelled by user", ActionSet.Title);
             notificationService.ShowWarning(
-                localizationService?.GetString("Tools.GenPatcher.Notify.BatchCancelledTitle") ?? "Apply Cancelled",
-                $"Application of {ActionSet.Title} was cancelled.");
+                localizationService?.GetString("Tools.GenPatcher.Notify.FixCancelledTitle") ?? "Fix Cancelled",
+                localizationService?.GetString("Tools.GenPatcher.Notify.FixCancelledDesc", ActionSet.Title) ?? $"Application of {ActionSet.Title} was cancelled.");
         }
         catch (Exception ex)
         {
@@ -313,16 +319,18 @@ public partial class ActionSetViewModel(
                 isForce ? "[GENPATCHER_FIX_015] Exception force applying {Title} (ID={Id})" : "[GENPATCHER_FIX_011] Exception applying {Title} (ID={Id})",
                 ActionSet.Title,
                 ActionSet.Id);
-            notificationService.ShowError(
-                isForce ? "Failed to Force Apply Fix" : "Failed to Apply Fix",
-                $"Could not apply {ActionSet.Title}: {ex.Message}");
+            var title = isForce
+                ? (localizationService?.GetString("Tools.GenPatcher.Notify.FixForceApplyFailedTitle") ?? "Failed to Force Apply Fix")
+                : (localizationService?.GetString("Tools.GenPatcher.Notify.FixApplyFailedTitle") ?? "Failed to Apply Fix");
+            var desc = localizationService?.GetString("Tools.GenPatcher.Notify.FixApplyFailedDesc", ActionSet.Title, ex.Message) ?? $"Could not apply {ActionSet.Title}: {ex.Message}";
+            notificationService.ShowError(title, desc);
         }
         finally
         {
             try
             {
                 await CheckStatusAsync(CancellationToken.None);
-                onStatusChanged?.Invoke();
+                callbacks?.OnStatusChanged?.Invoke();
             }
             catch (Exception statusEx)
             {

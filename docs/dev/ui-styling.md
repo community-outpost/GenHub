@@ -267,26 +267,26 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 #### Buttons and Controls
 ```xml
-<Button Content="{localization:Localize Common.Save}"
+<Button Content="{localization:Localize Common.Close}"
         Command="{Binding SaveCommand}" />
 ```
 
 #### Expanders and Section Headers
 ```xml
-<Expander Header="{localization:Localize Settings.Appearance.Expander.Header}">
+<Expander Header="{localization:Localize Settings.Appearance.Title}">
     ...
 </Expander>
 ```
 
 #### TextBoxes and Search Fields (Watermarks)
 ```xml
-<TextBox Watermark="{localization:Localize Common.Search.Placeholder}"
+<TextBox Watermark="{localization:Localize Common.Search}"
          Text="{Binding SearchQuery, Mode=TwoWay}" />
 ```
 
 #### ToolTips
 ```xml
-<Button ToolTip.Tip="{localization:Localize MainWindow.TitleBar.Settings.ToolTip}">
+<Button ToolTip.Tip="{localization:Localize Navigation.Settings}">
     <material:MaterialIcon Kind="Cog" />
 </Button>
 ```

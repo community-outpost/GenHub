@@ -16,6 +16,7 @@
   <UserControl.Resources>
     <converters:ObjectToBoolConverter x:Key="ObjectToBoolConverter" IsNullValue="False" IsNotNullValue="True" />
     <converters:LocalizedToolNameConverter x:Key="LocalizedToolNameConverter" />
+    <converters:LocalizedToolDescriptionConverter x:Key="LocalizedToolDescriptionConverter" />
   </UserControl.Resources>
 
   <UserControl.Styles>
@@ -266,7 +267,7 @@
                     </StackPanel>
                     <StackPanel Spacing="2" IsVisible="{Binding Metadata.Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <TextBlock Text="{localization:Localize Tools.Label.Description}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                        <TextBlock Text="{Binding Metadata.Description}" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding, Converter={StaticResource LocalizedToolDescriptionConverter}}" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
                 </StackPanel>
                 <Button Command="{Binding CloseDetailsDialogCommand}"

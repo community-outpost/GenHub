@@ -152,7 +152,7 @@ When adding new features, views, dialogs, or modifying existing ones, strictly f
 6. **Dynamic Collections & Navigation Sidebars:**
    - When navigation items or sidebars (such as `SettingsViewModel.Sections`) are generated from collections with localized titles, subscribe to `_localizationService.PropertyChanged` (checking for `CurrentCulture` or indexer changes) to update item titles dynamically upon culture switches without requiring an application restart.
 7. **Tool & Plugin Localization:**
-   - For dynamically loaded tools/plugins where models implement `ToolMetadata` or `IToolPlugin`, use `LocalizedToolNameConverter` (`{Binding, Converter={StaticResource LocalizedToolNameConverter}}`) in XAML. The converter checks for `Tools.<ToolId>.Name` or `Tools.<Name>.Name` in resources, falling back to the plugin's metadata title.
+   - For dynamically loaded tools/plugins where models implement `ToolMetadata` or `IToolPlugin`, use `LocalizedToolNameConverter` (`{Binding, Converter={StaticResource LocalizedToolNameConverter}}`) in XAML. The converter checks for `Tools.Plugin.<ToolId>.Name` in resources, falling back to the plugin's metadata title.
 8. **Adding New Language Translations (Future PRs):**
    - Create satellite resource files matching the culture name beside `Strings.resx`:
      - `Strings.de.resx` (German)

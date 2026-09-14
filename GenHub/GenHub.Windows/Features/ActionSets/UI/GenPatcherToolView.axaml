@@ -9,6 +9,25 @@
              x:Class="GenHub.Windows.Features.ActionSets.UI.GenPatcherToolView"
              x:DataType="vm:GenPatcherViewModel">
 
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="GenPatcherBrandBrush" Color="#C62828"/>
+        <SolidColorBrush x:Key="GenPatcherBrandBorderBrush" Color="#EF5350"/>
+        <SolidColorBrush x:Key="GenPatcherBrandHoverBrush" Color="#D32F2F"/>
+        <SolidColorBrush x:Key="GenPatcherBrandPressedBrush" Color="#B71C1C"/>
+        <SolidColorBrush x:Key="GenPatcherCancelBackgroundBrush" Color="#33B71C1C"/>
+        <SolidColorBrush x:Key="GenPatcherCancelBorderBrush" Color="#E53935"/>
+        <SolidColorBrush x:Key="GenPatcherCancelForegroundBrush" Color="#FFCDD2"/>
+        <SolidColorBrush x:Key="GenPatcherCancelHoverBrush" Color="#4DB71C1C"/>
+        <Color x:Key="GenPatcherGradientStartColor">#18C62828</Color>
+        <SolidColorBrush x:Key="GenPatcherInfoBoxBackgroundBrush" Color="#1EC62828"/>
+        <SolidColorBrush x:Key="GenPatcherInfoBoxBorderBrush" Color="#35EF5350"/>
+        <SolidColorBrush x:Key="GenPatcherBadgeCoreBackgroundBrush" Color="#B71C1C"/>
+        <SolidColorBrush x:Key="GenPatcherBadgeCoreBorderBrush" Color="#EF5350"/>
+        <SolidColorBrush x:Key="GenPatcherBadgeCrucialBackgroundBrush" Color="#8E0000"/>
+        <SolidColorBrush x:Key="GenPatcherBadgeCrucialBorderBrush" Color="#E53935"/>
+        <SolidColorBrush x:Key="GenPatcherBadgeCrucialForegroundBrush" Color="#FFCDD2"/>
+    </UserControl.Resources>
+
     <UserControl.Styles>
         <!-- Standard Action Button (GenHub Translucent Theme Style) -->
         <Style Selector="Button.ActionBtn">
@@ -104,8 +123,8 @@
 
         <!-- Red Accent Button for GenPatcher Master Brand -->
         <Style Selector="Button.GenPatcherPrimaryBtn">
-            <Setter Property="Background" Value="#C62828"/>
-            <Setter Property="BorderBrush" Value="#EF5350"/>
+            <Setter Property="Background" Value="{DynamicResource GenPatcherBrandBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GenPatcherBrandBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="18,8"/>
@@ -121,11 +140,11 @@
             </Setter>
         </Style>
         <Style Selector="Button.GenPatcherPrimaryBtn:pointerover">
-            <Setter Property="Background" Value="#D32F2F"/>
+            <Setter Property="Background" Value="{DynamicResource GenPatcherBrandHoverBrush}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.GenPatcherPrimaryBtn:pressed">
-            <Setter Property="Background" Value="#B71C1C"/>
+            <Setter Property="Background" Value="{DynamicResource GenPatcherBrandPressedBrush}"/>
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
         <Style Selector="Button.GenPatcherPrimaryBtn:disabled">
@@ -134,12 +153,12 @@
 
         <!-- Cancel Batch Button -->
         <Style Selector="Button.GenPatcherCancelBtn">
-            <Setter Property="Background" Value="#33B71C1C"/>
-            <Setter Property="BorderBrush" Value="#E53935"/>
+            <Setter Property="Background" Value="{DynamicResource GenPatcherCancelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GenPatcherCancelBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="18,8"/>
-            <Setter Property="Foreground" Value="#FFCDD2"/>
+            <Setter Property="Foreground" Value="{DynamicResource GenPatcherCancelForegroundBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -151,7 +170,7 @@
             </Setter>
         </Style>
         <Style Selector="Button.GenPatcherCancelBtn:pointerover">
-            <Setter Property="Background" Value="#4DB71C1C"/>
+            <Setter Property="Background" Value="{DynamicResource GenPatcherCancelHoverBrush}"/>
         </Style>
     </UserControl.Styles>
 
@@ -160,7 +179,7 @@
         <Border Height="300" VerticalAlignment="Top" IsHitTestVisible="False">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                    <GradientStop Color="#18C62828" Offset="0"/>
+                    <GradientStop Color="{DynamicResource GenPatcherGradientStartColor}" Offset="0"/>
                     <GradientStop Color="#00000000" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
@@ -175,7 +194,7 @@
 
             <!-- Red-tinted Glassmorphic Header Card -->
             <Border Grid.Row="0" Margin="0,0,0,12" Padding="18,14" CornerRadius="10"
-                    Background="#1EC62828" BorderBrush="#35EF5350" BorderThickness="1">
+                    Background="{DynamicResource GenPatcherInfoBoxBackgroundBrush}" BorderBrush="{DynamicResource GenPatcherInfoBoxBorderBrush}" BorderThickness="1">
                 <Grid ColumnDefinitions="*, Auto, Auto">
                     <!-- Title & Logo -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
@@ -290,11 +309,11 @@
                                             <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14.5" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                                             <!-- Badges Row -->
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Border IsVisible="{Binding IsCore}" Background="#B71C1C" BorderBrush="#EF5350" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                                                <Border IsVisible="{Binding IsCore}" Background="{DynamicResource GenPatcherBadgeCoreBackgroundBrush}" BorderBrush="{DynamicResource GenPatcherBadgeCoreBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1">
                                                     <TextBlock Text="{localization:Localize Tools.GenPatcher.Badge.Core}" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                                 </Border>
-                                                <Border IsVisible="{Binding IsCrucial}" Background="#8E0000" BorderBrush="#E53935" BorderThickness="1" CornerRadius="4" Padding="5,1">
-                                                    <TextBlock Text="{localization:Localize Tools.GenPatcher.Badge.Crucial}" FontSize="9" FontWeight="Bold" Foreground="#FFCDD2"/>
+                                                <Border IsVisible="{Binding IsCrucial}" Background="{DynamicResource GenPatcherBadgeCrucialBackgroundBrush}" BorderBrush="{DynamicResource GenPatcherBadgeCrucialBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                                                    <TextBlock Text="{localization:Localize Tools.GenPatcher.Badge.Crucial}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource GenPatcherBadgeCrucialForegroundBrush}"/>
                                                 </Border>
                                                 <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,1">
                                                     <TextBlock Text="{Binding Category}" FontSize="9.5" Foreground="{DynamicResource TextSecondary}"/>

@@ -62,26 +62,27 @@
                 <ContentControl.DataTemplates>
                     <!-- Guide Section Item -->
                     <DataTemplate DataType="vm:InfoSectionViewModel">
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Grid ColumnDefinitions="*" Margin="4,2">
                             <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14" FontWeight="Medium" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
-                        </StackPanel>
+                        </Grid>
                     </DataTemplate>
                     <!-- Zero Hour FAQ Category -->
                     <DataTemplate DataType="vm:FaqCategoryViewModel">
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Grid ColumnDefinitions="Auto,*" Margin="4,2">
                              <material:MaterialIcon Kind="HelpCircleOutline"
                                                     Width="20"
                                                     Height="20"
                                                     Foreground="{DynamicResource AccentBrush}"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"/>
-                             <TextBlock Text="{Binding Title}"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,12,0"/>
+                             <TextBlock Grid.Column="1"
+                                        Text="{Binding Title}"
                                         VerticalAlignment="Center"
                                         FontSize="14"
                                         FontWeight="Medium"
                                         TextWrapping="Wrap"
                                         Foreground="{DynamicResource TextPrimary}"/>
-                        </StackPanel>
+                        </Grid>
                     </DataTemplate>
                 </ContentControl.DataTemplates>
             </ContentControl>
