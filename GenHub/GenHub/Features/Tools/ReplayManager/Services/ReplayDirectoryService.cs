@@ -1002,6 +1002,17 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
+    /// Synchronously resolves the compatibility status and matching profile for the specified replay file.
+    /// </summary>
+    /// <param name="replay">The replay file.</param>
+    /// <param name="acquiredIds">The set of acquired manifest IDs.</param>
+    /// <param name="profiles">The list of existing profiles.</param>
+    internal void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
+    {
+        ResolveCompatibilityAsync(replay, acquiredIds, profiles).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
     /// Asynchronously resolves the compatibility status and matching profile for the specified replay file.
     /// </summary>
     /// <param name="replay">The replay file.</param>
@@ -1009,11 +1020,6 @@ public sealed class ReplayDirectoryService(
     /// <param name="profiles">The list of existing profiles.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    internal void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
-    {
-        ResolveCompatibilityAsync(replay, acquiredIds, profiles).GetAwaiter().GetResult();
-    }
-
     internal async Task ResolveCompatibilityAsync(
         ReplayFile replay,
         HashSet<string> acquiredIds,

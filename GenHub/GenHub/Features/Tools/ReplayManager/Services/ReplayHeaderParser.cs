@@ -215,7 +215,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             buildTimeString,
             titleString);
 
-        var (totalFrames, fps, duration, gameDate) = ResolveTimingAndDuration(
+        var (totalFrames, fps, duration, timingGameDate) = ResolveTimingAndDuration(
             buffer,
             offset,
             bytesRead,
@@ -229,14 +229,13 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             VersionNumber = versionNumber,
             ExeCrc = exeCrc,
             IniCrc = iniCrc,
-            GameDate = gameDate,
+            GameDate = gameDate ?? timingGameDate,
             MapName = mapName,
             Players = players,
             Slots = slots,
             TotalFrames = totalFrames,
             FramesPerSecond = fps,
             Duration = duration,
-            GameDate = gameDate,
         };
 
         return OperationResult<ReplayMetadata>.CreateSuccess(metadata);
