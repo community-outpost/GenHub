@@ -1784,6 +1784,270 @@ public class ProfileSharingServiceTests
         await Assert.ThrowsAsync<OperationCanceledException>(() => _service.ImportSharedProfileAsync(request, cancellationToken: cts.Token));
     }
 
+    /// <summary>
+    /// Verifies that fallback content acquisition for ModDB dependencies uses targeted provider name and target game.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_TargetModDbProviderAndGame_WhenAcquiringFallbackAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "ModDB Import Profile",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.0.moddb.mod.shockwave",
+                    DisplayName = "ShockWave Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    Publisher = "ModDB",
+                    PublisherType = PublisherTypeConstants.ModDB,
+                    TargetGame = GameType.ZeroHour,
+                    Files = [],
+                },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.moddb.mod.shockwave",
+            Name = "ShockWave Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients = [new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+            }));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync("1.0.moddb.mod.shockwave", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        ContentSearchQuery? capturedQuery = null;
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<ContentSearchQuery, CancellationToken>((q, _) => capturedQuery = q)
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(searchResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.moddb.mod.shockwave"),
+                Name = "ShockWave Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+            }));
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "ModDB Import Profile",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(capturedQuery);
+        Assert.Equal("ModDB", capturedQuery.ProviderName);
+        Assert.Equal(GameType.ZeroHour, capturedQuery.TargetGame);
+    }
+
+    /// <summary>
+    /// Verifies that when ModDB download URLs are present in files, direct HTTP download is bypassed and content orchestrator is invoked.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_BypassDirectHttpAndFallbackToOrchestrator_WhenModDbUrlsPresentAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "ModDB File Profile",
+                GameType = GameType.ZeroHour,
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.0.moddb.mod.contra",
+                    DisplayName = "Contra",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    PublisherType = PublisherTypeConstants.ModDB,
+                    Files =
+                    [
+                        new ManifestFile
+                        {
+                            RelativePath = "contra.big",
+                            Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                            DownloadUrl = "https://www.moddb.com/downloads/start/12345",
+                            Size = 500000,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.moddb.mod.contra",
+            Name = "Contra",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients = [new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+            }));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync("1.0.moddb.mod.contra", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(searchResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.moddb.mod.contra"),
+                Name = "Contra",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+            }));
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "ModDB File Profile",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.True(result.Success);
+        _contentOrchestratorMock.Verify(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()), Times.Once);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(searchResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when the acquired manifest ID differs from the prospective dependency ID, the imported profile updates its selected manifest IDs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_UpdateSelectedManifestIds_WhenAcquiredManifestIdDiffersAsync()
+    {
+        // Arrange
+        var prospectiveId = "1.0.moddb.mod.contra009";
+        var resolvedId = "1.20240501.moddb.mod.contra009";
+
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Contra Profile",
+                GameType = GameType.ZeroHour,
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = prospectiveId,
+                    DisplayName = "Contra 009",
+                    Version = "009",
+                    ContentType = ContentType.Mod,
+                    PublisherType = PublisherTypeConstants.ModDB,
+                    Files = [],
+                },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = resolvedId,
+            Name = "Contra 009",
+            Version = "009",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients = [new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+            }));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(prospectiveId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(searchResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(resolvedId),
+                Name = "Contra 009",
+                Version = "009",
+                ContentType = ContentType.Mod,
+            }));
+
+        GameProfile? savedProfile = null;
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .Callback<GameProfile, CancellationToken>((p, _) => savedProfile = p)
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "Contra Profile",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(savedProfile);
+        Assert.Contains(resolvedId, savedProfile.EnabledContentIds);
+        Assert.DoesNotContain(prospectiveId, savedProfile.EnabledContentIds);
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile
