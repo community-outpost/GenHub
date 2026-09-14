@@ -1194,9 +1194,6 @@ public partial class ModBuilderViewModel(
     }
 
     /// <summary>
-    /// Loads the sample project for testing.
-    /// </summary>
-    /// <summary>
     /// Loads or provisions a specific publisher sample project by its showcase item.
     /// </summary>
     [RelayCommand]
@@ -1226,31 +1223,9 @@ public partial class ModBuilderViewModel(
         try
         {
             logger.LogInformation("OpenSampleProjectAsync requested for {SampleId} ({SampleName})", item.Id, item.Name);
-            var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
-            var projectDir = Path.Combine(userSamplesDir, item.Id);
-            var projectFile = Path.Combine(projectDir, $"{item.Id}{ModBuilderConstants.ProjectFileExtension}");
+            var projectFile = await ResolveOrProvisionSampleProjectFileAsync(item.Id, cts.Token).ConfigureAwait(false);
 
-            if (!File.Exists(projectFile))
-            {
-                var baseTemplateDir = FindBaseSampleTemplateDirectory(item.Id);
-                if (!string.IsNullOrEmpty(baseTemplateDir) && Directory.Exists(baseTemplateDir))
-                {
-                    Directory.CreateDirectory(projectDir);
-                    await CopyDirectoryAsync(baseTemplateDir, projectDir, cts.Token).ConfigureAwait(false);
-                }
-            }
-
-            if (!File.Exists(projectFile))
-            {
-                var discovered = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
-                var found = discovered.FirstOrDefault(p => Path.GetFileNameWithoutExtension(p).Equals(item.Id, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrEmpty(found) && File.Exists(found))
-                {
-                    projectFile = found;
-                }
-            }
-
-            if (File.Exists(projectFile))
+            if (!string.IsNullOrEmpty(projectFile) && File.Exists(projectFile))
             {
                 await LoadProjectFromPathAsync(projectFile).ConfigureAwait(false);
             }
@@ -1281,6 +1256,42 @@ public partial class ModBuilderViewModel(
             cts.Dispose();
             await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
         }
+    }
+
+    private async Task<string?> ResolveOrProvisionSampleProjectFileAsync(string sampleId, CancellationToken cancellationToken)
+    {
+        var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
+        var projectDir = Path.Combine(userSamplesDir, sampleId);
+        var projectFile = Path.Combine(projectDir, $"{sampleId}{ModBuilderConstants.ProjectFileExtension}");
+
+        if (!File.Exists(projectFile))
+        {
+            await ProvisionSampleTemplateAsync(sampleId, projectDir, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (File.Exists(projectFile))
+        {
+            return projectFile;
+        }
+
+        return await FindDiscoveredSampleProjectAsync(sampleId).ConfigureAwait(false);
+    }
+
+    private async Task ProvisionSampleTemplateAsync(string sampleId, string projectDir, CancellationToken cancellationToken)
+    {
+        var baseTemplateDir = FindBaseSampleTemplateDirectory(sampleId);
+        if (!string.IsNullOrEmpty(baseTemplateDir) && Directory.Exists(baseTemplateDir))
+        {
+            Directory.CreateDirectory(projectDir);
+            await CopyDirectoryAsync(baseTemplateDir, projectDir, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<string?> FindDiscoveredSampleProjectAsync(string sampleId)
+    {
+        var discovered = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
+        var found = discovered.FirstOrDefault(p => Path.GetFileNameWithoutExtension(p).Equals(sampleId, StringComparison.OrdinalIgnoreCase));
+        return !string.IsNullOrEmpty(found) && File.Exists(found) ? found : null;
     }
 
     private static string? FindBaseSampleTemplateDirectory(string sampleId)
