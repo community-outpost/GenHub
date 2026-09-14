@@ -157,7 +157,8 @@
                 </StackPanel>
 
                 <!-- Body Text with Markdown support -->
-                <md:MarkdownScrollViewer Grid.Row="1" Markdown="{Binding Content}" MaxHeight="500" Margin="0,0,0,32">
+                <md:MarkdownScrollViewer Grid.Row="1" Markdown="{Binding Content}" MaxHeight="500" Margin="0,0,0,32"
+                                         TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
                     <md:MarkdownScrollViewer.Styles>
                          <Style Selector="Border.Note">
                             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
@@ -167,7 +168,6 @@
                             <Setter Property="CornerRadius" Value="6"/>
                         </Style>
                         <Style Selector="TextBlock">
-                            <Setter Property="Foreground" Value="#CBD5E1"/>
                             <Setter Property="LineHeight" Value="24"/>
                         </Style>
                     </md:MarkdownScrollViewer.Styles>

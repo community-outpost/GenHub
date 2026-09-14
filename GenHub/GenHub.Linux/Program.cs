@@ -1,12 +1,12 @@
-using System;
-using System.IO;
-using System.Runtime.Versioning;
 using Avalonia;
 using GenHub.Core.Constants;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Runtime.Versioning;
 using Velopack;
 
 namespace GenHub.Linux;

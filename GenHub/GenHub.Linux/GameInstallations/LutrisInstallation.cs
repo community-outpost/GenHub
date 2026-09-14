@@ -1,3 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Linux.Model;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -5,12 +11,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameClients;
-using GenHub.Linux.Model;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Linux.GameInstallations;
 

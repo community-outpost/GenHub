@@ -1,7 +1,7 @@
-using System;
-using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.GameProfile;
+using System;
+using System.Linq;
 
 namespace GenHub.Core.Extensions;
 
