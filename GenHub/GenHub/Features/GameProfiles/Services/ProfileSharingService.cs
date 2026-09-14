@@ -634,34 +634,41 @@ public class ProfileSharingService(
             }
         }
 
-        if (package.Profile.GameClientManifestId != null)
+        if (package.Profile.GameClientManifestId == null)
         {
-            string fallbackExe = (package.Profile.GameType == GameType.ZeroHour ? installation?.ZeroHourClient?.ExecutablePath : installation?.GeneralsClient?.ExecutablePath) ?? string.Empty;
-            if (string.IsNullOrEmpty(fallbackExe) && installation != null)
-            {
-                var basePath = package.Profile.GameType == GameType.ZeroHour ? installation.ZeroHourPath : installation.GeneralsPath;
-                if (string.IsNullOrEmpty(basePath))
-                {
-                    basePath = installation.InstallationPath;
-                }
-
-                if (!string.IsNullOrEmpty(basePath))
-                {
-                    fallbackExe = Path.Combine(basePath, "generals.exe");
-                }
-            }
-
-            return new GameClient
-            {
-                Id = package.Profile.GameClientManifestId,
-                Name = package.Profile.Name,
-                Version = package.Profile.GameVersion,
-                GameType = package.Profile.GameType,
-                ExecutablePath = fallbackExe,
-            };
+            return null;
         }
 
-        return null;
+        return new GameClient
+        {
+            Id = package.Profile.GameClientManifestId,
+            Name = package.Profile.Name,
+            Version = package.Profile.GameVersion,
+            GameType = package.Profile.GameType,
+            ExecutablePath = ResolveFallbackExecutablePath(installation, package.Profile.GameType),
+        };
+    }
+
+    private static string ResolveFallbackExecutablePath(GameInstallation? installation, GameType gameType)
+    {
+        if (installation == null)
+        {
+            return string.Empty;
+        }
+
+        var client = gameType == GameType.ZeroHour ? installation.ZeroHourClient : installation.GeneralsClient;
+        if (!string.IsNullOrEmpty(client?.ExecutablePath))
+        {
+            return client.ExecutablePath;
+        }
+
+        var basePath = gameType == GameType.ZeroHour ? installation.ZeroHourPath : installation.GeneralsPath;
+        if (string.IsNullOrEmpty(basePath))
+        {
+            basePath = installation.InstallationPath;
+        }
+
+        return !string.IsNullOrEmpty(basePath) ? Path.Combine(basePath, "generals.exe") : string.Empty;
     }
 
     /// <summary>

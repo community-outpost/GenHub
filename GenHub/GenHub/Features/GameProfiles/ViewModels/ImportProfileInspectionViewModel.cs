@@ -163,6 +163,7 @@ public sealed partial class ImportProfileInspectionViewModel(
             }
             catch (ObjectDisposedException)
             {
+                // CancellationTokenSource was already disposed during cancellation.
             }
 
             _ = Task.Run(async () =>
@@ -174,8 +175,9 @@ public sealed partial class ImportProfileInspectionViewModel(
                         await _importTask.ConfigureAwait(false);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    logger.LogDebug(ex, "Suppressed exception while awaiting cancelled import task during disposal.");
                 }
                 finally
                 {
