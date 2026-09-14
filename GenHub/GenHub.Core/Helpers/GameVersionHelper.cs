@@ -53,10 +53,11 @@ public static partial class GameVersionHelper
     /// game-type default when the client reports no usable version.
     /// </summary>
     /// <param name="detectedVersion">The version reported by the detected client.</param>
-    /// <param name="gameType">The game type. Only Generals and Zero Hour are supported.</param>
+    /// <param name="gameType">The game type. Types other than Generals and Zero Hour have no
+    /// default and resolve to an empty version rather than throwing.</param>
     /// <returns>
-    /// The detected version when usable, the game-type default when it is not, or the detected
-    /// version unchanged when the game type has no default.
+    /// The detected version when usable, the game-type default when it is not, or an empty string
+    /// when the game type has no default.
     /// </returns>
     public static string ResolveInstallationVersion(string? detectedVersion, GameType gameType)
     {
@@ -65,11 +66,13 @@ public static partial class GameVersionHelper
             return detectedVersion!;
         }
 
-        // A game type with no default has no id that would honestly describe it, so the version is
-        // left as-is rather than fabricating one that claims a different game.
+        // A game type with no default has no id that would honestly describe it. Returning empty
+        // rather than the detected value matters: this branch only runs when the version is already
+        // unknown, and the sentinels are non-numeric, so passing one through throws in the id
+        // generator. Empty normalizes to 0, which is what null and whitespace already did.
         return gameType is GameType.Generals or GameType.ZeroHour
             ? GetDefaultManifestVersion(gameType)
-            : detectedVersion ?? string.Empty;
+            : string.Empty;
     }
 
     /// <summary>

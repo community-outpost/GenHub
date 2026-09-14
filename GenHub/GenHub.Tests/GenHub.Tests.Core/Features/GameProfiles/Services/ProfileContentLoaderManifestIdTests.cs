@@ -128,10 +128,23 @@ public class ProfileContentLoaderManifestIdTests
     [Fact]
     public void ResolveInstallationVersion_WithUnsupportedGameType_DoesNotThrow()
     {
-        var ex = Record.Exception(
-            () => GameVersionHelper.ResolveInstallationVersion(null, GameType.Unknown));
+        foreach (var version in new[]
+        {
+            null,
+            string.Empty,
+            "   ",
+            GameClientConstants.UnknownVersion,
+            GameClientConstants.AutoUpdatedVersion,
+        })
+        {
+            var ex = Record.Exception(
+                () => GameVersionHelper.ResolveInstallationVersion(version, GameType.Unknown));
 
-        Assert.Null(ex);
+            Assert.Null(ex);
+            Assert.Equal(
+                string.Empty,
+                GameVersionHelper.ResolveInstallationVersion(version, GameType.Unknown));
+        }
     }
 
     /// <summary>
@@ -152,9 +165,15 @@ public class ProfileContentLoaderManifestIdTests
     /// does not abort the enabled-content restore. The catch in LoadEnabledContentForProfileAsync
     /// sits outside the loop, so a throw here silently drops every remaining item in the profile.
     /// </summary>
+    /// <param name="clientVersion">The version reported by the installation's client.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task EnabledContentRestore_WithUnsupportedTargetGame_KeepsLoadingTheRestAsync()
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(GameClientConstants.UnknownVersion)]
+    [InlineData(GameClientConstants.AutoUpdatedVersion)]
+    public async Task EnabledContentRestore_WithUnsupportedTargetGame_KeepsLoadingTheRestAsync(
+        string clientVersion)
     {
         const string installationId = "1.0.custom.gameinstallation.generals";
         const string addonId = "1.0.communityoutpost.addon.testaddon";
@@ -163,7 +182,7 @@ public class ProfileContentLoaderManifestIdTests
         {
             AvailableGameClients =
             [
-                new GameClient { Id = "client-id", GameType = GameType.Unknown, Version = string.Empty },
+                new GameClient { Id = "client-id", GameType = GameType.Unknown, Version = clientVersion },
             ],
         };
         var manifests = new Dictionary<string, ContentManifest>(StringComparer.OrdinalIgnoreCase)
