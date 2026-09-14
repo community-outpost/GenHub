@@ -934,263 +934,888 @@
     // -------------------------------------------------------------
     const infoNavBtns = document.querySelectorAll('.gh-info-nav-btn');
     const infoData = {
-        'quickstart': {
-            title: 'Quickstart Guide',
-            desc: 'Getting started with GenHub.',
-            cards: [
-                {
-                    title: 'Welcome to GenHub',
-                    chip: 'Concept',
-                    summary: 'Your central launcher for Command & Conquer: Generals and Zero Hour.',
-                    detail: 'GenHub keeps your game, mods, custom maps, and multiplayer services organized and isolated so you can switch setups instantly without breaking your original game installation.'
-                },
-                {
-                    title: 'Step 1: Scan for Games',
-                    chip: 'How-To',
-                    summary: 'Locate and link your game installation.',
-                    detail: 'Navigate to the Game Profiles tab and click SCAN. GenHub automatically detects Steam, EA App, and retail disc installations.'
-                },
-                {
-                    title: 'Step 2: Essential Downloads',
-                    chip: 'Feature',
-                    summary: 'Recommended community updates for modern systems.',
-                    detail: 'Generals Online provides modern NAT matchmaking. TheSuperHackers Engine delivers widescreen resolution and 60+ FPS uncap.'
-                },
-                {
-                    title: 'The Core: Manifests & CAS',
-                    chip: 'Concept',
-                    summary: 'How GenHub manages files and saves disk space.',
-                    detail: 'Package manifests clearly list files and dependencies. Central Storage Pool (CAS) stores files once by SHA-256 hash, saving gigabytes of disk space across multiple mods.'
-                }
-            ]
-        },
-        'profiles': {
-            title: 'Game Profiles',
-            desc: 'Create and manage isolated game configurations.',
-            cards: [
-                {
-                    title: 'Your Personal Sandbox',
-                    chip: 'Concept',
-                    summary: 'Keep your mods, maps, and game settings isolated and safe.',
-                    detail: 'A profile is an independent configuration for your game. Mod files never overwrite your original game files. Profiles launch with zero extra disk space using NTFS hardlinks.'
-                },
-                {
-                    title: 'Profile Controls Reference',
-                    chip: 'How-To',
-                    summary: 'Quick reference for profile card buttons.',
-                    detail: 'Play launches the game. Edit Profile opens the editor. Duplicate clones the profile and all active mods. Shortcut creates a desktop icon.'
-                },
-                {
-                    title: 'Advanced Profile Options',
-                    chip: 'Feature',
-                    summary: 'Custom launch arguments and troubleshooting.',
-                    detail: 'Pass command-line arguments like -quickstart or -win directly to the game. Diagnostic logs are recorded in AppData.'
-                }
-            ]
-        },
-        'settings': {
-            title: 'Game Settings',
-            desc: 'Configure display, audio, and engine settings per profile.',
-            cards: [
-                {
-                    title: 'Standard Audio & Video',
-                    chip: 'Concept',
-                    summary: 'Display and audio settings for the Generals engine (Options.ini).',
-                    detail: 'Supports modern widescreen, 1440p, 4K, borderless windowed mode, 128 sound channels, and classic or right-click attack schemes.'
-                },
-                {
-                    title: 'TheSuperHackers Engine Settings',
-                    chip: 'Feature',
-                    summary: 'Advanced engine capabilities.',
-                    detail: 'DirectX 9 / Vulkan translation layers, high-refresh rate displays up to 240Hz, and camera pitch overrides.'
-                }
-            ]
-        },
-        'content': {
-            title: 'Game Profile Content',
-            desc: 'Organize and attach mods, patches, and addons to profiles.',
-            cards: [
-                {
-                    title: 'Content Ordering and Precedence',
-                    chip: 'Concept',
-                    summary: 'How load priority determines which mod files take precedence.',
-                    detail: 'Files at higher priority levels override identical files in lower levels without mutating either source archive.'
-                }
-            ]
-        },
-        'shortcuts': {
-            title: 'Shortcuts',
-            desc: 'Create quick desktop shortcuts to launch profiles directly.',
-            cards: [
-                {
-                    title: 'Desktop Integration',
-                    chip: 'How-To',
-                    summary: 'Launch directly into modded setups without opening the launcher.',
-                    detail: 'Desktop shortcuts invoke GenHub with the --profile-id argument, preparing the hardlink workspace and launching seamlessly.'
-                }
-            ]
-        },
-        'steam': {
-            title: 'Steam Integration',
-            desc: 'Track playtime and access the Steam Overlay.',
-            cards: [
-                {
-                    title: 'Steam Broadcast & Overlay',
-                    chip: 'Feature',
-                    summary: 'Keep your friends updated while playing mods.',
-                    detail: 'GenHub links with Steam AppID 1777510 to ensure the Steam In-Game Overlay and playtime counter work accurately across all profiles.'
-                }
-            ]
-        },
-        'local': {
-            title: 'Local Content',
-            desc: 'Import custom mod archives and local map folders.',
-            cards: [
-                {
-                    title: 'Custom Content Directories',
-                    chip: 'How-To',
-                    summary: 'Point GenHub to existing mod folders on your drives.',
-                    detail: 'GenHub scans your folders and packages them into clean local manifests ready to attach to any profile.'
-                }
-            ]
-        },
-        'tools': {
-            title: 'Tools & Utilities',
-            desc: 'Built-in diagnostic utilities, replay viewer, and map manager.',
-            cards: [
-                {
-                    title: 'Map & Replay Utilities',
-                    chip: 'Concept',
-                    summary: 'Tournament-ready match inspection and map organization.',
-                    detail: 'Inspect match APM, verify replay checksums against Generals Online matches, and drag-and-drop tournament maps.'
-                }
-            ]
-        },
-        'gofaq': {
-            title: 'Generals Online FAQ',
-            desc: 'Multiplayer matchmaking, ladder ranks, and connectivity.',
-            cards: [
-                {
-                    title: 'Modern Multiplayer Lobbies',
-                    chip: 'FAQ',
-                    summary: 'Direct replacement for the discontinued GameSpy network.',
-                    detail: 'Generals Online delivers automated NAT traversal, eliminating port forwarding and GameRanger requirements.'
-                }
-            ]
-        },
-        'gochange': {
-            title: 'Generals Online Changelog',
-            desc: 'Multiplayer client releases and ladder updates.',
-            cards: [
-                {
-                    title: 'v2.1.4 Competitive Update',
-                    chip: 'Changelog',
-                    summary: 'Ranked ladder calibration and ping optimization.',
-                    detail: 'Optimized server relay latency and fixed spectator mode desync during superweapon detonations.'
-                }
-            ]
-        },
-        'scangames': {
-            title: 'Scan For Games',
-            desc: 'Game detection rules and troubleshooting.',
-            cards: [
-                {
-                    title: 'Supported Game Releases',
-                    chip: 'How-To',
-                    summary: 'Steam The Ultimate Collection, EA App, Origin, CD/DVD.',
-                    detail: 'GenHub automatically detects registry keys and file manifests across all known official releases.'
-                }
-            ]
-        },
-        'workspace': {
-            title: 'Workspace Isolation',
-            desc: 'How NTFS Hardlinks keep game folders pristine.',
-            cards: [
-                {
-                    title: 'Zero-Copy Sandboxing',
-                    chip: 'Concept',
-                    summary: 'Instantaneous profile switching without duplicating 10 GB of game files.',
-                    detail: 'By creating NTFS hardlinks to clean game files, each mod runs in an isolated directory consuming 0 bytes of extra disk space.'
-                }
-            ]
-        },
-        'appupdates': {
-            title: 'App Updates',
-            desc: 'Automatic client maintenance and self-updating.',
-            cards: [
-                {
-                    title: 'Continuous Delivery',
-                    chip: 'Feature',
-                    summary: 'Seamless background updates for GenHub and engine plugins.',
-                    detail: 'Updates are downloaded and verified against cryptographic signatures before being staged.'
-                }
-            ]
-        },
-        'changelog': {
-            title: 'Changelog',
-            desc: 'GenHub launcher release history.',
-            cards: [
-                {
-                    title: 'GenHub Alpha 3 (v0.0.3)',
-                    chip: 'Changelog',
-                    summary: 'Complete Avalonia XAML rewrite with CAS deduplication.',
-                    detail: 'Added full ContentDetailView, MapManager DataGrid, GameProfileSettingsWindow, and enhanced multi-publisher catalog.'
-                }
-            ]
+    "quickstart": {
+        "id": "quickstart",
+        "title": "Quickstart Guide",
+        "desc": "Getting started with GenHub.",
+        "cards": [
+            {
+                "title": "Welcome to GenHub",
+                "content": "Your central launcher for Command & Conquer: Generals and Zero Hour.",
+                "type": "Concept",
+                "detailed": "**What is GenHub?**\n                    GenHub is a modern launcher and manager for **Command & Conquer: Generals** and **Zero Hour**. It keeps your game, mods, custom maps, and multiplayer services organized and isolated so you can switch setups instantly without breaking your original game installation.\n\n                    **Platform Overview:**\n                    *   **Game Profiles:** Your primary hub. Scan for your game installation, set up mod configurations, and launch the game.\n                    *   **Downloads:** Direct, one-click downloads for community patches, multiplayer services, and community mods.\n                    *   **Tools:** Built-in managers for inspecting replays and organizing custom maps."
+            },
+            {
+                "title": "Step 1: Scan for Games",
+                "content": "Locate and link your game installation.",
+                "type": "HowTo",
+                "detailed": "**Detecting Your Game:**\n                    GenHub connects to your existing game files before launching profiles.\n\n                    1.  Navigate to the **Game Profiles** tab.\n                    2.  Click the **SCAN** button in the toolbar.\n                    3.  GenHub automatically searches standard Steam, EA App, Origin, and CD install directories.\n\n                    *Once detected, you can create and launch profiles based on this installation.*"
+            },
+            {
+                "title": "Step 2: Essential Downloads",
+                "content": "Recommended community updates for modern systems.",
+                "type": "Feature",
+                "detailed": "**Recommended Community Additions:**\n                    Visit the **Downloads** tab to get recommended updates for modern hardware and online play:\n\n                    *   **Generals Online:** Modern online multiplayer lobby and matchmaking, replacing the discontinued GameSpy service.\n                    *   **TheSuperHackers Engine:** Active community engine updates offering widescreen support, high-DPI scaling, and crash fixes.\n                    *   **Community Patches:** Game balance, memory enhancements, and stability fixes."
+            },
+            {
+                "title": "Step 3: Add Local Content",
+                "content": "Import your existing mods and maps.",
+                "type": "HowTo",
+                "detailed": "**Adding Your Own Files:**\n                    If you already have mod files, standalone maps, or map packs on your PC, you can attach them directly to specific profiles:\n\n                    1.  Go to the **Game Profiles** tab.\n                    2.  Click the **Edit Profile** button (pencil icon) on any profile card.\n                    3.  Click **Add Local Content**.\n                    4.  Select your mod folder, map archive, or map pack.\n\n                    *This content remains linked to that specific profile without touching other profiles or your base game files.*"
+            },
+            {
+                "title": "The Core: Manifests & CAS",
+                "content": "How GenHub manages files and saves disk space.",
+                "type": "Concept",
+                "detailed": "**How Storage Works:**\n                    GenHub uses content manifests and a shared storage cache to keep your files organized and fast:\n\n                    *   **Content Manifests:** Package manifests clearly list every file, version, and dependency for each mod or patch.\n                    *   **Central Storage Pool (CAS):** Files are stored by content hash in a central cache rather than duplicated across multiple folders.\n                    *   **Deduplication:** When multiple mods use identical textures or game assets, GenHub stores that file once, saving gigabytes of disk space.\n                    *   **Integrity Verification:** Files are verified with checksums before launch to automatically detect and repair corrupted or missing assets."
+            },
+            {
+                "title": "Automated Maintenance",
+                "content": "Automatic updates and version compatibility.",
+                "type": "Feature",
+                "detailed": "**Background Maintenance:**\n                    GenHub handles routine background maintenance automatically:\n\n                    *   **Update Checks:** Automatically checks for service and engine updates before launching your game.\n                    *   **Clean Version Management:** Removes outdated patch files cleanly so your profiles always stay on compatible, tested versions."
+            }
+        ]
+    },
+    "profiles": {
+        "id": "profiles",
+        "title": "Game Profiles",
+        "desc": "Create and manage isolated game configurations.",
+        "cards": [
+            {
+                "title": "Your Personal Sandbox",
+                "content": "Keep your mods, maps, and game settings isolated and safe.",
+                "type": "Concept",
+                "detailed": "**Isolated Game Profiles:**\n             A profile is an independent configuration for your game. Instead of reinstalling or swapping files manually:\n\n             1.  **Safety:** Mod files never overwrite your original game installation. If a mod causes problems, your base game remains completely untouched.\n             2.  **Multiple Configurations:** Keep separate profiles for vanilla Zero Hour, Rise of the Reds, ShockWave, or custom balance patches, and switch between them instantly.\n             3.  **Speed:** Workspaces build in milliseconds using file linking, requiring almost zero extra storage on your drive."
+            },
+            {
+                "title": "Controls",
+                "content": "Quick reference for profile card buttons.",
+                "type": "HowTo",
+                "detailed": "**Profile Card Controls:**\n             1.  **Play:** Launches the game with this profile's active mods, settings, and workspace.\n             2.  **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.\n             3.  **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.\n             4.  **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.\n             5.  **Delete Profile:** Removes the profile and its dedicated workspace configuration.\n\n             **Copy Profile Feature:**\n             Cloning creates a complete, independent copy of the profile:\n             -   **Identical Settings:** Video, audio, and control options are duplicated.\n             -   **Identical Content:** All active mods, maps, and patches carry over.\n             -   **Independent Workspace:** Modifying the cloned profile never alters the original.\n\n             **Steam Status:**\n             -   **Gray Icon:** Steam integration is inactive.\n             -   **Blue Icon:** Steam integration is active. Playtime will log to Steam and the Steam Overlay will work in-game."
+            },
+            {
+                "title": "Advanced Profile Options",
+                "content": "Custom launch arguments and troubleshooting.",
+                "type": "Feature",
+                "detailed": "**Launch Arguments:**\n             GenHub passes custom command-line arguments directly to the game. For example, use `-quickstart` to skip introduction videos, or `-win` to force windowed mode.\n\n             **Troubleshooting Logs:**\n             Profile startup and launch logs are recorded in the GenHub AppData directory to help diagnose issues if a game closes unexpectedly."
+            }
+        ]
+    },
+    "settings": {
+        "id": "settings",
+        "title": "Game Settings",
+        "desc": "Configure display, audio, and engine settings per profile.",
+        "cards": [
+            {
+                "title": "Standard Audio & Video",
+                "content": "Display and audio settings for the Generals engine (Options.ini).",
+                "type": "Concept",
+                "detailed": "**Display Settings:**\n                    *   **Resolution:** Select your screen resolution. Supports modern widescreen, 1440p, 4K, and Ultrawide displays.\n                    *   **Windowed Mode:** Run in a borderless or standard window for smooth Alt-Tabbing on multi-monitor setups.\n                    *   **Anti-Aliasing & Gamma:** Smooth jagged 3D edges and fine-tune in-game brightness.\n\n                    **Audio & Controls:**\n                    *   **Volume Sliders:** Individual controls for Master, Sound Effects, Music, and Voice levels.\n                    *   **Sound Channels:** Maximum simultaneous audio channels (supports up to 128 channels on modern systems).\n                    *   **Right-Click Attack:** Switch between classic left-click and modern RTS right-click command schemes.\n                    *   **Scroll Speed:** Customize camera movement speed at screen borders."
+            },
+            {
+                "title": "TheSuperHackers Engine",
+                "content": "Modern client extensions and stability improvements.",
+                "type": "Feature",
+                "detailed": "**Community Engine Enhancements:**\n                    TheSuperHackers (TSH) engine is the active community codebase improving Zero Hour stability and modern feature support.\n\n                    **Engine Improvements:**\n                    *   **Cursor Clip:** Restricts the mouse to the game window during matches to prevent accidental clicks on a second monitor.\n                    *   **Windowed Edge Scrolling:** Enables smooth camera scrolling at window edges even in windowed mode.\n                    *   **Font Scaling:** Automatically scales in-game text and UI for high-DPI and 4K displays.\n\n                    **In-Game Overlays:**\n                    *   **Economy Stats:** Live resources-per-minute income rate display.\n                    *   **Performance Metrics:** On-screen clock, FPS counter, and network latency indicators.\n                    *   **Replay Archiving:** Automatically saves and structures match replays into categorized folders."
+            },
+            {
+                "title": "GeneralsOnline Features",
+                "content": "Online multiplayer lobby and matchmaking features.",
+                "type": "Feature",
+                "detailed": "**Modern Multiplayer Integration:**\n                    Generals Online provides dedicated online matchmaking, lobbies, and community rankings for Command & Conquer: Generals and Zero Hour.\n\n                    **Lobby & Networking:**\n                    *   **Ping & Ranks:** View player latency and competitive ladder rankings directly in the lobby.\n                    *   **Seamless Login:** Connect securely using Steam, Discord, or GameReplays authentication.\n                    *   **Desktop Notifications:** Receive alerts when friends come online or invite you to matches.\n                    *   **Chat Options:** Adjust lobby text size and fade delays to your preference.\n\n                    **In-Game Camera:**\n                    *   **Camera Zoom Height:** Customize maximum camera zoom distance for broader battlefield visibility.\n                    *   **Camera Pan Speed:** Tune panning sensitivity during multiplayer matches."
+            }
+        ]
+    },
+    "content": {
+        "id": "content",
+        "title": "Profile Content",
+        "desc": "Manage mods, maps, and patches enabled for each profile.",
+        "cards": [
+            {
+                "title": "Content Types & Hierarchy",
+                "content": "Understand the roles and priority of each content type.",
+                "type": "Concept",
+                "detailed": "**Game Client:**\n                    The base game files (Generals or Zero Hour) installed on your system. Every profile uses a client as its base foundation.\n\n                    **Mod:**\n                    A major modification changing gameplay, factions, and units (e.g. Rise of the Reds, ShockWave). A profile typically centers around one primary mod.\n\n                    **Map:**\n                    An individual custom map file for skirmish and multiplayer battles.\n\n                    **Map Pack:**\n                    A bundled collection of maps. Using a map pack lets you toggle an entire tournament pool or custom map collection with a single checkbox.\n\n                    **Patch:**\n                    An engine or system-level enhancement that improves stability (such as the 4GB Memory Patch or GenTool).\n\n                    **Addon:**\n                    Supplementary visual or audio packs (such as remastered music or HD textures) that sit on top of mods safely.\n\n                    **Tool:**\n                    External utilities (such as World Builder or FinalBIG) that can be opened directly from your profile dashboard."
+            },
+            {
+                "title": "Cloning Content",
+                "content": "How copying profiles preserves your content setup.",
+                "type": "Concept",
+                "detailed": "**How Content Duplication Works:**\n                    When you use **Copy Profile**, GenHub duplicates your profile's content configuration:\n\n                    *   **Preserved Content:** All active mods, maps, and patches are mirrored into the new profile.\n                    *   **Independent Editing:** The clone is fully independent. Adding or removing content in the clone will not change the original profile.\n                    *   **Zero Storage Waste:** File linking ensures that cloning a profile does not copy large mod files on your disk. Both profiles reference the shared storage cache."
+            },
+            {
+                "title": "Content Editor",
+                "content": "Adding and ordering content in a profile.",
+                "type": "HowTo",
+                "detailed": "**Content Workflow:**\n                    1.  **Available Content (Bottom):** Shows installed mods, maps, and patches you can add to this profile.\n                    2.  **Enabled Content (Top):** Shows content currently active for this profile.\n                    3.  **Load Priority:** Content is applied from top to bottom. Items higher in the list take priority if two packages contain conflicting files.\n                    4.  **Add Local:** Link external folders or archives without copying them into GenHub."
+            },
+            {
+                "title": "Virtual File System",
+                "content": "How files are merged when launching.",
+                "type": "Feature",
+                "detailed": "**Layered File Merging:**\n                    When you click Play, GenHub combines all active content into a unified workspace:\n\n                    1.  **Base Layer:** Game client files form the foundation.\n                    2.  **Mod Layer:** Mod files overlay and replace base game assets.\n                    3.  **Top Layer:** Custom maps, addons, and patches apply with highest priority."
+            }
+        ]
+    },
+    "shortcuts": {
+        "id": "shortcuts",
+        "title": "Desktop Shortcuts",
+        "desc": "Create one-click desktop shortcuts for your profiles.",
+        "cards": [
+            {
+                "title": "Headless Mode Launcher",
+                "content": "Launch profiles directly from your desktop.",
+                "type": "Concept",
+                "detailed": "**Direct Desktop Launching:**\n             Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:\n\n             1.  **Direct Launch:** Double-click the shortcut to start the game immediately.\n             2.  **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.\n             3.  **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes."
+            },
+            {
+                "title": "Shortcut Creation",
+                "content": "How to add a profile shortcut to your desktop.",
+                "type": "HowTo",
+                "detailed": "**Creating a Shortcut:**\n             1.  In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).\n             2.  Select **Create Desktop Shortcut**.\n             3.  A standard Windows shortcut (`.lnk`) appears on your desktop.\n             4.  Double-clicking this shortcut launches that specific profile configuration immediately."
+            },
+            {
+                "title": "Icon Customization",
+                "content": "Visual icons for your desktop shortcuts.",
+                "type": "Feature",
+                "detailed": "**Shortcut Icons:**\n             GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).\n             If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut."
+            }
+        ]
+    },
+    "steam": {
+        "id": "steam",
+        "title": "Steam Integration",
+        "desc": "Track playtime and use the Steam Overlay with mods.",
+        "cards": [
+            {
+                "title": "AppID Injection",
+                "content": "Use Steam playtime tracking and the overlay with any mod.",
+                "type": "Concept",
+                "detailed": "**Steam Integration:**\n             GenHub connects your mod launches with Steam so you can take advantage of Steam community features:\n\n             *   **Steam Overlay:** Chat with friends, join invites, and take screenshots in-game.\n             *   **Friend Status:** Displays Command & Conquer: Generals as your current game.\n             *   **Playtime Tracking:** Hours played with mods count toward your official Steam library stats."
+            },
+            {
+                "title": "Usage Requirements",
+                "content": "Requirements for Steam integration.",
+                "type": "HowTo",
+                "detailed": "**Prerequisites:**\n             To use Steam features:\n             1.  The **Steam desktop application** must be running before launching the game.\n             2.  The active Steam account must own *Command & Conquer: The Ultimate Collection*.\n\n             *Note: If Steam is not running, GenHub will launch the profile in standard mode without interruption.*"
+            },
+            {
+                "title": "Time Tracking",
+                "content": "Steam playtime logging across mod profiles.",
+                "type": "Feature",
+                "detailed": "**Playtime Tracking:**\n             Because Steam recognizes the game through GenHub's launcher, all playtime across your various mods, map packs, and profiles is logged to your Steam library."
+            }
+        ]
+    },
+    "local": {
+        "id": "local",
+        "title": "Local Content",
+        "desc": "Import external mods, custom engine builds, modding tools, and maps.",
+        "cards": [
+            {
+                "title": "Importing local content into your library",
+                "content": "Add folders, ZIP archives, and executables as reusable content items.",
+                "type": "Concept",
+                "detailed": "**The Add Local workflow**\n                    Use the **Add Local** button in the profile Content tab or library view to register external files into GenHub:\n\n                    * **Folders:** Select an unpacked mod directory or community tool folder on your drive.\n                    * **ZIP archives:** Select or drop an archive. GenHub extracts files into an isolated staging area for inspection.\n                    * **Executables:** Choose a standalone `.exe` such as WorldBuilder or an engine binary.\n\n                    **Central content storage**\n                    When you confirm an import, GenHub registers the item into your local content pool and creates an immutable manifest. The content item is stored once on disk and can be attached to any number of game profiles without copying or duplicating files."
+            },
+            {
+                "title": "Content types and executable selection",
+                "content": "Configure mods, addons, maps, modding tools, and game clients.",
+                "type": "Feature",
+                "detailed": "**Selecting the correct content type**\n                    The content type determines how GenHub mounts and runs your files:\n\n                    * **Mods:** Full game modifications containing `.big` archives (such as ShockWave, Rise of the Reds, or Contra), INI overrides, and custom art assets.\n                    * **Addons and patches:** Incremental additions such as camera height adjustments, texture packs, or balance patches that layer over base games or mods.\n                    * **Maps and map packs:** Loose `.map` files with `.tga` preview images or bundled map archives. GenHub indexes map metadata and makes them available across profiles.\n                    * **Modding tools:** Utilities like GenHotkeys, FinalBIG, or BigViewer. For modding tools, the content preview tree displays a **Select** button next to each `.exe`. Clicking **Select** designates the primary executable so GenHub can launch the tool directly from the profile tool tray.\n                    * **Game clients and executables:** Custom game binaries, such as community test builds from TheSuperHackers, or standalone editors like WorldBuilder. Marking the main executable tells GenHub which binary starts the game client or editor."
+            },
+            {
+                "title": "GenLauncher file normalization",
+                "content": "Detect and repair scrambled .gib archives and suffix-renamed files.",
+                "type": "HowTo",
+                "detailed": "**Why normalization is necessary**\n                    GenLauncher modifies files directly inside the game directory when activating and deactivating mods. It renames active `.big` files to `.gib` to scramble them, appends `.GLR` (replaced files), `.GOF` (original file backups), and `.GLTC` (temporary copies) suffixes, and creates stray symbolic links. Importing a directory left in this state prevents the game engine from reading mod archives.\n\n                    **Automated normalization in GenHub**\n                    When you select a folder or archive containing GenLauncher files, GenHub's normalization service identifies these artifacts automatically during staging:\n\n                    1. Renames all scrambled `.gib` archives back to standard `.big` files so the game engine can mount them.\n                    2. Strips `.GLR`, `.GOF`, and `.GLTC` suffixes to restore standard file names.\n                    3. Cleans up broken or invalid symbolic links left by previous installations.\n\n                    Normalization runs safely in the staging area before registration, ensuring your imported content item contains clean standard assets."
+            },
+            {
+                "title": "Profile linking and workspace isolation",
+                "content": "Link local items to game profiles without modifying base game files.",
+                "type": "Feature",
+                "detailed": "**Linking content to game profiles**\n                    After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** tab:\n\n                    * Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.\n                    * Reorder items in the list to configure load priority when multiple items override the same INI settings or art assets.\n                    * Assign custom game clients (such as a test build from TheSuperHackers) in the Client selector.\n\n                    **Workspace isolation**\n                    GenHub never writes modded files into your original Command & Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts."
+            }
+        ]
+    },
+    "tools": {
+        "id": "tools",
+        "title": "Tools & Utilities",
+        "desc": "Inspect replays and manage custom maps directly.",
+        "cards": [
+            {
+                "title": "Replay Manager: Import & Parse",
+                "content": "Import and inspect game recordings.",
+                "type": "Concept",
+                "detailed": "**Importing Replays:**\n                    *   **Match ID or URL:** Paste a Match ID, GenTool URL, or replay download link and click **Download**.\n                    *   **Browse:** Select `.rep` files or `.zip` archives from your PC.\n                    *   **Drag & Drop:** Drop replay files directly into the Replay Manager window.\n\n                    **Replay Details:**\n                    *   GenHub inspects replay file headers to show the map name, players, and game version before you watch."
+            },
+            {
+                "title": "Replay Manager: Cloud & Sharing",
+                "content": "Upload and share replays with other players.",
+                "type": "Feature",
+                "detailed": "**Cloud Sharing:**\n                    *   Select replays and click **Upload** to upload them to secure cloud storage.\n                    *   A shareable download link is automatically copied to your clipboard.\n\n                    **Upload History:**\n                    *   Review recently uploaded replays.\n                    *   Copy download links again or remove expired entries from your list."
+            },
+            {
+                "title": "Replay Manager: Archiving",
+                "content": "Zip and unzip replay collections.",
+                "type": "HowTo",
+                "detailed": "**Creating Archives:**\n                    *   Select multiple replays and click **Zip** to compress them into an archive for sharing or tournament submissions.\n\n                    **Extracting Archives:**\n                    *   Select a `.zip` archive in the replay list and click **Uncompress** to extract all `.rep` files directly into your replay folder."
+            },
+            {
+                "title": "Map Manager: Library",
+                "content": "Browse and organize custom maps.",
+                "type": "Concept",
+                "detailed": "**Map Management:**\n                    *   **Search:** Filter custom maps quickly by name or folder.\n                    *   **Minimap Previews:** Displays map preview thumbnails extracted directly from map files.\n                    *   **Import:** Drag and drop map folders or `.zip` archives to install them instantly.\n\n                    **Actions:**\n                    *   **Delete:** Remove unused maps from your drive.\n                    *   **Open Folder:** Open the specific map folder in Windows Explorer."
+            },
+            {
+                "title": "Map Manager: Map Packs",
+                "content": "Organize maps into reusable collections.",
+                "type": "Feature",
+                "detailed": "**What is a Map Pack?**\n                    A Map Pack bundles multiple maps together (such as a tournament map pool or 4-player FFA collection).\n\n                    **Creating a Map Pack:**\n                    1.  Select multiple maps with `Ctrl+Click` or `Shift+Click`.\n                    2.  Click **Pack** in the top-right toolbar.\n                    3.  Enter a name and click **Create MapPack**.\n\n                    Once created, you can toggle the entire map collection on or off for any profile in one click."
+            }
+        ]
+    },
+    "scangames": {
+        "id": "scangames",
+        "title": "Game Detection",
+        "desc": "Automatically detect and verify game installations.",
+        "cards": [
+            {
+                "title": "Auto-Detection",
+                "content": "How GenHub locates installed games on your computer.",
+                "type": "Concept",
+                "detailed": "**Detection Methods:**\n                    GenHub locates game installations by scanning:\n                    1.  **Steam Libraries:** Automatically detects Steam installations of Command & Conquer: The Ultimate Collection.\n                    2.  **EA App / Origin:** Locates official EA App install directories and registry records.\n                    3.  **Classic CD & Retail:** Checks standard installation paths and registry keys for classic disk editions.\n\n                    If your game is installed in a custom location, click **Browse** to link its folder manually."
+            },
+            {
+                "title": "Signature Verification",
+                "content": "Integrity checks and version verification.",
+                "type": "Feature",
+                "detailed": "**Binary Verification:**\n                    GenHub calculates SHA-256 hashes of `generals.exe` and `game.dat` to confirm game versions and file integrity.\n                    *   **Verified:** Matches known official releases (such as Steam edition, EA App, The First Decade, or v1.04).\n                    *   **Unverified:** Custom or unrecognized binaries are labeled as Unverified, but remain fully launchable."
+            }
+        ]
+    },
+    "workspaces": {
+        "id": "workspaces",
+        "title": "Virtual Workspaces",
+        "desc": "Workspace strategies, file linking techniques, and isolation mechanics.",
+        "cards": [
+            {
+                "title": "The Magic Mirror",
+                "content": "Understanding how isolated game workspaces work.",
+                "type": "Concept",
+                "detailed": "**How Workspaces Work:**\n                    When you click Play, GenHub instantly prepares a dedicated workspace folder for that specific profile.\n\n                    **Key Benefits:**\n                    1.  **Zero Extra Disk Space:** In linked modes (HardLink and SymlinkOnly), the workspace functions as a complete multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.\n                    2.  **Complete Profile Isolation:** Mods and configurations live in dedicated profile workspaces. Your main game directory remains untouched, so files never get mixed up. (For mods that modify game binaries in-place, select Hybrid or Full Copy mode).\n                    3.  **Instant Switching:** Switch between large total conversions like *Rise of the Reds* and *ShockWave* in seconds without reinstalling or moving files."
+            },
+            {
+                "title": "Workspace Strategies Compared",
+                "content": "Comparing HardLink, SymlinkOnly, HybridCopySymlink, and FullCopy strategies.",
+                "type": "Concept",
+                "detailed": "**Choosing the Right Strategy:**\n                    GenHub supports four file linking strategies under **Settings -> Game Configuration**:\n\n                    *   **HardLink (Default & Recommended):**\n                        *   *How it works:* Creates direct filesystem pointers (hard links) on the same drive. If your workspace and game files are on different drives, GenHub automatically falls back to copying files.\n                        *   *Disk Space:* **0 bytes** extra storage when on the same drive (copies if across different drives).\n                        *   *Speed:* Instant (< 50ms) on the same volume.\n                        *   *Privileges:* No administrator privileges or Developer Mode required.\n                        *   *Recommendation:* Keep your workspaces and game installation on the **same drive** (e.g. both on `C:` or both on `D:`) for optimal zero-space performance.\n\n                    *   **SymlinkOnly:**\n                        *   *How it works:* Creates symbolic links pointing to source files and directories.\n                        *   *Disk Space:* **Negligible** (~a few KB of link pointers).\n                        *   *Speed:* Instant (< 50ms).\n                        *   *Advantage:* Links seamlessly across **different drives and partitions**.\n                        *   *Requirement:* On Windows, requires **Administrator rights** or **Developer Mode** enabled in Windows Settings.\n\n                    *   **HybridCopySymlink (Balanced Compatibility):**\n                        *   *How it works:* Copies essential engine files, scripts, and configuration files into the workspace while symlinking large media files (textures, audio, and video).\n                        *   *Disk Space:* Balanced footprint (copies key configs, links media).\n                        *   *Speed:* Fast (1-2 seconds).\n                        *   *Advantage:* Protects configuration files from cross-profile conflicts while keeping disk usage low.\n\n                    *   **FullCopy (Universal Fallback):**\n                        *   *How it works:* Physically copies every game and mod file into the workspace directory.\n                        *   *Disk Space:* Uses the full game size (**2-5+ GB** per profile).\n                        *   *Speed:* Slower (10-30+ seconds depending on drive speed).\n                        *   *Advantage:* Maximum compatibility across external drives, network drives, and restricted environments."
+            },
+            {
+                "title": "Hardlinks vs Symlinks vs Copies: Deep Dive",
+                "content": "How file linking differs under the hood.",
+                "type": "Feature",
+                "detailed": "**How Linking Works Under the Hood:**\n\n                    *   **Hardlink:**\n                        A hardlink points directly to the existing file data on disk at the filesystem level. Because the underlying file data is shared, creating a hardlink takes zero extra storage. Hardlinks must reside on the same drive partition as the original file.\n\n                    *   **Symlink (Symbolic Link):**\n                        A symlink is a lightweight pointer that stores a path to the target file or folder, similar to a transparent operating system shortcut. Symlinks can cross different drives, but Windows security policies require elevated privileges or Developer Mode to create them.\n\n                    *   **Full Copy:**\n                        A complete duplicate of the file written to a new location on disk.\n\n                    **Automatic Fallback:**\n                    If you configure Symlink mode but run GenHub without administrator rights or Developer Mode, GenHub automatically falls back to hardlinks when files reside on the same drive, ensuring your game launches without interruption."
+            },
+            {
+                "title": "Troubleshooting & Permissions",
+                "content": "Resolving common permissions and workspace build errors.",
+                "type": "HowTo",
+                "detailed": "**Common Issues & Solutions:**\n\n                    *   **\"Access Denied\" or Privilege Errors:**\n                        *   If using the Symlink strategy on Windows, enable **Developer Mode** in *Windows Settings -> System -> For developers*, or run GenHub as Administrator.\n                        *   Alternatively, switch your Default Workspace Strategy to **HardLink** in GenHub Settings.\n                    *   **Cross-Drive Linking & Storage:**\n                        *   Hardlinks require both the game files and workspace to be on the same drive volume to achieve zero-space linking. If they are on different drives, GenHub falls back to copying files.\n                        *   To keep workspaces fast and zero-space, place your CAS pool and workspace directories on the same drive as your game installation in **Settings -> Data Directories**, or enable Developer Mode for symlinks.\n                    *   **\"File In Use\" / Locked File Warnings:**\n                        *   Make sure all instances of `generals.exe` and `game.dat` are closed before switching profiles or rebuilding workspaces."
+            },
+            {
+                "title": "Performance Specs",
+                "content": "Efficiency, speed, and integrity metrics across strategies.",
+                "type": "Feature",
+                "detailed": "**Strategy Performance Summary:**\n\n                    *   **HardLink:**\n                        *   *Creation Time:* < 50ms on same volume\n                        *   *Disk Overhead:* 0 MB on same volume (copies if across different drives)\n                        *   *Integrity:* Shared data clusters (CAS objects remain immutable in the cache)\n                    *   **SymlinkOnly:**\n                        *   *Creation Time:* < 50ms\n                        *   *Disk Overhead:* < 1 MB\n                        *   *Integrity:* Pointer redirection across drives\n                    *   **Hybrid:**\n                        *   *Creation Time:* 1-2 seconds\n                        *   *Disk Overhead:* Small (copies essential configs, links media assets)\n                        *   *Integrity:* Isolated configs, shared media links\n                    *   **Full Copy:**\n                        *   *Creation Time:* 10-30 seconds\n                        *   *Disk Overhead:* Full game size (2,000 - 5,000+ MB)\n                        *   *Integrity:* Total physical file separation"
+            }
+        ]
+    },
+    "appupdates": {
+        "id": "appupdates",
+        "title": "App Updates",
+        "desc": "Manage launcher updates and release channels.",
+        "cards": [
+            {
+                "title": "Version Control",
+                "content": "Official releases and update checking.",
+                "type": "Concept",
+                "detailed": "**How Updates Work:**\n             GenHub checks for updates automatically from official GitHub releases. When a new version is published, GenHub verifies the release and displays an update notification."
+            },
+            {
+                "title": "Update Workflow",
+                "content": "Applying updates seamlessly.",
+                "type": "HowTo",
+                "detailed": "**Update Process:**\n             1.  **Notification:** An update banner appears when a new release is available.\n             2.  **Background Download:** Updates download quietly in the background without interrupting your gameplay.\n             3.  **Fast Restart:** Clicking **Restart** applies the update in seconds and restores your launcher session."
+            },
+            {
+                "title": "Rollback Capability",
+                "content": "How to revert to an earlier release if needed.",
+                "type": "Feature",
+                "detailed": "**Reverting to Previous Versions:**\n             GenHub automatically preserves your profile configurations and settings during updates. If you ever need to use an earlier build, download the previous release archive from GitHub and extract it into your GenHub installation directory."
+            }
+        ]
+    },
+    "changelog": {
+        "id": "changelog",
+        "title": "Changelog",
+        "desc": "Version history.",
+        "cards": [
+            {
+                "title": "GenHub Alpha 3 (v0.0.3)",
+                "content": "Latest release with CAS storage engine and multi-publisher downloads.",
+                "type": "Changelog",
+                "detailed": "**v0.0.3 Alpha 3 Release Notes:**\n* New ContentDetailView with dependency inspection\n* MapManager DataGrid with SHA-256 integrity verification\n* Multi-publisher catalog with 6 providers\n* Virtual Workspaces with NTFS hardlinks\n* Replay Manager CRC matching"
+            },
+            {
+                "title": "GenHub Alpha 2 (v0.0.2)",
+                "content": "Initial public preview release with setup wizard.",
+                "type": "Changelog",
+                "detailed": "**v0.0.2 Release Notes:**\n* Game profile creation wizard\n* Steam launch integration\n* DirectX 9 / Vulkan configuration\n* Initial download repository"
+            }
+        ]
+    },
+    "faq": {
+        "id": "faq",
+        "title": "Frequently Asked Questions",
+        "desc": "Common questions about the Generals Online service.",
+        "cards": [
+            {
+                "title": "What is Generals Online?",
+                "content": "Generals Online is a modern multiplayer and lobby platform for Command & Conquer: Generals and Zero Hour.",
+                "type": "Concept",
+                "detailed": "Generals Online replaces the discontinued GameSpy service with modern multiplayer matchmaking, lobby features, automatic updates, and ladder rankings\u2014preserving classic gameplay while delivering stable online play on modern PCs."
+            },
+            {
+                "title": "Do I need a clean install of Zero Hour?",
+                "content": "No. Generals Online works alongside your existing installation.",
+                "type": "HowTo",
+                "detailed": "You do not need a fresh game installation or to delete existing files. GenHub isolates Generals Online so your base game files remain untouched."
+            },
+            {
+                "title": "Can I play Generals Online if I have GenTool or GenPatcher installed?",
+                "content": "Yes. Generals Online is fully compatible with GenTool and GenPatcher.",
+                "type": "Concept",
+                "detailed": "Generals Online runs in its own profile environment and works alongside GenTool widescreen and anti-cheat features without conflicts."
+            },
+            {
+                "title": "Can I use custom UI or control bars?",
+                "content": "Yes. Custom UI assets and control bars are supported.",
+                "type": "Concept",
+                "detailed": "Custom UI modifications, such as HUD control bars, work normally in Generals Online."
+            },
+            {
+                "title": "Does Generals Online modify my original game files?",
+                "content": "No. Your original installation files are never modified.",
+                "type": "Concept",
+                "detailed": "Generals Online runs from an isolated profile workspace. Your main game folder remains clean and untouched."
+            },
+            {
+                "title": "Are custom maps supported?",
+                "content": "Yes. Custom maps and in-lobby map transfers are supported.",
+                "type": "Feature",
+                "detailed": "Generals Online supports in-game and lobby map downloads so you can play custom maps with other players seamlessly."
+            },
+            {
+                "title": "How do I launch Generals Online?",
+                "content": "Launch through GenHub or your profile desktop shortcut.",
+                "type": "HowTo",
+                "detailed": "Select your Generals Online profile in GenHub and click Play, or launch it directly with a desktop shortcut created from that profile."
+            },
+            {
+                "title": "Which game versions are supported?",
+                "content": "Developed and tested for official Steam and EA App / Origin releases.",
+                "type": "Concept",
+                "detailed": "Generals Online is designed for official Steam and EA releases. For the best experience and easiest setup, the Steam release of Command & Conquer: The Ultimate Collection is recommended."
+            },
+            {
+                "title": "How do I log in?",
+                "content": "Sign in securely using Steam, Discord, or GameReplays.",
+                "type": "HowTo",
+                "detailed": "Generals Online uses OpenID authentication. You authenticate directly through Steam, Discord, or GameReplays\u2014your account passwords are never seen or stored by Generals Online."
+            },
+            {
+                "title": "Is logging in safe?",
+                "content": "Yes. OpenID ensures your account password remains completely private.",
+                "type": "Concept",
+                "detailed": "OpenID only transmits a secure account identifier to verify your identity. Your login credentials are handled directly by Steam, Discord, or GameReplays."
+            },
+            {
+                "title": "How do I check if the service is online?",
+                "content": "Check the in-game status, the community Discord, or the status page.",
+                "type": "Feature",
+                "detailed": "Live service status is shown on the login screen, with real-time announcements available on the community Discord."
+            },
+            {
+                "title": "How do I report bugs or suggest features?",
+                "content": "Join the community Discord to submit feedback.",
+                "type": "HowTo",
+                "detailed": "The development team actively tracks issues and community suggestions in dedicated Discord channels."
+            },
+            {
+                "title": "How are updates delivered?",
+                "content": "Updates download automatically through the launcher.",
+                "type": "Feature",
+                "detailed": "When an update is released, GenHub detects and applies it so you are always on the latest version."
+            },
+            {
+                "title": "Do I need third-party VPN tools (Hamachi, Radmin, GameRanger)?",
+                "content": "No. Online matchmaking is built directly into the service.",
+                "type": "Concept",
+                "detailed": "Generals Online includes native networking and matchmaking. You do not need third-party virtual LAN software or external wrappers to play online."
+            },
+            {
+                "title": "Do I need to forward router ports?",
+                "content": "No. Built-in NAT traversal connects players automatically.",
+                "type": "Concept",
+                "detailed": "Modern NAT traversal handles player connections automatically without requiring manual port forwarding on your home router."
+            },
+            {
+                "title": "Is network communication secure?",
+                "content": "Yes. Game traffic is encrypted using AES-256.",
+                "type": "Feature",
+                "detailed": "Network traffic uses industry-standard AES-256-GCM encryption, providing significantly better security than the original game engine's unencrypted packets."
+            },
+            {
+                "title": "Why did Windows Firewall prompt for permission?",
+                "content": "Windows prompts when a new app accesses the network for the first time.",
+                "type": "HowTo",
+                "detailed": "When connecting to multiplayer servers for the first time, Windows Firewall asks to allow network access. Click Allow to enable online connectivity."
+            },
+            {
+                "title": "What are connection relays?",
+                "content": "Relays route traffic when direct peer-to-peer connections are blocked.",
+                "type": "Concept",
+                "detailed": "If two players have strict firewalls that prevent direct peer-to-peer connection, traffic routes seamlessly through community relay servers (similar to Steam networking or CNCNet tunnels)."
+            },
+            {
+                "title": "Do relays cause lag or performance drops?",
+                "content": "Typically no. Relays use high-bandwidth, low-latency backbone servers.",
+                "type": "Concept",
+                "detailed": "Relay servers are hosted on high-speed backbones and often provide comparable or better latency than congested direct peer-to-peer routes."
+            },
+            {
+                "title": "How does the game select which relay to use?",
+                "content": "Relay connections are formed dynamically on a player-to-player basis.",
+                "type": "Feature",
+                "detailed": "Relay connections are established dynamically per player pair, selecting the server location with the lowest latency for that match. Users in the same lobby can connect through different regional edge nodes to achieve optimal ping."
+            },
+            {
+                "title": "Are relays secure?",
+                "content": "Yes. Relays cannot decrypt match traffic.",
+                "type": "Feature",
+                "detailed": "Relay servers forward encrypted packets and do not have access to the encryption keys required to read or inspect traffic."
+            },
+            {
+                "title": "Can I host a relay?",
+                "content": "Community relay hosting is not needed at this time.",
+                "type": "Concept",
+                "detailed": "Generals Online operates on global edge infrastructure spanning hundreds of data centers worldwide, delivering low latency without requiring community relay hosting."
+            }
+        ]
+    },
+    "gochangelog": {
+        "id": "gochangelog",
+        "title": "Changelog",
+        "desc": "View the latest changes and updates to the Generals Online service.",
+        "cards": []
+    },
+    "gochange": {
+        "id": "gochange",
+        "title": "Generals Online Changelog",
+        "desc": "View the latest changes and updates to the Generals Online service.",
+        "cards": [
+            {
+                "title": "v2.1.4 Competitive Update",
+                "content": "Ranked ladder calibration and ping optimization.",
+                "type": "Changelog",
+                "detailed": "**v2.1.4 Changelog:**\\n* Optimized server relay latency for EU and NA players\\n* Fixed spectator mode desync during superweapon detonations\\n* Added automatic disconnect detection and ladder Elo adjustment\\n* GenTool 8.9 widescreen compatibility update"
+            }
+        ]
+    },
+    "gofaq": {
+        "id": "faq",
+        "title": "Frequently Asked Questions",
+        "desc": "Common questions about the Generals Online service.",
+        "cards": [
+            {
+                "title": "What is Generals Online?",
+                "content": "Generals Online is a modern multiplayer and lobby platform for Command & Conquer: Generals and Zero Hour.",
+                "type": "Concept",
+                "detailed": "Generals Online replaces the discontinued GameSpy service with modern multiplayer matchmaking, lobby features, automatic updates, and ladder rankings\u2014preserving classic gameplay while delivering stable online play on modern PCs."
+            },
+            {
+                "title": "Do I need a clean install of Zero Hour?",
+                "content": "No. Generals Online works alongside your existing installation.",
+                "type": "HowTo",
+                "detailed": "You do not need a fresh game installation or to delete existing files. GenHub isolates Generals Online so your base game files remain untouched."
+            },
+            {
+                "title": "Can I play Generals Online if I have GenTool or GenPatcher installed?",
+                "content": "Yes. Generals Online is fully compatible with GenTool and GenPatcher.",
+                "type": "Concept",
+                "detailed": "Generals Online runs in its own profile environment and works alongside GenTool widescreen and anti-cheat features without conflicts."
+            },
+            {
+                "title": "Can I use custom UI or control bars?",
+                "content": "Yes. Custom UI assets and control bars are supported.",
+                "type": "Concept",
+                "detailed": "Custom UI modifications, such as HUD control bars, work normally in Generals Online."
+            },
+            {
+                "title": "Does Generals Online modify my original game files?",
+                "content": "No. Your original installation files are never modified.",
+                "type": "Concept",
+                "detailed": "Generals Online runs from an isolated profile workspace. Your main game folder remains clean and untouched."
+            },
+            {
+                "title": "Are custom maps supported?",
+                "content": "Yes. Custom maps and in-lobby map transfers are supported.",
+                "type": "Feature",
+                "detailed": "Generals Online supports in-game and lobby map downloads so you can play custom maps with other players seamlessly."
+            },
+            {
+                "title": "How do I launch Generals Online?",
+                "content": "Launch through GenHub or your profile desktop shortcut.",
+                "type": "HowTo",
+                "detailed": "Select your Generals Online profile in GenHub and click Play, or launch it directly with a desktop shortcut created from that profile."
+            },
+            {
+                "title": "Which game versions are supported?",
+                "content": "Developed and tested for official Steam and EA App / Origin releases.",
+                "type": "Concept",
+                "detailed": "Generals Online is designed for official Steam and EA releases. For the best experience and easiest setup, the Steam release of Command & Conquer: The Ultimate Collection is recommended."
+            },
+            {
+                "title": "How do I log in?",
+                "content": "Sign in securely using Steam, Discord, or GameReplays.",
+                "type": "HowTo",
+                "detailed": "Generals Online uses OpenID authentication. You authenticate directly through Steam, Discord, or GameReplays\u2014your account passwords are never seen or stored by Generals Online."
+            },
+            {
+                "title": "Is logging in safe?",
+                "content": "Yes. OpenID ensures your account password remains completely private.",
+                "type": "Concept",
+                "detailed": "OpenID only transmits a secure account identifier to verify your identity. Your login credentials are handled directly by Steam, Discord, or GameReplays."
+            },
+            {
+                "title": "How do I check if the service is online?",
+                "content": "Check the in-game status, the community Discord, or the status page.",
+                "type": "Feature",
+                "detailed": "Live service status is shown on the login screen, with real-time announcements available on the community Discord."
+            },
+            {
+                "title": "How do I report bugs or suggest features?",
+                "content": "Join the community Discord to submit feedback.",
+                "type": "HowTo",
+                "detailed": "The development team actively tracks issues and community suggestions in dedicated Discord channels."
+            },
+            {
+                "title": "How are updates delivered?",
+                "content": "Updates download automatically through the launcher.",
+                "type": "Feature",
+                "detailed": "When an update is released, GenHub detects and applies it so you are always on the latest version."
+            },
+            {
+                "title": "Do I need third-party VPN tools (Hamachi, Radmin, GameRanger)?",
+                "content": "No. Online matchmaking is built directly into the service.",
+                "type": "Concept",
+                "detailed": "Generals Online includes native networking and matchmaking. You do not need third-party virtual LAN software or external wrappers to play online."
+            },
+            {
+                "title": "Do I need to forward router ports?",
+                "content": "No. Built-in NAT traversal connects players automatically.",
+                "type": "Concept",
+                "detailed": "Modern NAT traversal handles player connections automatically without requiring manual port forwarding on your home router."
+            },
+            {
+                "title": "Is network communication secure?",
+                "content": "Yes. Game traffic is encrypted using AES-256.",
+                "type": "Feature",
+                "detailed": "Network traffic uses industry-standard AES-256-GCM encryption, providing significantly better security than the original game engine's unencrypted packets."
+            },
+            {
+                "title": "Why did Windows Firewall prompt for permission?",
+                "content": "Windows prompts when a new app accesses the network for the first time.",
+                "type": "HowTo",
+                "detailed": "When connecting to multiplayer servers for the first time, Windows Firewall asks to allow network access. Click Allow to enable online connectivity."
+            },
+            {
+                "title": "What are connection relays?",
+                "content": "Relays route traffic when direct peer-to-peer connections are blocked.",
+                "type": "Concept",
+                "detailed": "If two players have strict firewalls that prevent direct peer-to-peer connection, traffic routes seamlessly through community relay servers (similar to Steam networking or CNCNet tunnels)."
+            },
+            {
+                "title": "Do relays cause lag or performance drops?",
+                "content": "Typically no. Relays use high-bandwidth, low-latency backbone servers.",
+                "type": "Concept",
+                "detailed": "Relay servers are hosted on high-speed backbones and often provide comparable or better latency than congested direct peer-to-peer routes."
+            },
+            {
+                "title": "How does the game select which relay to use?",
+                "content": "Relay connections are formed dynamically on a player-to-player basis.",
+                "type": "Feature",
+                "detailed": "Relay connections are established dynamically per player pair, selecting the server location with the lowest latency for that match. Users in the same lobby can connect through different regional edge nodes to achieve optimal ping."
+            },
+            {
+                "title": "Are relays secure?",
+                "content": "Yes. Relays cannot decrypt match traffic.",
+                "type": "Feature",
+                "detailed": "Relay servers forward encrypted packets and do not have access to the encryption keys required to read or inspect traffic."
+            },
+            {
+                "title": "Can I host a relay?",
+                "content": "Community relay hosting is not needed at this time.",
+                "type": "Concept",
+                "detailed": "Generals Online operates on global edge infrastructure spanning hundreds of data centers worldwide, delivering low latency without requiring community relay hosting."
+            }
+        ]
+    }
+};
+
+
+    function renderDemoContainer(secId) {
+        if (secId === 'profiles') {
+            return `
+                <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Profile Card</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Basic interaction reference. Try hovering or clicking the action buttons!</div>
+                    <div style="display: flex; justify-content: center;">
+                        <div class="gh-profile-card" style="width: 280px; height: 360px; margin: 0 auto;" data-name="Demo Profile">
+                            <img src="./assets/images/zerohour-cover.png" alt="Cover" class="gh-card-bg">
+                            <div class="gh-card-gradient"></div>
+                            <div class="gh-card-actions-bar">
+                                <button class="gh-card-act-btn steam-btn" title="Steam"><img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img"></button>
+                                <button class="gh-card-act-btn edit-btn" title="Settings"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/></svg></button>
+                                <button class="gh-card-act-btn clone-btn" title="Clone"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg></button>
+                                <button class="gh-card-act-btn shortcut-btn" title="Pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"/></svg></button>
+                            </div>
+                            <div class="gh-card-hover">
+                                <button class="gh-launch-btn">
+                                    <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                    <span class="launch-text">LAUNCH</span>
+                                </button>
+                            </div>
+                            <div class="gh-card-meta">
+                                <div class="gh-card-info-row">
+                                    <div class="gh-card-badge-icon"><img src="./assets/icons/generalshub-icon.png" alt="Icon"></div>
+                                    <div class="gh-card-texts">
+                                        <div class="gh-card-title">ShockWave 1.201</div>
+                                        <div class="gh-card-sub">TheSuperHackers Engine</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
-    };
+        if (secId === 'shortcuts') {
+            return `
+                <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Desktop Shortcuts</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Shortcut creation flow directly from profile card actions.</div>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 12px; font-weight: 700; color: #a78bfa; margin-bottom: 6px;">1. Click Pin Icon</div>
+                            <div style="padding: 10px; background: #1e1b4b; border: 1px solid #7c3aed; border-radius: 8px; display: inline-block;">
+                                <svg viewBox="0 0 24 24" width="28" height="28" fill="#a78bfa"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"/></svg>
+                            </div>
+                        </div>
+                        <div style="font-size: 20px; color: #64748b;">➔</div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 12px; font-weight: 700; color: #10b981; margin-bottom: 6px;">2. Created on Desktop</div>
+                            <div style="width: 80px; height: 80px; background: rgba(15, 23, 42, 0.8); border: 1px dashed rgba(16, 185, 129, 0.5); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto;">
+                                <img src="./assets/icons/generalshub-icon.png" alt="Shortcut" style="width: 36px; height: 36px;">
+                                <span style="font-size: 9px; color: #e2e8f0; margin-top: 4px;">Zero Hour.lnk</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        if (secId === 'steam') {
+            return `
+                <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Steam Status</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Toggle Steam Broadcast and Overlay synchronization.</div>
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 16px;">
+                        <button class="gh-btn-primary" id="ghDemoSteamToggleBtn" style="display: flex; align-items: center; gap: 8px;">
+                            <img src="./assets/icons/steam-icon.png" alt="Steam" style="width: 18px; height: 18px;">
+                            <span>Steam Overlay Active (AppID: 24860)</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        if (secId === 'scangames') {
+            return `
+                <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Automatic Game Discovery</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Scans registry keys, Steam libraries, and EA App directories.</div>
+                    <div style="background: #090615; padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; color: #34d399;">
+                        <div>✓ Steam Library: C:\Program Files (x86)\Steam\steamapps\common\Command and Conquer Generals</div>
+                        <div style="margin-top: 4px;">✓ EA App: C:\Program Files\EA Games\Command and Conquer Generals Zero Hour</div>
+                        <div style="margin-top: 4px; color: #94a3b8;">• Retail CD/DVD: Not found (Skipped)</div>
+                    </div>
+                </div>
+            `;
+        }
+        if (secId === 'workspace') {
+            return `
+                <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Virtual Workspace (NTFS Hardlinks)</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Instant profile launching with 0 extra disk duplication.</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
+                            <strong style="color: #f87171; font-size: 12px;">Traditional Mod Copy:</strong>
+                            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Duplicates 10 GB per mod installation. 5 mods = 50 GB. Slow copy times.</div>
+                        </div>
+                        <div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
+                            <strong style="color: #34d399; font-size: 12px;">GenHub Hardlinks:</strong>
+                            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Links to clean base files in 0.02s. 5 mods = 0 B extra disk space. Pristine core files.</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        return '';
+    }
+
+    function formatMarkdown(md) {
+        if (!md) return '';
+        return md
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/^\*\s+(.*)$/gm, '<li>$1</li>')
+            .replace(/(<li>.*<\/li>)/gs, '<ul style="margin: 8px 0; padding-left: 20px;">$1</ul>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function renderInfoSection(secKey) {
+        const section = infoData[secKey] || infoData['quickstart'];
+        const titleEl = document.getElementById('ghInfoSectionTitle');
+        const descEl = document.getElementById('ghInfoSectionDesc');
+        const container = document.getElementById('ghInfoCardsContainer');
+
+        if (titleEl) titleEl.textContent = section.title;
+        if (descEl) descEl.textContent = section.desc;
+
+        if (container) {
+            const demoHtml = renderDemoContainer(secKey);
+            const cardsHtml = (section.cards || []).map(c => `
+                <div class="gh-info-card">
+                    <div class="gh-info-card-header">
+                        <h4>${c.title}</h4>
+                        <span class="gh-chip">${c.type || 'Concept'}</span>
+                    </div>
+                    <p style="font-size: 13.5px; color: #cbd5e1; line-height: 1.5; margin: 8px 0;">${c.content}</p>
+                    ${c.detailed ? `<button class="gh-info-expand-btn">Show Details ▾</button>
+                    <div class="gh-info-detailed-content" style="font-size: 13px; color: #94a3b8; line-height: 1.6; padding-top: 10px;">
+                        ${formatMarkdown(c.detailed)}
+                    </div>` : ''}
+                </div>
+            `).join('');
+
+            container.innerHTML = demoHtml + cardsHtml;
+
+            // Wire expand buttons
+            container.querySelectorAll('.gh-info-expand-btn').forEach(b => {
+                b.addEventListener('click', () => {
+                    const content = b.nextElementSibling;
+                    if (content) {
+                        const isShown = content.classList.toggle('active');
+                        b.textContent = isShown ? 'Hide Details ▴' : 'Show Details ▾';
+                    }
+                });
+            });
+
+            // Wire Demo Profile Card launch / action buttons inside Demo container
+            const demoCard = container.querySelector('.gh-profile-card');
+            if (demoCard) {
+                wireProfileCard(demoCard);
+            }
+        }
+    }
 
     infoNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-info-id');
             infoNavBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            renderInfoSection(id);
+        });
+    });
 
-            const section = infoData[id] || infoData['quickstart'];
-            const titleEl = document.getElementById('ghInfoSectionTitle');
-            const descEl = document.getElementById('ghInfoSectionDesc');
-            const container = document.getElementById('ghInfoCardsContainer');
+    // Module Selector Dropdown (GenHub Guides, Zero Hour FAQ, Changelogs)
+    const infoModuleSelect = document.getElementById('ghInfoModuleSelect');
+    if (infoModuleSelect) {
+        infoModuleSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            const navList = document.getElementById('ghInfoNavList');
 
-            if (titleEl) titleEl.textContent = section.title;
-            if (descEl) descEl.textContent = section.desc;
-
-            if (container) {
-                container.innerHTML = section.cards.map(c => `
-                    <div class="gh-info-card">
-                        <div class="gh-info-card-header">
-                            <h4>${c.title}</h4>
-                            <span class="gh-chip">${c.chip}</span>
-                        </div>
-                        <p>${c.summary}</p>
-                        <button class="gh-info-expand-btn">Show Details ▾</button>
-                        <div class="gh-info-detailed-content">
-                            ${c.detail}
-                        </div>
-                    </div>
-                `).join('');
-
-                container.querySelectorAll('.gh-info-expand-btn').forEach(b => {
-                    b.addEventListener('click', () => {
-                        const content = b.nextElementSibling;
-                        if (content) {
-                            const isShown = content.classList.toggle('active');
-                            b.textContent = isShown ? 'Hide Details ▴' : 'Show Details ▾';
-                        }
+            if (val === 'guide') {
+                if (navList) {
+                    navList.innerHTML = `
+                        <button class="gh-info-nav-btn active" data-info-id="quickstart">Quickstart Guide</button>
+                        <button class="gh-info-nav-btn" data-info-id="profiles">Game Profiles</button>
+                        <button class="gh-info-nav-btn" data-info-id="settings">Game Settings</button>
+                        <button class="gh-info-nav-btn" data-info-id="content">Game Profile Content</button>
+                        <button class="gh-info-nav-btn" data-info-id="shortcuts">Shortcuts</button>
+                        <button class="gh-info-nav-btn" data-info-id="steam">Steam Integration</button>
+                        <button class="gh-info-nav-btn" data-info-id="local">Local Content</button>
+                        <button class="gh-info-nav-btn" data-info-id="tools">Tools</button>
+                        <button class="gh-info-nav-btn" data-info-id="scangames">Scan For Games</button>
+                        <button class="gh-info-nav-btn" data-info-id="workspace">Workspace Isolation</button>
+                        <button class="gh-info-nav-btn" data-info-id="appupdates">App Updates</button>
+                        <button class="gh-info-nav-btn" data-info-id="changelog">Changelog</button>
+                    `;
+                    navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
+                        b.addEventListener('click', () => {
+                            navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
+                            b.classList.add('active');
+                            renderInfoSection(b.getAttribute('data-info-id'));
+                        });
                     });
-                });
+                }
+                renderInfoSection('quickstart');
+            } else if (val === 'faq') {
+                if (navList) {
+                    navList.innerHTML = `
+                        <button class="gh-info-nav-btn active" data-info-id="faq">Generals Online FAQ</button>
+                        <button class="gh-info-nav-btn" data-info-id="quickstart">Getting Started FAQ</button>
+                    `;
+                    navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
+                        b.addEventListener('click', () => {
+                            navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
+                            b.classList.add('active');
+                            renderInfoSection(b.getAttribute('data-info-id'));
+                        });
+                    });
+                }
+                renderInfoSection('faq');
+            } else if (val === 'changelogs') {
+                if (navList) {
+                    navList.innerHTML = `
+                        <button class="gh-info-nav-btn active" data-info-id="changelog">GenHub Changelog</button>
+                        <button class="gh-info-nav-btn" data-info-id="gochange">Generals Online Changelog</button>
+                    `;
+                    navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
+                        b.addEventListener('click', () => {
+                            navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
+                            b.classList.add('active');
+                            renderInfoSection(b.getAttribute('data-info-id'));
+                        });
+                    });
+                }
+                renderInfoSection('changelog');
             }
         });
-    });
+    }
 
-    // Wire up initial expand buttons in Info
-    document.querySelectorAll('.gh-info-expand-btn').forEach(b => {
-        b.addEventListener('click', () => {
-            const content = b.nextElementSibling;
-            if (content) {
-                const isShown = content.classList.toggle('active');
-                b.textContent = isShown ? 'Hide Details ▴' : 'Show Details ▾';
-            }
-        });
-    });
+    // Initial render of Quickstart Guide
+    renderInfoSection('quickstart');
 
 })();
