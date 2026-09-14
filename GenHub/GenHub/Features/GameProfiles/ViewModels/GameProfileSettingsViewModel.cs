@@ -42,6 +42,90 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     public record FilterTypeInfo(ContentType ContentType, string DisplayName, string IconData);
 
+    private readonly IGameProfileManager? _gameProfileManager;
+    private readonly IConfigurationProviderService? _configurationProvider;
+    private readonly IProfileContentLoader? _profileContentLoader;
+    private readonly Services.ProfileResourceService? _profileResourceService;
+    private readonly INotificationService? _notificationService;
+    private readonly IContentManifestPool? _manifestPool;
+    private readonly IContentStorageService? _contentStorageService;
+    private readonly ILocalContentService? _localContentService;
+    private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
+    private readonly IDialogService? _dialogService;
+    private readonly ILogger<GameProfileSettingsViewModel>? _logger;
+    private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
+    private readonly IProfileContentLinker? _profileContentLinker;
+    private readonly ILaunchRegistry? _launchRegistry;
+
+    private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
+    private readonly List<string> _originalEnabledContentIds = [];
+    private GameProfile? _originalProfile; // skipcq: CS-R1137
+    private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
+    private bool _isSynchronizingEnabledContent;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GameProfileSettingsViewModel"/> class.
+    /// </summary>
+    /// <param name="gameProfileManager">The game profile manager.</param>
+    /// <param name="gameSettingsService">The game settings service.</param>
+    /// <param name="configurationProvider">The configuration provider.</param>
+    /// <param name="profileContentLoader">The profile content loader.</param>
+    /// <param name="profileResourceService">The profile resource service.</param>
+    /// <param name="notificationService">The notification service.</param>
+    /// <param name="manifestPool">The manifest pool.</param>
+    /// <param name="contentStorageService">The content storage service.</param>
+    /// <param name="localContentService">The local content service.</param>
+    /// <param name="genLauncherNormalizationService">The GenLauncher normalization service.</param>
+    /// <param name="dialogService">The dialog service.</param>
+    /// <param name="logger">The logger for this view model.</param>
+    /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="profileContentLinker">The profile content linker service.</param>
+    /// <param name="launchRegistry">The launch registry service.</param>
+    public GameProfileSettingsViewModel(
+        IGameProfileManager? gameProfileManager,
+        IGameSettingsService? gameSettingsService,
+        IConfigurationProviderService? configurationProvider,
+        IProfileContentLoader? profileContentLoader,
+        Services.ProfileResourceService? profileResourceService,
+        INotificationService? notificationService,
+        IContentManifestPool? manifestPool,
+        IContentStorageService? contentStorageService,
+        ILocalContentService? localContentService,
+        IGenLauncherNormalizationService? genLauncherNormalizationService,
+        IDialogService? dialogService,
+        ILogger<GameProfileSettingsViewModel>? logger,
+        ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        IProfileContentLinker? profileContentLinker = null,
+        ILaunchRegistry? launchRegistry = null)
+    {
+        _gameProfileManager = gameProfileManager;
+        _configurationProvider = configurationProvider;
+        _profileContentLoader = profileContentLoader;
+        _profileResourceService = profileResourceService;
+        _notificationService = notificationService;
+        _manifestPool = manifestPool;
+        _contentStorageService = contentStorageService;
+        _localContentService = localContentService;
+        _genLauncherNormalizationService = genLauncherNormalizationService;
+        _dialogService = dialogService;
+        _logger = logger;
+        _gameSettingsLogger = gameSettingsLogger;
+        _profileContentLinker = profileContentLinker;
+        _launchRegistry = launchRegistry;
+
+        NotificationManager = new NotificationManagerViewModel(
+            _localNotificationService,
+            NullLogger<NotificationManagerViewModel>.Instance,
+            NullLogger<NotificationItemViewModel>.Instance);
+
+        GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!);
+
+        WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
+        WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);
+
+        EnabledContent.CollectionChanged += OnEnabledContentCollectionChanged;
+    }
+
     /// <summary>
     /// Gets the list of available workspace strategies.
     /// </summary>
@@ -80,39 +164,60 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static bool HasShownFirstLoadNotification { get; set; }
 
+    private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
+
+    private string? CurrentProfileId { get; set; }
+
+    /// <summary>
+    /// Gets the notification manager for local window notifications.
+    /// </summary>
+    public NotificationManagerViewModel NotificationManager { get; }
+
+    /// <summary>
+    /// Gets the Game Settings ViewModel for the settings sidebar.
+    /// </summary>
+    public GameSettingsViewModel GameSettingsViewModel { get; }
+
+    /// <summary>
+    /// Event triggered when the view model requests to close.
+    /// </summary>
+    public event EventHandler? CloseRequested;
+
     private static string NormalizeResourcePath(string? path, string defaultUri)
     {
         if (string.IsNullOrWhiteSpace(path)) return defaultUri;
-        if (path.StartsWith("avares://", StringComparison.OrdinalIgnoreCase)) return path;
+        if (path.StartsWith(UriConstants.AvarUriScheme, StringComparison.OrdinalIgnoreCase)) return path;
         if (Uri.TryCreate(path, UriKind.Absolute, out _)) return path;
 
         // Add backward compatibility for old cover paths
         // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
         var normalizedPath = path;
-        if (normalizedPath.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase))
+        var legacyImagesPath = UriConstants.LegacyImagesBasePath;
+        var coversPath = UriConstants.CoversBasePath + "/";
+        if (normalizedPath.Contains(UriConstants.LegacyChinaPosterFilename, StringComparison.OrdinalIgnoreCase))
         {
-            normalizedPath = normalizedPath.Replace("china-poster.png", "china-cover.png", StringComparison.OrdinalIgnoreCase)
-                                           .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+            normalizedPath = normalizedPath.Replace(UriConstants.LegacyChinaPosterFilename, UriConstants.ChinaCoverFilename, StringComparison.OrdinalIgnoreCase)
+                                           .Replace(legacyImagesPath, coversPath, StringComparison.OrdinalIgnoreCase);
         }
-        else if (normalizedPath.Contains("usa-poster.png", StringComparison.OrdinalIgnoreCase))
+        else if (normalizedPath.Contains(UriConstants.LegacyUsaPosterFilename, StringComparison.OrdinalIgnoreCase))
         {
-            normalizedPath = normalizedPath.Replace("usa-poster.png", "usa-cover.png", StringComparison.OrdinalIgnoreCase)
-                                           .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+            normalizedPath = normalizedPath.Replace(UriConstants.LegacyUsaPosterFilename, UriConstants.UsaCoverFilename, StringComparison.OrdinalIgnoreCase)
+                                           .Replace(legacyImagesPath, coversPath, StringComparison.OrdinalIgnoreCase);
         }
-        else if (normalizedPath.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase))
+        else if (normalizedPath.Contains(UriConstants.LegacyGlaPosterFilename, StringComparison.OrdinalIgnoreCase))
         {
-            normalizedPath = normalizedPath.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
-                                           .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+            normalizedPath = normalizedPath.Replace(UriConstants.LegacyGlaPosterFilename, UriConstants.GlaCoverFilename, StringComparison.OrdinalIgnoreCase)
+                                           .Replace(legacyImagesPath, coversPath, StringComparison.OrdinalIgnoreCase);
         }
-        else if (normalizedPath.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
+        else if (normalizedPath.Contains(legacyImagesPath, StringComparison.OrdinalIgnoreCase) &&
                  (normalizedPath.Contains("cover", StringComparison.OrdinalIgnoreCase) ||
                   normalizedPath.Contains("poster", StringComparison.OrdinalIgnoreCase)))
         {
             // Handle any other cover/poster files in the old Images directory
-            normalizedPath = normalizedPath.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+            normalizedPath = normalizedPath.Replace(legacyImagesPath, coversPath, StringComparison.OrdinalIgnoreCase);
         }
 
-        return $"avares://GenHub/{normalizedPath.TrimStart('/')}";
+        return $"{UriConstants.AvarUriScheme}GenHub/{normalizedPath.TrimStart('/')}";
     }
 
     private static void PopulateGameSettings(CreateProfileRequest request, UpdateProfileRequest? gameSettings)
@@ -275,111 +380,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    private readonly IGameProfileManager? _gameProfileManager;
-    private readonly IConfigurationProviderService? _configurationProvider;
-    private readonly IProfileContentLoader? _profileContentLoader;
-    private readonly Services.ProfileResourceService? _profileResourceService;
-    private readonly INotificationService? _notificationService;
-    private readonly IContentManifestPool? _manifestPool;
-    private readonly IContentStorageService? _contentStorageService;
-    private readonly ILocalContentService? _localContentService;
-    private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
-    private readonly IDialogService? _dialogService;
-    private readonly ILogger<GameProfileSettingsViewModel>? _logger;
-    private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
-    private readonly IProfileContentLinker? _profileContentLinker;
-    private readonly ILaunchRegistry? _launchRegistry;
-
-    private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
-    private readonly List<string> _originalEnabledContentIds = [];
-    private GameProfile? _originalProfile; // skipcq: CS-R1137
-    private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
-    private bool _isSynchronizingEnabledContent;
-
-    private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
-
-    private string? CurrentProfileId { get; set; }
-
-    /// <summary>
-    /// Event triggered when the view model requests to close.
-    /// </summary>
-    public event EventHandler? CloseRequested;
-
-    /// <summary>
-    /// Gets the notification manager for local window notifications.
-    /// </summary>
-    public NotificationManagerViewModel NotificationManager { get; }
-
-    /// <summary>
-    /// Gets the Game Settings ViewModel for the settings sidebar.
-    /// </summary>
-    public GameSettingsViewModel GameSettingsViewModel { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameProfileSettingsViewModel"/> class.
-    /// </summary>
-    /// <param name="gameProfileManager">The game profile manager.</param>
-    /// <param name="gameSettingsService">The game settings service.</param>
-    /// <param name="configurationProvider">The configuration provider.</param>
-    /// <param name="profileContentLoader">The profile content loader.</param>
-    /// <param name="profileResourceService">The profile resource service.</param>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="manifestPool">The manifest pool.</param>
-    /// <param name="contentStorageService">The content storage service.</param>
-    /// <param name="localContentService">The local content service.</param>
-    /// <param name="genLauncherNormalizationService">The GenLauncher normalization service.</param>
-    /// <param name="dialogService">The dialog service.</param>
-    /// <param name="logger">The logger for this view model.</param>
-    /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
-    /// <param name="profileContentLinker">The profile content linker service.</param>
-    /// <param name="launchRegistry">The launch registry service.</param>
-    public GameProfileSettingsViewModel(
-        IGameProfileManager? gameProfileManager,
-        IGameSettingsService? gameSettingsService,
-        IConfigurationProviderService? configurationProvider,
-        IProfileContentLoader? profileContentLoader,
-        Services.ProfileResourceService? profileResourceService,
-        INotificationService? notificationService,
-        IContentManifestPool? manifestPool,
-        IContentStorageService? contentStorageService,
-        ILocalContentService? localContentService,
-        IGenLauncherNormalizationService? genLauncherNormalizationService,
-        IDialogService? dialogService,
-        ILogger<GameProfileSettingsViewModel>? logger,
-        ILogger<GameSettingsViewModel>? gameSettingsLogger,
-        IProfileContentLinker? profileContentLinker = null,
-        ILaunchRegistry? launchRegistry = null)
-    {
-        _gameProfileManager = gameProfileManager;
-        _configurationProvider = configurationProvider;
-        _profileContentLoader = profileContentLoader;
-        _profileResourceService = profileResourceService;
-        _notificationService = notificationService;
-        _manifestPool = manifestPool;
-        _contentStorageService = contentStorageService;
-        _localContentService = localContentService;
-        _genLauncherNormalizationService = genLauncherNormalizationService;
-        _dialogService = dialogService;
-        _logger = logger;
-        _gameSettingsLogger = gameSettingsLogger;
-        _profileContentLinker = profileContentLinker;
-        _launchRegistry = launchRegistry;
-
-        NotificationManager = new NotificationManagerViewModel(
-            _localNotificationService,
-            NullLogger<NotificationManagerViewModel>.Instance,
-            NullLogger<NotificationItemViewModel>.Instance);
-
-        GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!);
-
-        WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
-        WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);
-
-        EnabledContent.CollectionChanged += OnEnabledContentCollectionChanged;
-    }
-
     /// <inheritdoc/>
-    public void Receive(Core.Models.Content.ContentAcquiredMessage message) => _ = LoadAvailableContentAsync();
+    public void Receive(Core.Models.Content.ContentAcquiredMessage message)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            _ = LoadAvailableContentAsync();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => _ = LoadAvailableContentAsync());
+        }
+    }
 
     /// <inheritdoc/>
     public void Receive(ManifestReplacedMessage message)

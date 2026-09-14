@@ -132,6 +132,41 @@ public static class UriConstants
     /// </summary>
     public const string ZeroHourCoverMarker = "zerohour-cover";
 
+    /// <summary>
+    /// Filename for China cover.
+    /// </summary>
+    public const string ChinaCoverFilename = "china-cover.png";
+
+    /// <summary>
+    /// Filename for USA cover.
+    /// </summary>
+    public const string UsaCoverFilename = "usa-cover.png";
+
+    /// <summary>
+    /// Filename for GLA cover.
+    /// </summary>
+    public const string GlaCoverFilename = "gla-cover.png";
+
+    /// <summary>
+    /// Legacy base path for image assets.
+    /// </summary>
+    public const string LegacyImagesBasePath = "/Assets/Images/";
+
+    /// <summary>
+    /// Legacy filename for China poster.
+    /// </summary>
+    public const string LegacyChinaPosterFilename = "china-poster.png";
+
+    /// <summary>
+    /// Legacy filename for USA poster.
+    /// </summary>
+    public const string LegacyUsaPosterFilename = "usa-poster.png";
+
+    /// <summary>
+    /// Legacy filename for GLA poster.
+    /// </summary>
+    public const string LegacyGlaPosterFilename = "gla-poster.png";
+
     // Logo Path Constants
 
     /// <summary>

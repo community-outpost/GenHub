@@ -521,11 +521,7 @@ public sealed class PlaywrightService(
 
     private static bool IsModDbVerificationPage(string? title) =>
         !string.IsNullOrWhiteSpace(title) &&
-        (title.Contains("Just a moment", StringComparison.OrdinalIgnoreCase) ||
-         title.Contains("Attention Required", StringComparison.OrdinalIgnoreCase) ||
-         title.Contains("Checking your browser", StringComparison.OrdinalIgnoreCase) ||
-         title.Contains("Verify you are human", StringComparison.OrdinalIgnoreCase) ||
-         title.Contains("Cloudflare", StringComparison.OrdinalIgnoreCase));
+        ModDBConstants.BotProtectionTitleMarkers.Any(marker => title.Contains(marker, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsModDbHost(Uri uri) =>
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&

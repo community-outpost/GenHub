@@ -20,9 +20,6 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// </summary>
 public class HttpContentDeliverer(IDownloadService downloadService, ILogger<HttpContentDeliverer> logger) : IContentDeliverer
 {
-    private readonly IDownloadService _downloadService = downloadService;
-    private readonly ILogger<HttpContentDeliverer> _logger = logger;
-
     /// <inheritdoc />
     public string SourceName => ContentSourceNames.HttpDeliverer;
 
@@ -84,7 +81,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
                 });
 
                 // Download the file
-                var downloadResult = await _downloadService.DownloadFileAsync(
+                var downloadResult = await downloadService.DownloadFileAsync(
                     new Uri(file.DownloadUrl!), localPath, file.Hash, null, cancellationToken);
 
                 if (!downloadResult.Success)
@@ -107,7 +104,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deliver HTTP content for manifest {ManifestId}", packageManifest.Id);
+            logger.LogError(ex, "Failed to deliver HTTP content for manifest {ManifestId}", packageManifest.Id);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
@@ -132,7 +129,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
+            logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
     }
