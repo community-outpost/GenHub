@@ -1,16 +1,40 @@
 {
   "BundlePacks": [
     {
-      "Name": "LeikezeHotkeys",
+      "Name": "LeikezeHotkeys_ZH_EN",
       "Items": [
-        "HotkeyStrings"
+        "Hotkeys_ZH_English"
       ],
       "OutputFile": ".Release/!HotkeysLeikezeENZH.big",
       "ManifestFile": "config/!HotkeysLeikezeENZH.big.manifest.json",
       "Big": true,
       "AllowBuild": true,
       "AllowInstall": true,
-      "Description": "Leikeze Hotkeys single BIG archive for Generals and Zero Hour"
+      "Description": "Leikeze competitive hotkeys for Zero Hour (English)"
+    },
+    {
+      "Name": "LeikezeHotkeys_Generals_EN",
+      "Items": [
+        "Hotkeys_Generals_English"
+      ],
+      "OutputFile": ".Release/!HotkeysLeikezeEN.big",
+      "ManifestFile": "config/!HotkeysLeikezeEN.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Leikeze competitive hotkeys for Generals (English)"
+    },
+    {
+      "Name": "LeikezeHotkeys_ZH_DE",
+      "Items": [
+        "Hotkeys_ZH_German"
+      ],
+      "OutputFile": ".Release/!HotkeysLeikezeDEZH.big",
+      "ManifestFile": "config/!HotkeysLeikezeDEZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Leikeze competitive hotkeys for Zero Hour (German)"
     }
   ]
 }

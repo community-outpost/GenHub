@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "Leikeze",
   "targetGame": "ZeroHour",
-  "description": "Leikeze competitive QWERTY hotkey string table (.csf) for C&C Generals and Zero Hour",
+  "description": "Leikeze tournament hotkey string tables with 3 layout variants (Zero Hour English, Generals English, Zero Hour German)",
   "directories": {
     "configs": "config",
     "gameFilesEdited": "GameFilesEdited",

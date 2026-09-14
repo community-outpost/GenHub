@@ -1,18 +1,46 @@
 {
   "BundlePacks": [
     {
-      "Name": "ImprovedMenus",
+      "Name": "ImprovedMenus_English",
       "Items": [
         "MenuWindows",
         "MenuMappedImages",
-        "MenuTextures"
+        "MenuTexturesEnglish"
       ],
       "OutputFile": ".Release/0_ImprovedMenusEnglish.big",
       "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Big": true,
       "AllowBuild": true,
       "AllowInstall": true,
-      "Description": "Complete 16:9 widescreen menu overhaul package for C&C Generals: Zero Hour"
+      "Description": "Complete 16:9 widescreen menu overhaul (English variant)"
+    },
+    {
+      "Name": "ImprovedMenus_Russian",
+      "Items": [
+        "MenuWindows",
+        "MenuMappedImages",
+        "MenuTexturesRussian"
+      ],
+      "OutputFile": ".Release/0_ImprovedMenusRussian.big",
+      "ManifestFile": "config/0_ImprovedMenusRussian.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Complete 16:9 widescreen menu overhaul (Russian variant)"
+    },
+    {
+      "Name": "ImprovedMenus_Spanish",
+      "Items": [
+        "MenuWindows",
+        "MenuMappedImages",
+        "MenuTexturesSpanish"
+      ],
+      "OutputFile": ".Release/0_ImprovedMenusSpanish.big",
+      "ManifestFile": "config/0_ImprovedMenusSpanish.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Complete 16:9 widescreen menu overhaul (Spanish variant)"
     }
   ]
 }

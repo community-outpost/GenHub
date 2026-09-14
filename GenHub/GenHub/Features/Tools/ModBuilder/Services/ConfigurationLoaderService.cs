@@ -926,6 +926,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         var targetNormalized = StripGameFilesEditedPrefix(targetTemplate.Replace('\\', '/'));
         if (!ContainsWildcard(targetNormalized))
         {
+            if (string.IsNullOrEmpty(Path.GetExtension(targetNormalized)) || targetNormalized.EndsWith('/'))
+            {
+                return $"{targetNormalized.TrimEnd('/')}/{Path.GetFileName(sourceFile)}";
+            }
+
             return targetNormalized;
         }
 
@@ -962,16 +967,18 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         var sourceExt = Path.GetExtension(sourceFile);
         var targetExt = Path.GetExtension(targetNormalized);
+        var targetDir = Path.GetDirectoryName(targetNormalized)?.Replace('\\', '/');
+        var sourceNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile);
+        var effectiveExt = (string.IsNullOrEmpty(targetExt) || targetExt == ".*") ? sourceExt : targetExt;
 
-        if (string.IsNullOrEmpty(targetExt) || targetExt == ".*" || targetExt == sourceExt)
+        if (!string.IsNullOrEmpty(targetDir))
         {
-            return normalizedRel;
+            return $"{targetDir}/{sourceNameWithoutExt}{effectiveExt}";
         }
 
-        var sourceNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile);
         var relativeDir = Path.GetDirectoryName(normalizedRel)?.Replace('\\', '/') ?? string.Empty;
 
-        return string.IsNullOrEmpty(relativeDir) ? $"{sourceNameWithoutExt}{targetExt}" : $"{relativeDir}/{sourceNameWithoutExt}{targetExt}";
+        return string.IsNullOrEmpty(relativeDir) ? $"{sourceNameWithoutExt}{effectiveExt}" : $"{relativeDir}/{sourceNameWithoutExt}{effectiveExt}";
     }
 
     private static string NormalizePath(string path)

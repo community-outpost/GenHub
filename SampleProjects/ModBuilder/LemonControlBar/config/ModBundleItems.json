@@ -1,21 +1,45 @@
 {
   "BundleItems": [
     {
-      "Name": "LemonControlBarWindows",
-      "SourceFiles": [
-        "GameFilesEdited/Window/**/*.wnd"
-      ],
-      "OutputFormat": "WINDOW",
-      "Description": "Lemon Edition 1080p control bar window definitions"
-    },
-    {
-      "Name": "LemonControlBarArt",
+      "Name": "LemonControlBarCommonArt",
       "SourceFiles": [
         "GameFilesEdited/Art/**/*.tga"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
-      "Description": "Lemon Edition 1080p control bar art assets"
+      "Description": "Lemon Edition control bar common art textures and button frames (Common)"
+    },
+    {
+      "Name": "LemonControlBarWindows_720p",
+      "SourceFiles": [
+        "GameFilesEdited/Window/720p/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 720p (1280x720) widescreen control bar window definitions"
+    },
+    {
+      "Name": "LemonControlBarWindows_1080p",
+      "SourceFiles": [
+        "GameFilesEdited/Window/1080p/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 1080p (1920x1080) widescreen control bar window definitions"
+    },
+    {
+      "Name": "LemonControlBarWindows_1440p",
+      "SourceFiles": [
+        "GameFilesEdited/Window/1440p/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 1440p (2560x1440) widescreen control bar window definitions"
+    },
+    {
+      "Name": "LemonControlBarWindows_4K",
+      "SourceFiles": [
+        "GameFilesEdited/Window/4K/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 4K (3840x2160) widescreen control bar window definitions"
     }
   ]
 }

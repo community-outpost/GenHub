@@ -158,28 +158,34 @@ public partial class ModBuilderViewModel(
             TargetGame = "Generals",
             OutputFileName = "500_900_CommunityPatch_CoreINI.big",
             Tag = "Balance & Bugfix",
+            VariantSummary = "Core INI + Multiplayer Maps",
+            VariantCount = 1,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.GeneralsGamePatch2Sha256,
         },
         new SampleProjectShowcaseItem
         {
             Id = "ImprovedMenus",
             Name = "Improved Menus Widescreen",
-            Publisher = "eliorata",
-            Description = "16:9 widescreen UI layout overhaul with custom .wnd window definitions and high-definition menu textures.",
+            Publisher = "ElTioRata",
+            Description = "16:9 widescreen UI overhaul with 3 language bundle packs (English, Russian, Spanish) combining common menu windows and localized textures.",
             TargetGame = "Zero Hour",
             OutputFileName = "0_ImprovedMenusEnglish.big",
             Tag = "Widescreen UI",
+            VariantSummary = "3 Language Variants (EN, RU, ES)",
+            VariantCount = 3,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.ImprovedMenusSha256,
         },
         new SampleProjectShowcaseItem
         {
             Id = "LemonControlBar",
-            Name = "Lemon Control Bar (1080p)",
+            Name = "Lemon Control Bar",
             Publisher = "L3-M (Lemon)",
-            Description = "Lemon Edition 1080p widescreen command & control bar overhaul with custom art textures and window layouts.",
+            Description = "Widescreen command & control bar overhaul with common art bundle items and 4 resolution bundle packs (720p, 1080p, 1440p, 4K).",
             TargetGame = "Zero Hour",
             OutputFileName = "340_ControlBarProLemonEdition1080ZH.big",
             Tag = "Control Bar",
+            VariantSummary = "4 Resolution Packs (720p to 4K)",
+            VariantCount = 4,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.LemonControlBarSha256,
         },
         new SampleProjectShowcaseItem
@@ -187,10 +193,12 @@ public partial class ModBuilderViewModel(
             Id = "LeikezeHotkeys",
             Name = "Leikeze Competitive Hotkeys",
             Publisher = "Leikeze",
-            Description = "Tournament-standard QWERTY CSF string tables. Demonstrates language string packaging into a fast release BIG archive.",
+            Description = "Tournament-standard competitive CSF string tables demonstrating 3 game and language variant bundle packs (ZH English, Generals English, ZH German).",
             TargetGame = "Zero Hour",
             OutputFileName = "!HotkeysLeikezeENZH.big",
             Tag = "Competitive Hotkeys",
+            VariantSummary = "3 Layout Variants (ZH EN, Gen EN, ZH DE)",
+            VariantCount = 3,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256,
         },
     ];
@@ -1228,6 +1236,36 @@ public partial class ModBuilderViewModel(
 
             if (!string.IsNullOrEmpty(projectFile) && File.Exists(projectFile))
             {
+                var projectDir = Path.GetDirectoryName(projectFile)!;
+                if (sampleProjectService != null && !sampleProjectService.HasSampleAssets(projectDir))
+                {
+                    await InvokeOnUIThreadAsync(() =>
+                    {
+                        IsBuildRunning = true;
+                        StatusMessage = $"Acquiring sample assets for {item.Name}...";
+                    });
+
+                    AppendBuildLog($"Downloading and extracting sample assets for {item.Name}...");
+                    var progress = new Progress<string>(msg =>
+                    {
+                        InvokeOnUIThreadAsync(() => StatusMessage = msg);
+                        AppendBuildLog(msg);
+                    });
+
+                    var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, item.Id, progress, cts.Token).ConfigureAwait(false);
+                    if (!assetResult.Success)
+                    {
+                        notificationService.ShowError(
+                            "Asset Acquisition Failed",
+                            $"Could not acquire sample assets: {assetResult.FirstError}");
+                        AppendBuildLog($"Sample asset acquisition failed: {assetResult.FirstError}");
+                        return;
+                    }
+
+                    await InvokeOnUIThreadAsync(() => StatusMessage = $"Sample assets ready for {item.Name}.");
+                    AppendBuildLog($"Sample assets unpacked into {ModBuilderConstants.GameFilesEditedDir}.");
+                }
+
                 await LoadProjectFromPathAsync(projectFile).ConfigureAwait(false);
             }
             else
@@ -1335,6 +1373,31 @@ public partial class ModBuilderViewModel(
                     "Sample project not found.");
                 AppendBuildLog("Sample project not found in search paths.");
                 return;
+            }
+
+            var projectDir = Path.GetDirectoryName(samplePath)!;
+            var sampleId = Path.GetFileName(projectDir);
+            if (sampleProjectService != null && !sampleProjectService.HasSampleAssets(projectDir))
+            {
+                await InvokeOnUIThreadAsync(() =>
+                {
+                    IsBuildRunning = true;
+                    StatusMessage = $"Acquiring sample assets for {sampleId}...";
+                });
+
+                var progress = new Progress<string>(msg =>
+                {
+                    InvokeOnUIThreadAsync(() => StatusMessage = msg);
+                    AppendBuildLog(msg);
+                });
+
+                var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress).ConfigureAwait(false);
+                if (!assetResult.Success)
+                {
+                    notificationService.ShowError("Asset Acquisition Failed", $"Could not acquire sample assets: {assetResult.FirstError}");
+                    AppendBuildLog($"Sample asset acquisition failed: {assetResult.FirstError}");
+                    return;
+                }
             }
 
             logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
@@ -1799,26 +1862,29 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        StatusMessage = $"Acquiring sample assets for {projectName}...";
+        var sampleId = Path.GetFileName(projectDir);
+        await InvokeOnUIThreadAsync(() => StatusMessage = $"Acquiring sample assets for {projectName}...");
         AppendBuildLog($"Sample assets missing for {projectName}. Downloading and extracting authentic game files on-demand...");
-        notificationService.ShowInfo("Downloading Sample Assets", $"Downloading sample assets for {projectName}...");
 
-        var progressReporter = new Progress<string>(AppendBuildLog);
+        var progressReporter = new Progress<string>(msg =>
+        {
+            InvokeOnUIThreadAsync(() => StatusMessage = msg);
+            AppendBuildLog(msg);
+        });
+
         var acquireResult = await sps.EnsureSampleAssetsAsync(
             projectDir,
-            projectName,
+            sampleId,
             progressReporter,
             CancellationToken.None).ConfigureAwait(false);
 
         if (acquireResult.Success)
         {
             AppendBuildLog($"Successfully acquired sample assets for {projectName}.");
-            notificationService.ShowSuccess("Sample Assets Ready", "Authentic game files extracted into GameFilesEdited.");
         }
         else
         {
             AppendBuildLog($"Warning: Failed to acquire sample assets: {acquireResult.FirstError}");
-            notificationService.ShowWarning("Sample Assets Incomplete", acquireResult.FirstError ?? "Failed to acquire sample assets.");
         }
     }
 

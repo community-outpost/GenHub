@@ -4,7 +4,7 @@
   "version": "1.3.0",
   "author": "L3-M (Lemon)",
   "targetGame": "ZeroHour",
-  "description": "Lemon Edition widescreen control bar (1080p) layout and textures for C&C Generals: Zero Hour",
+  "description": "Lemon Edition widescreen control bar overhaul supporting 4 resolutions (720p, 1080p, 1440p, 4K) for C&C Generals: Zero Hour",
   "directories": {
     "configs": "config",
     "gameFilesEdited": "GameFilesEdited",

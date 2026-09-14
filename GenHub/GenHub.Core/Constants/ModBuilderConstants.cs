@@ -380,9 +380,12 @@ public static class ModBuilderConstants
         public const string GeneralsGamePatch2Sha256 = "6a02aca9aebe6602b3e4bb76bf6e2cf35086a33fec7c6f000d8e7a4048629775";
 
         /// <summary>
-        /// Download URL for Improved Menus widescreen sample assets.
+        /// Download URLs for Improved Menus widescreen sample assets (English, Russian, Spanish).
         /// </summary>
         public const string ImprovedMenusUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
+        public const string ImprovedMenusEnglishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
+        public const string ImprovedMenusRussianUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusRussian.zip";
+        public const string ImprovedMenusSpanishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusSpanish.zip";
 
         /// <summary>
         /// Expected SHA256 hash for Improved Menus widescreen BIG archive.
@@ -390,9 +393,13 @@ public static class ModBuilderConstants
         public const string ImprovedMenusSha256 = "3280056a2d7cf9bc5cbe8d4ac18fb082846e6db11ad7bb5c60f7c4619353f0a4";
 
         /// <summary>
-        /// Download URL for Lemon Control Bar (1080p) sample assets.
+        /// Download URLs for Lemon Control Bar sample assets (720p, 1080p, 1440p, 4K).
         /// </summary>
         public const string LemonControlBarUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
+        public const string LemonControlBar720pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip";
+        public const string LemonControlBar1080pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
+        public const string LemonControlBar1440pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip";
+        public const string LemonControlBar4KUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip";
 
         /// <summary>
         /// Expected SHA256 hash for Lemon Control Bar (1080p) BIG archive.
