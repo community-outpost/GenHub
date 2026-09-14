@@ -797,15 +797,32 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning("Operation in Progress", "Cannot import files while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
             return;
         }
 
+        var selectedPaths = await PickBigFilesToImportAsync().ConfigureAwait(false);
+        if (selectedPaths == null || selectedPaths.Count == 0)
+        {
+            return;
+        }
+
+        if (IsBuildRunning)
+        {
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
+            return;
+        }
+
+        await ExecuteImportBigFilesAsync(selectedPaths).ConfigureAwait(false);
+    }
+
+    private static async Task<List<string>?> PickBigFilesToImportAsync()
+    {
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
         {
-            return;
+            return null;
         }
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -821,22 +838,16 @@ public partial class ModBuilderViewModel(
 
         if (files == null || files.Count == 0)
         {
-            return;
+            return null;
         }
 
         var selectedPaths = files.Select(f => f.Path.LocalPath).Where(File.Exists).ToList();
-        if (selectedPaths.Count == 0)
-        {
-            return;
-        }
+        return selectedPaths.Count > 0 ? selectedPaths : null;
+    }
 
-        if (IsBuildRunning)
-        {
-            notificationService.ShowWarning("Operation in Progress", "Cannot import files while another operation is running.");
-            return;
-        }
-
-        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
+    private async Task ExecuteImportBigFilesAsync(List<string> selectedPaths)
+    {
+        await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
         try
         {
             logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
@@ -902,7 +913,7 @@ public partial class ModBuilderViewModel(
         }
         finally
         {
-            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
         }
     }
 
@@ -1198,11 +1209,11 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning("Operation in Progress", "Cannot open sample project while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot open sample project while another operation is running.");
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
+        await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
         using var cts = new CancellationTokenSource();
         try
         {
@@ -1243,9 +1254,9 @@ public partial class ModBuilderViewModel(
                 AppendBuildLog($"Sample template {item.Id} not found in search paths.");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("OpenSampleProjectAsync cancelled for {SampleId}", item.Id);
+            logger.LogInformation(ex, "OpenSampleProjectAsync cancelled for {SampleId}", item.Id);
         }
         catch (Exception ex)
         {
@@ -1254,7 +1265,7 @@ public partial class ModBuilderViewModel(
         }
         finally
         {
-            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
         }
     }
 
@@ -1393,7 +1404,7 @@ public partial class ModBuilderViewModel(
         // Provision template to user directory if not present
         if (!File.Exists(userProjectFile))
         {
-            await CopyDirectoryAsync(templateDir, userProjectDir).ConfigureAwait(false);
+            await CopyDirectoryAsync(templateDir, userProjectDir, CancellationToken.None).ConfigureAwait(false);
         }
 
         var buildDir = Path.Combine(userProjectDir, ModBuilderConstants.DefaultBuildDir);
@@ -1589,7 +1600,7 @@ public partial class ModBuilderViewModel(
 
             if (Directory.Exists(oldProjectDir))
             {
-                await CopyDirectoryAsync(oldProjectDir, targetDir).ConfigureAwait(false);
+                await CopyDirectoryAsync(oldProjectDir, targetDir, CancellationToken.None).ConfigureAwait(false);
                 TryCleanAppDirectoryBuildArtifacts(oldProjectDir);
             }
 
@@ -2267,11 +2278,11 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning("Operation in Progress", "Cannot start build while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot start build while another operation is running.");
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
+        await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
         try
         {
             var fileCount = await CountFilesToBuildAsync(CancellationToken.None).ConfigureAwait(false);
@@ -2362,7 +2373,7 @@ public partial class ModBuilderViewModel(
         }
         finally
         {
-            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;
         }
@@ -2406,11 +2417,11 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning("Operation in Progress", "Cannot create manifest while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot create manifest while another operation is running.");
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
+        await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
         _buildCancellationTokenSource = new CancellationTokenSource();
         StatusMessage = "Creating ContentManifest...";
 
@@ -2470,7 +2481,7 @@ public partial class ModBuilderViewModel(
         }
         finally
         {
-            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;
         }

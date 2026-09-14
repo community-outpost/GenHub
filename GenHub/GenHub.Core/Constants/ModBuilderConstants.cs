@@ -105,6 +105,11 @@ public static class ModBuilderConstants
     public const string NoProjectTitle = "No Project";
 
     /// <summary>
+    /// Title displayed when an operation is already in progress.
+    /// </summary>
+    public const string OperationInProgressTitle = "Operation in Progress";
+
+    /// <summary>
     /// Message displayed when no project is loaded.
     /// </summary>
     public const string NoProjectMessage = "Please load or create a project first";
