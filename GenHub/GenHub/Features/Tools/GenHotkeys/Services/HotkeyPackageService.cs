@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
@@ -17,6 +11,12 @@ using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Tools.GenHotkeys.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
@@ -92,7 +92,7 @@ public class HotkeyPackageService(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
         {
             logger.LogError(ex, "Failed to package hotkeys addon for profile '{Name}'", profile.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to create hotkeys addon: {ex.Message}");
@@ -278,7 +278,7 @@ public class HotkeyPackageService(
                 Directory.Delete(path, true);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort cleanup
         }
@@ -463,7 +463,7 @@ public class HotkeyPackageService(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
         {
             logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", iconName);
         }

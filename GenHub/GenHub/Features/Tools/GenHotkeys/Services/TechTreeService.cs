@@ -1,3 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Tools.GenHotkeys;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.GenHotkeys;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -6,12 +12,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Tools.GenHotkeys;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Tools.GenHotkeys;
-using GenHub.Core.Services.Tools.GenHotkeys;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
@@ -398,7 +398,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException)
         {
             logger.LogWarning(ex, "Failed to load reference CSF for {GameType}", gameType);
         }

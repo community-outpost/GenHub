@@ -1,8 +1,8 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Layout;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using System;
+using System.Globalization;
 
 namespace GenHub.Features.Tools.GenHotkeys.Converters;
 

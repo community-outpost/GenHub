@@ -1,12 +1,12 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;
@@ -163,7 +163,7 @@ public class HotkeyProfileStorageServiceTests : IDisposable
             {
                 Directory.Delete(_tempDir, true);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Best effort cleanup
             }

@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
@@ -31,6 +22,16 @@ using GenHub.Features.Downloads.Views;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.GenHotkeys.ViewModels;
 
@@ -450,46 +451,6 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private async Task ApplyCustomPresetAsync(HotkeyProfile targetProfile, string presetName, CancellationToken cancellationToken)
-    {
-        targetProfile.BasePreset = presetName;
-        targetProfile.KeyMappings.Clear();
-        targetProfile.ClearedKeys.Clear();
-
-        HotkeyProfile? savedProfile = null;
-        try
-        {
-            savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to save profile after applying preset '{Preset}'", presetName);
-        }
-
-        if (ReferenceEquals(SelectedProfile, targetProfile))
-        {
-            ApplyProfileMappingsToViewModels();
-            ValidateConflicts();
-        }
-
-        var message = savedProfile == null
-            ? $"Failed to save profile after applying preset '{presetName}'."
-            : $"Applied '{presetName}' preset hotkeys.";
-        StatusMessage = message;
-        if (savedProfile != null)
-        {
-            notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
-        }
-        else
-        {
-            notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
-        }
-    }
-
     /// <summary>
     /// Applies the hotkey of the currently selected action to all matching actions across all armies and units.
     /// </summary>
@@ -570,7 +531,7 @@ public partial class GenHotkeysViewModel(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
         {
             logger.LogError(ex, "Failed to create profile '{Name}'", name);
             StatusMessage = $"Failed to create profile: {ex.Message}";
@@ -686,7 +647,7 @@ public partial class GenHotkeysViewModel(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
         {
             logger.LogError(ex, "Failed to delete profile '{Name}'", toDelete.Name);
             StatusMessage = $"Failed to delete profile: {ex.Message}";
@@ -745,65 +706,10 @@ public partial class GenHotkeysViewModel(
         {
             // Expected if CTS was disposed during in-flight profile check; exit quietly
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             logger.LogWarning(ex, "Failed to check existing addon manifest for profile '{Name}'", SelectedProfile?.Name);
         }
-    }
-
-    private static void UpdateAddonMatchState(GenHotkeysViewModel vm, ContentManifest? match)
-    {
-        vm.ExistingAddonManifest = match;
-        vm.HasExistingAddon = match is not null;
-        if (match is not null)
-        {
-            if (vm.SelectedProfile != null)
-            {
-                vm.SelectedProfile.AddonManifestId = match.Id.Value;
-            }
-
-            vm.AddonButtonText = UpdateAddonText;
-            vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
-        }
-        else
-        {
-            vm.AddonButtonText = CreateAddonText;
-            vm.AddonButtonToolTip = CreateAddonToolTip;
-        }
-    }
-
-    private static bool IsAddonMatch(
-        ContentManifest m,
-        string? profileAddonManifestId,
-        GameType selectedGame,
-        string expectedManifestName,
-        string expectedBigFileName,
-        string legacyBigFileName)
-    {
-        if (m.ContentType != ContentType.Addon)
-        {
-            return false;
-        }
-
-        if (m.TargetGame != selectedGame && m.TargetGame != GameType.Unknown)
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(profileAddonManifestId) &&
-            string.Equals(m.Id.Value, profileAddonManifestId, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return m.Files?.Any(f =>
-            f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true ||
-            f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true;
     }
 
     /// <summary>
@@ -879,7 +785,7 @@ public partial class GenHotkeysViewModel(
                 logger.LogWarning("No main window found to show profile selection dialog");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
         {
             logger.LogError(ex, "Failed to open profile selection dialog");
             notificationService.ShowError("Profile Selection Error", $"Failed to open profile selection: {ex.Message}");
@@ -936,7 +842,7 @@ public partial class GenHotkeysViewModel(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
         {
             logger.LogError(ex, "Failed to export hotkeys addon");
             StatusMessage = $"Export error: {ex.Message}";
@@ -945,28 +851,6 @@ public partial class GenHotkeysViewModel(
         {
             IsBusy = false;
         }
-    }
-
-    private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
-    {
-        if (notificationService is null)
-        {
-            return;
-        }
-
-        var title = isUpdate ? "Hotkey Addon Updated" : "Hotkey Addon Created";
-        var message = isUpdate
-            ? $"Updated '{bigFileName}' successfully."
-            : $"Created '{bigFileName}' successfully and stored in CAS.";
-        var notification = new NotificationMessage(
-            NotificationType.Success,
-            title,
-            message,
-            autoDismissMilliseconds: NotificationDurations.Long,
-            actionText: AddToProfileText,
-            action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(manifest)));
-
-        notificationService.Show(notification);
     }
 
     /// <summary>
@@ -1013,7 +897,7 @@ public partial class GenHotkeysViewModel(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
         {
             logger.LogError(ex, "Failed to persist profile '{Name}'", SelectedProfile.Name);
             StatusMessage = $"Failed to save: {ex.Message}";
@@ -1094,6 +978,28 @@ public partial class GenHotkeysViewModel(
         }
 
         return count;
+    }
+
+    private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
+    {
+        if (notificationService is null)
+        {
+            return;
+        }
+
+        var title = isUpdate ? "Hotkey Addon Updated" : "Hotkey Addon Created";
+        var message = isUpdate
+            ? $"Updated '{bigFileName}' successfully."
+            : $"Created '{bigFileName}' successfully and stored in CAS.";
+        var notification = new NotificationMessage(
+            NotificationType.Success,
+            title,
+            message,
+            autoDismissMilliseconds: NotificationDurations.Long,
+            actionText: AddToProfileText,
+            action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(manifest)));
+
+        notificationService.Show(notification);
     }
 
     private static bool IsPermittedEngineOverlap(
@@ -1563,6 +1469,46 @@ public partial class GenHotkeysViewModel(
         return matchingCount;
     }
 
+    private async Task ApplyCustomPresetAsync(HotkeyProfile targetProfile, string presetName, CancellationToken cancellationToken)
+    {
+        targetProfile.BasePreset = presetName;
+        targetProfile.KeyMappings.Clear();
+        targetProfile.ClearedKeys.Clear();
+
+        HotkeyProfile? savedProfile = null;
+        try
+        {
+            savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogError(ex, "Failed to save profile after applying preset '{Preset}'", presetName);
+        }
+
+        if (ReferenceEquals(SelectedProfile, targetProfile))
+        {
+            ApplyProfileMappingsToViewModels();
+            ValidateConflicts();
+        }
+
+        var message = savedProfile == null
+            ? $"Failed to save profile after applying preset '{presetName}'."
+            : $"Applied '{presetName}' preset hotkeys.";
+        StatusMessage = message;
+        if (savedProfile != null)
+        {
+            notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
+        }
+        else
+        {
+            notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
+        }
+    }
+
     private async Task ApplyVanillaPresetAsync(HotkeyProfile targetProfile, CancellationToken cancellationToken)
     {
         try
@@ -1580,7 +1526,7 @@ public partial class GenHotkeysViewModel(
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
             {
                 logger.LogError(ex, "Failed to save profile after applying Vanilla preset");
             }
@@ -1608,7 +1554,7 @@ public partial class GenHotkeysViewModel(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or InvalidOperationException)
         {
             logger.LogError(ex, "Failed to apply Vanilla preset");
             StatusMessage = $"Failed to apply preset: {ex.Message}";
@@ -1655,7 +1601,7 @@ public partial class GenHotkeysViewModel(
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
             {
                 logger.LogError(ex, "Failed to save profile after applying {Preset} preset", presetName);
             }
@@ -1683,7 +1629,7 @@ public partial class GenHotkeysViewModel(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or InvalidOperationException)
         {
             logger.LogError(ex, "Failed to apply {Preset} preset", presetName);
             StatusMessage = $"Failed to apply preset: {ex.Message}";
@@ -1750,6 +1696,61 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    private static void UpdateAddonMatchState(GenHotkeysViewModel vm, ContentManifest? match)
+    {
+        vm.ExistingAddonManifest = match;
+        vm.HasExistingAddon = match is not null;
+        if (match is not null)
+        {
+            if (vm.SelectedProfile != null)
+            {
+                vm.SelectedProfile.AddonManifestId = match.Id.Value;
+            }
+
+            vm.AddonButtonText = UpdateAddonText;
+            vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+        }
+        else
+        {
+            vm.AddonButtonText = CreateAddonText;
+            vm.AddonButtonToolTip = CreateAddonToolTip;
+        }
+    }
+
+    private static bool IsAddonMatch(
+        ContentManifest m,
+        string? profileAddonManifestId,
+        GameType selectedGame,
+        string expectedManifestName,
+        string expectedBigFileName,
+        string legacyBigFileName)
+    {
+        if (m.ContentType != ContentType.Addon)
+        {
+            return false;
+        }
+
+        if (m.TargetGame != selectedGame && m.TargetGame != GameType.Unknown)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(profileAddonManifestId) &&
+            string.Equals(m.Id.Value, profileAddonManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return m.Files?.Any(f =>
+            f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true ||
+            f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true;
+    }
+
     private async Task SafeCheckExistingAddonAsync(CancellationToken cancellationToken)
     {
         try
@@ -1764,7 +1765,7 @@ public partial class GenHotkeysViewModel(
         {
             // Expected if CTS was disposed
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             logger.LogWarning(ex, "Unexpected error checking existing addon");
         }
@@ -1817,7 +1818,7 @@ public partial class GenHotkeysViewModel(
         {
             // Expected when user quickly toggles games
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
         {
             logger.LogError(ex, "Failed to reload hotkeys for game {Game}", SelectedGame);
             StatusMessage = $"Failed to reload: {ex.Message}";
@@ -2029,7 +2030,7 @@ public partial class GenHotkeysViewModel(
         {
             // Expected when canceled
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             logger.LogDebug(ex, "Failed to load icon bitmap asynchronously for {Icon}", iconName);
         }

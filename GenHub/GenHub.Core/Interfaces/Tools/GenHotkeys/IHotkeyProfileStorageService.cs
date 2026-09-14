@@ -1,8 +1,8 @@
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.GenHotkeys;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Tools.GenHotkeys;
 
 namespace GenHub.Core.Interfaces.Tools.GenHotkeys;
 

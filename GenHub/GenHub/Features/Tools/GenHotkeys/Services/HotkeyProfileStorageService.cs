@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
@@ -12,6 +5,13 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.GenHotkeys;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
@@ -57,7 +57,7 @@ public class HotkeyProfileStorageService(
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to deserialize hotkey profile from {Path}", file);
             }
@@ -98,7 +98,7 @@ public class HotkeyProfileStorageService(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to read hotkey profile {Id} from {Path}", profileId, filePath);
             return null;
@@ -133,7 +133,7 @@ public class HotkeyProfileStorageService(
                 {
                     File.Delete(tempPath);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     logger.LogWarning(ex, "Failed to clean up temporary profile file '{TempPath}'", tempPath);
                 }
@@ -157,7 +157,7 @@ public class HotkeyProfileStorageService(
                 logger.LogInformation("Deleted hotkey profile {Id}", profileId);
                 return Task.FromResult(true);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogError(ex, "Failed to delete hotkey profile {Id}", profileId);
                 return Task.FromResult(false);
@@ -278,13 +278,13 @@ public class HotkeyProfileStorageService(
                             File.Delete(tempFile);
                         }
                     }
-                    catch
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         // Stale temp file cleanup is best-effort
                     }
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Directory enumeration failure is best-effort
             }

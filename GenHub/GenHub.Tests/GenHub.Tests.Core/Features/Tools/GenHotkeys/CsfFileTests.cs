@@ -1,7 +1,7 @@
-using System;
-using System.IO;
 using GenHub.Core.Constants;
 using GenHub.Core.Services.Tools.GenHotkeys;
+using System;
+using System.IO;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;

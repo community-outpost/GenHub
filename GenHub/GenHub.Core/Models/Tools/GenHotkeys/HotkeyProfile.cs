@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Tools.GenHotkeys;
 

@@ -1,6 +1,6 @@
-using System;
 using GenHub.Features.Tools.ReplayManager;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

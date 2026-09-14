@@ -1,7 +1,7 @@
-using System;
-using System.IO;
 using Avalonia.Platform;
 using GenHub.Core.Constants;
+using System;
+using System.IO;
 
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
@@ -32,7 +32,7 @@ internal static class GenHotkeysAssetLoader
                 return AssetLoader.Open(uri);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or UriFormatException)
         {
             // Ignore and fall back to filesystem
         }
@@ -46,7 +46,7 @@ internal static class GenHotkeysAssetLoader
                 return File.OpenRead(fileOnDisk);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             // Ignore and fall back to search roots
         }
@@ -69,7 +69,7 @@ internal static class GenHotkeysAssetLoader
                     return File.OpenRead(root);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {
                 // Ignore and try next root
             }
@@ -95,7 +95,7 @@ internal static class GenHotkeysAssetLoader
                 return AssetLoader.Open(uri);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or UriFormatException)
         {
             // Ignore and fall back to null
         }

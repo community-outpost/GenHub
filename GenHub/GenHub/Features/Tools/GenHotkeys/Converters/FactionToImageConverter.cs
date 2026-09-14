@@ -1,9 +1,10 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys.Services;
+using System;
+using System.Globalization;
+using System.IO;
 
 namespace GenHub.Features.Tools.GenHotkeys.Converters;
 
@@ -55,7 +56,7 @@ public class FactionToImageConverter : IValueConverter
                 return new Bitmap(stream);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException)
         {
             // Fall back to null if resource cannot be loaded
         }

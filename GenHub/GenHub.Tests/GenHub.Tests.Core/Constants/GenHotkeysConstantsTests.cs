@@ -60,6 +60,7 @@ public class GenHotkeysConstantsTests
     /// Verifies that <see cref="GenHotkeysConstants.GetBigFileName(string?, GameType, string?)"/> defaults to
     /// "Hotkeys" when the profile name is null or whitespace.
     /// </summary>
+    /// <param name="profileName">The profile name to test.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]

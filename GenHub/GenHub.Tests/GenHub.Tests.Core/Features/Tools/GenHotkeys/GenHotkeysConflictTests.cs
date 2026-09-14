@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.GenHotkeys;
@@ -11,6 +6,11 @@ using GenHub.Features.Tools.GenHotkeys.Services;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -35,6 +35,7 @@ public class GenHotkeysConflictTests
     /// <summary>
     /// Verifies that neither the Leikeze nor the Legionnaire preset produces any layout conflicts across any faction or game object.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task PresetValidation_LeikezeAndLegionnaire_ProduceZeroConflicts()
     {
