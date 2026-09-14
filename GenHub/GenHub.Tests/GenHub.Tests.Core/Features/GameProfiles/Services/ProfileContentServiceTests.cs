@@ -1,3 +1,4 @@
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -6,6 +7,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -358,5 +360,119 @@ public sealed class ProfileContentServiceTests
         Assert.True(result.Success, result.FirstError);
         Assert.NotNull(acquiredSearchResult);
         Assert.Equal("https://legi.cc/gp2/f/hlen.dat", acquiredSearchResult.SourceUrl);
+    }
+
+    /// <summary>
+    /// Verifies that reconciling a profile built on an installation whose client reports no version
+    /// re-anchors it on the manifest id registration actually pools. Reconciliation strips the
+    /// existing GameInstallation id and mints a replacement, so a raw empty version here rewrites
+    /// the profile onto an id that resolves to no manifest and the profile stops launching.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_VersionLessInstallation_KeepsAResolvableInstallationIdAsync()
+    {
+        var gameInstallation = new GameInstallation("C:\\custom", GameInstallationType.Custom)
+        {
+            AvailableGameClients =
+            [
+                new GameClient { Id = "client-id", GameType = GameType.ZeroHour, Version = string.Empty },
+            ],
+        };
+        var expectedInstallationId = ManifestIdGenerator.GenerateGameInstallationId(
+            gameInstallation,
+            GameType.ZeroHour,
+            GameVersionHelper.GetDefaultManifestVersion(GameType.ZeroHour));
+        var deadInstallationId = ManifestIdGenerator.GenerateGameInstallationId(
+            gameInstallation, GameType.ZeroHour, "0");
+
+        const string addonId = "1.0.communityoutpost.addon.testaddon";
+        var addon = new ContentManifest
+        {
+            Id = ManifestId.Create(addonId),
+            Name = "Test Addon",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(expectedInstallationId),
+                    Name = "Zero Hour Installation",
+                    DependencyType = ContentType.GameInstallation,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                },
+            ],
+        };
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(expectedInstallationId),
+            Name = "Custom Zero Hour Installation",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+        var profile = new GameProfile
+        {
+            Id = "profile-id",
+            Name = "Custom",
+            GameClient = new GameClient { Id = "client-id", GameType = GameType.ZeroHour },
+            EnabledContentIds = [expectedInstallationId],
+        };
+        var manifests = new Dictionary<string, ContentManifest>(StringComparer.OrdinalIgnoreCase)
+        {
+            [addonId] = addon,
+            [expectedInstallationId] = installationManifest,
+        };
+
+        var profileManager = new Mock<IGameProfileManager>();
+        var manifestPool = new Mock<IContentManifestPool>();
+        var installationService = new Mock<IGameInstallationService>();
+        var contentOrchestrator = new Mock<IContentOrchestrator>();
+        var notifications = new Mock<INotificationService>();
+        UpdateProfileRequest? updateRequest = null;
+
+        profileManager
+            .Setup(manager => manager.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        profileManager
+            .Setup(manager => manager.UpdateProfileAsync(profile.Id, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, UpdateProfileRequest request, CancellationToken _) =>
+            {
+                updateRequest = request;
+                return ProfileOperationResult<GameProfile>.CreateSuccess(profile);
+            });
+        manifestPool
+            .Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId manifestId, CancellationToken _) =>
+                manifests.TryGetValue(manifestId.Value, out var manifest)
+                    ? OperationResult<ContentManifest?>.CreateSuccess(manifest)
+                    : OperationResult<ContentManifest?>.CreateSuccess(null));
+        manifestPool
+            .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests.Values));
+        installationService
+            .Setup(service => service.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([gameInstallation]));
+
+        var service = new ProfileContentService(
+            profileManager.Object,
+            manifestPool.Object,
+            new DependencyResolver(
+                manifestPool.Object,
+                NullLogger<DependencyResolver>.Instance),
+            installationService.Object,
+            contentOrchestrator.Object,
+            notifications.Object,
+            NullLogger<ProfileContentService>.Instance);
+
+        var result = await service.AddContentToProfileAsync(profile.Id, addonId);
+
+        Assert.True(result.Success, result.FirstError);
+        var savedRequest = Assert.IsType<UpdateProfileRequest>(updateRequest);
+        var savedContentIds = Assert.IsType<List<string>>(savedRequest.EnabledContentIds);
+        Assert.Contains(expectedInstallationId, savedContentIds, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(deadInstallationId, savedContentIds, StringComparer.OrdinalIgnoreCase);
     }
 }

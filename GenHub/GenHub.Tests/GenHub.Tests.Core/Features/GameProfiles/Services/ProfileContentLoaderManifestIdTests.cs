@@ -71,6 +71,52 @@ public class ProfileContentLoaderManifestIdTests
         Assert.Equal(expected, Assert.Single(items).ManifestId);
     }
 
+    /// <summary>
+    /// Verifies that an installation whose client reports an unrecognised game type is not offered
+    /// at all, rather than being offered under an id that claims Generals.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UnknownGameType_IsNotOfferedAsync()
+    {
+        var installation = BuildInstallation(GameType.Unknown, clientVersion: string.Empty);
+        var loader = BuildLoader(installation);
+
+        var items = await loader.LoadAvailableGameInstallationsAsync();
+
+        Assert.Empty(items);
+    }
+
+    /// <summary>
+    /// Verifies the shared resolver leaves the version untouched for a game type that has no
+    /// default, so no id can claim a game the client did not report.
+    /// </summary>
+    [Fact]
+    public void ResolveInstallationVersion_WithUnknownGameType_DoesNotSubstituteAGameDefault()
+    {
+        var resolved = GameVersionHelper.ResolveInstallationVersion(string.Empty, GameType.Unknown);
+
+        Assert.Equal(string.Empty, resolved);
+        Assert.NotEqual(ManifestConstants.GeneralsManifestVersion, resolved);
+    }
+
+    /// <summary>
+    /// Verifies the shared resolver applies the game-type default for a version-less client, which
+    /// is what keeps the sibling id-minting sites in agreement with registration.
+    /// </summary>
+    /// <param name="gameType">The game type under test.</param>
+    /// <param name="expected">The default the resolver is expected to return.</param>
+    [Theory]
+    [InlineData(GameType.ZeroHour, ManifestConstants.ZeroHourManifestVersion)]
+    [InlineData(GameType.Generals, ManifestConstants.GeneralsManifestVersion)]
+    public void ResolveInstallationVersion_WithVersionLessClient_UsesTheGameTypeDefault(
+        GameType gameType, string expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.ResolveInstallationVersion(null, gameType));
+        Assert.Equal(expected, GameVersionHelper.ResolveInstallationVersion(string.Empty, gameType));
+        Assert.Equal(expected, GameVersionHelper.ResolveInstallationVersion("Unknown", gameType));
+    }
+
     private static GameInstallation BuildInstallation(GameType gameType, string clientVersion)
     {
         var installation = new GameInstallation("C:\\custom-install", GameInstallationType.Custom)

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -976,7 +977,7 @@ public sealed class ProfileContentService(
         var gameInstallationManifestId = Core.Models.Manifest.ManifestIdGenerator.GenerateGameInstallationId(
             installation,
             gameClient.GameType,
-            gameClient.Version);
+            GameVersionHelper.ResolveInstallationVersion(gameClient.Version, gameClient.GameType));
 
         if (!enabledContentIds.Contains(gameInstallationManifestId, StringComparer.OrdinalIgnoreCase))
         {
@@ -1218,7 +1219,7 @@ public sealed class ProfileContentService(
         var installationManifestId = Core.Models.Manifest.ManifestIdGenerator.GenerateGameInstallationId(
             installation,
             requiredGameType,
-            installationClient.Version);
+            GameVersionHelper.ResolveInstallationVersion(installationClient.Version, requiredGameType));
 
         // An add-on can require a game installation without requiring a different client.
         // Keep a compatible existing publisher client in that case; replacing it with the

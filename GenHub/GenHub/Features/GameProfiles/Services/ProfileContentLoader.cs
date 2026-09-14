@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -62,6 +63,15 @@ public class ProfileContentLoader(
 
                 foreach (var gameType in uniqueGameTypes)
                 {
+                    if (gameType is not (GameType.Generals or GameType.ZeroHour))
+                    {
+                        logger.LogDebug(
+                            "Skipping installation {InstallationId} game type {GameType} - unsupported",
+                            installation.Id,
+                            gameType);
+                        continue;
+                    }
+
                     var baseClient = GetBaseGameClient(installation, gameType);
                     if (baseClient is null) continue;
 
@@ -413,21 +423,12 @@ public class ProfileContentLoader(
 
     private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion, GameType gameType)
     {
-        var isUnknown = string.IsNullOrEmpty(detectedVersion) ||
-            detectedVersion.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-            detectedVersion.Equals(
-                GameClientConstants.AutoDetectedVersion,
-                StringComparison.OrdinalIgnoreCase);
-
-        if (isUnknown)
+        // GameInstallationService pools the manifest under the game-type default when detection
+        // fails, so the same fallback is needed here or the picker hands the profile an id that
+        // resolves to no manifest. Display stays empty so no version is fabricated in the UI.
+        if (GameVersionHelper.IsUnknownVersion(detectedVersion))
         {
-            // GameInstallationService pools the manifest under the game-type default when detection
-            // fails, so the same fallback is needed here or the picker hands the profile an id that
-            // resolves to no manifest.
-            var fallback = gameType == GameType.ZeroHour
-                ? ManifestConstants.ZeroHourManifestVersion
-                : ManifestConstants.GeneralsManifestVersion;
-            return (fallback, string.Empty);
+            return (GameVersionHelper.GetDefaultManifestVersion(gameType), string.Empty);
         }
 
         return (detectedVersion!, displayFormatter.NormalizeVersion(detectedVersion!));
