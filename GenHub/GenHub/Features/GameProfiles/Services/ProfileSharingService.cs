@@ -1,20 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
@@ -37,6 +20,23 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -669,7 +669,8 @@ public class ProfileSharingService(
             basePath = installation.InstallationPath;
         }
 
-        return !string.IsNullOrEmpty(basePath) ? Path.Combine(basePath, "generals.exe") : string.Empty;
+        var fallbackExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
+        return !string.IsNullOrEmpty(basePath) ? Path.Combine(basePath, fallbackExe) : string.Empty;
     }
 
     /// <summary>
@@ -1344,6 +1345,48 @@ public class ProfileSharingService(
         return instResult.Success ? instResult.Data : null;
     }
 
+    private static bool IsGameInstallationDependency(SharedManifestDependency dep) =>
+        dep.ContentType == ContentType.GameInstallation ||
+        dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase);
+
+    private async Task<OperationResult<string>> EnsureDependencyManifestAcquiredAsync(
+        SharedManifestDependency dep,
+        int currentIndex,
+        int totalCount,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (!ManifestId.TryCreate(dep.ManifestId, out _))
+        {
+            return OperationResult<string>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
+        }
+
+        var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
+        if (isCachedResult.Success && isCachedResult.Data)
+        {
+            return OperationResult<string>.CreateSuccess(dep.ManifestId);
+        }
+
+        logger?.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = totalCount > 0 ? ((double)currentIndex / totalCount) * 100.0 : 0.0,
+            CurrentOperation = $"Acquiring {dep.DisplayName}...",
+            CurrentFile = dep.DisplayName,
+            FilesProcessed = currentIndex,
+            TotalFiles = totalCount,
+        });
+
+        var acquireResult = await AcquireMissingManifestAsync(dep, progress, cancellationToken);
+        if (!acquireResult.Success || string.IsNullOrWhiteSpace(acquireResult.Data))
+        {
+            return OperationResult<string>.CreateFailure($"Failed to acquire manifest {dep.DisplayName} ({dep.ManifestId}): {acquireResult.FirstError}");
+        }
+
+        return OperationResult<string>.CreateSuccess(acquireResult.Data);
+    }
+
     private async Task<OperationResult<List<string>>> AcquireAllDependenciesAsync(
         SharedGameProfilePackage package,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -1354,49 +1397,24 @@ public class ProfileSharingService(
         for (int i = 0; i < package.RequiredManifests.Count; i++)
         {
             var dep = package.RequiredManifests[i];
-            if (dep.ContentType == ContentType.GameInstallation ||
-                dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
+            if (IsGameInstallationDependency(dep))
             {
                 continue;
             }
 
-            if (!ManifestId.TryCreate(dep.ManifestId, out _))
+            var acquireResult = await EnsureDependencyManifestAcquiredAsync(
+                dep,
+                i,
+                package.RequiredManifests.Count,
+                progress,
+                cancellationToken);
+
+            if (!acquireResult.Success)
             {
-                return OperationResult<List<string>>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
+                return OperationResult<List<string>>.CreateFailure(acquireResult.FirstError);
             }
 
-            requiredManifestIds.Add(dep.ManifestId);
-
-            var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
-            if (!isCachedResult.Success || !isCachedResult.Data)
-            {
-                logger?.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = package.RequiredManifests.Count > 0 ? ((double)i / package.RequiredManifests.Count) * 100.0 : 0.0,
-                    CurrentOperation = $"Acquiring {dep.DisplayName}...",
-                    CurrentFile = dep.DisplayName,
-                    FilesProcessed = i,
-                    TotalFiles = package.RequiredManifests.Count,
-                });
-
-                var acquireResult = await AcquireMissingManifestAsync(dep, progress, cancellationToken);
-                if (!acquireResult.Success || string.IsNullOrWhiteSpace(acquireResult.Data))
-                {
-                    return OperationResult<List<string>>.CreateFailure($"Failed to acquire manifest {dep.DisplayName} ({dep.ManifestId}): {acquireResult.FirstError}");
-                }
-
-                var acquiredId = acquireResult.Data;
-                if (!string.Equals(acquiredId, dep.ManifestId, StringComparison.OrdinalIgnoreCase))
-                {
-                    var reqIdx = requiredManifestIds.IndexOf(dep.ManifestId);
-                    if (reqIdx >= 0)
-                    {
-                        requiredManifestIds[reqIdx] = acquiredId;
-                    }
-                }
-            }
+            requiredManifestIds.Add(acquireResult.Data);
         }
 
         return OperationResult<List<string>>.CreateSuccess(requiredManifestIds);
@@ -1672,24 +1690,23 @@ public class ProfileSharingService(
             foreach (var file in sortedFiles)
             {
                 var contentPathResult = await casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
-                if (contentPathResult.Success && File.Exists(contentPathResult.Data))
+                if (!contentPathResult.Success || !File.Exists(contentPathResult.Data))
                 {
-                    var entryName = file.RelativePath.Replace('\\', '/');
-                    var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
-                    entry.LastWriteTime = fixedTimestamp;
-
-                    await using var sourceStream = File.OpenRead(contentPathResult.Data);
-                    await using var entryStream = entry.Open();
-                    await sourceStream.CopyToAsync(entryStream, cancellationToken);
-                }
-                else
-                {
-                    (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                    (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
                         "File {RelativePath} ({Hash}) not found in CAS for local manifest {ManifestId}.",
                         file.RelativePath,
                         file.Hash,
                         manifest.Id);
+                    return null;
                 }
+
+                var entryName = file.RelativePath.Replace('\\', '/');
+                var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                entry.LastWriteTime = fixedTimestamp;
+
+                await using var sourceStream = File.OpenRead(contentPathResult.Data);
+                await using var entryStream = entry.Open();
+                await sourceStream.CopyToAsync(entryStream, cancellationToken);
             }
         }
 
@@ -2428,12 +2445,11 @@ public class ProfileSharingService(
         }
     }
 
-    private async Task<OperationResult<string>> SearchAndAcquireFallbackManifestAsync(
+    private async Task<OperationResult<IReadOnlyList<ContentSearchResult>>> ExecuteFallbackSearchAsync(
         SharedManifestDependency dependency,
-        IProgress<ContentAcquisitionProgress>? progress,
+        string? targetProvider,
         CancellationToken cancellationToken)
     {
-        var targetProvider = ResolveProviderName(dependency);
         var query = new ContentSearchQuery
         {
             SearchTerm = dependency.DisplayName,
@@ -2444,52 +2460,57 @@ public class ProfileSharingService(
         };
 
         var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
+        if (searchResult.Success && searchResult.Data?.Count > 0)
+        {
+            return searchResult;
+        }
 
-        // If targeted search yielded no results and we had filtered by provider, fallback to broad broadcast search
-        if ((!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any()) && !string.IsNullOrEmpty(targetProvider))
+        if (string.IsNullOrEmpty(targetProvider))
+        {
+            return searchResult;
+        }
+
+        logger?.LogInformation(
+            "Targeted search for '{DisplayName}' on provider '{Provider}' yielded no results. Falling back to broad search.",
+            dependency.DisplayName,
+            targetProvider);
+
+        query.ProviderName = null;
+        return await contentOrchestrator.SearchAsync(query, cancellationToken);
+    }
+
+    private async Task<OperationResult<string>?> TryAcquireMatchedFallbackAsync(
+        ContentSearchResult match,
+        SharedManifestDependency dependency,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
+        if (acquireRes.Success && acquireRes.Data != null)
         {
             logger?.LogInformation(
-                "Targeted search for '{DisplayName}' on provider '{Provider}' yielded no results. Falling back to broad search.",
+                "Successfully acquired dependency '{DisplayName}' as manifest '{AcquiredId}' via content orchestrator.",
                 dependency.DisplayName,
-                targetProvider);
+                acquireRes.Data.Id.Value);
 
-            query.ProviderName = null;
-            searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
+            return OperationResult<string>.CreateSuccess(acquireRes.Data.Id.Value);
         }
 
-        if (searchResult.Success && searchResult.Data != null)
+        if (!acquireRes.Success)
         {
-            var match = FindMatchingResult(searchResult.Data, dependency);
-            if (match != null)
-            {
-                var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
-                if (acquireRes.Success && acquireRes.Data != null)
-                {
-                    logger?.LogInformation(
-                        "Successfully acquired dependency '{DisplayName}' as manifest '{AcquiredId}' via content orchestrator.",
-                        dependency.DisplayName,
-                        acquireRes.Data.Id.Value);
-
-                    return OperationResult<string>.CreateSuccess(acquireRes.Data.Id.Value);
-                }
-
-                if (!acquireRes.Success)
-                {
-                    logger?.LogWarning(
-                        "Content acquisition failed for dependency '{DisplayName}' ({ManifestId}) from provider '{Provider}': {Error}",
-                        dependency.DisplayName,
-                        dependency.ManifestId,
-                        match.ProviderName,
-                        acquireRes.FirstError);
-                }
-            }
+            logger?.LogWarning(
+                "Content acquisition failed for dependency '{DisplayName}' ({ManifestId}) from provider '{Provider}': {Error}",
+                dependency.DisplayName,
+                dependency.ManifestId,
+                match.ProviderName,
+                acquireRes.FirstError);
         }
 
-        logger?.LogWarning(
-            "Dependency '{DisplayName}' ({ManifestId}) could not be acquired from any connected content source.",
-            dependency.DisplayName,
-            dependency.ManifestId);
+        return null;
+    }
 
+    private static OperationResult<string> CreateFallbackAcquisitionFailure(SharedManifestDependency dependency)
+    {
         if (dependency.ManifestId.Contains(ManifestConstants.LocalSegment, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(dependency.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
         {
@@ -2499,6 +2520,35 @@ public class ProfileSharingService(
 
         return OperationResult<string>.CreateFailure(
             $"Dependency '{dependency.DisplayName}' ({dependency.ManifestId}) was not found in the local cache or any connected content source.");
+    }
+
+    private async Task<OperationResult<string>> SearchAndAcquireFallbackManifestAsync(
+        SharedManifestDependency dependency,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var targetProvider = ResolveProviderName(dependency);
+        var searchResult = await ExecuteFallbackSearchAsync(dependency, targetProvider, cancellationToken);
+
+        if (searchResult.Success && searchResult.Data != null)
+        {
+            var match = FindMatchingResult(searchResult.Data, dependency);
+            if (match != null)
+            {
+                var acquireResult = await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
+                if (acquireResult != null)
+                {
+                    return acquireResult;
+                }
+            }
+        }
+
+        logger?.LogWarning(
+            "Dependency '{DisplayName}' ({ManifestId}) could not be acquired from any connected content source.",
+            dependency.DisplayName,
+            dependency.ManifestId);
+
+        return CreateFallbackAcquisitionFailure(dependency);
     }
 
     private static ContentSearchResult? FindMatchingResult(
@@ -2575,91 +2625,104 @@ public class ProfileSharingService(
             return string.Empty;
         }
 
-        var sb = new StringBuilder(name.Length);
-        foreach (var ch in name)
-        {
-            if (char.IsLetterOrDigit(ch))
-            {
-                sb.Append(char.ToLowerInvariant(ch));
-            }
-        }
-
-        return sb.ToString();
+        return new string(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
     }
 
     private static string? ResolveProviderName(SharedManifestDependency dependency)
     {
-        // Check PublisherType
-        if (!string.IsNullOrWhiteSpace(dependency.PublisherType))
+        return ResolveProviderFromPublisherType(dependency.PublisherType)
+            ?? ResolveProviderFromPublisher(dependency.Publisher)
+            ?? ResolveProviderFromManifestId(dependency.ManifestId);
+    }
+
+    private static string? ResolveProviderFromPublisherType(string? publisherType)
+    {
+        if (string.IsNullOrWhiteSpace(publisherType))
         {
-            if (dependency.PublisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-            {
-                return ModDBConstants.DiscovererSourceName;
-            }
-
-            if (string.Equals(dependency.PublisherType, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-            {
-                return AODMapsConstants.DiscovererSourceName;
-            }
-
-            if (string.Equals(dependency.PublisherType, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
-            {
-                return CNCLabsConstants.SourceName;
-            }
-
-            if (string.Equals(dependency.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-            {
-                return CommunityOutpostConstants.PublisherType;
-            }
+            return null;
         }
 
-        // Check Publisher Display Name
-        if (!string.IsNullOrWhiteSpace(dependency.Publisher))
+        if (publisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
-            if (dependency.Publisher.Contains(ModDBConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase))
-            {
-                return ModDBConstants.DiscovererSourceName;
-            }
-
-            if (dependency.Publisher.Contains(AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
-            {
-                return AODMapsConstants.DiscovererSourceName;
-            }
-
-            if (dependency.Publisher.Contains(CNCLabsConstants.AuthorName, StringComparison.OrdinalIgnoreCase) ||
-                dependency.Publisher.Contains("cnclabs", StringComparison.OrdinalIgnoreCase))
-            {
-                return CNCLabsConstants.SourceName;
-            }
+            return ModDBConstants.DiscovererSourceName;
         }
 
-        // Check ManifestId publisher segment: schema.version.publisher.type.name
-        if (ManifestId.TryCreate(dependency.ManifestId, out _))
+        if (string.Equals(publisherType, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
-            var segments = dependency.ManifestId.Split('.');
-            if (segments.Length >= 5)
-            {
-                var pubSegment = segments[2];
-                if (pubSegment.StartsWith(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    return ModDBConstants.DiscovererSourceName;
-                }
+            return AODMapsConstants.DiscovererSourceName;
+        }
 
-                if (string.Equals(pubSegment, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-                {
-                    return AODMapsConstants.DiscovererSourceName;
-                }
+        if (string.Equals(publisherType, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
 
-                if (string.Equals(pubSegment, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
-                {
-                    return CNCLabsConstants.SourceName;
-                }
+        if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherType;
+        }
 
-                if (string.Equals(pubSegment, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-                {
-                    return CommunityOutpostConstants.PublisherType;
-                }
-            }
+        return null;
+    }
+
+    private static string? ResolveProviderFromPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return null;
+        }
+
+        if (publisher.Contains(ModDBConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (publisher.Contains(AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (publisher.Contains(CNCLabsConstants.AuthorName, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains("cnclabs", StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveProviderFromManifestId(string? manifestId)
+    {
+        if (string.IsNullOrWhiteSpace(manifestId) || !ManifestId.TryCreate(manifestId, out _))
+        {
+            return null;
+        }
+
+        var segments = manifestId.Split('.');
+        if (segments.Length < 5)
+        {
+            return null;
+        }
+
+        var pubSegment = segments[2];
+        if (pubSegment.StartsWith(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(pubSegment, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(pubSegment, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        if (string.Equals(pubSegment, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherType;
         }
 
         return null;

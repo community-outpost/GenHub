@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Core.Models.GameInstallations;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.GameProfile;
 

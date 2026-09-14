@@ -1,5 +1,5 @@
-using System;
 using GenHub.Core.Constants;
+using System;
 
 namespace GenHub.Core.Models.Common;
 

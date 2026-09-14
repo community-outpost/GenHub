@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -27,7 +18,15 @@ using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Tools;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.ReplayManager;
-
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
+using System.Threading;
+using System.Threading.Tasks;
 using MapImportResult = GenHub.Core.Models.Tools.MapManager.ImportResult;
 using ReplayImportResult = GenHub.Core.Models.Tools.ReplayManager.ImportResult;
 

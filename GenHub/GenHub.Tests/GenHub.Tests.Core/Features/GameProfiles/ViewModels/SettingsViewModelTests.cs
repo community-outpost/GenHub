@@ -1,7 +1,4 @@
-using System.Globalization;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Models.Common;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -27,6 +24,7 @@ using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Globalization;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 

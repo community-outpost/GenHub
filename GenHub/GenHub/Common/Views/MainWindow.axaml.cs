@@ -1,11 +1,11 @@
-using System;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using System;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Common.Views;
 

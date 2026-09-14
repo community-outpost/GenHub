@@ -1,10 +1,10 @@
+using GenHub.Core.Constants;
+using Microsoft.Extensions.Logging;
 using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
-using GenHub.Core.Constants;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Linux.Features.Shortcuts;
 

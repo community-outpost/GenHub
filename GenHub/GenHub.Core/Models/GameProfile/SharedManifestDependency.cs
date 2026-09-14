@@ -1,7 +1,7 @@
-using System.Collections.Generic;
-using System.Text.Json.Serialization;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.GameProfile;
 

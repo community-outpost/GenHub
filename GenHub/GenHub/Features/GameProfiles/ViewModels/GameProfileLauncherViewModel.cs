@@ -29,6 +29,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -343,6 +344,7 @@ public partial class GameProfileLauncherViewModel(
     /// <param name="shareUriOrPath">The .ghprofile path, JSON string, or genhub:// URI.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler prevents unhandled exceptions from crashing the application.")]
     public async Task ImportProfileFromFileOrUriAsync(string shareUriOrPath, CancellationToken cancellationToken = default)
     {
         var service = GetSharingService();
@@ -1898,6 +1900,7 @@ public partial class GameProfileLauncherViewModel(
 
     private IProfileSharingService? GetSharingService() => profileSharingServiceFactory?.Invoke();
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler prevents unhandled exceptions from crashing the application.")]
     private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item)
     {
         var service = GetSharingService();
@@ -1950,6 +1953,7 @@ public partial class GameProfileLauncherViewModel(
     /// Prompts the user to select a profile file and opens the import inspection dialog.
     /// </summary>
     [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI command handler catches file picker and import exceptions to notify user.")]
     private async Task ImportProfileAsync()
     {
         try
