@@ -14,6 +14,7 @@ public class CsfFile
     private static readonly byte[] MagicCsf = [(byte)' ', (byte)'F', (byte)'S', (byte)'C'];
     private static readonly byte[] MagicLbl = [(byte)' ', (byte)'L', (byte)'B', (byte)'L'];
     private static readonly byte[] MagicRts = [(byte)' ', (byte)'R', (byte)'T', (byte)'S'];
+    private static readonly byte[] MagicWrts = [(byte)'W', (byte)'R', (byte)'T', (byte)'S'];
 
     private static readonly Regex HotkeyBracketRegex = new(
         @"\[&[A-Za-z0-9]\]|\(&[A-Za-z0-9]\)|^\s*(?:\[[A-Za-z0-9]\]|\([A-Za-z0-9]\))\s*",
@@ -21,6 +22,7 @@ public class CsfFile
         TimeSpan.FromSeconds(1));
 
     private readonly Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _extraValues = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets or sets the format version (default 3).</summary>
     public uint Version { get; set; } = 3;
@@ -54,6 +56,10 @@ public class CsfFile
     /// </summary>
     /// <param name="stream">The readable stream containing binary CSF data.</param>
     /// <returns>A loaded <see cref="CsfFile"/> instance.</returns>
+    /// <remarks>
+    /// For labels containing multiple string pairs, only the primary (first) pair is retained
+    /// and serialized on save. Secondary pairs are read to maintain stream alignment.
+    /// </remarks>
     public static CsfFile Load(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -76,56 +82,90 @@ public class CsfFile
 
         for (uint i = 0; i < numLabels; i++)
         {
-            var lblMagic = reader.ReadBytes(4);
-            if (lblMagic.Length < 4 ||
-                lblMagic[0] != MagicLbl[0] || lblMagic[1] != MagicLbl[1] ||
-                lblMagic[2] != MagicLbl[2] || lblMagic[3] != MagicLbl[3])
+            if (!ReadLabel(reader, stream, csf))
             {
                 break;
-            }
-
-            var numStringPairs = reader.ReadUInt32();
-            var labelLen = reader.ReadUInt32();
-            var labelBytes = reader.ReadBytes((int)labelLen);
-            var labelName = Encoding.ASCII.GetString(labelBytes);
-
-            for (uint s = 0; s < numStringPairs; s++)
-            {
-                // Read string header ' RTS' or 'WRTS'
-                var rtsMagic = reader.ReadBytes(4);
-                if (rtsMagic.Length < 4)
-                {
-                    break;
-                }
-
-                var numChars = reader.ReadUInt32();
-
-                // Characters are 16-bit UTF-16 inverted with bitwise NOT (~)
-                var chars = new char[numChars];
-                for (uint c = 0; c < numChars; c++)
-                {
-                    var raw = reader.ReadUInt16();
-                    chars[c] = (char)~raw;
-                }
-
-                var stringValue = new string(chars);
-
-                // Handle WRTS extra string if present
-                if (rtsMagic[0] == (byte)'W')
-                {
-                    var extraLength = reader.ReadUInt32();
-                    _ = reader.ReadBytes((int)extraLength);
-                }
-
-                // Primary string value for the label is the first string pair
-                if (s == 0)
-                {
-                    csf._strings[labelName] = stringValue;
-                }
             }
         }
 
         return csf;
+    }
+
+    private static bool ReadLabel(BinaryReader reader, Stream stream, CsfFile csf)
+    {
+        var lblMagic = reader.ReadBytes(4);
+        if (lblMagic.Length < 4 || !lblMagic.AsSpan().SequenceEqual(MagicLbl))
+        {
+            return false;
+        }
+
+        var numStringPairs = reader.ReadUInt32();
+        var labelLen = reader.ReadUInt32();
+        ValidateStreamRemaining(stream, labelLen, "label length");
+        var labelBytes = reader.ReadBytes((int)labelLen);
+        var labelName = Encoding.ASCII.GetString(labelBytes);
+
+        for (uint s = 0; s < numStringPairs; s++)
+        {
+            ReadStringPair(reader, stream, csf, labelName, isPrimary: s == 0);
+        }
+
+        return true;
+    }
+
+    private static void ReadStringPair(BinaryReader reader, Stream stream, CsfFile csf, string labelName, bool isPrimary)
+    {
+        var rtsMagic = reader.ReadBytes(4);
+        if (rtsMagic.Length < 4)
+        {
+            return;
+        }
+
+        var numChars = reader.ReadUInt32();
+        ValidateStreamRemaining(stream, (long)numChars * 2, "string characters");
+
+        // Characters are 16-bit UTF-16 inverted with bitwise NOT (~)
+        var chars = new char[numChars];
+        for (uint c = 0; c < numChars; c++)
+        {
+            var raw = reader.ReadUInt16();
+            chars[c] = (char)~raw;
+        }
+
+        var stringValue = new string(chars);
+        string? extraValue = null;
+
+        // Handle WRTS extra string if present
+        if (rtsMagic[0] == (byte)'W')
+        {
+            var extraLength = reader.ReadUInt32();
+            ValidateStreamRemaining(stream, extraLength, "extra string length");
+            var extraBytes = reader.ReadBytes((int)extraLength);
+            extraValue = Encoding.ASCII.GetString(extraBytes);
+        }
+
+        // Secondary string pairs are discarded for hotkey editing; only primary is retained
+        if (isPrimary)
+        {
+            csf._strings[labelName] = stringValue;
+            if (!string.IsNullOrEmpty(extraValue))
+            {
+                csf._extraValues[labelName] = extraValue;
+            }
+        }
+    }
+
+    private static void ValidateStreamRemaining(Stream stream, long requiredBytes, string fieldName)
+    {
+        if (requiredBytes < 0 || requiredBytes > int.MaxValue)
+        {
+            throw new InvalidDataException($"Invalid CSF {fieldName} size: {requiredBytes}");
+        }
+
+        if (stream.CanSeek && stream.Length - stream.Position < requiredBytes)
+        {
+            throw new InvalidDataException($"Unexpected end of stream while reading CSF {fieldName}. Expected {requiredBytes} bytes.");
+        }
     }
 
     /// <summary>
@@ -200,7 +240,7 @@ public class CsfFile
             }
         }
 
-        // 2. If text had an inline unbracketed '&' (e.g. "&Dozer") or no hotkey,
+        // 2. If text had an inline unbracketed '&' (e.g. "Dozer") or no hotkey,
         // strip any existing accelerator marker to avoid word mutation (e.g. "&Dozer" -> "Dozer"),
         // then prefix with the standard bracketed indicator.
         var clean = StripHotkey(text);
@@ -224,10 +264,10 @@ public class CsfFile
     }
 
     /// <summary>
-    /// Gets a string value by its label.
+    /// Gets the primary string value by its label.
     /// </summary>
     /// <param name="label">CSF label name.</param>
-    /// <returns>The string value or empty string if not found.</returns>
+    /// <returns>The primary string value or empty string if not found.</returns>
     public string GetString(string label)
     {
         return _strings.TryGetValue(label, out var val) ? val : string.Empty;
@@ -284,14 +324,33 @@ public class CsfFile
             writer.Write((uint)labelBytes.Length);
             writer.Write(labelBytes);
 
-            // ' RTS', length in 16-bit characters, inverted UTF-16 chars
-            writer.Write(MagicRts);
-            writer.Write((uint)val.Length);
-
-            for (int c = 0; c < val.Length; c++)
+            bool hasExtra = _extraValues.TryGetValue(label, out var extraVal) && !string.IsNullOrEmpty(extraVal);
+            if (hasExtra)
             {
-                var raw = (ushort)val[c];
-                writer.Write((ushort)(~raw));
+                // 'WRTS', length in 16-bit characters, inverted UTF-16 chars, extra string length, extra ASCII string
+                writer.Write(MagicWrts);
+                writer.Write((uint)val.Length);
+                for (int c = 0; c < val.Length; c++)
+                {
+                    var raw = (ushort)val[c];
+                    writer.Write((ushort)(~raw));
+                }
+
+                var extraBytes = Encoding.ASCII.GetBytes(extraVal!);
+                writer.Write((uint)extraBytes.Length);
+                writer.Write(extraBytes);
+            }
+            else
+            {
+                // ' RTS', length in 16-bit characters, inverted UTF-16 chars
+                writer.Write(MagicRts);
+                writer.Write((uint)val.Length);
+
+                for (int c = 0; c < val.Length; c++)
+                {
+                    var raw = (ushort)val[c];
+                    writer.Write((ushort)(~raw));
+                }
             }
         }
     }

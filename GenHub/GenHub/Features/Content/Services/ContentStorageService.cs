@@ -109,17 +109,36 @@ public class ContentStorageService : IContentStorageService
 
         try
         {
-            var tempPath = Path.GetFullPath(Path.GetTempPath())
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var fullPath = Path.GetFullPath(path)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var tempPath = Path.GetFullPath(Path.GetTempPath());
+            if (!tempPath.EndsWith(Path.DirectorySeparatorChar) && !tempPath.EndsWith(Path.AltDirectorySeparatorChar))
+            {
+                tempPath += Path.DirectorySeparatorChar;
+            }
 
-            return fullPath.StartsWith(tempPath, StringComparison.OrdinalIgnoreCase);
+            var fullPath = Path.GetFullPath(path);
+            if (!fullPath.EndsWith(Path.DirectorySeparatorChar) && !fullPath.EndsWith(Path.AltDirectorySeparatorChar))
+            {
+                fullPath += Path.DirectorySeparatorChar;
+            }
+
+            var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            return fullPath.StartsWith(tempPath, comparison);
         }
-        catch
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or System.Security.SecurityException)
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Determines whether physical storage should be forced regardless of drive type,
+    /// e.g. for MapPacks or Addons created in temporary directories or user imports.
+    /// </summary>
+    private static bool ShouldForceStorage(ContentManifest manifest, string? sourceDirectory)
+    {
+        return manifest.ContentType is ContentType.MapPack or ContentType.Addon ||
+               IsTempDirectory(sourceDirectory) ||
+               IsTempDirectory(manifest.SourcePath);
     }
 
     /// <summary>
@@ -142,16 +161,10 @@ public class ContentStorageService : IContentStorageService
             return true;
         }
 
-        // Addons created locally in temp directories MUST be stored in CAS because the source (temp dir) will be deleted.
-        // External addons reference their files unless explicitly marked ContentAddressable.
+        // Addons created locally or imported MUST be stored in CAS for durability
         if (manifest.ContentType == ContentType.Addon)
         {
-            if (IsTempDirectory(sourceDirectory) || IsTempDirectory(manifest.SourcePath))
-            {
-                return true;
-            }
-
-            return manifest.Files.Any(f => f.SourceType == ContentSourceType.ContentAddressable);
+            return true;
         }
 
         // GameClient content typically references external installations - no storage needed (old behavior)
@@ -276,9 +289,8 @@ public class ContentStorageService : IContentStorageService
         bool isInvalidDrive = IsInvalidOrRemovableDrive(sourceDirectory);
 
         // MapPacks, Addons, and other local content might be created in temp directories on "invalid" drives (e.g. RAM disks)
-        // We should allow storage if it's a MapPack or temp Addon to ensure it persists after temp cleanup.
-        bool forceStorage = manifest.ContentType == ContentType.MapPack ||
-            (manifest.ContentType == ContentType.Addon && (IsTempDirectory(sourceDirectory) || IsTempDirectory(manifest.SourcePath)));
+        // We should allow storage if it's a MapPack or Addon to ensure it persists after temp cleanup.
+        bool forceStorage = ShouldForceStorage(manifest, sourceDirectory);
 
         if (isInvalidDrive && !forceStorage)
         {
@@ -699,9 +711,7 @@ public class ContentStorageService : IContentStorageService
             return manifest;
         }
 
-        bool forceStorage = manifest.ContentType == ContentType.MapPack ||
-            (manifest.ContentType == ContentType.Addon && (IsTempDirectory(sourceDirectory) || IsTempDirectory(manifest.SourcePath)));
-        if (IsInvalidOrRemovableDrive(sourceDirectory) && !forceStorage)
+        if (IsInvalidOrRemovableDrive(sourceDirectory) && !ShouldForceStorage(manifest, sourceDirectory))
         {
             _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive", sourceDirectory);
             manifest.Files.Clear();

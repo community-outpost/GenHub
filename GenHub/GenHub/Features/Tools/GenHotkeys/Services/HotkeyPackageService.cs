@@ -235,14 +235,7 @@ public class HotkeyPackageService(
         string packageDir,
         CancellationToken cancellationToken)
     {
-        var sanitizedName = SafeFileNameRegex.Replace(profile.Name, "_");
-        if (string.IsNullOrWhiteSpace(sanitizedName))
-        {
-            sanitizedName = "Hotkeys";
-        }
-
-        var gameTag = GenHotkeysConstants.GetGameTag(profile.TargetGame);
-        var bigFileName = string.Format(GenHotkeysConstants.BigFileNamePattern, sanitizedName, gameTag);
+        var bigFileName = GenHotkeysConstants.GetBigFileName(profile.Name, profile.TargetGame, profile.Id);
         var bigFilePath = Path.Combine(packageDir, bigFileName);
 
         await BigFilePacker.PackAsync(stagingDir, bigFilePath, cancellationToken).ConfigureAwait(false);
@@ -518,9 +511,10 @@ public class HotkeyPackageService(
             }
 
             logger.LogWarning(
-                "Failed to update existing manifest '{ManifestId}': {Error}. Falling back to creating new manifest.",
+                "Failed to update existing manifest '{ManifestId}': {Error}",
                 manifestIdToUpdate,
                 updateResult.FirstError);
+            return updateResult;
         }
 
         var createResult = await localContentService.CreateLocalContentManifestAsync(
