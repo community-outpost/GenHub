@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Results;
 using System;
 using System.IO;
-using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Helpers;
 

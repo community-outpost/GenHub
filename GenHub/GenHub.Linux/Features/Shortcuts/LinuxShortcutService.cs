@@ -1,14 +1,15 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Runtime.Versioning;
-using System.Text;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Runtime.Versioning;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace GenHub.Linux.Features.Shortcuts;
 
@@ -25,6 +26,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     private static readonly UTF8Encoding Utf8NoBom = new(false);
 
     /// <inheritdoc />
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Catch all unexpected exceptions to return OperationResult failure instead of crashing.")]
     public async Task<OperationResult<string>> CreateDesktopShortcutAsync(GameProfile profile, string? shortcutName = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -82,6 +84,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Catch all unexpected exceptions to return OperationResult failure instead of crashing.")]
     public Task<OperationResult<bool>> RemoveDesktopShortcutAsync(GameProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -121,6 +124,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Catch all unexpected exceptions to return OperationResult failure instead of crashing.")]
     public Task<OperationResult<bool>> CreateShortcutAsync(
         string shortcutPath,
         string targetPath,
@@ -176,6 +180,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Shortcut repair catches any filesystem or OS exceptions to return an OperationResult failure instead of crashing.")]
     public Task<OperationResult<bool>> RepairApplicationShortcutsAsync()
     {
         var processPath = Environment.ProcessPath;
@@ -446,6 +451,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     /// <summary>
     /// Makes a file executable using chmod.
     /// </summary>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Setting executable permissions is best-effort and should not crash if underlying OS fails.")]
     private void MakeExecutable(string filePath)
     {
         try

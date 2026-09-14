@@ -1,9 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Extensions.GameInstallations;
 
