@@ -546,7 +546,7 @@
                         </Button.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Data="M18,18H6V6H18V18Z" Width="14" Height="14" Foreground="White" />
-                            <TextBlock Text="STOP" VerticalAlignment="Center" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Stop}" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
                     </Button>
 
@@ -579,7 +579,7 @@
                                      </Style>
                                  </Ellipse.Styles>
                              </Ellipse>
-                             <TextBlock Text="RUNNING" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                             <TextBlock Text="{localization:Localize GameProfiles.Card.Status.Running}" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
 
@@ -588,7 +588,7 @@
                         <!-- Edit Button -->
                         <Button Classes="tool-button"
                                 Command="{Binding EditProfileCommand}"
-                                ToolTip.Tip="Edit Profile (Hotswap Content)">
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.EditProfileHotswap}">
                             <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                                       Width="14" Height="14" />
                         </Button>

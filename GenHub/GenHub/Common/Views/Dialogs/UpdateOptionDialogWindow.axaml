@@ -59,24 +59,24 @@
                     <Border Background="#20FFFFFF" CornerRadius="6" Padding="16" Margin="0,8,0,0">
                         <StackPanel Spacing="12">
                             <RadioButton IsChecked="{Binding IsReplaceCurrentVersion}"
-                                         Content="Replace (Update current version)"
+                                         Content="{localization:Localize Dialog.UpdateOption.Radio.Replace}"
                                          Foreground="White" FontWeight="Medium"/>
 
-                            <TextBlock Text="Updates the current version in existing profiles. Superseded version files (old game client, map pack, data patch) will be deleted to save disk space."
+                            <TextBlock Text="{localization:Localize Dialog.UpdateOption.Description.Replace}"
                                        FontSize="12" Foreground="#A0A0A0" Margin="28,-8,0,0"
                                        TextWrapping="Wrap"/>
 
                             <CheckBox IsChecked="{Binding DeleteOldVersions}"
                                       IsEnabled="{Binding CanDeleteOldVersions}"
-                                      Content="Delete superseded version files from storage"
-                                      ToolTip.Tip="Removes previous version files from local storage to prevent accumulating unused versions"
+                                      Content="{localization:Localize Dialog.UpdateOption.Checkbox.DeleteOldVersions}"
+                                      ToolTip.Tip="{localization:Localize Dialog.UpdateOption.Tooltip.DeleteOldVersions}"
                                       Foreground="#B0B0B0" FontSize="12" Margin="28,-4,0,4"/>
 
                             <RadioButton IsChecked="{Binding IsCreateNewProfile}"
-                                         Content="Create New Profile"
+                                         Content="{localization:Localize Dialog.UpdateOption.Radio.CreateNewProfile}"
                                          Foreground="White" FontWeight="Medium"/>
 
-                            <TextBlock Text="Creates a new companion profile for the new version, keeping your current version, files, and profile intact."
+                            <TextBlock Text="{localization:Localize Dialog.UpdateOption.Description.CreateNewProfile}"
                                        FontSize="12" Foreground="#A0A0A0" Margin="28,-8,0,0"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
@@ -87,17 +87,17 @@
                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,32,0,0">
                     <CheckBox Grid.Column="0"
                               IsChecked="{Binding IsDoNotAskAgain}"
-                              Content="Don't ask again"
-                              ToolTip.Tip="Remember this choice for future updates"
+                              Content="{localization:Localize Common.Checkbox.DontAskAgain}"
+                              ToolTip.Tip="{localization:Localize Common.Checkbox.DontAskAgain.Tooltip}"
                               Foreground="#C0C0C0" VerticalAlignment="Center"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="16">
-                        <Button Command="{Binding SkipCommand}" Content="Cancel"
+                        <Button Command="{Binding SkipCommand}" Content="{localization:Localize Common.Button.Cancel}"
                                 Background="Transparent" BorderBrush="#40FFFFFF" BorderThickness="1"
                                 Foreground="White" Padding="20,10" CornerRadius="4"
-                                ToolTip.Tip="Cancel this update (no files will be downloaded or modified)"/>
+                                ToolTip.Tip="{localization:Localize Dialog.UpdateOption.Tooltip.Cancel}"/>
 
-                        <Button Command="{Binding UpdateCommand}" Content="Update"
+                        <Button Command="{Binding UpdateCommand}" Content="{localization:Localize Dialog.UpdateOption.Button.Update}"
                                 Background="{DynamicResource PrimaryGradientBrush}"
                                 FontWeight="SemiBold" Foreground="White" Padding="24,10" CornerRadius="4" />
                     </StackPanel>

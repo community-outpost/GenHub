@@ -360,7 +360,8 @@ public class MainViewModelTests
             notificationService.Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            new Mock<ILocalizationService>().Object);
     }
 
     private static Mock<INotificationService> CreateNotificationServiceMock()

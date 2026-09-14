@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" ?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -12,7 +12,7 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-    <data name="App.Name" xml:space="preserve">
+  <data name="App.Name" xml:space="preserve">
     <value>GenHub</value>
     <comment>Application name shown in window titles and other product identity surfaces.</comment>
   </data>
@@ -717,7 +717,7 @@
     <comment>Status message shown when scan completes. {0} is the count of installations found</comment>
   </data>
   <data name="GameProfiles.Status.ScanFailed" xml:space="preserve">
-    <value>Сканирование не удалось: {0}</value>
+    <value>Ошибка сканирования: {0}</value>
     <comment>Status message shown when scan fails. {0} is the error message</comment>
   </data>
   <data name="GameProfiles.Status.Scanning" xml:space="preserve">
@@ -2164,10 +2164,6 @@
     <value>Закрыть</value>
     <comment>Close window.</comment>
   </data>
-  <data name="Window.Maximize" xml:space="preserve">
-    <value>Развернуть или восстановить</value>
-    <comment>Maximize or restore window.</comment>
-  </data>
   <data name="Window.MaximizeRestore" xml:space="preserve">
     <value>Развернуть или восстановить</value>
     <comment>Maximize or restore window.</comment>
@@ -2183,54 +2179,6 @@
   <data name="Tooltips.Notifications" xml:space="preserve">
     <value>Уведомления</value>
     <comment>Tooltip for the notification bell button.</comment>
-  </data>
-  <data name="AppUpdate.Button.CheckForUpdates" xml:space="preserve">
-    <value>Проверить обновления</value>
-  </data>
-  <data name="AppUpdate.Button.Unsubscribe" xml:space="preserve">
-    <value>Отписаться</value>
-  </data>
-  <data name="AppUpdate.Button.ViewReleaseNotes" xml:space="preserve">
-    <value>Список изменений</value>
-  </data>
-  <data name="AppUpdate.Label.Branches" xml:space="preserve">
-    <value>Ветки</value>
-  </data>
-  <data name="AppUpdate.Label.InstallationSource" xml:space="preserve">
-    <value>Источник установки</value>
-  </data>
-  <data name="AppUpdate.Label.OpenPullRequests" xml:space="preserve">
-    <value>Открытые Pull Requests</value>
-  </data>
-  <data name="AppUpdate.Label.SelectVersion" xml:space="preserve">
-    <value>Выберите версию</value>
-  </data>
-  <data name="AppUpdate.Label.SortBy" xml:space="preserve">
-    <value>Сортировка:</value>
-  </data>
-  <data name="AppUpdate.Tab.BrowseBuilds" xml:space="preserve">
-    <value>Обзор сборок</value>
-  </data>
-  <data name="AppUpdate.Tab.Update" xml:space="preserve">
-    <value>Обновление</value>
-  </data>
-  <data name="AppUpdate.Title.UpdateAvailable" xml:space="preserve">
-    <value>Доступно обновление!</value>
-  </data>
-  <data name="AppUpdate.Title.Window" xml:space="preserve">
-    <value>Обновления GenHub</value>
-  </data>
-  <data name="AppUpdate.Tooltip.CheckForUpdates" xml:space="preserve">
-    <value>Проверить наличие обновлений вручную</value>
-  </data>
-  <data name="AppUpdate.Tooltip.Dismiss" xml:space="preserve">
-    <value>Закрыть уведомление</value>
-  </data>
-  <data name="AppUpdate.Tooltip.ForceRefresh" xml:space="preserve">
-    <value>Принудительно обновить</value>
-  </data>
-  <data name="AppUpdate.Tooltip.OpenPrUrl" xml:space="preserve">
-    <value>Открыть запрос на GitHub</value>
   </data>
   <data name="GameProfiles.Button.Scan" xml:space="preserve">
     <value>СКАНИРОВАТЬ</value>
@@ -2299,7 +2247,7 @@
     <value>Выберите инструмент на панели для просмотра сведений</value>
   </data>
   <data name="Tools.MapManager.Button.Pack" xml:space="preserve">
-    <value>Пакет</value>
+    <value>Упаковать</value>
   </data>
   <data name="Tools.MapManager.DragDrop.Subtitle" xml:space="preserve">
     <value>Папки с картами или ZIP-архивы с файлами карт</value>
@@ -2353,22 +2301,22 @@
     <value>Имя файла</value>
   </data>
   <data name="Tools.ReplayManager.Column.Modified" xml:space="preserve">
-    <value>Изменено</value>
+    <value>Дата изменения</value>
   </data>
   <data name="Tools.ReplayManager.Column.Size" xml:space="preserve">
     <value>Размер</value>
   </data>
   <data name="Tools.ReplayManager.DragDrop.Subtitle" xml:space="preserve">
-    <value>Только отдельные файлы .rep или ZIP-архивы</value>
+    <value>Отпустите, чтобы импортировать файлы реплеев</value>
   </data>
   <data name="Tools.ReplayManager.DragDrop.Title" xml:space="preserve">
-    <value>Перетащите повторы или ZIP для импорта</value>
+    <value>Перетащите реплеи сюда</value>
   </data>
   <data name="Tools.ReplayManager.Empty.Subtitle" xml:space="preserve">
-    <value>Перетащите файлы .rep или .zip сюда или вставьте ссылку на повтор выше</value>
+    <value>Импортируйте реплеи с помощью панели инструментов выше или перетащите файлы сюда</value>
   </data>
   <data name="Tools.ReplayManager.Empty.Title" xml:space="preserve">
-    <value>Повторы не найдены</value>
+    <value>Реплеи не найдены</value>
   </data>
   <data name="Tools.ReplayManager.Game.Generals" xml:space="preserve">
     <value>Generals</value>
@@ -2392,7 +2340,7 @@
     <value>Безвозвратно удалить выбранные файлы повторов с вашего компьютера.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.ImportFromUrl" xml:space="preserve">
-    <value>Импортировать по ссылке</value>
+    <value>Импортировать по URL</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.OpenFolder" xml:space="preserve">
     <value>Открыть папку</value>
@@ -2434,8 +2382,755 @@
   <data name="Tools.ReplayManager.Watermark.ZipName" xml:space="preserve">
     <value>Имя ZIP</value>
   </data>
-<data name="GameProfiles.Status.LoadedProfiles" xml:space="preserve"><value>Загружено профилей: {0}</value></data><data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve"><value>Сканирование завершено! Найдено установок: {0}</value></data><data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve"><value>Сканирование завершено! Новых установок не найдено</value></data><data name="GameProfiles.Status.ProfileLaunched" xml:space="preserve"><value>Запущен профиль: {0}</value></data><data name="GameProfiles.Status.LaunchFailed" xml:space="preserve"><value>Не удалось запустить профиль: {0}</value></data><data name="GameProfiles.Status.ProfileDeleted" xml:space="preserve"><value>Удален профиль: {0}</value></data><data name="GameProfiles.Status.DeleteFailed" xml:space="preserve"><value>Не удалось удалить профиль: {0}</value></data><data name="Replays.Tab.Generals" xml:space="preserve"><value>Generals</value></data><data name="Replays.Tab.ZeroHour" xml:space="preserve"><value>Zero Hour</value></data><data name="Replays.Watermark.ImportUrl" xml:space="preserve"><value>Вставьте URL реплея или ID матча...</value></data><data name="Replays.Tooltip.ImportUrlFormats" xml:space="preserve"><value>Поддерживаемые форматы:
+  <data name="GameProfiles.Status.LoadedProfiles" xml:space="preserve">
+    <value>Загружено профилей: {0}</value>
+  </data>
+  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
+    <value>Сканирование завершено. Найдено установок: {0}, создано профилей: {1}</value>
+  </data>
+  <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
+    <value>Сканирование завершено! Новых установок не найдено</value>
+  </data>
+  <data name="GameProfiles.Status.ProfileLaunched" xml:space="preserve">
+    <value>Запущен профиль: {0}</value>
+  </data>
+  <data name="GameProfiles.Status.LaunchFailed" xml:space="preserve">
+    <value>Не удалось запустить профиль: {0}</value>
+  </data>
+  <data name="GameProfiles.Status.ProfileDeleted" xml:space="preserve">
+    <value>Удален профиль: {0}</value>
+  </data>
+  <data name="GameProfiles.Status.DeleteFailed" xml:space="preserve">
+    <value>Не удалось удалить профиль: {0}</value>
+  </data>
+  <data name="Replays.Tab.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Replays.Tab.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Replays.Watermark.ImportUrl" xml:space="preserve">
+    <value>Вставьте URL реплея или ID матча...</value>
+  </data>
+  <data name="Replays.Tooltip.ImportUrlFormats" xml:space="preserve">
+    <value>Поддерживаемые форматы:
 • URL Generals Online или ID матча (напр. 151553)
 • URL реплея GenTool
 • Ссылка GenHub / UploadThing
-• Прямая ссылка для скачивания (.rep/.zip)</value></data><data name="Replays.Button.Import" xml:space="preserve"><value>Импорт</value></data><data name="Replays.Tooltip.ImportFromUrl" xml:space="preserve"><value>Импортировать по URL</value></data><data name="Replays.Tooltip.BrowseFiles" xml:space="preserve"><value>Обзор файлов</value></data><data name="Replays.Watermark.Search" xml:space="preserve"><value>Поиск реплеев...</value></data><data name="Replays.Tooltip.RefreshList" xml:space="preserve"><value>Обновить список</value></data><data name="Replays.Tooltip.OpenFolder" xml:space="preserve"><value>Открыть папку</value></data><data name="Replays.Column.Filename" xml:space="preserve"><value>Имя файла</value></data><data name="Replays.Column.Size" xml:space="preserve"><value>Размер</value></data><data name="Replays.Column.Modified" xml:space="preserve"><value>Дата изменения</value></data><data name="Replays.Column.Actions" xml:space="preserve"><value>Действия</value></data><data name="Replays.Tooltip.RevealInExplorer" xml:space="preserve"><value>Показать в проводнике</value></data><data name="Replays.Tooltip.ParseDetails" xml:space="preserve"><value>Анализ деталей реплея (скоро)</value></data><data name="Replays.Button.Parse" xml:space="preserve"><value>АНАЛИЗ</value></data><data name="Replays.Empty.Title" xml:space="preserve"><value>Реплеи не найдены</value></data><data name="Replays.Empty.Description" xml:space="preserve"><value>Перетащите файлы .rep или .zip сюда или вставьте ссылку на реплей выше</value></data><data name="Replays.DragDrop.Title" xml:space="preserve"><value>Перетащите реплеи или ZIP для импорта</value></data><data name="Replays.DragDrop.Subtitle" xml:space="preserve"><value>Только отдельные файлы .rep или ZIP-архивы</value></data><data name="Replays.Label.Selected" xml:space="preserve"><value>Выбрано:</value></data><data name="Replays.Button.Delete" xml:space="preserve"><value>Удалить</value></data><data name="Replays.Tooltip.DeleteSelected" xml:space="preserve"><value>Навсегда удалить выбранные файлы реплеев с компьютера.</value></data><data name="Replays.Button.Uncompress" xml:space="preserve"><value>Распаковать</value></data><data name="Replays.Tooltip.UncompressSelected" xml:space="preserve"><value>Извлечь файлы реплеев из выбранных ZIP-архивов.</value></data><data name="Replays.Watermark.ZipName" xml:space="preserve"><value>Имя ZIP</value></data><data name="Replays.Tooltip.ZipName" xml:space="preserve"><value>Имя файла для нового ZIP-архива</value></data><data name="Replays.Button.Zip" xml:space="preserve"><value>Сжать</value></data><data name="Replays.Tooltip.ZipSelected" xml:space="preserve"><value>Создать новый ZIP-архив с выбранными файлами реплеев.</value></data><data name="Replays.Button.Upload" xml:space="preserve"><value>Загрузить</value></data><data name="Replays.Tooltip.UploadAndShare" xml:space="preserve"><value>Загрузить выбранные реплеи в облако и скопировать ссылку.</value></data><data name="Replays.Tooltip.ViewHistory" xml:space="preserve"><value>Посмотреть историю загруженных реплеев.</value></data><data name="Replays.Label.Active" xml:space="preserve"><value>Активно</value></data><data name="Replays.Label.Expired" xml:space="preserve"><value>Истекло</value></data><data name="Replays.Tooltip.CopyLink" xml:space="preserve"><value>Скопировать ссылку для скачивания этого реплея.</value></data><data name="Replays.Tooltip.DeleteHistoryItem" xml:space="preserve"><value>Удалить этот файл из облака и очистить из истории.</value></data><data name="Replays.Empty.NoHistory" xml:space="preserve"><value>Истории пока нет</value></data><data name="Replays.Button.ClearAllHistory" xml:space="preserve"><value>Очистить всю историю</value></data><data name="Replays.Tooltip.ClearHistory" xml:space="preserve"><value>Удалить все загруженные файлы из облака и очистить историю.</value></data><data name="Replays.Notice.StorageQuota" xml:space="preserve"><value>Файлы хранятся до 14 дней или до заполнения хранилища. Максимальная квота 10 МБ на пользователя (3-дневный скользящий лимит). Дубликаты дедуплицируются автоматически.</value></data><data name="Maps.Tab.Generals" xml:space="preserve"><value>Generals</value></data><data name="Maps.Tab.ZeroHour" xml:space="preserve"><value>Zero Hour</value></data><data name="Maps.Watermark.ImportUrl" xml:space="preserve"><value>Вставьте URL карты...</value></data><data name="Maps.Button.Import" xml:space="preserve"><value>Импорт</value></data><data name="Maps.Tooltip.ImportFromUrl" xml:space="preserve"><value>Импортировать по URL</value></data><data name="Maps.Tooltip.BrowseFiles" xml:space="preserve"><value>Обзор файлов</value></data><data name="Maps.Watermark.Search" xml:space="preserve"><value>Поиск...</value></data><data name="Maps.Tooltip.RefreshList" xml:space="preserve"><value>Обновить список</value></data><data name="Maps.Tooltip.OpenFolder" xml:space="preserve"><value>Открыть папку</value></data><data name="Maps.Button.Pack" xml:space="preserve"><value>Пак</value></data><data name="Maps.Tooltip.MapPackManager" xml:space="preserve"><value>Менеджер паков карт</value></data><data name="Maps.Column.Name" xml:space="preserve"><value>Имя</value></data><data name="Maps.Column.Size" xml:space="preserve"><value>Размер</value></data><data name="Maps.Column.Type" xml:space="preserve"><value>Тип</value></data><data name="Maps.Column.Modified" xml:space="preserve"><value>Дата изменения</value></data><data name="Maps.Empty.Title" xml:space="preserve"><value>Карты не найдены</value></data><data name="Maps.Empty.Description" xml:space="preserve"><value>Перетащите файлы .map или .zip сюда или вставьте ссылку на карту выше</value></data><data name="Maps.DragDrop.Title" xml:space="preserve"><value>Перетащите карты или ZIP для импорта</value></data><data name="Maps.DragDrop.Subtitle" xml:space="preserve"><value>Только отдельные файлы .map или ZIP-архивы</value></data><data name="Maps.Label.Selected" xml:space="preserve"><value>Выбрано:</value></data><data name="Maps.Button.Delete" xml:space="preserve"><value>Удалить</value></data><data name="Maps.Tooltip.DeleteSelected" xml:space="preserve"><value>Навсегда удалить выбранные карты с компьютера.</value></data><data name="Maps.Button.Uncompress" xml:space="preserve"><value>Распаковать</value></data><data name="Maps.Tooltip.UncompressSelected" xml:space="preserve"><value>Извлечь карты из выбранных ZIP-архивов.</value></data><data name="Maps.Watermark.ZipName" xml:space="preserve"><value>Имя ZIP (.zip добавится)</value></data><data name="Maps.Tooltip.ZipName" xml:space="preserve"><value>Имя файла для нового ZIP-архива. Расширение .zip будет добавлено автоматически.</value></data><data name="GameProfiles.Card.Menu.EditProfile" xml:space="preserve"><value>Редактировать профиль</value></data><data name="GameProfiles.Card.Menu.CreateShortcut" xml:space="preserve"><value>Создать ярлык</value></data><data name="GameProfiles.Card.Menu.CopyProfile" xml:space="preserve"><value>Копировать профиль</value></data><data name="GameProfiles.Card.Menu.DeleteProfile" xml:space="preserve"><value>Удалить профиль</value></data><data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve"><value>Переключить интеграцию со Steam</value></data><data name="GameProfiles.Card.Tooltip.EditProfile" xml:space="preserve"><value>Редактировать профиль</value></data><data name="GameProfiles.Card.Tooltip.CopyProfile" xml:space="preserve"><value>Копировать профиль</value></data><data name="GameProfiles.Card.Tooltip.CreateShortcut" xml:space="preserve"><value>Создать ярлык на рабочем столе</value></data><data name="GameProfiles.Card.Tooltip.DeleteProfile" xml:space="preserve"><value>Удалить профиль</value></data><data name="GameProfiles.Card.Action.Launch" xml:space="preserve"><value>ЗАПУСК</value></data><data name="Maps.MapPack.Title" xml:space="preserve"><value>Менеджер пакетов карт</value></data><data name="Maps.MapPack.Subtitle" xml:space="preserve"><value>Создание и управление коллекциями карт</value></data><data name="Maps.MapPack.CreateNew" xml:space="preserve"><value>Создать новый</value></data><data name="Maps.MapPack.SelectedMaps" xml:space="preserve"><value>Выбранные карты</value></data><data name="Maps.MapPack.NoMapsSelected" xml:space="preserve"><value>Карты не выбраны</value></data><data name="Maps.MapPack.PackName" xml:space="preserve"><value>Имя пакета</value></data><data name="Maps.MapPack.Watermark" xml:space="preserve"><value>напр., Турнирные карты 2024</value></data><data name="Maps.MapPack.Button.Create" xml:space="preserve"><value>Создать пакет карт</value></data><data name="Maps.MapPack.ExistingPacks" xml:space="preserve"><value>Существующие пакеты карт</value></data><data name="Maps.MapPack.NoPacksFound" xml:space="preserve"><value>Пакеты карт не найдены</value></data><data name="Maps.MapPack.Badge.Loaded" xml:space="preserve"><value>ЗАГРУЖЕНО</value></data><data name="Maps.MapPack.Tooltip.Delete" xml:space="preserve"><value>Удалить этот пакет карт.</value></data><data name="Updates.Window.Title" xml:space="preserve"><value>Обновления GenHub</value></data><data name="Updates.Tab.Update" xml:space="preserve"><value>Обновление</value></data><data name="Updates.Tab.BrowseBuilds" xml:space="preserve"><value>Обзор сборок</value></data><data name="Updates.SortBy.Label" xml:space="preserve"><value>Сортировать по:</value></data><data name="Updates.Card.AvailableTitle" xml:space="preserve"><value>Доступно обновление!</value></data><data name="Updates.Tooltip.ForceRefresh" xml:space="preserve"><value>Принудительно обновить</value></data><data name="Updates.Tooltip.Dismiss" xml:space="preserve"><value>Отклонить обновление</value></data><data name="Updates.Button.ViewReleaseNotes" xml:space="preserve"><value>Просмотр примечаний к выпуску</value></data><data name="Updates.InstallationSource.Label" xml:space="preserve"><value>Источник установки</value></data><data name="Updates.Button.Unsubscribe" xml:space="preserve"><value>Отписаться</value></data><data name="Updates.SelectVersion.Label" xml:space="preserve"><value>Выберите версию</value></data><data name="Updates.OpenPRs.Label" xml:space="preserve"><value>Открытые Pull Requests</value></data><data name="Updates.Tooltip.OpenPR" xml:space="preserve"><value>Открыть pull request на GitHub</value></data><data name="Updates.Branches.Label" xml:space="preserve"><value>Ветки</value></data><data name="Updates.Button.CheckForUpdates" xml:space="preserve"><value>Проверить обновления</value></data><data name="Updates.Tooltip.CheckForUpdates" xml:space="preserve"><value>Вручную проверить обновления и восстановить уведомления</value></data><data name="Updates.Button.Subscribe" xml:space="preserve"><value>Подписаться</value></data><data name="Updates.Button.Subscribed" xml:space="preserve"><value>Подписка оформлена</value></data><data name="Tools.Button.AddToolAction" xml:space="preserve"><value>Добавить инструмент</value></data><data name="Tools.Button.RefreshToolsAction" xml:space="preserve"><value>Обновить инструменты</value></data><data name="Common.Tooltip.MaximizeRestore" xml:space="preserve"><value>Развернуть / Восстановить</value></data><data name="Common.Tooltip.CloseWindow" xml:space="preserve"><value>Закрыть окно</value></data></root>
+• Прямая ссылка для скачивания (.rep/.zip)</value>
+  </data>
+  <data name="Replays.Button.Import" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Replays.Tooltip.ImportFromUrl" xml:space="preserve">
+    <value>Импортировать по URL</value>
+  </data>
+  <data name="Replays.Tooltip.BrowseFiles" xml:space="preserve">
+    <value>Обзор файлов</value>
+  </data>
+  <data name="Replays.Watermark.Search" xml:space="preserve">
+    <value>Поиск реплеев...</value>
+  </data>
+  <data name="Replays.Tooltip.RefreshList" xml:space="preserve">
+    <value>Обновить список</value>
+  </data>
+  <data name="Replays.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Replays.Column.Filename" xml:space="preserve">
+    <value>Имя файла</value>
+  </data>
+  <data name="Replays.Column.Size" xml:space="preserve">
+    <value>Размер</value>
+  </data>
+  <data name="Replays.Column.Modified" xml:space="preserve">
+    <value>Дата изменения</value>
+  </data>
+  <data name="Replays.Column.Actions" xml:space="preserve">
+    <value>Действия</value>
+  </data>
+  <data name="Replays.Tooltip.RevealInExplorer" xml:space="preserve">
+    <value>Показать в проводнике</value>
+  </data>
+  <data name="Replays.Tooltip.ParseDetails" xml:space="preserve">
+    <value>Анализ деталей реплея (скоро)</value>
+  </data>
+  <data name="Replays.Button.Parse" xml:space="preserve">
+    <value>АНАЛИЗ</value>
+  </data>
+  <data name="Replays.Empty.Title" xml:space="preserve">
+    <value>Реплеи не найдены</value>
+  </data>
+  <data name="Replays.Empty.Description" xml:space="preserve">
+    <value>Перетащите файлы .rep или .zip сюда или вставьте ссылку на реплей выше</value>
+  </data>
+  <data name="Replays.DragDrop.Title" xml:space="preserve">
+    <value>Перетащите реплеи или ZIP для импорта</value>
+  </data>
+  <data name="Replays.DragDrop.Subtitle" xml:space="preserve">
+    <value>Только отдельные файлы .rep или ZIP-архивы</value>
+  </data>
+  <data name="Replays.Label.Selected" xml:space="preserve">
+    <value>Выбрано:</value>
+  </data>
+  <data name="Replays.Button.Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Replays.Tooltip.DeleteSelected" xml:space="preserve">
+    <value>Навсегда удалить выбранные файлы реплеев с компьютера.</value>
+  </data>
+  <data name="Replays.Button.Uncompress" xml:space="preserve">
+    <value>Распаковать</value>
+  </data>
+  <data name="Replays.Tooltip.UncompressSelected" xml:space="preserve">
+    <value>Извлечь файлы реплеев из выбранных ZIP-архивов.</value>
+  </data>
+  <data name="Replays.Watermark.ZipName" xml:space="preserve">
+    <value>Имя ZIP</value>
+  </data>
+  <data name="Replays.Tooltip.ZipName" xml:space="preserve">
+    <value>Имя файла для нового ZIP-архива</value>
+  </data>
+  <data name="Replays.Button.Zip" xml:space="preserve">
+    <value>Сжать</value>
+  </data>
+  <data name="Replays.Tooltip.ZipSelected" xml:space="preserve">
+    <value>Создать новый ZIP-архив с выбранными файлами реплеев.</value>
+  </data>
+  <data name="Replays.Button.Upload" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="Replays.Tooltip.UploadAndShare" xml:space="preserve">
+    <value>Загрузить выбранные реплеи в облако и скопировать ссылку.</value>
+  </data>
+  <data name="Replays.Tooltip.ViewHistory" xml:space="preserve">
+    <value>Посмотреть историю загруженных реплеев.</value>
+  </data>
+  <data name="Replays.Label.Active" xml:space="preserve">
+    <value>Активно</value>
+  </data>
+  <data name="Replays.Label.Expired" xml:space="preserve">
+    <value>Истекло</value>
+  </data>
+  <data name="Replays.Tooltip.CopyLink" xml:space="preserve">
+    <value>Скопировать ссылку для скачивания этого реплея.</value>
+  </data>
+  <data name="Replays.Tooltip.DeleteHistoryItem" xml:space="preserve">
+    <value>Удалить этот файл из облака и очистить из истории.</value>
+  </data>
+  <data name="Replays.Empty.NoHistory" xml:space="preserve">
+    <value>Истории пока нет</value>
+  </data>
+  <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
+    <value>Очистить всю историю</value>
+  </data>
+  <data name="Replays.Tooltip.ClearHistory" xml:space="preserve">
+    <value>Удалить все загруженные файлы из облака и очистить историю.</value>
+  </data>
+  <data name="Replays.Notice.StorageQuota" xml:space="preserve">
+    <value>Файлы хранятся до 14 дней или до заполнения хранилища. Максимальная квота 10 МБ на пользователя (3-дневный скользящий лимит). Дубликаты дедуплицируются автоматически.</value>
+  </data>
+  <data name="Maps.Tab.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Maps.Tab.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Maps.Watermark.ImportUrl" xml:space="preserve">
+    <value>Вставьте URL карты...</value>
+  </data>
+  <data name="Maps.Button.Import" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Maps.Tooltip.ImportFromUrl" xml:space="preserve">
+    <value>Импортировать по URL</value>
+  </data>
+  <data name="Maps.Tooltip.BrowseFiles" xml:space="preserve">
+    <value>Обзор файлов</value>
+  </data>
+  <data name="Maps.Watermark.Search" xml:space="preserve">
+    <value>Поиск...</value>
+  </data>
+  <data name="Maps.Tooltip.RefreshList" xml:space="preserve">
+    <value>Обновить список</value>
+  </data>
+  <data name="Maps.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Maps.Button.Pack" xml:space="preserve">
+    <value>Упаковать</value>
+  </data>
+  <data name="Maps.Tooltip.MapPackManager" xml:space="preserve">
+    <value>Менеджер пакетов карт</value>
+  </data>
+  <data name="Maps.Column.Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Maps.Column.Size" xml:space="preserve">
+    <value>Размер</value>
+  </data>
+  <data name="Maps.Column.Type" xml:space="preserve">
+    <value>Тип</value>
+  </data>
+  <data name="Maps.Column.Modified" xml:space="preserve">
+    <value>Дата изменения</value>
+  </data>
+  <data name="Maps.Empty.Title" xml:space="preserve">
+    <value>Карты не найдены</value>
+  </data>
+  <data name="Maps.Empty.Description" xml:space="preserve">
+    <value>Импортируйте карты с помощью панели инструментов выше или перетащите архивы сюда</value>
+  </data>
+  <data name="Maps.DragDrop.Title" xml:space="preserve">
+    <value>Перетащите карты сюда</value>
+  </data>
+  <data name="Maps.DragDrop.Subtitle" xml:space="preserve">
+    <value>Отпустите, чтобы импортировать карты или архивы карт</value>
+  </data>
+  <data name="Maps.Label.Selected" xml:space="preserve">
+    <value>Выбрано:</value>
+  </data>
+  <data name="Maps.Button.Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Maps.Tooltip.DeleteSelected" xml:space="preserve">
+    <value>Навсегда удалить выбранные карты с компьютера.</value>
+  </data>
+  <data name="Maps.Button.Uncompress" xml:space="preserve">
+    <value>Распаковать</value>
+  </data>
+  <data name="Maps.Tooltip.UncompressSelected" xml:space="preserve">
+    <value>Извлечь карты из выбранных ZIP-архивов.</value>
+  </data>
+  <data name="Maps.Watermark.ZipName" xml:space="preserve">
+    <value>Имя ZIP (.zip добавится)</value>
+  </data>
+  <data name="Maps.Tooltip.ZipName" xml:space="preserve">
+    <value>Имя файла для нового ZIP-архива. Расширение .zip будет добавлено автоматически.</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.EditProfile" xml:space="preserve">
+    <value>Редактировать профиль</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.CreateShortcut" xml:space="preserve">
+    <value>Создать ярлык</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.CopyProfile" xml:space="preserve">
+    <value>Копировать профиль</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.DeleteProfile" xml:space="preserve">
+    <value>Удалить профиль</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
+    <value>Переключить интеграцию со Steam</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.EditProfile" xml:space="preserve">
+    <value>Редактировать профиль</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.CopyProfile" xml:space="preserve">
+    <value>Копировать профиль</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.CreateShortcut" xml:space="preserve">
+    <value>Создать ярлык на рабочем столе</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.DeleteProfile" xml:space="preserve">
+    <value>Удалить профиль</value>
+  </data>
+  <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
+    <value>ЗАПУСК</value>
+  </data>
+  <data name="Maps.MapPack.Title" xml:space="preserve">
+    <value>Менеджер пакетов карт</value>
+  </data>
+  <data name="Maps.MapPack.Subtitle" xml:space="preserve">
+    <value>Создание и управление коллекциями карт</value>
+  </data>
+  <data name="Maps.MapPack.CreateNew" xml:space="preserve">
+    <value>Создать новый</value>
+  </data>
+  <data name="Maps.MapPack.SelectedMaps" xml:space="preserve">
+    <value>Выбранные карты</value>
+  </data>
+  <data name="Maps.MapPack.NoMapsSelected" xml:space="preserve">
+    <value>Карты не выбраны</value>
+  </data>
+  <data name="Maps.MapPack.PackName" xml:space="preserve">
+    <value>Имя пакета</value>
+  </data>
+  <data name="Maps.MapPack.Watermark" xml:space="preserve">
+    <value>напр., Турнирные карты 2024</value>
+  </data>
+  <data name="Maps.MapPack.Button.Create" xml:space="preserve">
+    <value>Создать пакет карт</value>
+  </data>
+  <data name="Maps.MapPack.ExistingPacks" xml:space="preserve">
+    <value>Существующие пакеты карт</value>
+  </data>
+  <data name="Maps.MapPack.NoPacksFound" xml:space="preserve">
+    <value>Пакеты карт не найдены</value>
+  </data>
+  <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
+    <value>ЗАГРУЖЕНО</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.Delete" xml:space="preserve">
+    <value>Удалить этот пакет карт.</value>
+  </data>
+  <data name="Updates.Window.Title" xml:space="preserve">
+    <value>Обновления GenHub</value>
+  </data>
+  <data name="Updates.Tab.Update" xml:space="preserve">
+    <value>Обновление</value>
+  </data>
+  <data name="Updates.Tab.BrowseBuilds" xml:space="preserve">
+    <value>Обзор сборок</value>
+  </data>
+  <data name="Updates.SortBy.Label" xml:space="preserve">
+    <value>Сортировать по:</value>
+  </data>
+  <data name="Updates.Card.AvailableTitle" xml:space="preserve">
+    <value>Доступно обновление!</value>
+  </data>
+  <data name="Updates.Tooltip.ForceRefresh" xml:space="preserve">
+    <value>Принудительно обновить</value>
+  </data>
+  <data name="Updates.Tooltip.Dismiss" xml:space="preserve">
+    <value>Отклонить обновление</value>
+  </data>
+  <data name="Updates.Button.ViewReleaseNotes" xml:space="preserve">
+    <value>Просмотр примечаний к выпуску</value>
+  </data>
+  <data name="Updates.InstallationSource.Label" xml:space="preserve">
+    <value>Источник установки</value>
+  </data>
+  <data name="Updates.Button.Unsubscribe" xml:space="preserve">
+    <value>Отписаться</value>
+  </data>
+  <data name="Updates.SelectVersion.Label" xml:space="preserve">
+    <value>Выберите версию</value>
+  </data>
+  <data name="Updates.OpenPRs.Label" xml:space="preserve">
+    <value>Открытые Pull Requests</value>
+  </data>
+  <data name="Updates.Tooltip.OpenPR" xml:space="preserve">
+    <value>Открыть pull request на GitHub</value>
+  </data>
+  <data name="Updates.Branches.Label" xml:space="preserve">
+    <value>Ветки</value>
+  </data>
+  <data name="Updates.Button.CheckForUpdates" xml:space="preserve">
+    <value>Проверить обновления</value>
+  </data>
+  <data name="Updates.Tooltip.CheckForUpdates" xml:space="preserve">
+    <value>Вручную проверить обновления и восстановить уведомления</value>
+  </data>
+  <data name="Updates.Button.Subscribe" xml:space="preserve">
+    <value>Подписаться</value>
+  </data>
+  <data name="Updates.Button.Subscribed" xml:space="preserve">
+    <value>Подписка оформлена</value>
+  </data>
+  <data name="Tools.Button.AddToolAction" xml:space="preserve">
+    <value>Добавить инструмент</value>
+  </data>
+  <data name="Tools.Button.RefreshToolsAction" xml:space="preserve">
+    <value>Обновить инструменты</value>
+  </data>
+  <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
+    <value>Развернуть / Восстановить</value>
+  </data>
+  <data name="Common.Tooltip.CloseWindow" xml:space="preserve">
+    <value>Закрыть окно</value>
+  </data>
+  <data name="GameProfiles.Status.FailedToLoad" xml:space="preserve">
+    <value>Не удалось загрузить профили</value>
+  </data>
+  <data name="GameProfiles.Status.AlreadyLaunching" xml:space="preserve">
+    <value>Игра уже запускается или работает. Пожалуйста, подождите или остановите её.</value>
+  </data>
+  <data name="GameProfiles.Status.Validating" xml:space="preserve">
+    <value>Проверка файлов игры...</value>
+  </data>
+  <data name="GameProfiles.Status.ScanCompleteNone" xml:space="preserve">
+    <value>Сканирование завершено. Установки игры не найдены.</value>
+  </data>
+  <data name="GameProfiles.Status.WorkspaceReady" xml:space="preserve">
+    <value>Рабочая область готова: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanFailed" xml:space="preserve">
+    <value>Ошибка сканирования: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchSuccess.Title" xml:space="preserve">
+    <value>Игра запущена</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchSuccess.Message" xml:space="preserve">
+    <value>Профиль '{0}' успешно запущен (PID: {1})</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchFailed.Title" xml:space="preserve">
+    <value>Ошибка запуска</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchFailed.Message" xml:space="preserve">
+    <value>Не удалось запустить профиль '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.StopSuccess.Title" xml:space="preserve">
+    <value>Игра остановлена</value>
+  </data>
+  <data name="GameProfiles.Notification.StopSuccess.Message" xml:space="preserve">
+    <value>Профиль '{0}' успешно остановлен</value>
+  </data>
+  <data name="GameProfiles.Notification.StopFailed.Title" xml:space="preserve">
+    <value>Ошибка остановки</value>
+  </data>
+  <data name="GameProfiles.Notification.StopFailed.Message" xml:space="preserve">
+    <value>Не удалось остановить профиль '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.HotswapMode.Title" xml:space="preserve">
+    <value>Режим горячей замены</value>
+  </data>
+  <data name="GameProfiles.Notification.HotswapMode.Message" xml:space="preserve">
+    <value>Профиль '{0}' запущен. Переход в режим горячей замены.</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileDeleted.Title" xml:space="preserve">
+    <value>Профиль удален</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileDeleted.Message" xml:space="preserve">
+    <value>Профиль '{0}' успешно удален</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceReady.Title" xml:space="preserve">
+    <value>Рабочая область подготовлена</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceReady.Message" xml:space="preserve">
+    <value>Рабочая область готова для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceFailed.Title" xml:space="preserve">
+    <value>Ошибка подготовки рабочей области</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceFailed.Message" xml:space="preserve">
+    <value>Не удалось подготовить рабочую область для профиля '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutCreated.Title" xml:space="preserve">
+    <value>Ярлык создан</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutCreated.Message" xml:space="preserve">
+    <value>Ярлык на рабочем столе создан для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutFailed.Title" xml:space="preserve">
+    <value>Ошибка создания ярлыка</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutFailed.Message" xml:space="preserve">
+    <value>Не удалось создать ярлык: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamEnabled.Title" xml:space="preserve">
+    <value>Интеграция со Steam включена</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamEnabled.Message" xml:space="preserve">
+    <value>Интеграция со Steam включена для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamDisabled.Title" xml:space="preserve">
+    <value>Интеграция со Steam отключена</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamDisabled.Message" xml:space="preserve">
+    <value>Интеграция со Steam отключена для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamToggleFailed.Title" xml:space="preserve">
+    <value>Ошибка интеграции со Steam</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamToggleFailed.Message" xml:space="preserve">
+    <value>Не удалось обновить интеграцию со Steam: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopied.Title" xml:space="preserve">
+    <value>Профиль скопирован</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopied.Message" xml:space="preserve">
+    <value>Профиль скопирован как '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopyFailed.Title" xml:space="preserve">
+    <value>Ошибка копирования</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopyFailed.Message" xml:space="preserve">
+    <value>Не удалось скопировать профиль: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.DirectoryNotFound.Title" xml:space="preserve">
+    <value>Каталог не найден</value>
+  </data>
+  <data name="GameProfiles.Notification.DirectoryNotFound.Message" xml:space="preserve">
+    <value>Каталог не существует: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.OpenDirectoryFailed.Title" xml:space="preserve">
+    <value>Не удалось открыть каталог</value>
+  </data>
+  <data name="GameProfiles.Notification.OpenDirectoryFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог: {0}</value>
+  </data>
+  <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
+    <value>СТОП</value>
+  </data>
+  <data name="GameProfiles.Card.Status.Running" xml:space="preserve">
+    <value>РАБОТАЕТ</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
+    <value>Редактировать профиль (горячая замена)</value>
+  </data>
+  <data name="Notifications.Tooltip.Options" xml:space="preserve">
+    <value>Параметры уведомлений</value>
+  </data>
+  <data name="Notifications.Options.Enable" xml:space="preserve">
+    <value>Включить уведомления</value>
+  </data>
+  <data name="Notifications.Options.MuteSession" xml:space="preserve">
+    <value>Отключить на эту сессию</value>
+  </data>
+  <data name="Notifications.Options.MutePermanently" xml:space="preserve">
+    <value>Отключить навсегда</value>
+  </data>
+  <data name="Notifications.Button.ClearAll" xml:space="preserve">
+    <value>Очистить все</value>
+  </data>
+  <data name="Notifications.Empty.AllCaughtUp" xml:space="preserve">
+    <value>Все прочитано!</value>
+  </data>
+  <data name="Notifications.Tooltip.Dismiss" xml:space="preserve">
+    <value>Закрыть уведомление</value>
+  </data>
+  <data name="Common.Checkbox.DontAskAgain" xml:space="preserve">
+    <value>Больше не спрашивать</value>
+  </data>
+  <data name="Common.Checkbox.DontAskAgain.Tooltip" xml:space="preserve">
+    <value>Запомнить этот выбор для будущих обновлений</value>
+  </data>
+  <data name="Common.Checkbox.DontShowAgain" xml:space="preserve">
+    <value>Больше не показывать</value>
+  </data>
+  <data name="Common.Tooltip.CloseSidebar" xml:space="preserve">
+    <value>Закрыть боковую панель</value>
+  </data>
+  <data name="Common.Tooltip.ExpandSidebar" xml:space="preserve">
+    <value>Развернуть боковую панель</value>
+  </data>
+  <data name="Dialog.UpdateOption.Radio.Replace" xml:space="preserve">
+    <value>Заменить (обновить текущую версию)</value>
+  </data>
+  <data name="Dialog.UpdateOption.Description.Replace" xml:space="preserve">
+    <value>Обновляет текущую версию в существующих профилях. Устаревшие файлы версий будут удалены для экономии места на диске.</value>
+  </data>
+  <data name="Dialog.UpdateOption.Checkbox.DeleteOldVersions" xml:space="preserve">
+    <value>Удалить файлы устаревших версий из хранилища</value>
+  </data>
+  <data name="Dialog.UpdateOption.Tooltip.DeleteOldVersions" xml:space="preserve">
+    <value>Удаляет файлы предыдущих версий из локального хранилища, предотвращая накопление неиспользуемых версий</value>
+  </data>
+  <data name="Dialog.UpdateOption.Radio.CreateNewProfile" xml:space="preserve">
+    <value>Создать новый профиль</value>
+  </data>
+  <data name="Dialog.UpdateOption.Description.CreateNewProfile" xml:space="preserve">
+    <value>Создает новый сопутствующий профиль для новой версии, сохраняя текущую версию, файлы и профиль нетронутыми.</value>
+  </data>
+  <data name="Dialog.UpdateOption.Tooltip.Cancel" xml:space="preserve">
+    <value>Отменить это обновление (файлы не будут загружены или изменены)</value>
+  </data>
+  <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Maps.Button.Zip" xml:space="preserve">
+    <value>Сжать</value>
+  </data>
+  <data name="Maps.Tooltip.UploadAndShare" xml:space="preserve">
+    <value>Загрузить и создать временную ссылку для общего доступа</value>
+  </data>
+  <data name="Maps.Button.Upload" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="Maps.Tooltip.ViewHistory" xml:space="preserve">
+    <value>Просмотреть историю загрузок</value>
+  </data>
+  <data name="Maps.Label.Active" xml:space="preserve">
+    <value>Активна</value>
+  </data>
+  <data name="Maps.Label.Expired" xml:space="preserve">
+    <value>Истекла</value>
+  </data>
+  <data name="Maps.Tooltip.CopyLink" xml:space="preserve">
+    <value>Копировать ссылку в буфер обмена</value>
+  </data>
+  <data name="Maps.Tooltip.DeleteHistoryItem" xml:space="preserve">
+    <value>Удалить из истории</value>
+  </data>
+  <data name="Maps.Empty.NoHistory" xml:space="preserve">
+    <value>История загрузок пуста</value>
+  </data>
+  <data name="Maps.Tooltip.ClearHistory" xml:space="preserve">
+    <value>Очистить всю историю</value>
+  </data>
+  <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
+    <value>Очистить всю историю</value>
+  </data>
+  <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
+    <value>Загруженные файлы хранятся 30 дней. Максимальный размер файла: 50 МБ. Повторяющиеся файлы автоматически дедуплицируются.</value>
+  </data>
+  <data name="Maps.Tooltip.ZipSelected" xml:space="preserve">
+    <value>Создать новый ZIP-архив, содержащий выбранные файлы карт.</value>
+  </data>
+  <data name="GameProfiles.Notification.GameStopped.Title" xml:space="preserve">
+    <value>Игра остановлена</value>
+  </data>
+  <data name="GameProfiles.Notification.GameStopped.Message" xml:space="preserve">
+    <value>Профиль '{0}' успешно остановлен</value>
+  </data>
+  <data name="GameProfiles.Notification.LoadFailed.Title" xml:space="preserve">
+    <value>Ошибка загрузки профилей</value>
+  </data>
+  <data name="GameProfiles.Notification.LoadFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить профили игры: {0}</value>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreatedSuccess" xml:space="preserve">
+    <value>Профиль '{0}' успешно создан</value>
+  </data>
+  <data name="GameProfiles.Notification.CopySuccess.Title" xml:space="preserve">
+    <value>Профиль скопирован</value>
+  </data>
+  <data name="GameProfiles.Notification.CopySuccess.Message" xml:space="preserve">
+    <value>Профиль '{0}' успешно скопирован</value>
+  </data>
+  <data name="GameProfiles.Notification.StopError.Title" xml:space="preserve">
+    <value>Ошибка остановки</value>
+  </data>
+  <data name="GameProfiles.Notification.StopError.Message" xml:space="preserve">
+    <value>Ошибка при остановке профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Error.FailedToCopyProfile" xml:space="preserve">
+    <value>Не удалось скопировать профиль '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Error.ErrorCopyingProfile" xml:space="preserve">
+    <value>Ошибка при копировании профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyError.Title" xml:space="preserve">
+    <value>Ошибка копирования</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyError.Message" xml:space="preserve">
+    <value>Ошибка при копировании профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyFailed.Title" xml:space="preserve">
+    <value>Не удалось скопировать</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyFailed.Message" xml:space="preserve">
+    <value>Не удалось скопировать профиль '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.CopyFailedSource.Message" xml:space="preserve">
+    <value>Не удалось скопировать профиль: исходный профиль '{0}' не найден</value>
+  </data>
+  <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
+    <value>Неверный каталог</value>
+  </data>
+  <data name="GameProfiles.Notification.InvalidDirectory.Message" xml:space="preserve">
+    <value>Каталог не существует или недопустим: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ProcessDirectoryError.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegration.Title" xml:space="preserve">
+    <value>Интеграция со Steam</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegration.Message" xml:space="preserve">
+    <value>Интеграция со Steam {0} для профиля '{1}'</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegrationError.Title" xml:space="preserve">
+    <value>Ошибка интеграции со Steam</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamIntegrationError.Message" xml:space="preserve">
+    <value>Не удалось обновить интеграцию со Steam для профиля '{0}': {1}</value>
+  </data>
+  <data name="Common.State.Enabled" xml:space="preserve">
+    <value>включена</value>
+  </data>
+  <data name="Common.State.Disabled" xml:space="preserve">
+    <value>отключена</value>
+  </data>
+  <data name="GameProfiles.Notification.GameLaunched.Title" xml:space="preserve">
+    <value>Игра запущена</value>
+  </data>
+  <data name="GameProfiles.Notification.GameLaunched.Message" xml:space="preserve">
+    <value>Профиль '{0}' успешно запущен</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchError.Title" xml:space="preserve">
+    <value>Ошибка запуска</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchError.Message" xml:space="preserve">
+    <value>Ошибка при запуске профиля '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceError.Title" xml:space="preserve">
+    <value>Ошибка рабочей области</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceError.Message" xml:space="preserve">
+    <value>Не удалось подготовить рабочую область для профиля '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Status.ShortcutCreatedSuccess" xml:space="preserve">
+    <value>Ярлык создан для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.OpenNewProfileError.Message" xml:space="preserve">
+    <value>Не удалось открыть диалог нового профиля: {0}</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutError.Title" xml:space="preserve">
+    <value>Ошибка ярлыка</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutError.Message" xml:space="preserve">
+    <value>Ошибка при создании ярлыка для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Status.InvalidProfile" xml:space="preserve">
+    <value>Выбранный профиль недействителен</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.Title" xml:space="preserve">
+    <value>Сканирование завершено</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.Message" xml:space="preserve">
+    <value>Сканирование игр завершено! Создано новых профилей: {0}.</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteError.Title" xml:space="preserve">
+    <value>Ошибка удаления</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteError.Message" xml:space="preserve">
+    <value>Ошибка при удалении профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteFailed.Title" xml:space="preserve">
+    <value>Не удалось удалить</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить профиль '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Status.UpdatingLaunchMode" xml:space="preserve">
+    <value>Обновление режима запуска для профиля '{0}'...</value>
+  </data>
+  <data name="GameProfiles.Error.ErrorUpdatingLaunchMode" xml:space="preserve">
+    <value>Ошибка обновления режима запуска для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Status.CopyingProfile" xml:space="preserve">
+    <value>Копирование профиля '{0}'...</value>
+  </data>
+  <data name="GameProfiles.Status.SteamLaunchUpdated" xml:space="preserve">
+    <value>Режим запуска Steam обновлен для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Error.FailedToCreateShortcut" xml:space="preserve">
+    <value>Не удалось создать ярлык для профиля '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Status.CreatingShortcut" xml:space="preserve">
+    <value>Создание ярлыка на рабочем столе для профиля '{0}'...</value>
+  </data>
+  <data name="GameProfiles.Error.ErrorStoppingProfile" xml:space="preserve">
+    <value>Ошибка при остановке профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Error.ErrorCreatingShortcut" xml:space="preserve">
+    <value>Ошибка при создании ярлыка для профиля '{0}'</value>
+  </data>
+  <data name="GameProfiles.Status.EditCancelled" xml:space="preserve">
+    <value>Редактирование профиля отменено</value>
+  </data>
+  <data name="GameProfiles.Notification.Error.Title" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="GameProfiles.Status.ProfileCopiedSuccess" xml:space="preserve">
+    <value>Профиль успешно скопирован в '{0}'</value>
+  </data>
+  <data name="GameProfiles.Status.ProfileCreationCancelled" xml:space="preserve">
+    <value>Создание профиля отменено</value>
+  </data>
+  <data name="GameProfiles.Error.ErrorEditingProfile" xml:space="preserve">
+    <value>Ошибка редактирования профиля '{0}'</value>
+  </data>
+</root>

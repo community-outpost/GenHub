@@ -367,6 +367,7 @@ public class UserSettingsService : IUserSettingsService
         return jsonPropertyName switch
         {
             "theme" => nameof(UserSettings.Theme),
+            "language" => nameof(UserSettings.Language),
             "windowWidth" => nameof(UserSettings.WindowWidth),
             "windowHeight" => nameof(UserSettings.WindowHeight),
             "isMaximized" => nameof(UserSettings.IsMaximized),

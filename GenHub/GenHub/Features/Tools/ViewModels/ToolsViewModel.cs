@@ -10,7 +10,10 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
+using System.ComponentModel;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Messages;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -24,8 +27,14 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <param name="toolService">The tool service for managing plugins.</param>
 /// <param name="logger">The logger instance.</param>
 /// <param name="serviceProvider">The service provider for dependency injection.</param>
-public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewModel> logger, IServiceProvider serviceProvider) : ObservableObject, IRecipient<ToolStatusMessage>
+/// <param name="localizationService">The optional localization service for language change notifications.</param>
+public partial class ToolsViewModel(
+    IToolManager toolService,
+    ILogger<ToolsViewModel> logger,
+    IServiceProvider serviceProvider,
+    ILocalizationService? localizationService = null) : ObservableObject, IRecipient<ToolStatusMessage>, IDisposable
 {
+    private ILocalizationService? _effectiveLocalizationService;
     [ObservableProperty]
     private IToolPlugin? _selectedTool;
 
@@ -98,6 +107,13 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             if (!WeakReferenceMessenger.Default.IsRegistered<ToolStatusMessage>(this))
             {
                 WeakReferenceMessenger.Default.Register(this);
+            }
+
+            _effectiveLocalizationService ??= localizationService ?? serviceProvider.GetService<ILocalizationService>();
+            if (_effectiveLocalizationService != null)
+            {
+                _effectiveLocalizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+                _effectiveLocalizationService.PropertyChanged += OnLocalizationPropertyChanged;
             }
 
             IsLoading = true;
@@ -489,5 +505,39 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         var cts = new System.Threading.CancellationTokenSource();
         _statusHideCts = cts;
         _ = AutoHideStatusAsync(() => IsStatusVisible = false, cts.Token);
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == "Item[]")
+        {
+            if (InstalledTools.Count > 0)
+            {
+                var currentSelected = SelectedTool;
+                var tools = InstalledTools.ToList();
+                InstalledTools.Clear();
+                foreach (var tool in tools)
+                {
+                    InstalledTools.Add(tool);
+                }
+
+                SelectedTool = currentSelected != null
+                    ? InstalledTools.FirstOrDefault(t => t.Metadata.Id == currentSelected.Metadata.Id)
+                    : null;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (_effectiveLocalizationService != null)
+        {
+            _effectiveLocalizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+        }
+
+        _statusHideCts?.Cancel();
+        _statusHideCts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

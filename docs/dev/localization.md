@@ -145,19 +145,19 @@ When adding new features, views, dialogs, or modifying existing ones, strictly f
    - Format strings with parameters must use standard indexed placeholders `{0}`, `{1}`, etc.
    - Example: `<value>Downloaded {0} of {1}</value>`
    - C# call: `_localizationService.GetString("Downloads.Status.Progress", completed, total)`
-2. **Strict 1:1 Resx Key Parity Across All Languages:**
+5. **Strict 1:1 Resx Key Parity Across All Languages:**
    - Every key present in `Strings.resx` must also exist in all satellite `.resx` files (`Strings.ar.resx`, `Strings.ru.resx`, etc.).
    - When adding, updating, or removing keys in `Strings.resx`, always apply the corresponding changes to all satellite files simultaneously with appropriate translations.
    - Never leave translated resources missing keys from the neutral file.
-3. **Dynamic Collections & Navigation Sidebars:**
+6. **Dynamic Collections & Navigation Sidebars:**
    - When navigation items or sidebars (such as `SettingsViewModel.Sections`) are generated from collections with localized titles, subscribe to `_localizationService.PropertyChanged` (checking for `CurrentCulture` or indexer changes) to update item titles dynamically upon culture switches without requiring an application restart.
-4. **Tool & Plugin Localization:**
+7. **Tool & Plugin Localization:**
    - For dynamically loaded tools/plugins where models implement `ToolMetadata` or `IToolPlugin`, use `LocalizedToolNameConverter` (`{Binding, Converter={StaticResource LocalizedToolNameConverter}}`) in XAML. The converter checks for `Tools.<ToolId>.Name` or `Tools.<Name>.Name` in resources, falling back to the plugin's metadata title.
-5. **Adding New Language Translations (Future PRs):**
+8. **Adding New Language Translations (Future PRs):**
    - Create satellite resource files matching the culture name beside `Strings.resx`:
      - `Strings.de.resx` (German)
      - `Strings.fr.resx` (French)
      - `Strings.zh-Hans.resx` (Simplified Chinese)
-     - `Strings.ru.resx` (Russian)
+     - `Strings.es.resx` (Spanish)
    - Ensure all keys from `Strings.resx` are copied and translated with strict 1:1 key parity.
    - At runtime, `LocalizationService` discovers satellite assemblies automatically and populates `AvailableCultures`, which will appear in the Settings Language selector without manual list edits.

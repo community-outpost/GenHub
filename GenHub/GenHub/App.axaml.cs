@@ -59,7 +59,15 @@ public partial class App : Application
         {
             try
             {
-                _localizationService.SetCulture(new CultureInfo(configuredLanguage));
+                var result = _localizationService.SetCulture(new CultureInfo(configuredLanguage));
+                if (!result.Success)
+                {
+                    var logger = _serviceProvider?.GetService<ILogger<App>>();
+                    logger?.LogWarning(
+                        "Failed to apply configured language '{Language}': {Errors}; falling back to default",
+                        configuredLanguage,
+                        string.Join(", ", result.Errors));
+                }
             }
             catch (CultureNotFoundException ex)
             {

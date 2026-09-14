@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Notifications.ViewModels"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="100"
              x:Class="GenHub.Features.Notifications.Views.NotificationFeedItemView"
              x:DataType="vm:NotificationFeedItemViewModel">
@@ -154,6 +155,7 @@
             <!-- Dismiss Button Area -->
             <Button Grid.Column="1" Grid.Row="0"
                     Command="{Binding DismissCommand}"
+                    ToolTip.Tip="{localization:Localize Notifications.Tooltip.Dismiss}"
                     Classes="dismiss-button"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Top"
