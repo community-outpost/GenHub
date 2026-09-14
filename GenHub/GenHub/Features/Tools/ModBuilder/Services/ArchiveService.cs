@@ -106,27 +106,32 @@ public sealed class ArchiveService(
     {
         if (!string.IsNullOrEmpty(manifestFilePath))
         {
-            return await LoadExplicitManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
+            return await LoadExplicitManifestAsync(sourceDirectory, targetBigPath, manifestFilePath, cancellationToken).ConfigureAwait(false);
         }
 
         return await DiscoverManifestAsync(sourceDirectory, targetBigPath, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<BigArchiveManifest?> LoadExplicitManifestAsync(
+        string sourceDirectory,
+        string targetBigPath,
         string manifestFilePath,
         CancellationToken cancellationToken)
     {
         if (!File.Exists(manifestFilePath))
         {
-            logger.LogWarning("Configured manifest file does not exist: {Path}", manifestFilePath);
-            return null;
+            logger.LogWarning("Configured manifest file does not exist: {Path}. Falling back to manifest discovery.", manifestFilePath);
+            return await DiscoverManifestAsync(sourceDirectory, targetBigPath, cancellationToken).ConfigureAwait(false);
         }
 
-        return await TryLoadManifestCandidateAsync(
-            manifestFilePath,
-            "Using explicit BIG archive manifest from {Path}",
-            "Failed to load explicit BIG archive manifest from {Path}",
-            cancellationToken).ConfigureAwait(false);
+        var manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
+        if (manifest != null)
+        {
+            logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
+            return manifest;
+        }
+
+        throw new InvalidOperationException($"Explicitly configured manifest at '{manifestFilePath}' could not be loaded.");
     }
 
     private async Task<BigArchiveManifest?> DiscoverManifestAsync(

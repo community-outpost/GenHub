@@ -857,7 +857,6 @@ public sealed class BuildEngineService(
             {
                 var mismatchMsg = $"BIG archive SHA256 mismatch for {Path.GetFileName(packFilePath)}! Expected {manifest.Sha256}, got {builtSha256}";
                 logger.LogWarning("{MismatchMessage}", mismatchMsg);
-                _lastErrorMessage = mismatchMsg;
             }
         }
         catch (OperationCanceledException)

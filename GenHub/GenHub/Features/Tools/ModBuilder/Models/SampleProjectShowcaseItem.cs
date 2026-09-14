@@ -43,7 +43,7 @@ public sealed class SampleProjectShowcaseItem
     /// <summary>
     /// Gets a value indicating whether byte-for-byte reproducible build is verified against official publisher binary.
     /// </summary>
-    public bool IsReproducibleVerified { get; init; } = true;
+    public bool IsReproducibleVerified => !string.IsNullOrWhiteSpace(ExpectedSha256);
 
     /// <summary>
     /// Gets the expected SHA-256 hash of the publisher's binary.

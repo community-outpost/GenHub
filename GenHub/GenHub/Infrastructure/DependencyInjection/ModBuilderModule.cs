@@ -43,7 +43,6 @@ public static class ModBuilderModule
         // ViewModels
         services.AddTransient<ModBuilderViewModel>();
         services.AddTransient<FileManagerViewModel>();
-        services.AddTransient<ProjectDashboardViewModel>();
 
         // Tool Plugin
         services.AddSingleton<IToolPlugin, ModBuilderToolPlugin>();

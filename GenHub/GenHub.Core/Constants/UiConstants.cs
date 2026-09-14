@@ -132,11 +132,6 @@ public static class UiConstants
     public const string DefaultStatusBackgroundColor = "Transparent";
 
     /// <summary>
-    /// Default status text color for tool status bars.
-    /// </summary>
-    public const string DefaultStatusTextColor = "";
-
-    /// <summary>
     /// SVG path data for transparent checkmark icon.
     /// </summary>
     public const string TransparentCheckmarkIconPath = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";

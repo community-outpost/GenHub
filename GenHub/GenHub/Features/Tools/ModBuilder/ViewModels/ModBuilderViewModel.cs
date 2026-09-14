@@ -157,7 +157,6 @@ public partial class ModBuilderViewModel(
             TargetGame = "Generals",
             OutputFileName = "500_900_CommunityPatch_CoreINI.big",
             Tag = "Balance & Bugfix",
-            IsReproducibleVerified = true,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.GeneralsGamePatch2Sha256,
         },
         new SampleProjectShowcaseItem
@@ -169,7 +168,6 @@ public partial class ModBuilderViewModel(
             TargetGame = "Zero Hour",
             OutputFileName = "0_ImprovedMenusEnglish.big",
             Tag = "Widescreen UI",
-            IsReproducibleVerified = true,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.ImprovedMenusSha256,
         },
         new SampleProjectShowcaseItem
@@ -181,7 +179,6 @@ public partial class ModBuilderViewModel(
             TargetGame = "Zero Hour",
             OutputFileName = "340_ControlBarProLemonEdition1080ZH.big",
             Tag = "Control Bar",
-            IsReproducibleVerified = true,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.LemonControlBarSha256,
         },
         new SampleProjectShowcaseItem
@@ -193,7 +190,6 @@ public partial class ModBuilderViewModel(
             TargetGame = "Zero Hour",
             OutputFileName = "!HotkeysLeikezeENZH.big",
             Tag = "Competitive Hotkeys",
-            IsReproducibleVerified = true,
             ExpectedSha256 = ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256,
         },
     ];
@@ -451,12 +447,6 @@ public partial class ModBuilderViewModel(
     /// </summary>
     [ObservableProperty]
     private string _statusColor = DefaultStatusColor;
-
-    /// <summary>
-    /// Gets or sets the status text color for the status bar.
-    /// </summary>
-    [ObservableProperty]
-    private string _statusTextColor = UiConstants.DefaultStatusTextColor;
 
     /// <summary>
     /// Gets or sets the file count.
@@ -807,7 +797,18 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        if (IsBuildRunning)
+        var canStart = await InvokeOnUIThreadAsync(() =>
+        {
+            if (IsBuildRunning)
+            {
+                return false;
+            }
+
+            IsBuildRunning = true;
+            return true;
+        }).ConfigureAwait(false);
+
+        if (!canStart)
         {
             notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
             return;
@@ -847,7 +848,6 @@ public partial class ModBuilderViewModel(
 
     private async Task ExecuteImportBigFilesAsync(List<string> selectedPaths)
     {
-        await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
         try
         {
             logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
@@ -1214,7 +1214,15 @@ public partial class ModBuilderViewModel(
         }
 
         await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
-        using var cts = new CancellationTokenSource();
+        if (_importCancellationTokenSource != null)
+        {
+            await _importCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+            _importCancellationTokenSource.Dispose();
+            _importCancellationTokenSource = null;
+        }
+
+        var cts = new CancellationTokenSource();
+        _importCancellationTokenSource = cts;
         try
         {
             logger.LogInformation("OpenSampleProjectAsync requested for {SampleId} ({SampleName})", item.Id, item.Name);
@@ -1265,6 +1273,12 @@ public partial class ModBuilderViewModel(
         }
         finally
         {
+            if (_importCancellationTokenSource == cts)
+            {
+                _importCancellationTokenSource = null;
+            }
+
+            cts.Dispose();
             await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
         }
     }
@@ -3118,6 +3132,18 @@ public partial class ModBuilderViewModel(
         }
     }
 
+    private static async Task<T> InvokeOnUIThreadAsync<T>(Func<T> function)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            return function();
+        }
+        else
+        {
+            return await Dispatcher.UIThread.InvokeAsync(function);
+        }
+    }
+
     private static async Task InvokeOnUIThreadAsync(Func<Task> action)
     {
         if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
@@ -3244,6 +3270,7 @@ public partial class ModBuilderViewModel(
         if (disposing)
         {
             fileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
+            fileManager.Dispose();
 
             _buildCancellationTokenSource?.Cancel();
             _buildCancellationTokenSource?.Dispose();
