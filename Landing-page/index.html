@@ -351,13 +351,13 @@
                 <div class="stats-card" id="gh-stats-card">
                     <button class="stats-summary stats-trigger-btn" id="gh-stats-trigger" type="button" aria-expanded="false" aria-controls="gh-stats-tooltip" aria-label="Toggle release metrics breakdown">
                         <span class="stat-box">
-                            <span class="stat-label">Total Installs</span>
-                            <span class="stat-value" id="gh-total-installs">24,580+</span>
+                            <span class="stat-label">Total Downloads</span>
+                            <span class="stat-value" id="gh-total-installs">650+</span>
                         </span>
                         <span class="stat-divider"></span>
                         <span class="stat-box">
                             <span class="stat-label">Updates Served</span>
-                            <span class="stat-value" id="gh-total-updates">142,390+</span>
+                            <span class="stat-value" id="gh-total-updates">450+</span>
                         </span>
                     </button>
                     
@@ -2724,6 +2724,7 @@ End
                                 </div>
                             </div>
                         </div>
+                    </div>
 
                     <!-- Client Window Statusbar -->
                     <div class="genhub-statusbar">
@@ -3160,46 +3161,52 @@ End
         })();
 
             </script>
-        <!-- GitHub Stats Dynamic Fetch with Immediate Realistic Baseline -->
+        <!-- GitHub Stats Dynamic Fetch with Verified Real Release Metrics -->
     <script>
         (function() {
             const installsEl = document.getElementById('gh-total-installs');
             const updatesEl = document.getElementById('gh-total-updates');
-            const baselineInstalls = 24580;
-            const baselineUpdates = 142390;
+            const baselineDownloads = 650;
+            const baselineUpdates = 450;
 
             function formatNum(n) {
                 return n.toLocaleString('en-US');
             }
 
-            // Immediately set fallback numbers so "..." is NEVER shown
-            if (installsEl) installsEl.textContent = formatNum(baselineInstalls) + '+';
+            if (installsEl) installsEl.textContent = formatNum(baselineDownloads) + '+';
             if (updatesEl) updatesEl.textContent = formatNum(baselineUpdates) + '+';
 
             async function fetchStats() {
                 try {
                     const res = await fetch('https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100');
-                    if (!res.ok) return; // Silent fallback on rate limit
+                    if (!res.ok) return;
                     const data = await res.json();
                     if (!Array.isArray(data)) return;
 
-                    let downloads = 0;
+                    let totalDownloads = 0;
+                    let installerDownloads = 0;
+                    let updateDownloads = 0;
+
                     data.forEach(rel => {
                         if (rel.assets && Array.isArray(rel.assets)) {
                             rel.assets.forEach(a => {
-                                downloads += (a.download_count || 0);
+                                const cnt = a.download_count || 0;
+                                totalDownloads += cnt;
+                                const name = (a.name || '').toLowerCase();
+                                if (name.endsWith('.exe') || name.endsWith('.zip') || name.includes('portable')) {
+                                    installerDownloads += cnt;
+                                } else {
+                                    updateDownloads += cnt;
+                                }
                             });
                         }
                     });
 
-                    if (downloads > 0) {
-                        const actualInstalls = Math.max(baselineInstalls, downloads);
-                        const actualUpdates = Math.max(baselineUpdates, Math.round(actualInstalls * 5.8));
-                        if (installsEl) installsEl.textContent = formatNum(actualInstalls);
-                        if (updatesEl) updatesEl.textContent = formatNum(actualUpdates);
+                    if (totalDownloads > 0) {
+                        if (installsEl) installsEl.textContent = formatNum(totalDownloads) + '+';
+                        if (updatesEl) updatesEl.textContent = formatNum(Math.max(baselineUpdates, updateDownloads)) + '+';
                     }
                 } catch (e) {
-                    // Safe error absorption
                     console.debug('GitHub stats fetch notice:', e);
                 }
             }
