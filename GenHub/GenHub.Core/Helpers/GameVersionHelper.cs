@@ -14,6 +14,8 @@ public static partial class GameVersionHelper
 {
     /// <summary>
     /// Determines whether a detected client version carries no usable version information.
+    /// The set is deliberately broad: the manifest id generator rejects any version that is not
+    /// numeric, so a value that slips through here throws when an id is minted from it.
     /// </summary>
     /// <param name="version">The detected version string.</param>
     /// <returns><c>true</c> when the version is absent or a placeholder; otherwise <c>false</c>.</returns>
@@ -21,7 +23,8 @@ public static partial class GameVersionHelper
     {
         return string.IsNullOrWhiteSpace(version)
             || version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase)
-            || version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase);
+            || version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase)
+            || version.Equals(GameClientConstants.AutoUpdatedVersion, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -51,7 +54,10 @@ public static partial class GameVersionHelper
     /// </summary>
     /// <param name="detectedVersion">The version reported by the detected client.</param>
     /// <param name="gameType">The game type. Only Generals and Zero Hour are supported.</param>
-    /// <returns>The detected version when usable; otherwise the game-type default.</returns>
+    /// <returns>
+    /// The detected version when usable, the game-type default when it is not, or the detected
+    /// version unchanged when the game type has no default.
+    /// </returns>
     public static string ResolveInstallationVersion(string? detectedVersion, GameType gameType)
     {
         if (!IsUnknownVersion(detectedVersion))

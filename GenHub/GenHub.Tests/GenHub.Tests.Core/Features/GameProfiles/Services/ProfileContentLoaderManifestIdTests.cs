@@ -1,4 +1,5 @@
-using System.Linq;
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -9,12 +10,14 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.Services;
 
@@ -117,6 +120,90 @@ public class ProfileContentLoaderManifestIdTests
         Assert.Equal(expected, GameVersionHelper.ResolveInstallationVersion("Unknown", gameType));
     }
 
+    /// <summary>
+    /// Verifies that resolving a version for a game type with no default never throws. The enabled
+    /// content restore reaches this path with a pooled manifest's TargetGame and its catch sits
+    /// outside the loop, so one throw would silently truncate the rest of a profile's content.
+    /// </summary>
+    [Fact]
+    public void ResolveInstallationVersion_WithUnsupportedGameType_DoesNotThrow()
+    {
+        var ex = Record.Exception(
+            () => GameVersionHelper.ResolveInstallationVersion(null, GameType.Unknown));
+
+        Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// Verifies the self-updating sentinel counts as an unknown version. It is not numeric, so an
+    /// id minted from it verbatim throws inside the manifest id generator.
+    /// </summary>
+    [Fact]
+    public void ResolveInstallationVersion_WithSelfUpdatingSentinel_UsesTheGameTypeDefault()
+    {
+        Assert.Equal(
+            ManifestConstants.ZeroHourManifestVersion,
+            GameVersionHelper.ResolveInstallationVersion(
+                GameClientConstants.AutoUpdatedVersion, GameType.ZeroHour));
+    }
+
+    /// <summary>
+    /// Verifies that a pooled GameInstallation manifest whose target game has no default version
+    /// does not abort the enabled-content restore. The catch in LoadEnabledContentForProfileAsync
+    /// sits outside the loop, so a throw here silently drops every remaining item in the profile.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnabledContentRestore_WithUnsupportedTargetGame_KeepsLoadingTheRestAsync()
+    {
+        const string installationId = "1.0.custom.gameinstallation.generals";
+        const string addonId = "1.0.communityoutpost.addon.testaddon";
+
+        var installation = new GameInstallation("C:\\custom", GameInstallationType.Custom)
+        {
+            AvailableGameClients =
+            [
+                new GameClient { Id = "client-id", GameType = GameType.Unknown, Version = string.Empty },
+            ],
+        };
+        var manifests = new Dictionary<string, ContentManifest>(StringComparer.OrdinalIgnoreCase)
+        {
+            [installationId] = new ContentManifest
+            {
+                Id = ManifestId.Create(installationId),
+                Name = "Odd Installation",
+                ContentType = ContentType.GameInstallation,
+                TargetGame = GameType.Unknown,
+            },
+            [addonId] = new ContentManifest
+            {
+                Id = ManifestId.Create(addonId),
+                Name = "Test Addon",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+            },
+        };
+        var profile = new GameProfile
+        {
+            Id = "profile-id",
+            Name = "Odd",
+            GameInstallationId = installation.Id,
+
+            // Deliberately does not match the installation's client, so CreateEnabledInstallationItem
+            // falls through to the unguarded CreateInstallationDisplayItem call.
+            GameClient = new GameClient { Id = "other-client", GameType = GameType.Unknown },
+            EnabledContentIds = [installationId, addonId],
+        };
+
+        var loader = BuildLoader(installation, manifests);
+
+        var items = await loader.LoadEnabledContentForProfileAsync(profile);
+
+        // The addon follows the installation in the list, so it only survives if the installation
+        // item did not throw and abandon the loop.
+        Assert.Contains(items, item => string.Equals(item.ManifestId, addonId, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static GameInstallation BuildInstallation(GameType gameType, string clientVersion)
     {
         var installation = new GameInstallation("C:\\custom-install", GameInstallationType.Custom)
@@ -130,12 +217,17 @@ public class ProfileContentLoaderManifestIdTests
         return installation;
     }
 
-    private static ProfileContentLoader BuildLoader(GameInstallation installation)
+    private static ProfileContentLoader BuildLoader(
+        GameInstallation installation,
+        Dictionary<string, ContentManifest>? manifests = null)
     {
         var installations = new Mock<IGameInstallationService>();
         installations
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+        installations
+            .Setup(s => s.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
 
         var formatter = new Mock<IContentDisplayFormatter>();
         formatter.Setup(f => f.GetPublisherFromInstallationType(It.IsAny<GameInstallationType>()))
@@ -145,9 +237,16 @@ public class ProfileContentLoaderManifestIdTests
         formatter.Setup(f => f.BuildDisplayName(It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string?>()))
             .Returns("display");
 
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken _) =>
+                manifests is not null && manifests.TryGetValue(id.Value, out var manifest)
+                    ? OperationResult<ContentManifest?>.CreateSuccess(manifest)
+                    : OperationResult<ContentManifest?>.CreateSuccess(null));
+
         return new ProfileContentLoader(
             installations.Object,
-            Mock.Of<IContentManifestPool>(),
+            pool.Object,
             formatter.Object,
             Mock.Of<ILogger<ProfileContentLoader>>());
     }

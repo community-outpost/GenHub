@@ -426,9 +426,11 @@ public class ProfileContentLoader(
         // GameInstallationService pools the manifest under the game-type default when detection
         // fails, so the same fallback is needed here or the picker hands the profile an id that
         // resolves to no manifest. Display stays empty so no version is fabricated in the UI.
+        // CreateEnabledInstallationItem reaches this with a pooled manifest's TargetGame, which can
+        // be a type with no default, so resolve defensively rather than relying on a caller's guard.
         if (GameVersionHelper.IsUnknownVersion(detectedVersion))
         {
-            return (GameVersionHelper.GetDefaultManifestVersion(gameType), string.Empty);
+            return (GameVersionHelper.ResolveInstallationVersion(detectedVersion, gameType), string.Empty);
         }
 
         return (detectedVersion!, displayFormatter.NormalizeVersion(detectedVersion!));
