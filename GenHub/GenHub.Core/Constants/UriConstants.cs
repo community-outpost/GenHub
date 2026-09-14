@@ -118,6 +118,11 @@ public static class UriConstants
     public const string CoversBasePath = "/Assets/Covers";
 
     /// <summary>
+    /// Directory path for cover assets with trailing slash.
+    /// </summary>
+    public const string CoversDirectoryPath = "/Assets/Covers/";
+
+    /// <summary>
     /// Filename for Generals cover.
     /// </summary>
     public const string GeneralsCoverFilename = "generals-cover.png";

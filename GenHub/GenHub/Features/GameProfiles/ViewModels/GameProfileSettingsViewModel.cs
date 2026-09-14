@@ -162,12 +162,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ContentType.Mission,
     ];
 
-    private static bool HasShownFirstLoadNotification { get; set; }
-
-    private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
-
-    private string? CurrentProfileId { get; set; }
-
     /// <summary>
     /// Gets the notification manager for local window notifications.
     /// </summary>
@@ -177,6 +171,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// Gets the Game Settings ViewModel for the settings sidebar.
     /// </summary>
     public GameSettingsViewModel GameSettingsViewModel { get; }
+
+    private static bool HasShownFirstLoadNotification { get; set; }
+
+    private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
+
+    private string? CurrentProfileId { get; set; }
 
     /// <summary>
     /// Event triggered when the view model requests to close.
@@ -193,7 +193,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
         var normalizedPath = path;
         var legacyImagesPath = UriConstants.LegacyImagesBasePath;
-        var coversPath = UriConstants.CoversBasePath + "/";
+        var coversPath = UriConstants.CoversDirectoryPath;
         if (normalizedPath.Contains(UriConstants.LegacyChinaPosterFilename, StringComparison.OrdinalIgnoreCase))
         {
             normalizedPath = normalizedPath.Replace(UriConstants.LegacyChinaPosterFilename, UriConstants.ChinaCoverFilename, StringComparison.OrdinalIgnoreCase)

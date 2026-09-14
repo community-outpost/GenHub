@@ -1451,31 +1451,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 }
                 catch
                 {
-                    if (_gitHubTokenStorage != null)
-                    {
-                        var existingToken = await _gitHubTokenStorage.LoadTokenAsync();
-                        if (existingToken != null)
-                        {
-                            _gitHubApiClient?.SetAuthenticationToken(existingToken);
-                        }
-                        else
-                        {
-                            _gitHubApiClient?.ClearAuthenticationToken();
-                        }
-                    }
-                    else
-                    {
-                        _gitHubApiClient?.ClearAuthenticationToken();
-                    }
-
+                    await RestoreExistingTokenAsync();
                     throw;
                 }
             }
 
-            if (_gitHubTokenStorage != null)
-            {
-                await _gitHubTokenStorage.SaveTokenAsync(secureString);
-            }
+            await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
             PatStatusMessage = "PAT validated successfully \u2713";
             IsPatValid = true;
@@ -1491,6 +1472,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         finally
         {
             IsTestingPat = false;
+        }
+    }
+
+    private async Task RestoreExistingTokenAsync()
+    {
+        if (_gitHubTokenStorage == null)
+        {
+            _gitHubApiClient?.ClearAuthenticationToken();
+            return;
+        }
+
+        var existingToken = await _gitHubTokenStorage.LoadTokenAsync();
+        if (existingToken != null)
+        {
+            _gitHubApiClient?.SetAuthenticationToken(existingToken);
+        }
+        else
+        {
+            _gitHubApiClient?.ClearAuthenticationToken();
         }
     }
 
