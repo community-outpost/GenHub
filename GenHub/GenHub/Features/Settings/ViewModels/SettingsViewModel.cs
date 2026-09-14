@@ -351,7 +351,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the status color for the PAT indicator.
     /// </summary>
-    public string PatStatusColor => IsPatValid ? "#4CAF50" : "#888888";
+    public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.
@@ -1443,28 +1443,37 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             _gitHubApiClient?.SetAuthenticationToken(secureString);
 
-            if (_updateManager != null)
+            if (_gitHubApiClient != null)
             {
-                try
+                var user = await _gitHubApiClient.GetAuthenticatedUserAsync();
+                if (user == null)
                 {
-                    _ = await _updateManager.CheckForArtifactUpdatesAsync();
+                    throw new InvalidOperationException("GitHub authentication failed. Please verify that your token is valid.");
                 }
-                catch
-                {
-                    await RestoreExistingTokenAsync();
-                    throw;
-                }
+            }
+            else if (_updateManager != null)
+            {
+                _ = await _updateManager.CheckForArtifactUpdatesAsync();
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
-            PatStatusMessage = "PAT validated successfully \u2713";
+            PatStatusMessage = "PAT validated successfully ✓";
             IsPatValid = true;
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
         }
         catch (Exception ex)
         {
+            try
+            {
+                await RestoreExistingTokenAsync();
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after validation failure");
+            }
+
             _logger.LogError(ex, "PAT validation failed");
             PatStatusMessage = $"Invalid PAT: {ex.Message}";
             IsPatValid = false;

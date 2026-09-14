@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AngleSharp;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -157,23 +158,6 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
     }
 
     /// <summary>
-    /// Extracts ModDB ID from a URL.
-    /// </summary>
-    private static string ExtractModDBIdFromUrl(string url)
-    {
-        try
-        {
-            var uri = new Uri(url);
-            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            return segments.Length > 0 ? segments[^1] : Guid.NewGuid().ToString();
-        }
-        catch
-        {
-            return Guid.NewGuid().ToString();
-        }
-    }
-
-    /// <summary>
     /// Builds a filter object from the search query.
     /// </summary>
     private static ModDBFilter BuildFilterFromQuery(ContentSearchQuery query, string section)
@@ -255,7 +239,7 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
         var contentType = DetermineContentType(section, category, detailUrl);
 
         // Extract ModDB ID from URL
-        var moddbId = ExtractModDBIdFromUrl(detailUrl);
+        var moddbId = ModDbHelper.ExtractModDbIdFromUrl(detailUrl);
 
         var searchResult = new ContentSearchResult
         {

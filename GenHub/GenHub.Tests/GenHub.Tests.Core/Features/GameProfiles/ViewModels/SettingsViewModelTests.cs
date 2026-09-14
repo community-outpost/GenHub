@@ -12,6 +12,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.CAS;
@@ -1204,6 +1205,10 @@ public class SettingsViewModelTests
         // Arrange
         var mockTokenStorage = new Mock<IGitHubTokenStorage>();
         var mockApiClient = new Mock<IGitHubApiClient>();
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitHubUser { Login = "testuser" });
+
         var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
         viewModel.GitHubPatInput = "ghp_validToken12345";
 
@@ -1220,7 +1225,7 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that TestPatAsync restores existing token when update check validation fails.
+    /// Verifies that TestPatAsync restores existing token when API validation fails.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -1233,9 +1238,9 @@ public class SettingsViewModelTests
         existingToken.AppendChar('x');
         mockTokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync(existingToken);
 
-        _mockUpdateManager
-            .Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("401 Unauthorized"));
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubUser?)null);
 
         var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
         viewModel.GitHubPatInput = "ghp_invalidToken12345";
@@ -1245,8 +1250,41 @@ public class SettingsViewModelTests
 
         // Assert
         Assert.False(viewModel.IsPatValid);
-        Assert.Contains("401 Unauthorized", viewModel.PatStatusMessage);
+        Assert.Contains("GitHub authentication failed", viewModel.PatStatusMessage);
         mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Never);
+        mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that TestPatAsync restores existing token when token storage SaveTokenAsync throws.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenSaveTokenThrows_RestoresExistingTokenAndSetsErrorStateAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockApiClient = new Mock<IGitHubApiClient>();
+        using var existingToken = new System.Security.SecureString();
+        existingToken.AppendChar('x');
+        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync(existingToken);
+        mockTokenStorage
+            .Setup(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()))
+            .ThrowsAsync(new System.IO.IOException("Storage persistence failed"));
+
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitHubUser { Login = "testuser" });
+
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
+        viewModel.GitHubPatInput = "ghp_validToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        Assert.Contains("Storage persistence failed", viewModel.PatStatusMessage);
         mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
     }
 

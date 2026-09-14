@@ -480,6 +480,7 @@ public static class ModDBConstants
 
     /// <summary>Content tags for search and categorization.</summary>
     public static readonly string[] Tags = ["ModDB", "Community", "Mods", "Maps"];
+
     // ===== Bot Protection Markers =====
 
     /// <summary>

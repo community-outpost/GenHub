@@ -5,8 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -3920,7 +3918,7 @@ public partial class ContentDetailViewModel(
             var detailUrl = file.DetailsUrl ?? file.DownloadUrl;
             if (!string.IsNullOrWhiteSpace(detailUrl))
             {
-                rowSearchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = ExtractModDbIdFromUrl(detailUrl);
+                rowSearchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = ModDbHelper.ExtractModDbIdFromUrl(detailUrl);
             }
             else
             {
@@ -4988,17 +4986,4 @@ public partial class ContentDetailViewModel(
                  a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private static string ExtractModDbIdFromUrl(string url)
-    {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length > 0)
-            {
-                return segments[^1];
-            }
-        }
-
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)));
-    }
 }
