@@ -39,6 +39,7 @@ public class HotkeyPackageService(
     public async Task<OperationResult<ContentManifest>> CreateHotkeysAddonAsync(
         HotkeyProfile profile,
         IProgress<string>? progress = null,
+        string? existingManifestId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -72,7 +73,7 @@ public class HotkeyPackageService(
 
             // Step 4: Register as an Addon ContentManifest in GenHub
             progress?.Report("Registering addon in GenHub...");
-            var manifestResult = await RegisterAddonManifestAsync(profile, packageDir, cancellationToken);
+            var manifestResult = await RegisterAddonManifestAsync(profile, packageDir, existingManifestId, cancellationToken);
 
             if (manifestResult is { Success: true, Data: not null })
             {
@@ -484,18 +485,56 @@ public class HotkeyPackageService(
     private async Task<OperationResult<ContentManifest>> RegisterAddonManifestAsync(
         HotkeyProfile profile,
         string packageDir,
+        string? existingManifestId,
         CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
         var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
 
         var manifestDisplayName = GenHotkeysConstants.GetManifestDisplayName(profile.Name, profile.TargetGame);
+        var manifestIdToUpdate = !string.IsNullOrWhiteSpace(existingManifestId)
+            ? existingManifestId
+            : profile.AddonManifestId;
 
-        return await localContentService.CreateLocalContentManifestAsync(
+        if (!string.IsNullOrWhiteSpace(manifestIdToUpdate))
+        {
+            logger.LogInformation(
+                "Updating existing hotkeys addon manifest '{ManifestId}' for profile '{Name}'",
+                manifestIdToUpdate,
+                profile.Name);
+
+            var updateResult = await localContentService.UpdateLocalContentManifestAsync(
+                manifestIdToUpdate,
+                manifestDisplayName,
+                packageDir,
+                ContentType.Addon,
+                profile.TargetGame,
+                cancellationToken: cancellationToken);
+
+            if (updateResult.Success && updateResult.Data is not null)
+            {
+                profile.AddonManifestId = updateResult.Data.Id.Value;
+                return updateResult;
+            }
+
+            logger.LogWarning(
+                "Failed to update existing manifest '{ManifestId}': {Error}. Falling back to creating new manifest.",
+                manifestIdToUpdate,
+                updateResult.FirstError);
+        }
+
+        var createResult = await localContentService.CreateLocalContentManifestAsync(
             packageDir,
             manifestDisplayName,
             ContentType.Addon,
             profile.TargetGame,
             cancellationToken: cancellationToken);
+
+        if (createResult.Success && createResult.Data is not null)
+        {
+            profile.AddonManifestId = createResult.Data.Id.Value;
+        }
+
+        return createResult;
     }
 }

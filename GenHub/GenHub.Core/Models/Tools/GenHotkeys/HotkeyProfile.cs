@@ -18,6 +18,10 @@ public partial class HotkeyProfile : ObservableObject
     [ObservableProperty]
     private string _name = "Custom Hotkeys";
 
+    /// <summary>Gets or sets the manifest ID of the exported addon for this profile, if any.</summary>
+    [ObservableProperty]
+    private string? _addonManifestId;
+
     /// <summary>Gets or sets the target game (Generals or Zero Hour).</summary>
     public GameType TargetGame { get; set; } = GameType.ZeroHour;
 

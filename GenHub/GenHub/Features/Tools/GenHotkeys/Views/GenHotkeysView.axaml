@@ -252,13 +252,13 @@
             </StackPanel>
           </WrapPanel>
 
-          <!-- Addon Action Button: Always Create Addon -->
+          <!-- Addon Action Button: Create or Update Addon -->
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
             <Button Command="{Binding HandleAddonActionCommand}"
                     Classes="Primary"
                     IsEnabled="{Binding !IsBusy}"
                     Padding="12,7"
-                    ToolTip.Tip="Packs customized hotkeys and icons into a .big archive and registers as a GenHub Addon in CAS">
+                    ToolTip.Tip="{Binding AddonButtonToolTip}">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="14" Height="14" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding AddonButtonText}" FontWeight="SemiBold" VerticalAlignment="Center"/>

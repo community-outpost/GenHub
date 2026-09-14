@@ -578,12 +578,43 @@ public class GenHotkeysViewModelTests
         vm.Profiles.Add(profile);
         vm.SelectedProfile = profile;
 
-        _mockPackageService.Setup(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+        _mockPackageService.Setup(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = "Hotkeys Addon" }));
+
+        Assert.Equal("Create Addon", vm.AddonButtonText);
 
         await vm.HandleAddonActionAsync();
 
-        _mockPackageService.Verify(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockPackageService.Verify(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("Update Addon", vm.AddonButtonText);
+    }
+
+    /// <summary>
+    /// Verifies that HandleAddonActionAsync passes AddonManifestId when updating an existing addon.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HandleAddonActionAsync_WhenProfileHasManifestId_UpdatesAddonAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        const string manifestId = "1.108.local.addon.hotkeys";
+        var profile = new HotkeyProfile { Name = "Custom Profile", AddonManifestId = manifestId };
+        vm.Profiles.Add(profile);
+        vm.SelectedProfile = profile;
+
+        _mockPackageService.Setup(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), manifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Id = manifestId, Name = "Hotkeys Addon" }));
+
         Assert.Equal("Create Addon", vm.AddonButtonText);
+
+        await vm.HandleAddonActionAsync();
+
+        _mockPackageService.Verify(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), manifestId, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("Update Addon", vm.AddonButtonText);
     }
 }

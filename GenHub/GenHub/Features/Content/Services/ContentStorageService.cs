@@ -98,11 +98,37 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <summary>
+    /// Determines whether a path is located within a system temporary directory.
+    /// </summary>
+    private static bool IsTempDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var tempPath = Path.GetFullPath(Path.GetTempPath())
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullPath = Path.GetFullPath(path)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            return fullPath.StartsWith(tempPath, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Determines whether a manifest requires physical file storage in the CAS system.
     /// </summary>
     /// <param name="manifest">The manifest to check.</param>
+    /// <param name="sourceDirectory">Optional source directory containing content files.</param>
     /// <returns>True if files should be physically stored; false if metadata-only storage is sufficient.</returns>
-    private static bool RequiresPhysicalStorage(ContentManifest manifest)
+    private static bool RequiresPhysicalStorage(ContentManifest manifest, string? sourceDirectory = null)
     {
         // GameInstallation content always references external installations - no storage needed
         if (manifest.ContentType == ContentType.GameInstallation)
@@ -110,10 +136,22 @@ public class ContentStorageService : IContentStorageService
             return false;
         }
 
-        // MapPacks and Addons created locally MUST be stored in CAS because the source (temp dir) will be deleted
-        if (manifest.ContentType == ContentType.MapPack || manifest.ContentType == ContentType.Addon)
+        // MapPacks created locally MUST be stored in CAS because the source (temp dir) will be deleted
+        if (manifest.ContentType == ContentType.MapPack)
         {
             return true;
+        }
+
+        // Addons created locally in temp directories MUST be stored in CAS because the source (temp dir) will be deleted.
+        // External addons reference their files unless explicitly marked ContentAddressable.
+        if (manifest.ContentType == ContentType.Addon)
+        {
+            if (IsTempDirectory(sourceDirectory) || IsTempDirectory(manifest.SourcePath))
+            {
+                return true;
+            }
+
+            return manifest.Files.Any(f => f.SourceType == ContentSourceType.ContentAddressable);
         }
 
         // GameClient content typically references external installations - no storage needed (old behavior)
@@ -238,8 +276,9 @@ public class ContentStorageService : IContentStorageService
         bool isInvalidDrive = IsInvalidOrRemovableDrive(sourceDirectory);
 
         // MapPacks, Addons, and other local content might be created in temp directories on "invalid" drives (e.g. RAM disks)
-        // We should allow storage if it's a MapPack or Addon to ensure it persists after temp cleanup.
-        bool forceStorage = manifest.ContentType == ContentType.MapPack || manifest.ContentType == ContentType.Addon;
+        // We should allow storage if it's a MapPack or temp Addon to ensure it persists after temp cleanup.
+        bool forceStorage = manifest.ContentType == ContentType.MapPack ||
+            (manifest.ContentType == ContentType.Addon && (IsTempDirectory(sourceDirectory) || IsTempDirectory(manifest.SourcePath)));
 
         if (isInvalidDrive && !forceStorage)
         {
@@ -248,7 +287,7 @@ public class ContentStorageService : IContentStorageService
         }
 
         // Determine if this manifest requires physical file storage in CAS
-        bool requiresPhysicalStorage = RequiresPhysicalStorage(manifest);
+        bool requiresPhysicalStorage = RequiresPhysicalStorage(manifest, sourceDirectory);
 
         if (!requiresPhysicalStorage)
         {
@@ -660,7 +699,8 @@ public class ContentStorageService : IContentStorageService
             return manifest;
         }
 
-        bool forceStorage = manifest.ContentType == ContentType.MapPack || manifest.ContentType == ContentType.Addon;
+        bool forceStorage = manifest.ContentType == ContentType.MapPack ||
+            (manifest.ContentType == ContentType.Addon && (IsTempDirectory(sourceDirectory) || IsTempDirectory(manifest.SourcePath)));
         if (IsInvalidOrRemovableDrive(sourceDirectory) && !forceStorage)
         {
             _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive", sourceDirectory);

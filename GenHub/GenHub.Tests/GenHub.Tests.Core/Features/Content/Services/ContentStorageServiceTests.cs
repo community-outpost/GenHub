@@ -193,6 +193,59 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that content storage for an external Addon outside temp directories
+    /// does not copy files into CAS, storing metadata only.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WithExternalAddon_StoresMetadataOnlyAsync()
+    {
+        // Arrange: sourceDir outside Path.GetTempPath()
+        var currentDir = AppContext.BaseDirectory;
+        var sourceDir = Path.Combine(currentDir, "ExternalAddon_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sourceDir);
+
+        try
+        {
+            var addonFile = Path.Combine(sourceDir, "external.big");
+            await File.WriteAllTextAsync(addonFile, "sample-external-addon");
+
+            var manifest = new ContentManifest
+            {
+                Id = "1.0.local.addon.external-hotkeys",
+                ContentType = ContentType.Addon,
+                SourcePath = sourceDir,
+                Files =
+                [
+                    new()
+                    {
+                        RelativePath = "external.big",
+                        SourcePath = addonFile,
+                        SourceType = ContentSourceType.LocalFile,
+                    },
+                ],
+            };
+
+            // Act
+            var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+            // Assert
+            Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
+            _casServiceMock.Verify(c => c.StoreContentAsync(It.IsAny<string>(), It.IsAny<ContentType>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.NotNull(result.Data);
+            Assert.Single(result.Data.Files);
+            Assert.Equal(ContentSourceType.LocalFile, result.Data.Files[0].SourceType);
+        }
+        finally
+        {
+            if (Directory.Exists(sourceDir))
+            {
+                Directory.Delete(sourceDir, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Disposes resources.
     /// </summary>
     /// <param name="disposing">Whether managed resources should be disposed.</param>
