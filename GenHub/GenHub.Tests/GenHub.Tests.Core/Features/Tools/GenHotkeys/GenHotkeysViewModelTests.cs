@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -26,6 +27,7 @@ public class GenHotkeysViewModelTests
     private readonly Mock<IHotkeyPackageService> _mockPackageService;
     private readonly Mock<ILogger<GenHotkeysViewModel>> _mockLogger;
     private readonly Mock<IDialogService> _mockDialogService;
+    private readonly Mock<INotificationService> _mockNotificationService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GenHotkeysViewModelTests"/> class.
@@ -37,6 +39,7 @@ public class GenHotkeysViewModelTests
         _mockPackageService = new Mock<IHotkeyPackageService>();
         _mockLogger = new Mock<ILogger<GenHotkeysViewModel>>();
         _mockDialogService = new Mock<IDialogService>();
+        _mockNotificationService = new Mock<INotificationService>();
     }
 
     /// <summary>
@@ -616,5 +619,164 @@ public class GenHotkeysViewModelTests
 
         _mockPackageService.Verify(p => p.CreateHotkeysAddonAsync(profile, It.IsAny<IProgress<string>>(), manifestId, It.IsAny<CancellationToken>()), Times.Once);
         Assert.Equal("Update Addon", vm.AddonButtonText);
+    }
+
+    /// <summary>
+    /// Verifies that AssignKey assigns the hotkey and dispatches a success notification toast.
+    /// </summary>
+    [Fact]
+    public void AssignKey_AssignsHotkey_AndDispatchesNotificationToast()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Test Profile" };
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            DefaultHotkey = 'R',
+            Hotkey = 'R',
+        };
+
+        vm.SelectAction(action);
+        vm.AssignKey('g');
+
+        Assert.Equal('G', action.Hotkey);
+        Assert.Equal('G', profile.KeyMappings["CONTROLBAR:ConstructAmericaInfantryRanger"]);
+        _mockNotificationService.Verify(
+            n => n.ShowSuccess("Hotkey Assigned", It.Is<string>(s => s.Contains("Assigned 'G' to 'Ranger'")), NotificationDurations.Short, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyToAllMatchingActionsAsync applies hotkey across matching actions and dispatches a success notification toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ApplyToAllMatchingActionsAsync_PropagatesHotkey_AndDispatchesNotificationToastAsync()
+    {
+        var rangerUsa = new HotkeyAction
+        {
+            DisplayName = "Ranger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            DefaultHotkey = 'R',
+        };
+        var unitUsa = new HotkeyGameObject
+        {
+            Name = "AmericaBarracks",
+            DisplayName = "USA Barracks",
+            KeyboardLayouts = [[rangerUsa]],
+        };
+        var factionUsa = new HotkeyFaction
+        {
+            ShortName = "USA",
+            DisplayName = "USA",
+            GameObjects = [unitUsa],
+        };
+
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([factionUsa]);
+
+        var profile = new HotkeyProfile { Name = "Test" };
+        _mockProfileStorage.Setup(p => p.GetProfilesAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([profile]);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        await vm.InitializeAsync(CancellationToken.None);
+
+        var actionVm = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            Hotkey = 'F',
+        };
+
+        vm.SelectAction(actionVm);
+        await vm.ApplyToAllMatchingActionsAsync(CancellationToken.None);
+
+        _mockNotificationService.Verify(
+            n => n.ShowSuccess("Hotkey Applied to All", It.Is<string>(s => s.Contains("Applied hotkey 'F'")), NotificationDurations.Short, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ClearKey clears the hotkey and dispatches an info notification toast.
+    /// </summary>
+    [Fact]
+    public void ClearKey_ClearsHotkey_AndDispatchesNotificationToast()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Test Profile" };
+        profile.KeyMappings["CONTROLBAR:ConstructAmericaInfantryRanger"] = 'F';
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            DefaultHotkey = 'R',
+            Hotkey = 'F',
+        };
+
+        vm.SelectAction(action);
+        vm.ClearKey();
+
+        Assert.Null(action.Hotkey);
+        _mockNotificationService.Verify(
+            n => n.ShowInfo("Hotkey Cleared", It.Is<string>(s => s.Contains("Cleared hotkey for 'Ranger'")), NotificationDurations.Short, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetKeyToDefault resets the hotkey and dispatches an info notification toast.
+    /// </summary>
+    [Fact]
+    public void ResetKeyToDefault_ResetsHotkey_AndDispatchesNotificationToast()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Test Profile" };
+        profile.KeyMappings["CONTROLBAR:ConstructAmericaInfantryRanger"] = 'F';
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            DefaultHotkey = 'R',
+            Hotkey = 'F',
+        };
+
+        vm.SelectAction(action);
+        vm.ResetKeyToDefault();
+
+        Assert.Equal('R', action.Hotkey);
+        _mockNotificationService.Verify(
+            n => n.ShowInfo("Hotkey Reset", It.Is<string>(s => s.Contains("Reset 'Ranger' to default hotkey")), NotificationDurations.Short, false),
+            Times.Once);
     }
 }

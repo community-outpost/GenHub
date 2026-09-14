@@ -352,6 +352,15 @@ public static class GenHotkeysConstants
     /// </summary>
     /// <param name="profileName">Profile name.</param>
     /// <param name="targetGame">Target game.</param>
+    /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
+    public static string GetBigFileName(string? profileName, GameType targetGame) =>
+        GetBigFileName(profileName, targetGame, null);
+
+    /// <summary>
+    /// Computes the standard .big filename for a hotkey profile.
+    /// </summary>
+    /// <param name="profileName">Profile name.</param>
+    /// <param name="targetGame">Target game.</param>
     /// <param name="profileId">Optional profile ID to avoid collisions between profiles with matching sanitized names.</param>
     /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
     public static string GetBigFileName(string? profileName, GameType targetGame, string? profileId = null)
