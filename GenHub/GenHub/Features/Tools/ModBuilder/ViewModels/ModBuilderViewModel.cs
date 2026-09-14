@@ -1391,7 +1391,7 @@ public partial class ModBuilderViewModel(
                     AppendBuildLog(msg);
                 });
 
-                var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress).ConfigureAwait(false);
+                var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress, _buildCancellationTokenSource?.Token ?? CancellationToken.None).ConfigureAwait(false);
                 if (!assetResult.Success)
                 {
                     notificationService.ShowError("Asset Acquisition Failed", $"Could not acquire sample assets: {assetResult.FirstError}");
