@@ -308,29 +308,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
         UseDirectUrl = false;
         IncludeInitialRelease = true;
 
-        string baseName;
-        if (Directory.Exists(path))
-        {
-            var dirInfo = new DirectoryInfo(path);
-            baseName = dirInfo.Name;
-            PackageFilename = $"{baseName}.zip";
-
-            FileSize = 0;
-            FileSizeDisplay = "Folder (calculating size...)";
-            Sha256Hash = string.Empty;
-
-            _ = ComputeFolderSizeAsync(path);
-        }
-        else if (File.Exists(path))
-        {
-            var fileInfo = new FileInfo(path);
-            baseName = Path.GetFileNameWithoutExtension(path);
-            PackageFilename = fileInfo.Name;
-            FileSize = fileInfo.Length;
-            FileSizeDisplay = FormatBytes(fileInfo.Length);
-            _ = ComputeSha256Async(path);
-        }
-        else
+        if (!PopulateFileSystemInfo(path, out var baseName))
         {
             return;
         }
@@ -338,16 +316,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
         // Auto-fill ContentName if empty
         if (string.IsNullOrWhiteSpace(ContentName))
         {
-            var humanized = Regex.Replace(baseName, @"[-_]+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
-            if (!string.IsNullOrWhiteSpace(humanized))
-            {
-                var words = humanized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                ContentName = string.Join(" ", words.Select(w => char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..] : string.Empty)));
-            }
-            else
-            {
-                ContentName = baseName;
-            }
+            ContentName = FormatContentNameFromBaseName(baseName);
         }
 
         // Auto-fill ContentId if empty
@@ -363,21 +332,77 @@ public partial class AddContentDialogViewModel : ObservableValidator
         }
 
         // Intelligently infer ContentType from extension or name
-        var ext = Path.GetExtension(path);
-        if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase) || baseName.Contains("map", StringComparison.OrdinalIgnoreCase))
+        var inferredType = InferContentType(path, baseName);
+        if (inferredType.HasValue)
         {
-            SelectedContentType = ContentType.Map;
-        }
-        else if (baseName.Contains("patch", StringComparison.OrdinalIgnoreCase))
-        {
-            SelectedContentType = ContentType.Patch;
-        }
-        else if (baseName.Contains("addon", StringComparison.OrdinalIgnoreCase) || baseName.Contains("tool", StringComparison.OrdinalIgnoreCase))
-        {
-            SelectedContentType = ContentType.Addon;
+            SelectedContentType = inferredType.Value;
         }
 
         Validate();
+    }
+
+    private bool PopulateFileSystemInfo(string path, out string baseName)
+    {
+        if (Directory.Exists(path))
+        {
+            var dirInfo = new DirectoryInfo(path);
+            baseName = dirInfo.Name;
+            PackageFilename = $"{baseName}.zip";
+
+            FileSize = 0;
+            FileSizeDisplay = "Folder (calculating size...)";
+            Sha256Hash = string.Empty;
+
+            _ = ComputeFolderSizeAsync(path);
+            return true;
+        }
+
+        if (File.Exists(path))
+        {
+            var fileInfo = new FileInfo(path);
+            baseName = Path.GetFileNameWithoutExtension(path);
+            PackageFilename = fileInfo.Name;
+            FileSize = fileInfo.Length;
+            FileSizeDisplay = FormatBytes(fileInfo.Length);
+            _ = ComputeSha256Async(path);
+            return true;
+        }
+
+        baseName = string.Empty;
+        return false;
+    }
+
+    private static string FormatContentNameFromBaseName(string baseName)
+    {
+        var humanized = Regex.Replace(baseName, @"[-_]+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
+        if (string.IsNullOrWhiteSpace(humanized))
+        {
+            return baseName;
+        }
+
+        var words = humanized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" ", words.Select(w => char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..] : string.Empty)));
+    }
+
+    private static ContentType? InferContentType(string path, string baseName)
+    {
+        var ext = Path.GetExtension(path);
+        if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase) || baseName.Contains("map", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Map;
+        }
+
+        if (baseName.Contains("patch", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Patch;
+        }
+
+        if (baseName.Contains("addon", StringComparison.OrdinalIgnoreCase) || baseName.Contains("tool", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Addon;
+        }
+
+        return null;
     }
 
     /// <summary>

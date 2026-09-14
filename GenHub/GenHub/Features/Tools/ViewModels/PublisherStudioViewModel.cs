@@ -21,6 +21,8 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// Main ViewModel for Publisher Studio.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
 public partial class PublisherStudioViewModel : ObservableObject
 {
     /// <summary>Tab index for the Profile tab.</summary>
@@ -564,12 +566,16 @@ public partial class PublisherStudioViewModel : ObservableObject
     /// </summary>
     /// <param name="path">The dropped file or directory path.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated instance properties in partial view model")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "Mutates CommunityToolkit generated instance properties in partial view model")]
     public async Task HandleDroppedPathAsync(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
         }
+
+        _logger.LogInformation("Handling dropped path: {Path}", path);
 
         // Switch to Content Library tab
         SelectedTabIndex = TabCatalogs;
