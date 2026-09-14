@@ -608,11 +608,11 @@ public sealed class ProfileContentService(
     {
         // Look for contentCode tag in metadata
         var contentCodeTag = manifest.Metadata?.Tags?
-            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(contentCodeTag))
         {
-            return contentCodeTag["contentCode:".Length..];
+            return contentCodeTag[ManifestTagConstants.ContentCodePrefix.Length..];
         }
 
         // Try to extract from manifest ID

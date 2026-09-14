@@ -676,14 +676,19 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             string manifestId;
-            if (!string.IsNullOrEmpty(v.ManifestId))
+            if (!string.IsNullOrEmpty(v.ManifestId) && ManifestIdValidator.IsValid(v.ManifestId, out _))
             {
                 manifestId = v.ManifestId;
             }
             else
             {
-                var safeProvider = string.IsNullOrWhiteSpace(provider) ? ContentConstants.DefaultContentFallbackId : provider.ToLowerInvariant().Trim();
-                manifestId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{safeProvider}.{primaryItem.ContentType.ToManifestIdString()}.{composedName.ToLowerInvariant()}";
+                var cleanedProvider = new string(provider.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+                var safeProvider = string.IsNullOrWhiteSpace(cleanedProvider) ? ContentConstants.DefaultContentFallbackId : cleanedProvider;
+
+                var candidateId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{safeProvider}.{primaryItem.ContentType.ToManifestIdString()}.{composedName.ToLowerInvariant()}";
+                manifestId = ManifestIdValidator.IsValid(candidateId, out _)
+                    ? candidateId
+                    : $"{ManifestConstants.DefaultManifestFormatVersion}.0.{ContentConstants.DefaultContentFallbackId}.{primaryItem.ContentType.ToManifestIdString()}.{ContentConstants.DefaultContentFallbackId}";
             }
 
             var baseName = !string.IsNullOrEmpty(primaryItem.VariantFamilyName) ? primaryItem.VariantFamilyName : primaryItem.Name;

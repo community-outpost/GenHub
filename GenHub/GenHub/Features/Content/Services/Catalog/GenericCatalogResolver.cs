@@ -378,16 +378,16 @@ public class GenericCatalogResolver(
 
         if (!string.IsNullOrWhiteSpace(primaryArtifact?.Variant))
         {
-            var variantTag = $"variant:{primaryArtifact.Variant.ToLowerInvariant()}";
+            var variantTag = $"{ManifestTagConstants.VariantPrefix}{primaryArtifact.Variant.ToLowerInvariant()}";
             if (!manifest.Metadata.Tags.Contains(variantTag, StringComparer.OrdinalIgnoreCase))
             {
                 manifest.Metadata.Tags.Add(variantTag);
             }
         }
 
-        if (manifest.Metadata.Tags.All(t => !t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase)))
+        if (manifest.Metadata.Tags.All(t => !t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
         {
-            manifest.Metadata.Tags.Add($"contentCode:{contentItem.Id}");
+            manifest.Metadata.Tags.Add($"{ManifestTagConstants.ContentCodePrefix}{contentItem.Id}");
         }
     }
 
