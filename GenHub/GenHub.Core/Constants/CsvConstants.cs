@@ -207,7 +207,7 @@ public static class CsvConstants
     /// <summary>
     /// Trusted SHA-256 checksum for Generals 1.08 authoritative CSV registry.
     /// </summary>
-    public const string Generals108Sha256 = "0fba15bb0a0db434b5edce0475615d4f84c4f2a02b01610f42dc23b9f491099d";
+    public const string Generals108Sha256 = "0b2578095af96028bc9be32e5cecc2e10070290e9a6b923ac1eb5dd43c9af114";
 
     /// <summary>
     /// Trusted SHA-256 checksum for Zero Hour 1.04 authoritative CSV registry.

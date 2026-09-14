@@ -1,6 +1,9 @@
+using System;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Helpers;
 
@@ -9,6 +12,69 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static partial class GameVersionHelper
 {
+    /// <summary>
+    /// Determines whether a detected client version carries no usable version information.
+    /// The set is deliberately broad: the manifest id generator rejects any version that is not
+    /// numeric, so a value that slips through here throws when an id is minted from it.
+    /// </summary>
+    /// <param name="version">The detected version string.</param>
+    /// <returns><c>true</c> when the version is absent or a placeholder; otherwise <c>false</c>.</returns>
+    public static bool IsUnknownVersion(string? version)
+    {
+        return string.IsNullOrWhiteSpace(version)
+            || version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase)
+            || version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase)
+            || version.Equals(GameClientConstants.AutoUpdatedVersion, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets the manifest version a game type falls back to when no version could be detected.
+    /// Installation manifests are pooled under this version, so every site that mints an
+    /// installation manifest id must agree on it or the id resolves to no manifest.
+    /// </summary>
+    /// <param name="gameType">The game type. Only Generals and Zero Hour are supported.</param>
+    /// <returns>The default manifest version for the game type.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown for a game type with no known default.</exception>
+    public static string GetDefaultManifestVersion(GameType gameType)
+    {
+        return gameType switch
+        {
+            GameType.ZeroHour => ManifestConstants.ZeroHourManifestVersion,
+            GameType.Generals => ManifestConstants.GeneralsManifestVersion,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(gameType),
+                gameType,
+                "No default manifest version exists for this game type."),
+        };
+    }
+
+    /// <summary>
+    /// Resolves the version to use when minting a game installation manifest id, applying the
+    /// game-type default when the client reports no usable version.
+    /// </summary>
+    /// <param name="detectedVersion">The version reported by the detected client.</param>
+    /// <param name="gameType">The game type. Types other than Generals and Zero Hour have no
+    /// default and resolve to an empty version rather than throwing.</param>
+    /// <returns>
+    /// The detected version when usable, the game-type default when it is not, or an empty string
+    /// when the game type has no default.
+    /// </returns>
+    public static string ResolveInstallationVersion(string? detectedVersion, GameType gameType)
+    {
+        if (!IsUnknownVersion(detectedVersion))
+        {
+            return detectedVersion!;
+        }
+
+        // A game type with no default has no id that would honestly describe it. Returning empty
+        // rather than the detected value matters: this branch only runs when the version is already
+        // unknown, and the sentinels are non-numeric, so passing one through throws in the id
+        // generator. Empty normalizes to 0, which is what null and whitespace already did.
+        return gameType is GameType.Generals or GameType.ZeroHour
+            ? GetDefaultManifestVersion(gameType)
+            : string.Empty;
+    }
+
     /// <summary>
     /// Extracts a numeric version from a version string like "2025-11-07" or "weekly-2025-11-21".
     /// Extracts all digits and returns them as an integer (e.g., "2025-11-07" -> 20251107).
