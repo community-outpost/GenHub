@@ -251,9 +251,9 @@ public partial class FileManagerViewModel(
 
             StatusMessage = $"Loaded {TotalFiles} project files";
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogDebug("Initialization of file manager was canceled");
+            logger.LogDebug(ex, "Initialization of file manager was canceled");
             StatusMessage = "File loading canceled";
         }
         catch (Exception ex)
