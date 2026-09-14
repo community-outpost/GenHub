@@ -633,6 +633,123 @@ public sealed partial class ContentStateService(
         return string.Compare(cleanedA, cleanedB, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Extracts a variant token (e.g. 720p, 1080p, 4k, english, russian, etc.) from a name or ID string.
+    /// </summary>
+    /// <param name="input">The input string to extract the variant token from.</param>
+    /// <returns>The extracted variant token if recognized; otherwise, <see langword="null"/>.</returns>
+    internal static string? ExtractVariantToken(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        // 1. Check for trailing parentheses like "(English)" or "(1080p)" or "(RU)"
+        var parenMatch = GitHubTopicsDiscoverer.VariantPatterns.TrailingParenthesesPattern().Match(input);
+        if (parenMatch.Success)
+        {
+            var token = parenMatch.Groups[1].Value.Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(token))
+            {
+                if (IsoLanguageCodeMap.TryGetValue(token, out var isoLang))
+                {
+                    return isoLang;
+                }
+
+                if (GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames.ContainsKey(token))
+                {
+                    return token;
+                }
+
+                if (token switch
+                    {
+                        "720" or "720p" or "900" or "900p" or "1080" or "1080p" or "1440" or "1440p" or "2160" or "4k" or "5k" or "8k" => true,
+                        _ => false,
+                    })
+                {
+                    return token switch
+                    {
+                        "720" => "720p",
+                        "900" => "900p",
+                        "1080" => "1080p",
+                        "1440" => "1440p",
+                        "2160" => "4k",
+                        _ => token,
+                    };
+                }
+            }
+        }
+
+        // 2. Check resolution patterns like 1920x1080 or 1080p
+        var resMatch = GitHubTopicsDiscoverer.VariantPatterns.ResolutionPattern().Match(input);
+        if (resMatch.Success && GitHubTopicsDiscoverer.VariantPatterns.ResolutionDisplayNames.TryGetValue(resMatch.Value, out var disp))
+        {
+            return disp.ToLowerInvariant();
+        }
+
+        var match = Regex.Match(input, @"\b(720p?|900p?|1080p?|1440p?|2160p?|4k)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+        if (match.Success)
+        {
+            var token = match.Value.ToLowerInvariant();
+            return token switch
+            {
+                "720" => "720p",
+                "900" => "900p",
+                "1080" => "1080p",
+                "1440" => "1440p",
+                "2160" => "4k",
+                _ => token,
+            };
+        }
+
+        var inlineMatch = Regex.Match(input, @"(720p|900p|1080p|1440p|2160p|4k)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+        if (inlineMatch.Success)
+        {
+            return inlineMatch.Value.ToLowerInvariant();
+        }
+
+        // 3. Check language patterns (e.g. english, russian, spanish)
+        foreach (var (pattern, _) in GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames)
+        {
+            if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return pattern.ToLowerInvariant();
+            }
+        }
+
+        // 4. Check ISO language code tokens in hyphenated / structured identifiers (e.g. zerohour-ru, hlei-zerohour-de)
+        var langTokenMatch = LanguageCodePattern().Match(input);
+        if (langTokenMatch.Success && IsoLanguageCodeMap.TryGetValue(langTokenMatch.Groups[1].Value, out var isoMatched))
+        {
+            return isoMatched;
+        }
+
+        // 5. Check if input ends with a known ISO code in compound/registered formats (e.g. enzh, ruzh, or registered content codes like hleizerohourru)
+        if (input.Length == 4 && input.EndsWith("zh", StringComparison.OrdinalIgnoreCase) &&
+            IsoLanguageCodeMap.TryGetValue(input[..2], out var zhLang))
+        {
+            return zhLang;
+        }
+
+        var registeredCode = GenPatcherContentRegistry.GetKnownContentCodes()
+            .FirstOrDefault(c => input.StartsWith(c, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(registeredCode) && input.Length > registeredCode.Length)
+        {
+            var remainder = input[registeredCode.Length..];
+            foreach (var (isoCode, langName) in IsoLanguageCodeMap)
+            {
+                if (remainder.EndsWith(isoCode, StringComparison.OrdinalIgnoreCase) ||
+                    remainder.EndsWith($"{isoCode}zh", StringComparison.OrdinalIgnoreCase))
+                {
+                    return langName;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private static bool CompareVersionStrings(
         string? prospectiveVersionStr,
         string? localVersionStr,
@@ -804,7 +921,10 @@ public sealed partial class ContentStateService(
         return true;
     }
 
-    private static ContentManifest? FindByPublisherTypeAndGame(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    private static ContentManifest? FindByPublisherTypeAndGame(
+        IReadOnlyList<ContentManifest> manifests,
+        ContentSearchResult item,
+        ILogger? logger = null)
     {
         var candidatePublishers = CollectCandidatePublishers(item);
         if (candidatePublishers.Count == 0)
@@ -830,7 +950,7 @@ public sealed partial class ContentStateService(
             }
         }
 
-        var bestMatch = SelectBestMatchingManifest(matches, item);
+        var bestMatch = SelectBestMatchingManifest(matches, item, logger);
         if (bestMatch != null)
         {
             return bestMatch;
@@ -839,7 +959,7 @@ public sealed partial class ContentStateService(
         if (item.ContentType == ContentType.GameClient &&
             candidatePublishers.Any(p => string.Equals(p, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)))
         {
-            return FindGeneralsOnlineFallback(manifests, candidatePublishers, expectedContentType, item);
+            return FindGeneralsOnlineFallback(manifests, candidatePublishers, expectedContentType, item, logger);
         }
 
         return null;
@@ -980,7 +1100,8 @@ public sealed partial class ContentStateService(
         IReadOnlyList<ContentManifest> manifests,
         List<string> candidatePublishers,
         string expectedContentType,
-        ContentSearchResult item)
+        ContentSearchResult item,
+        ILogger? logger = null)
     {
         var matches = manifests.Where(manifest =>
         {
@@ -1004,7 +1125,7 @@ public sealed partial class ContentStateService(
                 && manifest.TargetGame == item.TargetGame;
         });
 
-        return SelectBestMatchingManifest(matches, item);
+        return SelectBestMatchingManifest(matches, item, logger);
     }
 
     /// <summary>
@@ -1013,7 +1134,8 @@ public sealed partial class ContentStateService(
     /// </summary>
     private static ContentManifest? SelectBestMatchingManifest(
         IEnumerable<ContentManifest> matches,
-        ContentSearchResult item)
+        ContentSearchResult item,
+        ILogger? logger = null)
     {
         var candidates = matches.DistinctBy(m => m.Id.Value).ToList();
         if (candidates.Count == 0)
@@ -1045,6 +1167,12 @@ public sealed partial class ContentStateService(
             }
             else
             {
+                logger?.LogDebug(
+                    "Variant filter eliminated all {CandidateCount} candidates for content '{ContentName}' ({ContentId}) with requested variant '{Variant}'",
+                    candidates.Count,
+                    item.Name,
+                    item.Id,
+                    itemVariant);
                 return null;
             }
         }
@@ -1174,109 +1302,6 @@ public sealed partial class ContentStateService(
         }
 
         return 0;
-    }
-
-    /// <summary>
-    /// Extracts a variant token (e.g. 720p, 1080p, 4k, english, russian, etc.) from a name or ID string.
-    /// </summary>
-    private static string? ExtractVariantToken(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return null;
-        }
-
-        // 1. Check for trailing parentheses like "(English)" or "(1080p)" or "(RU)"
-        var parenMatch = GitHubTopicsDiscoverer.VariantPatterns.TrailingParenthesesPattern().Match(input);
-        if (parenMatch.Success)
-        {
-            var token = parenMatch.Groups[1].Value.Trim().ToLowerInvariant();
-            if (!string.IsNullOrEmpty(token))
-            {
-                if (IsoLanguageCodeMap.TryGetValue(token, out var isoLang))
-                {
-                    return isoLang;
-                }
-
-                if (GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames.ContainsKey(token))
-                {
-                    return token;
-                }
-
-                if (token switch
-                    {
-                        "720" or "720p" or "900" or "900p" or "1080" or "1080p" or "1440" or "1440p" or "2160" or "4k" or "5k" or "8k" => true,
-                        _ => false,
-                    })
-                {
-                    return token switch
-                    {
-                        "720" => "720p",
-                        "900" => "900p",
-                        "1080" => "1080p",
-                        "1440" => "1440p",
-                        "2160" => "4k",
-                        _ => token,
-                    };
-                }
-            }
-        }
-
-        // 2. Check resolution patterns like 1920x1080 or 1080p
-        var resMatch = GitHubTopicsDiscoverer.VariantPatterns.ResolutionPattern().Match(input);
-        if (resMatch.Success && GitHubTopicsDiscoverer.VariantPatterns.ResolutionDisplayNames.TryGetValue(resMatch.Value, out var disp))
-        {
-            return disp.ToLowerInvariant();
-        }
-
-        var match = Regex.Match(input, @"\b(720p?|900p?|1080p?|1440p?|2160p?|4k)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
-        if (match.Success)
-        {
-            var token = match.Value.ToLowerInvariant();
-            return token switch
-            {
-                "720" => "720p",
-                "900" => "900p",
-                "1080" => "1080p",
-                "1440" => "1440p",
-                "2160" => "4k",
-                _ => token,
-            };
-        }
-
-        var inlineMatch = Regex.Match(input, @"(720p|900p|1080p|1440p|2160p|4k)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
-        if (inlineMatch.Success)
-        {
-            return inlineMatch.Value.ToLowerInvariant();
-        }
-
-        // 3. Check language patterns (e.g. english, russian, spanish)
-        foreach (var (pattern, _) in GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames)
-        {
-            if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-            {
-                return pattern.ToLowerInvariant();
-            }
-        }
-
-        // 4. Check ISO language code tokens in hyphenated / structured identifiers (e.g. zerohour-ru, hlei-zerohour-de)
-        var langTokenMatch = LanguageCodePattern().Match(input);
-        if (langTokenMatch.Success && IsoLanguageCodeMap.TryGetValue(langTokenMatch.Groups[1].Value, out var isoMatched))
-        {
-            return isoMatched;
-        }
-
-        // 5. Check if input ends with a known ISO code without separators (e.g. hleizerohourru, enzh, ruzh)
-        foreach (var (isoCode, langName) in IsoLanguageCodeMap)
-        {
-            if (input.EndsWith(isoCode, StringComparison.OrdinalIgnoreCase) ||
-                input.EndsWith($"{isoCode}zh", StringComparison.OrdinalIgnoreCase))
-            {
-                return langName;
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -1613,7 +1638,7 @@ public sealed partial class ContentStateService(
         return input;
     }
 
-    private static ContentManifest? FindDirectFileMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    private static ContentManifest? FindDirectFileMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
         var matches = manifests.Where(manifest =>
             (!string.IsNullOrEmpty(manifest.OriginalContentId) && (
@@ -1627,10 +1652,10 @@ public sealed partial class ContentStateService(
                 (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
                     string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)))));
 
-        return SelectBestMatchingManifest(matches, item);
+        return SelectBestMatchingManifest(matches, item, logger);
     }
 
-    private static ContentManifest? FindOriginMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    private static ContentManifest? FindOriginMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
         bool isGitHub = IsGitHubPublisher(item.ProviderName);
 
@@ -1679,10 +1704,10 @@ public sealed partial class ContentStateService(
             return contentIdMatches || (!isGitHub && ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name));
         });
 
-        return SelectBestMatchingManifest(matches, item);
+        return SelectBestMatchingManifest(matches, item, logger);
     }
 
-    private static ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    private static ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(item.SourceUrl) || !IsGitHubUrl(item.SourceUrl))
         {
@@ -1690,7 +1715,7 @@ public sealed partial class ContentStateService(
         }
 
         var matches = manifests.Where(manifest => IsGitHubManifestMatch(manifest, item));
-        return SelectBestMatchingManifest(matches, item);
+        return SelectBestMatchingManifest(matches, item, logger);
     }
 
     private static bool IsGitHubManifestMatch(ContentManifest manifest, ContentSearchResult item)
@@ -1783,7 +1808,7 @@ public sealed partial class ContentStateService(
         return clean;
     }
 
-    private static ContentManifest? FindDownloadUrlMatch(IReadOnlyList<ContentManifest> manifests, string? selectedDownloadUrl, ContentSearchResult item)
+    private static ContentManifest? FindDownloadUrlMatch(IReadOnlyList<ContentManifest> manifests, string? selectedDownloadUrl, ContentSearchResult item, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(selectedDownloadUrl))
         {
@@ -1795,10 +1820,10 @@ public sealed partial class ContentStateService(
                 !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
                 string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true);
 
-        return SelectBestMatchingManifest(matches, item);
+        return SelectBestMatchingManifest(matches, item, logger);
     }
 
-    private static ContentManifest? FindSuperHackersMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    private static ContentManifest? FindSuperHackersMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
         if (!IsSuperHackersVariant(item, out var expectedVersion, out var expectedContentName))
         {
@@ -1816,7 +1841,7 @@ public sealed partial class ContentStateService(
                 && manifest.TargetGame == item.TargetGame;
         });
 
-        return SelectBestMatchingManifest(matches, item);
+        return SelectBestMatchingManifest(matches, item, logger);
     }
 
     private async Task<bool> CheckDirectSessionManifestFastPathAsync(ContentSearchResult item, CancellationToken cancellationToken)
@@ -2061,14 +2086,14 @@ public sealed partial class ContentStateService(
 
         if (isFileRow)
         {
-            return FindDirectFileMatch(manifests, item);
+            return FindDirectFileMatch(manifests, item, logger);
         }
 
-        return FindOriginMatch(manifests, item)
-            ?? FindGitHubRepoMatch(manifests, item)
-            ?? FindDownloadUrlMatch(manifests, item.SelectedDownloadUrl, item)
-            ?? FindSuperHackersMatch(manifests, item)
-            ?? FindByPublisherTypeAndGame(manifests, item);
+        return FindOriginMatch(manifests, item, logger)
+            ?? FindGitHubRepoMatch(manifests, item, logger)
+            ?? FindDownloadUrlMatch(manifests, item.SelectedDownloadUrl, item, logger)
+            ?? FindSuperHackersMatch(manifests, item, logger)
+            ?? FindByPublisherTypeAndGame(manifests, item, logger);
     }
 
     /// <summary>

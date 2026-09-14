@@ -312,7 +312,7 @@ public sealed class ProfileSelectionViewModelTests
     }
 
     /// <summary>
-    /// Verifies that creating a new profile shows a profile created notification and closes the dialog.
+    /// Verifies that creating a new profile closes the dialog and sets success without showing a duplicate toast (delegated to ProfileContentService).
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -366,9 +366,12 @@ public sealed class ProfileSelectionViewModelTests
         Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
         Assert.True(closeRequested);
         Assert.Equal("New ZH Profile", vm.SelectedProfileName);
-        notificationMock.Verify(
-            x => x.ShowSuccess("Profile Created", "Created profile 'New ZH Profile' with 'Test Content'.", It.IsAny<int?>(), It.IsAny<bool>()),
+        profileContentMock.Verify(
+            x => x.CreateProfileWithContentAsync(It.IsAny<string>(), "1.0.test.manifest", It.IsAny<CancellationToken>()),
             Times.Once);
+        notificationMock.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     /// <summary>

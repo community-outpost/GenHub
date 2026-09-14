@@ -651,7 +651,8 @@ public sealed partial class DownloadsBrowserViewModel(
     private static void PopulateSynthesizedVariants(
         ContentGridItemViewModel variantVm,
         ContentSearchResult primaryItem,
-        IList<ContentVariantInfo> singleVariants)
+        IList<ContentVariantInfo> singleVariants,
+        ILogger? logger = null)
     {
         var lastSegment = primaryItem.Id?.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
         if (string.IsNullOrWhiteSpace(lastSegment))
@@ -685,10 +686,23 @@ public sealed partial class DownloadsBrowserViewModel(
                 var cleanedProvider = new string(provider.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
                 var safeProvider = string.IsNullOrWhiteSpace(cleanedProvider) ? ContentConstants.DefaultContentFallbackId : cleanedProvider;
 
-                var candidateId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{safeProvider}.{primaryItem.ContentType.ToManifestIdString()}.{composedName.ToLowerInvariant()}";
-                manifestId = ManifestIdValidator.IsValid(candidateId, out _)
-                    ? candidateId
-                    : $"{ManifestConstants.DefaultManifestFormatVersion}.0.{ContentConstants.DefaultContentFallbackId}.{primaryItem.ContentType.ToManifestIdString()}.{ContentConstants.DefaultContentFallbackId}";
+                var cleanedComposedName = new string(composedName.ToLowerInvariant().Where(c => char.IsLetterOrDigit(c) || c == '-').ToArray()).Trim('-');
+                var safeComposedName = string.IsNullOrWhiteSpace(cleanedComposedName) ? ContentConstants.DefaultContentFallbackId : cleanedComposedName;
+
+                var candidateId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{safeProvider}.{primaryItem.ContentType.ToManifestIdString()}.{safeComposedName}";
+                if (ManifestIdValidator.IsValid(candidateId, out _))
+                {
+                    manifestId = candidateId;
+                }
+                else
+                {
+                    logger?.LogWarning(
+                        "Synthesized variant candidate ID '{CandidateId}' failed validation for provider '{Provider}', content '{ContentName}'. Falling back to default ID.",
+                        candidateId,
+                        provider,
+                        primaryItem.Name);
+                    manifestId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{safeProvider}.{primaryItem.ContentType.ToManifestIdString()}.{ContentConstants.DefaultContentFallbackId}";
+                }
             }
 
             var baseName = !string.IsNullOrEmpty(primaryItem.VariantFamilyName) ? primaryItem.VariantFamilyName : primaryItem.Name;
@@ -726,7 +740,7 @@ public sealed partial class DownloadsBrowserViewModel(
             var installable = new InstallableVariant
             {
                 Name = !string.IsNullOrWhiteSpace(v.Name) ? v.Name : VariantSwap.ResolveDisplayName(variantSr, v),
-                ManifestId = VariantSwap.ResolveCatalogKey(variantSr, v),
+                ManifestId = manifestId,
                 IconUrl = primaryItem.IconUrl ?? string.Empty,
                 VariantType = v.VariantType ?? string.Empty,
             };
@@ -1629,7 +1643,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             if (groupItems.Count == 1 && primaryItem.Variants is { Count: > 0 } singleVariants)
             {
-                PopulateSynthesizedVariants(variantVm, primaryItem, singleVariants);
+                PopulateSynthesizedVariants(variantVm, primaryItem, singleVariants, logger);
             }
             else
             {

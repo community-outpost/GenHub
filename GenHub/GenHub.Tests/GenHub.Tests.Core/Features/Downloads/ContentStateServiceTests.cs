@@ -1946,6 +1946,40 @@ public class ContentStateServiceTests
         Assert.Equal(ContentState.NotDownloaded, state);
     }
 
+    /// <summary>
+    /// Verifies that common English words whose endings happen to collide with ISO language codes
+    /// (e.g. Golden, Blade, Upgrade, Resources, Unit, Script) are NOT identified as language variants.
+    /// </summary>
+    /// <param name="word">The word to test.</param>
+    [Theory]
+    [InlineData("Golden")]
+    [InlineData("Blade")]
+    [InlineData("Upgrade")]
+    [InlineData("Resources")]
+    [InlineData("Unit")]
+    [InlineData("Script")]
+    public void ExtractVariantToken_CommonEnglishWords_DoesNotExtractVariant(string word)
+    {
+        var token = ContentStateService.ExtractVariantToken(word);
+        Assert.Null(token);
+    }
+
+    /// <summary>
+    /// Verifies that compound registered content codes and 4-letter zh codes extract the expected variant.
+    /// </summary>
+    /// <param name="input">The compound input.</param>
+    /// <param name="expectedLanguage">The expected language variant.</param>
+    [Theory]
+    [InlineData("hleizerohourru", "russian")]
+    [InlineData("hleizerohourde", "german")]
+    [InlineData("enzh", "english")]
+    [InlineData("ruzh", "russian")]
+    public void ExtractVariantToken_CompoundAndRegisteredCodes_ExtractsVariant(string input, string expectedLanguage)
+    {
+        var token = ContentStateService.ExtractVariantToken(input);
+        Assert.Equal(expectedLanguage, token);
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

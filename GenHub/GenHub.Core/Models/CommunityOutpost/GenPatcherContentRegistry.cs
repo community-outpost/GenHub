@@ -459,7 +459,7 @@ public static class GenPatcherContentRegistry
     /// (e.g. "hleizerohourru" -> "hlei").
     /// </summary>
     /// <param name="rawCode">The raw content code string.</param>
-    /// <returns>The normalized known content code, or the trimmed raw code if not recognized.</returns>
+    /// <returns>The normalized known content code, or the lowercased first hyphen-segment of the raw code if not recognized.</returns>
     public static string NormalizeContentCode(string? rawCode)
     {
         if (string.IsNullOrWhiteSpace(rawCode))

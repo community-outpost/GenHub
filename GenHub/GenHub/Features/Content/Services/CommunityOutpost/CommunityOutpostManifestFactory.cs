@@ -536,8 +536,7 @@ public class CommunityOutpostManifestFactory(
         {
             manifestName = originalManifest.Name;
         }
-        else if (variant.Name.StartsWith(baseDisplayName, StringComparison.OrdinalIgnoreCase) ||
-                 variant.Name.Contains(baseDisplayName, StringComparison.OrdinalIgnoreCase))
+        else if (variant.Name.Contains(baseDisplayName, StringComparison.OrdinalIgnoreCase))
         {
             manifestName = variant.Name;
         }

@@ -179,6 +179,7 @@ public sealed class ManifestHelperTests
             Id = ManifestId.Create("1.0.test.addon.pkg-1"),
             Name = "Pkg 1",
             ContentType = ContentType.Addon,
+            TargetGame = GameType.Generals,
         };
 
         var m2 = new ContentManifest
@@ -186,6 +187,7 @@ public sealed class ManifestHelperTests
             Id = ManifestId.Create("1.0.test.addon.pkg-2"),
             Name = "Pkg 2",
             ContentType = ContentType.Addon,
+            TargetGame = GameType.Generals,
         };
 
         var reference = new ContentManifest
@@ -193,6 +195,7 @@ public sealed class ManifestHelperTests
             Id = ManifestId.Create("1.0.test.addon.pkg"),
             Name = "Pkg",
             ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
         };
 
         var result = ManifestHelper.SelectPrimaryManifest([m1, m2], reference);
