@@ -509,7 +509,7 @@ public partial class ToolsViewModel(
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName || e.PropertyName == "Item[]")
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
         {
             if (InstalledTools.Count > 0)
             {
