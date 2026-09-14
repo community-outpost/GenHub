@@ -57,7 +57,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         }
         catch (OperationCanceledException)
         {
-            return false;
+            throw;
         }
         catch (Exception ex)
         {
@@ -93,7 +93,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         }
         catch (OperationCanceledException)
         {
-            return false;
+            throw;
         }
         catch (Exception ex)
         {
@@ -164,6 +164,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 return true;
             }, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to convert PSD: {SourcePath}", sourcePath);
@@ -204,6 +208,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
 
             // PSD has alpha if it has more than 3 channels (R, G, B)
             return image.ChannelCount > 3;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -322,6 +330,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
 
             logger.LogInformation("Converted {Source} to DDS format {Format}", sourcePath, encoder.OutputOptions.Format);
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

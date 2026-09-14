@@ -112,7 +112,7 @@ public sealed class ImageConversionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ConvertImageAsync_WithCancellation_ReturnsFalse()
+    public async Task ConvertImageAsync_WithCancellation_ThrowsOperationCanceledException()
     {
         // Arrange
         var sourcePath = Path.Combine(_tempDirectory, "test.bmp");
@@ -128,10 +128,10 @@ public sealed class ImageConversionServiceTests : IDisposable
         cts.Cancel();
 
         // Act
-        var result = await _service.ConvertImageAsync(sourcePath, targetPath, cancellationToken: cts.Token);
+        var act = () => _service.ConvertImageAsync(sourcePath, targetPath, cancellationToken: cts.Token);
 
         // Assert
-        result.Should().BeFalse();
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class ImageConversionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task HasAlphaChannelAsync_WithCancellation_ReturnsFalse()
+    public async Task HasAlphaChannelAsync_WithCancellation_ThrowsOperationCanceledException()
     {
         // Arrange
         var imagePath = Path.Combine(_tempDirectory, "test.bmp");
@@ -340,9 +340,9 @@ public sealed class ImageConversionServiceTests : IDisposable
         cts.Cancel();
 
         // Act
-        var result = await _service.HasAlphaChannelAsync(imagePath, cts.Token);
+        var act = () => _service.HasAlphaChannelAsync(imagePath, cts.Token);
 
         // Assert
-        result.Should().BeFalse();
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

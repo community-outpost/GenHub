@@ -1,11 +1,11 @@
-using GenHub.Core.Interfaces.Tools.ModBuilder;
-using GenHub.Core.Models.Results.ModBuilder;
-using GenHub.Core.Constants;
-using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Results.ModBuilder;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ModBuilder.Services;
 
@@ -76,6 +76,10 @@ public sealed class FileConversionService(
             }
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -225,6 +229,10 @@ public sealed class FileConversionService(
             progress?.Report(1.0);
 
             return ConversionOperationResult.CreateSuccess();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
