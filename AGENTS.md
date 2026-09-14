@@ -146,6 +146,7 @@ To avoid review roundtrips and CI Quality Gate failures from automated bots, adh
 - **Time Representation:** Always use `DateTime.UtcNow` or `DateTimeOffset.UtcNow` for timestamps, file manifests, and metrics. Never use machine-local `DateTime.Now`.
 - **Concurrency & Synchronization:** Never lock on `this`, `typeof(...)`, or string literals. Use a dedicated `private readonly object _syncLock = new();` or asynchronous synchronization primitives like `SemaphoreSlim`.
 - **CancellationToken Propagation:** Forward `CancellationToken` through every inner async call (`FileStream.ReadAsync`, `HttpClient.SendAsync`, `Task.Delay`). Do not drop cancellation tokens midway through async pipelines.
+
 ## Dev & Verification
 
 - **Targeted verification:** Run tests for the specific scope you changed.

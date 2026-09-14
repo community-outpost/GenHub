@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -2741,13 +2741,13 @@
     <value>Close window</value>
   </data>
   <data name="GameProfiles.Status.FailedToLoad" xml:space="preserve">
-    <value>Failed to load profiles</value>
+    <value>Failed to load profiles: {0}</value>
   </data>
   <data name="GameProfiles.Status.AlreadyLaunching" xml:space="preserve">
     <value>A game is already launching or running. Please wait or stop it first.</value>
   </data>
   <data name="GameProfiles.Status.Validating" xml:space="preserve">
-    <value>Validating game files...</value>
+    <value>Validating {0}...</value>
   </data>
   <data name="GameProfiles.Status.ScanCompleteNone" xml:space="preserve">
     <value>Scan complete. No game installations were found.</value>
@@ -2816,7 +2816,7 @@
     <value>Shortcut Creation Failed</value>
   </data>
   <data name="GameProfiles.Notification.ShortcutFailed.Message" xml:space="preserve">
-    <value>Failed to create shortcut: {0}</value>
+    <value>Failed to create shortcut for profile '{0}': {1}</value>
   </data>
   <data name="GameProfiles.Notification.SteamEnabled.Title" xml:space="preserve">
     <value>Steam Integration Enabled</value>
@@ -2978,16 +2978,16 @@
     <value>Failed to Load Profiles</value>
   </data>
   <data name="GameProfiles.Notification.LoadFailed.Message" xml:space="preserve">
-    <value>Failed to load game profiles: {0}</value>
+    <value>Failed to load profile '{0}': {1}</value>
   </data>
   <data name="GameProfiles.Status.ProfileCreatedSuccess" xml:space="preserve">
-    <value>Profile '{0}' created successfully</value>
+    <value>Profile created successfully</value>
   </data>
   <data name="GameProfiles.Notification.CopySuccess.Title" xml:space="preserve">
     <value>Profile Copied</value>
   </data>
   <data name="GameProfiles.Notification.CopySuccess.Message" xml:space="preserve">
-    <value>Profile '{0}' copied successfully</value>
+    <value>Profile '{0}' copied to '{1}' successfully</value>
   </data>
   <data name="GameProfiles.Notification.StopError.Title" xml:space="preserve">
     <value>Stop Error</value>
@@ -3014,16 +3014,16 @@
     <value>Failed to copy profile '{0}': {1}</value>
   </data>
   <data name="GameProfiles.Notification.CopyFailedSource.Message" xml:space="preserve">
-    <value>Failed to copy profile: source profile '{0}' not found</value>
+    <value>Failed to copy profile: source profile '{0}' not found: {1}</value>
   </data>
   <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
     <value>Invalid Directory</value>
   </data>
   <data name="GameProfiles.Notification.InvalidDirectory.Message" xml:space="preserve">
-    <value>The directory does not exist or is invalid: {0}</value>
+    <value>The selected directory does not contain valid game executables.</value>
   </data>
   <data name="GameProfiles.Notification.ProcessDirectoryError.Message" xml:space="preserve">
-    <value>Failed to open directory '{0}': {1}</value>
+    <value>Failed to process selected directory: {0}</value>
   </data>
   <data name="GameProfiles.Notification.SteamIntegration.Title" xml:space="preserve">
     <value>Steam Integration</value>
@@ -3104,7 +3104,7 @@
     <value>Copying profile '{0}'...</value>
   </data>
   <data name="GameProfiles.Status.SteamLaunchUpdated" xml:space="preserve">
-    <value>Steam launch mode updated for profile '{0}'</value>
+    <value>Steam launch {0} for profile '{1}'</value>
   </data>
   <data name="GameProfiles.Error.FailedToCreateShortcut" xml:space="preserve">
     <value>Failed to create shortcut for profile '{0}': {1}</value>
@@ -3125,12 +3125,18 @@
     <value>Error</value>
   </data>
   <data name="GameProfiles.Status.ProfileCopiedSuccess" xml:space="preserve">
-    <value>Profile copied to '{0}' successfully</value>
+    <value>Profile '{0}' copied to '{1}' successfully</value>
   </data>
   <data name="GameProfiles.Status.ProfileCreationCancelled" xml:space="preserve">
     <value>Profile creation cancelled</value>
   </data>
   <data name="GameProfiles.Error.ErrorEditingProfile" xml:space="preserve">
     <value>Error editing profile '{0}'</value>
+  </data>
+  <data name="Maps.MapPack.CreatedDatePrefix" xml:space="preserve">
+    <value>Created:</value>
+  </data>
+  <data name="Maps.MapPack.MapsCountSuffix" xml:space="preserve">
+    <value>Maps</value>
   </data>
 </root>

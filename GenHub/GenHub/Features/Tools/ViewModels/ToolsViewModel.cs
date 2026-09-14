@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -9,9 +10,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Tools;
-using System.ComponentModel;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -509,7 +509,7 @@ public partial class ToolsViewModel(
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == "Item[]")
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName || e.PropertyName == "Item[]")
         {
             if (InstalledTools.Count > 0)
             {

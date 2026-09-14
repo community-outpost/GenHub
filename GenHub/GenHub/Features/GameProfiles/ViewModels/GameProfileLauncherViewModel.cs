@@ -61,7 +61,6 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>
 {
-    private readonly ILocalizationService _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
@@ -156,7 +155,7 @@ public partial class GameProfileLauncherViewModel(
                 gameProcessManager.ProcessExited += OnProcessExited;
             }
 
-            StatusMessage = _localizationService["GameProfiles.Status.LoadingProfiles"];
+            StatusMessage = localizationService["GameProfiles.Status.LoadingProfiles"];
             ErrorMessage = string.Empty;
             Profiles.Clear();
 
@@ -202,13 +201,13 @@ public partial class GameProfileLauncherViewModel(
                 Profiles.Add(new AddProfileItemViewModel());
 
                 var profileCount = Profiles.Count - 1;
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
                 logger.LogInformation("Loaded {Count} game profiles", profileCount);
             }
             else
             {
                 var errors = string.Join(", ", profilesResult.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.FailedToLoad", errors);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.FailedToLoad", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Failed to load profiles: {Errors}", errors);
             }
@@ -222,7 +221,7 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error initializing profiles");
-            StatusMessage = _localizationService["GameProfiles.Status.ErrorLoadingProfiles"];
+            StatusMessage = localizationService["GameProfiles.Status.ErrorLoadingProfiles"];
             ErrorMessage = ex.Message;
             IsServiceAvailable = false;
         }
@@ -455,7 +454,7 @@ public partial class GameProfileLauncherViewModel(
             IsHeaderExpanded = true;
             _headerCollapseTimer.Stop(); // Ensure header stays open during scan
 
-            StatusMessage = _localizationService["GameProfiles.Status.ScanningForGames"];
+            StatusMessage = localizationService["GameProfiles.Status.ScanningForGames"];
             ErrorMessage = string.Empty;
 
             // Scan for all installations
@@ -473,7 +472,7 @@ public partial class GameProfileLauncherViewModel(
                     }
                     else
                     {
-                        StatusMessage = _localizationService["GameProfiles.Status.NoInstallationsFound"];
+                        StatusMessage = localizationService["GameProfiles.Status.NoInstallationsFound"];
                         return;
                     }
                 }
@@ -487,17 +486,17 @@ public partial class GameProfileLauncherViewModel(
                 var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList);
                 var profilesCreated = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult);
 
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installationsList.Count, profilesCreated);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installationsList.Count, profilesCreated);
 
                 notificationService.ShowSuccess(
-                    _localizationService["GameProfiles.Notification.ScanComplete.Title"],
-                    _localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
+                    localizationService["GameProfiles.Notification.ScanComplete.Title"],
+                    localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
                     autoDismissMs: NotificationDurations.VeryLong);
             }
             else
             {
                 var errors = string.Join(", ", installations.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.ScanFailed", errors);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.ScanFailed", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Game scan failed: {Errors}", errors);
             }
@@ -505,7 +504,7 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error scanning for games");
-            StatusMessage = _localizationService["GameProfiles.Status.ErrorDuringScan"];
+            StatusMessage = localizationService["GameProfiles.Status.ErrorDuringScan"];
             ErrorMessage = ex.Message;
         }
         finally
@@ -1041,7 +1040,7 @@ public partial class GameProfileLauncherViewModel(
         // Try without blocking
         if (!await _launchSemaphore.WaitAsync(0))
         {
-            StatusMessage = _localizationService["GameProfiles.Status.AlreadyLaunching"];
+            StatusMessage = localizationService["GameProfiles.Status.AlreadyLaunching"];
             return;
         }
 
@@ -1050,7 +1049,7 @@ public partial class GameProfileLauncherViewModel(
             try
             {
                 IsLaunching = true;
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.Validating", profile.Name);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.Validating", profile.Name);
                 ErrorMessage = string.Empty;
 
                 // With CAS hardlinks, profile switching is instant - maps are just symlinks
@@ -1062,9 +1061,9 @@ public partial class GameProfileLauncherViewModel(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error starting launch process for {ProfileName}", profile.Name);
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.ErrorLaunchingProfile", profile.Name);
+                StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorLaunchingProfile", profile.Name);
                 ErrorMessage = ex.Message;
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.LaunchError.Title"], _localizationService.GetString("GameProfiles.Notification.LaunchError.Message", profile.Name, ex.Message));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchError.Title"], localizationService.GetString("GameProfiles.Notification.LaunchError.Message", profile.Name, ex.Message));
             }
             finally
             {
@@ -1082,7 +1081,7 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile)
     {
-        StatusMessage = _localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
+        StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
         var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
@@ -1098,15 +1097,15 @@ public partial class GameProfileLauncherViewModel(
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
 
-            StatusMessage = _localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
-            notificationService.ShowSuccess(_localizationService["GameProfiles.Notification.GameLaunched.Title"], _localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
+            StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
+            notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
         }
         else
         {
             var errors = string.Join(", ", launchResult.Errors);
-            StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
+            StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
             ErrorMessage = errors;
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.LaunchFailed.Title"], _localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
+            notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
         }
     }
 
@@ -1119,7 +1118,7 @@ public partial class GameProfileLauncherViewModel(
     {
         try
         {
-            StatusMessage = _localizationService.GetString("GameProfiles.Status.StoppingProfile", profile.Name);
+            StatusMessage = localizationService.GetString("GameProfiles.Status.StoppingProfile", profile.Name);
 
             var stopResult = await profileLauncherFacade.StopProfileAsync(profile.ProfileId);
 
@@ -1131,26 +1130,26 @@ public partial class GameProfileLauncherViewModel(
                 OnPropertyChanged(nameof(profile.CanLaunch));
                 OnPropertyChanged(nameof(profile.CanEdit));
 
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.ProfileStoppedSuccess", profile.Name);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileStoppedSuccess", profile.Name);
                 logger.LogInformation("Profile {ProfileName} stopped successfully", profile.Name);
-                notificationService.ShowInfo(_localizationService["GameProfiles.Notification.GameStopped.Title"], _localizationService.GetString("GameProfiles.Notification.GameStopped.Message", profile.Name));
+                notificationService.ShowInfo(localizationService["GameProfiles.Notification.GameStopped.Title"], localizationService.GetString("GameProfiles.Notification.GameStopped.Message", profile.Name));
             }
             else
             {
                 var errors = string.Join(", ", stopResult.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToStopProfile", profile.Name, errors);
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToStopProfile", profile.Name, errors);
                 logger.LogWarning(
                     "Failed to stop profile {ProfileName}: {Errors}",
                     profile.Name,
                     errors);
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.StopFailed.Title"], _localizationService.GetString("GameProfiles.Notification.StopFailed.Message", profile.Name, errors));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.StopFailed.Title"], localizationService.GetString("GameProfiles.Notification.StopFailed.Message", profile.Name, errors));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error stopping profile {ProfileName}", profile.Name);
-            StatusMessage = _localizationService.GetString("GameProfiles.Error.ErrorStoppingProfile", profile.Name);
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.StopError.Title"], _localizationService.GetString("GameProfiles.Notification.StopError.Message", profile.Name));
+            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorStoppingProfile", profile.Name);
+            notificationService.ShowError(localizationService["GameProfiles.Notification.StopError.Title"], localizationService.GetString("GameProfiles.Notification.StopError.Message", profile.Name));
         }
     }
 
@@ -1161,7 +1160,7 @@ public partial class GameProfileLauncherViewModel(
     private void ToggleEditMode()
     {
         IsEditMode = !IsEditMode;
-        StatusMessage = IsEditMode ? _localizationService["GameProfiles.Status.EditModeEnabled"] : _localizationService["GameProfiles.Status.EditModeDisabled"];
+        StatusMessage = IsEditMode ? localizationService["GameProfiles.Status.EditModeEnabled"] : localizationService["GameProfiles.Status.EditModeDisabled"];
         logger.LogInformation("Toggled edit mode to {IsEditMode}", IsEditMode);
     }
 
@@ -1173,18 +1172,18 @@ public partial class GameProfileLauncherViewModel(
     {
         try
         {
-            StatusMessage = _localizationService["GameProfiles.Status.SavingProfiles"];
+            StatusMessage = localizationService["GameProfiles.Status.SavingProfiles"];
 
             // Implementation for saving changes would go here
             // For now, just refresh the list
             await InitializeAsync();
-            StatusMessage = _localizationService["GameProfiles.Status.ProfilesSaved"];
+            StatusMessage = localizationService["GameProfiles.Status.ProfilesSaved"];
             logger.LogInformation("Saved profiles in edit mode");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error saving profiles");
-            StatusMessage = _localizationService["GameProfiles.Error.ErrorSavingProfiles"];
+            StatusMessage = localizationService["GameProfiles.Error.ErrorSavingProfiles"];
         }
     }
 
@@ -1196,7 +1195,7 @@ public partial class GameProfileLauncherViewModel(
     {
         if (string.IsNullOrEmpty(profile.ProfileId))
         {
-            StatusMessage = _localizationService["GameProfiles.Status.InvalidProfile"];
+            StatusMessage = localizationService["GameProfiles.Status.InvalidProfile"];
             return;
         }
 
@@ -1214,16 +1213,16 @@ public partial class GameProfileLauncherViewModel(
 
         try
         {
-            StatusMessage = _localizationService.GetString("GameProfiles.Status.DeletingProfile", profile.Name);
+            StatusMessage = localizationService.GetString("GameProfiles.Status.DeletingProfile", profile.Name);
             var deleteResult = await profileLauncherFacade.DeleteProfileAsync(profile.ProfileId);
 
             if (deleteResult.Success)
             {
                 Profiles.Remove(profile);
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.ProfileDeletedSuccess", profile.Name);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileDeletedSuccess", profile.Name);
                 logger.LogInformation("Deleted profile {ProfileName}", profile.Name);
 
-                notificationService.ShowSuccess(_localizationService["GameProfiles.Notification.ProfileDeleted.Title"], _localizationService.GetString("GameProfiles.Notification.ProfileDeleted.Message", profile.Name));
+                notificationService.ShowSuccess(localizationService["GameProfiles.Notification.ProfileDeleted.Title"], localizationService.GetString("GameProfiles.Notification.ProfileDeleted.Message", profile.Name));
 
                 try
                 {
@@ -1238,16 +1237,16 @@ public partial class GameProfileLauncherViewModel(
             else
             {
                 var errors = string.Join(", ", deleteResult.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToDeleteProfile", profile.Name, errors);
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToDeleteProfile", profile.Name, errors);
                 logger.LogWarning("Failed to delete profile {ProfileName}: {Errors}", profile.Name, errors);
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.DeleteFailed.Title"], _localizationService.GetString("GameProfiles.Notification.DeleteFailed.Message", profile.Name, errors));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.DeleteFailed.Title"], localizationService.GetString("GameProfiles.Notification.DeleteFailed.Message", profile.Name, errors));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting profile {ProfileName}", profile.Name);
-            StatusMessage = _localizationService.GetString("GameProfiles.Error.ErrorDeletingProfile", profile.Name);
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.DeleteError.Title"], _localizationService.GetString("GameProfiles.Notification.DeleteError.Message", profile.Name));
+            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorDeletingProfile", profile.Name);
+            notificationService.ShowError(localizationService["GameProfiles.Notification.DeleteError.Title"], localizationService.GetString("GameProfiles.Notification.DeleteError.Message", profile.Name));
         }
     }
 
@@ -1265,8 +1264,8 @@ public partial class GameProfileLauncherViewModel(
             if (!loadResult.Success || loadResult.Data == null)
             {
                 var errors = string.Join(", ", loadResult.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", errors);
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.LoadFailed.Title"], _localizationService.GetString("GameProfiles.Notification.LoadFailed.Message", profile.Name, errors));
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", errors);
+                notificationService.ShowError(localizationService["GameProfiles.Notification.LoadFailed.Title"], localizationService.GetString("GameProfiles.Notification.LoadFailed.Message", profile.Name, errors));
                 return;
             }
 
@@ -1291,7 +1290,7 @@ public partial class GameProfileLauncherViewModel(
                 try
                 {
                     await settingsWindow.ShowDialog(mainWindow);
-                    StatusMessage = _lastOperationSuccess ? _localizationService["GameProfiles.Status.ProfileUpdatedSuccess"] : _localizationService["GameProfiles.Status.EditCancelled"];
+                    StatusMessage = _lastOperationSuccess ? localizationService["GameProfiles.Status.ProfileUpdatedSuccess"] : localizationService["GameProfiles.Status.EditCancelled"];
                 }
                 finally
                 {
@@ -1301,13 +1300,13 @@ public partial class GameProfileLauncherViewModel(
             }
             else
             {
-                StatusMessage = _localizationService["GameProfiles.Error.MainWindowNotFound"];
+                StatusMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error editing profile {ProfileName}", profile.Name);
-            StatusMessage = _localizationService.GetString("GameProfiles.Error.ErrorEditingProfile", profile.Name);
+            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorEditingProfile", profile.Name);
         }
     }
 
@@ -1338,7 +1337,7 @@ public partial class GameProfileLauncherViewModel(
                 try
                 {
                     await settingsWindow.ShowDialog(mainWindow);
-                    StatusMessage = _lastOperationSuccess ? _localizationService["GameProfiles.Status.ProfileCreatedSuccess"] : _localizationService["GameProfiles.Status.ProfileCreationCancelled"];
+                    StatusMessage = _lastOperationSuccess ? localizationService["GameProfiles.Status.ProfileCreatedSuccess"] : localizationService["GameProfiles.Status.ProfileCreationCancelled"];
                 }
                 finally
                 {
@@ -1348,14 +1347,14 @@ public partial class GameProfileLauncherViewModel(
             }
             else
             {
-                StatusMessage = _localizationService["GameProfiles.Error.MainWindowNotFound"];
+                StatusMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating new profile");
-            StatusMessage = _localizationService["GameProfiles.Error.ErrorCreatingNewProfile"];
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.Error.Title"], _localizationService["GameProfiles.Notification.OpenNewProfileError.Message"]);
+            StatusMessage = localizationService["GameProfiles.Error.ErrorCreatingNewProfile"];
+            notificationService.ShowError(localizationService["GameProfiles.Notification.Error.Title"], localizationService.GetString("GameProfiles.Notification.OpenNewProfileError.Message", ex.Message));
         }
     }
 
@@ -1370,7 +1369,7 @@ public partial class GameProfileLauncherViewModel(
         {
             IsPreparingWorkspace = true;
             profile.IsPreparingWorkspace = true;
-            StatusMessage = _localizationService.GetString("GameProfiles.Status.PreparingWorkspace", profile.Name);
+            StatusMessage = localizationService.GetString("GameProfiles.Status.PreparingWorkspace", profile.Name);
             var prepareResult = await profileLauncherFacade.PrepareWorkspaceAsync(profile.ProfileId);
 
             if (prepareResult.Success && prepareResult.Data != null)
@@ -1393,23 +1392,23 @@ public partial class GameProfileLauncherViewModel(
                     }
                 }
 
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.WorkspacePrepared", profile.Name, prepareResult.Data.WorkspacePath);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.WorkspacePrepared", profile.Name, prepareResult.Data.WorkspacePath);
                 logger.LogInformation("Prepared workspace for profile {ProfileName} at {Path}", profile.Name, prepareResult.Data.WorkspacePath);
-                notificationService.ShowSuccess(_localizationService["GameProfiles.Notification.WorkspaceReady.Title"], _localizationService.GetString("GameProfiles.Notification.WorkspaceReady.Message", profile.Name));
+                notificationService.ShowSuccess(localizationService["GameProfiles.Notification.WorkspaceReady.Title"], localizationService.GetString("GameProfiles.Notification.WorkspaceReady.Message", profile.Name));
             }
             else
             {
                 var errors = string.Join(", ", prepareResult.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToPrepareWorkspace", profile.Name, errors);
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToPrepareWorkspace", profile.Name, errors);
                 logger.LogWarning("Failed to prepare workspace for profile {ProfileName}: {Errors}", profile.Name, errors);
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.WorkspaceFailed.Title"], _localizationService.GetString("GameProfiles.Notification.WorkspaceFailed.Message", profile.Name, errors));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.WorkspaceFailed.Title"], localizationService.GetString("GameProfiles.Notification.WorkspaceFailed.Message", profile.Name, errors));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error preparing workspace for profile {ProfileName}", profile.Name);
-            StatusMessage = _localizationService.GetString("GameProfiles.Error.ErrorPreparingWorkspace", profile.Name);
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.WorkspaceError.Title"], _localizationService.GetString("GameProfiles.Notification.WorkspaceError.Message", profile.Name));
+            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorPreparingWorkspace", profile.Name);
+            notificationService.ShowError(localizationService["GameProfiles.Notification.WorkspaceError.Title"], localizationService.GetString("GameProfiles.Notification.WorkspaceError.Message", profile.Name, ex.Message));
         }
         finally
         {
@@ -1427,35 +1426,35 @@ public partial class GameProfileLauncherViewModel(
     {
         try
         {
-            StatusMessage = _localizationService.GetString("GameProfiles.Status.CreatingShortcut", profile.Name);
+            StatusMessage = localizationService.GetString("GameProfiles.Status.CreatingShortcut", profile.Name);
 
             // Get the full profile to pass to the shortcut service
             var profileResult = await gameProfileManager.GetProfileAsync(profile.ProfileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", string.Join(", ", profileResult.Errors));
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", string.Join(", ", profileResult.Errors));
                 return;
             }
 
             var result = await shortcutService.CreateDesktopShortcutAsync(profileResult.Data);
             if (result.Success)
             {
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.ShortcutCreatedSuccess", profile.Name);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.ShortcutCreatedSuccess", profile.Name);
                 logger.LogInformation("Created desktop shortcut for profile {ProfileName} at {Path}", profile.Name, result.Data);
-                notificationService.ShowSuccess(_localizationService["GameProfiles.Notification.ShortcutCreated.Title"], _localizationService.GetString("GameProfiles.Notification.ShortcutCreated.Message", profile.Name));
+                notificationService.ShowSuccess(localizationService["GameProfiles.Notification.ShortcutCreated.Title"], localizationService.GetString("GameProfiles.Notification.ShortcutCreated.Message", profile.Name));
             }
             else
             {
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToCreateShortcut", string.Join(", ", result.Errors));
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToCreateShortcut", profile.Name, string.Join(", ", result.Errors));
                 logger.LogWarning("Failed to create shortcut for profile {ProfileName}: {Errors}", profile.Name, string.Join(", ", result.Errors));
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.ShortcutFailed.Title"], _localizationService.GetString("GameProfiles.Notification.ShortcutFailed.Message", profile.Name, string.Join(", ", result.Errors)));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.ShortcutFailed.Title"], localizationService.GetString("GameProfiles.Notification.ShortcutFailed.Message", profile.Name, string.Join(", ", result.Errors)));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating shortcut for profile {ProfileName}", profile.Name);
-            StatusMessage = _localizationService.GetString("GameProfiles.Error.ErrorCreatingShortcut", profile.Name);
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.ShortcutError.Title"], _localizationService.GetString("GameProfiles.Notification.ShortcutError.Message", profile.Name));
+            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorCreatingShortcut", profile.Name);
+            notificationService.ShowError(localizationService["GameProfiles.Notification.ShortcutError.Title"], localizationService.GetString("GameProfiles.Notification.ShortcutError.Message", profile.Name));
         }
     }
 
@@ -1470,7 +1469,7 @@ public partial class GameProfileLauncherViewModel(
         {
             if (profile.Profile is Core.Models.GameProfile.GameProfile gameProfile && !string.IsNullOrEmpty(gameProfile.GameClient?.Id))
             {
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.UpdatingLaunchMode", profile.Name);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.UpdatingLaunchMode", profile.Name);
 
                 // Update the persisted profile
                 var updateRequest = new Core.Models.GameProfile.UpdateProfileRequest
@@ -1485,17 +1484,17 @@ public partial class GameProfileLauncherViewModel(
                     await steamManifestPatcher.PatchManifestAsync(contentId, profile.UseSteamLaunch);
                 }
 
-                var statusText = profile.UseSteamLaunch ? _localizationService["Common.State.Enabled"] : _localizationService["Common.State.Disabled"];
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.SteamLaunchUpdated", statusText, profile.Name);
+                var statusText = profile.UseSteamLaunch ? localizationService["Common.State.Enabled"] : localizationService["Common.State.Disabled"];
+                StatusMessage = localizationService.GetString("GameProfiles.Status.SteamLaunchUpdated", statusText, profile.Name);
                 logger.LogInformation("Toggled Steam launch to {UseSteam} for profile {ProfileName}", profile.UseSteamLaunch, profile.Name);
-                notificationService.ShowInfo(_localizationService["GameProfiles.Notification.SteamIntegration.Title"], _localizationService.GetString("GameProfiles.Notification.SteamIntegration.Message", statusText, profile.Name));
+                notificationService.ShowInfo(localizationService["GameProfiles.Notification.SteamIntegration.Title"], localizationService.GetString("GameProfiles.Notification.SteamIntegration.Message", statusText, profile.Name));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error toggling Steam launch for {ProfileName}", profile.Name);
-            StatusMessage = _localizationService["GameProfiles.Error.ErrorUpdatingLaunchMode"];
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.SteamIntegrationError.Title"], _localizationService.GetString("GameProfiles.Notification.SteamIntegrationError.Message", profile.Name));
+            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", profile.Name);
+            notificationService.ShowError(localizationService["GameProfiles.Notification.SteamIntegrationError.Title"], localizationService.GetString("GameProfiles.Notification.SteamIntegrationError.Message", profile.Name, ex.Message));
 
             // Revert UI if failed
             profile.UseSteamLaunch = !profile.UseSteamLaunch;
@@ -1511,13 +1510,13 @@ public partial class GameProfileLauncherViewModel(
     {
         if (string.IsNullOrEmpty(profile.ProfileId))
         {
-            StatusMessage = _localizationService["GameProfiles.Status.InvalidProfile"];
+            StatusMessage = localizationService["GameProfiles.Status.InvalidProfile"];
             return;
         }
 
         try
         {
-            StatusMessage = _localizationService.GetString("GameProfiles.Status.CopyingProfile", profile.Name);
+            StatusMessage = localizationService.GetString("GameProfiles.Status.CopyingProfile", profile.Name);
             logger.LogInformation("Starting copy operation for profile {ProfileName} ({ProfileId})", profile.Name, profile.ProfileId);
 
             // Get the source profile
@@ -1525,9 +1524,9 @@ public partial class GameProfileLauncherViewModel(
             if (!sourceProfileResult.Success || sourceProfileResult.Data == null)
             {
                 var errors = string.Join(", ", sourceProfileResult.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", errors);
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", errors);
                 logger.LogWarning("Failed to load source profile {ProfileId}: {Errors}", profile.ProfileId, errors);
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.CopyFailed.Title"], _localizationService.GetString("GameProfiles.Notification.CopyFailedSource.Message", profile.Name, errors));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.CopyFailed.Title"], localizationService.GetString("GameProfiles.Notification.CopyFailedSource.Message", profile.Name, errors));
                 return;
             }
 
@@ -1645,7 +1644,7 @@ public partial class GameProfileLauncherViewModel(
                 // Add the new profile to the UI immediately
                 AddProfileToUI(createResult.Data);
 
-                StatusMessage = _localizationService.GetString("GameProfiles.Status.ProfileCopiedSuccess", sourceProfile.Name, copyName);
+                StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileCopiedSuccess", sourceProfile.Name, copyName);
                 logger.LogInformation(
                     "Successfully copied profile {SourceName} to {CopyName} (ID: {CopyId})",
                     sourceProfile.Name,
@@ -1653,22 +1652,22 @@ public partial class GameProfileLauncherViewModel(
                     createResult.Data.Id);
 
                 notificationService.ShowSuccess(
-                    _localizationService["GameProfiles.Notification.CopySuccess.Title"],
-                    _localizationService.GetString("GameProfiles.Notification.CopySuccess.Message", sourceProfile.Name, copyName));
+                    localizationService["GameProfiles.Notification.CopySuccess.Title"],
+                    localizationService.GetString("GameProfiles.Notification.CopySuccess.Message", sourceProfile.Name, copyName));
             }
             else
             {
                 var errors = string.Join(", ", createResult.Errors);
-                StatusMessage = _localizationService.GetString("GameProfiles.Error.FailedToCopyProfile", errors);
+                StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToCopyProfile", sourceProfile.Name, errors);
                 logger.LogWarning("Failed to copy profile {ProfileName}: {Errors}", sourceProfile.Name, errors);
-                notificationService.ShowError(_localizationService["GameProfiles.Notification.CopyFailed.Title"], _localizationService.GetString("GameProfiles.Notification.CopyFailed.Message", sourceProfile.Name, errors));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.CopyFailed.Title"], localizationService.GetString("GameProfiles.Notification.CopyFailed.Message", sourceProfile.Name, errors));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error copying profile {ProfileName}", profile.Name);
-            StatusMessage = _localizationService.GetString("GameProfiles.Error.ErrorCopyingProfile", profile.Name);
-            notificationService.ShowError(_localizationService["GameProfiles.Notification.CopyError.Title"], _localizationService.GetString("GameProfiles.Notification.CopyError.Message", profile.Name));
+            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorCopyingProfile", profile.Name);
+            notificationService.ShowError(localizationService["GameProfiles.Notification.CopyError.Title"], localizationService.GetString("GameProfiles.Notification.CopyError.Message", profile.Name));
         }
     }
 
@@ -1803,16 +1802,16 @@ public partial class GameProfileLauncherViewModel(
 
             logger.LogWarning("Selected directory does not contain valid game executables: {Path}", selectedPath);
             notificationService.ShowWarning(
-                _localizationService["GameProfiles.Notification.InvalidDirectory.Title"],
-                _localizationService["GameProfiles.Notification.InvalidDirectory.Message"]);
+                localizationService["GameProfiles.Notification.InvalidDirectory.Title"],
+                localizationService["GameProfiles.Notification.InvalidDirectory.Message"]);
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error occurred during manual directory selection");
             notificationService.ShowError(
-                _localizationService["GameProfiles.Notification.Error.Title"],
-                _localizationService.GetString("GameProfiles.Notification.ProcessDirectoryError.Message", ex.Message));
+                localizationService["GameProfiles.Notification.Error.Title"],
+                localizationService.GetString("GameProfiles.Notification.ProcessDirectoryError.Message", ex.Message));
             return null;
         }
     }

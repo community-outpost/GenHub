@@ -1,3 +1,4 @@
+using System.Resources;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -606,15 +607,16 @@ public class GameProfileLauncherViewModelTests
 
     private static ILocalizationService CreateLocalizationService()
     {
+        var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
         var mock = new Mock<ILocalizationService>();
         mock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
             .Returns<string, object?[]>((key, args) =>
             {
-                var val = GenHub.Resources.Localization.Strings.ResourceManager.GetString(key) ?? key;
+                var val = resourceManager.GetString(key) ?? key;
                 return args != null && args.Length > 0 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
             });
         mock.Setup(m => m[It.IsAny<string>()])
-            .Returns<string>(key => GenHub.Resources.Localization.Strings.ResourceManager.GetString(key) ?? key);
+            .Returns<string>(key => resourceManager.GetString(key) ?? key);
         return mock.Object;
     }
 }

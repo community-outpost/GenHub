@@ -680,7 +680,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="e">The event arguments containing the changed property name.</param>
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if ((e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == "Item[]") && _localizationService != null)
+        if ((e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName || e.PropertyName == "Item[]") && _localizationService != null)
         {
             var activeCultureName = _localizationService.CurrentCulture.Name;
             if (SelectedLanguage?.Culture.Name != activeCultureName)

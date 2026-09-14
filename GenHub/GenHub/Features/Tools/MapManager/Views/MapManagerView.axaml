@@ -401,8 +401,14 @@
                                       <TextBlock Text="{localization:Localize Maps.MapPack.Badge.Loaded}" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                   </Border>
                               </Grid>
-                              <TextBlock Text="{Binding CreatedDate, StringFormat='Created: {0:d}'}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
-                              <TextBlock Text="{Binding MapFilePaths.Count, StringFormat='{}{0} Maps'}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                              <StackPanel Orientation="Horizontal" Spacing="4">
+                                  <TextBlock Text="{localization:Localize Maps.MapPack.CreatedDatePrefix}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                                  <TextBlock Text="{Binding CreatedDate, StringFormat='{}{0:d}'}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                              </StackPanel>
+                              <StackPanel Orientation="Horizontal" Spacing="4">
+                                  <TextBlock Text="{Binding MapFilePaths.Count}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                  <TextBlock Text="{localization:Localize Maps.MapPack.MapsCountSuffix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                              </StackPanel>
                           </StackPanel>
 
                           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">

@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -2741,13 +2741,13 @@
     <value>Закрыть окно</value>
   </data>
   <data name="GameProfiles.Status.FailedToLoad" xml:space="preserve">
-    <value>Не удалось загрузить профили</value>
+    <value>Не удалось загрузить профили: {0}</value>
   </data>
   <data name="GameProfiles.Status.AlreadyLaunching" xml:space="preserve">
     <value>Игра уже запускается или работает. Пожалуйста, подождите или остановите её.</value>
   </data>
   <data name="GameProfiles.Status.Validating" xml:space="preserve">
-    <value>Проверка файлов игры...</value>
+    <value>Проверка {0}...</value>
   </data>
   <data name="GameProfiles.Status.ScanCompleteNone" xml:space="preserve">
     <value>Сканирование завершено. Установки игры не найдены.</value>
@@ -2816,7 +2816,7 @@
     <value>Ошибка создания ярлыка</value>
   </data>
   <data name="GameProfiles.Notification.ShortcutFailed.Message" xml:space="preserve">
-    <value>Не удалось создать ярлык: {0}</value>
+    <value>Не удалось создать ярлык для профиля '{0}': {1}</value>
   </data>
   <data name="GameProfiles.Notification.SteamEnabled.Title" xml:space="preserve">
     <value>Интеграция со Steam включена</value>
@@ -2909,7 +2909,7 @@
     <value>Заменить (обновить текущую версию)</value>
   </data>
   <data name="Dialog.UpdateOption.Description.Replace" xml:space="preserve">
-    <value>Обновляет текущую версию в существующих профилях. Устаревшие файлы версий будут удалены для экономии места на диске.</value>
+    <value>Обновляет текущую версию в существующих профилях. Замененные файлы версий (старый игровой клиент, пакет карт, патч данных) будут удалены для экономии места на диске.</value>
   </data>
   <data name="Dialog.UpdateOption.Checkbox.DeleteOldVersions" xml:space="preserve">
     <value>Удалить файлы устаревших версий из хранилища</value>
@@ -2978,16 +2978,16 @@
     <value>Ошибка загрузки профилей</value>
   </data>
   <data name="GameProfiles.Notification.LoadFailed.Message" xml:space="preserve">
-    <value>Не удалось загрузить профили игры: {0}</value>
+    <value>Не удалось загрузить профиль '{0}': {1}</value>
   </data>
   <data name="GameProfiles.Status.ProfileCreatedSuccess" xml:space="preserve">
-    <value>Профиль '{0}' успешно создан</value>
+    <value>Профиль успешно создан</value>
   </data>
   <data name="GameProfiles.Notification.CopySuccess.Title" xml:space="preserve">
     <value>Профиль скопирован</value>
   </data>
   <data name="GameProfiles.Notification.CopySuccess.Message" xml:space="preserve">
-    <value>Профиль '{0}' успешно скопирован</value>
+    <value>Профиль '{0}' успешно скопирован в '{1}'</value>
   </data>
   <data name="GameProfiles.Notification.StopError.Title" xml:space="preserve">
     <value>Ошибка остановки</value>
@@ -3014,16 +3014,16 @@
     <value>Не удалось скопировать профиль '{0}': {1}</value>
   </data>
   <data name="GameProfiles.Notification.CopyFailedSource.Message" xml:space="preserve">
-    <value>Не удалось скопировать профиль: исходный профиль '{0}' не найден</value>
+    <value>Не удалось скопировать профиль: исходный профиль '{0}' не найден: {1}</value>
   </data>
   <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
     <value>Неверный каталог</value>
   </data>
   <data name="GameProfiles.Notification.InvalidDirectory.Message" xml:space="preserve">
-    <value>Каталог не существует или недопустим: {0}</value>
+    <value>Выбранный каталог не содержит допустимых исполняемых файлов игры.</value>
   </data>
   <data name="GameProfiles.Notification.ProcessDirectoryError.Message" xml:space="preserve">
-    <value>Не удалось открыть каталог '{0}': {1}</value>
+    <value>Не удалось обработать выбранный каталог: {0}</value>
   </data>
   <data name="GameProfiles.Notification.SteamIntegration.Title" xml:space="preserve">
     <value>Интеграция со Steam</value>
@@ -3104,7 +3104,7 @@
     <value>Копирование профиля '{0}'...</value>
   </data>
   <data name="GameProfiles.Status.SteamLaunchUpdated" xml:space="preserve">
-    <value>Режим запуска Steam обновлен для профиля '{0}'</value>
+    <value>Запуск через Steam {0} для профиля '{1}'</value>
   </data>
   <data name="GameProfiles.Error.FailedToCreateShortcut" xml:space="preserve">
     <value>Не удалось создать ярлык для профиля '{0}': {1}</value>
@@ -3125,12 +3125,18 @@
     <value>Ошибка</value>
   </data>
   <data name="GameProfiles.Status.ProfileCopiedSuccess" xml:space="preserve">
-    <value>Профиль успешно скопирован в '{0}'</value>
+    <value>Профиль '{0}' успешно скопирован в '{1}'</value>
   </data>
   <data name="GameProfiles.Status.ProfileCreationCancelled" xml:space="preserve">
     <value>Создание профиля отменено</value>
   </data>
   <data name="GameProfiles.Error.ErrorEditingProfile" xml:space="preserve">
     <value>Ошибка редактирования профиля '{0}'</value>
+  </data>
+  <data name="Maps.MapPack.CreatedDatePrefix" xml:space="preserve">
+    <value>Создано:</value>
+  </data>
+  <data name="Maps.MapPack.MapsCountSuffix" xml:space="preserve">
+    <value>Карт</value>
   </data>
 </root>
