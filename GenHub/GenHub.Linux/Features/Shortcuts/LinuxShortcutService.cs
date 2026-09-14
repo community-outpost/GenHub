@@ -4,7 +4,6 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
@@ -26,7 +25,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     private static readonly UTF8Encoding Utf8NoBom = new(false);
 
     /// <inheritdoc />
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Catch all unexpected exceptions to return OperationResult failure instead of crashing.")]
     public async Task<OperationResult<string>> CreateDesktopShortcutAsync(GameProfile profile, string? shortcutName = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -76,7 +74,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
 
             return OperationResult<string>.CreateSuccess(shortcutPath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or PlatformNotSupportedException)
         {
             logger.LogError(ex, "Failed to create desktop shortcut for profile {ProfileName}", profile.Name);
             return OperationResult<string>.CreateFailure($"Failed to create shortcut: {ex.Message}");
@@ -84,7 +82,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     }
 
     /// <inheritdoc />
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Catch all unexpected exceptions to return OperationResult failure instead of crashing.")]
     public Task<OperationResult<bool>> RemoveDesktopShortcutAsync(GameProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -107,7 +104,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
             logger.LogWarning("Shortcut not found at {ShortcutPath}", shortcutPath);
             return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             logger.LogError(ex, "Failed to remove desktop shortcut for profile {ProfileName}", profile.Name);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to remove shortcut: {ex.Message}"));
@@ -124,7 +121,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     }
 
     /// <inheritdoc />
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Catch all unexpected exceptions to return OperationResult failure instead of crashing.")]
     public Task<OperationResult<bool>> CreateShortcutAsync(
         string shortcutPath,
         string targetPath,
@@ -162,7 +158,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
 
             return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or PlatformNotSupportedException)
         {
             logger.LogError(ex, "Failed to create shortcut at {ShortcutPath}", shortcutPath);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to create shortcut: {ex.Message}"));
@@ -180,7 +176,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     }
 
     /// <inheritdoc />
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Shortcut repair catches any filesystem or OS exceptions to return an OperationResult failure instead of crashing.")]
     public Task<OperationResult<bool>> RepairApplicationShortcutsAsync()
     {
         var processPath = Environment.ProcessPath;
@@ -215,7 +210,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
 
             return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or PlatformNotSupportedException)
         {
             logger.LogWarning(ex, "Failed to repair application shortcuts");
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to repair application shortcuts: {ex.Message}"));
@@ -451,7 +446,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     /// <summary>
     /// Makes a file executable using chmod.
     /// </summary>
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Setting executable permissions is best-effort and should not crash if underlying OS fails.")]
     private void MakeExecutable(string filePath)
     {
         try
@@ -461,7 +455,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
             File.SetUnixFileMode(filePath, mode);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException or ArgumentException)
         {
             logger.LogWarning(ex, "Failed to set executable permissions on {FilePath}", filePath);
         }
