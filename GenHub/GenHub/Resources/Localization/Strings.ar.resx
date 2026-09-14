@@ -2184,4 +2184,258 @@
     <value>الإشعارات</value>
     <comment>Tooltip for the notification bell button.</comment>
   </data>
-</root>
+  <data name="AppUpdate.Button.CheckForUpdates" xml:space="preserve">
+    <value>التحقق من وجود تحديثات</value>
+  </data>
+  <data name="AppUpdate.Button.Unsubscribe" xml:space="preserve">
+    <value>إلغاء الاشتراك</value>
+  </data>
+  <data name="AppUpdate.Button.ViewReleaseNotes" xml:space="preserve">
+    <value>عرض ملاحظات الإصدار</value>
+  </data>
+  <data name="AppUpdate.Label.Branches" xml:space="preserve">
+    <value>الفروع</value>
+  </data>
+  <data name="AppUpdate.Label.InstallationSource" xml:space="preserve">
+    <value>مصدر التثبيت</value>
+  </data>
+  <data name="AppUpdate.Label.OpenPullRequests" xml:space="preserve">
+    <value>طلبات الدمج المفتوحة</value>
+  </data>
+  <data name="AppUpdate.Label.SelectVersion" xml:space="preserve">
+    <value>حدد الإصدار</value>
+  </data>
+  <data name="AppUpdate.Label.SortBy" xml:space="preserve">
+    <value>الترتيب حسب:</value>
+  </data>
+  <data name="AppUpdate.Tab.BrowseBuilds" xml:space="preserve">
+    <value>تصفح الإصدارات</value>
+  </data>
+  <data name="AppUpdate.Tab.Update" xml:space="preserve">
+    <value>التحديث</value>
+  </data>
+  <data name="AppUpdate.Title.UpdateAvailable" xml:space="preserve">
+    <value>يوجد تحديث جديد!</value>
+  </data>
+  <data name="AppUpdate.Title.Window" xml:space="preserve">
+    <value>تحديثات GenHub</value>
+  </data>
+  <data name="AppUpdate.Tooltip.CheckForUpdates" xml:space="preserve">
+    <value>التحقق يدويًا من وجود تحديثات واستعادة الإشعارات الملغاة</value>
+  </data>
+  <data name="AppUpdate.Tooltip.Dismiss" xml:space="preserve">
+    <value>تجاهل التحديث</value>
+  </data>
+  <data name="AppUpdate.Tooltip.ForceRefresh" xml:space="preserve">
+    <value>فرض تحديث القائمة</value>
+  </data>
+  <data name="AppUpdate.Tooltip.OpenPrUrl" xml:space="preserve">
+    <value>فتح طلب الدمج على GitHub</value>
+  </data>
+  <data name="GameProfiles.Button.Scan" xml:space="preserve">
+    <value>فحص</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData" xml:space="preserve">
+    <value>حذف جميع بيانات التطبيق</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
+    <value>حذف مساحة تخزين CAS</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.ToolTip" xml:space="preserve">
+    <value>يحذف جميع ملفات اللعبة المخزنة مؤقتًا</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteManifests" xml:space="preserve">
+    <value>حذف البيانات الوصفية</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteManifests.ToolTip" xml:space="preserve">
+    <value>يزيل جميع البيانات الوصفية للمحتوى</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteProfiles" xml:space="preserve">
+    <value>حذف الملفات الشخصية</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteProfiles.ToolTip" xml:space="preserve">
+    <value>يزيل جميع ملفات تعريف المستخدم بشكل دائم</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteWorkspaces" xml:space="preserve">
+    <value>حذف مساحات العمل</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteWorkspaces.ToolTip" xml:space="preserve">
+    <value>ينظف جميع مساحات عمل اللعبة المؤقتة</value>
+  </data>
+  <data name="Settings.DangerZone.DestructiveActions" xml:space="preserve">
+    <value>إجراءات خطرة:</value>
+  </data>
+  <data name="Settings.DangerZone.Profiles" xml:space="preserve">
+    <value>الملفات الشخصية:</value>
+  </data>
+  <data name="Settings.DangerZone.UninstallGenHub" xml:space="preserve">
+    <value>إلغاء تثبيت GenHub (الاحتفاظ بالبيانات)</value>
+  </data>
+  <data name="Settings.DangerZone.UninstallGenHub.ToolTip" xml:space="preserve">
+    <value>إلغاء التثبيت لا يحذف البيانات بل يزيل تطبيق GenHub فقط</value>
+  </data>
+  <data name="Settings.DataDirectories.AppFolders.Description" xml:space="preserve">
+    <value>وصول سريع إلى بيانات التطبيق والملفات الشخصية والبيانات الوصفية لاستكشاف الأخطاء أو الإدارة اليدوية.</value>
+  </data>
+  <data name="Settings.DataDirectories.AppFolders.Label" xml:space="preserve">
+    <value>مجلدات بيانات التطبيق</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenAppData" xml:space="preserve">
+    <value>فتح AppData</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenCasPool" xml:space="preserve">
+    <value>فتح مستودع CAS</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenManifests" xml:space="preserve">
+    <value>فتح البيانات الوصفية</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenProfiles" xml:space="preserve">
+    <value>فتح مجلد الملفات</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenWorkspaces" xml:space="preserve">
+    <value>فتح مساحات العمل</value>
+  </data>
+  <data name="Tools.Label.SelectToolPlaceholder" xml:space="preserve">
+    <value>حدد أداة من الشريط الجانبي لعرض التفاصيل</value>
+  </data>
+  <data name="Tools.MapManager.Button.Pack" xml:space="preserve">
+    <value>حزمة</value>
+  </data>
+  <data name="Tools.MapManager.DragDrop.Subtitle" xml:space="preserve">
+    <value>مجلدات الخرائط أو أرشيفات ZIP التي تحتوي على ملفات الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.DragDrop.Title" xml:space="preserve">
+    <value>أفلت الخرائط أو ملفات ZIP للاستيراد</value>
+  </data>
+  <data name="Tools.MapManager.Empty.Subtitle" xml:space="preserve">
+    <value>اسحب وأفلت مجلدات الخرائط أو ملفات ZIP هنا، أو الصق رابط خريطة أعلاه</value>
+  </data>
+  <data name="Tools.MapManager.Empty.Title" xml:space="preserve">
+    <value>لم يتم العثور على أي خرائط</value>
+  </data>
+  <data name="Tools.MapManager.Status.Loaded" xml:space="preserve">
+    <value>تم تحميل {0} خرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Tooltip.MapPackManager" xml:space="preserve">
+    <value>مدير حزم الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Watermark.PasteMapUrl" xml:space="preserve">
+    <value>الصق رابط الخريطة...</value>
+  </data>
+  <data name="Tools.Plugin.genpatcher.Name" xml:space="preserve">
+    <value>GenPatcher</value>
+  </data>
+  <data name="Tools.Plugin.map-manager.Name" xml:space="preserve">
+    <value>مدير الخرائط</value>
+  </data>
+  <data name="Tools.Plugin.replay-manager.Name" xml:space="preserve">
+    <value>مدير تسجيلات الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Import" xml:space="preserve">
+    <value>استيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Parse" xml:space="preserve">
+    <value>تحليل</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Uncompress" xml:space="preserve">
+    <value>فك الضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Upload" xml:space="preserve">
+    <value>رفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Zip" xml:space="preserve">
+    <value>ضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Actions" xml:space="preserve">
+    <value>الإجراءات</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Filename" xml:space="preserve">
+    <value>اسم الملف</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Modified" xml:space="preserve">
+    <value>تاريخ التعديل</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Size" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Tools.ReplayManager.DragDrop.Subtitle" xml:space="preserve">
+    <value>ملفات .rep الفردية أو أرشيفات ZIP فقط</value>
+  </data>
+  <data name="Tools.ReplayManager.DragDrop.Title" xml:space="preserve">
+    <value>أفلت الإعادات أو ملفات ZIP للاستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Empty.Subtitle" xml:space="preserve">
+    <value>قم بسحب وإفلات ملفات .rep أو .zip هنا، أو الصق رابط إعادة أعلاه</value>
+  </data>
+  <data name="Tools.ReplayManager.Empty.Title" xml:space="preserve">
+    <value>لم يتم العثور على أي تسجيلات إعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Game.Generals" xml:space="preserve">
+    <value>جنرالز</value>
+  </data>
+  <data name="Tools.ReplayManager.Game.ZeroHour" xml:space="preserve">
+    <value>زيرو آور</value>
+  </data>
+  <data name="Tools.ReplayManager.Label.Selected" xml:space="preserve">
+    <value>المحدد:</value>
+  </data>
+  <data name="Tools.ReplayManager.Label.StorageQuotaNotice" xml:space="preserve">
+    <value>يتم الاحتفاظ بالملفات لمدة تصل إلى 14 يومًا أو حتى امتلاء مساحة التخزين. الحد الأقصى للحصة 10 ميجابايت لكل مستخدم (حد متجدد كل 3 أيام).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.Loaded" xml:space="preserve">
+    <value>تم تحميل {0} تسجيلات إعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.BrowseFiles" xml:space="preserve">
+    <value>استعراض الملفات</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.DeleteSelected" xml:space="preserve">
+    <value>حذف ملفات الإعادة المحددة نهائيًا من جهازك.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ImportFromUrl" xml:space="preserve">
+    <value>استيراد من الرابط</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.OpenFolder" xml:space="preserve">
+    <value>فتح المجلد</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ParseDetails" xml:space="preserve">
+    <value>تحليل تفاصيل الإعادة (قريباً)</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RefreshList" xml:space="preserve">
+    <value>تحديث القائمة</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RevealExplorer" xml:space="preserve">
+    <value>إظهار في مستكشف الملفات</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.SupportedFormats" xml:space="preserve">
+    <value>التنسيقات المدعومة:
+• رابط Generals Online أو معرف المباراة (مثل 151553)
+• رابط إعادة GenTool
+• رابط GenHub / UploadThing
+• رابط تنزيل مباشر (.rep/.zip)</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.UncompressSelected" xml:space="preserve">
+    <value>استخراج ملفات الإعادة من أرشيفات ZIP المحددة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.UploadReplay" xml:space="preserve">
+    <value>رفع الإعادة المحددة إلى Generals Online</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ZipName" xml:space="preserve">
+    <value>اسم الملف لأرشيف ZIP الجديد</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ZipSelected" xml:space="preserve">
+    <value>إنشاء أرشيف ZIP جديد يحتوي على ملفات الإعادة المحددة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.ImportUrl" xml:space="preserve">
+    <value>الصق رابط الإعادة أو معرف المباراة...</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.SearchReplays" xml:space="preserve">
+    <value>البحث في الإعادات...</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.ZipName" xml:space="preserve">
+    <value>اسم ملف ZIP</value>
+  </data>
+<data name="GameProfiles.Status.LoadedProfiles" xml:space="preserve"><value>تم تحميل {0} من ملفات التعريف</value></data><data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve"><value>اكتمل الفحص! تم العثور على {0} تثبيتات</value></data><data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve"><value>اكتمل الفحص! لم يتم العثور على تثبيتات جديدة</value></data><data name="GameProfiles.Status.ProfileLaunched" xml:space="preserve"><value>تم تشغيل ملف التعريف: {0}</value></data><data name="GameProfiles.Status.LaunchFailed" xml:space="preserve"><value>فشل في تشغيل ملف التعريف: {0}</value></data><data name="GameProfiles.Status.ProfileDeleted" xml:space="preserve"><value>تم حذف ملف التعريف: {0}</value></data><data name="GameProfiles.Status.DeleteFailed" xml:space="preserve"><value>فشل في حذف ملف التعريف: {0}</value></data><data name="Replays.Tab.Generals" xml:space="preserve"><value>جنرالز</value></data><data name="Replays.Tab.ZeroHour" xml:space="preserve"><value>زيرو أور</value></data><data name="Replays.Watermark.ImportUrl" xml:space="preserve"><value>الصق رابط الإعادة أو معرف المباراة...</value></data><data name="Replays.Tooltip.ImportUrlFormats" xml:space="preserve"><value>التنسيقات المدعومة:
+• رابط جنرالز أونلاين أو معرف المباراة (مثل 151553)
+• رابط إعادة GenTool
+• رابط GenHub / UploadThing
+• رابط تحميل مباشر (.rep/.zip)</value></data><data name="Replays.Button.Import" xml:space="preserve"><value>استيراد</value></data><data name="Replays.Tooltip.ImportFromUrl" xml:space="preserve"><value>استيراد من الرابط</value></data><data name="Replays.Tooltip.BrowseFiles" xml:space="preserve"><value>تصفح الملفات</value></data><data name="Replays.Watermark.Search" xml:space="preserve"><value>البحث في الإعادات...</value></data><data name="Replays.Tooltip.RefreshList" xml:space="preserve"><value>تحديث القائمة</value></data><data name="Replays.Tooltip.OpenFolder" xml:space="preserve"><value>فتح المجلد</value></data><data name="Replays.Column.Filename" xml:space="preserve"><value>اسم الملف</value></data><data name="Replays.Column.Size" xml:space="preserve"><value>الحجم</value></data><data name="Replays.Column.Modified" xml:space="preserve"><value>تاريخ التعديل</value></data><data name="Replays.Column.Actions" xml:space="preserve"><value>إجراءات</value></data><data name="Replays.Tooltip.RevealInExplorer" xml:space="preserve"><value>إظهار في مستكشف الملفات</value></data><data name="Replays.Tooltip.ParseDetails" xml:space="preserve"><value>تحليل تفاصيل الإعادة (قريباً)</value></data><data name="Replays.Button.Parse" xml:space="preserve"><value>تحليل</value></data><data name="Replays.Empty.Title" xml:space="preserve"><value>لم يتم العثور على إعادات</value></data><data name="Replays.Empty.Description" xml:space="preserve"><value>اسحب وأفلت ملفات .rep أو .zip هنا، أو الصق رابط الإعادة بالأعلى</value></data><data name="Replays.DragDrop.Title" xml:space="preserve"><value>أفلت الإعادات أو ملفات ZIP للاستيراد</value></data><data name="Replays.DragDrop.Subtitle" xml:space="preserve"><value>ملفات .rep فردية أو أرشيفات ZIP فقط</value></data><data name="Replays.Label.Selected" xml:space="preserve"><value>المحدد:</value></data><data name="Replays.Button.Delete" xml:space="preserve"><value>حذف</value></data><data name="Replays.Tooltip.DeleteSelected" xml:space="preserve"><value>حذف ملفات الإعادة المحددة نهائياً من جهازك.</value></data><data name="Replays.Button.Uncompress" xml:space="preserve"><value>فك الضغط</value></data><data name="Replays.Tooltip.UncompressSelected" xml:space="preserve"><value>استخراج ملفات الإعادة من أرشيفات ZIP المحددة.</value></data><data name="Replays.Watermark.ZipName" xml:space="preserve"><value>اسم ملف ZIP</value></data><data name="Replays.Tooltip.ZipName" xml:space="preserve"><value>اسم الملف لأرشيف ZIP الجديد</value></data><data name="Replays.Button.Zip" xml:space="preserve"><value>ضغط</value></data><data name="Replays.Tooltip.ZipSelected" xml:space="preserve"><value>إنشاء أرشيف ZIP جديد يحتوي على ملفات الإعادة المحددة.</value></data><data name="Replays.Button.Upload" xml:space="preserve"><value>رفع</value></data><data name="Replays.Tooltip.UploadAndShare" xml:space="preserve"><value>رفع الإعادات المحددة إلى السحابة ونسخ رابط المشاركة.</value></data><data name="Replays.Tooltip.ViewHistory" xml:space="preserve"><value>عرض سجل الإعادات المرفوعة.</value></data><data name="Replays.Label.Active" xml:space="preserve"><value>نشط</value></data><data name="Replays.Label.Expired" xml:space="preserve"><value>منتهي</value></data><data name="Replays.Tooltip.CopyLink" xml:space="preserve"><value>نسخ رابط تنزيل هذه الإعادة.</value></data><data name="Replays.Tooltip.DeleteHistoryItem" xml:space="preserve"><value>حذف هذا الملف من التخزين السحابي وإزالته من السجل.</value></data><data name="Replays.Empty.NoHistory" xml:space="preserve"><value>لا يوجد سجل حتى الآن</value></data><data name="Replays.Button.ClearAllHistory" xml:space="preserve"><value>مسح كل السجل</value></data><data name="Replays.Tooltip.ClearHistory" xml:space="preserve"><value>حذف جميع الملفات المرفوعة من التخزين السحابي ومسح السجل.</value></data><data name="Replays.Notice.StorageQuota" xml:space="preserve"><value>يتم الاحتفاظ بالملفات لمدة تصل إلى 14 يوماً أو حتى امتلاء مساحة التخزين. الحد الأقصى للحصة 10 ميجابايت لكل مستخدم (حد متجدد كل 3 أيام). يتم إلغاء تكرار الملفات المتطابقة تلقائياً.</value></data><data name="Maps.Tab.Generals" xml:space="preserve"><value>جنرالز</value></data><data name="Maps.Tab.ZeroHour" xml:space="preserve"><value>زيرو أور</value></data><data name="Maps.Watermark.ImportUrl" xml:space="preserve"><value>الصق رابط الخريطة...</value></data><data name="Maps.Button.Import" xml:space="preserve"><value>استيراد</value></data><data name="Maps.Tooltip.ImportFromUrl" xml:space="preserve"><value>استيراد من الرابط</value></data><data name="Maps.Tooltip.BrowseFiles" xml:space="preserve"><value>تصفح الملفات</value></data><data name="Maps.Watermark.Search" xml:space="preserve"><value>بحث...</value></data><data name="Maps.Tooltip.RefreshList" xml:space="preserve"><value>تحديث القائمة</value></data><data name="Maps.Tooltip.OpenFolder" xml:space="preserve"><value>فتح المجلد</value></data><data name="Maps.Button.Pack" xml:space="preserve"><value>حزمة</value></data><data name="Maps.Tooltip.MapPackManager" xml:space="preserve"><value>إدارة حزم الخرائط</value></data><data name="Maps.Column.Name" xml:space="preserve"><value>الاسم</value></data><data name="Maps.Column.Size" xml:space="preserve"><value>الحجم</value></data><data name="Maps.Column.Type" xml:space="preserve"><value>النوع</value></data><data name="Maps.Column.Modified" xml:space="preserve"><value>تاريخ التعديل</value></data><data name="Maps.Empty.Title" xml:space="preserve"><value>لم يتم العثور على خرائط</value></data><data name="Maps.Empty.Description" xml:space="preserve"><value>اسحب وأفلت ملفات .map أو .zip هنا، أو الصق رابط الخريطة بالأعلى</value></data><data name="Maps.DragDrop.Title" xml:space="preserve"><value>أفلت الخرائط أو ملفات ZIP للاستيراد</value></data><data name="Maps.DragDrop.Subtitle" xml:space="preserve"><value>ملفات .map فردية أو أرشيفات ZIP فقط</value></data><data name="Maps.Label.Selected" xml:space="preserve"><value>المحدد:</value></data><data name="Maps.Button.Delete" xml:space="preserve"><value>حذف</value></data><data name="Maps.Tooltip.DeleteSelected" xml:space="preserve"><value>حذف الخرائط المحددة نهائياً من جهازك.</value></data><data name="Maps.Button.Uncompress" xml:space="preserve"><value>فك الضغط</value></data><data name="Maps.Tooltip.UncompressSelected" xml:space="preserve"><value>استخراج الخرائط من أرشيفات ZIP المحددة.</value></data><data name="Maps.Watermark.ZipName" xml:space="preserve"><value>اسم ملف ZIP (يضاف .zip)</value></data><data name="Maps.Tooltip.ZipName" xml:space="preserve"><value>اسم الملف لأرشيف ZIP الجديد. ستتم إضافة الامتداد .zip تلقائياً.</value></data><data name="GameProfiles.Card.Menu.EditProfile" xml:space="preserve"><value>تعديل ملف التعريف</value></data><data name="GameProfiles.Card.Menu.CreateShortcut" xml:space="preserve"><value>إنشاء اختصار</value></data><data name="GameProfiles.Card.Menu.CopyProfile" xml:space="preserve"><value>نسخ ملف التعريف</value></data><data name="GameProfiles.Card.Menu.DeleteProfile" xml:space="preserve"><value>حذف ملف التعريف</value></data><data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve"><value>تبديل تكامل Steam</value></data><data name="GameProfiles.Card.Tooltip.EditProfile" xml:space="preserve"><value>تعديل ملف التعريف</value></data><data name="GameProfiles.Card.Tooltip.CopyProfile" xml:space="preserve"><value>نسخ ملف التعريف</value></data><data name="GameProfiles.Card.Tooltip.CreateShortcut" xml:space="preserve"><value>إنشاء اختصار على سطح المكتب</value></data><data name="GameProfiles.Card.Tooltip.DeleteProfile" xml:space="preserve"><value>حذف ملف التعريف</value></data><data name="GameProfiles.Card.Action.Launch" xml:space="preserve"><value>تشغيل</value></data><data name="Maps.MapPack.Title" xml:space="preserve"><value>مدير حزم الخرائط</value></data><data name="Maps.MapPack.Subtitle" xml:space="preserve"><value>إنشاء وإدارة مجموعات الخرائط الخاصة بك</value></data><data name="Maps.MapPack.CreateNew" xml:space="preserve"><value>إنشاء جديد</value></data><data name="Maps.MapPack.SelectedMaps" xml:space="preserve"><value>الخرائط المحددة</value></data><data name="Maps.MapPack.NoMapsSelected" xml:space="preserve"><value>لم يتم تحديد أي خرائط</value></data><data name="Maps.MapPack.PackName" xml:space="preserve"><value>اسم الحزمة</value></data><data name="Maps.MapPack.Watermark" xml:space="preserve"><value>مثال: خرائط البطولة 2024</value></data><data name="Maps.MapPack.Button.Create" xml:space="preserve"><value>إنشاء حزمة خرائط</value></data><data name="Maps.MapPack.ExistingPacks" xml:space="preserve"><value>حزم الخرائط الحالية</value></data><data name="Maps.MapPack.NoPacksFound" xml:space="preserve"><value>لم يتم العثور على أي حزم خرائط</value></data><data name="Maps.MapPack.Badge.Loaded" xml:space="preserve"><value>تم التحميل</value></data><data name="Maps.MapPack.Tooltip.Delete" xml:space="preserve"><value>حذف حزمة الخرائط هذه.</value></data><data name="Updates.Window.Title" xml:space="preserve"><value>تحديثات GenHub</value></data><data name="Updates.Tab.Update" xml:space="preserve"><value>تحديث</value></data><data name="Updates.Tab.BrowseBuilds" xml:space="preserve"><value>تصفح الإصدارات</value></data><data name="Updates.SortBy.Label" xml:space="preserve"><value>ترتيب حسب:</value></data><data name="Updates.Card.AvailableTitle" xml:space="preserve"><value>تحديث متوفر!</value></data><data name="Updates.Tooltip.ForceRefresh" xml:space="preserve"><value>فرض تحديث التحقق</value></data><data name="Updates.Tooltip.Dismiss" xml:space="preserve"><value>تجاهل التحديث</value></data><data name="Updates.Button.ViewReleaseNotes" xml:space="preserve"><value>عرض ملاحظات الإصدار</value></data><data name="Updates.InstallationSource.Label" xml:space="preserve"><value>مصدر التثبيت</value></data><data name="Updates.Button.Unsubscribe" xml:space="preserve"><value>إلغاء الاشتراك</value></data><data name="Updates.SelectVersion.Label" xml:space="preserve"><value>تحديد الإصدار</value></data><data name="Updates.OpenPRs.Label" xml:space="preserve"><value>طلبات السحب المفتوحة</value></data><data name="Updates.Tooltip.OpenPR" xml:space="preserve"><value>فتح طلب السحب على GitHub</value></data><data name="Updates.Branches.Label" xml:space="preserve"><value>الفروع</value></data><data name="Updates.Button.CheckForUpdates" xml:space="preserve"><value>التحقق من وجود تحديثات</value></data><data name="Updates.Tooltip.CheckForUpdates" xml:space="preserve"><value>التحقق يدويًا من وجود تحديثات واستعادة الإشعارات المتجاهلة</value></data><data name="Updates.Button.Subscribe" xml:space="preserve"><value>اشتراك</value></data><data name="Updates.Button.Subscribed" xml:space="preserve"><value>مشترك</value></data><data name="Tools.Button.AddToolAction" xml:space="preserve"><value>إضافة أداة</value></data><data name="Tools.Button.RefreshToolsAction" xml:space="preserve"><value>تحديث الأدوات</value></data><data name="Common.Tooltip.MaximizeRestore" xml:space="preserve"><value>تكبير / استعادة</value></data><data name="Common.Tooltip.CloseWindow" xml:space="preserve"><value>إغلاق النافذة</value></data></root>

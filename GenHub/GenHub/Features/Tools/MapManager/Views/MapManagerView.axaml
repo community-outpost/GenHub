@@ -7,6 +7,7 @@
              xmlns:models="using:GenHub.Core.Models.Tools.MapManager"
              xmlns:enums="using:GenHub.Core.Models.Enums"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Tools.MapManager.Views.MapManagerView"
              x:DataType="vm:MapManagerViewModel"
@@ -31,11 +32,11 @@
       <Grid ColumnDefinitions="Auto,*,Auto,Auto">
         <!-- Game Tabs -->
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-          <RadioButton Content="Generals"
+          <RadioButton Content="{localization:Localize Tools.ReplayManager.Game.Generals}"
                        IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.Generals}}"
                        GroupName="GameTabs"
                        Classes="TabButton"/>
-          <RadioButton Content="Zero Hour"
+          <RadioButton Content="{localization:Localize Tools.ReplayManager.Game.ZeroHour}"
                        IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.ZeroHour}}"
                        GroupName="GameTabs"
                        Classes="TabButton"/>
@@ -43,28 +44,28 @@
 
         <!-- Import Bar Integrated -->
         <Grid Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="16,0">
-          <TextBox Grid.Column="0" Watermark="Paste Map URL..."
+          <TextBox Grid.Column="0" Watermark="{localization:Localize Tools.MapManager.Watermark.PasteMapUrl}"
                    Text="{Binding ImportUrl}" Margin="0,0,8,0" VerticalContentAlignment="Center"
                    HorizontalAlignment="Stretch"/>
           <Button Grid.Column="1" Command="{Binding ImportFromUrlCommand}"
                   Classes="Primary" Margin="0,0,4,0" IsEnabled="{Binding !IsBusy}"
                   Padding="10,6"
-                  ToolTip.Tip="Import from URL">
+                  ToolTip.Tip="{localization:Localize Maps.Tooltip.ImportFromUrl}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="16" Height="16"/>
-              <TextBlock Text="Import" VerticalAlignment="Center" FontSize="12"/>
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Import}" VerticalAlignment="Center" FontSize="12"/>
             </StackPanel>
           </Button>
           <Button Grid.Column="2" Command="{Binding BrowseAndImportCommand}"
                   Classes="Secondary" IsEnabled="{Binding !IsBusy}"
                   Padding="10,6"
-                  ToolTip.Tip="Browse for files">
+                  ToolTip.Tip="{localization:Localize Maps.Tooltip.BrowseFiles}">
             <PathIcon Data="{StaticResource ToolIcon.Paperclip}" Width="16" Height="16"/>
           </Button>
         </Grid>
 
         <!-- Search Bar -->
-        <TextBox Grid.Column="2" Watermark="Search..."
+        <TextBox Grid.Column="2" Watermark="{localization:Localize Maps.Watermark.Search}"
                  Text="{Binding SearchText}"
                  Width="170"
                  VerticalAlignment="Center">
@@ -77,16 +78,16 @@
 
         <!-- Utilities -->
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
-          <Button Command="{Binding LoadMapsCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Refresh list" Padding="8">
+          <Button Command="{Binding LoadMapsCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Maps.Tooltip.RefreshList}" Padding="8">
             <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="16" Height="16"/>
           </Button>
-          <Button Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Open folder" Padding="8">
+          <Button Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Maps.Tooltip.OpenFolder}" Padding="8">
             <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
           </Button>
-          <Button Command="{Binding ToggleMapPackPanelCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="MapPack Manager" Padding="10,6">
+          <Button Command="{Binding ToggleMapPackPanelCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Maps.Tooltip.MapPackManager}" Padding="10,6">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
-              <TextBlock Text="Pack" VerticalAlignment="Center" FontSize="12"/>
+              <TextBlock Text="{localization:Localize Tools.MapManager.Button.Pack}" VerticalAlignment="Center" FontSize="12"/>
             </StackPanel>
           </Button>
         </StackPanel>
@@ -118,18 +119,18 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" MinWidth="180" />
-            <DataGridTextColumn Header="Size" Width="Auto" MinWidth="95">
+            <DataGridTextColumn Header="{localization:Localize Maps.Column.Name}" Binding="{Binding DisplayName}" Width="*" MinWidth="180" />
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Size}" Width="Auto" MinWidth="95">
               <DataGridTextColumn.Binding>
                 <Binding Path="SizeBytes" Converter="{StaticResource FileSizeConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="Type" Width="Auto" MinWidth="130">
+            <DataGridTextColumn Header="{localization:Localize Maps.Column.Type}" Width="Auto" MinWidth="130">
               <DataGridTextColumn.Binding>
                 <Binding Path="." Converter="{StaticResource MapTypeDisplayConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="Auto" MinWidth="180" />
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Modified}" Binding="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="Auto" MinWidth="180" />
           </DataGrid.Columns>
         </DataGrid>
       </Border>
@@ -139,8 +140,8 @@
                   IsVisible="{Binding !CurrentMaps.Count}"
                   IsHitTestVisible="False">
         <PathIcon Data="{StaticResource ToolIcon.MapOutline}" Width="52" Height="52" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
-        <TextBlock Text="No maps found" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
-        <TextBlock Text="Drag and drop .map or .zip files here, or paste a map URL above" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{localization:Localize Tools.MapManager.Empty.Title}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{localization:Localize Tools.MapManager.Empty.Subtitle}" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
       </StackPanel>
 
       <!-- Drag & Drop Overlay -->
@@ -159,8 +160,8 @@
         </Border.Transitions>
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
           <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="64" Height="64" Foreground="{DynamicResource AccentLightBrush}" HorizontalAlignment="Center"/>
-          <TextBlock Text="Drop maps or ZIPs to import" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
-          <TextBlock Text="Single .map files or ZIP archives only" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.MapManager.DragDrop.Title}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.MapManager.DragDrop.Subtitle}" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
         </StackPanel>
       </Border>
 
@@ -191,15 +192,15 @@
       <Grid ColumnDefinitions="Auto,*,Auto" MinWidth="400">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            <TextBlock Text="Selected:" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBlock Text="{localization:Localize Tools.ReplayManager.Label.Selected}" Foreground="{DynamicResource TextSecondary}"/>
             <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
                   Classes="Danger" IsEnabled="{Binding SelectedMaps.Count}"
-                  ToolTip.Tip="Permanently delete the selected maps from your computer.">
+                  ToolTip.Tip="{localization:Localize Maps.Tooltip.DeleteSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
-              <TextBlock Text="Delete" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </StackPanel>
@@ -211,29 +212,29 @@
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
           <Button Command="{Binding UncompressSelectedCommand}"
                   Classes="Secondary" IsEnabled="{Binding HasSelectedZips}"
-                  ToolTip.Tip="Extract maps from the selected ZIP archives.">
+                  ToolTip.Tip="{localization:Localize Maps.Tooltip.UncompressSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
-              <TextBlock Text="Uncompress" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Uncompress}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <TextBox MinWidth="110" MaxWidth="180" Watermark="ZIP Name (.zip added)" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="Filename for the new ZIP archive. The .zip extension will be added automatically."/>
+          <TextBox MinWidth="110" MaxWidth="180" Watermark="{localization:Localize Maps.Watermark.ZipName}" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipName}"/>
           <Button Command="{Binding ExportToZipCommand}"
                   Classes="Secondary" IsEnabled="{Binding SelectedMaps.Count}"
-                  ToolTip.Tip="Create a new ZIP archive containing the selected maps.">
+                  ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.ZipBoxOutline}" Width="16" Height="16"/>
-              <TextBlock Text="Zip" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Zip}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
                     Classes="Primary"
                     CornerRadius="6,0,0,6"
-                    ToolTip.Tip="Upload selected maps to cloud and copy share link.">
+                    ToolTip.Tip="{localization:Localize Replays.Tooltip.UploadAndShare}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
-                <TextBlock Text="Upload" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Upload}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <ToggleButton
@@ -241,7 +242,7 @@
                     Classes="Primary"
                     CornerRadius="0,6,6,0"
                     Padding="8,0"
-                    ToolTip.Tip="View the history of your uploaded maps.">
+                    ToolTip.Tip="{localization:Localize Replays.Tooltip.ViewHistory}">
               <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="14" Height="14" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
@@ -264,9 +265,9 @@
                                     <TextBlock Text="{Binding SizeDisplay}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
                                     <Border Background="Transparent" BorderBrush="{Binding StatusColor}" BorderThickness="1" CornerRadius="4" Padding="4,0" Margin="4,0,0,0">
                                       <Panel>
-                                        <TextBlock Text="Active" FontSize="10" Foreground="{Binding StatusColor}"
+                                        <TextBlock Text="{localization:Localize Replays.Label.Active}" FontSize="10" Foreground="{Binding StatusColor}"
                                                    IsVisible="{Binding IsActive}"/>
-                                        <TextBlock Text="Expired" FontSize="10" Foreground="{Binding StatusColor}"
+                                        <TextBlock Text="{localization:Localize Replays.Label.Expired}" FontSize="10" Foreground="{Binding StatusColor}"
                                                    IsVisible="{Binding !IsActive}"/>
                                       </Panel>
                                     </Border>
@@ -277,7 +278,7 @@
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).CopyUrlCommand}"
                                         CommandParameter="{Binding Url}"
                                         Padding="6,4" Margin="8,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="Copy the download link for this map.">
+                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.CopyLink}">
                                   <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
                                 </Button>
 
@@ -285,7 +286,7 @@
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).RemoveHistoryItemCommand}"
                                         CommandParameter="{Binding}"
                                         Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="Delete this file from cloud storage and remove from history.">
+                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.DeleteHistoryItem}">
                                   <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
                                 </Button>
                               </Grid>
@@ -295,7 +296,7 @@
                       </ItemsControl>
                     </ScrollViewer>
 
-                    <TextBlock Text="No history yet" IsVisible="{Binding !UploadHistory.Count}"
+                    <TextBlock Text="{localization:Localize Replays.Empty.NoHistory}" IsVisible="{Binding !UploadHistory.Count}"
                                HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" Margin="0,20"/>
                   </Grid>
 
@@ -305,10 +306,10 @@
                           HorizontalAlignment="Stretch"
                           Margin="0,10,0,0"
                           IsVisible="{Binding UploadHistory.Count}"
-                          ToolTip.Tip="Delete all uploaded files from cloud storage and clear history.">
+                          ToolTip.Tip="{localization:Localize Replays.Tooltip.ClearHistory}">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                       <PathIcon Data="{StaticResource ToolIcon.DeleteSweepOutline}" Width="16" Height="16"/>
-                      <TextBlock Text="Clear All History" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Replays.Button.ClearAllHistory}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -320,7 +321,7 @@
     </Border>
 
     <!-- Footer Storage Notice -->
-    <TextBlock Grid.Row="3" Text="Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit). Duplicate files are automatically deduplicated."
+    <TextBlock Grid.Row="3" Text="{localization:Localize Tools.ReplayManager.Label.StorageQuotaNotice}"
                FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Left" Margin="0,8,0,0" TextWrapping="Wrap" MaxWidth="600"/>
 
     <!-- MapPack Modal Overlay -->
@@ -340,11 +341,11 @@
           <!-- Header -->
           <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
             <StackPanel Spacing="4">
-                <TextBlock Text="MapPack Manager" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Create and manage your map collections" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
+                <TextBlock Text="{localization:Localize Maps.MapPack.Title}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Text="{localization:Localize Maps.MapPack.Subtitle}" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
             </StackPanel>
             <Button Grid.Column="1" Command="{Binding ToggleMapPackPanelCommand}"
-                    Classes="Secondary" Padding="6" VerticalAlignment="Top" ToolTip.Tip="Close">
+                    Classes="Secondary" Padding="6" VerticalAlignment="Top" ToolTip.Tip="{localization:Localize Common.Button.Close}">
               <PathIcon Data="{StaticResource ToolIcon.Close}" Width="16" Height="16"/>
             </Button>
           </Grid>
@@ -353,11 +354,11 @@
             <StackPanel Spacing="20">
               <!-- Create New Section -->
               <StackPanel Spacing="12">
-                <TextBlock Text="Create New" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Text="{localization:Localize Maps.MapPack.CreateNew}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
 
                 <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Selected Maps" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{localization:Localize Maps.MapPack.SelectedMaps}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                         <ItemsControl ItemsSource="{Binding SelectedMaps}">
                           <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="models:MapFile">
@@ -369,17 +370,17 @@
                           </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <TextBlock Text="No maps selected" IsVisible="{Binding !SelectedMaps.Count}"
+                        <TextBlock Text="{localization:Localize Maps.MapPack.NoMapsSelected}" IsVisible="{Binding !SelectedMaps.Count}"
                                    FontSize="12" FontStyle="Italic" Foreground="{DynamicResource TextMuted}"/>
                     </StackPanel>
                 </Border>
 
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Pack Name" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBox Watermark="e.g., Tournament Maps 2024" Text="{Binding NewMapPackName}"/>
+                    <TextBlock Text="{localization:Localize Maps.MapPack.PackName}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBox Watermark="{localization:Localize Maps.MapPack.Watermark}" Text="{Binding NewMapPackName}"/>
                 </StackPanel>
 
-                <Button Content="Create MapPack" Command="{Binding CreateMapPackCommand}"
+                <Button Content="{localization:Localize Maps.MapPack.Button.Create}" Command="{Binding CreateMapPackCommand}"
                         Classes="Primary" HorizontalAlignment="Stretch" Padding="12,10"/>
               </StackPanel>
 
@@ -387,7 +388,7 @@
 
               <!-- Existing MapPacks Section -->
               <StackPanel Spacing="12">
-                <TextBlock Text="Existing MapPacks" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Text="{localization:Localize Maps.MapPack.ExistingMapPacks}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                 <ItemsControl ItemsSource="{Binding MapPacks}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="models:MapPack">
@@ -397,7 +398,7 @@
                               <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto">
                                   <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                   <Border Grid.Column="1" Background="{DynamicResource AccentBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" IsVisible="{Binding IsLoaded}">
-                                      <TextBlock Text="LOADED" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                      <TextBlock Text="{localization:Localize Maps.MapPack.Loaded}" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                   </Border>
                               </Grid>
                               <TextBlock Text="{Binding CreatedDate, StringFormat='Created: {0:d}'}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
@@ -406,7 +407,7 @@
 
                           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <Button Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).DeleteMapPackCommand}"
-                                    CommandParameter="{Binding}" Classes="Danger" Padding="6" ToolTip.Tip="Delete this MapPack.">
+                                    CommandParameter="{Binding}" Classes="Danger" Padding="6" ToolTip.Tip="{localization:Localize Maps.MapPack.Tooltip.Delete}">
                               <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
                             </Button>
                           </StackPanel>
@@ -415,7 +416,7 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="No MapPacks found" IsVisible="{Binding !MapPacks.Count}"
+                <TextBlock Text="{localization:Localize Maps.MapPack.NoMapPacksFound}" IsVisible="{Binding !MapPacks.Count}"
                            FontSize="12" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" Margin="0,10"/>
               </StackPanel>
             </StackPanel>

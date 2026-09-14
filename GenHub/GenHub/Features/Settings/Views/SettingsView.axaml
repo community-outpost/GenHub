@@ -162,7 +162,7 @@
     </Style>
   </UserControl.Styles>
 
-  <commonControls:SidebarLayout PaneTitle="Settings"
+  <commonControls:SidebarLayout PaneTitle="{localization:Localize Settings.Title.Settings}"
                                 ItemsSource="{Binding Sections}"
                                 SelectedItem="{Binding SelectedSection, Mode=TwoWay}"
                                 IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
@@ -191,19 +191,19 @@
           <StackPanel Spacing="20">
             <!-- Default Workspace Strategy -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Default Workspace Strategy" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Label}" Classes="setting-label" />
               <ComboBox ItemsSource="{Binding AvailableWorkspaceStrategies}"
                         SelectedItem="{Binding DefaultWorkspaceStrategy}"
                         HorizontalAlignment="Left"
                         MinWidth="250" />
-              <TextBlock Text="Choose how files are managed in game workspaces"
+              <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Custom Game Installations -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Custom Game Installations" Classes="setting-label" />
-              <TextBlock Text="Add custom or Git-tracked game installations outside Steam/EA App"
+              <TextBlock Text="{localization:Localize Settings.GameConfiguration.CustomInstallations.Label}" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.GameConfiguration.CustomInstallations.Description}"
                          Classes="setting-description" />
 
               <ItemsControl ItemsSource="{Binding CustomInstallations}">
@@ -222,7 +222,7 @@
                         </StackPanel>
                         <Button Grid.Column="1"
                                 VerticalAlignment="Center"
-                                ToolTip.Tip="Remove custom installation"
+                                ToolTip.Tip="{localization:Localize Settings.GameConfiguration.CustomInstallations.RemoveToolTip}"
                                 Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveCustomInstallationCommand}"
                                 CommandParameter="{Binding}">
                           <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
@@ -239,7 +239,7 @@
                       Command="{Binding AddCustomInstallationCommand}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="14" Height="14" />
-                  <TextBlock Text="Add Custom Installation..." VerticalAlignment="Center" />
+                  <TextBlock Text="{localization:Localize Settings.GameConfiguration.CustomInstallations.Add}" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
             </StackPanel>
@@ -260,7 +260,7 @@
           <StackPanel Spacing="20">
             <!-- Max Concurrent Downloads -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Maximum Concurrent Downloads" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Downloads.MaxConcurrent.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding MaxConcurrentDownloads}"
                              Minimum="1"
                              Maximum="10"
@@ -269,13 +269,13 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Limit the number of simultaneous downloads to manage bandwidth usage (1-10)"
+              <TextBlock Text="{localization:Localize Settings.Downloads.MaxConcurrent.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Download Buffer Size -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Download Buffer Size" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding DownloadBufferSizeKB}"
                              Minimum="4"
                              Maximum="1024"
@@ -284,13 +284,13 @@
                              Width="160"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Buffer size used for file downloads (4KB - 1MB, default: 80KB)"
+              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Download Timeout -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Download Timeout" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
                              Minimum="10"
                              Maximum="3600"
@@ -299,25 +299,25 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Timeout for each download operation (10-3600 seconds, default: 600 seconds)"
+              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Download User-Agent -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Download User-Agent" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
               <TextBox Text="{Binding DownloadUserAgent}"
                        Width="300"
                        LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="HTTP User-Agent string sent with download requests"
+              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Background Downloads -->
             <StackPanel Spacing="8">
-              <CheckBox Content="Allow background downloads"
+              <CheckBox Content="{localization:Localize Settings.Downloads.AllowBackground.Label}"
                         IsChecked="{Binding AllowBackgroundDownloads}" />
-              <TextBlock Text="Continue downloads when the application is minimized or in the background"
+              <TextBlock Text="{localization:Localize Settings.Downloads.AllowBackground.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
           </StackPanel>
@@ -433,52 +433,52 @@
         </Expander.Header>
         <Border Padding="20">
           <StackPanel Spacing="20">
-            <TextBlock Text="Application Data Folders" Classes="setting-label" />
+            <TextBlock Text="{localization:Localize Settings.DataDirectories.AppFolders.Label}" Classes="setting-label" />
 
-            <TextBlock Text="Quickly access application data, profiles, and manifests for troubleshooting or manual management."
+            <TextBlock Text="{localization:Localize Settings.DataDirectories.AppFolders.Description}"
                        Classes="setting-description" />
 
             <Grid ColumnDefinitions="*,10,*,10,*" RowDefinitions="Auto,10,Auto" Margin="0,10,0,0">
                 <Button Grid.Row="0" Grid.Column="0"
-                        Content="Open AppData"
+                        Content="{localization:Localize Settings.DataDirectories.OpenAppData}"
                         Command="{Binding OpenAppDataDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="0" Grid.Column="2"
-                        Content="Open Profiles"
+                        Content="{localization:Localize Settings.DataDirectories.OpenProfiles}"
                         Command="{Binding OpenProfilesDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="0" Grid.Column="4"
-                        Content="Open Manifests"
+                        Content="{localization:Localize Settings.DataDirectories.OpenManifests}"
                         Command="{Binding OpenManifestsDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="0"
-                        Content="Open Workspaces"
+                        Content="{localization:Localize Settings.DataDirectories.OpenWorkspaces}"
                         Command="{Binding OpenWorkspacesDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="2"
-                        Content="Open CAS Pool"
+                        Content="{localization:Localize Settings.DataDirectories.OpenCasPool}"
                         Command="{Binding OpenCasPoolDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
             </Grid>
 
             <!-- Settings File Path -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Settings File Location" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.DataDirectories.SettingsFilePath.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0"
                          Text="{Binding SettingsFilePath}"
-                         Watermark="Default (platform-dependent)"
+                         Watermark="{localization:Localize Settings.DataDirectories.SettingsFilePath.Watermark}"
                          LostFocus="OnTextBoxLostFocus" />
                 <Button Grid.Column="1"
-                         Content="Browse"
+                         Content="{localization:Localize Common.Button.Browse}"
                          Command="{Binding BrowseSettingsFilePathCommand}"
                          Classes="browse-button" />
               </Grid>
-              <TextBlock Text="Specify a custom location for your settings file. Leave empty for auto-detection."
+              <TextBlock Text="{localization:Localize Settings.DataDirectories.SettingsFilePath.Description}"
                          Classes="setting-description" />
             </StackPanel>
           </StackPanel>
@@ -496,36 +496,36 @@
         </Expander.Header>
         <Border Padding="20">
           <StackPanel Spacing="20">
-            <TextBlock Text="Relocate GenHub Installation" Classes="setting-label" />
-            <TextBlock Text="Move the GenHub application files and binaries to another drive or directory. Useful for freeing up space on your system partition."
+            <TextBlock Text="{localization:Localize Settings.MigrateInstallation.Title}" Classes="setting-label" />
+            <TextBlock Text="{localization:Localize Settings.MigrateInstallation.Description}"
                        Classes="setting-description" />
 
             <!-- Target Path -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Target Installation Directory" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.MigrateInstallation.TargetPath.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0"
                          Text="{Binding MigrationTargetPath}"
-                         Watermark="Select or enter target installation directory..."
-                         AutomationProperties.Name="Target installation directory"
+                         Watermark="{localization:Localize Settings.MigrateInstallation.TargetPath.Watermark}"
+                         AutomationProperties.Name="{localization:Localize Settings.MigrateInstallation.TargetPath.Label}"
                          IsEnabled="{Binding !IsMigrating}"
                          LostFocus="OnTextBoxLostFocus" />
                 <Button Grid.Column="1"
-                        Content="Browse"
+                        Content="{localization:Localize Common.Button.Browse}"
                         Command="{Binding BrowseMigrationTargetPathCommand}"
                         Classes="browse-button"
                         IsEnabled="{Binding !IsMigrating}" />
               </Grid>
-              <TextBlock Text="Select an empty or new folder on your preferred drive."
+              <TextBlock Text="{localization:Localize Settings.MigrateInstallation.TargetPath.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Relocate CAS and Workspaces Checkbox -->
             <StackPanel Spacing="8">
-              <CheckBox Content="Also relocate CAS storage pool and game workspaces to target directory"
+              <CheckBox Content="{localization:Localize Settings.MigrateInstallation.RelocateCas.Label}"
                         IsChecked="{Binding RelocateCasAndWorkspacesWithMigration}"
                         IsEnabled="{Binding !IsMigrating}" />
-              <TextBlock Text="Moves cached mod files, game content, and workspaces to the new drive to maximize freed space on the current drive."
+              <TextBlock Text="{localization:Localize Settings.MigrateInstallation.RelocateCas.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
@@ -542,7 +542,7 @@
             </StackPanel>
 
             <!-- Migrate Button -->
-            <Button Content="Migrate Installation Location"
+            <Button Content="{localization:Localize Settings.MigrateInstallation.Button}"
                     Command="{Binding MigrateInstallationLocationCommand}"
                     Classes="danger-button"
                     IsEnabled="{Binding !IsMigrating}"
@@ -564,32 +564,32 @@
           <StackPanel Spacing="20">
             <!-- Enable Detailed Logging -->
             <StackPanel Spacing="8">
-              <CheckBox Content="Enable detailed logging"
+              <CheckBox Content="{localization:Localize Settings.Logs.DetailedLogging.Label}"
                         IsChecked="{Binding EnableDetailedLogging}" />
-              <TextBlock Text="Enable verbose DEBUG logging for troubleshooting. Takes effect immediately."
+              <TextBlock Text="{localization:Localize Settings.Logs.DetailedLogging.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
-            <TextBlock Text="Application Logs" Classes="setting-label" Margin="0,10,0,0" />
+            <TextBlock Text="{localization:Localize Settings.Logs.ApplicationLogs.Label}" Classes="setting-label" Margin="0,10,0,0" />
 
             <Grid ColumnDefinitions="*,10,*" RowDefinitions="Auto,10,Auto" Margin="0,10,0,0">
                 <Button Grid.Row="0" Grid.Column="0"
-                        Content="Open Logs Directory"
+                        Content="{localization:Localize Settings.Logs.OpenDirectory}"
                         Command="{Binding OpenLogsDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="0" Grid.Column="2"
-                        Content="Open Latest Log"
+                        Content="{localization:Localize Settings.Logs.OpenLatest}"
                         Command="{Binding OpenLatestLogCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="0"
-                        Content="Copy Latest Log Content"
+                        Content="{localization:Localize Settings.Logs.CopyLatest}"
                         Command="{Binding CopyLatestLogCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="2"
-                        Content="Clear Logs"
+                        Content="{localization:Localize Settings.Logs.Clear}"
                         Command="{Binding ClearLogsCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
             </Grid>
@@ -610,10 +610,10 @@
           <StackPanel Spacing="20">
             <!-- Memory Usage Info -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Memory Usage" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Performance.MemoryUsage.Label}" Classes="setting-label" />
               <TextBlock Text="{Binding CurrentMemoryUsage, StringFormat='Current: {0:F1} MB'}"
                          Foreground="{DynamicResource TextSecondary}" FontSize="14" />
-              <TextBlock Text="Monitor application memory consumption"
+              <TextBlock Text="{localization:Localize Settings.Performance.MemoryUsage.Description}"
                          Classes="setting-description" />
             </StackPanel>
           </StackPanel>
@@ -633,24 +633,24 @@
           <StackPanel Spacing="20">
             <!-- CAS Root Path -->
             <StackPanel Spacing="8">
-              <TextBlock Text="CAS Root Directory" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Cas.RootDirectory.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0"
                          Text="{Binding CasRootPath}"
-                         Watermark="Default (%AppData%/GenHub/cas-pool)"
+                         Watermark="{localization:Localize Settings.Cas.RootDirectory.Watermark}"
                          LostFocus="OnTextBoxLostFocus" />
                 <Button Grid.Column="1"
-                         Content="Browse"
+                         Content="{localization:Localize Common.Button.Browse}"
                          Command="{Binding BrowseCasRootPathCommand}"
                          Classes="browse-button" />
               </Grid>
-              <TextBlock Text="Directory where deduplicated content is stored. All workspaces reference files from here."
+              <TextBlock Text="{localization:Localize Settings.Cas.RootDirectory.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Max Cache Size -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Maximum Cache Size (GB)" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Cas.MaxCacheSize.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding MaxCacheSizeGB}"
                              Minimum="1"
                              Maximum="1000"
@@ -659,13 +659,13 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Maximum size for the CAS pool before garbage collection runs (1-1000 GB)"
+              <TextBlock Text="{localization:Localize Settings.Cas.MaxCacheSize.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Max Concurrent Operations -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Maximum Concurrent CAS Operations" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Cas.MaxConcurrent.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding CasMaxConcurrentOperations}"
                              Minimum="1"
                              Maximum="16"
@@ -674,20 +674,20 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Number of simultaneous CAS operations (1-16, default: 4)"
+              <TextBlock Text="{localization:Localize Settings.Cas.MaxConcurrent.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Garbage Collection Settings -->
             <StackPanel Spacing="8">
-              <CheckBox Content="Enable automatic garbage collection"
+              <CheckBox Content="{localization:Localize Settings.Cas.AutoGc.Label}"
                          IsChecked="{Binding EnableAutomaticGc}" />
-              <TextBlock Text="Automatically clean up unreferenced content to free disk space"
+              <TextBlock Text="{localization:Localize Settings.Cas.AutoGc.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
             <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGc}">
-              <TextBlock Text="Garbage Collection Grace Period (Days)" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Cas.GcGracePeriod.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding GarbageCollectionGracePeriodDays}"
                              Minimum="1"
                              Maximum="365"
@@ -696,12 +696,12 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="How long to keep unreferenced content before deletion (1-365 days)"
+              <TextBlock Text="{localization:Localize Settings.Cas.GcGracePeriod.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGc}">
-              <TextBlock Text="Auto GC Interval (Days)" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Cas.AutoGcInterval.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding AutoGcIntervalDays}"
                              Minimum="1"
                              Maximum="30"
@@ -710,15 +710,15 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="How often to run automatic garbage collection (1-30 days)"
+              <TextBlock Text="{localization:Localize Settings.Cas.AutoGcInterval.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Integrity Verification -->
             <StackPanel Spacing="8">
-              <CheckBox Content="Verify file integrity during operations"
+              <CheckBox Content="{localization:Localize Settings.Cas.VerifyIntegrity.Label}"
                          IsChecked="{Binding CasVerifyIntegrity}" />
-              <TextBlock Text="Check file hashes to ensure data integrity (recommended, slight performance impact)"
+              <TextBlock Text="{localization:Localize Settings.Cas.VerifyIntegrity.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
           </StackPanel>
@@ -737,9 +737,9 @@
         <Border Padding="20">
           <StackPanel Spacing="20">
             <StackPanel Spacing="8">
-              <TextBlock Text="Content Directories (one per line)" Classes="setting-label" />
-              <TextBox Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="e.g. C:\Games\GenHub\Mods" />
-              <TextBlock Text="Specify directories to scan for local content. One path per line." Classes="setting-description" />
+              <TextBlock Text="{localization:Localize Settings.LocalContent.Directories.Label}" Classes="setting-label" />
+              <TextBox Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.LocalContent.Directories.Watermark}" />
+              <TextBlock Text="{localization:Localize Settings.LocalContent.Directories.Description}" Classes="setting-description" />
             </StackPanel>
           </StackPanel>
         </Border>
@@ -757,9 +757,9 @@
         <Border Padding="20">
           <StackPanel Spacing="20">
             <StackPanel Spacing="8">
-              <TextBlock Text="GitHub Repositories (one per line, owner/repo)" Classes="setting-label" />
-              <TextBox Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="e.g. some-author/some-mod" />
-              <TextBlock Text="Specify GitHub repositories to scan for releases. One owner/repo per line." Classes="setting-description" />
+              <TextBlock Text="{localization:Localize Settings.GitHubDiscovery.Repositories.Label}" Classes="setting-label" />
+              <TextBox Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.GitHubDiscovery.Repositories.Watermark}" />
+              <TextBlock Text="{localization:Localize Settings.GitHubDiscovery.Repositories.Description}" Classes="setting-description" />
             </StackPanel>
           </StackPanel>
         </Border>
@@ -779,43 +779,43 @@
 
             <!-- Current Version -->
             <StackPanel Spacing="4">
-              <TextBlock Text="Current Version" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Updates.CurrentVersion.Label}" Classes="setting-label" />
               <TextBlock Text="{Binding CurrentVersion}" FontSize="14" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
             </StackPanel>
 
             <!-- Subscribed Branch -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Subscribed Branch" Classes="setting-label" />
-              <TextBlock Text="Manage your branch subscription in the Updates &amp; PRs window."
+              <TextBlock Text="{localization:Localize Settings.Updates.SubscribedBranch.Label}" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Updates.SubscribedBranch.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Manage Updates & PRs Button -->
-            <Button Content="Manage Updates &amp; PRs"
+            <Button Content="{localization:Localize Settings.Updates.ManageUpdatesButton}"
                     Command="{Binding OpenUpdateWindowCommand}"
                     Classes="browse-button"
                     HorizontalAlignment="Left"
                     Margin="0,4,0,0"
-                    ToolTip.Tip="Browse available updates and subscribe to Pull Requests" />
+                    ToolTip.Tip="{localization:Localize Settings.Updates.ManageUpdatesToolTip}" />
 
             <!-- Auto Update Check -->
             <StackPanel Spacing="8">
-              <CheckBox Content="Check for updates on startup"
+              <CheckBox Content="{localization:Localize Settings.Updates.CheckStartup.Label}"
                          IsChecked="{Binding AutoCheckForUpdatesOnStartup}" />
-              <TextBlock Text="Automatically check for GenHub updates when the application starts"
+              <TextBlock Text="{localization:Localize Settings.Updates.CheckStartup.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
             <!-- Periodic Update Check -->
             <StackPanel Spacing="8">
-              <CheckBox Content="Check for updates periodically"
+              <CheckBox Content="{localization:Localize Settings.Updates.CheckPeriodically.Label}"
                          IsChecked="{Binding AutoCheckForUpdatesPeriodically}" />
-              <TextBlock Text="Automatically check for updates in the background at regular intervals"
+              <TextBlock Text="{localization:Localize Settings.Updates.CheckPeriodically.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
             <StackPanel Spacing="8" IsVisible="{Binding AutoCheckForUpdatesPeriodically}">
-              <TextBlock Text="Update Check Interval (Minutes)" Classes="setting-label" />
+              <TextBlock Text="{localization:Localize Settings.Updates.CheckInterval.Label}" Classes="setting-label" />
               <NumericUpDown Value="{Binding PeriodicUpdateCheckIntervalMinutes}"
                              Minimum="5"
                              Maximum="10080"
@@ -824,7 +824,7 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="How often to automatically check for updates (5-10080 minutes, default: 30 minutes)"
+              <TextBlock Text="{localization:Localize Settings.Updates.CheckInterval.Description}"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -834,7 +834,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <PathIcon Data="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
                             Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-                  <TextBlock Text="GitHub Personal Access Token (for Artifact Updates)"
+                  <TextBlock Text="{localization:Localize Settings.Updates.GitHubPat.Label}"
                              Classes="setting-label" VerticalAlignment="Center" Margin="0" />
                 </StackPanel>
 
@@ -853,7 +853,7 @@
                            Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
                            Margin="0,0,8,0" />
                   <Button Grid.Column="1"
-                          Content="Save &amp; Test"
+                          Content="{localization:Localize Settings.Updates.GitHubPat.SaveAndTest}"
                           Command="{Binding TestPatCommand}"
                           IsEnabled="{Binding !IsTestingPat}"
                           Classes="browse-button" />
@@ -861,15 +861,15 @@
 
                 <!-- Delete PAT button (when PAT exists) -->
                 <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasGitHubPat}">
-                  <Button Content="Remove PAT"
+                  <Button Content="{localization:Localize Settings.Updates.GitHubPat.Remove}"
                           Command="{Binding DeletePatCommand}"
                           Classes="secondary-button" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                  <TextBlock Text="PAT with 'repo' scope required for CI artifact access."
+                  <TextBlock Text="{localization:Localize Settings.Updates.GitHubPat.ScopeDescription}"
                              Classes="setting-description" VerticalAlignment="Center" />
-                  <Button Content="Create PAT →"
+                  <Button Content="{localization:Localize Settings.Updates.GitHubPat.CreateButton}"
                           Click="OnOpenPatCreationUrl"
                           Background="Transparent"
                           BorderThickness="0"
@@ -877,7 +877,7 @@
                           Foreground="{DynamicResource AccentBrush}"
                           FontSize="12"
                           Cursor="Hand"
-                          ToolTip.Tip="Click to open GitHub PAT creation page" />
+                          ToolTip.Tip="{localization:Localize Settings.Updates.GitHubPat.CreateToolTip}" />
                 </StackPanel>
 
                 <!-- Prominent Warning/Note -->
@@ -885,7 +885,7 @@
                   <Grid ColumnDefinitions="Auto,12,*">
                       <PathIcon Grid.Column="0" Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"
                                 Width="16" Height="16" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
-                      <TextBlock Grid.Column="2" Text="To subscribe to Pull Requests or test specific Branches, you MUST configure a GitHub PAT above. This allows GenHub to download builds directly from GitHub CI."
+                      <TextBlock Grid.Column="2" Text="{localization:Localize Settings.Updates.GitHubPat.Warning}"
                                  FontSize="12" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
                   </Grid>
                 </Border>
@@ -908,57 +908,57 @@
           <StackPanel Spacing="20">
             <!-- Real-time Stats -->
             <StackPanel Spacing="10">
-              <TextBlock Text="Current Data Usage:" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}" />
+              <TextBlock Text="{localization:Localize Settings.DangerZone.CurrentDataUsage}" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}" />
               <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="10,0,0,0">
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="CAS Storage:" Width="150" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Settings.DangerZone.CasStorage}" Width="150" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CasStorageInfo}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,5"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Manifests:" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Settings.DangerZone.Manifests}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ManifestsInfo}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,5"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Workspaces:" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Settings.DangerZone.Workspaces}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding WorkspacesInfo}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,5"/>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Profiles:" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="{localization:Localize Settings.DangerZone.Profiles}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,5"/>
                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ProfilesInfo}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,5"/>
               </Grid>
             </StackPanel>
 
             <!-- Deletion Buttons -->
             <StackPanel Spacing="10">
-              <TextBlock Text="Destructive Actions:" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}" Margin="0,10,0,0" />
+              <TextBlock Text="{localization:Localize Settings.DangerZone.DestructiveActions}" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}" Margin="0,10,0,0" />
               <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,10">
                   <Button Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                          Content="Uninstall GenHub (Keep Data)"
+                          Content="{localization:Localize Settings.DangerZone.UninstallGenHub}"
                           Command="{Binding UninstallGenHubCommand}"
-                          ToolTip.Tip="Uninstall does not delete data only uninstalls GenHub"
+                          ToolTip.Tip="{localization:Localize Settings.DangerZone.UninstallGenHub.ToolTip}"
                           Classes="danger-button" Margin="0,0,0,10"/>
 
                   <StackPanel Grid.Row="1" Grid.Column="0" Spacing="10" Margin="0,0,10,0">
-                      <Button Content="Delete CAS Storage"
+                      <Button Content="{localization:Localize Settings.DangerZone.DeleteCasStorage}"
                               Command="{Binding DeleteCasStorageCommand}"
-                              ToolTip.Tip="Deletes all cached game files"
+                              ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteCasStorage.ToolTip}"
                               Classes="danger-button" />
-                      <Button Content="Delete Manifests"
+                      <Button Content="{localization:Localize Settings.DangerZone.DeleteManifests}"
                               Command="{Binding DeleteManifestsCommand}"
-                              ToolTip.Tip="Removes all content metadata"
+                              ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteManifests.ToolTip}"
                               Classes="danger-button" />
                   </StackPanel>
                   <StackPanel Grid.Row="1" Grid.Column="1" Spacing="10" Margin="10,0,0,0">
-                      <Button Content="Delete Workspaces"
+                      <Button Content="{localization:Localize Settings.DangerZone.DeleteWorkspaces}"
                               Command="{Binding DeleteWorkspacesCommand}"
-                              ToolTip.Tip="Cleans up all temporary game workspaces"
+                              ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteWorkspaces.ToolTip}"
                               Classes="danger-button" />
-                      <Button Content="Delete Profiles"
+                      <Button Content="{localization:Localize Settings.DangerZone.DeleteProfiles}"
                               Command="{Binding DeleteProfilesCommand}"
-                              ToolTip.Tip="Permanently removes all user profiles"
+                              ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteProfiles.ToolTip}"
                               Classes="danger-button" />
                   </StackPanel>
               </Grid>
 
               <Separator Margin="0,10" Background="{DynamicResource BorderBrush}" Height="1" />
 
-              <Button Content="DELETE ALL APPLICATION DATA"
+              <Button Content="{localization:Localize Settings.DangerZone.DeleteAllData}"
                       Command="{Binding DeleteAllDataCommand}"
                       Classes="danger-button"
                       HorizontalAlignment="Stretch"

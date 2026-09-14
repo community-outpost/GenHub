@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
              xmlns:cv="using:GenHub.Infrastructure.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationView"
              x:DataType="vm:UpdateNotificationViewModel"
              x:Name="Root">
@@ -53,7 +54,7 @@
 
         <!-- Subscribe Button Style handling state via Tag binding -->
         <Style Selector="Button.SubscribeState">
-            <Setter Property="Content" Value="Subscribe"/>
+            <Setter Property="Content" Value="{localization:Localize Updates.Button.Subscribe}"/>
             <Setter Property="IsEnabled" Value="True"/>
             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
             <Setter Property="Foreground" Value="#F1F5F9"/>
@@ -81,7 +82,7 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="Button.SubscribeState[Tag=True]">
-            <Setter Property="Content" Value="Subscribed"/>
+            <Setter Property="Content" Value="{localization:Localize Updates.Button.Subscribed}"/>
             <Setter Property="IsEnabled" Value="False"/>
             <Setter Property="Background" Value="#1F22C55E"/>
             <Setter Property="Foreground" Value="#4ADE80"/>
@@ -109,16 +110,16 @@
                 <Button Classes="tab-btn"
                         Classes.active="{Binding !IsBrowseTabSelected}"
                         Command="{Binding ShowUpdateTabCommand}"
-                        Content="Update"/>
+                        Content="{localization:Localize Updates.Tab.Update}"/>
                 <Button Classes="tab-btn"
                         Classes.active="{Binding IsBrowseTabSelected}"
                         Command="{Binding ShowBrowseBuildsTabCommand}"
-                        Content="Browse Builds"/>
+                        Content="{localization:Localize Updates.Tab.BrowseBuilds}"/>
             </StackPanel>
 
             <!-- Right: Sort by Dropdown (Only visible on Browse Builds tab) -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding IsBrowseTabSelected}">
-                <TextBlock Text="Sort by:" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Updates.SortBy.Label}" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
                 <ComboBox ItemsSource="{Binding AvailableSortOptions}"
                           SelectedItem="{Binding SelectedSortOption}"
                           MinWidth="160"
@@ -146,18 +147,18 @@
                             <!-- Title & Version -->
                             <StackPanel Grid.Column="1">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="Update Available!" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Updates.Card.AvailableTitle}" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                                     <!-- Force Refresh Button inside the card -->
                                     <StackPanel Orientation="Horizontal" Grid.Column="1" Spacing="4">
                                          <Button Command="{Binding ForceRefreshCommand}"
                                                 Background="Transparent" BorderThickness="0" Padding="8"
-                                                ToolTip.Tip="Force Refresh Updates">
+                                                ToolTip.Tip="{localization:Localize Updates.Tooltip.ForceRefresh}">
                                             <PathIcon Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
                                                       Foreground="#AAAAAA" Width="16" Height="16"/>
                                         </Button>
                                         <Button Command="{Binding DismissCommand}"
                                                 Background="Transparent" BorderThickness="0" Padding="8"
-                                                ToolTip.Tip="Dismiss Update">
+                                                ToolTip.Tip="{localization:Localize Updates.Tooltip.Dismiss}">
                                             <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
                                                       Foreground="#AAAAAA" Width="16" Height="16"/>
                                         </Button>
@@ -167,7 +168,7 @@
                             </StackPanel>
 
                             <!-- Release Notes Link -->
-                            <Button Grid.Row="1" Grid.Column="1" Content="View Release Notes" Command="{Binding ViewReleaseNotesCommand}"
+                            <Button Grid.Row="1" Grid.Column="1" Content="{localization:Localize Updates.Button.ViewReleaseNotes}" Command="{Binding ViewReleaseNotesCommand}"
                                      Background="Transparent" Foreground="{DynamicResource AccentBrush}" BorderThickness="0" Padding="0" Margin="0,8,0,0" HorizontalAlignment="Left" Cursor="Hand"/>
                         </Grid>
                     </Border>
@@ -176,7 +177,7 @@
                     <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="16">
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Installation Source" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock Text="{localization:Localize Updates.InstallationSource.Label}" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{Binding InstalledVersionDisplay, StringFormat='Current Version: {0}'}"
                                            FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
                             </Grid>
@@ -185,13 +186,13 @@
                             <Grid ColumnDefinitions="Auto,*,Auto">
                                 <PathIcon Grid.Column="0" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#DDDDDD" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
-                                <Button Grid.Column="2" Content="Unsubscribe" Command="{Binding UnsubscribeCommand}" IsVisible="{Binding IsSubscribedToAny}"
+                                <Button Grid.Column="2" Content="{localization:Localize Updates.Button.Unsubscribe}" Command="{Binding UnsubscribeCommand}" IsVisible="{Binding IsSubscribedToAny}"
                                         Background="#30FF0000" Foreground="#FF5555" FontSize="12" Padding="8,4" CornerRadius="4" VerticalAlignment="Center"/>
                             </Grid>
 
                             <!-- Artifact Selection -->
                             <StackPanel Spacing="8" IsVisible="{Binding IsSubscribedToAny}">
-                                <TextBlock Text="Select Version" FontSize="12" Foreground="#AAAAAA"/>
+                                <TextBlock Text="{localization:Localize Updates.SelectVersion.Label}" FontSize="12" Foreground="#AAAAAA"/>
                                 <Grid ColumnDefinitions="*,Auto">
                                     <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableVersions}" SelectedItem="{Binding SelectedVersion}"
                                               HorizontalAlignment="Stretch" PlaceholderText="{Binding VersionPlaceholderText}">
@@ -221,7 +222,7 @@
                         <!-- Column Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <TextBlock Text="Open Pull Requests" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                <TextBlock Text="{localization:Localize Updates.OpenPRs.Label}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
                                 <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding AvailablePullRequests.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                 </Border>
@@ -244,7 +245,7 @@
                                                                 CommandParameter="{Binding Number}"
                                                                 Classes="pr-link"
                                                                 Margin="0,0,6,0"
-                                                                ToolTip.Tip="Open pull request on GitHub">
+                                                                ToolTip.Tip="{localization:Localize Updates.Tooltip.OpenPR}">
                                                             <TextBlock Text="{Binding Number, StringFormat='#{0}'}"
                                                                        FontWeight="Bold"
                                                                        Foreground="{DynamicResource AccentBrush}"
@@ -296,7 +297,7 @@
                         <!-- Column Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <TextBlock Text="Branches" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                <TextBlock Text="{localization:Localize Updates.Branches.Label}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
                                 <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding AvailableBranches.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                 </Border>
@@ -344,9 +345,9 @@
         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
             <!-- Global Refresh Button & Current Version -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                <Button Command="{Binding ManualRefreshCommand}" Content="Check for Updates"
+                <Button Command="{Binding ManualRefreshCommand}" Content="{localization:Localize Updates.Button.CheckForUpdates}"
                         Background="Transparent" Foreground="#AAAAAA" FontSize="14" Cursor="Hand"
-                        ToolTip.Tip="Manually check for updates and restore dismissed notifications"/>
+                        ToolTip.Tip="{localization:Localize Updates.Tooltip.CheckForUpdates}"/>
                 <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
                     <TextBlock Text="{Binding InstalledVersionDisplay}"
                                FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>

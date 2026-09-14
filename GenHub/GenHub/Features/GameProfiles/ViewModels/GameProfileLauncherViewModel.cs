@@ -55,11 +55,13 @@ public partial class GameProfileLauncherViewModel(
     INotificationService notificationService,
     ISetupWizardService setupWizardService,
     IDialogService dialogService,
-    ILogger<GameProfileLauncherViewModel> logger) : ViewModelBase,
+    ILogger<GameProfileLauncherViewModel> logger,
+    ILocalizationService? localizationService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>
 {
+    private readonly ILocalizationService? _localizationService = localizationService;
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
@@ -154,7 +156,7 @@ public partial class GameProfileLauncherViewModel(
                 gameProcessManager.ProcessExited += OnProcessExited;
             }
 
-            StatusMessage = "Loading profiles...";
+            StatusMessage = _localizationService?["GameProfiles.Status.LoadingProfiles"] ?? "Loading profiles...";
             ErrorMessage = string.Empty;
             Profiles.Clear();
 
@@ -200,13 +202,13 @@ public partial class GameProfileLauncherViewModel(
                 Profiles.Add(new AddProfileItemViewModel());
 
                 var profileCount = Profiles.Count - 1;
-                StatusMessage = $"Loaded {profileCount} profiles";
+                StatusMessage = _localizationService?.GetString("GameProfiles.Status.LoadedProfiles", profileCount) ?? $"Loaded {profileCount} profiles";
                 logger.LogInformation("Loaded {Count} game profiles", profileCount);
             }
             else
             {
                 var errors = string.Join(", ", profilesResult.Errors);
-                StatusMessage = $"Failed to load profiles: {errors}";
+                StatusMessage = _localizationService?.GetString("GameProfiles.Status.FailedToLoad", errors) ?? $"Failed to load profiles: {errors}";
                 ErrorMessage = errors;
                 logger.LogWarning("Failed to load profiles: {Errors}", errors);
             }
@@ -220,7 +222,7 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error initializing profiles");
-            StatusMessage = "Error loading profiles";
+            StatusMessage = _localizationService?["GameProfiles.Status.ErrorLoadingProfiles"] ?? "Error loading profiles";
             ErrorMessage = ex.Message;
             IsServiceAvailable = false;
         }
@@ -453,7 +455,7 @@ public partial class GameProfileLauncherViewModel(
             IsHeaderExpanded = true;
             _headerCollapseTimer.Stop(); // Ensure header stays open during scan
 
-            StatusMessage = "Scanning for games...";
+            StatusMessage = _localizationService?["GameProfiles.Status.ScanningForGames"] ?? "Scanning for games...";
             ErrorMessage = string.Empty;
 
             // Scan for all installations
@@ -471,7 +473,7 @@ public partial class GameProfileLauncherViewModel(
                     }
                     else
                     {
-                        StatusMessage = "No installations found. Scan cancelled.";
+                        StatusMessage = _localizationService?["GameProfiles.Status.NoInstallationsFound"] ?? "No installations found. Scan cancelled.";
                         return;
                     }
                 }
@@ -485,7 +487,7 @@ public partial class GameProfileLauncherViewModel(
                 var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList);
                 var profilesCreated = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult);
 
-                StatusMessage = $"Scan complete. Found {installationsList.Count} installations, created {profilesCreated} profiles";
+                StatusMessage = _localizationService?.GetString("GameProfiles.Status.ScanCompleteFound", installationsList.Count, profilesCreated) ?? $"Scan complete. Found {installationsList.Count} installations, created {profilesCreated} profiles";
 
                 notificationService.ShowSuccess(
                     "Scan Complete",
@@ -495,7 +497,7 @@ public partial class GameProfileLauncherViewModel(
             else
             {
                 var errors = string.Join(", ", installations.Errors);
-                StatusMessage = $"Scan failed: {errors}";
+                StatusMessage = _localizationService?.GetString("GameProfiles.Status.ScanFailed", errors) ?? $"Scan failed: {errors}";
                 ErrorMessage = errors;
                 logger.LogWarning("Game scan failed: {Errors}", errors);
             }
@@ -503,7 +505,7 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error scanning for games");
-            StatusMessage = "Error during scan";
+            StatusMessage = _localizationService?["GameProfiles.Status.ErrorDuringScan"] ?? "Error during scan";
             ErrorMessage = ex.Message;
         }
         finally
@@ -1039,7 +1041,7 @@ public partial class GameProfileLauncherViewModel(
         // Try without blocking
         if (!await _launchSemaphore.WaitAsync(0))
         {
-            StatusMessage = "A profile is already launching...";
+            StatusMessage = _localizationService?["GameProfiles.Status.AlreadyLaunching"] ?? "A profile is already launching...";
             return;
         }
 
@@ -1048,7 +1050,7 @@ public partial class GameProfileLauncherViewModel(
             try
             {
                 IsLaunching = true;
-                StatusMessage = $"Validating {profile.Name}...";
+                StatusMessage = _localizationService?.GetString("GameProfiles.Status.Validating", profile.Name) ?? $"Validating {profile.Name}...";
                 ErrorMessage = string.Empty;
 
                 // With CAS hardlinks, profile switching is instant - maps are just symlinks
@@ -1060,7 +1062,7 @@ public partial class GameProfileLauncherViewModel(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error starting launch process for {ProfileName}", profile.Name);
-                StatusMessage = $"Error launching {profile.Name}";
+                StatusMessage = _localizationService?.GetString("GameProfiles.Error.ErrorLaunchingProfile", profile.Name) ?? $"Error launching {profile.Name}";
                 ErrorMessage = ex.Message;
                 notificationService.ShowError("Launch Error", $"Error starting launch for {profile.Name}: {ex.Message}");
             }
@@ -1080,7 +1082,7 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile)
     {
-        StatusMessage = $"Launching {profile.Name}...";
+        StatusMessage = _localizationService?.GetString("GameProfiles.Status.LaunchingProfile", profile.Name) ?? $"Launching {profile.Name}...";
 
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
         var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);

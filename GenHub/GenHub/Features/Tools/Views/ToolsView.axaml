@@ -7,6 +7,7 @@
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:controls="clr-namespace:GenHub.Common.Controls"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Features.Tools.Views.ToolsView"
              x:DataType="vm:ToolsViewModel"
@@ -14,6 +15,7 @@
 
   <UserControl.Resources>
     <converters:ObjectToBoolConverter x:Key="ObjectToBoolConverter" IsNullValue="False" IsNotNullValue="True" />
+    <converters:LocalizedToolNameConverter x:Key="LocalizedToolNameConverter" />
   </UserControl.Resources>
 
   <UserControl.Styles>
@@ -123,7 +125,7 @@
   </UserControl.Styles>
 
   <Grid>
-    <controls:SidebarLayout PaneTitle="Installed Tools"
+    <controls:SidebarLayout PaneTitle="{localization:Localize Tools.Label.InstalledTools}"
                             ItemsSource="{Binding InstalledTools}"
                             SelectedItem="{Binding SelectedTool, Mode=TwoWay}"
                             IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
@@ -151,7 +153,7 @@
              </Panel>
 
              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-              <TextBlock Text="{Binding Metadata.Name}" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+              <TextBlock Text="{Binding, Converter={StaticResource LocalizedToolNameConverter}}" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
               <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}" 
                          FontSize="11.5" Foreground="{DynamicResource TextSecondary}" 
                          VerticalAlignment="Center"
@@ -167,7 +169,7 @@
                   HorizontalAlignment="Stretch">
               <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                   <material:MaterialIcon Kind="Plus" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}"/>
-                  <TextBlock Text="Add Tool" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.Button.AddToolAction}" VerticalAlignment="Center"/>
               </StackPanel>
           </Button>
       </controls:SidebarLayout.PaneHeader>
@@ -178,7 +180,7 @@
                   HorizontalAlignment="Stretch">
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                <material:MaterialIcon Kind="Refresh" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-               <TextBlock Text="Refresh Tools" VerticalAlignment="Center"/>
+               <TextBlock Text="{localization:Localize Tools.Button.RefreshToolsAction}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
       </controls:SidebarLayout.PaneFooter>
@@ -198,7 +200,7 @@
                VerticalAlignment="Center">
              <StackPanel Spacing="20">
                  <material:MaterialIcon Kind="AutoFix" Width="64" Height="64" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
-                 <TextBlock Text="Select a tool from the sidebar to view details"
+                 <TextBlock Text="{localization:Localize Tools.Label.SelectToolPlaceholder}"
                             FontSize="18"
                             Foreground="{DynamicResource TextSecondary}"
                             HorizontalAlignment="Center"/>
@@ -232,7 +234,7 @@
                 MinWidth="420"
                 BoxShadow="0 16 36 0 #80000000">
             <StackPanel Spacing="16">
-                <TextBlock Text="Tool Details" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                <TextBlock Text="{localization:Localize Tools.Dialog.ToolDetails}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
                 <StackPanel Spacing="12" DataContext="{Binding ToolForDetails}" x:DataType="interfaces:IToolPlugin">
                     <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4" VerticalAlignment="Center">
                         <Panel Grid.Column="0" Width="40" Height="40" Margin="0,0,12,0" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -252,23 +254,23 @@
                                    IsVisible="{Binding Metadata.IconPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </Panel>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="{Binding Metadata.Name}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{Binding, Converter={StaticResource LocalizedToolNameConverter}}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                             <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}"
                                        FontSize="12" Foreground="{DynamicResource TextSecondary}"
                                        IsVisible="{Binding Metadata.Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </StackPanel>
                     </Grid>
                     <StackPanel Spacing="2">
-                        <TextBlock Text="Author" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{localization:Localize Tools.Label.Author}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         <TextBlock Text="{Binding Metadata.Author}" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
                     </StackPanel>
                     <StackPanel Spacing="2" IsVisible="{Binding Metadata.Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="Description" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{localization:Localize Tools.Label.Description}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         <TextBlock Text="{Binding Metadata.Description}" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
                 </StackPanel>
                 <Button Command="{Binding CloseDetailsDialogCommand}"
-                        Content="Close"
+                        Content="{localization:Localize Common.Button.Close}"
                         Classes="dialog-close-btn"
                         HorizontalAlignment="Right"
                         Margin="0,8,0,0"/>

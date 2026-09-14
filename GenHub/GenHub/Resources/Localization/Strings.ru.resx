@@ -2184,4 +2184,258 @@
     <value>Уведомления</value>
     <comment>Tooltip for the notification bell button.</comment>
   </data>
-</root>
+  <data name="AppUpdate.Button.CheckForUpdates" xml:space="preserve">
+    <value>Проверить обновления</value>
+  </data>
+  <data name="AppUpdate.Button.Unsubscribe" xml:space="preserve">
+    <value>Отписаться</value>
+  </data>
+  <data name="AppUpdate.Button.ViewReleaseNotes" xml:space="preserve">
+    <value>Список изменений</value>
+  </data>
+  <data name="AppUpdate.Label.Branches" xml:space="preserve">
+    <value>Ветки</value>
+  </data>
+  <data name="AppUpdate.Label.InstallationSource" xml:space="preserve">
+    <value>Источник установки</value>
+  </data>
+  <data name="AppUpdate.Label.OpenPullRequests" xml:space="preserve">
+    <value>Открытые Pull Requests</value>
+  </data>
+  <data name="AppUpdate.Label.SelectVersion" xml:space="preserve">
+    <value>Выберите версию</value>
+  </data>
+  <data name="AppUpdate.Label.SortBy" xml:space="preserve">
+    <value>Сортировка:</value>
+  </data>
+  <data name="AppUpdate.Tab.BrowseBuilds" xml:space="preserve">
+    <value>Обзор сборок</value>
+  </data>
+  <data name="AppUpdate.Tab.Update" xml:space="preserve">
+    <value>Обновление</value>
+  </data>
+  <data name="AppUpdate.Title.UpdateAvailable" xml:space="preserve">
+    <value>Доступно обновление!</value>
+  </data>
+  <data name="AppUpdate.Title.Window" xml:space="preserve">
+    <value>Обновления GenHub</value>
+  </data>
+  <data name="AppUpdate.Tooltip.CheckForUpdates" xml:space="preserve">
+    <value>Проверить наличие обновлений вручную</value>
+  </data>
+  <data name="AppUpdate.Tooltip.Dismiss" xml:space="preserve">
+    <value>Закрыть уведомление</value>
+  </data>
+  <data name="AppUpdate.Tooltip.ForceRefresh" xml:space="preserve">
+    <value>Принудительно обновить</value>
+  </data>
+  <data name="AppUpdate.Tooltip.OpenPrUrl" xml:space="preserve">
+    <value>Открыть запрос на GitHub</value>
+  </data>
+  <data name="GameProfiles.Button.Scan" xml:space="preserve">
+    <value>СКАНИРОВАТЬ</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData" xml:space="preserve">
+    <value>УДАЛИТЬ ВСЕ ДАННЫЕ ПРИЛОЖЕНИЯ</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
+    <value>Удалить хранилище CAS</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.ToolTip" xml:space="preserve">
+    <value>Удаляет все кэшированные файлы игры</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteManifests" xml:space="preserve">
+    <value>Удалить манифесты</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteManifests.ToolTip" xml:space="preserve">
+    <value>Удаляет все метаданные содержимого</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteProfiles" xml:space="preserve">
+    <value>Удалить профили</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteProfiles.ToolTip" xml:space="preserve">
+    <value>Безвозвратно удаляет все профили пользователей</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteWorkspaces" xml:space="preserve">
+    <value>Удалить рабочие области</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteWorkspaces.ToolTip" xml:space="preserve">
+    <value>Очищает все временные рабочие области игры</value>
+  </data>
+  <data name="Settings.DangerZone.DestructiveActions" xml:space="preserve">
+    <value>Опасные действия:</value>
+  </data>
+  <data name="Settings.DangerZone.Profiles" xml:space="preserve">
+    <value>Профили:</value>
+  </data>
+  <data name="Settings.DangerZone.UninstallGenHub" xml:space="preserve">
+    <value>Удалить GenHub (сохранить данные)</value>
+  </data>
+  <data name="Settings.DangerZone.UninstallGenHub.ToolTip" xml:space="preserve">
+    <value>Удаление не стирает данные, а только удаляет GenHub</value>
+  </data>
+  <data name="Settings.DataDirectories.AppFolders.Description" xml:space="preserve">
+    <value>Быстрый доступ к данным приложения, профилям и манифестам для устранения неполадок или ручного управления.</value>
+  </data>
+  <data name="Settings.DataDirectories.AppFolders.Label" xml:space="preserve">
+    <value>Папки данных приложения</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenAppData" xml:space="preserve">
+    <value>Открыть AppData</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenCasPool" xml:space="preserve">
+    <value>Открыть Хранилище CAS</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenManifests" xml:space="preserve">
+    <value>Открыть Манифесты</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenProfiles" xml:space="preserve">
+    <value>Открыть Профили</value>
+  </data>
+  <data name="Settings.DataDirectories.OpenWorkspaces" xml:space="preserve">
+    <value>Открыть Рабочие области</value>
+  </data>
+  <data name="Tools.Label.SelectToolPlaceholder" xml:space="preserve">
+    <value>Выберите инструмент на панели для просмотра сведений</value>
+  </data>
+  <data name="Tools.MapManager.Button.Pack" xml:space="preserve">
+    <value>Пакет</value>
+  </data>
+  <data name="Tools.MapManager.DragDrop.Subtitle" xml:space="preserve">
+    <value>Папки с картами или ZIP-архивы с файлами карт</value>
+  </data>
+  <data name="Tools.MapManager.DragDrop.Title" xml:space="preserve">
+    <value>Перетащите карты или ZIP для импорта</value>
+  </data>
+  <data name="Tools.MapManager.Empty.Subtitle" xml:space="preserve">
+    <value>Перетащите папки с картами или ZIP сюда или вставьте ссылку на карту выше</value>
+  </data>
+  <data name="Tools.MapManager.Empty.Title" xml:space="preserve">
+    <value>Карты не найдены</value>
+  </data>
+  <data name="Tools.MapManager.Status.Loaded" xml:space="preserve">
+    <value>Загружено {0} карт.</value>
+  </data>
+  <data name="Tools.MapManager.Tooltip.MapPackManager" xml:space="preserve">
+    <value>Менеджер пакетов карт</value>
+  </data>
+  <data name="Tools.MapManager.Watermark.PasteMapUrl" xml:space="preserve">
+    <value>Вставьте URL карты...</value>
+  </data>
+  <data name="Tools.Plugin.genpatcher.Name" xml:space="preserve">
+    <value>GenPatcher</value>
+  </data>
+  <data name="Tools.Plugin.map-manager.Name" xml:space="preserve">
+    <value>Менеджер карт</value>
+  </data>
+  <data name="Tools.Plugin.replay-manager.Name" xml:space="preserve">
+    <value>Менеджер повторов</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Import" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Parse" xml:space="preserve">
+    <value>АНАЛИЗ</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Uncompress" xml:space="preserve">
+    <value>Распаковать</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Upload" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="Tools.ReplayManager.Button.Zip" xml:space="preserve">
+    <value>Сжать в ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Actions" xml:space="preserve">
+    <value>Действия</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Filename" xml:space="preserve">
+    <value>Имя файла</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Modified" xml:space="preserve">
+    <value>Изменено</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Size" xml:space="preserve">
+    <value>Размер</value>
+  </data>
+  <data name="Tools.ReplayManager.DragDrop.Subtitle" xml:space="preserve">
+    <value>Только отдельные файлы .rep или ZIP-архивы</value>
+  </data>
+  <data name="Tools.ReplayManager.DragDrop.Title" xml:space="preserve">
+    <value>Перетащите повторы или ZIP для импорта</value>
+  </data>
+  <data name="Tools.ReplayManager.Empty.Subtitle" xml:space="preserve">
+    <value>Перетащите файлы .rep или .zip сюда или вставьте ссылку на повтор выше</value>
+  </data>
+  <data name="Tools.ReplayManager.Empty.Title" xml:space="preserve">
+    <value>Повторы не найдены</value>
+  </data>
+  <data name="Tools.ReplayManager.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Tools.ReplayManager.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Tools.ReplayManager.Label.Selected" xml:space="preserve">
+    <value>Выбрано:</value>
+  </data>
+  <data name="Tools.ReplayManager.Label.StorageQuotaNotice" xml:space="preserve">
+    <value>Файлы хранятся до 14 дней или до заполнения хранилища. Лимит 10 МБ на пользователя (скользящий лимит за 3 дня).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.Loaded" xml:space="preserve">
+    <value>Загружено {0} повторов.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.BrowseFiles" xml:space="preserve">
+    <value>Обзор файлов</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.DeleteSelected" xml:space="preserve">
+    <value>Безвозвратно удалить выбранные файлы повторов с вашего компьютера.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ImportFromUrl" xml:space="preserve">
+    <value>Импортировать по ссылке</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ParseDetails" xml:space="preserve">
+    <value>Анализ повтора (скоро)</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RefreshList" xml:space="preserve">
+    <value>Обновить список</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RevealExplorer" xml:space="preserve">
+    <value>Показать в проводнике</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.SupportedFormats" xml:space="preserve">
+    <value>Поддерживаемые форматы:
+• Generals Online URL или ID матча (напр. 151553)
+• GenTool Replay URL
+• Ссылка GenHub / UploadThing
+• Прямая ссылка (.rep/.zip)</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.UncompressSelected" xml:space="preserve">
+    <value>Извлечь файлы повторов из выбранных ZIP-архивов.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.UploadReplay" xml:space="preserve">
+    <value>Загрузить выбранный повтор в Generals Online</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ZipName" xml:space="preserve">
+    <value>Имя файла для нового ZIP-архива</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ZipSelected" xml:space="preserve">
+    <value>Создать новый ZIP-архив с выбранными файлами повторов.</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.ImportUrl" xml:space="preserve">
+    <value>Вставьте URL повтора или ID матча...</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.SearchReplays" xml:space="preserve">
+    <value>Поиск повторов...</value>
+  </data>
+  <data name="Tools.ReplayManager.Watermark.ZipName" xml:space="preserve">
+    <value>Имя ZIP</value>
+  </data>
+<data name="GameProfiles.Status.LoadedProfiles" xml:space="preserve"><value>Загружено профилей: {0}</value></data><data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve"><value>Сканирование завершено! Найдено установок: {0}</value></data><data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve"><value>Сканирование завершено! Новых установок не найдено</value></data><data name="GameProfiles.Status.ProfileLaunched" xml:space="preserve"><value>Запущен профиль: {0}</value></data><data name="GameProfiles.Status.LaunchFailed" xml:space="preserve"><value>Не удалось запустить профиль: {0}</value></data><data name="GameProfiles.Status.ProfileDeleted" xml:space="preserve"><value>Удален профиль: {0}</value></data><data name="GameProfiles.Status.DeleteFailed" xml:space="preserve"><value>Не удалось удалить профиль: {0}</value></data><data name="Replays.Tab.Generals" xml:space="preserve"><value>Generals</value></data><data name="Replays.Tab.ZeroHour" xml:space="preserve"><value>Zero Hour</value></data><data name="Replays.Watermark.ImportUrl" xml:space="preserve"><value>Вставьте URL реплея или ID матча...</value></data><data name="Replays.Tooltip.ImportUrlFormats" xml:space="preserve"><value>Поддерживаемые форматы:
+• URL Generals Online или ID матча (напр. 151553)
+• URL реплея GenTool
+• Ссылка GenHub / UploadThing
+• Прямая ссылка для скачивания (.rep/.zip)</value></data><data name="Replays.Button.Import" xml:space="preserve"><value>Импорт</value></data><data name="Replays.Tooltip.ImportFromUrl" xml:space="preserve"><value>Импортировать по URL</value></data><data name="Replays.Tooltip.BrowseFiles" xml:space="preserve"><value>Обзор файлов</value></data><data name="Replays.Watermark.Search" xml:space="preserve"><value>Поиск реплеев...</value></data><data name="Replays.Tooltip.RefreshList" xml:space="preserve"><value>Обновить список</value></data><data name="Replays.Tooltip.OpenFolder" xml:space="preserve"><value>Открыть папку</value></data><data name="Replays.Column.Filename" xml:space="preserve"><value>Имя файла</value></data><data name="Replays.Column.Size" xml:space="preserve"><value>Размер</value></data><data name="Replays.Column.Modified" xml:space="preserve"><value>Дата изменения</value></data><data name="Replays.Column.Actions" xml:space="preserve"><value>Действия</value></data><data name="Replays.Tooltip.RevealInExplorer" xml:space="preserve"><value>Показать в проводнике</value></data><data name="Replays.Tooltip.ParseDetails" xml:space="preserve"><value>Анализ деталей реплея (скоро)</value></data><data name="Replays.Button.Parse" xml:space="preserve"><value>АНАЛИЗ</value></data><data name="Replays.Empty.Title" xml:space="preserve"><value>Реплеи не найдены</value></data><data name="Replays.Empty.Description" xml:space="preserve"><value>Перетащите файлы .rep или .zip сюда или вставьте ссылку на реплей выше</value></data><data name="Replays.DragDrop.Title" xml:space="preserve"><value>Перетащите реплеи или ZIP для импорта</value></data><data name="Replays.DragDrop.Subtitle" xml:space="preserve"><value>Только отдельные файлы .rep или ZIP-архивы</value></data><data name="Replays.Label.Selected" xml:space="preserve"><value>Выбрано:</value></data><data name="Replays.Button.Delete" xml:space="preserve"><value>Удалить</value></data><data name="Replays.Tooltip.DeleteSelected" xml:space="preserve"><value>Навсегда удалить выбранные файлы реплеев с компьютера.</value></data><data name="Replays.Button.Uncompress" xml:space="preserve"><value>Распаковать</value></data><data name="Replays.Tooltip.UncompressSelected" xml:space="preserve"><value>Извлечь файлы реплеев из выбранных ZIP-архивов.</value></data><data name="Replays.Watermark.ZipName" xml:space="preserve"><value>Имя ZIP</value></data><data name="Replays.Tooltip.ZipName" xml:space="preserve"><value>Имя файла для нового ZIP-архива</value></data><data name="Replays.Button.Zip" xml:space="preserve"><value>Сжать</value></data><data name="Replays.Tooltip.ZipSelected" xml:space="preserve"><value>Создать новый ZIP-архив с выбранными файлами реплеев.</value></data><data name="Replays.Button.Upload" xml:space="preserve"><value>Загрузить</value></data><data name="Replays.Tooltip.UploadAndShare" xml:space="preserve"><value>Загрузить выбранные реплеи в облако и скопировать ссылку.</value></data><data name="Replays.Tooltip.ViewHistory" xml:space="preserve"><value>Посмотреть историю загруженных реплеев.</value></data><data name="Replays.Label.Active" xml:space="preserve"><value>Активно</value></data><data name="Replays.Label.Expired" xml:space="preserve"><value>Истекло</value></data><data name="Replays.Tooltip.CopyLink" xml:space="preserve"><value>Скопировать ссылку для скачивания этого реплея.</value></data><data name="Replays.Tooltip.DeleteHistoryItem" xml:space="preserve"><value>Удалить этот файл из облака и очистить из истории.</value></data><data name="Replays.Empty.NoHistory" xml:space="preserve"><value>Истории пока нет</value></data><data name="Replays.Button.ClearAllHistory" xml:space="preserve"><value>Очистить всю историю</value></data><data name="Replays.Tooltip.ClearHistory" xml:space="preserve"><value>Удалить все загруженные файлы из облака и очистить историю.</value></data><data name="Replays.Notice.StorageQuota" xml:space="preserve"><value>Файлы хранятся до 14 дней или до заполнения хранилища. Максимальная квота 10 МБ на пользователя (3-дневный скользящий лимит). Дубликаты дедуплицируются автоматически.</value></data><data name="Maps.Tab.Generals" xml:space="preserve"><value>Generals</value></data><data name="Maps.Tab.ZeroHour" xml:space="preserve"><value>Zero Hour</value></data><data name="Maps.Watermark.ImportUrl" xml:space="preserve"><value>Вставьте URL карты...</value></data><data name="Maps.Button.Import" xml:space="preserve"><value>Импорт</value></data><data name="Maps.Tooltip.ImportFromUrl" xml:space="preserve"><value>Импортировать по URL</value></data><data name="Maps.Tooltip.BrowseFiles" xml:space="preserve"><value>Обзор файлов</value></data><data name="Maps.Watermark.Search" xml:space="preserve"><value>Поиск...</value></data><data name="Maps.Tooltip.RefreshList" xml:space="preserve"><value>Обновить список</value></data><data name="Maps.Tooltip.OpenFolder" xml:space="preserve"><value>Открыть папку</value></data><data name="Maps.Button.Pack" xml:space="preserve"><value>Пак</value></data><data name="Maps.Tooltip.MapPackManager" xml:space="preserve"><value>Менеджер паков карт</value></data><data name="Maps.Column.Name" xml:space="preserve"><value>Имя</value></data><data name="Maps.Column.Size" xml:space="preserve"><value>Размер</value></data><data name="Maps.Column.Type" xml:space="preserve"><value>Тип</value></data><data name="Maps.Column.Modified" xml:space="preserve"><value>Дата изменения</value></data><data name="Maps.Empty.Title" xml:space="preserve"><value>Карты не найдены</value></data><data name="Maps.Empty.Description" xml:space="preserve"><value>Перетащите файлы .map или .zip сюда или вставьте ссылку на карту выше</value></data><data name="Maps.DragDrop.Title" xml:space="preserve"><value>Перетащите карты или ZIP для импорта</value></data><data name="Maps.DragDrop.Subtitle" xml:space="preserve"><value>Только отдельные файлы .map или ZIP-архивы</value></data><data name="Maps.Label.Selected" xml:space="preserve"><value>Выбрано:</value></data><data name="Maps.Button.Delete" xml:space="preserve"><value>Удалить</value></data><data name="Maps.Tooltip.DeleteSelected" xml:space="preserve"><value>Навсегда удалить выбранные карты с компьютера.</value></data><data name="Maps.Button.Uncompress" xml:space="preserve"><value>Распаковать</value></data><data name="Maps.Tooltip.UncompressSelected" xml:space="preserve"><value>Извлечь карты из выбранных ZIP-архивов.</value></data><data name="Maps.Watermark.ZipName" xml:space="preserve"><value>Имя ZIP (.zip добавится)</value></data><data name="Maps.Tooltip.ZipName" xml:space="preserve"><value>Имя файла для нового ZIP-архива. Расширение .zip будет добавлено автоматически.</value></data><data name="GameProfiles.Card.Menu.EditProfile" xml:space="preserve"><value>Редактировать профиль</value></data><data name="GameProfiles.Card.Menu.CreateShortcut" xml:space="preserve"><value>Создать ярлык</value></data><data name="GameProfiles.Card.Menu.CopyProfile" xml:space="preserve"><value>Копировать профиль</value></data><data name="GameProfiles.Card.Menu.DeleteProfile" xml:space="preserve"><value>Удалить профиль</value></data><data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve"><value>Переключить интеграцию со Steam</value></data><data name="GameProfiles.Card.Tooltip.EditProfile" xml:space="preserve"><value>Редактировать профиль</value></data><data name="GameProfiles.Card.Tooltip.CopyProfile" xml:space="preserve"><value>Копировать профиль</value></data><data name="GameProfiles.Card.Tooltip.CreateShortcut" xml:space="preserve"><value>Создать ярлык на рабочем столе</value></data><data name="GameProfiles.Card.Tooltip.DeleteProfile" xml:space="preserve"><value>Удалить профиль</value></data><data name="GameProfiles.Card.Action.Launch" xml:space="preserve"><value>ЗАПУСК</value></data><data name="Maps.MapPack.Title" xml:space="preserve"><value>Менеджер пакетов карт</value></data><data name="Maps.MapPack.Subtitle" xml:space="preserve"><value>Создание и управление коллекциями карт</value></data><data name="Maps.MapPack.CreateNew" xml:space="preserve"><value>Создать новый</value></data><data name="Maps.MapPack.SelectedMaps" xml:space="preserve"><value>Выбранные карты</value></data><data name="Maps.MapPack.NoMapsSelected" xml:space="preserve"><value>Карты не выбраны</value></data><data name="Maps.MapPack.PackName" xml:space="preserve"><value>Имя пакета</value></data><data name="Maps.MapPack.Watermark" xml:space="preserve"><value>напр., Турнирные карты 2024</value></data><data name="Maps.MapPack.Button.Create" xml:space="preserve"><value>Создать пакет карт</value></data><data name="Maps.MapPack.ExistingPacks" xml:space="preserve"><value>Существующие пакеты карт</value></data><data name="Maps.MapPack.NoPacksFound" xml:space="preserve"><value>Пакеты карт не найдены</value></data><data name="Maps.MapPack.Badge.Loaded" xml:space="preserve"><value>ЗАГРУЖЕНО</value></data><data name="Maps.MapPack.Tooltip.Delete" xml:space="preserve"><value>Удалить этот пакет карт.</value></data><data name="Updates.Window.Title" xml:space="preserve"><value>Обновления GenHub</value></data><data name="Updates.Tab.Update" xml:space="preserve"><value>Обновление</value></data><data name="Updates.Tab.BrowseBuilds" xml:space="preserve"><value>Обзор сборок</value></data><data name="Updates.SortBy.Label" xml:space="preserve"><value>Сортировать по:</value></data><data name="Updates.Card.AvailableTitle" xml:space="preserve"><value>Доступно обновление!</value></data><data name="Updates.Tooltip.ForceRefresh" xml:space="preserve"><value>Принудительно обновить</value></data><data name="Updates.Tooltip.Dismiss" xml:space="preserve"><value>Отклонить обновление</value></data><data name="Updates.Button.ViewReleaseNotes" xml:space="preserve"><value>Просмотр примечаний к выпуску</value></data><data name="Updates.InstallationSource.Label" xml:space="preserve"><value>Источник установки</value></data><data name="Updates.Button.Unsubscribe" xml:space="preserve"><value>Отписаться</value></data><data name="Updates.SelectVersion.Label" xml:space="preserve"><value>Выберите версию</value></data><data name="Updates.OpenPRs.Label" xml:space="preserve"><value>Открытые Pull Requests</value></data><data name="Updates.Tooltip.OpenPR" xml:space="preserve"><value>Открыть pull request на GitHub</value></data><data name="Updates.Branches.Label" xml:space="preserve"><value>Ветки</value></data><data name="Updates.Button.CheckForUpdates" xml:space="preserve"><value>Проверить обновления</value></data><data name="Updates.Tooltip.CheckForUpdates" xml:space="preserve"><value>Вручную проверить обновления и восстановить уведомления</value></data><data name="Updates.Button.Subscribe" xml:space="preserve"><value>Подписаться</value></data><data name="Updates.Button.Subscribed" xml:space="preserve"><value>Подписка оформлена</value></data><data name="Tools.Button.AddToolAction" xml:space="preserve"><value>Добавить инструмент</value></data><data name="Tools.Button.RefreshToolsAction" xml:space="preserve"><value>Обновить инструменты</value></data><data name="Common.Tooltip.MaximizeRestore" xml:space="preserve"><value>Развернуть / Восстановить</value></data><data name="Common.Tooltip.CloseWindow" xml:space="preserve"><value>Закрыть окно</value></data></root>
