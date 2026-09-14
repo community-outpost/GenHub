@@ -328,6 +328,10 @@ main {
     background: #111118;
     user-select: none;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 740px;
+    max-height: 85vh;
 }
 
 /* Window Titlebar (MainWindow.axaml) */
@@ -613,7 +617,9 @@ main {
 /* App Viewport */
 .genhub-app-viewport {
     position: relative;
-    min-height: 560px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
     background: #0f0f16;
 }
 
@@ -621,9 +627,20 @@ main {
     display: none;
     animation: ghFadeIn 0.18s ease;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .genhub-view-pane.active {
+    display: flex;
+    flex-direction: column;
+}
+
+#gh-pane-profiles {
+    overflow-y: auto;
+}
+
+#gh-pane-profiles.active {
     display: block;
 }
 
@@ -2447,14 +2464,24 @@ main {
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 14px;
     width: 880px;
-    max-width: 95vw;
-    height: 82vh;
-    max-height: 720px;
+    max-width: 94%;
+    height: 600px;
+    max-height: 92%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
     box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 45px rgba(139, 92, 246, 0.25);
+    transition: width 0.2s ease, height 0.2s ease, max-width 0.2s ease, max-height 0.2s ease, border-radius 0.2s ease;
+}
+
+.gh-profile-settings-window.fullscreen-max {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
 }
 
 .gh-win-accent-edge {
@@ -2616,13 +2643,12 @@ main {
 /* Floating Save FAB */
 .gh-win-footer-fab-row {
     position: absolute;
-    bottom: 18px;
-    left: 0;
-    right: 0;
+    bottom: 16px;
+    right: 24px;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     pointer-events: none;
-    z-index: 10;
+    z-index: 50;
 }
 
 .gh-save-profile-fab {

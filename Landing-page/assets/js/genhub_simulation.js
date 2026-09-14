@@ -243,6 +243,8 @@
                 if (titleEl) titleEl.textContent = pName;
                 if (nameInput) nameInput.value = pName;
 
+                if (typeof selectWinTab === 'function') selectWinTab(1);
+                if (typeof selectSubCategory === 'function') selectSubCategory('identity');
                 openModal('ghGameProfileSettingsWindow');
             });
         }
@@ -299,20 +301,6 @@
         if (countEl) countEl.textContent = `Loaded ${count} profiles`;
     }
 
-    // Add New Profile Card -> Also opens GameProfileSettingsWindow
-    const addProfileBtn = document.getElementById('ghAddNewProfileBtn');
-    if (addProfileBtn) {
-        addProfileBtn.addEventListener('click', () => {
-            activeCardEditing = null;
-            isCreatingProfile = true;
-            const titleEl = document.getElementById('ghWinProfileTitle');
-            const nameInput = document.getElementById('ghProfileNameInput');
-            if (titleEl) titleEl.textContent = 'New Profile';
-            if (nameInput) nameInput.value = 'Custom Profile';
-            openModal('ghGameProfileSettingsWindow');
-        });
-    }
-
     // GameProfileSettingsWindow Sub-navigation (Content, Profile Settings, Game Settings)
     const winNavBtns = document.querySelectorAll('.gh-win-nav-btn');
     const winPanels = [
@@ -321,19 +309,18 @@
         document.getElementById('ghWinTabGame')
     ];
 
-    winNavBtns.forEach((btn, idx) => {
-        btn.addEventListener('click', () => {
-            winNavBtns.forEach(b => {
-                b.classList.remove('active');
-                b.setAttribute('aria-selected', 'false');
-            });
-            btn.classList.add('active');
-            btn.setAttribute('aria-selected', 'true');
-
-            winPanels.forEach((p, pIdx) => {
-                if (p) p.classList.toggle('active', pIdx === idx);
-            });
+    function selectWinTab(idx) {
+        winNavBtns.forEach((b, bIdx) => {
+            b.classList.toggle('active', bIdx === idx);
+            b.setAttribute('aria-selected', bIdx === idx ? 'true' : 'false');
         });
+        winPanels.forEach((p, pIdx) => {
+            if (p) p.classList.toggle('active', pIdx === idx);
+        });
+    }
+
+    winNavBtns.forEach((btn, idx) => {
+        btn.addEventListener('click', () => selectWinTab(idx));
     });
 
     // General Settings Sub-sidebar (Identity, Appearance, Launch, Theme)
@@ -345,17 +332,37 @@
         'theme': document.getElementById('ghSubTheme')
     };
 
+    function selectSubCategory(cat) {
+        subNavBtns.forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-sub-category') === cat);
+        });
+        Object.keys(subPanels).forEach(k => {
+            if (subPanels[k]) subPanels[k].classList.toggle('active', k === cat);
+        });
+    }
+
     subNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const cat = btn.getAttribute('data-sub-category');
-            subNavBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            Object.keys(subPanels).forEach(k => {
-                if (subPanels[k]) subPanels[k].classList.toggle('active', k === cat);
-            });
+            selectSubCategory(cat);
         });
     });
+
+    // Add New Profile Card -> Opens GameProfileSettingsWindow at Profile Settings Identity
+    const addProfileBtn = document.getElementById('ghAddNewProfileBtn');
+    if (addProfileBtn) {
+        addProfileBtn.addEventListener('click', () => {
+            activeCardEditing = null;
+            isCreatingProfile = true;
+            const titleEl = document.getElementById('ghWinProfileTitle');
+            const nameInput = document.getElementById('ghProfileNameInput');
+            if (titleEl) titleEl.textContent = 'New Profile';
+            if (nameInput) nameInput.value = 'Custom Profile';
+            selectWinTab(1);
+            selectSubCategory('identity');
+            openModal('ghGameProfileSettingsWindow');
+        });
+    }
 
     // Window Randomize Color Button
     const randColorBtn = document.getElementById('ghWinRandomizeColorBtn');
@@ -368,24 +375,17 @@
         });
     }
 
-    // Window Fullscreen Button
+    // Window Fullscreen / Maximize Toggle (Constrained cleanly inside App Window)
     const fsBtn = document.getElementById('ghWinFullscreenBtn');
     if (fsBtn) {
         fsBtn.addEventListener('click', () => {
             const win = document.querySelector('.gh-profile-settings-window');
             if (win) {
-                const isMax = win.classList.toggle('fullscreen-max');
-                if (isMax) {
-                    win.style.maxWidth = '100vw';
-                    win.style.width = '98vw';
-                    win.style.height = '94vh';
-                    win.style.maxHeight = '96vh';
-                } else {
-                    win.style.maxWidth = '95vw';
-                    win.style.width = '880px';
-                    win.style.height = '82vh';
-                    win.style.maxHeight = '720px';
-                }
+                win.style.width = '';
+                win.style.maxWidth = '';
+                win.style.height = '';
+                win.style.maxHeight = '';
+                win.classList.toggle('fullscreen-max');
             }
         });
     }
