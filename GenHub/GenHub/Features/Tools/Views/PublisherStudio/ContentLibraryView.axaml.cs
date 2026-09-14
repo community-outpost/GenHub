@@ -23,7 +23,7 @@ public partial class ContentLibraryView : UserControl
         AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
-    private void OnDragOver(object? sender, DragEventArgs e)
+    private static void OnDragOver(object? sender, DragEventArgs e)
     {
         e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
     }

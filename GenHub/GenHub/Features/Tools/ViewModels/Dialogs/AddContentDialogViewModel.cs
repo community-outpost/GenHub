@@ -338,7 +338,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
         // Auto-fill ContentName if empty
         if (string.IsNullOrWhiteSpace(ContentName))
         {
-            var humanized = Regex.Replace(baseName, @"[-_]+", " ").Trim();
+            var humanized = Regex.Replace(baseName, @"[-_]+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
             if (!string.IsNullOrWhiteSpace(humanized))
             {
                 var words = humanized.Split(' ', StringSplitOptions.RemoveEmptyEntries);

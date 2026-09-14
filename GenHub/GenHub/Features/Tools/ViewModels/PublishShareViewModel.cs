@@ -472,6 +472,23 @@ public partial class PublishShareViewModel : ObservableObject
         return sb.ToString();
     }
 
+    private static void CleanupTempZipFile(string? tempZipPath)
+    {
+        if (tempZipPath == null || !File.Exists(tempZipPath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(tempZipPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort cleanup
+        }
+    }
+
     private void PopulatePublisherDefinitionAsset(string providerName, ref long totalBytes, ref int defCount)
     {
         var defUrl = ProviderDefinitionUrl;
@@ -1446,6 +1463,96 @@ public partial class PublishShareViewModel : ObservableObject
         }
     }
 
+    private async Task<(Stream? Stream, string? TempZipPath, bool Success)> PrepareArtifactStreamAsync(ArtifactUploadTask task)
+    {
+        if (Directory.Exists(task.Artifact.LocalFilePath))
+        {
+            UploadStatusMessage = $"Compressing folder '{Path.GetFileName(task.Artifact.LocalFilePath)}' into archive...";
+            var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "ArtifactCache");
+            Directory.CreateDirectory(tempDir);
+            var archiveName = string.IsNullOrWhiteSpace(task.Artifact.Filename)
+                ? $"{Path.GetFileName(task.Artifact.LocalFilePath)}.zip"
+                : task.Artifact.Filename;
+            if (!archiveName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                archiveName += ".zip";
+            }
+
+            if (string.IsNullOrWhiteSpace(task.Artifact.Filename))
+            {
+                task.Artifact.Filename = archiveName;
+            }
+
+            var tempZipToCleanup = Path.Combine(tempDir, $"{Guid.NewGuid():N}_{archiveName}");
+            await Task.Run(() => ZipFile.CreateFromDirectory(task.Artifact.LocalFilePath, tempZipToCleanup), CancellationToken.None);
+
+            using (var hashStream = File.OpenRead(tempZipToCleanup))
+            using (var sha256 = SHA256.Create())
+            {
+                var hashBytes = await sha256.ComputeHashAsync(hashStream, CancellationToken.None);
+                task.Artifact.Sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            }
+
+            var stream = File.OpenRead(tempZipToCleanup);
+            task.Artifact.Size = stream.Length;
+            return (stream, tempZipToCleanup, true);
+        }
+
+        if (File.Exists(task.Artifact.LocalFilePath))
+        {
+            return (File.OpenRead(task.Artifact.LocalFilePath), null, true);
+        }
+
+        task.Status = UploadStatus.Failed;
+        task.ErrorMessage = "File or directory not found";
+        UploadStatusMessage = $"File or directory not found: {task.Artifact.LocalFilePath}";
+        return (null, null, false);
+    }
+
+    private async Task RecordUploadedArtifactHostingStateAsync(ArtifactUploadTask task, HostingUploadResult uploadData)
+    {
+        task.Artifact.DownloadUrl = uploadData.DirectDownloadUrl;
+        task.Status = UploadStatus.Uploaded;
+        task.Progress = 100;
+        _logger.LogInformation("Uploaded artifact {File} to {Url}", task.Artifact.Filename, task.Artifact.DownloadUrl);
+
+        if (_currentHostingState == null)
+        {
+            return;
+        }
+
+        var existingArt = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == task.Artifact.Filename);
+        if (existingArt != null)
+        {
+            existingArt.FileId = uploadData.FileId;
+            existingArt.Url = uploadData.DirectDownloadUrl;
+            existingArt.FileSize = uploadData.FileSize;
+            existingArt.LastUpdated = DateTime.UtcNow;
+        }
+        else
+        {
+            _currentHostingState.Artifacts.Add(new ArtifactHostingInfo
+            {
+                FileName = task.Artifact.Filename,
+                FileId = uploadData.FileId,
+                Url = uploadData.DirectDownloadUrl,
+                FileSize = uploadData.FileSize,
+                ContentId = task.ContentId,
+                Version = task.Version,
+                Sha256 = task.Artifact.Sha256,
+                LastUpdated = DateTime.UtcNow,
+                IsExternalCdn = false,
+            });
+        }
+
+        RefreshHostedAssets();
+
+        if (!string.IsNullOrEmpty(_project.ProjectPath))
+        {
+            await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+        }
+    }
+
     private async Task<bool> ExecuteSingleArtifactUploadAsync(IHostingProvider provider, ArtifactUploadTask task, int current, int total)
     {
         task.Status = UploadStatus.Uploading;
@@ -1455,50 +1562,13 @@ public partial class PublishShareViewModel : ObservableObject
         string? tempZipToCleanup = null;
         try
         {
-            Stream stream;
-            if (Directory.Exists(task.Artifact.LocalFilePath))
+            var (stream, tempZip, success) = await PrepareArtifactStreamAsync(task);
+            if (!success || stream == null)
             {
-                UploadStatusMessage = $"Compressing folder '{Path.GetFileName(task.Artifact.LocalFilePath)}' into archive...";
-                var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "ArtifactCache");
-                Directory.CreateDirectory(tempDir);
-                var archiveName = string.IsNullOrWhiteSpace(task.Artifact.Filename)
-                    ? $"{Path.GetFileName(task.Artifact.LocalFilePath)}.zip"
-                    : task.Artifact.Filename;
-                if (!archiveName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                {
-                    archiveName += ".zip";
-                }
-
-                if (string.IsNullOrWhiteSpace(task.Artifact.Filename))
-                {
-                    task.Artifact.Filename = archiveName;
-                }
-
-                tempZipToCleanup = Path.Combine(tempDir, $"{Guid.NewGuid():N}_{archiveName}");
-                await Task.Run(() => ZipFile.CreateFromDirectory(task.Artifact.LocalFilePath, tempZipToCleanup));
-
-                using (var hashStream = File.OpenRead(tempZipToCleanup))
-                using (var sha256 = SHA256.Create())
-                {
-                    var hashBytes = await sha256.ComputeHashAsync(hashStream);
-                    task.Artifact.Sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-                }
-
-                stream = File.OpenRead(tempZipToCleanup);
-                task.Artifact.Size = stream.Length;
-            }
-            else if (File.Exists(task.Artifact.LocalFilePath))
-            {
-                stream = File.OpenRead(task.Artifact.LocalFilePath);
-            }
-            else
-            {
-                task.Status = UploadStatus.Failed;
-                task.ErrorMessage = "File or directory not found";
-                UploadStatusMessage = $"File or directory not found: {task.Artifact.LocalFilePath}";
                 return false;
             }
 
+            tempZipToCleanup = tempZip;
             try
             {
                 var progress = new Progress<int>(p =>
@@ -1514,45 +1584,7 @@ public partial class PublishShareViewModel : ObservableObject
                 var result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, CancellationToken.None);
                 if (result.Success && result.Data != null)
                 {
-                    task.Artifact.DownloadUrl = result.Data.DirectDownloadUrl;
-                    task.Status = UploadStatus.Uploaded;
-                    task.Progress = 100;
-                    _logger.LogInformation("Uploaded artifact {File} to {Url}", task.Artifact.Filename, task.Artifact.DownloadUrl);
-
-                    if (_currentHostingState != null)
-                    {
-                        var existingArt = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == task.Artifact.Filename);
-                        if (existingArt != null)
-                        {
-                            existingArt.FileId = result.Data.FileId;
-                            existingArt.Url = result.Data.DirectDownloadUrl;
-                            existingArt.FileSize = result.Data.FileSize;
-                            existingArt.LastUpdated = DateTime.UtcNow;
-                        }
-                        else
-                        {
-                            _currentHostingState.Artifacts.Add(new ArtifactHostingInfo
-                            {
-                                FileName = task.Artifact.Filename,
-                                FileId = result.Data.FileId,
-                                Url = result.Data.DirectDownloadUrl,
-                                FileSize = result.Data.FileSize,
-                                ContentId = task.ContentId,
-                                Version = task.Version,
-                                Sha256 = task.Artifact.Sha256,
-                                LastUpdated = DateTime.UtcNow,
-                                IsExternalCdn = false,
-                            });
-                        }
-
-                        RefreshHostedAssets();
-
-                        if (!string.IsNullOrEmpty(_project.ProjectPath))
-                        {
-                            await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
-                        }
-                    }
-
+                    await RecordUploadedArtifactHostingStateAsync(task, result.Data);
                     return true;
                 }
 
@@ -1564,17 +1596,7 @@ public partial class PublishShareViewModel : ObservableObject
             finally
             {
                 await stream.DisposeAsync();
-                if (tempZipToCleanup != null && File.Exists(tempZipToCleanup))
-                {
-                    try
-                    {
-                        File.Delete(tempZipToCleanup);
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        // Best effort cleanup
-                    }
-                }
+                CleanupTempZipFile(tempZipToCleanup);
             }
         }
         catch (Exception ex)

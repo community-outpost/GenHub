@@ -51,6 +51,8 @@ namespace GenHub.Infrastructure.DependencyInjection;
 /// </summary>
 public static class ContentPipelineModule
 {
+    private const string UserAgentHeader = "User-Agent";
+
     /// <summary>
     /// Registers content pipeline services for dependency injection.
     /// </summary>
@@ -199,12 +201,12 @@ public static class ContentPipelineModule
         services.AddHttpClient("PublisherDefinition", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+            client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
         });
         services.AddHttpClient("PublisherCatalog", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(60);
-            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+            client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
         });
         services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();
 
@@ -372,7 +374,7 @@ public static class ContentPipelineModule
         services.AddHttpClient(AODMapsConstants.PublisherType, httpClient =>
         {
             httpClient.Timeout = TimeSpan.FromSeconds(30);
-            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+            httpClient.DefaultRequestHeaders.Add(UserAgentHeader, ApiConstants.DefaultUserAgent);
         });
 
         // Register AODMaps content provider
@@ -404,7 +406,7 @@ public static class ContentPipelineModule
         services.AddHttpClient(ModDBConstants.PublisherPrefix, httpClient =>
         {
             httpClient.Timeout = TimeSpan.FromSeconds(45); // ModDB can be slower
-            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+            httpClient.DefaultRequestHeaders.Add(UserAgentHeader, ApiConstants.DefaultUserAgent);
         });
 
         // Register Playwright service for web page parsing (singleton for shared browser instance)
