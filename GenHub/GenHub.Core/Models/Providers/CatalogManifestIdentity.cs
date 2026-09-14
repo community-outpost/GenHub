@@ -228,6 +228,13 @@ public static class CatalogManifestIdentity
             return true;
         }
 
+        if (normalized.Contains('.') &&
+            normalized.Split('.', StringSplitOptions.None)
+                .All(s => long.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, out var seg) && seg >= 0))
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -449,107 +456,6 @@ public static class CatalogManifestIdentity
         }
     }
 
-    private static bool TryParseDelimitedVersion(string cleanVersion, out int result)
-    {
-        result = 0;
-        if (!cleanVersion.Contains('.') && !cleanVersion.Contains('-') && !cleanVersion.Contains('/'))
-        {
-            return false;
-        }
-
-        var delims = new[] { '.', '-', '/' };
-        var parts = cleanVersion.Split(delims, StringSplitOptions.None);
-        if (parts.Any(string.IsNullOrEmpty))
-        {
-            return false;
-        }
-
-        return TryParseThreePartVersion(parts, out result) ||
-               TryParseFourPartVersion(parts, out result) ||
-               TryParseTwoPartVersion(parts, out result);
-    }
-
-    private static bool TryParseThreePartVersion(string[] parts, out int result)
-    {
-        result = 0;
-        if (parts.Length != 3 ||
-            !int.TryParse(parts[0], out var p0) ||
-            !int.TryParse(parts[1], out var p1) ||
-            !int.TryParse(parts[2], out var p2))
-        {
-            return false;
-        }
-
-        // Check if parts[0] is year (e.g. 2026.07.31 or 2026-08-02)
-        if (p0 >= 1990 && p0 <= 2100 && p1 >= 1 && p1 <= 12 && p2 >= 1 && p2 <= 31)
-        {
-            result = (p0 * 10000) + (p1 * 100) + p2;
-            return true;
-        }
-
-        // Check if parts[2] is year (e.g. 02-08-2026 -> day 2, month 8, year 2026)
-        if (p2 >= 1990 && p2 <= 2100 && p1 >= 1 && p1 <= 12 && p0 >= 1 && p0 <= 31)
-        {
-            result = (p2 * 10000) + (p1 * 100) + p0;
-            return true;
-        }
-
-        // Standard 3-part semantic version (e.g. 1.0.0 -> 10000, 1.2.3 -> 10203)
-        if (p0 >= 0 && p1 >= 0 && p1 < 100 && p2 >= 0 && p2 < 100)
-        {
-            var val = ((long)p0 * 10000) + ((long)p1 * 100) + p2;
-            if (val <= int.MaxValue)
-            {
-                result = (int)val;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool TryParseFourPartVersion(string[] parts, out int result)
-    {
-        result = 0;
-        if (parts.Length != 4 ||
-            !int.TryParse(parts[0], out var m0) || m0 < 0 ||
-            !int.TryParse(parts[1], out var m1) || m1 < 0 || m1 >= 100 ||
-            !int.TryParse(parts[2], out var m2) || m2 < 0 || m2 >= 100 ||
-            !int.TryParse(parts[3], out var m3) || m3 < 0 || m3 >= 100)
-        {
-            return false;
-        }
-
-        var val = ((long)m0 * 1_000_000) + ((long)m1 * 10_000) + ((long)m2 * 100) + m3;
-        if (val <= int.MaxValue)
-        {
-            result = (int)val;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryParseTwoPartVersion(string[] parts, out int result)
-    {
-        result = 0;
-        if (parts.Length != 2 ||
-            !int.TryParse(parts[0], out var major) || major < 0 ||
-            !int.TryParse(parts[1], out var minor) || minor < 0 || minor >= 100)
-        {
-            return false;
-        }
-
-        var normalized = $"{major}{minor.ToString().PadLeft(2, '0')}";
-        if (int.TryParse(normalized, out var dotted) && dotted >= 0)
-        {
-            result = dotted;
-            return true;
-        }
-
-        return false;
-    }
-
     private static int FindDefaultVariantIndex<T>(
         IList<T> items,
         Func<T, string> getLabel,
@@ -596,8 +502,8 @@ public static class CatalogManifestIdentity
 
     private static bool Is1080pLabel(string? label)
     {
-        return label?.Contains("1080p", StringComparison.OrdinalIgnoreCase) == true ||
-               label?.Contains("1920x1080", StringComparison.OrdinalIgnoreCase) == true;
+        return label?.Contains(CatalogConstants.Resolution1080pLabel, StringComparison.OrdinalIgnoreCase) == true ||
+               label?.Contains(CatalogConstants.Resolution1920x1080Label, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static readonly Regex OperatorWhitespaceRegex = new(@"([><=^~]+)\s+", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
@@ -615,7 +521,7 @@ public static class CatalogManifestIdentity
         }
 
         var trimmed = OperatorWhitespaceRegex.Replace(constraintExpression.Trim(), "$1");
-        if (string.Equals(trimmed, "latest", StringComparison.OrdinalIgnoreCase) ||
+        if (string.Equals(trimmed, CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(trimmed, "*", StringComparison.Ordinal))
         {
             return new(string.Empty, string.Empty, true, true, null);
@@ -641,13 +547,20 @@ public static class CatalogManifestIdentity
 
     private static ParsedVersionConstraint ParseListConstraint(string trimmed)
     {
-        var parts = trimmed.Split([',', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var rawTokens = trimmed.Split([',', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = rawTokens
             .Select(StripVersionConstraint)
             .Where(v => !string.IsNullOrWhiteSpace(v) &&
-                        !string.Equals(v, "latest", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(v, CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase) &&
                         IsValidVersion(v))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        if (parts.Count == 0 && rawTokens.Length > 0)
+        {
+            return new(string.Empty, string.Empty, true, true, Array.Empty<string>());
+        }
+
         return new(string.Empty, string.Empty, true, true, parts.Count > 0 ? parts : null);
     }
 
@@ -702,6 +615,17 @@ public static class CatalogManifestIdentity
         else if (token.StartsWith('~'))
         {
             ApplyTildeBound(token, ref minVersion, ref maxVersion, ref minInclusive, ref maxInclusive);
+        }
+        else if (token.StartsWith('='))
+        {
+            var exact = StripVersionConstraint(token);
+            UpdateLowerBound(exact, true, ref minVersion, ref minInclusive);
+            UpdateUpperBound(exact, true, ref maxVersion, ref maxInclusive);
+        }
+        else if (TryParseExactVersion(token, out var exact))
+        {
+            UpdateLowerBound(exact, true, ref minVersion, ref minInclusive);
+            UpdateUpperBound(exact, true, ref maxVersion, ref maxInclusive);
         }
     }
 
@@ -826,5 +750,106 @@ public static class CatalogManifestIdentity
         {
             currentInclusive = currentInclusive && candidateInclusive;
         }
+    }
+
+    private static bool TryParseDelimitedVersion(string cleanVersion, out int result)
+    {
+        result = 0;
+        if (!cleanVersion.Contains('.') && !cleanVersion.Contains('-') && !cleanVersion.Contains('/'))
+        {
+            return false;
+        }
+
+        var delims = new[] { '.', '-', '/' };
+        var parts = cleanVersion.Split(delims, StringSplitOptions.None);
+        if (parts.Any(string.IsNullOrEmpty))
+        {
+            return false;
+        }
+
+        return TryParseThreePartVersion(parts, out result) ||
+               TryParseFourPartVersion(parts, out result) ||
+               TryParseTwoPartVersion(parts, out result);
+    }
+
+    private static bool TryParseThreePartVersion(string[] parts, out int result)
+    {
+        result = 0;
+        if (parts.Length != 3 ||
+            !int.TryParse(parts[0], out var p0) ||
+            !int.TryParse(parts[1], out var p1) ||
+            !int.TryParse(parts[2], out var p2))
+        {
+            return false;
+        }
+
+        // Check if parts[0] is year (e.g. 2026.07.31 or 2026-08-02)
+        if (p0 >= CatalogConstants.MinDateVersionYear && p0 <= CatalogConstants.MaxDateVersionYear && p1 >= 1 && p1 <= 12 && p2 >= 1 && p2 <= 31)
+        {
+            result = (p0 * 10000) + (p1 * 100) + p2;
+            return true;
+        }
+
+        // Check if parts[2] is year (e.g. 02-08-2026 -> day 2, month 8, year 2026)
+        if (p2 >= CatalogConstants.MinDateVersionYear && p2 <= CatalogConstants.MaxDateVersionYear && p1 >= 1 && p1 <= 12 && p0 >= 1 && p0 <= 31)
+        {
+            result = (p2 * 10000) + (p1 * 100) + p0;
+            return true;
+        }
+
+        // Standard 3-part semantic version (e.g. 1.0.0 -> 10000, 1.2.3 -> 10203)
+        if (p0 >= 0 && p1 >= 0 && p1 < 100 && p2 >= 0 && p2 < 100)
+        {
+            var val = ((long)p0 * 10000) + ((long)p1 * 100) + p2;
+            if (val <= int.MaxValue)
+            {
+                result = (int)val;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryParseFourPartVersion(string[] parts, out int result)
+    {
+        result = 0;
+        if (parts.Length != 4 ||
+            !int.TryParse(parts[0], out var m0) || m0 < 0 ||
+            !int.TryParse(parts[1], out var m1) || m1 < 0 || m1 >= 100 ||
+            !int.TryParse(parts[2], out var m2) || m2 < 0 || m2 >= 100 ||
+            !int.TryParse(parts[3], out var m3) || m3 < 0 || m3 >= 100)
+        {
+            return false;
+        }
+
+        var val = ((long)m0 * 1_000_000) + ((long)m1 * 10_000) + ((long)m2 * 100) + m3;
+        if (val <= int.MaxValue)
+        {
+            result = (int)val;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseTwoPartVersion(string[] parts, out int result)
+    {
+        result = 0;
+        if (parts.Length != 2 ||
+            !int.TryParse(parts[0], out var major) || major < 0 ||
+            !int.TryParse(parts[1], out var minor) || minor < 0 || minor >= 100)
+        {
+            return false;
+        }
+
+        var normalized = $"{major}{minor.ToString().PadLeft(2, '0')}";
+        if (int.TryParse(normalized, out var dotted) && dotted >= 0)
+        {
+            result = dotted;
+            return true;
+        }
+
+        return false;
     }
 }

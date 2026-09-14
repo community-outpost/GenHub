@@ -46,7 +46,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
         // but must declare dependencies to be deliverable.
         if ((files?.Count ?? 0) == 0)
         {
-            return manifest.Dependencies is { Count: > 0 };
+            return manifest.ContentType == ContentType.ContentBundle && manifest.Dependencies is { Count: > 0 };
         }
 
         // Can deliver if files have HTTP download URLs
@@ -68,6 +68,14 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
             var filesToDownload = packageManifest.Files.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList();
             var totalFiles = filesToDownload.Count;
             var processedFiles = 0;
+
+            if (totalFiles == 0)
+            {
+                logger.LogInformation(
+                    "Manifest {ManifestId} has no remote files to download (dependency-only bundle); delivery succeeded",
+                    packageManifest.Id);
+                return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
+            }
 
             // Download and add files
             foreach (var file in filesToDownload)

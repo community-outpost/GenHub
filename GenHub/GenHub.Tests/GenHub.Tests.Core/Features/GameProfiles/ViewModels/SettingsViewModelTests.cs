@@ -1331,6 +1331,9 @@ public class SettingsViewModelTests
         var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
         mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
 
         var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
 

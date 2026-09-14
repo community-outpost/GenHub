@@ -46,11 +46,19 @@ if ($IsLinux -or $IsMacOS) {
     if (-not $bash) {
         throw "Linux/macOS shortcut generation is implemented in generate-test-shortcuts.sh, but bash was not found on PATH."
     }
-    $env:CONFIG = $Config
-    if ($Force) { $env:FORCE = "1" }
-    & $bash.Source (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Definition) "generate-test-shortcuts.sh")
-    if ($LASTEXITCODE -ne 0) {
-        throw "generate-test-shortcuts.sh exited with code $LASTEXITCODE."
+    $origConfig = $env:CONFIG
+    $origForce = $env:FORCE
+    try {
+        $env:CONFIG = $Config
+        if ($Force) { $env:FORCE = "1" }
+        & $bash.Source (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Definition) "generate-test-shortcuts.sh")
+        if ($LASTEXITCODE -ne 0) {
+            throw "generate-test-shortcuts.sh exited with code $LASTEXITCODE."
+        }
+    }
+    finally {
+        $env:CONFIG = $origConfig
+        $env:FORCE = $origForce
     }
     return
 }

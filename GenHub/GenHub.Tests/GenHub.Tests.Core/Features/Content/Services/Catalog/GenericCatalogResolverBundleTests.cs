@@ -1,3 +1,4 @@
+using GenHub.Features.Downloads.ViewModels;
 using System.Text.Json;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
@@ -1098,6 +1099,26 @@ public sealed class GenericCatalogResolverBundleTests
         };
 
         var publisher = new PublisherProfile { Id = "genhub-test-publishers", Name = "GenHub Test Publishers" };
+        var siblingClient = new CatalogContentItem
+        {
+            Id = "zerohour",
+            Name = "Generals Zero Hour Sibling Client",
+            ContentType = ContentType.GameClient,
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "weekly-2026-07-31",
+                },
+            ],
+        };
+        var catalog = new PublisherCatalog
+        {
+            Publisher = publisher,
+            Content = [contentItem, siblingClient],
+        };
+        var components = CatalogBundleComponentBuilder.Build(catalog, contentItem, release);
+
         var searchResultId = CatalogManifestIdentity.CreateContentId(
             publisher.Id,
             ContentType.ContentBundle,
@@ -1115,6 +1136,7 @@ public sealed class GenericCatalogResolverBundleTests
                 [CatalogConstants.ReleaseJsonMetadataKey] = JsonSerializer.Serialize(release),
                 [CatalogConstants.CatalogItemJsonMetadataKey] = JsonSerializer.Serialize(contentItem),
                 [CatalogConstants.PublisherProfileJsonMetadataKey] = JsonSerializer.Serialize(publisher),
+                [CatalogConstants.BundleComponentsJsonMetadataKey] = JsonSerializer.Serialize(components),
             },
         };
 
@@ -1847,4 +1869,236 @@ public sealed class GenericCatalogResolverBundleTests
         builderMock.Setup(b => b.Build()).Returns(builtManifest);
         return builderMock;
     }
+
+    /// <summary>
+    /// Verifies that non-bundle catalog items with same-catalog matched dependencies receive AutoInstall behavior.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ResolveAsync_NonBundleWithMatchedSameCatalogDependency_SetsAutoInstallBehaviorAsync()
+    {
+        var publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" };
+        var parentMod = new CatalogContentItem
+        {
+            Id = "test-mod",
+            Name = "Test Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var siblingPatch = new CatalogContentItem
+        {
+            Id = "sibling-patch",
+            Name = "Sibling Patch",
+            ContentType = ContentType.Patch,
+            Releases =
+            [
+                new ContentRelease { Version = "2.0.0" }
+            ],
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            Publisher = publisher,
+            Content = [parentMod, siblingPatch],
+        };
+
+        var release = new ContentRelease
+        {
+            Version = "1.0.0",
+            Dependencies =
+            [
+                new CatalogDependency
+                {
+                    ContentId = "sibling-patch",
+                    VersionConstraint = ">=2.0.0",
+                    IsOptional = false,
+                }
+            ],
+        };
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, parentMod, release);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.100.testpub.mod.testmod",
+            Name = parentMod.Name,
+            ContentType = ContentType.Mod,
+            ResolverId = CatalogConstants.GenericCatalogResolverId,
+            ResolverMetadata =
+            {
+                [CatalogConstants.ReleaseJsonMetadataKey] = JsonSerializer.Serialize(release),
+                [CatalogConstants.CatalogItemJsonMetadataKey] = JsonSerializer.Serialize(parentMod),
+                [CatalogConstants.PublisherProfileJsonMetadataKey] = JsonSerializer.Serialize(publisher),
+                [CatalogConstants.BundleComponentsJsonMetadataKey] = JsonSerializer.Serialize(components),
+            },
+        };
+
+        var builtManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.100.testpub.mod.testmod"),
+            Name = parentMod.Name,
+            Version = release.Version,
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo { PublisherType = "test-pub" },
+        };
+
+        var builderMock = CreateBuilderMock(builtManifest);
+        DependencyInstallBehavior? capturedBehavior = null;
+        ContentType? capturedDepType = null;
+        builderMock.Setup(b => b.AddDependency(
+                It.IsAny<ManifestId>(),
+                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
+                It.IsAny<DependencyInstallBehavior>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<List<ManifestId>?>(),
+                It.IsAny<List<GameType>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<string?>()))
+            .Callback<ManifestId, string, ContentType, DependencyInstallBehavior, string, string, List<string>?, bool, List<ManifestId>?, List<GameType>?, bool, bool, bool, string?>(
+                (id, name, type, behavior, min, max, comp, excl, conf, games, minInc, maxInc, strictPub, pubType) =>
+                {
+                    capturedBehavior = behavior;
+                    capturedDepType = type;
+                })
+            .Returns(builderMock.Object);
+
+        var resolver = new GenericCatalogResolver(
+            NullLogger<GenericCatalogResolver>.Instance,
+            () => builderMock.Object);
+
+        var result = await resolver.ResolveAsync(searchResult);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(DependencyInstallBehavior.AutoInstall, capturedBehavior);
+        Assert.Equal(ContentType.Patch, capturedDepType);
+    }
+
+    /// <summary>
+    /// Verifies that non-bundle catalog items with unmatched dependencies default to RequireExisting behavior.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ResolveAsync_NonBundleWithUnmatchedDependency_SetsRequireExistingBehaviorAsync()
+    {
+        var publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" };
+        var parentMod = new CatalogContentItem
+        {
+            Id = "test-mod",
+            Name = "Test Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var release = new ContentRelease
+        {
+            Version = "1.0.0",
+            Dependencies =
+            [
+                new CatalogDependency
+                {
+                    ContentId = "external-dep",
+                    VersionConstraint = ">=1.0.0",
+                    IsOptional = false,
+                }
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.100.testpub.mod.testmod",
+            Name = parentMod.Name,
+            ContentType = ContentType.Mod,
+            ResolverId = CatalogConstants.GenericCatalogResolverId,
+            ResolverMetadata =
+            {
+                [CatalogConstants.ReleaseJsonMetadataKey] = JsonSerializer.Serialize(release),
+                [CatalogConstants.CatalogItemJsonMetadataKey] = JsonSerializer.Serialize(parentMod),
+                [CatalogConstants.PublisherProfileJsonMetadataKey] = JsonSerializer.Serialize(publisher),
+                [CatalogConstants.BundleComponentsJsonMetadataKey] = "[]",
+            },
+        };
+
+        var builtManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.100.testpub.mod.testmod"),
+            Name = parentMod.Name,
+            Version = release.Version,
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo { PublisherType = "test-pub" },
+        };
+
+        var builderMock = CreateBuilderMock(builtManifest);
+        DependencyInstallBehavior? capturedBehavior = null;
+        builderMock.Setup(b => b.AddDependency(
+                It.IsAny<ManifestId>(),
+                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
+                It.IsAny<DependencyInstallBehavior>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<List<ManifestId>?>(),
+                It.IsAny<List<GameType>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<string?>()))
+            .Callback<ManifestId, string, ContentType, DependencyInstallBehavior, string, string, List<string>?, bool, List<ManifestId>?, List<GameType>?, bool, bool, bool, string?>(
+                (id, name, type, behavior, min, max, comp, excl, conf, games, minInc, maxInc, strictPub, pubType) =>
+                {
+                    capturedBehavior = behavior;
+                })
+            .Returns(builderMock.Object);
+
+        var resolver = new GenericCatalogResolver(
+            NullLogger<GenericCatalogResolver>.Instance,
+            () => builderMock.Object);
+
+        var result = await resolver.ResolveAsync(searchResult);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(DependencyInstallBehavior.RequireExisting, capturedBehavior);
+    }
+
+    /// <summary>
+    /// Verifies that BundleComponentViewModel.CreateFromSearchResult returns an empty list for non-bundle items.
+    /// </summary>
+    [Fact]
+    public void CreateFromSearchResult_NonBundleContentItem_ReturnsEmptyList()
+    {
+        var components = new List<CatalogBundleComponentDescriptor>
+        {
+            new()
+            {
+                ContentId = "sibling-mod",
+                Name = "Sibling Mod",
+                ContentType = "Mod",
+                ReleaseVersion = "1.0.0",
+            },
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.100.testpub.mod.testmod",
+            Name = "Test Mod",
+            ContentType = ContentType.Mod,
+            ResolverMetadata =
+            {
+                [CatalogConstants.BundleComponentsJsonMetadataKey] = JsonSerializer.Serialize(components),
+            },
+        };
+
+        var result = BundleComponentViewModel.CreateFromSearchResult(searchResult);
+
+        Assert.Empty(result);
+    }
+
 }

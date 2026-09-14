@@ -852,7 +852,7 @@ public partial class ContentDetailViewModel(
 
         // Hydrate bundle members before reading install state so an empty ContentBundle
         // recipe is never treated as "already downloaded".
-        if (BundleComponents.Count == 0)
+        if (BundleComponents.Count == 0 && searchResult.ContentType == ContentType.ContentBundle)
         {
             AttachBundleComponents(BundleComponentViewModel.CreateFromSearchResult(searchResult));
         }

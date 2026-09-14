@@ -143,9 +143,7 @@ public static class CatalogBundleComponentBuilder
                 PublisherId = dependency.PublisherId ?? string.Empty,
                 ContentId = dependency.ContentId,
                 Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
-                ContentType = CatalogManifestIdentity.TryParseDeclaredContentType(dependency.ContentType, out var parsedType)
-                    ? parsedType.ToString()
-                    : ContentType.Mod.ToString(),
+                ContentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById).ToString(),
                 IsOptional = dependency.IsOptional,
                 IsBaseGame = false,
                 IsAvailable = false,
@@ -162,6 +160,10 @@ public static class CatalogBundleComponentBuilder
                 ? sibling.Name
                 : CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
 
+            var unavailableReason = (sibling.Releases == null || sibling.Releases.Count == 0)
+                ? $"Item '{dependency.ContentId}' has no releases"
+                : $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'";
+
             return new CatalogBundleComponentDescriptor
             {
                 PublisherId = declaredPub,
@@ -171,7 +173,7 @@ public static class CatalogBundleComponentBuilder
                 IsOptional = dependency.IsOptional,
                 IsBaseGame = false,
                 IsAvailable = false,
-                UnavailableReason = $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'",
+                UnavailableReason = unavailableReason,
                 CatalogItemJson = JsonSerializer.Serialize(sibling),
             };
         }
@@ -319,7 +321,7 @@ public static class CatalogBundleComponentBuilder
         }
 
         if (!string.IsNullOrWhiteSpace(versionConstraint) &&
-            !string.Equals(versionConstraint.Trim(), "latest", StringComparison.OrdinalIgnoreCase))
+            !string.Equals(versionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase))
         {
             var constraint = CatalogManifestIdentity.ParseVersionConstraint(versionConstraint);
             return item.Releases

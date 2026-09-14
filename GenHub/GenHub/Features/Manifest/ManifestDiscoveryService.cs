@@ -227,8 +227,7 @@ public class ManifestDiscoveryService(
 
             var typeMatches = string.Equals(mContentType, depContentType, StringComparison.OrdinalIgnoreCase);
 
-            var nameMatches = string.Equals(mContentName, depContentName, StringComparison.OrdinalIgnoreCase) ||
-                              mContentName.StartsWith(depContentName, StringComparison.OrdinalIgnoreCase);
+            var nameMatches = string.Equals(mContentName, depContentName, StringComparison.OrdinalIgnoreCase);
 
             return publisherMatches && typeMatches && nameMatches;
         });

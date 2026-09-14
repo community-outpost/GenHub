@@ -328,9 +328,12 @@ EOF
             update-desktop-database "$apps_dir" >/dev/null 2>&1 || true
         fi
         if command -v xdg-mime >/dev/null 2>&1; then
-            xdg-mime default "$installed_name" x-scheme-handler/genhub
-            echo "Installed protocol handler -> $apps_dir/$installed_name"
-            echo "  xdg-mime default $installed_name x-scheme-handler/genhub"
+            if ! xdg-mime default "$installed_name" x-scheme-handler/genhub; then
+                echo "Warning: xdg-mime failed to set default handler for x-scheme-handler/genhub" >&2
+            else
+                echo "Installed protocol handler -> $apps_dir/$installed_name"
+                echo "  xdg-mime default $installed_name x-scheme-handler/genhub"
+            fi
         else
             echo "Copied $installed_name to $apps_dir (xdg-mime not found; install xdg-utils)."
         fi
@@ -413,7 +416,11 @@ on run
 end run
 EOF
             rm -rf "$app_path"
-            osacompile -o "$app_path" "$tmp_script"
+            if ! osacompile -o "$app_path" "$tmp_script"; then
+                rm -f "$tmp_script"
+                echo "ERROR: osacompile failed to create $app_path" >&2
+                return 1
+            fi
             rm -f "$tmp_script"
 
             local plist="$app_path/Contents/Info.plist"

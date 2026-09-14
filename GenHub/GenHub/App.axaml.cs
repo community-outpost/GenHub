@@ -50,10 +50,10 @@ public partial class App : Application
             }
 
             var tcs = new TaskCompletionSource<bool>();
-            dialog.Closed += (_, _) => tcs.TrySetResult(false);
+            dialog.Closed += (_, _) => tcs.TrySetResult(dialog.DialogResult);
             vm.RequestClose = (result) =>
             {
-                dialog.Close(result);
+                dialog.CloseDialog(result);
                 tcs.TrySetResult(result);
             };
             dialog.Show();
@@ -463,8 +463,7 @@ public partial class App : Application
 
     private static bool IsAllowedSubscriptionScheme(Uri uri)
     {
-        return uri.Scheme == Uri.UriSchemeHttp ||
-               uri.Scheme == Uri.UriSchemeHttps ||
+        return uri.Scheme == Uri.UriSchemeHttps ||
                (uri.IsFile && !uri.IsUnc && string.IsNullOrEmpty(uri.Host));
     }
 

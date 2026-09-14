@@ -187,4 +187,29 @@ public static class CatalogConstants
     /// Compact variant label for Command &amp; Conquer Generals: Zero Hour (without spaces).
     /// </summary>
     public const string ZeroHourCompactVariantLabel = "ZeroHour";
+
+    /// <summary>
+    /// Version constraint keyword indicating the latest available release.
+    /// </summary>
+    public const string LatestVersionToken = "latest";
+
+    /// <summary>
+    /// Minimum year recognized for date-based versions (YYYYMMDD or YYYY.MM.DD).
+    /// </summary>
+    public const int MinDateVersionYear = 1990;
+
+    /// <summary>
+    /// Maximum year recognized for date-based versions (YYYYMMDD or YYYY.MM.DD).
+    /// </summary>
+    public const int MaxDateVersionYear = 2100;
+
+    /// <summary>
+    /// Standard 1080p resolution variant label.
+    /// </summary>
+    public const string Resolution1080pLabel = "1080p";
+
+    /// <summary>
+    /// Standard 1920x1080 resolution variant label.
+    /// </summary>
+    public const string Resolution1920x1080Label = "1920x1080";
 }

@@ -432,11 +432,15 @@ public class GenericCatalogDiscoverer(
             }
             else
             {
-                var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, key => FetchAndCacheReleaseAsync(
-                    SuperHackersConstants.GeneralsGameCodeOwner,
-                    SuperHackersConstants.GeneralsGameCodeRepo,
-                    key,
-                    CancellationToken.None));
+                var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, key =>
+                {
+                    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    return FetchAndCacheReleaseAsync(
+                        SuperHackersConstants.GeneralsGameCodeOwner,
+                        SuperHackersConstants.GeneralsGameCodeRepo,
+                        key,
+                        cts.Token);
+                });
 
                 latestRelease = await fetchTask.WaitAsync(cancellationToken);
             }
@@ -560,16 +564,15 @@ public class GenericCatalogDiscoverer(
 
         foreach (var dep in bundleDependencies)
         {
-            if (dep.VersionConstraint?.Equals("latest", StringComparison.OrdinalIgnoreCase) == true)
+            if (string.Equals(dep.VersionConstraint, CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase))
             {
                 dep.VersionConstraint = $">={cleanTag}";
             }
             else if (!string.IsNullOrWhiteSpace(dep.VersionConstraint))
             {
-                var existingConstraint = new VersionConstraint { ConstraintExpression = dep.VersionConstraint };
-                if (existingConstraint.IsSatisfiedBy(cleanTag))
+                var parsed = CatalogManifestIdentity.ParseVersionConstraint(dep.VersionConstraint);
+                if (parsed.IsSatisfiedBy(cleanTag))
                 {
-                    var parsed = CatalogManifestIdentity.ParseVersionConstraint(dep.VersionConstraint);
                     if (!string.IsNullOrEmpty(parsed.MaxVersion))
                     {
                         var maxOp = parsed.MaxInclusive ? "<=" : "<";
@@ -645,6 +648,11 @@ public class GenericCatalogDiscoverer(
 
             logger.LogWarning(ex, "Catalog fetch timed out");
             return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to read or parse catalog");
+            return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
         }
     }
 

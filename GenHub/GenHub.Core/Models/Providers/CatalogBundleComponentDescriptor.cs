@@ -10,6 +10,8 @@ namespace GenHub.Core.Models.Providers;
 /// </summary>
 public sealed class CatalogBundleComponentDescriptor
 {
+    private List<CatalogBundleComponentVariantDescriptor> _variants = [];
+
     /// <summary>Gets or sets the publisher id of the component.</summary>
     [JsonPropertyName("publisherId")]
     public string PublisherId { get; set; } = string.Empty;
@@ -65,5 +67,9 @@ public sealed class CatalogBundleComponentDescriptor
 
     /// <summary>Gets or sets installable variants (one entry for non-variant content).</summary>
     [JsonPropertyName("variants")]
-    public List<CatalogBundleComponentVariantDescriptor> Variants { get; set; } = [];
+    public List<CatalogBundleComponentVariantDescriptor> Variants
+    {
+        get => _variants;
+        set => _variants = value ?? [];
+    }
 }

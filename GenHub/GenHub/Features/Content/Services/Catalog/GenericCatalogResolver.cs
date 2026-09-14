@@ -250,7 +250,7 @@ public partial class GenericCatalogResolver(
     /// Sanitizes a filename by replacing invalid filesystem characters with underscores.
     /// </summary>
     /// <param name="filename">The filename to sanitize.</param>
-    /// <returns>A sanitized filename, or <see cref="CatalogConstants.DefaultDownloadFilename"/> if the input is null or whitespace.</returns>
+    /// <returns>A sanitized filename, or <see cref="CatalogConstants.DefaultDownloadFilename"/> if the input is null, whitespace, or empty.</returns>
     private static string SanitizeFileName(string? filename)
     {
         if (string.IsNullOrWhiteSpace(filename))
@@ -260,7 +260,12 @@ public partial class GenericCatalogResolver(
 
         var invalidChars = Path.GetInvalidFileNameChars();
         var sanitized = string.Concat(filename.Select(c => invalidChars.Contains(c) ? '_' : c));
-        return string.IsNullOrWhiteSpace(sanitized) ? CatalogConstants.DefaultDownloadFilename : sanitized;
+        if (string.IsNullOrWhiteSpace(sanitized) || sanitized.All(c => c == '_' || c == '.' || char.IsWhiteSpace(c)))
+        {
+            return CatalogConstants.DefaultDownloadFilename;
+        }
+
+        return sanitized;
     }
 
     private static string? AddDependencies(
@@ -416,11 +421,11 @@ public partial class GenericCatalogResolver(
     private static (string? Error, List<string>? ReconciledVersions) ReconcileCompatibleVersionsFloor(
         string contentId,
         string foundationMin,
-        List<string>? compatibleVersions)
+        IReadOnlyList<string>? compatibleVersions)
     {
         if (compatibleVersions is not { Count: > 0 } || string.IsNullOrEmpty(foundationMin))
         {
-            return (null, compatibleVersions);
+            return (null, compatibleVersions != null ? [.. compatibleVersions] : null);
         }
 
         var filtered = compatibleVersions
@@ -494,6 +499,24 @@ public partial class GenericCatalogResolver(
         return null;
     }
 
+    private static CatalogBundleComponentDescriptor? FindMatchingBundleComponent(
+        List<CatalogBundleComponentDescriptor>? bundleComponents,
+        CatalogDependency dependency)
+    {
+        if (bundleComponents == null || bundleComponents.Count == 0)
+        {
+            return null;
+        }
+
+        var isBaseGame = CatalogManifestIdentity.IsBaseGameDependency(dependency);
+
+        return bundleComponents.FirstOrDefault(c =>
+            string.Equals(c.ContentId, dependency.ContentId, StringComparison.OrdinalIgnoreCase) &&
+            c.IsBaseGame == isBaseGame &&
+            (string.IsNullOrWhiteSpace(dependency.PublisherId) ||
+             string.Equals(c.PublisherId, CatalogManifestIdentity.ResolveDeclaredPublisherType(dependency.PublisherId), StringComparison.OrdinalIgnoreCase)));
+    }
+
     private static string? AddCatalogDependency(
         IContentManifestBuilder builder,
         CatalogDependency dependency,
@@ -510,8 +533,7 @@ public partial class GenericCatalogResolver(
             return $"Dependency '{dependency.ContentId}' has no publisher specified and host publisher could not be determined";
         }
 
-        var matchedComponent = bundleComponents?.FirstOrDefault(c =>
-            string.Equals(c.ContentId, dependency.ContentId, StringComparison.OrdinalIgnoreCase));
+        var matchedComponent = FindMatchingBundleComponent(bundleComponents, dependency);
         var defaultVariant = matchedComponent?.Variants.FirstOrDefault(v => v.IsDefault) ?? matchedComponent?.Variants.FirstOrDefault();
 
         var dependencyId = defaultVariant != null && !string.IsNullOrWhiteSpace(defaultVariant.CatalogId)
@@ -527,7 +549,7 @@ public partial class GenericCatalogResolver(
         {
             installBehavior = DependencyInstallBehavior.Optional;
         }
-        else if (contentItem.ContentType == ContentType.ContentBundle)
+        else if (contentItem.ContentType == ContentType.ContentBundle || matchedComponent != null)
         {
             installBehavior = DependencyInstallBehavior.AutoInstall;
         }
@@ -542,6 +564,12 @@ public partial class GenericCatalogResolver(
 
         if (boundsError != null)
         {
+            if (dependency.IsOptional)
+            {
+                logger.LogWarning("Skipping optional dependency '{ContentId}' with unsatisfiable version bounds: {Error}", dependency.ContentId, boundsError);
+                return null;
+            }
+
             return boundsError;
         }
 
@@ -552,7 +580,7 @@ public partial class GenericCatalogResolver(
             installBehavior: installBehavior,
             minVersion: constraint.MinVersion,
             maxVersion: constraint.MaxVersion,
-            compatibleVersions: constraint.CompatibleVersions,
+            compatibleVersions: constraint.CompatibleVersions != null ? [.. constraint.CompatibleVersions] : null,
             isExclusive: false,
             conflictsWith: null,
             compatibleGameTypes: null,
@@ -579,7 +607,7 @@ public partial class GenericCatalogResolver(
         var depVersion = cleanConstraint;
         var dependencyType = initialDependencyType;
 
-        if (bundleComponents?.FirstOrDefault(c => string.Equals(c.ContentId, dependency.ContentId, StringComparison.OrdinalIgnoreCase)) is { } matched)
+        if (FindMatchingBundleComponent(bundleComponents, dependency) is { } matched)
         {
             if (!string.IsNullOrWhiteSpace(matched.PublisherId))
             {
@@ -608,7 +636,7 @@ public partial class GenericCatalogResolver(
             try
             {
                 var sibling = JsonSerializer.Deserialize<CatalogContentItem>(matched.CatalogItemJson);
-                if (sibling != null)
+                if (sibling != null && Enum.IsDefined(sibling.ContentType))
                 {
                     return sibling.ContentType;
                 }

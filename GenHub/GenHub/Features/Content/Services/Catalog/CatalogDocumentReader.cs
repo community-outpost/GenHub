@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,9 +35,9 @@ public static class CatalogDocumentReader
     /// <param name="maximumSizeBytes">Optional maximum permitted catalog size.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The catalog JSON payload.</returns>
-    /// <exception cref="ArgumentException">Thrown when the location is blank or uses an unsupported scheme.</exception>
+    /// <exception cref="ArgumentException">Thrown when the location is blank, uses an unsupported scheme, or resolves to an unsafe IP address.</exception>
     /// <exception cref="FileNotFoundException">Thrown when a local file does not exist.</exception>
-    /// <exception cref="InvalidDataException">Thrown when the catalog exceeds the configured size limit.</exception>
+    /// <exception cref="InvalidDataException">Thrown when the catalog exceeds the configured size limit or redirects to an unsafe URI.</exception>
     public static async Task<string> ReadAsync(
         HttpClient httpClient,
         string catalogLocation,
@@ -79,14 +82,21 @@ public static class CatalogDocumentReader
                 nameof(catalogLocation));
         }
 
+        await ValidateHostDnsSafetyAsync(uri.DnsSafeHost, isRedirect: false, cancellationToken).ConfigureAwait(false);
+
         using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        if (response.RequestMessage?.RequestUri != null &&
-            (!string.Equals(response.RequestMessage.RequestUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
-             !ImageCacheService.IsSafeRemoteUrl(response.RequestMessage.RequestUri.AbsoluteUri, out _)))
+        if (response.RequestMessage?.RequestUri != null)
         {
-            throw new InvalidOperationException("Catalog request was redirected to an insecure non-HTTPS or unsafe URI.");
+            var redirectUri = response.RequestMessage.RequestUri;
+            if (!string.Equals(redirectUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                !ImageCacheService.IsSafeRemoteUrl(redirectUri.AbsoluteUri, out _))
+            {
+                throw new InvalidDataException("Catalog request was redirected to an insecure non-HTTPS or unsafe URI.");
+            }
+
+            await ValidateHostDnsSafetyAsync(redirectUri.DnsSafeHost, isRedirect: true, cancellationToken).ConfigureAwait(false);
         }
 
         if (response.Content.Headers.ContentLength is { } headerLength)
@@ -98,12 +108,66 @@ public static class CatalogDocumentReader
         return await ReadStreamWithLimitAsync(stream, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
     }
 
+    private static async Task ValidateHostDnsSafetyAsync(string host, bool isRedirect, CancellationToken cancellationToken)
+    {
+        if (IPAddress.TryParse(host, out var ip))
+        {
+            if (!ImageCacheService.IsSafeIpAddress(ip))
+            {
+                if (isRedirect)
+                {
+                    throw new InvalidDataException($"Catalog redirect target '{host}' resolves to an unsafe IP address.");
+                }
+
+                throw new ArgumentException($"Catalog host '{host}' resolves to an unsafe IP address.");
+            }
+
+            return;
+        }
+
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+            if (addresses.Length > 0 && addresses.Any(a => !ImageCacheService.IsSafeIpAddress(a)) || addresses.Length == 0)
+            {
+                if (isRedirect)
+                {
+                    throw new InvalidDataException($"Catalog redirect target '{host}' resolves to an unsafe IP address.");
+                }
+
+                throw new ArgumentException($"Catalog host '{host}' resolves to an unsafe IP address.");
+            }
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (SocketException)
+        {
+            // Socket exception indicates unresolved host (e.g. mock test host or offline environment).
+            // Allow HttpClient pipeline to handle the request.
+        }
+        catch (Exception ex)
+        {
+            if (isRedirect)
+            {
+                throw new InvalidDataException($"Failed to resolve redirect host '{host}': {ex.Message}", ex);
+            }
+
+            throw new ArgumentException($"Failed to resolve host '{host}': {ex.Message}", ex);
+        }
+    }
+
     private static string? ResolveLocalPath(string catalogLocation)
     {
         if (Path.IsPathFullyQualified(catalogLocation))
         {
             // Reject UNC paths (\\server\share or //server/share) to prevent SSRF / SMB access
-            if (catalogLocation.StartsWith(@"\\", StringComparison.Ordinal) ||
+            if (catalogLocation.StartsWith(@"\", StringComparison.Ordinal) ||
                 catalogLocation.StartsWith("//", StringComparison.Ordinal))
             {
                 return null;

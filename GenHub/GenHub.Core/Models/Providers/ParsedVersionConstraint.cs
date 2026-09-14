@@ -17,7 +17,7 @@ public sealed record ParsedVersionConstraint(
     string MaxVersion,
     bool MinInclusive,
     bool MaxInclusive,
-    List<string>? CompatibleVersions)
+    IReadOnlyList<string>? CompatibleVersions)
 {
     /// <summary>
     /// Checks whether the specified release version satisfies this constraint.
@@ -31,8 +31,13 @@ public sealed record ParsedVersionConstraint(
             return false;
         }
 
-        if (CompatibleVersions is { Count: > 0 })
+        if (CompatibleVersions != null)
         {
+            if (CompatibleVersions.Count == 0)
+            {
+                return false;
+            }
+
             return CompatibleVersions.Any(cv =>
                 string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
                 CatalogManifestIdentity.CompareVersions(cv, version) == 0);

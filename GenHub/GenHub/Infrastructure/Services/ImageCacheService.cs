@@ -364,7 +364,7 @@ public sealed class ImageCacheService : IImageCacheService
         return true;
     }
 
-    private static bool IsSafeIpAddress(IPAddress address)
+    internal static bool IsSafeIpAddress(IPAddress address)
     {
         var bytes = address.GetAddressBytes();
         return bytes.Length switch

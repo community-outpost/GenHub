@@ -969,7 +969,7 @@
             "note": "Generals Online service manifest and CDN."
         },
         {
-            "publisherId": "community-outpost",
+            "publisherId": "communityoutpost",
             "catalogUrl": "https://legi.cc/gp2/dl.dat",
             "note": "GenPatcher catalog from Community Outpost."
         }

@@ -72,7 +72,7 @@ public static class CommandLineParser
                     string unescaped = Uri.UnescapeDataString(url)
                         .Replace("\r", string.Empty)
                         .Replace("\n", string.Empty)
-                        .Trim('"', '\'', ' ', '\t');
+                        .Trim('\"', '\'', ' ', '\t');
 
                     if (string.IsNullOrWhiteSpace(unescaped))
                     {
@@ -81,7 +81,7 @@ public static class CommandLineParser
 
                     if (Uri.TryCreate(unescaped, UriKind.Absolute, out var uri))
                     {
-                        if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                        if (uri.Scheme == Uri.UriSchemeHttps)
                         {
                             return unescaped;
                         }

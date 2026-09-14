@@ -141,7 +141,7 @@ public sealed class NumericVersionScheme : VersionSchemeBase
                 int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var y) &&
                 int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var m) &&
                 int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var d) &&
-                y >= 1990 && y <= 2099 && m >= 1 && m <= 12 && d >= 1 && d <= 31)
+                y >= CatalogConstants.MinDateVersionYear && y <= CatalogConstants.MaxDateVersionYear && m >= 1 && m <= 12 && d >= 1 && d <= 31)
             {
                 normalized = $"{y:D4}{m:D2}{d:D2}";
             }

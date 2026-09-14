@@ -35,6 +35,7 @@ public class CatalogTabProvider(
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan NegativeCacheDuration = TimeSpan.FromMinutes(1);
     private readonly ConcurrentDictionary<string, (DateTime FetchedAt, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Task<PublisherCatalog?>> _inFlightFetches = new(StringComparer.OrdinalIgnoreCase);
 
     private void TrimCacheIfNeeded()
     {
@@ -113,7 +114,7 @@ public class CatalogTabProvider(
         var publisherId = searchResult.ProviderName;
         if (searchResult.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherProfileJson))
         {
-            var publisherProfile = JsonSerializer.Deserialize<PublisherProfile>(publisherProfileJson);
+            var publisherProfile = JsonSerializer.Deserialize<PublisherProfile>(publisherProfileJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (!string.IsNullOrWhiteSpace(publisherProfile?.Id))
             {
                 publisherId = publisherProfile.Id;
@@ -148,32 +149,68 @@ public class CatalogTabProvider(
             }
         }
 
-        var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(
-            publisherId,
-            cancellationToken);
+        var fetchTask = _inFlightFetches.GetOrAdd(publisherId, _ => FetchCatalogCoreAsync(publisherId, CancellationToken.None));
 
-        if (!subscriptionResult.Success || subscriptionResult.Data == null)
+        try
         {
+            return await fetchTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to fetch catalog for publisher '{PublisherId}'", publisherId);
+            return null;
+        }
+    }
+
+    private async Task<PublisherCatalog?> FetchCatalogCoreAsync(string publisherId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(
+                publisherId,
+                cancellationToken).ConfigureAwait(false);
+
+            if (!subscriptionResult.Success || subscriptionResult.Data == null)
+            {
+                TrimCacheIfNeeded();
+                _catalogCache[publisherId] = (DateTime.UtcNow, null);
+                return null;
+            }
+
+            var subscription = subscriptionResult.Data;
+            var httpClient = httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+            var catalogJson = await CatalogDocumentReader.ReadAsync(
+                httpClient,
+                subscription.CatalogUrl,
+                CatalogConstants.MaxCatalogSizeBytes,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken).ConfigureAwait(false);
+            var resolvedCatalog = catalogResult.Success && catalogResult.Data != null ? catalogResult.Data : null;
+            TrimCacheIfNeeded();
+            _catalogCache[publisherId] = (DateTime.UtcNow, resolvedCatalog);
+            return resolvedCatalog;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error fetching catalog for publisher '{PublisherId}', recording negative cache entry", publisherId);
+            TrimCacheIfNeeded();
+            _catalogCache[publisherId] = (DateTime.UtcNow, null);
+            logger.LogWarning(ex, "Error fetching catalog for publisher '{PublisherId}', recording negative cache entry", publisherId);
             TrimCacheIfNeeded();
             _catalogCache[publisherId] = (DateTime.UtcNow, null);
             return null;
         }
-
-        var subscription = subscriptionResult.Data;
-        var httpClient = httpClientFactory.CreateClient();
-        httpClient.Timeout = TimeSpan.FromSeconds(30);
-
-        var catalogJson = await CatalogDocumentReader.ReadAsync(
-            httpClient,
-            subscription.CatalogUrl,
-            CatalogConstants.MaxCatalogSizeBytes,
-            cancellationToken: cancellationToken);
-
-        var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
-        var resolvedCatalog = catalogResult.Success && catalogResult.Data != null ? catalogResult.Data : null;
-        TrimCacheIfNeeded();
-        _catalogCache[publisherId] = (DateTime.UtcNow, resolvedCatalog);
-        return resolvedCatalog;
+        finally
+        {
+            _inFlightFetches.TryRemove(publisherId, out _);
+        }
     }
 
     private CustomTabDefinition MapToTabDefinition(CatalogTabDefinition catalogTab, ContentSearchResult searchResult)

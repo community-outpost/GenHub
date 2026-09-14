@@ -14,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Catalog;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.ViewModels.Catalog;
@@ -173,7 +174,9 @@ public partial class SubscriptionConfirmationViewModel(
             {
                 _parsedCatalog = result.Data;
                 PublisherName = _parsedCatalog.Publisher.Name;
-                PublisherAvatarUrl = _parsedCatalog.Publisher.AvatarUrl;
+                PublisherAvatarUrl = !string.IsNullOrWhiteSpace(_parsedCatalog.Publisher.AvatarUrl) && ImageCacheService.IsSafeRemoteUrl(_parsedCatalog.Publisher.AvatarUrl, out _)
+                    ? _parsedCatalog.Publisher.AvatarUrl
+                    : null;
                 PublisherWebsite = _parsedCatalog.Publisher.Website;
                 PublisherSupportUrl = _parsedCatalog.Publisher.SupportUrl ?? string.Empty;
                 PublisherContactEmail = _parsedCatalog.Publisher.ContactEmail ?? string.Empty;
@@ -338,7 +341,9 @@ public partial class SubscriptionConfirmationViewModel(
                 DefinitionUrl = existingSub?.DefinitionUrl, // preserve definition URL if already set
                 Added = existingSub?.Added ?? DateTime.UtcNow,
                 TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
-                AvatarUrl = _parsedCatalog.Publisher.AvatarUrl,
+                AvatarUrl = !string.IsNullOrWhiteSpace(_parsedCatalog.Publisher.AvatarUrl) && ImageCacheService.IsSafeRemoteUrl(_parsedCatalog.Publisher.AvatarUrl, out _)
+                    ? _parsedCatalog.Publisher.AvatarUrl
+                    : null,
                 AutoUpdate = existingSub?.AutoUpdate ?? true,
                 NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
                 CachedCatalogHash = existingSub?.CachedCatalogHash,

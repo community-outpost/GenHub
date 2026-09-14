@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Catalog;
@@ -101,7 +102,11 @@ public class PublisherCatalogRefreshService(
             var hash = ComputeHash(catalogJson);
             currentSubscription.CachedCatalogHash = hash;
             currentSubscription.LastFetched = DateTime.UtcNow;
-            currentSubscription.AvatarUrl = parseResult.Data?.Publisher.AvatarUrl ?? currentSubscription.AvatarUrl;
+            var newAvatar = parseResult.Data?.Publisher.AvatarUrl;
+            if (!string.IsNullOrWhiteSpace(newAvatar) && ImageCacheService.IsSafeRemoteUrl(newAvatar, out _))
+            {
+                currentSubscription.AvatarUrl = newAvatar;
+            }
             currentSubscription.PublisherName = parseResult.Data?.Publisher.Name ?? currentSubscription.PublisherName;
 
             var updateResult = await subscriptionStore.UpdateSubscriptionAsync(currentSubscription, cancellationToken);

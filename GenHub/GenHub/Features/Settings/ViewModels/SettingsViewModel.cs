@@ -255,7 +255,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         "Minor Code Smell",
         "S2325:Methods and properties that don't access instance data should be static",
         Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
-    public bool ShowNoSubscriptions => !_isLoadingSubscriptions && _subscriptions.Count == 0;
+    public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
 #pragma warning restore S2325
 
     /// <summary>
@@ -2632,7 +2632,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError(ErrorTitle, $"Failed to load subscriptions: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
             _logger.LogInformation(ex, "Loading subscriptions was cancelled.");
         }
@@ -2660,6 +2660,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         try
         {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Remove Subscription",
+                $"Are you sure you want to unsubscribe from '{subscription.PublisherName}'? Content from this publisher will no longer appear in downloads.",
+                "Remove",
+                "Cancel");
+
+            if (!confirmed)
+            {
+                return;
+            }
+
             var result = await _subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId, cancellationToken);
             if (result.Success)
             {
@@ -2671,7 +2682,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError(ErrorTitle, $"Failed to remove subscription: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
             _logger.LogInformation(ex, "Removing subscription was cancelled.");
         }
@@ -2710,7 +2721,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError(ErrorTitle, $"Failed to update trust level: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
             _logger.LogInformation(ex, "Toggling trust level was cancelled.");
         }
@@ -2736,9 +2747,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             IsLoadingSubscriptions = true;
             var result = await _catalogRefreshService.RefreshAllAsync(cancellationToken);
+            await LoadSubscriptionsAsync(cancellationToken);
             if (result.Success)
             {
-                await LoadSubscriptionsAsync(cancellationToken);
                 _notificationService.ShowSuccess(CatalogConstants.CatalogsRefreshedNotificationTitle, "Successfully updated all subscribed catalogs.");
             }
             else
@@ -2746,7 +2757,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError(ErrorTitle, result.FirstError ?? "Unknown error");
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
             _logger.LogInformation(ex, "Refreshing catalogs was cancelled.");
         }
