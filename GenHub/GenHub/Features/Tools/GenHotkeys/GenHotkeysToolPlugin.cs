@@ -1,4 +1,3 @@
-using System;
 using Avalonia.Controls;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
@@ -6,6 +5,7 @@ using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
 using GenHub.Features.Tools.GenHotkeys.Views;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace GenHub.Features.Tools.GenHotkeys;
 

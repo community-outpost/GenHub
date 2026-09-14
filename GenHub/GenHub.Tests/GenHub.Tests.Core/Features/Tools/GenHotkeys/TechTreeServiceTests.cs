@@ -1,9 +1,9 @@
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;

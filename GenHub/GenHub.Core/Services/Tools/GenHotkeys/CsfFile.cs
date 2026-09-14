@@ -91,83 +91,6 @@ public class CsfFile
         return csf;
     }
 
-    private static bool ReadLabel(BinaryReader reader, Stream stream, CsfFile csf)
-    {
-        var lblMagic = reader.ReadBytes(4);
-        if (lblMagic.Length < 4 || !lblMagic.AsSpan().SequenceEqual(MagicLbl))
-        {
-            return false;
-        }
-
-        var numStringPairs = reader.ReadUInt32();
-        var labelLen = reader.ReadUInt32();
-        ValidateStreamRemaining(stream, labelLen, "label length");
-        var labelBytes = reader.ReadBytes((int)labelLen);
-        var labelName = Encoding.ASCII.GetString(labelBytes);
-
-        for (uint s = 0; s < numStringPairs; s++)
-        {
-            ReadStringPair(reader, stream, csf, labelName, isPrimary: s == 0);
-        }
-
-        return true;
-    }
-
-    private static void ReadStringPair(BinaryReader reader, Stream stream, CsfFile csf, string labelName, bool isPrimary)
-    {
-        var rtsMagic = reader.ReadBytes(4);
-        if (rtsMagic.Length < 4)
-        {
-            return;
-        }
-
-        var numChars = reader.ReadUInt32();
-        ValidateStreamRemaining(stream, (long)numChars * 2, "string characters");
-
-        // Characters are 16-bit UTF-16 inverted with bitwise NOT (~)
-        var chars = new char[numChars];
-        for (uint c = 0; c < numChars; c++)
-        {
-            var raw = reader.ReadUInt16();
-            chars[c] = (char)~raw;
-        }
-
-        var stringValue = new string(chars);
-        string? extraValue = null;
-
-        // Handle WRTS extra string if present
-        if (rtsMagic[0] == (byte)'W')
-        {
-            var extraLength = reader.ReadUInt32();
-            ValidateStreamRemaining(stream, extraLength, "extra string length");
-            var extraBytes = reader.ReadBytes((int)extraLength);
-            extraValue = Encoding.ASCII.GetString(extraBytes);
-        }
-
-        // Secondary string pairs are discarded for hotkey editing; only primary is retained
-        if (isPrimary)
-        {
-            csf._strings[labelName] = stringValue;
-            if (!string.IsNullOrEmpty(extraValue))
-            {
-                csf._extraValues[labelName] = extraValue;
-            }
-        }
-    }
-
-    private static void ValidateStreamRemaining(Stream stream, long requiredBytes, string fieldName)
-    {
-        if (requiredBytes < 0 || requiredBytes > int.MaxValue)
-        {
-            throw new InvalidDataException($"Invalid CSF {fieldName} size: {requiredBytes}");
-        }
-
-        if (stream.CanSeek && stream.Length - stream.Position < requiredBytes)
-        {
-            throw new InvalidDataException($"Unexpected end of stream while reading CSF {fieldName}. Expected {requiredBytes} bytes.");
-        }
-    }
-
     /// <summary>
     /// Extracts the hotkey character assigned to this string (the character following '&amp;').
     /// </summary>
@@ -352,6 +275,83 @@ public class CsfFile
                     writer.Write((ushort)(~raw));
                 }
             }
+        }
+    }
+
+    private static bool ReadLabel(BinaryReader reader, Stream stream, CsfFile csf)
+    {
+        var lblMagic = reader.ReadBytes(4);
+        if (lblMagic.Length < 4 || !lblMagic.AsSpan().SequenceEqual(MagicLbl))
+        {
+            return false;
+        }
+
+        var numStringPairs = reader.ReadUInt32();
+        var labelLen = reader.ReadUInt32();
+        ValidateStreamRemaining(stream, labelLen, "label length");
+        var labelBytes = reader.ReadBytes((int)labelLen);
+        var labelName = Encoding.ASCII.GetString(labelBytes);
+
+        for (uint s = 0; s < numStringPairs; s++)
+        {
+            ReadStringPair(reader, stream, csf, labelName, isPrimary: s == 0);
+        }
+
+        return true;
+    }
+
+    private static void ReadStringPair(BinaryReader reader, Stream stream, CsfFile csf, string labelName, bool isPrimary)
+    {
+        var rtsMagic = reader.ReadBytes(4);
+        if (rtsMagic.Length < 4)
+        {
+            return;
+        }
+
+        var numChars = reader.ReadUInt32();
+        ValidateStreamRemaining(stream, (long)numChars * 2, "string characters");
+
+        // Characters are 16-bit UTF-16 inverted with bitwise NOT (~)
+        var chars = new char[numChars];
+        for (uint c = 0; c < numChars; c++)
+        {
+            var raw = reader.ReadUInt16();
+            chars[c] = (char)~raw;
+        }
+
+        var stringValue = new string(chars);
+        string? extraValue = null;
+
+        // Handle WRTS extra string if present
+        if (rtsMagic[0] == (byte)'W')
+        {
+            var extraLength = reader.ReadUInt32();
+            ValidateStreamRemaining(stream, extraLength, "extra string length");
+            var extraBytes = reader.ReadBytes((int)extraLength);
+            extraValue = Encoding.ASCII.GetString(extraBytes);
+        }
+
+        // Secondary string pairs are discarded for hotkey editing; only primary is retained
+        if (isPrimary)
+        {
+            csf._strings[labelName] = stringValue;
+            if (!string.IsNullOrEmpty(extraValue))
+            {
+                csf._extraValues[labelName] = extraValue;
+            }
+        }
+    }
+
+    private static void ValidateStreamRemaining(Stream stream, long requiredBytes, string fieldName)
+    {
+        if (requiredBytes < 0 || requiredBytes > int.MaxValue)
+        {
+            throw new InvalidDataException($"Invalid CSF {fieldName} size: {requiredBytes}");
+        }
+
+        if (stream.CanSeek && stream.Length - stream.Position < requiredBytes)
+        {
+            throw new InvalidDataException($"Unexpected end of stream while reading CSF {fieldName}. Expected {requiredBytes} bytes.");
         }
     }
 }

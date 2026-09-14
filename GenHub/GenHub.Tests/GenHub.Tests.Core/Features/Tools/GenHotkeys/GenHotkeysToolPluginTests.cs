@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
 using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
@@ -12,6 +9,9 @@ using GenHub.Features.Tools.GenHotkeys.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;

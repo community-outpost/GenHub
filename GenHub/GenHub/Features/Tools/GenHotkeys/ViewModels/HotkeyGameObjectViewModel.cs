@@ -1,8 +1,8 @@
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Tools.GenHotkeys.ViewModels;
 

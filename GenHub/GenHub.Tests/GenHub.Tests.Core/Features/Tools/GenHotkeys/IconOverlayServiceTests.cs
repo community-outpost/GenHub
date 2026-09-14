@@ -1,10 +1,10 @@
-using System.IO;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using System.IO;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;

@@ -1,8 +1,8 @@
-using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
+using System;
 
 namespace GenHub.Features.Tools.GenHotkeys.Views;
 
