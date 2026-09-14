@@ -98,6 +98,9 @@ public sealed class PythonBundlePack
     [JsonPropertyName("big")]
     public bool? Big { get; set; }
 
+    [JsonPropertyName("bigSuffix")]
+    public string BigSuffix { get; set; } = string.Empty;
+
     [JsonPropertyName("outputFile")]
     public string? OutputFile { get; set; }
 
@@ -246,6 +249,14 @@ public sealed class SimplifiedBundleItem
     [JsonPropertyName("SourceFiles")]
     public List<string>? SourceFiles { get; set; }
 
+    [JsonPropertyName("BaseDir")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? BaseDir { get; set; }
+
+    [JsonPropertyName("TargetDir")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TargetDir { get; set; }
+
     [JsonPropertyName("OutputFormat")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? OutputFormat { get; set; }
@@ -265,6 +276,10 @@ public sealed class SimplifiedBundleItem
     [JsonPropertyName("NoConvert")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool NoConvert { get; set; }
+
+    [JsonPropertyName("Description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; set; }
 }
 
 /// <summary>
@@ -288,12 +303,21 @@ public sealed class SimplifiedBundlePack
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ManifestFile { get; set; }
 
+    [JsonPropertyName("SetGameLanguageOnInstall")]
+    public string SetGameLanguageOnInstall { get; set; } = string.Empty;
+
     [JsonPropertyName("Big")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Big { get; set; }
 
     [JsonPropertyName("AllowBuild")]
-    public bool? AllowBuild { get; set; }
+    public bool? AllowBuild { get; set; } = true;
 
     [JsonPropertyName("AllowInstall")]
-    public bool? AllowInstall { get; set; }
+    public bool? AllowInstall { get; set; } = true;
+
+    [JsonPropertyName("Description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; set; }
 }
+

@@ -3,7 +3,8 @@
     {
       "Name": "LemonControlBar_720p",
       "Items": [
-        "LemonControlBarCommonArt",
+        "LemonControlBarArt",
+        "LemonControlBarData",
         "LemonControlBarWindows_720p"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition720ZH.big",
@@ -16,7 +17,8 @@
     {
       "Name": "LemonControlBar_1080p",
       "Items": [
-        "LemonControlBarCommonArt",
+        "LemonControlBarArt",
+        "LemonControlBarData",
         "LemonControlBarWindows_1080p"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition1080ZH.big",
@@ -29,7 +31,8 @@
     {
       "Name": "LemonControlBar_1440p",
       "Items": [
-        "LemonControlBarCommonArt",
+        "LemonControlBarArt",
+        "LemonControlBarData",
         "LemonControlBarWindows_1440p"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition1440ZH.big",
@@ -42,11 +45,12 @@
     {
       "Name": "LemonControlBar_4K",
       "Items": [
-        "LemonControlBarCommonArt",
+        "LemonControlBarArt",
+        "LemonControlBarData",
         "LemonControlBarWindows_4K"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition4KZH.big",
-      "ManifestFile": "config/340_ControlBarProLemonEdition4KZH.big.manifest.json",
+      "ManifestFile": "config/340_ControlBarProLemonEdition2160ZH.big.manifest.json",
       "Big": true,
       "AllowBuild": true,
       "AllowInstall": true,
