@@ -13,7 +13,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -34,7 +33,6 @@ public partial class ToolsViewModel(
     IServiceProvider serviceProvider,
     ILocalizationService? localizationService = null) : ObservableObject, IRecipient<ToolStatusMessage>, IDisposable
 {
-    private ILocalizationService? _effectiveLocalizationService;
     [ObservableProperty]
     private IToolPlugin? _selectedTool;
 
@@ -109,11 +107,10 @@ public partial class ToolsViewModel(
                 WeakReferenceMessenger.Default.Register(this);
             }
 
-            _effectiveLocalizationService ??= localizationService ?? serviceProvider.GetService<ILocalizationService>();
-            if (_effectiveLocalizationService != null)
+            if (localizationService != null)
             {
-                _effectiveLocalizationService.PropertyChanged -= OnLocalizationPropertyChanged;
-                _effectiveLocalizationService.PropertyChanged += OnLocalizationPropertyChanged;
+                localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+                localizationService.PropertyChanged += OnLocalizationPropertyChanged;
             }
 
             IsLoading = true;
@@ -531,9 +528,9 @@ public partial class ToolsViewModel(
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_effectiveLocalizationService != null)
+        if (localizationService != null)
         {
-            _effectiveLocalizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+            localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
         }
 
         _statusHideCts?.Cancel();
