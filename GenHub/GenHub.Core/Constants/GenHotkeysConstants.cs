@@ -59,6 +59,21 @@ public static class GenHotkeysConstants
 
         /// <summary>CSF label for Detonate Charges action.</summary>
         public const string DetonateCharges = "CONTROLBAR:DetonateCharges";
+
+        /// <summary>CSF label for GLA Junk Repair upgrade.</summary>
+        public const string UpgradeGlaJunkRepair = "CONTROLBAR:UpgradeGLAJunkRepair";
+
+        /// <summary>CSF label for GLA AP Rockets upgrade.</summary>
+        public const string UpgradeGlaApRockets = "CONTROLBAR:UpgradeGLAAPRockets";
+
+        /// <summary>CSF label for GLA Radar Van construct action.</summary>
+        public const string ConstructGlaVehicleRadarVan = "CONTROLBAR:ConstructGLAVehicleRadarVan";
+
+        /// <summary>CSF label for GLA Camo Netting upgrade.</summary>
+        public const string UpgradeGlaCamoNetting = "CONTROLBAR:UpgradeGLACamoNetting";
+
+        /// <summary>CSF label for China Radar upgrade.</summary>
+        public const string UpgradeChinaRadar = "CONTROLBAR:UpgradeChinaRadar";
     }
 
     /// <summary>Mutual exclusion and special action icon names.</summary>
@@ -142,6 +157,9 @@ public static class GenHotkeysConstants
 
         /// <summary>Keyword identifying Demolition general.</summary>
         public const string KeywordDemo = "Demo";
+
+        /// <summary>Keyword identifying Air Force general.</summary>
+        public const string KeywordAirForce = "AirForce";
     }
 
     /// <summary>Tool unique identifier.</summary>
@@ -334,8 +352,9 @@ public static class GenHotkeysConstants
     /// </summary>
     /// <param name="profileName">Profile name.</param>
     /// <param name="targetGame">Target game.</param>
+    /// <param name="profileId">Optional profile ID to avoid collisions between profiles with matching sanitized names.</param>
     /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
-    public static string GetBigFileName(string? profileName, GameType targetGame)
+    public static string GetBigFileName(string? profileName, GameType targetGame, string? profileId = null)
     {
         var sanitizedName = Regex.Replace(profileName ?? "Hotkeys", @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
         if (string.IsNullOrWhiteSpace(sanitizedName))
@@ -343,8 +362,12 @@ public static class GenHotkeysConstants
             sanitizedName = "Hotkeys";
         }
 
+        var idSuffix = !string.IsNullOrWhiteSpace(profileId)
+            ? $"_{profileId[..Math.Min(8, profileId.Length)]}"
+            : string.Empty;
+
         var gameTag = GetGameTag(targetGame);
-        return string.Format(CultureInfo.InvariantCulture, BigFileNamePattern, sanitizedName, gameTag);
+        return string.Format(CultureInfo.InvariantCulture, "!Hotkeys_{0}{1}_{2}.big", sanitizedName, idSuffix, gameTag);
     }
 
     /// <summary>

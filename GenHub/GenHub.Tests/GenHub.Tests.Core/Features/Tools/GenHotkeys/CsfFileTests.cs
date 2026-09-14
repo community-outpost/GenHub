@@ -196,6 +196,85 @@ public class CsfFileTests
     }
 
     /// <summary>
+    /// Verifies that loading a corrupt CSF file with an excessive character count throws <see cref="InvalidDataException"/>.
+    /// </summary>
+    [Fact]
+    public void Load_WithCorruptCharacterCount_ThrowsInvalidDataException()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write(new[] { (byte)' ', (byte)'F', (byte)'S', (byte)'C' });
+            writer.Write(3u); // Version
+            writer.Write(1u); // NumLabels
+            writer.Write(1u); // NumStrings
+            writer.Write(0u); // UselessBytes
+            writer.Write(0u); // LanguageCode
+
+            writer.Write(new[] { (byte)' ', (byte)'L', (byte)'B', (byte)'L' });
+            writer.Write(1u); // NumStringPairs
+            var lblBytes = System.Text.Encoding.ASCII.GetBytes("LABEL");
+            writer.Write((uint)lblBytes.Length);
+            writer.Write(lblBytes);
+
+            writer.Write(new[] { (byte)' ', (byte)'R', (byte)'T', (byte)'S' });
+            writer.Write(1_000_000u); // Corrupt excessive character count
+            writer.Write((ushort)0);  // Only 2 bytes of payload
+        }
+
+        stream.Position = 0;
+        Assert.Throws<InvalidDataException>(() => CsfFile.Load(stream));
+    }
+
+    /// <summary>
+    /// Verifies that CSF entries with WRTS extra strings roundtrip properly when loaded and saved.
+    /// </summary>
+    [Fact]
+    public void SaveAndLoad_WithWrtsExtraString_RoundTripsExtraValue()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write(new[] { (byte)' ', (byte)'F', (byte)'S', (byte)'C' });
+            writer.Write(3u);
+            writer.Write(1u);
+            writer.Write(1u);
+            writer.Write(0u);
+            writer.Write(0u);
+
+            writer.Write(new[] { (byte)' ', (byte)'L', (byte)'B', (byte)'L' });
+            writer.Write(1u);
+            var lblBytes = System.Text.Encoding.ASCII.GetBytes("WRTS_LABEL");
+            writer.Write((uint)lblBytes.Length);
+            writer.Write(lblBytes);
+
+            writer.Write(new[] { (byte)'W', (byte)'R', (byte)'T', (byte)'S' });
+            var str = "Subtitled Voice Line";
+            writer.Write((uint)str.Length);
+            foreach (var ch in str)
+            {
+                writer.Write((ushort)~ch);
+            }
+
+            var extra = "SoundDuration=2.5";
+            var extraBytes = System.Text.Encoding.ASCII.GetBytes(extra);
+            writer.Write((uint)extraBytes.Length);
+            writer.Write(extraBytes);
+        }
+
+        stream.Position = 0;
+        var loaded = CsfFile.Load(stream);
+        Assert.Equal("Subtitled Voice Line", loaded.GetString("WRTS_LABEL"));
+
+        using var saveStream = new MemoryStream();
+        loaded.Save(saveStream);
+
+        saveStream.Position = 0;
+        var reloaded = CsfFile.Load(saveStream);
+        Assert.Equal("Subtitled Voice Line", reloaded.GetString("WRTS_LABEL"));
+    }
+
+    /// <summary>
     /// Verifies that all registered shortcut label aliases are defined and non-empty.
     /// </summary>
     [Fact]

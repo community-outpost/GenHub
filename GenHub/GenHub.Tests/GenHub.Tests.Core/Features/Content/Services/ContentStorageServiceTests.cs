@@ -193,14 +193,14 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that content storage for an external Addon outside temp directories
-    /// does not copy files into CAS, storing metadata only.
+    /// Tests that content storage for an external Addon physically stores files into CAS
+    /// to ensure durability even when source folders change.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task StoreContentAsync_WithExternalAddon_StoresMetadataOnlyAsync()
+    public async Task StoreContentAsync_WithExternalAddon_PhysicallyStoresFilesInCasAsync()
     {
-        // Arrange: sourceDir outside Path.GetTempPath()
+        // Arrange
         var currentDir = AppContext.BaseDirectory;
         var sourceDir = Path.Combine(currentDir, "ExternalAddon_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(sourceDir);
@@ -209,6 +209,10 @@ public class ContentStorageServiceTests : IDisposable
         {
             var addonFile = Path.Combine(sourceDir, "external.big");
             await File.WriteAllTextAsync(addonFile, "sample-external-addon");
+
+            _casServiceMock
+                .Setup(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("cas_hash_external_addon_456"));
 
             var manifest = new ContentManifest
             {
@@ -231,10 +235,11 @@ public class ContentStorageServiceTests : IDisposable
 
             // Assert
             Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
-            _casServiceMock.Verify(c => c.StoreContentAsync(It.IsAny<string>(), It.IsAny<ContentType>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+            _casServiceMock.Verify(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()), Times.Once);
             Assert.NotNull(result.Data);
             Assert.Single(result.Data.Files);
-            Assert.Equal(ContentSourceType.LocalFile, result.Data.Files[0].SourceType);
+            Assert.Equal("cas_hash_external_addon_456", result.Data.Files[0].Hash);
+            Assert.Equal(ContentSourceType.ContentAddressable, result.Data.Files[0].SourceType);
         }
         finally
         {

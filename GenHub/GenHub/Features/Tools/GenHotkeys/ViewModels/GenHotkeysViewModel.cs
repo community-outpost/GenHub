@@ -61,6 +61,7 @@ public partial class GenHotkeysViewModel(
     private const string UpdateAddonText = "Update Addon";
     private const string AddToProfileText = "Add to Profile";
     private const string DefaultApplyToAllText = "Apply to All";
+    private const string CreateAddonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
 
     private static readonly HashSet<string> GeneralsPowersActions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -158,7 +159,7 @@ public partial class GenHotkeysViewModel(
     private string _addonButtonText = CreateAddonText;
 
     [ObservableProperty]
-    private string _addonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
+    private string _addonButtonToolTip = CreateAddonToolTip;
 
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
@@ -653,18 +654,17 @@ public partial class GenHotkeysViewModel(
     {
         if (SelectedProfile == null || manifestPool == null)
         {
-            HasExistingAddon = false;
-            ExistingAddonManifest = null;
-            AddonButtonText = CreateAddonText;
-            AddonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
+            UpdateAddonMatchState(null);
             return;
         }
 
         var currentProfileId = SelectedProfile.Id;
         try
         {
-            var expectedBigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
+            var expectedBigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame, SelectedProfile.Id);
+            var legacyBigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
             var expectedManifestName = GenHotkeysConstants.GetManifestDisplayName(SelectedProfile.Name, SelectedGame);
+            var addonManifestId = SelectedProfile.AddonManifestId;
 
             var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
             if (cancellationToken.IsCancellationRequested || SelectedProfile?.Id != currentProfileId)
@@ -674,38 +674,19 @@ public partial class GenHotkeysViewModel(
 
             if (manifestsResult is not { Success: true, Data: not null })
             {
-                HasExistingAddon = false;
-                ExistingAddonManifest = null;
-                AddonButtonText = CreateAddonText;
-                AddonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
+                UpdateAddonMatchState(null);
                 return;
             }
 
             var match = manifestsResult.Data.FirstOrDefault(m =>
-                (!string.IsNullOrWhiteSpace(SelectedProfile.AddonManifestId) && string.Equals(m.Id.Value, SelectedProfile.AddonManifestId, StringComparison.OrdinalIgnoreCase)) ||
-                (m.ContentType == ContentType.Addon &&
-                (m.TargetGame == SelectedGame || m.TargetGame == GameType.Unknown) &&
-                (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase) ||
-                 (m.Files?.Any(f => f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true))));
+                IsAddonMatch(m, addonManifestId, SelectedGame, expectedManifestName, expectedBigFileName, legacyBigFileName));
 
             if (cancellationToken.IsCancellationRequested || SelectedProfile?.Id != currentProfileId)
             {
                 return;
             }
 
-            ExistingAddonManifest = match;
-            HasExistingAddon = match is not null;
-            if (match is not null)
-            {
-                SelectedProfile.AddonManifestId = match.Id.Value;
-                AddonButtonText = UpdateAddonText;
-                AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
-            }
-            else
-            {
-                AddonButtonText = CreateAddonText;
-                AddonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
-            }
+            UpdateAddonMatchState(match);
         }
         catch (OperationCanceledException)
         {
@@ -719,6 +700,61 @@ public partial class GenHotkeysViewModel(
         {
             logger.LogWarning(ex, "Failed to check existing addon manifest for profile '{Name}'", SelectedProfile?.Name);
         }
+    }
+
+    private void UpdateAddonMatchState(ContentManifest? match)
+    {
+        ExistingAddonManifest = match;
+        HasExistingAddon = match is not null;
+        if (match is not null)
+        {
+            if (SelectedProfile != null)
+            {
+                SelectedProfile.AddonManifestId = match.Id.Value;
+            }
+
+            AddonButtonText = UpdateAddonText;
+            AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+        }
+        else
+        {
+            AddonButtonText = CreateAddonText;
+            AddonButtonToolTip = CreateAddonToolTip;
+        }
+    }
+
+    private static bool IsAddonMatch(
+        ContentManifest m,
+        string? profileAddonManifestId,
+        GameType selectedGame,
+        string expectedManifestName,
+        string expectedBigFileName,
+        string legacyBigFileName)
+    {
+        if (m.ContentType != ContentType.Addon)
+        {
+            return false;
+        }
+
+        if (m.TargetGame != selectedGame && m.TargetGame != GameType.Unknown)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(profileAddonManifestId) &&
+            string.Equals(m.Id.Value, profileAddonManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return m.Files?.Any(f =>
+            f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true ||
+            f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true;
     }
 
     /// <summary>
@@ -829,7 +865,7 @@ public partial class GenHotkeysViewModel(
 
             if (result is { Success: true, Data: not null })
             {
-                var bigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
+                var bigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame, SelectedProfile.Id);
                 ExistingAddonManifest = result.Data;
                 HasExistingAddon = true;
                 SelectedProfile.AddonManifestId = result.Data.Id.Value;
@@ -839,25 +875,8 @@ public partial class GenHotkeysViewModel(
                     ? $"Success! Addon '{result.Data.Name}' updated in GenHub!"
                     : $"Success! Addon '{result.Data.Name}' registered in GenHub!";
 
-                _ = SaveCurrentProfileAsync(cancellationToken);
-
-                if (notificationService is not null)
-                {
-                    var capturedManifest = result.Data;
-                    var title = isUpdate ? "Hotkey Addon Updated" : "Hotkey Addon Created";
-                    var message = isUpdate
-                        ? $"Updated '{bigFileName}' successfully."
-                        : $"Created '{bigFileName}' successfully and stored in CAS.";
-                    var notification = new NotificationMessage(
-                        NotificationType.Success,
-                        title,
-                        message,
-                        autoDismissMilliseconds: NotificationDurations.Long,
-                        actionText: AddToProfileText,
-                        action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(capturedManifest)));
-
-                    notificationService.Show(notification);
-                }
+                _ = SaveCurrentProfileAsync(CancellationToken.None);
+                ShowExportNotification(result.Data, isUpdate, bigFileName);
             }
             else
             {
@@ -877,6 +896,28 @@ public partial class GenHotkeysViewModel(
         {
             IsBusy = false;
         }
+    }
+
+    private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
+    {
+        if (notificationService is null)
+        {
+            return;
+        }
+
+        var title = isUpdate ? "Hotkey Addon Updated" : "Hotkey Addon Created";
+        var message = isUpdate
+            ? $"Updated '{bigFileName}' successfully."
+            : $"Created '{bigFileName}' successfully and stored in CAS.";
+        var notification = new NotificationMessage(
+            NotificationType.Success,
+            title,
+            message,
+            autoDismissMilliseconds: NotificationDurations.Long,
+            actionText: AddToProfileText,
+            action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(manifest)));
+
+        notificationService.Show(notification);
     }
 
     /// <summary>
@@ -1095,8 +1136,8 @@ public partial class GenHotkeysViewModel(
 
     private static bool IsGrangerAirfieldStealthOverlap(List<HotkeyActionViewModel> actions, string objName, string faction)
     {
-        if ((!string.Equals(faction, "AIR", StringComparison.OrdinalIgnoreCase) &&
-             !string.Equals(faction, "AirForce", StringComparison.OrdinalIgnoreCase)) ||
+        if ((!string.Equals(faction, GenHotkeysConstants.FactionCodes.AirForce, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(faction, GenHotkeysConstants.FactionCodes.KeywordAirForce, StringComparison.OrdinalIgnoreCase)) ||
             !objName.Contains("Airfield", StringComparison.OrdinalIgnoreCase))
         {
             return false;
@@ -1113,27 +1154,27 @@ public partial class GenHotkeysViewModel(
             return false;
         }
 
-        return actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeGLAJunkRepair", StringComparison.OrdinalIgnoreCase)) &&
-               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeGLAAPRockets", StringComparison.OrdinalIgnoreCase));
+        return actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeGlaJunkRepair, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeGlaApRockets, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsStealthArmsDealerLegionnaireOverlap(List<HotkeyActionViewModel> actions, string objName, string faction)
     {
-        if ((!string.Equals(faction, "STL", StringComparison.OrdinalIgnoreCase) &&
-             !string.Equals(faction, "Stealth", StringComparison.OrdinalIgnoreCase)) ||
+        if ((!string.Equals(faction, GenHotkeysConstants.FactionCodes.Stealth, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(faction, GenHotkeysConstants.FactionCodes.KeywordStealth, StringComparison.OrdinalIgnoreCase)) ||
             !objName.Contains("ArmsDealer", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        return actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:ConstructGLAVehicleRadarVan", StringComparison.OrdinalIgnoreCase)) &&
-               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeGLACamoNetting", StringComparison.OrdinalIgnoreCase));
+        return actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructGlaVehicleRadarVan, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeGlaCamoNetting, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsRadarAndCashHack(List<HotkeyActionViewModel> actions)
     {
         return actions.Count == 2 &&
-               actions.Any(a => string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeChinaRadar", StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaRadar, StringComparison.OrdinalIgnoreCase)) &&
                actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.StealCashHack, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -1590,6 +1631,10 @@ public partial class GenHotkeysViewModel(
             RenameProfileText = value.Name;
             OverlayEnabled = value.OverlayEnabled;
             SelectedCorner = value.OverlayCorner;
+            HasExistingAddon = false;
+            ExistingAddonManifest = null;
+            AddonButtonText = CreateAddonText;
+            AddonButtonToolTip = CreateAddonToolTip;
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
             _addonCheckCts = new CancellationTokenSource();
@@ -1602,6 +1647,7 @@ public partial class GenHotkeysViewModel(
             HasExistingAddon = false;
             ExistingAddonManifest = null;
             AddonButtonText = CreateAddonText;
+            AddonButtonToolTip = CreateAddonToolTip;
         }
     }
 
@@ -1609,7 +1655,7 @@ public partial class GenHotkeysViewModel(
     {
         try
         {
-            await CheckExistingAddonAsync(cancellationToken).ConfigureAwait(false);
+            await CheckExistingAddonAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
