@@ -315,19 +315,11 @@ public partial class AddContentDialogViewModel : ObservableValidator
             baseName = dirInfo.Name;
             PackageFilename = $"{baseName}.zip";
 
-            try
-            {
-                var totalBytes = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
-                FileSize = totalBytes;
-                FileSizeDisplay = $"{FormatBytes(totalBytes)} (folder)";
-            }
-            catch
-            {
-                FileSize = 0;
-                FileSizeDisplay = "Folder (size pending)";
-            }
+            FileSize = 0;
+            FileSizeDisplay = "Folder (calculating size...)";
+            Sha256Hash = string.Empty;
 
-            Sha256Hash = "(Calculated on package archive)";
+            _ = ComputeFolderSizeAsync(path);
         }
         else if (File.Exists(path))
         {
@@ -403,6 +395,32 @@ public partial class AddContentDialogViewModel : ObservableValidator
         }
     }
 
+    private async Task ComputeFolderSizeAsync(string folderPath)
+    {
+        try
+        {
+            var totalBytes = await Task.Run(() =>
+            {
+                var dirInfo = new DirectoryInfo(folderPath);
+                return dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
+            });
+
+            if (string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
+            {
+                FileSize = totalBytes;
+                FileSizeDisplay = $"{FormatBytes(totalBytes)} (folder)";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
+            {
+                FileSize = 0;
+                FileSizeDisplay = "Folder (size unavailable)";
+            }
+        }
+    }
+
     private async Task ComputeSha256Async(string filePath)
     {
         try
@@ -413,7 +431,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
             var hashBytes = await sha256.ComputeHashAsync(stream);
             Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Sha256Hash = string.Empty;
         }

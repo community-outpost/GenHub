@@ -31,8 +31,6 @@ public class GoogleDriveHostingProvider(
     private const string PublisherFolderName = "GenHub_Publisher";
     private static readonly string[] Scopes = [DriveService.Scope.DriveFile];
 
-    private readonly ILogger<GoogleDriveHostingProvider> _logger = logger;
-    private readonly IConfigurationProviderService? _configurationProvider = configurationProvider;
     private DriveService? _driveService;
 
     /// <summary>
@@ -87,7 +85,7 @@ public class GoogleDriveHostingProvider(
     {
         try
         {
-            _logger.LogInformation("Starting Google Drive authentication...");
+            logger.LogInformation("Starting Google Drive authentication...");
 
             // Use custom credentials if provided by the user
             var clientId = CustomClientId?.Trim();
@@ -109,7 +107,7 @@ public class GoogleDriveHostingProvider(
             };
 
             // Store credentials in the GenHub app data directory
-            var baseDataPath = _configurationProvider?.GetApplicationDataPath()
+            var baseDataPath = configurationProvider?.GetApplicationDataPath()
                 ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub");
             var credPath = Path.Combine(baseDataPath, HostingConstants.GoogleDriveTokenDirectoryName);
 
@@ -128,7 +126,7 @@ public class GoogleDriveHostingProvider(
                 ApplicationName = ApplicationName,
             });
 
-            _logger.LogInformation("Successfully authenticated with Google Drive");
+            logger.LogInformation("Successfully authenticated with Google Drive");
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -137,7 +135,7 @@ public class GoogleDriveHostingProvider(
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogWarning(ex, "Google Drive authentication timed out.");
+            logger.LogWarning(ex, "Google Drive authentication timed out.");
             return OperationResult<bool>.CreateFailure(
                 "Google Drive authentication timed out. " +
                 "If your browser displayed 'Error 400: redirect_uri_mismatch', your OAuth Client ID was created as a 'Web application' instead of a 'Desktop app'. " +
@@ -145,7 +143,7 @@ public class GoogleDriveHostingProvider(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to authenticate with Google Drive");
+            logger.LogError(ex, "Failed to authenticate with Google Drive");
             var errorMsg = ex.Message;
             if (errorMsg.Contains("access_denied", StringComparison.OrdinalIgnoreCase))
             {
@@ -161,7 +159,7 @@ public class GoogleDriveHostingProvider(
     {
         _driveService?.Dispose();
         _driveService = null;
-        _logger.LogInformation("Signed out from Google Drive");
+        logger.LogInformation("Signed out from Google Drive");
         return Task.CompletedTask;
     }
 
@@ -222,13 +220,13 @@ public class GoogleDriveHostingProvider(
 
             if (uploadResult.Status != UploadStatus.Completed)
             {
-                _logger.LogError("Google Drive upload failed: {Error}", uploadResult.Exception?.Message);
+                logger.LogError("Google Drive upload failed: {Error}", uploadResult.Exception?.Message);
                 return OperationResult<HostingUploadResult>.CreateFailure(
                     uploadResult.Exception?.Message ?? "Upload failed");
             }
 
             var uploadedFile = uploadRequest.ResponseBody;
-            _logger.LogInformation("Uploaded {FileName} to Google Drive (ID: {FileId})", fileName, uploadedFile.Id);
+            logger.LogInformation("Uploaded {FileName} to Google Drive (ID: {FileId})", fileName, uploadedFile.Id);
 
             // Make the file publicly accessible
             await MakePublicAsync(uploadedFile.Id, cancellationToken);
@@ -251,7 +249,7 @@ public class GoogleDriveHostingProvider(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload {FileName} to Google Drive", fileName);
+            logger.LogError(ex, "Failed to upload {FileName} to Google Drive", fileName);
             return OperationResult<HostingUploadResult>.CreateFailure($"Upload error: {ex.Message}");
         }
     }
@@ -308,13 +306,13 @@ public class GoogleDriveHostingProvider(
 
             if (uploadResult.Status != UploadStatus.Completed)
             {
-                _logger.LogError("Google Drive update failed for {FileId}: {Error}", fileId, uploadResult.Exception?.Message);
+                logger.LogError("Google Drive update failed for {FileId}: {Error}", fileId, uploadResult.Exception?.Message);
                 return OperationResult<HostingUploadResult>.CreateFailure(
                     uploadResult.Exception?.Message ?? "Update failed");
             }
 
             var updatedFile = updateRequest.ResponseBody;
-            _logger.LogInformation("Updated file {FileId} on Google Drive", fileId);
+            logger.LogInformation("Updated file {FileId} on Google Drive", fileId);
 
             var directDownloadUrl = string.Format(
                 HostingConstants.GoogleDriveDownloadUrlTemplate,
@@ -334,7 +332,7 @@ public class GoogleDriveHostingProvider(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update file {FileId} on Google Drive", fileId);
+            logger.LogError(ex, "Failed to update file {FileId} on Google Drive", fileId);
             return OperationResult<HostingUploadResult>.CreateFailure($"Update error: {ex.Message}");
         }
     }
@@ -373,7 +371,7 @@ public class GoogleDriveHostingProvider(
             createRequest.Fields = "id";
 
             var folder = await createRequest.ExecuteAsync(cancellationToken);
-            _logger.LogInformation("Created Google Drive publisher folder with ID: {FolderId}", folder.Id);
+            logger.LogInformation("Created Google Drive publisher folder with ID: {FolderId}", folder.Id);
 
             // Make the folder publicly readable so files inside inherit read access
             await MakePublicAsync(folder.Id, cancellationToken);
@@ -386,7 +384,7 @@ public class GoogleDriveHostingProvider(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting or creating Google Drive folder");
+            logger.LogError(ex, "Error getting or creating Google Drive folder");
             return OperationResult<string>.CreateFailure($"Folder operation failed: {ex.Message}");
         }
     }
@@ -443,7 +441,7 @@ public class GoogleDriveHostingProvider(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error scanning Google Drive for publisher files");
+            logger.LogError(ex, "Error scanning Google Drive for publisher files");
             return OperationResult<HostingState?>.CreateFailure($"Google Drive scan error: {ex.Message}");
         }
     }
@@ -532,11 +530,11 @@ public class GoogleDriveHostingProvider(
 
             var permRequest = _driveService!.Permissions.Create(permission, fileId);
             await permRequest.ExecuteAsync(cancellationToken);
-            _logger.LogDebug("Made file/folder public: {FileId}", fileId);
+            logger.LogDebug("Made file/folder public: {FileId}", fileId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to set public permission for {FileId}", fileId);
+            logger.LogWarning(ex, "Failed to set public permission for {FileId}", fileId);
         }
     }
 
@@ -555,7 +553,7 @@ public class GoogleDriveHostingProvider(
                 FileSize = fileSize,
                 LastUpdated = lastUpdated,
             };
-            _logger.LogInformation("Discovered publisher definition on Google Drive: {Url}", directUrl);
+            logger.LogInformation("Discovered publisher definition on Google Drive: {Url}", directUrl);
         }
         else if (file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && file.Name.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase))
         {
@@ -570,7 +568,7 @@ public class GoogleDriveHostingProvider(
                 FileSize = fileSize,
                 LastUpdated = lastUpdated,
             });
-            _logger.LogInformation("Discovered catalog '{CatalogId}' on Google Drive: {Url}", catId, directUrl);
+            logger.LogInformation("Discovered catalog '{CatalogId}' on Google Drive: {Url}", catId, directUrl);
         }
         else
         {
@@ -582,7 +580,7 @@ public class GoogleDriveHostingProvider(
                 FileSize = fileSize,
                 LastUpdated = lastUpdated,
             });
-            _logger.LogInformation("Discovered artifact '{File}' on Google Drive: {Url}", file.Name, directUrl);
+            logger.LogInformation("Discovered artifact '{File}' on Google Drive: {Url}", file.Name, directUrl);
         }
     }
 }

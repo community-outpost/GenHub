@@ -29,6 +29,9 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// </remarks>
 public class GitHubHostingProvider : IHostingProvider
 {
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+    private static readonly Regex GistRawShaRegex = new(@"/raw/[0-9a-fA-F]{40}/", RegexOptions.Compiled, RegexTimeout);
+
     private readonly ILogger<GitHubHostingProvider> _logger;
     private GitHubClient? _client;
     private string? _authenticatedUsername;
@@ -68,6 +71,24 @@ public class GitHubHostingProvider : IHostingProvider
 
     /// <inheritdoc/>
     public bool SupportsUpdate => true;
+
+    /// <summary>
+    /// Strips the commit SHA from a GitHub Gist raw URL so that subscribers polling the URL
+    /// always receive the HEAD/latest revision rather than being pinned to a specific commit.
+    /// E.g. https://gist.githubusercontent.com/user/id/raw/0123456789abcdef0123456789abcdef01234567/filename
+    /// becomes https://gist.githubusercontent.com/user/id/raw/filename.
+    /// </summary>
+    /// <param name="rawUrl">The raw Gist URL to normalize.</param>
+    /// <returns>The normalized Gist URL pointing to the HEAD revision.</returns>
+    public static string NormalizeGistRawUrl(string rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+        {
+            return rawUrl;
+        }
+
+        return GistRawShaRegex.Replace(rawUrl, "/raw/");
+    }
 
     /// <inheritdoc/>
     public Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
@@ -469,21 +490,5 @@ public class GitHubHostingProvider : IHostingProvider
         // GitHub release assets already have direct download URLs
         // Gist raw URLs are also direct, but ensure they point to HEAD
         return NormalizeGistRawUrl(shareUrl);
-    }
-
-    /// <summary>
-    /// Strips the commit SHA from a GitHub Gist raw URL so that subscribers polling the URL
-    /// always receive the HEAD/latest revision rather than being pinned to a specific commit.
-    /// E.g. https://gist.githubusercontent.com/user/id/raw/0123456789abcdef0123456789abcdef01234567/filename
-    /// becomes https://gist.githubusercontent.com/user/id/raw/filename
-    /// </summary>
-    public static string NormalizeGistRawUrl(string rawUrl)
-    {
-        if (string.IsNullOrWhiteSpace(rawUrl))
-        {
-            return rawUrl;
-        }
-
-        return Regex.Replace(rawUrl, @"/raw/[0-9a-fA-F]{40}/", "/raw/");
     }
 }

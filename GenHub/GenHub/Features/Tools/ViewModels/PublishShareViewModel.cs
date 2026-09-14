@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -1468,8 +1469,21 @@ public partial class PublishShareViewModel : ObservableObject
                     archiveName += ".zip";
                 }
 
+                if (string.IsNullOrWhiteSpace(task.Artifact.Filename))
+                {
+                    task.Artifact.Filename = archiveName;
+                }
+
                 tempZipToCleanup = Path.Combine(tempDir, $"{Guid.NewGuid():N}_{archiveName}");
-                ZipFile.CreateFromDirectory(task.Artifact.LocalFilePath, tempZipToCleanup);
+                await Task.Run(() => ZipFile.CreateFromDirectory(task.Artifact.LocalFilePath, tempZipToCleanup));
+
+                using (var hashStream = File.OpenRead(tempZipToCleanup))
+                using (var sha256 = SHA256.Create())
+                {
+                    var hashBytes = await sha256.ComputeHashAsync(hashStream);
+                    task.Artifact.Sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                }
+
                 stream = File.OpenRead(tempZipToCleanup);
                 task.Artifact.Size = stream.Length;
             }
@@ -1493,66 +1507,73 @@ public partial class PublishShareViewModel : ObservableObject
                     UploadProgress = (int)(((double)(current - 1) / total * 80) + (p / total * 80.0 / 100.0));
                 });
 
-                var uploadFileName = string.IsNullOrWhiteSpace(task.Artifact.Filename)
-                    ? (tempZipToCleanup != null ? Path.GetFileName(tempZipToCleanup) : Path.GetFileName(task.Artifact.LocalFilePath))
-                    : task.Artifact.Filename;
+                var uploadFileName = !string.IsNullOrWhiteSpace(task.Artifact.Filename)
+                    ? task.Artifact.Filename
+                    : Path.GetFileName(task.Artifact.LocalFilePath);
 
                 var result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, CancellationToken.None);
-            if (result.Success && result.Data != null)
-            {
-                task.Artifact.DownloadUrl = result.Data.DirectDownloadUrl;
-                task.Status = UploadStatus.Uploaded;
-                task.Progress = 100;
-                _logger.LogInformation("Uploaded artifact {File} to {Url}", task.Artifact.Filename, task.Artifact.DownloadUrl);
-
-                if (_currentHostingState != null)
+                if (result.Success && result.Data != null)
                 {
-                    var existingArt = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == task.Artifact.Filename);
-                    if (existingArt != null)
+                    task.Artifact.DownloadUrl = result.Data.DirectDownloadUrl;
+                    task.Status = UploadStatus.Uploaded;
+                    task.Progress = 100;
+                    _logger.LogInformation("Uploaded artifact {File} to {Url}", task.Artifact.Filename, task.Artifact.DownloadUrl);
+
+                    if (_currentHostingState != null)
                     {
-                        existingArt.FileId = result.Data.FileId;
-                        existingArt.Url = result.Data.DirectDownloadUrl;
-                        existingArt.FileSize = result.Data.FileSize;
-                        existingArt.LastUpdated = DateTime.UtcNow;
-                    }
-                    else
-                    {
-                        _currentHostingState.Artifacts.Add(new ArtifactHostingInfo
+                        var existingArt = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == task.Artifact.Filename);
+                        if (existingArt != null)
                         {
-                            FileName = task.Artifact.Filename,
-                            FileId = result.Data.FileId,
-                            Url = result.Data.DirectDownloadUrl,
-                            FileSize = result.Data.FileSize,
-                            ContentId = task.ContentId,
-                            Version = task.Version,
-                            Sha256 = task.Artifact.Sha256,
-                            LastUpdated = DateTime.UtcNow,
-                            IsExternalCdn = false,
-                        });
+                            existingArt.FileId = result.Data.FileId;
+                            existingArt.Url = result.Data.DirectDownloadUrl;
+                            existingArt.FileSize = result.Data.FileSize;
+                            existingArt.LastUpdated = DateTime.UtcNow;
+                        }
+                        else
+                        {
+                            _currentHostingState.Artifacts.Add(new ArtifactHostingInfo
+                            {
+                                FileName = task.Artifact.Filename,
+                                FileId = result.Data.FileId,
+                                Url = result.Data.DirectDownloadUrl,
+                                FileSize = result.Data.FileSize,
+                                ContentId = task.ContentId,
+                                Version = task.Version,
+                                Sha256 = task.Artifact.Sha256,
+                                LastUpdated = DateTime.UtcNow,
+                                IsExternalCdn = false,
+                            });
+                        }
+
+                        RefreshHostedAssets();
+
+                        if (!string.IsNullOrEmpty(_project.ProjectPath))
+                        {
+                            await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+                        }
                     }
 
-                    RefreshHostedAssets();
-
-                    if (!string.IsNullOrEmpty(_project.ProjectPath))
-                    {
-                        await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
-                    }
+                    return true;
                 }
 
-                return true;
-            }
-
-            task.Status = UploadStatus.Failed;
-            task.ErrorMessage = result.FirstError ?? "Upload failed";
-            UploadStatusMessage = $"Failed to upload {task.Artifact.Filename}: {result.FirstError}";
-            return false;
+                task.Status = UploadStatus.Failed;
+                task.ErrorMessage = result.FirstError ?? "Upload failed";
+                UploadStatusMessage = $"Failed to upload {task.Artifact.Filename}: {result.FirstError}";
+                return false;
             }
             finally
             {
                 await stream.DisposeAsync();
                 if (tempZipToCleanup != null && File.Exists(tempZipToCleanup))
                 {
-                    try { File.Delete(tempZipToCleanup); } catch { /* best effort */ }
+                    try
+                    {
+                        File.Delete(tempZipToCleanup);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // Best effort cleanup
+                    }
                 }
             }
         }

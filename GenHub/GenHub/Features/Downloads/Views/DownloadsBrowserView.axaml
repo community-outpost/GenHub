@@ -233,7 +233,7 @@
                         HorizontalAlignment="Stretch"
                         ToolTip.Tip="Import a publisher definition or catalog via URL or genhub:// link">
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                        <PathIcon Data="{DynamicResource CloudIcon}"
+                        <PathIcon Data="{DynamicResource CloudStorageIcon}"
                                   Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
                         <TextBlock Text="Import / Subscribe" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
                     </StackPanel>

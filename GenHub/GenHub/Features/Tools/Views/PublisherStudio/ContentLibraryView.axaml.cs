@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -30,14 +32,21 @@ public partial class ContentLibraryView : UserControl
     {
         if (DataContext is not ContentLibraryViewModel vm) return;
 
-        var files = e.Data.GetFiles();
-        if (files != null)
+        try
         {
-            var first = files.FirstOrDefault();
-            if (first?.Path?.LocalPath is { } path)
+            var files = e.Data.GetFiles();
+            if (files != null)
             {
-                await vm.AddContentWithPathAsync(path);
+                var first = files.FirstOrDefault();
+                if (first?.Path?.LocalPath is { } path)
+                {
+                    await vm.AddContentWithPathAsync(path);
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to add dropped content: {ex}");
         }
     }
 }
