@@ -312,6 +312,11 @@ public partial class GenHotkeysViewModel(
         ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
+        StatusMessage = $"Assigned hotkey '{upperKey}' to '{SelectedAction.DisplayName}'.";
+        notificationService?.ShowSuccess(
+            "Hotkey Assigned",
+            $"Assigned '{upperKey}' to '{SelectedAction.DisplayName}'.",
+            NotificationDurations.Short);
     }
 
     /// <summary>
@@ -348,6 +353,7 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
+        var actionName = SelectedAction.DisplayName;
         SelectedAction.Hotkey = null;
         SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
         SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
@@ -355,6 +361,12 @@ public partial class GenHotkeysViewModel(
         ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
+        var message = $"Cleared hotkey for '{actionName}'.";
+        StatusMessage = message;
+        notificationService?.ShowInfo(
+            "Hotkey Cleared",
+            message,
+            NotificationDurations.Short);
     }
 
     /// <summary>
@@ -396,7 +408,13 @@ public partial class GenHotkeysViewModel(
         ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
-        StatusMessage = $"Reset '{SelectedAction.DisplayName}' to default hotkey ({(SelectedAction.DefaultHotkey.HasValue ? SelectedAction.DefaultHotkey.Value.ToString() : "None")}).";
+        var keyDisplay = SelectedAction.DefaultHotkey.HasValue ? SelectedAction.DefaultHotkey.Value.ToString() : "None";
+        var message = $"Reset '{SelectedAction.DisplayName}' to default hotkey ({keyDisplay}).";
+        StatusMessage = message;
+        notificationService?.ShowInfo(
+            "Hotkey Reset",
+            message,
+            NotificationDurations.Short);
     }
 
     /// <summary>
@@ -452,9 +470,18 @@ public partial class GenHotkeysViewModel(
                 ValidateConflicts();
             }
 
-            StatusMessage = savedProfile == null
+            var message = savedProfile == null
                 ? $"Failed to save profile after applying preset '{presetName}'."
                 : $"Applied '{presetName}' preset hotkeys.";
+            StatusMessage = message;
+            if (savedProfile != null)
+            {
+                notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
+            }
+            else
+            {
+                notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
+            }
         }
     }
 
@@ -483,7 +510,12 @@ public partial class GenHotkeysViewModel(
         ValidateConflicts();
 
         var keyDisplay = targetKey.HasValue ? targetKey.Value.ToString() : "None";
-        StatusMessage = $"Applied hotkey '{keyDisplay}' to {matchingCount} '{targetName}' action{(matchingCount == 1 ? string.Empty : "s")}.";
+        var message = $"Applied hotkey '{keyDisplay}' to {matchingCount} '{targetName}' action{(matchingCount == 1 ? string.Empty : "s")}.";
+        StatusMessage = message;
+        notificationService?.ShowSuccess(
+            "Hotkey Applied to All",
+            message,
+            NotificationDurations.Short);
     }
 
     /// <summary>
@@ -497,7 +529,9 @@ public partial class GenHotkeysViewModel(
         var name = string.IsNullOrWhiteSpace(NewProfileName) ? $"Profile {Profiles.Count + 1}" : NewProfileName.Trim();
         if (Profiles.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
-            StatusMessage = $"A profile named '{name}' already exists.";
+            var msg = $"A profile named '{name}' already exists.";
+            StatusMessage = msg;
+            notificationService?.ShowWarning("Profile Exists", msg, NotificationDurations.Medium);
             return;
         }
 
@@ -523,7 +557,9 @@ public partial class GenHotkeysViewModel(
 
             SortProfilesByName(savedProfile);
             NewProfileName = string.Empty;
-            StatusMessage = $"Created profile '{name}'.";
+            var successMsg = $"Created profile '{name}'.";
+            StatusMessage = successMsg;
+            notificationService?.ShowSuccess("Profile Created", successMsg, NotificationDurations.Short);
         }
         catch (OperationCanceledException)
         {
@@ -553,6 +589,7 @@ public partial class GenHotkeysViewModel(
         if (string.IsNullOrWhiteSpace(newName))
         {
             StatusMessage = "Profile name cannot be empty.";
+            notificationService?.ShowWarning("Profile Error", "Profile name cannot be empty.", NotificationDurations.Short);
             return;
         }
 
@@ -564,7 +601,9 @@ public partial class GenHotkeysViewModel(
         var currentProfile = SelectedProfile;
         if (Profiles.Any(p => !ReferenceEquals(p, currentProfile) && string.Equals(p.Name, newName, StringComparison.OrdinalIgnoreCase)))
         {
-            StatusMessage = $"A profile named '{newName}' already exists.";
+            var msg = $"A profile named '{newName}' already exists.";
+            StatusMessage = msg;
+            notificationService?.ShowWarning("Profile Exists", msg, NotificationDurations.Medium);
             return;
         }
 
@@ -582,7 +621,9 @@ public partial class GenHotkeysViewModel(
         SortProfilesByName(targetToReselect);
 
         await CheckExistingAddonAsync(cancellationToken);
-        StatusMessage = $"Renamed profile '{oldName}' to '{newName}'.";
+        var successMsg = $"Renamed profile '{oldName}' to '{newName}'.";
+        StatusMessage = successMsg;
+        notificationService?.ShowSuccess("Profile Renamed", successMsg, NotificationDurations.Short);
     }
 
     /// <summary>
@@ -596,6 +637,7 @@ public partial class GenHotkeysViewModel(
         if (SelectedProfile == null || Profiles.Count <= 1)
         {
             StatusMessage = "Cannot delete the only remaining profile.";
+            notificationService?.ShowWarning("Profile Error", "Cannot delete the only remaining profile.", NotificationDurations.Medium);
             return;
         }
 
@@ -631,7 +673,9 @@ public partial class GenHotkeysViewModel(
             Profiles.Remove(toDelete);
             SelectedProfile = Profiles.FirstOrDefault();
 
-            StatusMessage = $"Deleted profile '{toDelete.Name}'.";
+            var successMsg = $"Deleted profile '{toDelete.Name}'.";
+            StatusMessage = successMsg;
+            notificationService?.ShowSuccess("Profile Deleted", successMsg, NotificationDurations.Short);
         }
         catch (OperationCanceledException)
         {
@@ -1510,9 +1554,18 @@ public partial class GenHotkeysViewModel(
                 ValidateConflicts();
             }
 
-            StatusMessage = savedProfile != null
+            var message = savedProfile != null
                 ? "Applied default vanilla retail hotkeys."
                 : "Failed to save profile after applying Vanilla preset.";
+            StatusMessage = message;
+            if (savedProfile != null)
+            {
+                notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
+            }
+            else
+            {
+                notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -1576,9 +1629,18 @@ public partial class GenHotkeysViewModel(
                 ValidateConflicts();
             }
 
-            StatusMessage = savedProfile != null
+            var message = savedProfile != null
                 ? $"Applied {presetName} preset hotkeys."
                 : $"Failed to save profile after applying {presetName} preset.";
+            StatusMessage = message;
+            if (savedProfile != null)
+            {
+                notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
+            }
+            else
+            {
+                notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
+            }
         }
         catch (OperationCanceledException)
         {
