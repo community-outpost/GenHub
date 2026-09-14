@@ -89,33 +89,40 @@ public class CsfFile
             var labelBytes = reader.ReadBytes((int)labelLen);
             var labelName = Encoding.ASCII.GetString(labelBytes);
 
-            if (numStringPairs == 0)
+            for (uint s = 0; s < numStringPairs; s++)
             {
-                continue;
+                // Read string header ' RTS' or 'WRTS'
+                var rtsMagic = reader.ReadBytes(4);
+                if (rtsMagic.Length < 4)
+                {
+                    break;
+                }
+
+                var numChars = reader.ReadUInt32();
+
+                // Characters are 16-bit UTF-16 inverted with bitwise NOT (~)
+                var chars = new char[numChars];
+                for (uint c = 0; c < numChars; c++)
+                {
+                    var raw = reader.ReadUInt16();
+                    chars[c] = (char)~raw;
+                }
+
+                var stringValue = new string(chars);
+
+                // Handle WRTS extra string if present
+                if (rtsMagic[0] == (byte)'W')
+                {
+                    var extraLength = reader.ReadUInt32();
+                    _ = reader.ReadBytes((int)extraLength);
+                }
+
+                // Primary string value for the label is the first string pair
+                if (s == 0)
+                {
+                    csf._strings[labelName] = stringValue;
+                }
             }
-
-            // Read string header ' RTS' or 'WRTS'
-            var rtsMagic = reader.ReadBytes(4);
-            var numChars = reader.ReadUInt32();
-
-            // Characters are 16-bit UTF-16 inverted with bitwise NOT (~)
-            var chars = new char[numChars];
-            for (uint c = 0; c < numChars; c++)
-            {
-                var raw = reader.ReadUInt16();
-                chars[c] = (char)~raw;
-            }
-
-            var stringValue = new string(chars);
-
-            // Handle WRTS extra string if present
-            if (rtsMagic.Length > 0 && rtsMagic[0] == (byte)'W')
-            {
-                var extraLength = reader.ReadUInt32();
-                _ = reader.ReadBytes((int)extraLength);
-            }
-
-            csf._strings[labelName] = stringValue;
         }
 
         return csf;

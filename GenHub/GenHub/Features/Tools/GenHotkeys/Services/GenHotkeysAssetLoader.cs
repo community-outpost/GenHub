@@ -17,7 +17,7 @@ internal static class GenHotkeysAssetLoader
     /// <summary>
     /// Attempts to open an asset stream for a relative path under Assets/GenHotkeys.
     /// </summary>
-    /// <param name="relativePath">The relative path to the asset (e.g. "Presets/CommandMap.ini").</param>
+    /// <param name="relativePath">The relative path to the asset (e.g. "Presets/VanillaZH.csf").</param>
     /// <returns>A readable <see cref="Stream"/> if the asset was found; otherwise, <see langword="null"/>.</returns>
     public static Stream? TryOpenAssetStream(string relativePath)
     {
@@ -89,7 +89,7 @@ internal static class GenHotkeysAssetLoader
 
         try
         {
-            var uri = new Uri(string.Format(GenHotkeysConstants.FactionIconUriPattern, filename));
+            var uri = new Uri(string.Format(System.Globalization.CultureInfo.InvariantCulture, GenHotkeysConstants.FactionIconUriPattern, filename));
             if (AssetLoader.Exists(uri))
             {
                 return AssetLoader.Open(uri);
@@ -97,7 +97,7 @@ internal static class GenHotkeysAssetLoader
         }
         catch
         {
-            // Ignore and return null
+            // Ignore and fall back to null
         }
 
         return null;

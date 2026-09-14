@@ -128,6 +128,74 @@ public class CsfFileTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="CsfFile.Load(Stream)"/> correctly reads CSF labels with multiple string pairs,
+    /// consuming all pairs so subsequent labels parse correctly without stream desynchronization.
+    /// </summary>
+    [Fact]
+    public void Load_WithMultipleStringPairsPerLabel_ConsumesAllAndReadsSubsequentLabels()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.ASCII, leaveOpen: true))
+        {
+            // Header
+            writer.Write(new[] { (byte)' ', (byte)'F', (byte)'S', (byte)'C' });
+            writer.Write(3u); // Version
+            writer.Write(2u); // NumLabels
+            writer.Write(3u); // NumStrings
+            writer.Write(0u); // UselessBytes
+            writer.Write(0u); // LanguageCode
+
+            // Label 1: 2 string pairs
+            writer.Write(new[] { (byte)' ', (byte)'L', (byte)'B', (byte)'L' });
+            writer.Write(2u); // NumStringPairs
+            var lbl1Bytes = System.Text.Encoding.ASCII.GetBytes("FIRST_LABEL");
+            writer.Write((uint)lbl1Bytes.Length);
+            writer.Write(lbl1Bytes);
+
+            // Pair 1 (RTS)
+            writer.Write(new[] { (byte)' ', (byte)'R', (byte)'T', (byte)'S' });
+            writer.Write((uint)"FirstValue".Length);
+            foreach (var ch in "FirstValue")
+            {
+                writer.Write((ushort)~ch);
+            }
+
+            // Pair 2 (WRTS with extra bytes)
+            writer.Write(new[] { (byte)'W', (byte)'R', (byte)'T', (byte)'S' });
+            writer.Write((uint)"SecondValue".Length);
+            foreach (var ch in "SecondValue")
+            {
+                writer.Write((ushort)~ch);
+            }
+
+            writer.Write(4u); // ExtraLength
+            writer.Write(new byte[] { 1, 2, 3, 4 }); // Extra data
+
+            // Label 2: 1 string pair
+            writer.Write(new[] { (byte)' ', (byte)'L', (byte)'B', (byte)'L' });
+            writer.Write(1u); // NumStringPairs
+            var lbl2Bytes = System.Text.Encoding.ASCII.GetBytes("SECOND_LABEL");
+            writer.Write((uint)lbl2Bytes.Length);
+            writer.Write(lbl2Bytes);
+
+            // Pair 1 (RTS)
+            writer.Write(new[] { (byte)' ', (byte)'R', (byte)'T', (byte)'S' });
+            writer.Write((uint)"SecondLabelValue".Length);
+            foreach (var ch in "SecondLabelValue")
+            {
+                writer.Write((ushort)~ch);
+            }
+        }
+
+        stream.Position = 0;
+        var csf = CsfFile.Load(stream);
+
+        Assert.Equal(2, csf.Count);
+        Assert.Equal("FirstValue", csf.GetString("FIRST_LABEL"));
+        Assert.Equal("SecondLabelValue", csf.GetString("SECOND_LABEL"));
+    }
+
+    /// <summary>
     /// Verifies that all registered shortcut label aliases are defined and non-empty.
     /// </summary>
     [Fact]

@@ -58,6 +58,7 @@ public partial class GenHotkeysViewModel(
         HotkeyActionViewModel? ActionVm = null);
 
     private const string CreateAddonText = "Create Addon";
+    private const string UpdateAddonText = "Update Addon";
     private const string AddToProfileText = "Add to Profile";
     private const string DefaultApplyToAllText = "Apply to All";
 
@@ -155,6 +156,9 @@ public partial class GenHotkeysViewModel(
 
     [ObservableProperty]
     private string _addonButtonText = CreateAddonText;
+
+    [ObservableProperty]
+    private string _addonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
 
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
@@ -652,6 +656,7 @@ public partial class GenHotkeysViewModel(
             HasExistingAddon = false;
             ExistingAddonManifest = null;
             AddonButtonText = CreateAddonText;
+            AddonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
             return;
         }
 
@@ -672,14 +677,16 @@ public partial class GenHotkeysViewModel(
                 HasExistingAddon = false;
                 ExistingAddonManifest = null;
                 AddonButtonText = CreateAddonText;
+                AddonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
                 return;
             }
 
             var match = manifestsResult.Data.FirstOrDefault(m =>
-                m.ContentType == ContentType.Addon &&
+                (!string.IsNullOrWhiteSpace(SelectedProfile.AddonManifestId) && string.Equals(m.Id.Value, SelectedProfile.AddonManifestId, StringComparison.OrdinalIgnoreCase)) ||
+                (m.ContentType == ContentType.Addon &&
                 (m.TargetGame == SelectedGame || m.TargetGame == GameType.Unknown) &&
                 (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase) ||
-                 (m.Files?.Any(f => f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true)));
+                 (m.Files?.Any(f => f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true))));
 
             if (cancellationToken.IsCancellationRequested || SelectedProfile?.Id != currentProfileId)
             {
@@ -688,7 +695,17 @@ public partial class GenHotkeysViewModel(
 
             ExistingAddonManifest = match;
             HasExistingAddon = match is not null;
-            AddonButtonText = CreateAddonText;
+            if (match is not null)
+            {
+                SelectedProfile.AddonManifestId = match.Id.Value;
+                AddonButtonText = UpdateAddonText;
+                AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+            }
+            else
+            {
+                AddonButtonText = CreateAddonText;
+                AddonButtonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
+            }
         }
         catch (OperationCanceledException)
         {
@@ -801,26 +818,40 @@ public partial class GenHotkeysViewModel(
         try
         {
             IsBusy = true;
-            BusyMessage = "Building .big archive and registering GenHub Addon...";
+            var existingId = ExistingAddonManifest?.Id.Value ?? SelectedProfile.AddonManifestId;
+            var isUpdate = !string.IsNullOrEmpty(existingId);
+            BusyMessage = isUpdate
+                ? "Updating .big archive and GenHub Addon..."
+                : "Building .big archive and registering GenHub Addon...";
 
             var progress = new Progress<string>(msg => BusyMessage = msg);
-            var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress, cancellationToken);
+            var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress, existingId, cancellationToken);
 
             if (result is { Success: true, Data: not null })
             {
                 var bigFileName = GenHotkeysConstants.GetBigFileName(SelectedProfile.Name, SelectedGame);
                 ExistingAddonManifest = result.Data;
                 HasExistingAddon = true;
-                AddonButtonText = CreateAddonText;
-                StatusMessage = $"Success! Addon '{result.Data.Name}' registered in GenHub!";
+                SelectedProfile.AddonManifestId = result.Data.Id.Value;
+                AddonButtonText = UpdateAddonText;
+                AddonButtonToolTip = $"Update the existing Addon '{result.Data.Name}' with current hotkey settings.";
+                StatusMessage = isUpdate
+                    ? $"Success! Addon '{result.Data.Name}' updated in GenHub!"
+                    : $"Success! Addon '{result.Data.Name}' registered in GenHub!";
+
+                _ = SaveCurrentProfileAsync(cancellationToken);
 
                 if (notificationService is not null)
                 {
                     var capturedManifest = result.Data;
+                    var title = isUpdate ? "Hotkey Addon Updated" : "Hotkey Addon Created";
+                    var message = isUpdate
+                        ? $"Updated '{bigFileName}' successfully."
+                        : $"Created '{bigFileName}' successfully and stored in CAS.";
                     var notification = new NotificationMessage(
                         NotificationType.Success,
-                        "Hotkey Addon Created",
-                        $"Created '{bigFileName}' successfully and stored in CAS.",
+                        title,
+                        message,
                         autoDismissMilliseconds: NotificationDurations.Long,
                         actionText: AddToProfileText,
                         action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(capturedManifest)));

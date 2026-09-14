@@ -151,7 +151,7 @@ public static class GenHotkeysConstants
     public const string ToolName = "Hotkeys Editor";
 
     /// <summary>Tool description.</summary>
-    public const string ToolDescription = "Visual hotkey editor for C&C Generals & Zero Hour with icon overlays and direct .big addon integration.";
+    public const string ToolDescription = "Visual hotkey editor for C&C Generals & Zero Hour with icon overlays and direct .big addon integration (English string table).";
 
     /// <summary>Tool icon URI.</summary>
     public const string ToolIconUri = UriConstants.HotkeysEditorIconUri;
@@ -199,9 +199,6 @@ public static class GenHotkeysConstants
     /// <summary>Storage directory name for user hotkey profiles.</summary>
     public const string HotkeysStorageDirectory = "Hotkeys";
 
-    /// <summary>Default CommandMap filename.</summary>
-    public const string CommandMapFileName = "CommandMap.ini";
-
     /// <summary>Standard CSF filename.</summary>
     public const string GeneralsCsfFileName = "generals.csf";
 
@@ -216,9 +213,6 @@ public static class GenHotkeysConstants
 
     /// <summary>Preset path for English CSF (Legionnaire layout).</summary>
     public const string PresetsLegionnaireEn = "Presets/LegionnaireEN.csf";
-
-    /// <summary>Preset path for CommandMap.ini.</summary>
-    public const string PresetsCommandMap = "Presets/CommandMap.ini";
 
     /// <summary>Tech tree relative path for Generals.</summary>
     public const string TechTreeGenerals = "Profiles/Generals/TechTree.json";
