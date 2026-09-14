@@ -1,7 +1,18 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.GenHotkeys;
+using GenHub.Features.Tools.GenHotkeys.Services;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;
 
@@ -10,6 +21,118 @@ namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;
 /// </summary>
 public class GenHotkeysConflictTests
 {
+    private readonly ITestOutputHelper _output;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenHotkeysConflictTests"/> class.
+    /// </summary>
+    /// <param name="output">The test output helper.</param>
+    public GenHotkeysConflictTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    /// <summary>
+    /// Verifies that neither the Leikeze nor the Legionnaire preset produces any layout conflicts across any faction or game object.
+    /// </summary>
+    [Fact]
+    public async Task PresetValidation_LeikezeAndLegionnaire_ProduceZeroConflicts()
+    {
+        var service = new TechTreeService(Mock.Of<ILogger<TechTreeService>>());
+        var allFailures = new List<string>();
+
+        foreach (var game in new[] { GameType.ZeroHour, GameType.Generals })
+        {
+            var factions = await service.LoadTechTreeAsync(game);
+            var presets = new[]
+            {
+                ("Leikeze", GenHotkeysConstants.PresetsLeikezeEn),
+                ("Legionnaire", GenHotkeysConstants.PresetsLegionnaireEn),
+            };
+
+            foreach (var (presetName, presetPath) in presets)
+            {
+                using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetPath);
+                Assert.NotNull(stream);
+                var csf = CsfFile.Load(stream);
+
+                var profile = new HotkeyProfile { BasePreset = presetName };
+                foreach (var kvp in csf.Strings)
+                {
+                    var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+                    if (hotkey.HasValue)
+                    {
+                        profile.KeyMappings[kvp.Key] = hotkey.Value;
+                    }
+                }
+
+                var conflictList = new List<string>();
+
+                foreach (var faction in factions)
+                {
+                    foreach (var obj in faction.GameObjects)
+                    {
+                        var objName = obj.Name ?? obj.DisplayName;
+                        var factionCode = faction.ShortName ?? faction.DisplayName;
+
+                        foreach (var layout in obj.KeyboardLayouts)
+                        {
+                            var vms = layout.Select(a =>
+                            {
+                                char? key = null;
+                                if (profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey))
+                                {
+                                    key = mappedKey;
+                                }
+                                else
+                                {
+                                    key = a.DefaultHotkey;
+                                }
+
+                                return new HotkeyActionViewModel
+                                {
+                                    DisplayName = a.DisplayName ?? string.Empty,
+                                    IconName = a.IconName ?? string.Empty,
+                                    HotkeyString = a.HotkeyString ?? string.Empty,
+                                    Hotkey = key,
+                                };
+                            }).ToList();
+
+                            var obs = new ObservableCollection<HotkeyActionViewModel>(vms);
+                            var conflicts = GenHotkeysViewModel.ValidateLayoutConflicts(obs, objName, factionCode);
+                            if (conflicts > 0)
+                            {
+                                var conflictingActions = obs.Where(x => x.IsConflict).ToList();
+                                foreach (var group in conflictingActions.GroupBy(x => x.Hotkey))
+                                {
+                                    conflictList.Add(
+                                        $"[{game}][{presetName}][{faction.ShortName}][{objName}] Key '{group.Key}': " +
+                                        string.Join(" vs ", group.Select(x => $"{x.DisplayName} ({x.HotkeyString})")));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                _output.WriteLine($"=== Conflicts for {game} {presetName} (Total {conflictList.Count}) ===");
+                foreach (var c in conflictList)
+                {
+                    _output.WriteLine(c);
+                }
+
+                if (conflictList.Count > 0)
+                {
+                    allFailures.Add($"[{game} {presetName}: {conflictList.Count} conflicts]\n" + string.Join("\n", conflictList));
+                }
+            }
+        }
+
+        if (allFailures.Count > 0)
+        {
+            Assert.Fail("Conflicts detected across presets:\n\n" + string.Join("\n\n", allFailures));
+        }
+    }
+
     /// <summary>
     /// Verifies that Daisy Cutter (Fuel Air Bomb) and MOAB sharing the same hotkey are treated as mutually exclusive upgrades, not conflicts.
     /// </summary>
