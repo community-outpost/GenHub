@@ -883,10 +883,39 @@
     }
 
     // -------------------------------------------------------------
-    // SETTINGS TAB INTERACTIVITY
+    // SETTINGS TAB INTERACTIVITY (Avalonia Expander & Sidebar Nav)
     // -------------------------------------------------------------
     const settingNavBtns = document.querySelectorAll('.gh-setting-nav-btn');
-    const settingsContent = document.querySelector('.gh-settings-content');
+    const settingsContent = document.getElementById('ghSettingsScrollContainer') || document.querySelector('.gh-settings-content');
+
+    // Accordion toggle on headers
+    document.querySelectorAll('.gh-expander-header').forEach(header => {
+        header.addEventListener('click', (e) => {
+            e.preventDefault();
+            const expander = header.closest('.gh-settings-expander');
+            if (expander) {
+                expander.classList.toggle('open');
+            }
+        });
+    });
+
+    // Expand All / Collapse All buttons
+    const expandAllBtn = document.getElementById('ghExpandAllSettingsBtn');
+    const collapseAllBtn = document.getElementById('ghCollapseAllSettingsBtn');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.gh-settings-expander').forEach(el => el.classList.add('open'));
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.gh-settings-expander').forEach(el => el.classList.remove('open'));
+        });
+    }
+
+    // Sidebar navigation jumps to and opens the target expander
     settingNavBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -898,6 +927,7 @@
             const targetId = btn.getAttribute('data-s-target');
             const targetEl = document.getElementById(targetId);
             if (targetEl && settingsContent) {
+                targetEl.classList.add('open');
                 const targetTop = targetEl.offsetTop - settingsContent.offsetTop;
                 settingsContent.scrollTo({
                     top: Math.max(0, targetTop - 12),
@@ -982,7 +1012,106 @@
     // -------------------------------------------------------------
     const infoNavBtns = document.querySelectorAll('.gh-info-nav-btn');
     const infoData = {
-    "quickstart": {
+            "zh_problems_game": {
+            "id": "zh_problems_game",
+            "title": "Problems with the Game",
+            "desc": "Common startup, crash, and graphic issues for C&C Generals Zero Hour and their verified fixes.",
+            "cards": [
+                {
+                    "title": "My game crashes on start-up",
+                    "content": "Generals crashes immediately upon launch or produces a DirectX 8.1 / Technical Difficulties error.",
+                    "type": "Crash Fix",
+                    "detailed": "**Cause:** Missing or invalid Options.ini configuration file, incorrect display resolution, or missing legacy DirectX 9 runtimes.\n\n**Solution:**\n1. GenHub automatically generates a valid Options.ini in your profile sandbox.\n2. Open **Game Profiles** -> Select your profile -> Click **Settings** (Gear icon).\n3. Set your native screen resolution (e.g. 1920x1080, 2560x1440).\n4. Ensure **Borderless Window Hook** is enabled under profile addons.\n5. Alternatively, run GenPatcher from the **Tools** tab to automatically restore corrupt base game installations."
+                },
+                {
+                    "title": "My game crashes after 10 to 30 minutes of gameplay",
+                    "content": "The game randomly crashes mid-battle or during large skirmishes without any warning dialog.",
+                    "type": "Crash Fix",
+                    "detailed": "**Cause:** The 32-bit SAGE engine exceeds its 2GB virtual memory address space limit when loading high-resolution assets or mods.\n\n**Solution:**\n1. GenHub's **GeneralsGameCode Engine Patch** enables the **Large Address Aware (LAA)** flag, granting access up to 4GB RAM.\n2. Install **GenTool 8.9** from the Downloads tab to fix audio buffer leaks.\n3. Lower dynamic particle effects and disable 3D shadows in high-unit count matches."
+                },
+                {
+                    "title": "My game crashes after using Alt + Tab",
+                    "content": "Minimizing or Alt-Tabbing causes a frozen screen or Direct3D surface loss error.",
+                    "type": "DirectX Fix",
+                    "detailed": "**Cause:** Legacy DirectX 8 does not support dynamic device loss recovery when leaving exclusive fullscreen.\n\n**Solution:**\n* Enable **Borderless Window Hook** in your profile settings.\n* Borderless mode allows instant Alt-Tabbing across dual monitors with full cursor locking and zero crash risk."
+                },
+                {
+                    "title": "My base blows up within 30 seconds",
+                    "content": "All structures explode and defeat screen appears immediately after starting a match.",
+                    "type": "Copy Protection",
+                    "detailed": "**Cause:** Built-in copy protection desynchronization triggered by duplicate CD keys on LAN or corrupt registry serial entries.\n\n**Solution:**\n1. Open **Tools** -> Run **GenPatcher** to regenerate and clean your registry serial hashes.\n2. Ensure all players on LAN/matchmaking have unique installation keys."
+                },
+                {
+                    "title": "In-game edge-based mouse scrolling is not working",
+                    "content": "Moving the mouse cursor to the edges of the monitor does not pan the battlefield view.",
+                    "type": "Input Fix",
+                    "detailed": "**Cause:** Windows 10/11 high-DPI display scaling interferes with standard cursor border coordinates.\n\n**Solution:**\n1. In GenHub, navigate to Profile Settings -> Compatibility.\n2. Enable **Disable High DPI Scaling Override**.\n3. Or enable GenTool mouse clipping (Scroll3D=1)."
+                },
+                {
+                    "title": "The game feels slow and sluggish",
+                    "content": "Frame rates stutter or match speed lags even on modern high-end gaming CPUs.",
+                    "type": "Performance",
+                    "detailed": "**Cause:** Modern multi-core CPUs downclocking or scheduling threads incorrectly across E-cores / P-cores.\n\n**Solution:**\n1. Lock game process affinity to 2 physical CPU cores in GenHub Profile Settings.\n2. Ensure GenTool is enabled with dynamic frame timing unlocked (FPS=60)."
+                }
+            ]
+        },
+        "zh_problems_multiplayer": {
+            "id": "zh_problems_multiplayer",
+            "title": "Problems with Multiplayer",
+            "desc": "Resolving network connectivity, NAT traversal, mismatch errors, and ladder synchronization.",
+            "cards": [
+                {
+                    "title": "Unable to establish connection to other players",
+                    "content": "Connection times out when attempting to join a lobby or direct connect match.",
+                    "type": "Network Fix",
+                    "detailed": "**Cause:** Original GameSpy master servers were shut down in 2014, and legacy direct peer-to-peer connections require strict port forwarding.\n\n**Solution:**\n1. Use the integrated **Generals Online** client included with GenHub.\n2. Generals Online automatically routes traffic through global low-latency TURN/relay servers, bypassing symmetric NAT and carrier-grade NAT (CGNAT) without manual router configuration."
+                },
+                {
+                    "title": "Mismatch Error (Game Desync)",
+                    "content": "A 'Mismatch has occurred' popup appears and the game immediately halts for all players.",
+                    "type": "Desync Fix",
+                    "detailed": "**Cause:** INI file mismatches, differing mod builds, or modified .big files between players.\n\n**Solution:**\n1. Always launch games from the exact same GenHub profile version.\n2. GenHub uses cryptographic SHA-256 manifest verification on profile creation to ensure byte-level synchronization with your opponents."
+                },
+                {
+                    "title": "Direct Connect / LAN Connection Failed",
+                    "content": "Players on the same local network or VPN cannot see each other in the LAN lobby.",
+                    "type": "Network Fix",
+                    "detailed": "**Cause:** Windows binds the game network socket to an inactive virtual network adapter (such as VMware or Docker).\n\n**Solution:**\n* In Options.ini, set IPAddress = <your_local_ip> to force Generals to listen on your primary LAN adapter."
+                },
+                {
+                    "title": "Port Forwarding and Firewall Setup",
+                    "content": "Manual port forwarding configuration for direct connection hosting.",
+                    "type": "Firewall",
+                    "detailed": "If hosting without Generals Online relays, open the following UDP ports in your router:\n* **UDP 8086-8088:** Gameplay simulation data\n* **UDP 27900:** Heartbeat and lobby query\n* **UDP 29900-29901:** Match stats and voice relay"
+                }
+            ]
+        },
+        "zh_general_faq": {
+            "id": "zh_general_faq",
+            "title": "Zero Hour FAQ",
+            "desc": "Frequently asked questions regarding game configuration, widescreen resolutions, and anti-cheat.",
+            "cards": [
+                {
+                    "title": "How do I play Zero Hour in modern widescreen (1440p / 4K)?",
+                    "content": "Standard retail Zero Hour only supports 4:3 resolutions (800x600, 1024x768).",
+                    "type": "Display Guide",
+                    "detailed": "**Enabling Widescreen:**\n1. In GenHub, select your profile and open Settings.\n2. Choose **2560x1440** or **3840x2160** from the Resolution dropdown.\n3. GenHub applies the widescreen camera aspect ratio patch via GenTool so graphics scale without visual distortion."
+                },
+                {
+                    "title": "What is GenTool and why is it mandatory for competitive play?",
+                    "content": "Understanding GenTool features, anti-cheat hashes, and ladder verification.",
+                    "type": "Tooling",
+                    "detailed": "**GenTool Features:**\n* Anti-cheat memory scanner verifying file integrity.\n* Dynamic widescreen camera zoom fix.\n* Spectator mode tools and match upload for community leaderboards.\n* Eliminates input lag and mouse cursor jitter on modern monitors."
+                },
+                {
+                    "title": "Can I play Zero Hour without Steam or EA App running?",
+                    "content": "Running standalone or retail CD installations with GenHub.",
+                    "type": "Compatibility",
+                    "detailed": "Yes! GenHub supports standalone retail CD copies, First Decade installations, The Ultimate Collection, and modern digital editions. Once your base files are linked, GenHub launches isolated sandboxes directly."
+                }
+            ]
+        },
+        "quickstart": {
         "id": "quickstart",
         "title": "Quickstart Guide",
         "desc": "Getting started with GenHub.",
@@ -1743,6 +1872,9 @@
     }
 
     function renderInfoSection(secKey) {
+        // Support section aliases
+        if (secKey === 'workspace' && infoData['workspaces']) secKey = 'workspaces';
+        if (secKey === 'faq' && infoData['gofaq']) secKey = 'gofaq';
         const section = infoData[secKey] || infoData['quickstart'];
         const titleEl = document.getElementById('ghInfoSectionTitle');
         const descEl = document.getElementById('ghInfoSectionDesc');
@@ -1810,13 +1942,15 @@
                         <button class="gh-info-nav-btn active" data-info-id="quickstart">Quickstart Guide</button>
                         <button class="gh-info-nav-btn" data-info-id="profiles">Game Profiles</button>
                         <button class="gh-info-nav-btn" data-info-id="settings">Game Settings</button>
-                        <button class="gh-info-nav-btn" data-info-id="content">Game Profile Content</button>
-                        <button class="gh-info-nav-btn" data-info-id="shortcuts">Shortcuts</button>
+                        <button class="gh-info-nav-btn" data-info-id="content">Profile Content</button>
+                        <button class="gh-info-nav-btn" data-info-id="shortcuts">Desktop Shortcuts</button>
                         <button class="gh-info-nav-btn" data-info-id="steam">Steam Integration</button>
                         <button class="gh-info-nav-btn" data-info-id="local">Local Content</button>
-                        <button class="gh-info-nav-btn" data-info-id="tools">Tools</button>
-                        <button class="gh-info-nav-btn" data-info-id="scangames">Scan For Games</button>
-                        <button class="gh-info-nav-btn" data-info-id="workspace">Workspace Isolation</button>
+                        <button class="gh-info-nav-btn" data-info-id="tools">Tools & Utilities</button>
+                        <button class="gh-info-nav-btn" data-info-id="gofaq">Generals Online FAQ</button>
+                        <button class="gh-info-nav-btn" data-info-id="gochange">Generals Online Changelog</button>
+                        <button class="gh-info-nav-btn" data-info-id="scangames">Game Detection</button>
+                        <button class="gh-info-nav-btn" data-info-id="workspaces">Virtual Workspaces</button>
                         <button class="gh-info-nav-btn" data-info-id="appupdates">App Updates</button>
                         <button class="gh-info-nav-btn" data-info-id="changelog">Changelog</button>
                     `;
@@ -1832,8 +1966,9 @@
             } else if (val === 'faq') {
                 if (navList) {
                     navList.innerHTML = `
-                        <button class="gh-info-nav-btn active" data-info-id="faq">Generals Online FAQ</button>
-                        <button class="gh-info-nav-btn" data-info-id="quickstart">Getting Started FAQ</button>
+                        <button class="gh-info-nav-btn active" data-info-id="zh_problems_game">Problems with the Game</button>
+                        <button class="gh-info-nav-btn" data-info-id="zh_problems_multiplayer">Problems with Multiplayer</button>
+                        <button class="gh-info-nav-btn" data-info-id="zh_general_faq">Frequently Asked Questions</button>
                     `;
                     navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
                         b.addEventListener('click', () => {
@@ -1843,7 +1978,7 @@
                         });
                     });
                 }
-                renderInfoSection('faq');
+                renderInfoSection('zh_problems_game');
             } else if (val === 'changelogs') {
                 if (navList) {
                     navList.innerHTML = `

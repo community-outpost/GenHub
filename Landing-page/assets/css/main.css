@@ -1738,13 +1738,17 @@ main {
 
 .gh-catalog-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-    padding: 16px 18px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+    padding: 16px 18px 75px 18px;
     flex: 1;
     min-height: 0;
     max-height: none;
     overflow-y: auto;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
 .gh-content-card {
@@ -1765,7 +1769,7 @@ main {
 }
 
 .gh-content-banner {
-    height: 105px;
+    height: 92px;
     position: relative;
     background-size: cover;
     background-position: center;
@@ -3255,21 +3259,49 @@ main {
     margin-bottom: 8px;
 }
 
+.gh-settings-content {
+    flex: 1;
+    padding: 20px 24px 80px 24px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
 .gh-settings-expander {
     background: #14141e;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 10px;
     overflow: hidden;
+    flex-shrink: 0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gh-settings-expander.open {
+    border-color: rgba(139, 92, 246, 0.45);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
 }
 
 .gh-expander-header {
     padding: 13px 18px;
     background: #171725;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.gh-expander-header:hover {
+    background: #1f1f34;
 }
 
 .gh-expander-title {
@@ -3281,8 +3313,28 @@ main {
     color: #ffffff;
 }
 
+.gh-expander-chevron {
+    width: 16px;
+    height: 16px;
+    color: #94a3b8;
+    flex-shrink: 0;
+    transition: transform 0.22s ease, color 0.2s ease;
+}
+
+.gh-settings-expander.open .gh-expander-chevron {
+    transform: rotate(180deg);
+    color: #c084fc;
+}
+
 .gh-expander-body {
-    padding: 18px;
+    display: none;
+    padding: 18px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: #111119;
+}
+
+.gh-settings-expander.open .gh-expander-body {
+    display: block;
 }
 
 .gh-data-dirs-grid {
@@ -3758,4 +3810,74 @@ main {
     justify-content: center;
     gap: 1rem;
     flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------- */
+/* UNIVERSAL DARK DROPDOWN (AVALONIA COMBOBOX) STYLING           */
+/* ------------------------------------------------------------- */
+.genhub-app-window select,
+.gh-form-select,
+.gh-downloads-filter,
+.gh-detail-select,
+#ghCatalogFilter,
+#ghDetailTargetProfile,
+#ghSettingStrategy,
+#ghInfoModuleSelect,
+#ghProfileGameType,
+#ghProfileStrategy,
+#ghGameResPreset {
+    color-scheme: dark !important;
+    background-color: #171725 !important;
+    color: #f1f5f9 !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 6px !important;
+    padding: 7px 34px 7px 12px !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    font-family: inherit !important;
+    outline: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 14px 14px !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.genhub-app-window select:hover,
+.gh-form-select:hover,
+.gh-downloads-filter:hover,
+.gh-detail-select:hover {
+    border-color: rgba(255, 255, 255, 0.35) !important;
+    background-color: #1c1c2e !important;
+}
+
+.genhub-app-window select:focus,
+.gh-form-select:focus,
+.gh-downloads-filter:focus,
+.gh-detail-select:focus {
+    border-color: #8b5cf6 !important;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3) !important;
+    background-color: #1c1c2e !important;
+}
+
+.genhub-app-window select option,
+.gh-form-select option,
+.gh-downloads-filter option,
+.gh-detail-select option {
+    background-color: #171725 !important;
+    color: #f1f5f9 !important;
+    padding: 8px 12px !important;
+    font-size: 12.5px !important;
+}
+
+.genhub-app-window select optgroup,
+.gh-form-select optgroup {
+    background-color: #11111a !important;
+    color: #a78bfa !important;
+    font-weight: 700 !important;
 }
