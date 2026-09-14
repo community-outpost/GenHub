@@ -18,6 +18,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
@@ -1294,16 +1295,18 @@ public partial class ModBuilderViewModel(
         return !string.IsNullOrEmpty(found) && File.Exists(found) ? found : null;
     }
 
+    private static IReadOnlyList<string> GetSampleBaseDirectories() =>
+    [
+        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+        Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+        Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
+        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
+    ];
+
     private static string? FindBaseSampleTemplateDirectory(string sampleId)
     {
-        var sampleBaseDirs = new[]
-        {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-            Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-            Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
-        };
+        var sampleBaseDirs = GetSampleBaseDirectories();
 
         foreach (var dir in sampleBaseDirs.Where(Directory.Exists))
         {
@@ -1346,14 +1349,7 @@ public partial class ModBuilderViewModel(
 
     private async Task<IReadOnlyList<string>> DiscoverSampleProjectPathsAsync()
     {
-        var sampleBaseDirs = new[]
-        {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-            Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-            Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
-        };
+        var sampleBaseDirs = GetSampleBaseDirectories();
 
         var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
         CleanDeprecatedSampleDirectories(userSamplesDir);
@@ -1461,37 +1457,7 @@ public partial class ModBuilderViewModel(
     /// </summary>
     /// <param name="path">The file or directory path to check.</param>
     /// <returns><c>true</c> if the path is inside the application directory; otherwise, <c>false</c>.</returns>
-    internal static bool IsPathInsideAppDirectory(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        try
-        {
-            var baseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (ArgumentException)
-        {
-            return true;
-        }
-        catch (NotSupportedException)
-        {
-            return true;
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch (System.Security.SecurityException)
-        {
-            return true;
-        }
-    }
+    internal static bool IsPathInsideAppDirectory(string? path) => PathHelper.IsPathInsideAppDirectory(path);
 
     private static void DeleteProjectFilesFromDisk(string path)
     {
@@ -1653,7 +1619,7 @@ public partial class ModBuilderViewModel(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var fileName = Path.GetFileName(file);
-            if (fileName.EndsWith(".msgpack", StringComparison.OrdinalIgnoreCase))
+            if (fileName.EndsWith(ModBuilderConstants.MsgPackExtension, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -1711,7 +1677,7 @@ public partial class ModBuilderViewModel(
                 Directory.Delete(cacheDir, recursive: true);
             }
 
-            foreach (var f in Directory.GetFiles(dir, "*.msgpack", SearchOption.TopDirectoryOnly))
+            foreach (var f in Directory.GetFiles(dir, $"*{ModBuilderConstants.MsgPackExtension}", SearchOption.TopDirectoryOnly))
             {
                 try
                 {
@@ -2816,10 +2782,10 @@ public partial class ModBuilderViewModel(
             if (!string.IsNullOrWhiteSpace(CurrentProject.Directories?.Release))
             {
                 var configuredRelease = CurrentProject.Directories.Release.Trim();
-                if (configuredRelease.EndsWith($"/{CurrentProject.Name}", StringComparison.OrdinalIgnoreCase) ||
-                    configuredRelease.EndsWith($"\\{CurrentProject.Name}", StringComparison.OrdinalIgnoreCase))
+                var trimmedRelease = configuredRelease.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(Path.GetFileName(trimmedRelease), CurrentProject.Name, StringComparison.OrdinalIgnoreCase))
                 {
-                    configuredRelease = Path.GetDirectoryName(configuredRelease) ?? ModBuilderConstants.DefaultReleaseDir;
+                    configuredRelease = Path.GetDirectoryName(trimmedRelease) ?? ModBuilderConstants.DefaultReleaseDir;
                 }
 
                 releaseDir = configuredRelease;
@@ -3224,7 +3190,7 @@ public partial class ModBuilderViewModel(
                 }
 
                 pack.Big = true;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".zip", ".big");
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ModBuilderConstants.ZipExtension, ModBuilderConstants.BigExtension);
             }
         }
         else
@@ -3243,7 +3209,7 @@ public partial class ModBuilderViewModel(
             else if (pack.IsBigPack)
             {
                 pack.Big = null;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ModBuilderConstants.BigExtension, ModBuilderConstants.ZipExtension);
             }
         }
     }

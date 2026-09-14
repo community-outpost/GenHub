@@ -282,6 +282,43 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Determines whether the specified path resides within or equals the application base directory.
+    /// </summary>
+    /// <param name="path">The path to check.</param>
+    /// <returns><see langword="true"/> if the path is inside or equals the application directory; otherwise, <see langword="false"/>.</returns>
+    public static bool IsPathInsideAppDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var baseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (NotSupportedException)
+        {
+            return true;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (SecurityException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Normalizes a relative path by standardizing directory separators and removing leading separators.
     /// </summary>
     /// <param name="relativePath">The relative path to normalize.</param>

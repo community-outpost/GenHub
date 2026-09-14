@@ -145,6 +145,41 @@ public static class ModBuilderConstants
     public const string StagingDirectoryPrefix = ".staging";
 
     /// <summary>
+    /// Staging directory prefix for individual bundle items.
+    /// </summary>
+    public const string StagingItemPrefix = ".staging_";
+
+    /// <summary>
+    /// Staging directory prefix or folder name for bundle packs.
+    /// </summary>
+    public const string StagingPackPrefix = ".staging_pack";
+
+    /// <summary>
+    /// Staging directory prefix or folder name for manifest generation.
+    /// </summary>
+    public const string StagingManifestPrefix = ".staging_manifest";
+
+    /// <summary>
+    /// File extension for JSON files.
+    /// </summary>
+    public const string JsonExtension = ".json";
+
+    /// <summary>
+    /// File extension for MessagePack binary cache files.
+    /// </summary>
+    public const string MsgPackExtension = ".msgpack";
+
+    /// <summary>
+    /// File extension for ZIP archive files.
+    /// </summary>
+    public const string ZipExtension = ".zip";
+
+    /// <summary>
+    /// File extension for BIG archive files.
+    /// </summary>
+    public const string BigExtension = ".big";
+
+    /// <summary>
     /// Subdirectory name for raw bundle items within build directory.
     /// </summary>
     public const string RawBundleItemsSubdir = "raw_bundle_items";

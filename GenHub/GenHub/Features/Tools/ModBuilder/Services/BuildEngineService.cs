@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
@@ -73,7 +74,7 @@ public sealed class BuildEngineService(
         ArgumentNullException.ThrowIfNull(project);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (IsPathInsideAppDirectory(project.ProjectDir))
+        if (PathHelper.IsPathInsideAppDirectory(project.ProjectDir))
         {
             var msg = $"Cannot execute build within the application installation directory: '{project.ProjectDir}'. The project must be located in a user directory.";
             logger.LogError(msg);
@@ -516,7 +517,7 @@ public sealed class BuildEngineService(
         var bigFileName = GetBigFileName(item);
         var bigFilePath = Path.Combine(bundlesDir, bigFileName);
 
-        var stagingDir = Path.Combine(bundlesDir, $".staging_{item.Name}");
+        var stagingDir = Path.Combine(bundlesDir, $"{ModBuilderConstants.StagingItemPrefix}{item.Name}");
         if (Directory.Exists(stagingDir))
         {
             Directory.Delete(stagingDir, true);
@@ -710,7 +711,7 @@ public sealed class BuildEngineService(
         var packFileName = GetPackFileName(pack);
         var packFilePath = Path.Combine(releaseDir, packFileName);
 
-        var packStagingDir = Path.Combine(buildDir, ".staging_pack", pack.Name);
+        var packStagingDir = Path.Combine(buildDir, ModBuilderConstants.StagingPackPrefix, pack.Name);
         if (Directory.Exists(packStagingDir))
         {
             Directory.Delete(packStagingDir, true);
@@ -1437,7 +1438,7 @@ public sealed class BuildEngineService(
             return false;
         }
 
-        var stagingDir = Path.Combine(buildDir, ".staging_manifest");
+        var stagingDir = Path.Combine(buildDir, ModBuilderConstants.StagingManifestPrefix);
         var manifestContentDir = PrepareManifestContentDirectory(setup, bundlesDir, stagingDir);
 
         try
@@ -1677,39 +1678,7 @@ public sealed class BuildEngineService(
                 : Path.Combine(Path.GetTempPath(), ModBuilderConstants.FallbackTempDirName, ModBuilderConstants.DefaultBuildDir);
         }
 
-        return Path.Combine(buildDir, $"{stage}.json");
-    }
-
-    private static bool IsPathInsideAppDirectory(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        try
-        {
-            var baseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (ArgumentException)
-        {
-            return true;
-        }
-        catch (NotSupportedException)
-        {
-            return true;
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch (System.Security.SecurityException)
-        {
-            return true;
-        }
+        return Path.Combine(buildDir, $"{stage}{ModBuilderConstants.JsonExtension}");
     }
 
     private void FireBundleEvent(BundleEventType eventType, string? bundleName)
@@ -1741,6 +1710,22 @@ public sealed class BuildEngineService(
         {
             logger.LogDebug("Reusing cached build structure (hash matches: {Hash})", configHash);
             _cachedBuildStructure.Setup.Step = buildSteps;
+            _cachedBuildStructure.Setup.ZipCompressionLevel = configuration.ZipCompressionLevel;
+            if (configuration.Folders != null)
+            {
+                if (!string.IsNullOrEmpty(configuration.Folders.AbsBuildDir))
+                {
+                    _cachedBuildStructure.Setup.Folders.AbsBuildDir = configuration.Folders.AbsBuildDir;
+                }
+                if (!string.IsNullOrEmpty(configuration.Folders.AbsReleaseDir))
+                {
+                    _cachedBuildStructure.Setup.Folders.AbsReleaseDir = configuration.Folders.AbsReleaseDir;
+                }
+                if (!string.IsNullOrEmpty(configuration.Folders.AbsGameDir))
+                {
+                    _cachedBuildStructure.Setup.Folders.AbsGameDir = configuration.Folders.AbsGameDir;
+                }
+            }
             return _cachedBuildStructure;
         }
 
@@ -1785,6 +1770,8 @@ public sealed class BuildEngineService(
         AddProjectAndConfigFileHashParts(project, configuration, hashParts);
         AddBundleAndPackHashParts(project, configuration, hashParts);
         AddSourceFileHashParts(project, hashParts);
+        hashParts.Add($"ZipCompression:{configuration.ZipCompressionLevel}");
+        hashParts.Add($"Folders:{configuration.Folders?.AbsBuildDir}:{configuration.Folders?.AbsReleaseDir}:{configuration.Folders?.AbsGameDir}:{project.GameDir}");
 
         var combinedString = string.Join("|", hashParts);
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
@@ -2044,20 +2031,20 @@ public sealed class BuildEngineService(
         if (!string.IsNullOrWhiteSpace(pack.OutputFile))
         {
             var fileName = Path.GetFileName(pack.OutputFile);
-            if (pack.IsBigPack && fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            if (pack.IsBigPack && fileName.EndsWith(ModBuilderConstants.ZipExtension, StringComparison.OrdinalIgnoreCase))
             {
-                return Path.ChangeExtension(fileName, ".big");
+                return Path.ChangeExtension(fileName, ModBuilderConstants.BigExtension);
             }
 
-            if (!pack.IsBigPack && fileName.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+            if (!pack.IsBigPack && fileName.EndsWith(ModBuilderConstants.BigExtension, StringComparison.OrdinalIgnoreCase))
             {
-                return Path.ChangeExtension(fileName, ".zip");
+                return Path.ChangeExtension(fileName, ModBuilderConstants.ZipExtension);
             }
 
             return fileName;
         }
 
-        var extension = pack.IsBigPack ? ".big" : ".zip";
+        var extension = pack.IsBigPack ? ModBuilderConstants.BigExtension : ModBuilderConstants.ZipExtension;
         return $"{pack.GetFullName()}{extension}";
     }
 
