@@ -858,8 +858,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
         int versionForId = 0;
         string versionForManifest = string.Empty;
 
-        if (string.IsNullOrEmpty(detectedVersion) ||
-            detectedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+        if (GameVersionHelper.IsUnknownVersion(detectedVersion))
         {
             // If version is unknown, use the default version for the game type (1.04/1.08)
             // This ensures we match the ID generated during dependency resolution

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -19,7 +20,7 @@ public static partial class GameVersionHelper
     /// </summary>
     /// <param name="version">The detected version string.</param>
     /// <returns><c>true</c> when the version is absent or a placeholder; otherwise <c>false</c>.</returns>
-    public static bool IsUnknownVersion(string? version)
+    public static bool IsUnknownVersion([NotNullWhen(false)] string? version)
     {
         return string.IsNullOrWhiteSpace(version)
             || version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase)
