@@ -239,11 +239,12 @@ public static class GenHotkeysConstants
     public const string TechTreeGeneralsZh = "Profiles/GeneralsZH/TechTree.json";
 
     /// <summary>
-    /// Naming format for generated hotkey .big files: !Hotkeys_{0}_{1}.big.
+    /// Naming format for generated hotkey .big files: !Hotkeys_{0}{1}_{2}.big.
     /// Prefixed with '!' so SAGE engine loads it alphabetically before retail archives (e.g. EnglishZH.big),
     /// because SAGE's ArchiveFileSystem uses first-loaded wins (overwrite = FALSE).
+    /// Placeholders: {0} = sanitized profile name, {1} = optional profile ID suffix, {2} = game tag.
     /// </summary>
-    public const string BigFileNamePattern = "!Hotkeys_{0}_{1}.big";
+    public const string BigFileNamePattern = "!Hotkeys_{0}{1}_{2}.big";
 
     /// <summary>Target directory in .big for localized CSF files.</summary>
     public const string DataEnglishDirectory = "Data/English";
@@ -365,8 +366,9 @@ public static class GenHotkeysConstants
     /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
     public static string GetBigFileName(string? profileName, GameType targetGame, string? profileId = null)
     {
-        var sanitizedName = Regex.Replace(profileName ?? "Hotkeys", @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
-        if (string.IsNullOrWhiteSpace(sanitizedName))
+        var rawName = string.IsNullOrWhiteSpace(profileName) ? "Hotkeys" : profileName;
+        var sanitizedName = Regex.Replace(rawName, @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
+        if (string.IsNullOrWhiteSpace(sanitizedName.Trim('_')))
         {
             sanitizedName = "Hotkeys";
         }
@@ -376,7 +378,7 @@ public static class GenHotkeysConstants
             : string.Empty;
 
         var gameTag = GetGameTag(targetGame);
-        return string.Format(CultureInfo.InvariantCulture, "!Hotkeys_{0}{1}_{2}.big", sanitizedName, idSuffix, gameTag);
+        return string.Format(CultureInfo.InvariantCulture, BigFileNamePattern, sanitizedName, idSuffix, gameTag);
     }
 
     /// <summary>
