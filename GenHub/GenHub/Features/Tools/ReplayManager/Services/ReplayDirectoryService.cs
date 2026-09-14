@@ -1045,16 +1045,15 @@ public sealed class ReplayDirectoryService(
         if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
         {
             ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger, crcCalculator);
-            return;
         }
-
-        if (await TryResolveProfileByLiveCalculatedCrcsAsync(replay, profiles, ct) is { } dynamicEntry)
+        else if (await TryResolveProfileByLiveCalculatedCrcsAsync(replay, profiles, ct) is { } dynamicEntry)
         {
             ResolveMatchedClientCompatibility(replay, dynamicEntry, acquiredIds, profiles, logger, crcCalculator);
-            return;
         }
-
-        ResolveUnmappedClientCompatibility(replay);
+        else
+        {
+            ResolveUnmappedClientCompatibility(replay);
+        }
 
         var recoveryProfiles = FindRecoveryProfiles(replay, profiles);
         if (recoveryProfiles.Count > 0)
@@ -2870,11 +2869,16 @@ public sealed class ReplayDirectoryService(
                 profileId,
                 replayFileName);
 
-            var launchResult = await launcherFacade.LaunchProfileAsync(
-                profileId,
-                skipUserDataCleanup: true,
-                cancellationToken: ct,
-                additionalArguments: additionalArguments);
+            var launchResult = additionalArguments != null && additionalArguments.Count > 0
+                ? await launcherFacade.LaunchProfileAsync(
+                    profileId,
+                    skipUserDataCleanup: true,
+                    additionalArguments: additionalArguments,
+                    cancellationToken: ct)
+                : await launcherFacade.LaunchProfileAsync(
+                    profileId,
+                    skipUserDataCleanup: true,
+                    cancellationToken: ct);
 
             if (launchResult.Success)
             {

@@ -3516,11 +3516,11 @@ public sealed class ReplayDirectoryServiceTests
         var explicitProfile = new GameProfile
         {
             Id = "explicit-user-profile-id",
-            Name = "MP Recovery Profile",
+            Name = "MP Custom Profile",
             GameClient = new GameClient
             {
-                Id = "mp-recovery-client-id",
-                Name = "MP Recovery",
+                Id = "mp-custom-client-id",
+                Name = "MP Custom",
                 GameType = GameType.ZeroHour,
                 PublisherType = "community",
             },
@@ -3556,7 +3556,7 @@ public sealed class ReplayDirectoryServiceTests
 
         Assert.True(result.Success);
         Assert.Equal("explicit-user-profile-id", replay.MatchingProfileId);
-        Assert.Equal("MP Recovery Profile", replay.MatchingProfileName);
+        Assert.Equal("MP Custom Profile", replay.MatchingProfileName);
         _mockLauncherFacade.Verify(
             l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()),
             Times.Once());
