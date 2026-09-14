@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -49,7 +50,7 @@ public class CommunityOutpostManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -61,7 +62,7 @@ public class CommunityOutpostManifestFactory(
         if (!Directory.Exists(extractedDirectory))
         {
             logger.LogError("Extracted directory does not exist: {Directory}", extractedDirectory);
-            return [];
+            return OperationResult<List<ContentManifest>>.CreateFailure($"Extracted directory does not exist: {extractedDirectory}");
         }
 
         // Get the content code and install target from the original manifest metadata
@@ -114,7 +115,7 @@ public class CommunityOutpostManifestFactory(
                 controlBarProcessor.CleanupSourceDirectories(extractedDirectory, allControlBarOutputs);
             }
 
-            return variantManifests;
+            return OperationResult<List<ContentManifest>>.CreateSuccess(variantManifests);
         }
 
         // Build the manifest with file entries (single manifest, no variants)
@@ -129,7 +130,7 @@ public class CommunityOutpostManifestFactory(
         if (manifest == null)
         {
             logger.LogWarning("Failed to build manifest for {Name}", originalManifest.Name);
-            return [];
+            return OperationResult<List<ContentManifest>>.CreateFailure($"Failed to build manifest for {originalManifest.Name}");
         }
 
         logger.LogInformation(
@@ -137,7 +138,7 @@ public class CommunityOutpostManifestFactory(
             manifest.Id,
             manifest.Files.Count);
 
-        return [manifest];
+        return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);
     }
 
     /// <inheritdoc />

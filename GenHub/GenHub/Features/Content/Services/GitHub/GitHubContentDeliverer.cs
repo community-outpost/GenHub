@@ -289,15 +289,17 @@ public class GitHubContentDeliverer(
                 originalManifest.Id);
 
             // Use the factory to create manifests from extracted content
-            var manifests = await factory.CreateManifestsFromExtractedContentAsync(
+            var manifestResult = await factory.CreateManifestsFromExtractedContentAsync(
                 originalManifest,
                 extractedDirectory,
                 cancellationToken);
 
-            if (manifests.Count == 0)
+            var manifests = manifestResult.Data ?? [];
+            if (!manifestResult.Success || manifests.Count == 0)
             {
-                logger.LogWarning("Factory produced no manifests for {ManifestId}", originalManifest.Id);
-                return OperationResult<ContentManifest>.CreateFailure("No manifests generated from extracted content");
+                logger.LogWarning("Factory produced no manifests for {ManifestId}: {Error}", originalManifest.Id, manifestResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure(
+                    manifestResult.FirstError ?? "No manifests generated from extracted content");
             }
 
             logger.LogInformation(

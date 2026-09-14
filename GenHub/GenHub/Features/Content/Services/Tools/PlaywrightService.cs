@@ -1684,6 +1684,59 @@ public sealed class PlaywrightService(
         }
     }
 
+    private static void PrepareDestinationDirectory(string destinationPath, bool overwriteExisting)
+    {
+        if (File.Exists(destinationPath) && overwriteExisting)
+        {
+            File.Delete(destinationPath);
+        }
+
+        var dir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+    }
+
+    private static TimeSpan CalculateSaveTimeout(TimeSpan timeout)
+    {
+        if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+        {
+            return TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, timeout.TotalMilliseconds));
+        }
+
+        return Timeout.InfiniteTimeSpan;
+    }
+
+    private void ValidatePersistentDownloadUrl(string downloadUrl, bool usePersistentModDbProfile)
+    {
+        if (usePersistentModDbProfile && !IsHttpsModDbOrDbolicalUrl(downloadUrl))
+        {
+            logger.LogWarning("Download URL {DownloadUrl} is not a valid HTTPS ModDB or DBolical URL. Aborting download.", downloadUrl);
+            throw new InvalidOperationException($"Download URL '{downloadUrl}' must be a secure HTTPS ModDB or DBolical URL for persistent profile.");
+        }
+    }
+
+    private async Task HandleDownloadInterruptionAsync(
+        IDownload download,
+        string destinationPath,
+        TimeSpan saveTimeout,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await download.CancelAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to cancel download after timeout or cancellation.");
+        }
+
+        CleanPartialOutputFile(destinationPath);
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new TimeoutException($"Download timed out after {saveTimeout.TotalSeconds} seconds.");
+    }
+
     private async Task<DownloadResult> SaveDownloadFileAsync(
         IDownload download,
         GenHub.Core.Models.Common.DownloadConfiguration configuration,
@@ -1691,28 +1744,11 @@ public sealed class PlaywrightService(
         System.Diagnostics.Stopwatch stopwatch,
         CancellationToken cancellationToken)
     {
-        if (usePersistentModDbProfile && !IsHttpsModDbOrDbolicalUrl(download.Url))
-        {
-            logger.LogWarning("Download URL {DownloadUrl} is not a valid HTTPS ModDB or DBolical URL. Aborting download.", download.Url);
-            throw new InvalidOperationException($"Download URL '{download.Url}' must be a secure HTTPS ModDB or DBolical URL for persistent profile.");
-        }
-
-        if (File.Exists(configuration.DestinationPath) && configuration.OverwriteExisting)
-        {
-            File.Delete(configuration.DestinationPath);
-        }
-
-        var dir = Path.GetDirectoryName(configuration.DestinationPath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
+        ValidatePersistentDownloadUrl(download.Url, usePersistentModDbProfile);
+        PrepareDestinationDirectory(configuration.DestinationPath, configuration.OverwriteExisting);
 
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var saveTimeout = configuration.Timeout > TimeSpan.Zero && configuration.Timeout != Timeout.InfiniteTimeSpan
-            ? TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, configuration.Timeout.TotalMilliseconds))
-            : Timeout.InfiniteTimeSpan;
-
+        var saveTimeout = CalculateSaveTimeout(configuration.Timeout);
         if (saveTimeout != Timeout.InfiniteTimeSpan)
         {
             linkedCts.CancelAfter(saveTimeout);
@@ -1724,18 +1760,7 @@ public sealed class PlaywrightService(
 
         if (completedTask != saveTask)
         {
-            try
-            {
-                await download.CancelAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Failed to cancel download after timeout or cancellation.");
-            }
-
-            CleanPartialOutputFile(configuration.DestinationPath);
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new TimeoutException($"Download timed out after {saveTimeout.TotalSeconds} seconds.");
+            await HandleDownloadInterruptionAsync(download, configuration.DestinationPath, saveTimeout, cancellationToken);
         }
 
         try

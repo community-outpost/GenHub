@@ -410,12 +410,13 @@ public class CommunityOutpostDeliverer(
             });
 
             logger.LogInformation("Creating manifests for Community Outpost content");
-            var manifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+            var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 packageManifest,
                 extractPath,
                 cancellationToken);
 
-            if (manifests.Count == 0)
+            var manifests = manifestResult.Data ?? [];
+            if (!manifestResult.Success || manifests.Count == 0)
             {
                 // If no specialized manifests were created, create a single manifest from all files
                 logger.LogWarning(

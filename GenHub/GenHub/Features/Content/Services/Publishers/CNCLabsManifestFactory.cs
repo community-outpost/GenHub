@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
@@ -114,7 +115,7 @@ public partial class CNCLabsManifestFactory(
     }
 
     /// <inheritdoc/>
-    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -129,8 +130,8 @@ public partial class CNCLabsManifestFactory(
     /// <param name="extractedDirectory">The directory where content was extracted.</param>
     /// <param name="progress">Progress reporter for tracking progress.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of enriched content manifests.</returns>
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    /// <returns>A result containing enriched content manifests.</returns>
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
@@ -145,14 +146,14 @@ public partial class CNCLabsManifestFactory(
         if (!Directory.Exists(extractedDirectory))
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
-            return new List<ContentManifest> { originalManifest };
+            return OperationResult<List<ContentManifest>>.CreateSuccess(new List<ContentManifest> { originalManifest });
         }
 
         var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
         if (zipFiles.Length == 0)
         {
             logger.LogDebug("No ZIP files found in directory, returning original manifest");
-            return new List<ContentManifest> { originalManifest };
+            return OperationResult<List<ContentManifest>>.CreateSuccess(new List<ContentManifest> { originalManifest });
         }
 
         logger.LogDebug("Found {Count} ZIP files to extract", zipFiles.Length);
@@ -225,7 +226,7 @@ public partial class CNCLabsManifestFactory(
         if (extractedFiles.Count == 0)
         {
             logger.LogWarning("No files extracted from ZIP archives");
-            return new List<ContentManifest> { originalManifest };
+            return OperationResult<List<ContentManifest>>.CreateSuccess(new List<ContentManifest> { originalManifest });
         }
 
         // Create updated manifest with extracted files
@@ -255,7 +256,7 @@ public partial class CNCLabsManifestFactory(
             extractedFiles.Count,
             originalManifest.Id);
 
-        return new List<ContentManifest> { updatedManifest };
+        return OperationResult<List<ContentManifest>>.CreateSuccess(new List<ContentManifest> { updatedManifest });
     }
 
     /// <inheritdoc/>

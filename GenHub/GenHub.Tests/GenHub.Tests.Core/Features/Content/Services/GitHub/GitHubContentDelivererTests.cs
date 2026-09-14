@@ -141,7 +141,7 @@ public class GitHubContentDelivererTests
                     It.IsAny<ContentManifest>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([variantDefault, variantRu]);
+                .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([variantDefault, variantRu]));
 
             var factoryResolver = new PublisherManifestFactoryResolver(
                 [factoryMock.Object],

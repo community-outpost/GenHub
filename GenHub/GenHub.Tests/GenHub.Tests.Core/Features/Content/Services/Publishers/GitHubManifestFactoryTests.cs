@@ -123,7 +123,9 @@ public sealed class GitHubManifestFactoryTests : IDisposable
             .ReturnsAsync("sha256-hash");
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Single(manifests);
@@ -170,7 +172,9 @@ public sealed class GitHubManifestFactoryTests : IDisposable
             .ReturnsAsync(new[] { "340_ControlBarProZH.big" });
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Single(manifests);

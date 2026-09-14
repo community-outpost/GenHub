@@ -61,10 +61,11 @@ public sealed class ModDBManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+        var manifestsResult = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
 
         // Assert
-        var manifest = Assert.Single(manifests);
+        Assert.True(manifestsResult.Success);
+        var manifest = Assert.Single(manifestsResult.Data!);
         var file = Assert.Single(manifest.Files);
         Assert.Equal(Path.Combine("Data", "GenSpeed.ini"), file.RelativePath);
         Assert.Equal(ContentSourceType.ExtractedPackage, file.SourceType);
@@ -98,7 +99,9 @@ public sealed class ModDBManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifest = Assert.Single(await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+        var manifestResult = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+        Assert.True(manifestResult.Success);
+        var manifest = Assert.Single(manifestResult.Data!);
 
         // Assert
         var file = Assert.Single(manifest.Files);
@@ -126,10 +129,11 @@ public sealed class ModDBManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await factory.CreateManifestsFromExtractedContentAsync(original, nonExistentPath);
+        var manifestsResult = await factory.CreateManifestsFromExtractedContentAsync(original, nonExistentPath);
 
         // Assert
-        var manifest = Assert.Single(manifests);
+        Assert.True(manifestsResult.Success);
+        var manifest = Assert.Single(manifestsResult.Data!);
         Assert.Same(original, manifest);
     }
 
@@ -220,7 +224,9 @@ public sealed class ModDBManifestFactoryTests : IDisposable
         var resolution = await resolver.ResolveAsync(result);
         Assert.True(resolution.Success, resolution.FirstError);
         var manifest = Assert.IsType<ContentManifest>(resolution.Data);
-        var extractedManifest = Assert.Single(await factory.CreateManifestsFromExtractedContentAsync(manifest, _stagingDirectory));
+        var extractedResult = await factory.CreateManifestsFromExtractedContentAsync(manifest, _stagingDirectory);
+        Assert.True(extractedResult.Success, extractedResult.FirstError);
+        var extractedManifest = Assert.Single(extractedResult.Data!);
 
         // Assert
         Assert.Equal(ContentType.Map, manifest.ContentType);
@@ -456,10 +462,12 @@ public sealed class ModDBManifestFactoryTests : IDisposable
             ],
         };
 
-        // Act / Assert
-        var error = await Assert.ThrowsAsync<InvalidDataException>(
-            () => factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
-        Assert.Contains("extensionless non-archive", error.Message, StringComparison.OrdinalIgnoreCase);
+        // Act
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("extensionless non-archive", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -513,10 +521,11 @@ public sealed class ModDBManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+        var manifestsResult = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
 
         // Assert
-        var manifest = Assert.Single(manifests);
+        Assert.True(manifestsResult.Success);
+        var manifest = Assert.Single(manifestsResult.Data!);
         Assert.Contains(manifest.Files, f => f.RelativePath == "Readme.txt");
         Assert.Contains(manifest.Files, f => f.RelativePath == Path.Combine("Art", "Textures", "tex.tga"));
         Assert.Contains(manifest.Files, f => f.RelativePath == Path.Combine("Data", "INI", "GameData.ini"));
@@ -527,11 +536,11 @@ public sealed class ModDBManifestFactoryTests : IDisposable
 
     /// <summary>
     /// Verifies that if a Mod download results only in an unextracted setup/installer executable,
-    /// CreateManifestsFromExtractedContentAsync throws an InvalidDataException.
+    /// CreateManifestsFromExtractedContentAsync returns a failure result.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_WithUnextractedInstallerExe_ThrowsInvalidDataExceptionAsync()
+    public async Task CreateManifestsFromExtractedContentAsync_WithUnextractedInstallerExe_ReturnsFailureAsync()
     {
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
@@ -555,12 +564,13 @@ public sealed class ModDBManifestFactoryTests : IDisposable
 
         var factory = CreateFactory();
 
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
-            factory.CreateManifestsFromExtractedContentAsync(originalManifest, _stagingDirectory, CancellationToken.None));
+        // Act
+        var result = await factory.CreateManifestsFromExtractedContentAsync(originalManifest, _stagingDirectory, CancellationToken.None);
 
-        Assert.Contains("unextracted installer executable", exception.Message);
-        Assert.Contains("Contra X BETA 2 (Setup).exe", exception.Message);
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("unextracted installer executable", result.FirstError);
+        Assert.Contains("Contra X BETA 2 (Setup).exe", result.FirstError);
     }
 
     /// <summary>

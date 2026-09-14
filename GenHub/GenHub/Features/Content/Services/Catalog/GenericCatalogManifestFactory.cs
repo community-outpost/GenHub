@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
@@ -39,7 +40,7 @@ public class GenericCatalogManifestFactory(
     }
 
     /// <inheritdoc/>
-    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -54,8 +55,8 @@ public class GenericCatalogManifestFactory(
     /// <param name="extractedDirectory">The directory containing extracted files.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of generated content manifests.</returns>
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    /// <returns>A result containing generated content manifests.</returns>
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
@@ -70,7 +71,7 @@ public class GenericCatalogManifestFactory(
         if (!Directory.Exists(extractedDirectory))
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         // Dependency-only packages (ContentBundle) intentionally have an empty staging dir.
@@ -81,7 +82,7 @@ public class GenericCatalogManifestFactory(
             logger.LogDebug(
                 "No staged files for manifest {ManifestId}; treating as dependency-only package",
                 originalManifest.Id);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         await archivePayloadProcessor.ProcessPayloadAsync(
@@ -105,7 +106,7 @@ public class GenericCatalogManifestFactory(
         if (extractedFiles.Length == 0)
         {
             logger.LogWarning("No files found in extracted directory: {Directory}", extractedDirectory);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         logger.LogDebug("Found {Count} files in extracted directory", extractedFiles.Length);
@@ -188,7 +189,7 @@ public class GenericCatalogManifestFactory(
             updatedFiles.Count,
             originalManifest.Id);
 
-        return [updatedManifest];
+        return OperationResult<List<ContentManifest>>.CreateSuccess([updatedManifest]);
     }
 
     /// <inheritdoc/>

@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -63,7 +64,7 @@ public class ModDBManifestFactory(
     }
 
     /// <inheritdoc />
-    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -78,11 +79,8 @@ public class ModDBManifestFactory(
     /// <param name="extractedDirectory">The directory where content was extracted.</param>
     /// <param name="progress">Progress reporter for tracking progress.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of enriched content manifests.</returns>
-    /// <exception cref="InvalidDataException">
-    /// Thrown when ModDB returns an extensionless non-archive payload, no usable files, or only an unextracted installer executable.
-    /// </exception>
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    /// <returns>A result containing a list of enriched content manifests.</returns>
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -93,7 +91,7 @@ public class ModDBManifestFactory(
         if (!Directory.Exists(extractedDirectory))
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         // Playwright saves a download to the requested destination path. ModDB's redirect often
@@ -120,7 +118,7 @@ public class ModDBManifestFactory(
             File.Exists(path) && !HasUsableExtension(path) && !IsSupportedArchive(path));
         if (unresolvedPayload != null)
         {
-            throw new InvalidDataException(
+            return OperationResult<List<ContentManifest>>.CreateFailure(
                 $"ModDB returned an extensionless non-archive payload '{Path.GetFileName(unresolvedPayload)}'. " +
                 "The download was not stored because its installable format could not be identified.");
         }
@@ -165,7 +163,7 @@ public class ModDBManifestFactory(
 
         if (files.Count == 0)
         {
-            throw new InvalidDataException("ModDB download did not produce any usable files.");
+            return OperationResult<List<ContentManifest>>.CreateFailure("ModDB download did not produce any usable files.");
         }
 
         if (files.Count == 1 &&
@@ -174,12 +172,12 @@ public class ModDBManifestFactory(
             (files[0].RelativePath.Contains("setup", StringComparison.OrdinalIgnoreCase) ||
              files[0].RelativePath.Contains("install", StringComparison.OrdinalIgnoreCase)))
         {
-            throw new InvalidDataException(
+            return OperationResult<List<ContentManifest>>.CreateFailure(
                 $"ModDB download produced only an unextracted installer executable '{files[0].RelativePath}' for a {originalManifest.ContentType}. " +
                 "The installer archive could not be unpacked into valid game modification files.");
         }
 
-        return
+        return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
             new ContentManifest
             {
@@ -203,7 +201,7 @@ public class ModDBManifestFactory(
                 RequiredDirectories = originalManifest.RequiredDirectories,
                 InstallationInstructions = originalManifest.InstallationInstructions,
             },
-        ];
+        ]);
     }
 
     /// <inheritdoc />

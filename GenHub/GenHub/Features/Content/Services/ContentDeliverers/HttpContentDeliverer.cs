@@ -167,7 +167,7 @@ public class HttpContentDeliverer(
         {
             if (fileUri.Scheme != Uri.UriSchemeHttps)
             {
-                throw new InvalidOperationException("ModDB and DBolical downloads must use HTTPS.");
+                return DownloadResult.CreateFailure("ModDB and DBolical downloads must use HTTPS.");
             }
 
             if (playwrightService != null)

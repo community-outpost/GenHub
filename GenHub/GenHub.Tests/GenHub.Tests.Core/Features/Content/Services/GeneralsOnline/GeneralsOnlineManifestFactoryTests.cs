@@ -234,9 +234,11 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
 
         // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
         Assert.Equal(3, manifests.Count);
 
         var gameClient = manifests.First(m => m.ContentType == ContentType.GameClient);
@@ -298,9 +300,11 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
 
         // Assert - MapPack and GameData patch are omitted because they have 0 files
+        Assert.True(result.Success);
+        var manifests = result.Data!;
         Assert.Single(manifests);
         var gameClient = manifests.Single();
         Assert.Equal(ContentType.GameClient, gameClient.ContentType);

@@ -393,12 +393,19 @@ public abstract class BaseContentProvider : IContentProvider
                     $"Content delivery failed: {deliveryResult.FirstError}");
             }
 
-            var extractedManifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+            var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 manifest,
                 workingDirectory,
                 cancellationToken).ConfigureAwait(false);
 
-            var resultManifest = extractedManifests.Count > 0 ? extractedManifests[0] : (deliveryResult.Data ?? manifest);
+            if (!manifestResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Content preparation failed: {manifestResult.FirstError}");
+            }
+
+            var extractedManifests = manifestResult.Data;
+            var resultManifest = extractedManifests is { Count: > 0 } ? extractedManifests[0] : (deliveryResult.Data ?? manifest);
 
             Logger.LogInformation(
                 "Successfully prepared {SourceName} content {ManifestId} with {FileCount} files",

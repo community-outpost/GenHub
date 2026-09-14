@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
@@ -178,7 +179,7 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -189,7 +190,8 @@ public class GeneralsOnlineManifestFactory(
         var manifests = CreateVariantManifestsFromOriginal(originalManifest);
 
         // Update manifests with extracted files (compute hashes, set file entries)
-        return await UpdateManifestsWithExtractedFiles(manifests, extractedDirectory, cancellationToken);
+        var updated = await UpdateManifestsWithExtractedFiles(manifests, extractedDirectory, cancellationToken);
+        return OperationResult<List<ContentManifest>>.CreateSuccess(updated);
     }
 
     /// <inheritdoc />

@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -40,7 +41,7 @@ public partial class AODMapsManifestFactory(
     }
 
     /// <inheritdoc />
-    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -55,8 +56,8 @@ public partial class AODMapsManifestFactory(
     /// <param name="extractedDirectory">The directory where content was extracted.</param>
     /// <param name="progress">Progress reporter for tracking progress.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of enriched content manifests.</returns>
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    /// <returns>A result containing a list of enriched content manifests.</returns>
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -67,14 +68,14 @@ public partial class AODMapsManifestFactory(
         if (!Directory.Exists(extractedDirectory))
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
         if (zipFiles.Length == 0)
         {
             logger.LogDebug("No ZIP files found in directory {Directory}, returning original manifest", extractedDirectory);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         foreach (var zipPath in zipFiles)
@@ -108,7 +109,7 @@ public partial class AODMapsManifestFactory(
             throw new InvalidDataException("AODMaps archive contained no files.");
         }
 
-        return
+        return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
             new ContentManifest
             {
@@ -130,7 +131,7 @@ public partial class AODMapsManifestFactory(
                 RequiredDirectories = originalManifest.RequiredDirectories,
                 InstallationInstructions = originalManifest.InstallationInstructions,
             },
-        ];
+        ]);
     }
 
     /// <inheritdoc />

@@ -59,7 +59,9 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifest = Assert.Single(await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+        Assert.True(result.Success);
+        var manifest = Assert.Single(result.Data!);
 
         // Assert
         var file = Assert.Single(manifest.Files);
@@ -161,7 +163,8 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
         var result = await factory.CreateManifestsFromExtractedContentAsync(original, nonExistentDirectory);
 
         // Assert
-        var manifest = Assert.Single(result);
+        Assert.True(result.Success);
+        var manifest = Assert.Single(result.Data!);
         Assert.Same(original, manifest);
     }
 
@@ -190,7 +193,8 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
         var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
 
         // Assert
-        var manifest = Assert.Single(result);
+        Assert.True(result.Success);
+        var manifest = Assert.Single(result.Data!);
         Assert.Same(original, manifest);
     }
 

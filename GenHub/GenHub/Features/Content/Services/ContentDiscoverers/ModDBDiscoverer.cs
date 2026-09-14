@@ -929,7 +929,7 @@ public partial class ModDBDiscoverer(
                 url);
 
             cancellationToken.ThrowIfCancellationRequested();
-            await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit });
+            await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit }).WaitAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             var (document, keepPageOpen, challengeObserved) = await LoadPageDocumentAsync(page, url, cancellationToken);
@@ -996,7 +996,7 @@ public partial class ModDBDiscoverer(
 
             try
             {
-                var title = await page.TitleAsync();
+                var title = await page.TitleAsync().WaitAsync(cancellationToken);
                 if (IsChallengePage(title))
                 {
                     if (!challengeObserved)
@@ -1012,7 +1012,7 @@ public partial class ModDBDiscoverer(
                             NotificationDurations.VeryLong);
                         try
                         {
-                            await page.BringToFrontAsync();
+                            await page.BringToFrontAsync().WaitAsync(cancellationToken);
                         }
                         catch (PlaywrightException ex)
                         {
@@ -1024,7 +1024,7 @@ public partial class ModDBDiscoverer(
                     continue;
                 }
 
-                if (await page.QuerySelectorAsync(ModDBConstants.DefaultListItemSelector) != null)
+                if (await page.QuerySelectorAsync(ModDBConstants.DefaultListItemSelector).WaitAsync(cancellationToken) != null)
                 {
                     NotifyChallengeClearedIfObserved();
                     return (true, challengeObserved);
@@ -1032,11 +1032,11 @@ public partial class ModDBDiscoverer(
 
                 // If not a challenge page, check if the real page DOM container has fully loaded.
                 // When a query produces 0 results, the page is complete but DefaultListItemSelector is absent.
-                var readyState = await page.EvaluateAsync<string>("() => document.readyState");
+                var readyState = await page.EvaluateAsync<string>("() => document.readyState").WaitAsync(cancellationToken);
                 if (string.Equals(readyState, "complete", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(readyState, "interactive", StringComparison.OrdinalIgnoreCase))
                 {
-                    var hasPageContainer = await page.QuerySelectorAsync("div#sitecontainer, div#body, div.panes, div.column, div.main, footer") != null;
+                    var hasPageContainer = await page.QuerySelectorAsync("div#sitecontainer, div#body, div.panes, div.column, div.main, footer").WaitAsync(cancellationToken) != null;
                     if (hasPageContainer)
                     {
                         NotifyChallengeClearedIfObserved();
@@ -1063,14 +1063,18 @@ public partial class ModDBDiscoverer(
         return (false, challengeObserved);
     }
 
-    private async Task<bool> HandleVerificationFailureAsync(IPage page, string url, bool challengeObserved)
+    private async Task<bool> HandleVerificationFailureAsync(
+        IPage page,
+        string url,
+        bool challengeObserved,
+        CancellationToken cancellationToken = default)
     {
         string? pageTitle = null;
         try
         {
             if (!page.IsClosed)
             {
-                pageTitle = await page.TitleAsync();
+                pageTitle = await page.TitleAsync().WaitAsync(cancellationToken);
             }
         }
         catch (PlaywrightException ex)
@@ -1204,7 +1208,7 @@ public partial class ModDBDiscoverer(
         {
             logger.LogInformation("[ModDB] Navigating directly to requested URL: {Url}", url);
             cancellationToken.ThrowIfCancellationRequested();
-            await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit });
+            await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit }).WaitAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             var (document, keepPageOpen, challengeObserved) = await LoadPageDocumentAsync(page, url, cancellationToken);
@@ -1269,7 +1273,7 @@ public partial class ModDBDiscoverer(
         var (listingReady, challengeObserved) = await WaitForListingOrChallengeAsync(page, url, cancellationToken);
         if (!listingReady)
         {
-            var isChallenge = await HandleVerificationFailureAsync(page, url, challengeObserved);
+            var isChallenge = await HandleVerificationFailureAsync(page, url, challengeObserved, cancellationToken);
             if (isChallenge)
             {
                 return (null, !page.IsClosed, true);
@@ -1281,7 +1285,7 @@ public partial class ModDBDiscoverer(
             return (null, false, challengeObserved);
         }
 
-        var html = await page.ContentAsync();
+        var html = await page.ContentAsync().WaitAsync(cancellationToken);
         var browsingContext = BrowsingContext.New(Configuration.Default);
         var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
         return (document, false, challengeObserved);
