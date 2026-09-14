@@ -145,9 +145,8 @@ public class ContentStorageService : IContentStorageService
     /// Determines whether a manifest requires physical file storage in the CAS system.
     /// </summary>
     /// <param name="manifest">The manifest to check.</param>
-    /// <param name="sourceDirectory">Optional source directory containing content files.</param>
     /// <returns>True if files should be physically stored; false if metadata-only storage is sufficient.</returns>
-    private static bool RequiresPhysicalStorage(ContentManifest manifest, string? sourceDirectory = null)
+    private static bool RequiresPhysicalStorage(ContentManifest manifest)
     {
         // GameInstallation content always references external installations - no storage needed
         if (manifest.ContentType == ContentType.GameInstallation)
@@ -299,7 +298,7 @@ public class ContentStorageService : IContentStorageService
         }
 
         // Determine if this manifest requires physical file storage in CAS
-        bool requiresPhysicalStorage = RequiresPhysicalStorage(manifest, sourceDirectory);
+        bool requiresPhysicalStorage = RequiresPhysicalStorage(manifest);
 
         if (!requiresPhysicalStorage)
         {

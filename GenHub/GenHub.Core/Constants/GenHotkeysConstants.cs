@@ -364,7 +364,7 @@ public static class GenHotkeysConstants
     /// <param name="targetGame">Target game.</param>
     /// <param name="profileId">Optional profile ID to avoid collisions between profiles with matching sanitized names.</param>
     /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
-    public static string GetBigFileName(string? profileName, GameType targetGame, string? profileId = null)
+    public static string GetBigFileName(string? profileName, GameType targetGame, string? profileId)
     {
         var rawName = string.IsNullOrWhiteSpace(profileName) ? "Hotkeys" : profileName;
         var sanitizedName = Regex.Replace(rawName, @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
