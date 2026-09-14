@@ -36,6 +36,15 @@ public sealed class ProjectConfigService(
         ModBuilderConstants.ModBuilderDirName,
         ModBuilderConstants.RecentProjectsFileName);
 
+    private const string LemonControlBarSampleName = "LemonControlBar";
+    private const string LemonControlBarArtItemName = "LemonControlBarArt";
+    private const string LemonControlBarDataItemName = "LemonControlBarData";
+    private const string LemonControlBarWindows720pItemName = "LemonControlBarWindows_720p";
+    private const string LemonControlBarWindows1080pItemName = "LemonControlBarWindows_1080p";
+    private const string LemonControlBarWindows1440pItemName = "LemonControlBarWindows_1440p";
+    private const string LemonControlBarWindows4KItemName = "LemonControlBarWindows_4K";
+    private const string WindowTargetDir = "Window";
+
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
@@ -1498,9 +1507,9 @@ public sealed class ProjectConfigService(
             {
                 await CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
-            else if (template?.Name == "LemonControlBar" || template?.Name == "ControlBar")
+            else if (template?.Name == LemonControlBarSampleName || template?.Name == "ControlBar")
             {
-                await CreateLemonControlBarSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
+                await CreateLemonControlBarSampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -1696,19 +1705,12 @@ public sealed class ProjectConfigService(
     }
 
     private async Task CreateLemonControlBarSampleFilesAsync(
-        string projectDir,
         ProjectDirectories directories,
         string configsDir,
         CancellationToken cancellationToken)
     {
-        var baseTemplateDirs = new[]
-        {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar"),
-            Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar"),
-            Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar"),
-            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar")),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName, "LemonControlBar")),
-        };
+        var baseTemplateDirs = ModBuilderConstants.GetSampleBaseDirectories()
+            .Select(dir => Path.Combine(dir, LemonControlBarSampleName));
 
         var foundTemplateDir = baseTemplateDirs.FirstOrDefault(Directory.Exists);
         if (!string.IsNullOrEmpty(foundTemplateDir))
@@ -1735,7 +1737,7 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "LemonControlBarArt",
+                        Name = LemonControlBarArtItemName,
                         SourceFiles = new[]
                         {
                             $"{directories.GameFilesEdited}/Art/**/*.dds",
@@ -1746,7 +1748,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBarData",
+                        Name = LemonControlBarDataItemName,
                         SourceFiles = new[]
                         {
                             $"{directories.GameFilesEdited}/Data/**/*.ini",
@@ -1758,37 +1760,37 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBarWindows_720p",
+                        Name = LemonControlBarWindows720pItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/720p/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/720p",
-                        TargetDir = "Window",
+                        TargetDir = WindowTargetDir,
                         OutputFormat = "BIG",
                         Description = "1280x720 window layouts and control bar UI",
                     },
                     new
                     {
-                        Name = "LemonControlBarWindows_1080p",
+                        Name = LemonControlBarWindows1080pItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1080p/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/1080p",
-                        TargetDir = "Window",
+                        TargetDir = WindowTargetDir,
                         OutputFormat = "BIG",
                         Description = "1920x1080 window layouts and control bar UI",
                     },
                     new
                     {
-                        Name = "LemonControlBarWindows_1440p",
+                        Name = LemonControlBarWindows1440pItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1440p/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/1440p",
-                        TargetDir = "Window",
+                        TargetDir = WindowTargetDir,
                         OutputFormat = "BIG",
                         Description = "2560x1440 window layouts and control bar UI",
                     },
                     new
                     {
-                        Name = "LemonControlBarWindows_4K",
+                        Name = LemonControlBarWindows4KItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/4K/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/4K",
-                        TargetDir = "Window",
+                        TargetDir = WindowTargetDir,
                         OutputFormat = "BIG",
                         Description = "3840x2160 (4K) window layouts and control bar UI",
                     },
@@ -1809,8 +1811,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_720p",
-                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_720p" },
-                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_720p" },
+                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows720pItemName },
+                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows720pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition720ZH.big",
@@ -1819,8 +1821,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_1080p",
-                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1080p" },
-                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1080p" },
+                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1080pItemName },
+                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1080pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1080ZH.big",
@@ -1829,8 +1831,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_1440p",
-                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1440p" },
-                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_1440p" },
+                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1440pItemName },
+                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1440pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1440ZH.big",
@@ -1839,8 +1841,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_4K",
-                        Items = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_4K" },
-                        ItemNames = new[] { "LemonControlBarArt", "LemonControlBarData", "LemonControlBarWindows_4K" },
+                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows4KItemName },
+                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows4KItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition2160ZH.big",

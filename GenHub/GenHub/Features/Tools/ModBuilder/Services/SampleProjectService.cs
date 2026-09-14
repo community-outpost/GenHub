@@ -54,13 +54,17 @@ public class SampleProjectService(
     private const string UnknownError = "Unknown error";
     private const string StagingCleanupFailedMessage = "Failed to clean up temporary staging directory {Dir}";
 
-    private const string BigFileSearchPattern = "*.big";
-    private const string UnpackedFolderName = "unpacked";
-    private const string EnglishLanguageName = "English";
-    private const string GermanLanguageName = "German";
-    private const string RussianLanguageName = "Russian";
-    private const string SpanishLanguageName = "Spanish";
-    private const string GeneralsCsfFileName = "generals.csf";
+    private const string BigFileSearchPattern = ModBuilderConstants.BigFileSearchPattern;
+    private const string UnpackedFolderName = ModBuilderConstants.UnpackedFolderName;
+    private const string EnglishLanguageName = ModBuilderConstants.EnglishLanguageName;
+    private const string GermanLanguageName = ModBuilderConstants.GermanLanguageName;
+    private const string RussianLanguageName = ModBuilderConstants.RussianLanguageName;
+    private const string SpanishLanguageName = ModBuilderConstants.SpanishLanguageName;
+    private const string GeneralsCsfFileName = ModBuilderConstants.GeneralsCsfFileName;
+    private const string WindowDirectoryName = ModBuilderConstants.WindowDirectoryName;
+    private const string ArtDirectoryName = ModBuilderConstants.ArtDirectoryName;
+    private const string DataDirectoryName = ModBuilderConstants.DataDirectoryName;
+    private const string GenToolDirectoryName = ModBuilderConstants.GenToolDirectoryName;
 
     private sealed record SecondaryLanguageVariantSpec(
         string ZipUrl,
@@ -121,51 +125,44 @@ public class SampleProjectService(
 
     private static bool HasLemonControlBarAssets(string gameFilesDir)
     {
-        var artDir = Path.Combine(gameFilesDir, "Art");
-        var wndDir = Path.Combine(gameFilesDir, "Window");
-        var dataDir = Path.Combine(gameFilesDir, "Data");
+        var artDir = Path.Combine(gameFilesDir, ArtDirectoryName);
+        var wndDir = Path.Combine(gameFilesDir, WindowDirectoryName);
+        var dataDir = Path.Combine(gameFilesDir, DataDirectoryName);
 
         return Directory.Exists(artDir) &&
                Directory.EnumerateFiles(artDir, "*.*", SearchOption.AllDirectories).Any() &&
                Directory.Exists(wndDir) &&
-               Directory.EnumerateFiles(wndDir, "*.wnd", SearchOption.AllDirectories).Any() &&
+               Directory.EnumerateFiles(wndDir, ModBuilderConstants.FileNames.WndSearchPattern, SearchOption.AllDirectories).Any() &&
                Directory.Exists(dataDir) &&
-               Directory.EnumerateFiles(dataDir, "*.ini", SearchOption.AllDirectories).Any();
+               Directory.EnumerateFiles(dataDir, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories).Any();
     }
 
     private static bool HasImprovedMenusAssets(string gameFilesDir)
     {
-        var wndDir = Path.Combine(gameFilesDir, "Window");
-        var artDir = Path.Combine(gameFilesDir, "Art");
+        var wndDir = Path.Combine(gameFilesDir, WindowDirectoryName);
+        var artDir = Path.Combine(gameFilesDir, ArtDirectoryName);
         return Directory.Exists(wndDir) &&
-               Directory.EnumerateFiles(wndDir, "*.wnd", SearchOption.AllDirectories).Any() &&
+               Directory.EnumerateFiles(wndDir, ModBuilderConstants.FileNames.WndSearchPattern, SearchOption.AllDirectories).Any() &&
                Directory.Exists(artDir) &&
                Directory.EnumerateFiles(artDir, "*.*", SearchOption.AllDirectories).Any();
     }
 
     private static bool HasGeneralsGamePatch2Assets(string gameFilesDir)
     {
-        var iniDir = Path.Combine(gameFilesDir, "Data", "INI");
+        var iniDir = Path.Combine(gameFilesDir, DataDirectoryName, ModBuilderConstants.DirectoryNames.Ini);
         return Directory.Exists(iniDir) &&
-               Directory.EnumerateFiles(iniDir, "*.ini", SearchOption.AllDirectories).Any();
+               Directory.EnumerateFiles(iniDir, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories).Any();
     }
 
     private static bool HasLeikezeHotkeysAssets(string gameFilesDir)
     {
-        return Directory.EnumerateFiles(gameFilesDir, "*.csf", SearchOption.AllDirectories).Any();
+        return Directory.EnumerateFiles(gameFilesDir, ModBuilderConstants.FileNames.CsfSearchPattern, SearchOption.AllDirectories).Any();
     }
 
     private static bool HasGenericSampleAssets(string gameFilesDir)
     {
         return Directory.EnumerateFileSystemEntries(gameFilesDir, "*", SearchOption.AllDirectories)
-            .Any(file =>
-            {
-                var name = Path.GetFileName(file);
-                return !name.Equals("README.md", StringComparison.OrdinalIgnoreCase) &&
-                       !name.Equals("README.txt", StringComparison.OrdinalIgnoreCase) &&
-                       !name.Equals(".gitkeep", StringComparison.OrdinalIgnoreCase) &&
-                       !name.StartsWith(".git", StringComparison.OrdinalIgnoreCase);
-            });
+            .Any(file => !ModBuilderConstants.IsIgnoredProjectFile(file));
     }
 
     /// <inheritdoc />
@@ -187,6 +184,10 @@ public class SampleProjectService(
         }
 
         var gameFilesDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
+        var preExistingFiles = Directory.Exists(gameFilesDir)
+            ? new HashSet<string>(Directory.GetFiles(gameFilesDir, "*", SearchOption.AllDirectories), StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         Directory.CreateDirectory(gameFilesDir);
 
         var cacheDir = GetSampleCacheDirectory();
@@ -228,19 +229,19 @@ public class SampleProjectService(
 
             if (!result.Success)
             {
-                CleanupDirectorySafely(gameFilesDir);
+                CleanupNewlyCreatedFiles(gameFilesDir, preExistingFiles);
             }
 
             return result;
         }
         catch (OperationCanceledException)
         {
-            CleanupDirectorySafely(gameFilesDir);
+            CleanupNewlyCreatedFiles(gameFilesDir, preExistingFiles);
             throw;
         }
         catch (Exception ex)
         {
-            CleanupDirectorySafely(gameFilesDir);
+            CleanupNewlyCreatedFiles(gameFilesDir, preExistingFiles);
             logger.LogError(ex, "Failed to download and extract sample assets for {ProjectName}", projectName);
             return OperationResult<bool>.CreateFailure($"Failed to acquire sample assets for {projectName}: {ex.Message}");
         }
@@ -333,6 +334,61 @@ public class SampleProjectService(
                 2048L * 1024 * 1024,
                 overwrite: true,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private void CleanupNewlyCreatedFiles(string gameFilesDir, HashSet<string> preExistingFiles)
+    {
+        if (!Directory.Exists(gameFilesDir))
+        {
+            return;
+        }
+
+        if (preExistingFiles.Count == 0)
+        {
+            CleanupDirectorySafely(gameFilesDir);
+            return;
+        }
+
+        try
+        {
+            var currentFiles = Directory.GetFiles(gameFilesDir, "*", SearchOption.AllDirectories);
+            foreach (var file in currentFiles)
+            {
+                if (!preExistingFiles.Contains(file))
+                {
+                    try
+                    {
+                        File.Delete(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Failed to delete partially acquired file {File}", file);
+                    }
+                }
+            }
+
+            var subDirs = Directory.GetDirectories(gameFilesDir, "*", SearchOption.AllDirectories)
+                .OrderByDescending(d => d.Length);
+
+            foreach (var dir in subDirs)
+            {
+                try
+                {
+                    if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+                    {
+                        Directory.Delete(dir, false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to delete empty directory {Dir}", dir);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to safely clean up newly created files in {Dir}", gameFilesDir);
         }
     }
 
@@ -614,10 +670,10 @@ public class SampleProjectService(
 
     private static void CopyMovieFiles(string stagingDir, string gameFilesDir)
     {
-        var bikFiles = Directory.GetFiles(stagingDir, "*.bik", SearchOption.AllDirectories);
+        var bikFiles = Directory.GetFiles(stagingDir, ModBuilderConstants.FileNames.BikSearchPattern, SearchOption.AllDirectories);
         foreach (var bik in bikFiles)
         {
-            var movieDestDir = Path.Combine(gameFilesDir, "Data", "Movies");
+            var movieDestDir = Path.Combine(gameFilesDir, ModBuilderConstants.DirectoryNames.Data, ModBuilderConstants.DirectoryNames.Movies);
             Directory.CreateDirectory(movieDestDir);
             var destPath = Path.Combine(movieDestDir, Path.GetFileName(bik));
             File.Copy(bik, destPath, overwrite: true);
@@ -728,10 +784,10 @@ public class SampleProjectService(
                         continue;
                     }
 
-                    var langTexDir = Path.Combine(unpackDir, "Art", "Textures", spec.LanguageSubDir);
+                    var langTexDir = Path.Combine(unpackDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures, spec.LanguageSubDir);
                     if (Directory.Exists(langTexDir))
                     {
-                        var targetDir = Path.Combine(gameFilesDir, "Art", "Textures", spec.LanguageSubDir);
+                        var targetDir = Path.Combine(gameFilesDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures, spec.LanguageSubDir);
                         CopyDirectoryContents(langTexDir, targetDir, cancellationToken);
                     }
 
@@ -860,8 +916,6 @@ public class SampleProjectService(
     private async Task<bool> ProcessLemonResolutionArchiveAsync(
         string zipPath,
         string resolution,
-        string bigName,
-        bool isPrimary,
         string gameFilesDir,
         string? releaseDir,
         CancellationToken cancellationToken)
@@ -882,78 +936,108 @@ public class SampleProjectService(
             var processedAny = false;
             foreach (var bigFile in bigFiles)
             {
-                var fileName = Path.GetFileName(bigFile);
-                var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(fileName)}");
-                Directory.CreateDirectory(unpackDir);
-
-                var unpackRes = await BigFilePacker.UnpackAsync(bigFile, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-                if (!unpackRes.Success)
+                if (await ProcessSingleLemonBigFileAsync(bigFile, staging, resolution, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false))
                 {
-                    logger.LogWarning("Failed to unpack BIG file {File}: {Error}", fileName, unpackRes.FirstError);
-                    continue;
+                    processedAny = true;
                 }
-
-                processedAny = true;
-
-                // 1. Art textures: AmericaCommandBarPro_4096_1024.dds, BlankTexture_16.tga, etc.
-                var artDir = Path.Combine(unpackDir, "Art");
-                if (Directory.Exists(artDir))
-                {
-                    CopyDirectoryContents(artDir, Path.Combine(gameFilesDir, "Art"), cancellationToken);
-                }
-
-                // 2. Data INIs: ControlBarScheme.ini, InGameUI.ini, MappedImages, HeaderTemplate.ini, etc.
-                var dataDir = Path.Combine(unpackDir, "Data");
-                if (Directory.Exists(dataDir))
-                {
-                    CopyDirectoryContents(dataDir, Path.Combine(gameFilesDir, "Data"), cancellationToken);
-                }
-
-                // 3. Window layouts:
-                // ControlBar.wnd, ReplayControl.wnd, Diplomacy.wnd (from Data big) and Menus/*.wnd (from resolution big)
-                var wndDir = Path.Combine(unpackDir, "Window");
-                if (Directory.Exists(wndDir))
-                {
-                    CopyDirectoryContents(wndDir, Path.Combine(gameFilesDir, "Window", resolution), cancellationToken);
-                }
-
-                // 4. GenTool fullviewport.dat & documentation
-                var genToolDir = Path.Combine(unpackDir, "GenTool");
-                if (Directory.Exists(genToolDir))
-                {
-                    CopyDirectoryContents(genToolDir, Path.Combine(gameFilesDir, "GenTool"), cancellationToken);
-                }
-
-                var cbProTxt = Path.Combine(unpackDir, "ControlBarPro.txt");
-                if (File.Exists(cbProTxt))
-                {
-                    File.Copy(cbProTxt, Path.Combine(gameFilesDir, "ControlBarPro.txt"), overwrite: true);
-                }
-
-                // 5. Prebuilt release BIG files
-                if (!string.IsNullOrEmpty(releaseDir))
-                {
-                    File.Copy(bigFile, Path.Combine(releaseDir, fileName), overwrite: true);
-                }
-
-                await TryExtractAndSaveManifestAsync(bigFile, gameFilesDir, cancellationToken).ConfigureAwait(false);
             }
 
             return processedAny;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to process Lemon Control Bar archive for resolution {Res}", resolution);
+            return false;
+        }
         finally
         {
-            try
+            CleanupStagingDirectory(staging);
+        }
+    }
+
+    private async Task<bool> ProcessSingleLemonBigFileAsync(
+        string bigFile,
+        string staging,
+        string resolution,
+        string gameFilesDir,
+        string? releaseDir,
+        CancellationToken cancellationToken)
+    {
+        var fileName = Path.GetFileName(bigFile);
+        var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(fileName)}");
+        Directory.CreateDirectory(unpackDir);
+
+        var unpackRes = await BigFilePacker.UnpackAsync(bigFile, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!unpackRes.Success)
+        {
+            logger.LogWarning("Failed to unpack BIG file {File}: {Error}", fileName, unpackRes.FirstError);
+            return false;
+        }
+
+        CopyLemonBigSubdirectories(unpackDir, gameFilesDir, resolution, cancellationToken);
+
+        var cbProTxt = Path.Combine(unpackDir, ModBuilderConstants.ControlBarProTxtFileName);
+        if (File.Exists(cbProTxt))
+        {
+            File.Copy(cbProTxt, Path.Combine(gameFilesDir, ModBuilderConstants.ControlBarProTxtFileName), overwrite: true);
+        }
+
+        if (!string.IsNullOrEmpty(releaseDir))
+        {
+            File.Copy(bigFile, Path.Combine(releaseDir, fileName), overwrite: true);
+        }
+
+        await TryExtractAndSaveManifestAsync(bigFile, gameFilesDir, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    private static void CopyLemonBigSubdirectories(
+        string unpackDir,
+        string gameFilesDir,
+        string resolution,
+        CancellationToken cancellationToken)
+    {
+        var artDir = Path.Combine(unpackDir, ArtDirectoryName);
+        if (Directory.Exists(artDir))
+        {
+            CopyDirectoryContents(artDir, Path.Combine(gameFilesDir, ArtDirectoryName), cancellationToken);
+        }
+
+        var dataDir = Path.Combine(unpackDir, DataDirectoryName);
+        if (Directory.Exists(dataDir))
+        {
+            CopyDirectoryContents(dataDir, Path.Combine(gameFilesDir, DataDirectoryName), cancellationToken);
+        }
+
+        var wndDir = Path.Combine(unpackDir, WindowDirectoryName);
+        if (Directory.Exists(wndDir))
+        {
+            CopyDirectoryContents(wndDir, Path.Combine(gameFilesDir, WindowDirectoryName, resolution), cancellationToken);
+        }
+
+        var genToolDir = Path.Combine(unpackDir, ModBuilderConstants.GenToolDirectoryName);
+        if (Directory.Exists(genToolDir))
+        {
+            CopyDirectoryContents(genToolDir, Path.Combine(gameFilesDir, ModBuilderConstants.GenToolDirectoryName), cancellationToken);
+        }
+    }
+
+    private void CleanupStagingDirectory(string staging)
+    {
+        try
+        {
+            if (Directory.Exists(staging))
             {
-                if (Directory.Exists(staging))
-                {
-                    Directory.Delete(staging, recursive: true);
-                }
+                Directory.Delete(staging, recursive: true);
             }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, StagingCleanupFailedMessage, staging);
-            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, StagingCleanupFailedMessage, staging);
         }
     }
 
@@ -1002,7 +1086,7 @@ public class SampleProjectService(
                 continue;
             }
 
-            var success = await ProcessLemonResolutionArchiveAsync(zipPath, res.Resolution, res.BigName, res.IsPrimary, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
+            var success = await ProcessLemonResolutionArchiveAsync(zipPath, res.Resolution, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
             if (res.IsPrimary && success)
             {
                 primarySucceeded = true;
@@ -1054,7 +1138,7 @@ public class SampleProjectService(
 
         if (stringTableConverter != null)
         {
-            var strPath = Path.Combine(targetDir, "generals.str");
+            var strPath = Path.Combine(targetDir, ModBuilderConstants.FileNames.GeneralsStr);
             try
             {
                 await stringTableConverter.ConvertCsfToStrAsync(destCsf, strPath, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -1070,7 +1154,7 @@ public class SampleProjectService(
             try
             {
                 var packStaging = Path.Combine(Path.GetTempPath(), $"genhub_leikeze_pack_{Guid.NewGuid():N}");
-                var stagingLangDir = Path.Combine(packStaging, "Data", spec.LanguageFolder);
+                var stagingLangDir = Path.Combine(packStaging, ModBuilderConstants.DirectoryNames.Data, spec.LanguageFolder);
                 Directory.CreateDirectory(stagingLangDir);
                 File.Copy(destCsf, Path.Combine(stagingLangDir, GeneralsCsfFileName), overwrite: true);
 
@@ -1131,11 +1215,11 @@ public class SampleProjectService(
                 Directory.CreateDirectory(releaseDir);
             }
 
-            var csfFiles = Directory.GetFiles(tempStaging, "*.csf", SearchOption.AllDirectories);
+            var csfFiles = Directory.GetFiles(tempStaging, ModBuilderConstants.FileNames.CsfSearchPattern, SearchOption.AllDirectories);
 
             // 1. Zero Hour English
             var zhEnSpec = new LeikezeVariantSpec(
-                Path.Combine("ZeroHour", EnglishLanguageName, "Data", EnglishLanguageName),
+                Path.Combine(ModBuilderConstants.DirectoryNames.ZeroHour, EnglishLanguageName, ModBuilderConstants.DirectoryNames.Data, EnglishLanguageName),
                 "pack_zhen",
                 EnglishLanguageName,
                 "400_Hotkeys_ZH_EN.big");
@@ -1144,7 +1228,7 @@ public class SampleProjectService(
 
             // 2. Generals Classic English
             var genEnSpec = new LeikezeVariantSpec(
-                Path.Combine("Generals", EnglishLanguageName, "Data", EnglishLanguageName),
+                Path.Combine(ModBuilderConstants.DirectoryNames.Generals, EnglishLanguageName, ModBuilderConstants.DirectoryNames.Data, EnglishLanguageName),
                 "pack_genen",
                 EnglishLanguageName,
                 "400_Hotkeys_Generals_EN.big");
@@ -1153,7 +1237,7 @@ public class SampleProjectService(
 
             // 3. Zero Hour German
             var zhDeSpec = new LeikezeVariantSpec(
-                Path.Combine("ZeroHour", GermanLanguageName, "Data", GermanLanguageName),
+                Path.Combine(ModBuilderConstants.DirectoryNames.ZeroHour, GermanLanguageName, ModBuilderConstants.DirectoryNames.Data, GermanLanguageName),
                 "pack_zhde",
                 GermanLanguageName,
                 "400_Hotkeys_ZH_DE.big");
@@ -1279,8 +1363,8 @@ public class SampleProjectService(
             return;
         }
 
-        var csfPath = Path.Combine(gameFilesDir, "Data", EnglishLanguageName, GeneralsCsfFileName);
-        var strPath = Path.Combine(gameFilesDir, "Data", EnglishLanguageName, "generals.str");
+        var csfPath = Path.Combine(gameFilesDir, ModBuilderConstants.DirectoryNames.Data, EnglishLanguageName, GeneralsCsfFileName);
+        var strPath = Path.Combine(gameFilesDir, ModBuilderConstants.DirectoryNames.Data, EnglishLanguageName, ModBuilderConstants.FileNames.GeneralsStr);
         if (File.Exists(csfPath) && !File.Exists(strPath))
         {
             try

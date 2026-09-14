@@ -1368,14 +1368,7 @@ public partial class ModBuilderViewModel(
         return !string.IsNullOrEmpty(found) && File.Exists(found) ? found : null;
     }
 
-    private static IReadOnlyList<string> GetSampleBaseDirectories() =>
-    [
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-        Path.Combine(AppContext.BaseDirectory, ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-        Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName),
-        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ModBuilderConstants.SampleProjectsDirectoryName, ModBuilderConstants.ModBuilderDirName)),
-    ];
+    private static IReadOnlyList<string> GetSampleBaseDirectories() => ModBuilderConstants.GetSampleBaseDirectories();
 
     private static string? FindBaseSampleTemplateDirectory(string sampleId)
     {
@@ -1505,6 +1498,19 @@ public partial class ModBuilderViewModel(
 
     private async Task ProvisionSampleTemplatesFromDirectoryAsync(string baseDir, string userSamplesDir, List<string> userProjectPaths)
     {
+        if (string.IsNullOrWhiteSpace(baseDir) || !Directory.Exists(baseDir))
+        {
+            return;
+        }
+
+        var fullPath = Path.GetFullPath(baseDir);
+        var root = Path.GetPathRoot(fullPath);
+        if (string.Equals(fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), root?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Refusing to scan drive root {BaseDir} for sample projects", baseDir);
+            return;
+        }
+
         try
         {
             var files = Directory.GetFiles(baseDir, ModBuilderConstants.ProjectFilePattern, SearchOption.AllDirectories);
@@ -2636,14 +2642,7 @@ public partial class ModBuilderViewModel(
             {
                 var fileCount = await Task.Run(
                     () => Directory.EnumerateFiles(editFolder, "*.*", SearchOption.AllDirectories)
-                        .Count(f =>
-                        {
-                            var name = Path.GetFileName(f);
-                            return !name.Equals("README.md", StringComparison.OrdinalIgnoreCase) &&
-                                   !name.Equals("README.txt", StringComparison.OrdinalIgnoreCase) &&
-                                   !name.Equals(".gitkeep", StringComparison.OrdinalIgnoreCase) &&
-                                   !name.StartsWith(".git", StringComparison.OrdinalIgnoreCase);
-                        }),
+                        .Count(f => !ModBuilderConstants.IsIgnoredProjectFile(f)),
                     cancellationToken).ConfigureAwait(false);
 
                 if (fileCount > 0)
