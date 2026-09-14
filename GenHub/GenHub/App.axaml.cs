@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -17,6 +18,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -33,6 +35,7 @@ public partial class App : Application
     private readonly ILocalizationService _localizationService;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
+    private bool _startupArgsHandled;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -79,11 +82,12 @@ public partial class App : Application
             desktop.MainWindow = mainWindow;
             desktop.ShutdownRequested += OnShutdownRequested;
 
-            // Subscribe to IPC commands from secondary instances (Windows only)
+            // Subscribe to IPC commands from secondary instances (Windows and Linux)
             SubscribeToSingleInstanceCommands(mainWindow);
 
-            // Handle startup arguments sequentially (launch profile, then subscription if present)
-            SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+            // Handle startup arguments sequentially once the window is opened and active
+            mainWindow.Opened += (_, _) =>
+                SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
 
             // Repair desktop and application shortcuts if application executable has moved/relocated
             SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
@@ -208,26 +212,58 @@ public partial class App : Application
         catch (Exception ex)
         {
             var logger = _serviceProvider.GetService<ILogger<App>>();
-            logger?.LogError(ex, "Failed to save settings on shutdown");
+            logger?.LogError(ex, "Error during application shutdown");
         }
         finally
         {
-            if (_serviceProvider is IDisposable disposable)
+            try
             {
-                disposable.Dispose();
+                if (_serviceProvider is IAsyncDisposable disposable)
+                {
+                    await disposable.DisposeAsync();
+                }
+                else if (_serviceProvider is IDisposable syncDisposable)
+                {
+                    syncDisposable.Dispose();
+                }
+            }
+            catch (Exception disposeEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error disposing service provider during shutdown: {disposeEx.Message}");
             }
         }
     }
 
     private async Task HandleStartupArgsAsync(string[]? args, MainWindow mainWindow)
     {
+        if (_startupArgsHandled || args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        _startupArgsHandled = true;
+        await HandleLaunchProfileArgsAsync(args, mainWindow);
+        await HandleSubscriptionArgsAsync(args, mainWindow);
+        await HandleImportProfileArgsAsync(args, mainWindow);
+    }
+
+    private async Task HandleImportProfileArgsAsync(string[]? args, MainWindow mainWindow)
+    {
         if (args == null || args.Length == 0)
         {
             return;
         }
 
-        await HandleLaunchProfileArgsAsync(args, mainWindow);
-        await HandleSubscriptionArgsAsync(args, mainWindow);
+        var shareUri = CommandLineParser.ExtractProfileShareUri(args);
+        if (string.IsNullOrWhiteSpace(shareUri))
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogInformation("Startup profile import request received");
+
+        await HandleImportProfileUriAsync(shareUri, mainWindow);
     }
 
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
@@ -244,7 +280,7 @@ public partial class App : Application
         }
 
         var logger = _serviceProvider.GetService<ILogger<App>>();
-        logger?.LogInformation("Startup launch detected for profile: {ProfileId}", profileId);
+        logger?.LogInformation("Startup profile launch request for ID: {ProfileId}", profileId);
 
         await LaunchProfileByIdAsync(profileId, mainWindow);
     }
@@ -263,25 +299,21 @@ public partial class App : Application
         }
 
         var logger = _serviceProvider.GetService<ILogger<App>>();
-        logger?.LogInformation("Startup subscription detected for URL: {Url}", subscriptionUrl);
+        logger?.LogInformation("Startup subscription request for URL: {Url}", subscriptionUrl);
 
         await HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow);
     }
 
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
     {
-        // Get the SingleInstanceManager from AppLocator (set by Windows Program.cs)
-        var singleInstanceManager = AppLocator.SingleInstanceManager;
-        if (singleInstanceManager is null)
+        var commandReceiver = AppLocator.SingleInstanceManager;
+        if (commandReceiver == null)
         {
             return;
         }
 
-        singleInstanceManager.CommandReceived += (_, command) =>
+        commandReceiver.CommandReceived += (_, command) =>
             Dispatcher.UIThread.Post(() => HandleSingleInstanceCommand(command, mainWindow));
-
-        var logger = _serviceProvider.GetService<ILogger<App>>();
-        logger?.LogDebug("Subscribed to single instance IPC commands");
     }
 
     private void HandleSingleInstanceCommand(string command, MainWindow mainWindow)
@@ -293,7 +325,7 @@ public partial class App : Application
             var profileId = command[IpcCommands.LaunchProfilePrefix.Length..];
             logger?.LogInformation("Received IPC launch command for profile: {ProfileId}", profileId);
 
-            // Launch the profile
+            // Handle the profile launch
             SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), nameof(LaunchProfileByIdAsync));
         }
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
@@ -304,9 +336,63 @@ public partial class App : Application
             // Handle the subscription URL
             SafeFireAndForget(HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow), nameof(HandleSubscriptionUrlAsync));
         }
+        else if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var shareUri = command[IpcCommands.ImportProfilePrefix.Length..];
+            logger?.LogInformation("Received IPC profile import command");
+
+            // Handle profile import
+            SafeFireAndForget(HandleImportProfileUriAsync(shareUri, mainWindow), nameof(HandleImportProfileUriAsync));
+        }
+        else if (string.Equals(command, IpcCommands.ActivateCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogInformation("Received IPC activate command");
+            if (mainWindow.WindowState == WindowState.Minimized)
+            {
+                mainWindow.WindowState = WindowState.Normal;
+            }
+
+            mainWindow.Activate();
+        }
         else
         {
             logger?.LogWarning("Unknown IPC command received: {Command}", command);
+        }
+    }
+
+    private async Task HandleImportProfileUriAsync(string shareUriOrPath, MainWindow mainWindow)
+    {
+        if (string.IsNullOrWhiteSpace(shareUriOrPath))
+        {
+            return;
+        }
+
+        var trimmed = shareUriOrPath.Trim();
+        bool isValid = trimmed.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase) ||
+                       (trimmed.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) && File.Exists(trimmed));
+
+        if (!isValid)
+        {
+            var logger = _serviceProvider.GetService<ILogger<App>>();
+            logger?.LogWarning("Rejected invalid or non-existent profile import target: {Target}", trimmed);
+            return;
+        }
+
+        var launcherViewModel = _serviceProvider.GetService<GameProfileLauncherViewModel>();
+        if (launcherViewModel != null)
+        {
+            if (mainWindow.WindowState == WindowState.Minimized)
+            {
+                mainWindow.WindowState = WindowState.Normal;
+            }
+
+            mainWindow.Activate();
+            await launcherViewModel.ImportProfileFromFileOrUriAsync(trimmed);
+        }
+        else
+        {
+            var logger = _serviceProvider.GetService<ILogger<App>>();
+            logger?.LogError("GameProfileLauncherViewModel is not available for import.");
         }
     }
 

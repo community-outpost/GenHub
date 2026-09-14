@@ -46,7 +46,12 @@ public static class PublisherTypeConstants
     /// <summary>Retail publisher.</summary>
     public const string Retail = "retail";
 
-    /// <summary>GenHub local custom game installation publisher.</summary>
+    /// <summary>
+    /// GenHub local custom game installation publisher (used for detected and managed game installations).
+    /// </summary>
+    /// <remarks>
+    /// Contrast with <see cref="Local"/>, which represents generic local custom content files.
+    /// </remarks>
     public const string GenHubLocal = "genhublocal";
 
     /// <summary>Generals Online community client publisher.</summary>
@@ -67,17 +72,35 @@ public static class PublisherTypeConstants
     /// <summary>Art of Defense Maps community site.</summary>
     public const string AODMaps = "aodmaps";
 
+    /// <summary>
+    /// Local custom content publisher for user-supplied mods, maps, and custom content.
+    /// </summary>
+    /// <remarks>
+    /// Contrast with <see cref="GenHubLocal"/>, which is scoped to game installation manifests.
+    /// </remarks>
+    public const string Local = "local";
+
     /// <summary>GenHub internal system content publisher.</summary>
     public const string GenHubInternal = "genhub";
 
     /// <summary>
     /// Set of publisher identifiers trusted to execute installation steps (e.g. installers).
     /// </summary>
+    /// <remarks>
+    /// Trust Rationale:
+    /// <see cref="GitHub"/> is trusted here to enable first-party and curated community release installers
+    /// distributed via GitHub releases (e.g., Generals Online, GenPatcher, community patches).
+    /// Defense-in-depth is enforced by downstream security checks:
+    /// 1. Strict executable path containment prevents directory traversal.
+    /// 2. Cryptographic SHA-256 payload integrity verification ensures payloads match declared hashes.
+    /// 3. In profile sharing flows, executable dependencies prompt explicit user confirmation warnings.
+    /// </remarks>
     public static readonly IReadOnlySet<string> TrustedExecutablePublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        GeneralsOnline,
+        GitHub,
         CommunityOutpost,
         TheSuperHackers,
+        GeneralsOnline,
     };
 
     /// <summary>

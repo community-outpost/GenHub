@@ -52,8 +52,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
+    private readonly Func<IProfileSharingService>? _profileSharingServiceFactory;
+    private readonly IUploadHistoryService? _uploadHistoryService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly IProfileContentLinker? _profileContentLinker;
     private readonly ILaunchRegistry? _launchRegistry;
 
@@ -95,6 +98,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        Func<IProfileSharingService>? profileSharingServiceFactory = null,
+        ILoggerFactory? loggerFactory = null,
+        IUploadHistoryService? uploadHistoryService = null,
         IProfileContentLinker? profileContentLinker = null,
         ILaunchRegistry? launchRegistry = null)
     {
@@ -110,6 +116,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _dialogService = dialogService;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
+        _profileSharingServiceFactory = profileSharingServiceFactory;
+        _loggerFactory = loggerFactory;
+        _uploadHistoryService = uploadHistoryService;
         _profileContentLinker = profileContentLinker;
         _launchRegistry = launchRegistry;
 
@@ -176,7 +185,26 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
 
-    private string? CurrentProfileId { get; set; }
+    /// <summary>
+    /// Gets a value indicating whether the current profile can be shared (i.e. is already saved and has an ID).
+    /// </summary>
+    public bool CanShareProfile => !string.IsNullOrEmpty(CurrentProfileId);
+
+    private string? _currentProfileId;
+
+    private string? CurrentProfileId
+    {
+        get => _currentProfileId;
+        set
+        {
+            if (SetProperty(ref _currentProfileId, value))
+            {
+                OnPropertyChanged(nameof(CanShareProfile));
+            }
+        }
+    }
+
+    private IProfileSharingService? ProfileSharingService => _profileSharingServiceFactory?.Invoke();
 
     /// <summary>
     /// Event triggered when the view model requests to close.

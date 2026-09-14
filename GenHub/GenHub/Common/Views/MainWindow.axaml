@@ -18,7 +18,8 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
-        Background="#111118">
+        Background="#111118"
+        DragDrop.AllowDrop="True">
 
     <Window.Styles>
         <Style Selector="Grid.TitleBarArea">

@@ -13,6 +13,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -70,6 +72,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IUserDataTracker _userDataTracker;
     private readonly IDialogService _dialogService;
     private readonly IStorageMigrationService _storageMigrationService;
+    private readonly IUploadHistoryService? _uploadHistoryService;
+    private readonly SemaphoreSlim _uploadsLock = new(1, 1);
+    private readonly ObservableCollection<UploadHistoryItem> _activeUploads = [];
     private readonly IThemeService? _themeService;
 
     private bool _isViewVisible;
@@ -211,6 +216,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _isPatValid;
 
     [ObservableProperty]
+    private bool _hasUploads;
+
+    [ObservableProperty]
+    private bool _isLoadingUploads;
+
+    [ObservableProperty]
+    private string _uploadQuotaText = string.Empty;
+
+    [ObservableProperty]
+    private double _uploadQuotaPercent;
+
+    [ObservableProperty]
     private bool _isTestingPat;
 
     [ObservableProperty]
@@ -268,6 +285,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
+        IUploadHistoryService? uploadHistoryService = null,
         IGitHubApiClient? gitHubApiClient = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
@@ -286,9 +304,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _storageMigrationService = storageMigrationService ?? throw new ArgumentNullException(nameof(storageMigrationService));
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
+        _uploadHistoryService = uploadHistoryService;
         _gitHubApiClient = gitHubApiClient;
+        ActiveUploads = new(_activeUploads);
+
+        if (_uploadHistoryService != null)
+        {
+            _uploadHistoryService.UploadHistoryChanged += OnUploadHistoryChanged;
+        }
 
         LoadSettings();
+        _ = RefreshUploadsAsync();
         _ = LoadPatStatusAsync();
 
         // Initialize with default if needed
@@ -351,6 +377,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the status color for the PAT indicator.
     /// </summary>
+    /// <summary>
+    /// Gets the list of active upload records across all tools and shared profiles.
+    /// </summary>
+    public ReadOnlyObservableCollection<UploadHistoryItem> ActiveUploads { get; }
+
     public string PatStatusColor => _isPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
@@ -482,13 +513,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (!_disposed)
         {
+            _disposed = true;
+
             if (disposing)
             {
+                if (_uploadHistoryService != null)
+                {
+                    _uploadHistoryService.UploadHistoryChanged -= OnUploadHistoryChanged;
+                }
+
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
+                _uploadsLock.Dispose();
             }
-
-            _disposed = true;
         }
     }
 
@@ -2479,6 +2516,199 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to copy latest log file");
             _notificationService.ShowError(ErrorTitle, "Failed to copy latest log.", 3000);
+        }
+    }
+
+    private void OnUploadHistoryChanged(object? sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RefreshUploadsAsync());
+    }
+
+    /// <summary>
+    /// Refreshes the list of active uploads and quota usage from the upload history service.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshUploadsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_uploadHistoryService == null || _disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uploadsLock.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            IsLoadingUploads = true;
+            var usage = await _uploadHistoryService.GetUsageInfoAsync(null, cancellationToken);
+            var items = (await _uploadHistoryService.GetUploadHistoryAsync(null, cancellationToken)).ToList();
+
+            _activeUploads.Clear();
+            foreach (var item in items.OrderByDescending(i => i.Timestamp))
+            {
+                _activeUploads.Add(item);
+            }
+
+            HasUploads = ActiveUploads.Count > 0;
+            long totalUsedBytes = Math.Max(usage.UsedBytes, items.Sum(i => i.SizeBytes));
+            double usedMb = totalUsedBytes / (double)ConversionConstants.BytesPerMegabyte;
+            double limitMb = usage.LimitBytes / (double)ConversionConstants.BytesPerMegabyte;
+            UploadQuotaPercent = usage.LimitBytes > 0
+                ? Math.Clamp((double)totalUsedBytes / usage.LimitBytes * 100.0, 0.0, 100.0)
+                : 0.0;
+
+            string formattedUsed = totalUsedBytes switch
+            {
+                >= ConversionConstants.BytesPerMegabyte => $"{usedMb:F1} MB",
+                >= ConversionConstants.BytesPerKilobyte => $"{totalUsedBytes / (double)ConversionConstants.BytesPerKilobyte:F1} KB",
+                _ => $"{totalUsedBytes} B",
+            };
+
+            string percentText = UploadQuotaPercent switch
+            {
+                >= 1.0 => $"{UploadQuotaPercent:F0}%",
+                > 0.0 => $"{UploadQuotaPercent:F2}%",
+                _ => "0%",
+            };
+
+            UploadQuotaText = $"{formattedUsed} / {limitMb:F1} MB Used ({percentText})";
+        }
+        catch (OperationCanceledException)
+        {
+            // Operation was cancelled
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh upload records in settings");
+        }
+        finally
+        {
+            IsLoadingUploads = false;
+            try
+            {
+                _uploadsLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Lock was disposed while operation was running
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes an upload record from local upload history.
+    /// </summary>
+    /// <param name="item">The upload history item to remove.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    [RelayCommand]
+    private async Task DeleteUploadAsync(UploadHistoryItem? item, CancellationToken cancellationToken = default)
+    {
+        if (_uploadHistoryService == null || item == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, true, cancellationToken);
+            _notificationService.ShowSuccess("Upload Removed", $"Removed {item.FileName} from upload history.");
+            await RefreshUploadsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Operation was cancelled
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete upload {Url}", item.Url);
+            _notificationService.ShowError(ErrorTitle, "Failed to remove upload history record.");
+        }
+    }
+
+    /// <summary>
+    /// Clears all upload history records.
+    /// </summary>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    [RelayCommand]
+    private async Task ClearAllUploadsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_uploadHistoryService == null)
+        {
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmationAsync(
+            "Clear Upload History",
+            "Are you sure you want to clear all upload history and remove uploaded files from cloud storage?",
+            "Clear All",
+            "Cancel");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uploadHistoryService.ClearHistoryAsync(true, null, cancellationToken);
+            _notificationService.ShowSuccess("Uploads Cleared", "Purged all active upload records.");
+            await RefreshUploadsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Operation was cancelled
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear upload records");
+            _notificationService.ShowError(ErrorTitle, "Failed to clear uploads.");
+        }
+    }
+
+    /// <summary>
+    /// Copies an upload's public URL to the clipboard.
+    /// </summary>
+    /// <param name="url">The URL to copy.</param>
+    [RelayCommand]
+    private async Task CopyUploadUrlAsync(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(url);
+                _notificationService.ShowSuccess("Copied", "Upload URL copied to clipboard.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy upload URL to clipboard");
+            _notificationService.ShowError(ErrorTitle, "Failed to copy URL to clipboard.");
         }
     }
 
