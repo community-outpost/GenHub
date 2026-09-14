@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -206,6 +207,24 @@ public sealed class FileConversionServiceTests : IDisposable
 
         var cts = new CancellationTokenSource();
         cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            async () => await _service.ConvertFileAsync(sourcePath, destPath, cancellationToken: cts.Token));
+    }
+
+    [Fact]
+    public async Task ConvertFileAsync_WhenUnderlyingImageServiceCancels_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "test.psd");
+        var destPath = Path.Combine(_tempDirectory, "test.dds");
+        await File.WriteAllTextAsync(sourcePath, "dummy");
+
+        var cts = new CancellationTokenSource();
+        _mockImageService.Setup(x => x.ConvertImageAsync(
+            sourcePath, destPath, It.IsAny<IDictionary<string, object>>(), cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
