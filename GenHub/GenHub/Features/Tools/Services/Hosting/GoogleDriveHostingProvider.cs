@@ -135,11 +135,13 @@ public class GoogleDriveHostingProvider(
         }
         catch (OperationCanceledException ex)
         {
-            logger.LogWarning(ex, "Google Drive authentication timed out.");
+            logger.LogWarning(ex, "Google Drive authentication was canceled or timed out.");
             return OperationResult<bool>.CreateFailure(
-                "Google Drive authentication timed out. " +
-                "If your browser displayed 'Error 400: redirect_uri_mismatch', your OAuth Client ID was created as a 'Web application' instead of a 'Desktop app'. " +
-                "In Google Cloud Console, delete this Client ID, create a new OAuth Client ID with Application type set to 'Desktop app', and try again.");
+                "Google Drive authentication was canceled or timed out.\n\n" +
+                "• If your browser displayed 'Error 403: access_denied' (Access blocked: GenHub has not completed the Google verification process):\n" +
+                "  Your Google Cloud project is in 'Testing' mode. In Google Cloud Console, open 'Audience' (or 'OAuth consent screen') > 'Test users', click '+ ADD USERS', enter your Google account email, and click 'SAVE'.\n\n" +
+                "• If your browser displayed 'Error 400: redirect_uri_mismatch':\n" +
+                "  Your OAuth Client ID was created as a 'Web application' instead of a 'Desktop app'. In Google Cloud Console > Credentials, delete it and create a new OAuth Client ID with Application type set to 'Desktop app'.");
         }
         catch (Exception ex)
         {
@@ -147,7 +149,7 @@ public class GoogleDriveHostingProvider(
             var errorMsg = ex.Message;
             if (errorMsg.Contains("access_denied", StringComparison.OrdinalIgnoreCase))
             {
-                errorMsg = "Access was denied. Please approve the requested permissions to allow GenHub to host your files.";
+                errorMsg = "Access was denied (Error 403: access_denied). Your Google Cloud project is in Testing mode. Go to Google Cloud Console > 'Audience' (or 'OAuth consent screen') > 'Test users', click '+ ADD USERS', and add your Google account email.";
             }
 
             return OperationResult<bool>.CreateFailure($"Authentication failed: {errorMsg}");
@@ -178,35 +180,43 @@ public class GoogleDriveHostingProvider(
 
         try
         {
-            string parentFolderId;
-            if (string.IsNullOrEmpty(folderPath))
+            // Ensure publisher folder exists
+            var folderResult = await GetOrCreatePublisherFolderAsync(cancellationToken);
+            if (!folderResult.Success || string.IsNullOrEmpty(folderResult.Data))
             {
-                var folderResult = await GetOrCreatePublisherFolderAsync(cancellationToken);
-                if (!folderResult.Success)
-                {
-                    return OperationResult<HostingUploadResult>.CreateFailure(folderResult);
-                }
-
-                parentFolderId = folderResult.Data;
-            }
-            else
-            {
-                parentFolderId = folderPath;
+                return OperationResult<HostingUploadResult>.CreateFailure(
+                    $"Failed to get publisher folder: {folderResult.FirstError}");
             }
 
+            var folderId = folderResult.Data;
+
+            // Check if file already exists in the folder
+            var searchRequest = _driveService.Files.List();
+            searchRequest.Q = $"name = '{fileName}' and '{folderId}' in parents and trashed = false";
+            searchRequest.Fields = "files(id, name)";
+            var searchResult = await searchRequest.ExecuteAsync(cancellationToken);
+
+            var existingFile = searchResult.Files?.FirstOrDefault();
+            if (existingFile != null)
+            {
+                // Update existing file
+                return await UpdateFileAsync(existingFile.Id, fileStream, fileName, progress, cancellationToken);
+            }
+
+            // Create new file
             var fileMetadata = new Google.Apis.Drive.v3.Data.File
             {
                 Name = fileName,
-                Parents = new List<string> { parentFolderId },
+                Parents = [folderId],
             };
 
             var mimeType = GetMimeType(fileName);
-            var uploadRequest = _driveService.Files.Create(fileMetadata, fileStream, mimeType);
-            uploadRequest.Fields = "id, name, size, webViewLink, webContentLink";
+            var insertRequest = _driveService.Files.Create(fileMetadata, fileStream, mimeType);
+            insertRequest.Fields = "id, name, size, webViewLink, webContentLink";
 
             if (progress != null)
             {
-                uploadRequest.ProgressChanged += uploadProgress =>
+                insertRequest.ProgressChanged += uploadProgress =>
                 {
                     if (uploadProgress.Status == UploadStatus.Uploading && fileStream.CanSeek && fileStream.Length > 0)
                     {
@@ -216,19 +226,19 @@ public class GoogleDriveHostingProvider(
                 };
             }
 
-            var uploadResult = await uploadRequest.UploadAsync(cancellationToken);
+            var uploadResult = await insertRequest.UploadAsync(cancellationToken);
 
             if (uploadResult.Status != UploadStatus.Completed)
             {
-                logger.LogError("Google Drive upload failed: {Error}", uploadResult.Exception?.Message);
+                logger.LogError("Google Drive upload failed for {FileName}: {Error}", fileName, uploadResult.Exception?.Message);
                 return OperationResult<HostingUploadResult>.CreateFailure(
                     uploadResult.Exception?.Message ?? "Upload failed");
             }
 
-            var uploadedFile = uploadRequest.ResponseBody;
-            logger.LogInformation("Uploaded {FileName} to Google Drive (ID: {FileId})", fileName, uploadedFile.Id);
+            var uploadedFile = insertRequest.ResponseBody;
+            logger.LogInformation("Successfully uploaded {FileName} to Google Drive. ID: {FileId}", fileName, uploadedFile.Id);
 
-            // Make the file publicly accessible
+            // Make the file publicly readable
             await MakePublicAsync(uploadedFile.Id, cancellationToken);
 
             var directDownloadUrl = string.Format(

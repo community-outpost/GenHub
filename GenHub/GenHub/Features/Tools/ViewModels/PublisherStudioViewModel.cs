@@ -559,6 +559,28 @@ public partial class PublisherStudioViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Handles a file or directory path dropped into Publisher Studio.
+    /// Switches to the Content Library tab and opens the Add Content dialog prefilled with the item details.
+    /// </summary>
+    /// <param name="path">The dropped file or directory path.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task HandleDroppedPathAsync(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        // Switch to Content Library tab
+        SelectedTabIndex = TabCatalogs;
+
+        if (ContentLibraryViewModel != null)
+        {
+            await ContentLibraryViewModel.AddContentWithPathAsync(path);
+        }
+    }
+
+    /// <summary>
     /// Migrates a single-catalog project to multi-catalog format.
     /// </summary>
     private void MigrateProjectToMultiCatalog()

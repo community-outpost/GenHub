@@ -8,6 +8,7 @@
              d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherStudioView"
              x:DataType="vm:PublisherStudioViewModel"
+             DragDrop.AllowDrop="True"
              x:Name="RootView">
 
     <UserControl.Styles>
@@ -129,7 +130,10 @@
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <Border Width="34" Height="34" CornerRadius="8"
                                 Background="{DynamicResource PSPrimaryGradient}">
-                            <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="White"/>
+                            <Image Source="avares://GenHub/Assets/Icons/publisherstudio-icon.png"
+                                   Width="22" Height="22"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -234,67 +238,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Catalog Selector Dropdown with Rename, Add, Delete -->
-                        <Border Background="#10FFFFFF"
-                                BorderBrush="#20FFFFFF"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="8,4"
-                                IsVisible="{Binding IsSetupComplete}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource ContentIcon}"
-                                          Width="13" Height="13"
-                                          Foreground="{DynamicResource AccentColorBrush}"
-                                          VerticalAlignment="Center"/>
-                                <ComboBox SelectedItem="{Binding SelectedCatalog}"
-                                          ItemsSource="{Binding Catalogs}"
-                                          MinWidth="140"
-                                          Background="Transparent"
-                                          BorderThickness="0">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"/>
-                                                <TextBlock Text="{Binding Catalog.Content.Count, StringFormat='({0})'}"
-                                                           FontSize="11"
-                                                           Foreground="#888888"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <!-- Rename Catalog Button -->
-                                <Button Classes="glass-btn-icon"
-                                        Command="{Binding RenameCatalogCommand}"
-                                        ToolTip.Tip="Rename Selected Catalog"
-                                        Padding="5">
-                                    <PathIcon Data="{StaticResource EditIcon}"
-                                              Width="12" Height="12"
-                                              Foreground="{DynamicResource AccentColorBrush}"/>
-                                </Button>
-                                <!-- Add Catalog Button -->
-                                <Button Classes="glass-btn-icon"
-                                        Command="{Binding AddCatalogCommand}"
-                                        ToolTip.Tip="Add New Catalog"
-                                        Padding="5">
-                                    <PathIcon Data="{StaticResource AddIcon}"
-                                              Width="12" Height="12"
-                                              Foreground="{DynamicResource AccentColorBrush}"/>
-                                </Button>
-                                <!-- Delete Catalog Button -->
-                                <Button Classes="glass-btn-icon"
-                                        Command="{Binding RemoveCatalogCommand}"
-                                        CommandParameter="{Binding SelectedCatalog}"
-                                        IsEnabled="{Binding CanRemoveCatalog}"
-                                        ToolTip.Tip="Remove Catalog"
-                                        Padding="5">
-                                    <PathIcon Data="{StaticResource DeleteIcon}"
-                                              Width="12" Height="12"
-                                              Foreground="#FF6060"/>
-                                </Button>
-                            </StackPanel>
-                        </Border>
 
-                        <Rectangle Width="1" Height="22" Fill="#20FFFFFF" Margin="4,0" VerticalAlignment="Center"/>
 
                         <!-- New Project Button -->
                         <Button Classes="glass-btn-icon"

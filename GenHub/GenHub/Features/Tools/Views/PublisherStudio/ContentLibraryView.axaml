@@ -70,39 +70,79 @@
                 BorderThickness="0,0,1,0"
                 BorderBrush="#15FFFFFF">
             <Grid RowDefinitions="Auto,Auto,*,Auto">
-                <!-- Active Catalog Indicator -->
+                <!-- Catalog Selector Bar -->
                 <Border Grid.Row="0"
-                        Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                        Background="#0DFFFFFF"
                         BorderThickness="0,0,0,1"
-                        BorderBrush="{DynamicResource AccentBrush}"
-                        Padding="16,10">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource ContentIcon}"
-                                      Width="14" Height="14"
-                                      Foreground="{DynamicResource AccentColorBrush}"
-                                      VerticalAlignment="Center"/>
-                            <TextBlock Text="Catalog:"
-                                       FontSize="11"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextMuted}"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding ActiveCatalogName}"
-                                       FontSize="11"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource AccentColorBrush}"
-                                       VerticalAlignment="Center"/>
+                        BorderBrush="#1AFFFFFF"
+                        Padding="12,8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <!-- Catalog Dropdown -->
+                        <ComboBox Grid.Column="0"
+                                  SelectedItem="{Binding SelectedCatalog}"
+                                  ItemsSource="{Binding Catalogs}"
+                                  HorizontalAlignment="Stretch"
+                                  Background="#15FFFFFF"
+                                  BorderBrush="#25FFFFFF"
+                                  BorderThickness="1"
+                                  CornerRadius="6"
+                                  Padding="8,6"
+                                  Margin="0,0,6,0">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <PathIcon Data="{StaticResource ContentIcon}"
+                                                  Width="12" Height="12"
+                                                  Foreground="{DynamicResource AccentColorBrush}"
+                                                  VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Catalog.Content.Count, StringFormat='({0})'}"
+                                                   FontSize="11"
+                                                   Foreground="#888888"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <!-- Action Buttons: Rename, Add, Delete -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <!-- Rename -->
+                            <Button Command="{Binding RenameCatalogCommand}"
+                                    ToolTip.Tip="Rename Selected Catalog"
+                                    Background="#15FFFFFF"
+                                    BorderBrush="#25FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="6"
+                                    Cursor="Hand">
+                                <PathIcon Data="{StaticResource EditIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                            </Button>
+                            <!-- Add New Catalog -->
+                            <Button Command="{Binding AddCatalogCommand}"
+                                    ToolTip.Tip="Add New Catalog"
+                                    Background="#15FFFFFF"
+                                    BorderBrush="#25FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="6"
+                                    Cursor="Hand">
+                                <PathIcon Data="{StaticResource AddIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                            </Button>
+                            <!-- Remove Catalog -->
+                            <Button Command="{Binding RemoveCatalogCommand}"
+                                    CommandParameter="{Binding SelectedCatalog}"
+                                    IsEnabled="{Binding CanRemoveCatalog}"
+                                    ToolTip.Tip="Delete Selected Catalog"
+                                    Background="#15FFFFFF"
+                                    BorderBrush="#25FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="6"
+                                    Cursor="Hand">
+                                <PathIcon Data="{StaticResource DeleteIcon}" Width="11" Height="11" Foreground="#FF6060"/>
+                            </Button>
                         </StackPanel>
-                        <Button Grid.Column="2"
-                                Command="{Binding RenameCatalogCommand}"
-                                ToolTip.Tip="Rename this catalog"
-                                Background="Transparent"
-                                Padding="6,4"
-                                CornerRadius="4"
-                                BorderThickness="0"
-                                VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                        </Button>
                     </Grid>
                 </Border>
 

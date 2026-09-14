@@ -40,6 +40,7 @@ public partial class ContentLibraryView : UserControl
                 var first = files.FirstOrDefault();
                 if (first?.Path?.LocalPath is { } path)
                 {
+                    e.Handled = true;
                     await vm.AddContentWithPathAsync(path);
                 }
             }

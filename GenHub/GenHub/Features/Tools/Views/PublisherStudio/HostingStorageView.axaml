@@ -295,8 +295,8 @@
                                     <TextBlock Text="Step 4: Create Desktop OAuth Client ID  [CRITICAL: Must select 'Desktop app']" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
                                     <TextBlock Text="In Google Auth Platform, click 'Clients' (or click button #2 below). Click '+ Create client'. Set Application type to 'Desktop app' (DO NOT leave as 'Web application'!). Name it 'GenHub Desktop' and click 'CREATE'. Copy your Client ID and Client Secret immediately!" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 5: Add your Google account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Click 'Audience' in Google Auth Platform. Under 'Test users', click '+ ADD USERS', enter your Google account email, and click 'SAVE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Step 5: Add your Google account to Test Users  [CRITICAL: Fixes Error 403 access_denied]" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                    <TextBlock Text="In Google Auth Platform, click 'Audience' (or button #3 below). Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'. If you skip this, Google blocks authorization with Error 403: access_denied." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="Step 6: Paste Client ID and Secret below and Connect" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="Copy your Client ID and Client Secret into the input fields below and click Connect." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
@@ -307,13 +307,19 @@
                                     <Button Command="{Binding OpenGoogleAuthPlatformConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="1. Open Google Auth Platform (Project Configuration)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="1. Open Google Auth Platform" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}" Classes="small-glass-btn" Margin="0,0,0,6">
+                                    <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="2. Open Credentials Console (Create Desktop Client ID)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="2. Open Credentials (Desktop Client ID)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Command="{Binding OpenGoogleAudienceConsoleCommand}" Classes="small-glass-btn" Margin="0,0,0,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="3. Open Audience / Test Users (Fix 403)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                 </WrapPanel>

@@ -362,6 +362,21 @@ public partial class AddContentDialogViewModel : ObservableValidator
             Description = $"{ContentName} package for {SelectedTargetGame}.";
         }
 
+        // Intelligently infer ContentType from extension or name
+        var ext = Path.GetExtension(path);
+        if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase) || baseName.Contains("map", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedContentType = ContentType.Map;
+        }
+        else if (baseName.Contains("patch", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedContentType = ContentType.Patch;
+        }
+        else if (baseName.Contains("addon", StringComparison.OrdinalIgnoreCase) || baseName.Contains("tool", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedContentType = ContentType.Addon;
+        }
+
         Validate();
     }
 

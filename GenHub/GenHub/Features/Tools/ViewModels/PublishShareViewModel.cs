@@ -2193,6 +2193,15 @@ public partial class PublishShareViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Opens the Google Auth Platform Audience / Test Users page in the default web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenGoogleAudienceConsole()
+    {
+        OpenExternalBrowserUrl(HostingConstants.GoogleAuthAudienceUrl);
+    }
+
+    /// <summary>
     /// Opens the Google Cloud Console credentials page in the default web browser.
     /// </summary>
     [RelayCommand]

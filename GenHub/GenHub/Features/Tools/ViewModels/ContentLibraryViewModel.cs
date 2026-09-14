@@ -120,13 +120,53 @@ public partial class ContentLibraryViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Gets the list of catalogs in the project.
+    /// </summary>
+    public ObservableCollection<NamedCatalog>? Catalogs => _parentViewModel?.Catalogs;
+
+    /// <summary>
+    /// Gets or sets the selected catalog.
+    /// </summary>
+    public NamedCatalog? SelectedCatalog
+    {
+        get => _parentViewModel?.SelectedCatalog;
+        set
+        {
+            if (_parentViewModel != null && _parentViewModel.SelectedCatalog != value)
+            {
+                _parentViewModel.SelectedCatalog = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the current catalog can be removed.
+    /// </summary>
+    public bool CanRemoveCatalog => _parentViewModel?.CanRemoveCatalog ?? false;
+
+    /// <summary>
+    /// Gets the command to add a new catalog.
+    /// </summary>
+    public IRelayCommand? AddCatalogCommand => _parentViewModel?.AddCatalogCommand;
+
+    /// <summary>
+    /// Gets the command to remove a catalog.
+    /// </summary>
+    public IAsyncRelayCommand<NamedCatalog>? RemoveCatalogCommand => _parentViewModel?.RemoveCatalogCommand;
+
+    /// <summary>
     /// Renames the active catalog.
     /// </summary>
     [RelayCommand]
     private async Task RenameCatalogAsync()
     {
-        await _parentViewModel.RenameCatalogCommand.ExecuteAsync(_activeCatalog);
-        OnPropertyChanged(nameof(ActiveCatalogName));
+        if (_parentViewModel != null)
+        {
+            await _parentViewModel.RenameCatalogCommand.ExecuteAsync(_activeCatalog);
+            OnPropertyChanged(nameof(ActiveCatalogName));
+            OnPropertyChanged(nameof(SelectedCatalog));
+        }
     }
 
     /// <summary>

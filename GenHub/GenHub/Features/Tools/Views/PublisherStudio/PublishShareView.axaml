@@ -234,10 +234,10 @@
                                 <TextBlock Text="5. An 'OAuth client created' popup will appear showing your 'Client ID' and 'Client secret'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 <TextBlock Text="6. Important: Copy both now! Google warns you will not be able to view the secret again once the dialog is closed." FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
-                                <TextBlock Text="Step 5: Add your Google Account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}" Margin="0,4,0,0"/>
-                                <TextBlock Text="1. In Google Auth Platform, click the 'Audience' tab in the left menu." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="2. Under 'Test users', click '+ ADD USERS', enter your Google account email, and click 'SAVE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="   (Without this, Google blocks authorization with an 'Access blocked: unverified app' error)." FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                <TextBlock Text="Step 5: Add your Google Account to Test Users  [CRITICAL: Fixes Error 403 access_denied]" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}" Margin="0,4,0,0"/>
+                                <TextBlock Text="1. In Google Auth Platform, click the 'Audience' tab in the left menu (or click button #3 below)." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                <TextBlock Text="2. Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                <TextBlock Text="   (Without this, Google blocks authorization with 'Error 403: access_denied / Access blocked: GenHub has not completed the Google verification process')." FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
                                 <TextBlock Text="Step 6: Paste and Connect in GenHub" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}" Margin="0,4,0,0"/>
                                 <TextBlock Text="1. Copy and paste your Client ID and Client Secret into the two input fields below." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
@@ -255,17 +255,27 @@
                                     Margin="0,0,10,6">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                    <TextBlock Text="1. Open Google Auth Platform (Project Configuration)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Text="1. Open Google Auth Platform" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                                 </StackPanel>
                             </Button>
 
                             <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}"
                                     Classes="small-glass-btn"
                                     ToolTip.Tip="Open Google Cloud Console Credentials page in your default browser"
+                                    Margin="0,0,10,6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                    <TextBlock Text="2. Open Credentials (Desktop Client ID)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding OpenGoogleAudienceConsoleCommand}"
+                                    Classes="small-glass-btn"
+                                    ToolTip.Tip="Open Google Auth Platform Audience / Test Users page to authorize your account and fix 403 errors"
                                     Margin="0,0,0,6">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                    <TextBlock Text="2. Open Credentials Console (Create Client ID)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Text="3. Open Audience / Test Users (Fix 403)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                                 </StackPanel>
                             </Button>
                         </WrapPanel>

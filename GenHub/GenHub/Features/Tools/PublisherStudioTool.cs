@@ -1,5 +1,6 @@
 using System;
 using Avalonia.Controls;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ViewModels;
@@ -26,7 +27,7 @@ public class PublisherStudioTool : IToolPlugin
         Version = "1.0.0",
         IsBundled = true,
         IsFullScreen = true,
-        IconPath = "/Assets/Icons/tools.png", // Placeholder or existing icon
+        IconPath = UriConstants.PublisherStudioIconUri,
     };
 
     /// <inheritdoc/>
