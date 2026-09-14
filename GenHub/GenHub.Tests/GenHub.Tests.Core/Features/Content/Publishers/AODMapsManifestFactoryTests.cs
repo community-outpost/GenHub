@@ -69,11 +69,11 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that an archive entry attempting path traversal throws an InvalidDataException.
+    /// Verifies that an archive entry attempting path traversal returns a failure result.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_PathTraversalArchive_ThrowsInvalidDataExceptionAsync()
+    public async Task CreateManifestsFromExtractedContentAsync_PathTraversalArchive_ReturnsFailureAsync()
     {
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
@@ -99,17 +99,20 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
             TargetGame = GameType.ZeroHour,
         };
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidDataException>(() =>
-            factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+        // Act
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("ZIP entry has an unsafe path", result.FirstError);
     }
 
     /// <summary>
-    /// Verifies that an empty archive containing no files throws an InvalidDataException.
+    /// Verifies that an empty archive containing no files returns a failure result.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_EmptyArchive_ThrowsInvalidDataExceptionAsync()
+    public async Task CreateManifestsFromExtractedContentAsync_EmptyArchive_ReturnsFailureAsync()
     {
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
@@ -133,9 +136,12 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
             TargetGame = GameType.ZeroHour,
         };
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidDataException>(() =>
-            factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+        // Act
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("AODMaps archive contained no files.", result.FirstError);
     }
 
     /// <summary>

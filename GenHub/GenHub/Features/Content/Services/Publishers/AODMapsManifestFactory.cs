@@ -82,7 +82,14 @@ public partial class AODMapsManifestFactory(
         {
             var extractPath = Path.Combine(extractedDirectory, Path.GetFileNameWithoutExtension(zipPath));
             Directory.CreateDirectory(extractPath);
-            ExtractZipSafely(zipPath, extractPath);
+            var extractResult = ExtractZipSafely(zipPath, extractPath);
+            if (!extractResult.Success)
+            {
+                logger.LogWarning("Failed to safely extract ZIP {ZipPath}: {Error}", zipPath, extractResult.FirstError);
+                return OperationResult<List<ContentManifest>>.CreateFailure(
+                    extractResult.FirstError ?? $"Failed to safely extract ZIP: {zipPath}");
+            }
+
             File.Delete(zipPath);
         }
 
@@ -106,7 +113,7 @@ public partial class AODMapsManifestFactory(
         if (files.Count == 0)
         {
             logger.LogWarning("AODMaps archive contained no files in directory {Directory}", extractedDirectory);
-            throw new InvalidDataException("AODMaps archive contained no files.");
+            return OperationResult<List<ContentManifest>>.CreateFailure("AODMaps archive contained no files.");
         }
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(
@@ -266,7 +273,7 @@ public partial class AODMapsManifestFactory(
         return builder;
     }
 
-    private static void ExtractZipSafely(string zipPath, string extractPath)
+    private static OperationResult ExtractZipSafely(string zipPath, string extractPath)
     {
         using var archive = ZipFile.OpenRead(zipPath);
         var rootPath = Path.GetFullPath(extractPath) + Path.DirectorySeparatorChar;
@@ -275,7 +282,7 @@ public partial class AODMapsManifestFactory(
             var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.FullName));
             if (!destinationPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidDataException($"ZIP entry has an unsafe path: {entry.FullName}");
+                return OperationResult.CreateFailure($"ZIP entry has an unsafe path: {entry.FullName}");
             }
 
             var dir = Path.GetDirectoryName(destinationPath);
@@ -286,5 +293,7 @@ public partial class AODMapsManifestFactory(
 
             entry.ExtractToFile(destinationPath, overwrite: true);
         }
+
+        return OperationResult.CreateSuccess();
     }
 }

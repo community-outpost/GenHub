@@ -190,8 +190,7 @@ public class GeneralsOnlineManifestFactory(
         var manifests = CreateVariantManifestsFromOriginal(originalManifest);
 
         // Update manifests with extracted files (compute hashes, set file entries)
-        var updated = await UpdateManifestsWithExtractedFiles(manifests, extractedDirectory, cancellationToken);
-        return OperationResult<List<ContentManifest>>.CreateSuccess(updated);
+        return await UpdateManifestsWithExtractedFiles(manifests, extractedDirectory, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -238,7 +237,8 @@ public class GeneralsOnlineManifestFactory(
         var manifests = CreateManifests(release);
 
         // Update with file hashes from the installation
-        return await UpdateManifestsWithExtractedFiles(manifests, installationPath, cancellationToken);
+        var updateResult = await UpdateManifestsWithExtractedFiles(manifests, installationPath, cancellationToken);
+        return updateResult.Success ? (updateResult.Data ?? []) : [];
     }
 
     private static int ParseVersionForManifestId(string version)
@@ -588,7 +588,7 @@ public class GeneralsOnlineManifestFactory(
     /// <param name="extractPath">The path to the directory containing extracted files.</param>
     /// <param name="cancellationToken">Token to cancel the operation if needed.</param>
     /// <returns>Updated content manifests with file hashes and details.</returns>
-    private async Task<List<ContentManifest>> UpdateManifestsWithExtractedFiles(
+    private async Task<OperationResult<List<ContentManifest>>> UpdateManifestsWithExtractedFiles(
         List<ContentManifest> manifests,
         string extractPath,
         CancellationToken cancellationToken = default)
@@ -620,7 +620,7 @@ public class GeneralsOnlineManifestFactory(
                     manifest.Name,
                     manifest.ContentType,
                     extractPath);
-                throw new InvalidDataException(
+                return OperationResult<List<ContentManifest>>.CreateFailure(
                     $"Manifest '{manifest.Name}' of type {manifest.ContentType} has no files in extract path '{extractPath}'.");
             }
 
@@ -645,7 +645,7 @@ public class GeneralsOnlineManifestFactory(
 
         ReconcileMissingMapPackDependencies(updatedManifests);
 
-        return updatedManifests;
+        return OperationResult<List<ContentManifest>>.CreateSuccess(updatedManifests);
     }
 
     private async Task<List<ExtractedFileInfo>> ScanExtractedFilesAsync(

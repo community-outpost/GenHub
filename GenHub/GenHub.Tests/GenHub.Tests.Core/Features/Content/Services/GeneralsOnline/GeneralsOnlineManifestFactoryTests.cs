@@ -370,12 +370,12 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync"/> throws
-    /// <see cref="InvalidDataException"/> when the GameClient manifest has zero files.
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync"/> returns
+    /// a failure result when the GameClient manifest has zero files.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_EmptyGameClient_ThrowsInvalidDataExceptionAsync()
+    public async Task CreateManifestsFromExtractedContentAsync_EmptyGameClient_ReturnsFailureAsync()
     {
         // Arrange: Only create map files, no GameClient files
         var mapsDir = Path.Combine(_tempDir, GeneralsOnlineConstants.MapsSubdirectory, "TestMap");
@@ -391,9 +391,12 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
             Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
         };
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidDataException>(() =>
-            _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None));
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("has no files in extract path", result.FirstError);
     }
 
     /// <summary>
