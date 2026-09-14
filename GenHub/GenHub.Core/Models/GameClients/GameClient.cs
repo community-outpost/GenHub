@@ -1,3 +1,4 @@
+using System;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
@@ -9,6 +10,8 @@ namespace GenHub.Core.Models.GameClients;
 /// </summary>
 public class GameClient
 {
+    private GameClientCapabilities _capabilities = GameClientCapabilities.None;
+
     /// <summary>Gets or sets the display name for this game client.</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -75,6 +78,34 @@ public class GameClient
 
     /// <summary>Gets or sets additional command line arguments.</summary>
     public string CommandLineArgs { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the capability flags supported by this game client.
+    /// Infers capabilities if not explicitly configured (e.g. for modern recovery clients or TheSuperHackers).
+    /// </summary>
+    public GameClientCapabilities Capabilities
+    {
+        get
+        {
+            if (_capabilities != GameClientCapabilities.None)
+            {
+                return _capabilities;
+            }
+
+            if (string.Equals(PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                (Id != null && (Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                                Id.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
+                                Id.Contains("checkpoint", StringComparison.OrdinalIgnoreCase))) ||
+                (Name != null && (Name.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
+                                  Name.Contains("checkpoint", StringComparison.OrdinalIgnoreCase))))
+            {
+                return GameClientCapabilities.AllRecoveryFeatures;
+            }
+
+            return GameClientCapabilities.None;
+        }
+        set => _capabilities = value;
+    }
 
     /// <summary>Gets or sets a value indicating whether this version is enabled.</summary>
     public bool IsEnabled { get; set; } = true;
