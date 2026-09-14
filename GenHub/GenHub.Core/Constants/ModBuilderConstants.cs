@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -300,6 +301,66 @@ public static class ModBuilderConstants
     public const string Dxt5Format = "DXT5";
 
     /// <summary>
+    /// Search pattern for BIG archive files.
+    /// </summary>
+    public const string BigFileSearchPattern = "*.big";
+
+    /// <summary>
+    /// Unpacked folder name used for asset staging.
+    /// </summary>
+    public const string UnpackedFolderName = "unpacked";
+
+    /// <summary>
+    /// Standard Window directory name.
+    /// </summary>
+    public const string WindowDirectoryName = "Window";
+
+    /// <summary>
+    /// Standard Art directory name.
+    /// </summary>
+    public const string ArtDirectoryName = "Art";
+
+    /// <summary>
+    /// Standard Data directory name.
+    /// </summary>
+    public const string DataDirectoryName = "Data";
+
+    /// <summary>
+    /// Standard GenTool directory name.
+    /// </summary>
+    public const string GenToolDirectoryName = "GenTool";
+
+    /// <summary>
+    /// Language name for English.
+    /// </summary>
+    public const string EnglishLanguageName = "English";
+
+    /// <summary>
+    /// Language name for German.
+    /// </summary>
+    public const string GermanLanguageName = "German";
+
+    /// <summary>
+    /// Language name for Russian.
+    /// </summary>
+    public const string RussianLanguageName = "Russian";
+
+    /// <summary>
+    /// Language name for Spanish.
+    /// </summary>
+    public const string SpanishLanguageName = "Spanish";
+
+    /// <summary>
+    /// Default Generals CSF file name.
+    /// </summary>
+    public const string GeneralsCsfFileName = "generals.csf";
+
+    /// <summary>
+    /// Default ControlBarPro documentation text file name.
+    /// </summary>
+    public const string ControlBarProTxtFileName = "ControlBarPro.txt";
+
+    /// <summary>
     /// Candidate search paths for the crunch tool executable.
     /// </summary>
     public static readonly IReadOnlyList<string> CrunchExecutableCandidates =
@@ -362,6 +423,269 @@ public static class ModBuilderConstants
         "LeikezeHotkeys",
         "Hotkeys"
     ];
+
+    /// <summary>
+    /// Constants for ModBuilder file extensions.
+    /// </summary>
+    public static class FileExtensions
+    {
+        /// <summary>File extension for BIG archive files.</summary>
+        public const string Big = ".big";
+
+        /// <summary>File extension for Blender 3D model files.</summary>
+        public const string Blend = ".blend";
+
+        /// <summary>File extension for Bitmap image files.</summary>
+        public const string Bmp = ".bmp";
+
+        /// <summary>File extension for CSF string table files.</summary>
+        public const string Csf = ".csf";
+
+        /// <summary>File extension for DirectDraw Surface texture files.</summary>
+        public const string Dds = ".dds";
+
+        /// <summary>File extension for Gzip compressed files.</summary>
+        public const string Gz = ".gz";
+
+        /// <summary>File extension for INI configuration files.</summary>
+        public const string Ini = ".ini";
+
+        /// <summary>File extension for Portable Network Graphics image files.</summary>
+        public const string Png = ".png";
+
+        /// <summary>File extension for Photoshop document files.</summary>
+        public const string Psd = ".psd";
+
+        /// <summary>File extension for raw game string table files.</summary>
+        public const string Str = ".str";
+
+        /// <summary>File extension for Truevision TGA image files.</summary>
+        public const string Tga = ".tga";
+
+        /// <summary>File extension for WAV audio files.</summary>
+        public const string Wav = ".wav";
+
+        /// <summary>File extension for Westwood 3D animated model files.</summary>
+        public const string W3x = ".w3x";
+
+        /// <summary>File extension for Westwood 3D model files.</summary>
+        public const string W3d = ".w3d";
+
+        /// <summary>File extension for Bink video files.</summary>
+        public const string Bik = ".bik";
+
+        /// <summary>File extension for window layout files.</summary>
+        public const string Wnd = ".wnd";
+
+        /// <summary>File extension for JSON files.</summary>
+        public const string Json = ".json";
+
+        /// <summary>File extension for ZIP archive files.</summary>
+        public const string Zip = ".zip";
+
+        /// <summary>File extension for ModBuilder project files.</summary>
+        public const string Mbproj = ".mbproj";
+    }
+
+    /// <summary>
+    /// Parameter names and values for bundle file configuration.
+    /// </summary>
+    public static class BundleParams
+    {
+        /// <summary>Parameter key indicating raw passthrough without conversion.</summary>
+        public const string NoConvert = "noconvert";
+
+        /// <summary>Parameter key indicating raw asset mode.</summary>
+        public const string Raw = "raw";
+
+        /// <summary>Parameter key indicating specified output format.</summary>
+        public const string OutputFormat = "outputformat";
+
+        /// <summary>Parameter value representing raw format.</summary>
+        public const string RawValue = "RAW";
+    }
+
+    /// <summary>
+    /// Conversion format identifiers used with file conversion services.
+    /// </summary>
+    public static class ConversionFormats
+    {
+        /// <summary>Format identifier for DirectDraw Surface.</summary>
+        public const string Dds = "DDS";
+
+        /// <summary>Format identifier for Compiled String File.</summary>
+        public const string Csf = "CSF";
+
+        /// <summary>Format identifier for INI configuration.</summary>
+        public const string Ini = "INI";
+
+        /// <summary>Format identifier for BIG archive.</summary>
+        public const string Big = "BIG";
+
+        /// <summary>Format identifier for raw string table.</summary>
+        public const string Str = "STR";
+
+        /// <summary>Format identifier for window definitions.</summary>
+        public const string Window = "WINDOW";
+    }
+
+    /// <summary>
+    /// Common directory names used across ModBuilder projects and sample packages.
+    /// </summary>
+    public static class DirectoryNames
+    {
+        /// <summary>Directory name for unpacked staging.</summary>
+        public const string Unpacked = "unpacked";
+
+        /// <summary>Directory name for window definitions.</summary>
+        public const string Window = "Window";
+
+        /// <summary>Directory name for art assets.</summary>
+        public const string Art = "Art";
+
+        /// <summary>Directory name for texture assets.</summary>
+        public const string Textures = "Textures";
+
+        /// <summary>Directory name for data and INI files.</summary>
+        public const string Data = "Data";
+
+        /// <summary>Directory name for INI configuration files.</summary>
+        public const string Ini = "INI";
+
+        /// <summary>Directory name for movie video files.</summary>
+        public const string Movies = "Movies";
+
+        /// <summary>Directory name for GenTool configuration assets.</summary>
+        public const string GenTool = "GenTool";
+
+        /// <summary>Language directory name for English.</summary>
+        public const string English = "English";
+
+        /// <summary>Language directory name for German.</summary>
+        public const string German = "German";
+
+        /// <summary>Language directory name for Russian.</summary>
+        public const string Russian = "Russian";
+
+        /// <summary>Language directory name for Spanish.</summary>
+        public const string Spanish = "Spanish";
+
+        /// <summary>Directory name for Zero Hour assets.</summary>
+        public const string ZeroHour = "ZeroHour";
+
+        /// <summary>Directory name for Generals classic assets.</summary>
+        public const string Generals = "Generals";
+    }
+
+    /// <summary>
+    /// Common file names and search patterns.
+    /// </summary>
+    public static class FileNames
+    {
+        /// <summary>File name for markdown README files.</summary>
+        public const string ReadmeMd = "README.md";
+
+        /// <summary>File name for text README files.</summary>
+        public const string ReadmeTxt = "README.txt";
+
+        /// <summary>File name for gitkeep placeholder files.</summary>
+        public const string GitKeep = ".gitkeep";
+
+        /// <summary>Prefix for Git internal or metadata files.</summary>
+        public const string GitPrefix = ".git";
+
+        /// <summary>Default CSF string table file name.</summary>
+        public const string GeneralsCsf = "generals.csf";
+
+        /// <summary>Default ControlBarPro documentation file name.</summary>
+        public const string ControlBarProTxt = "ControlBarPro.txt";
+
+        /// <summary>Default STR string table file name.</summary>
+        public const string GeneralsStr = "generals.str";
+
+        /// <summary>Search pattern for BIG files.</summary>
+        public const string BigSearchPattern = "*.big";
+
+        /// <summary>Search pattern for BIK video files.</summary>
+        public const string BikSearchPattern = "*.bik";
+
+        /// <summary>Search pattern for CSF string table files.</summary>
+        public const string CsfSearchPattern = "*.csf";
+
+        /// <summary>Search pattern for JSON files.</summary>
+        public const string JsonSearchPattern = "*.json";
+
+        /// <summary>Search pattern for INI configuration files.</summary>
+        public const string IniSearchPattern = "*.ini";
+
+        /// <summary>Search pattern for WND window layout files.</summary>
+        public const string WndSearchPattern = "*.wnd";
+    }
+
+    /// <summary>
+    /// Determines whether the given file name or path matches a placeholder or repository file that should be ignored during builds.
+    /// </summary>
+    /// <param name="filePathOrName">The file path or name.</param>
+    /// <returns><c>true</c> if the file should be ignored; otherwise, <c>false</c>.</returns>
+    public static bool IsIgnoredProjectFile(string filePathOrName)
+    {
+        if (string.IsNullOrWhiteSpace(filePathOrName))
+        {
+            return false;
+        }
+
+        var name = Path.GetFileName(filePathOrName);
+        return name.Equals(FileNames.ReadmeMd, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(FileNames.ReadmeTxt, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(FileNames.GitKeep, StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith(FileNames.GitPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets the list of base directories where sample project templates may reside.
+    /// In production/installed builds, this is strictly bounded to application-relative directories.
+    /// Development repository fallback is strictly gated to development environments with verified repository anchors.
+    /// </summary>
+    /// <returns>A list of candidate sample base directories.</returns>
+    public static IReadOnlyList<string> GetSampleBaseDirectories()
+    {
+        var dirs = new List<string>
+        {
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SampleProjectsDirectoryName, ModBuilderDirName),
+            Path.Combine(AppContext.BaseDirectory, SampleProjectsDirectoryName, ModBuilderDirName),
+            Path.Combine(Directory.GetCurrentDirectory(), SampleProjectsDirectoryName, ModBuilderDirName),
+        };
+
+        if (System.Diagnostics.Debugger.IsAttached ||
+            string.Equals(Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase))
+        {
+            AddDevCandidate(dirs, AppDomain.CurrentDomain.BaseDirectory);
+            AddDevCandidate(dirs, AppContext.BaseDirectory);
+        }
+
+        return dirs;
+    }
+
+    private static void AddDevCandidate(List<string> dirs, string baseDir)
+    {
+        try
+        {
+            var repoRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
+            if (Directory.Exists(repoRoot) &&
+                (File.Exists(Path.Combine(repoRoot, "GenHub.sln")) || Directory.Exists(Path.Combine(repoRoot, ".git"))))
+            {
+                var candidate = Path.Combine(repoRoot, SampleProjectsDirectoryName, ModBuilderDirName);
+                if (Directory.Exists(candidate))
+                {
+                    dirs.Add(candidate);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore path evaluation errors
+        }
+    }
 
     /// <summary>
     /// Constants for ModBuilder sample project downloads and verification.

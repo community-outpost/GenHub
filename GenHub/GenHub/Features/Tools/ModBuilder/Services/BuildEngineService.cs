@@ -973,10 +973,10 @@ public sealed class BuildEngineService(
         }
 
         if (file.Params != null &&
-            (file.Params.Any(kvp => string.Equals(kvp.Key, "noconvert", StringComparison.OrdinalIgnoreCase)) ||
-             file.Params.Any(kvp => string.Equals(kvp.Key, "raw", StringComparison.OrdinalIgnoreCase)) ||
-             file.Params.Any(kvp => string.Equals(kvp.Key, "outputformat", StringComparison.OrdinalIgnoreCase) &&
-                                    string.Equals(kvp.Value?.ToString(), "RAW", StringComparison.OrdinalIgnoreCase))))
+            (file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.NoConvert, StringComparison.OrdinalIgnoreCase)) ||
+             file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.Raw, StringComparison.OrdinalIgnoreCase)) ||
+             file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.OutputFormat, StringComparison.OrdinalIgnoreCase) &&
+                                    string.Equals(kvp.Value?.ToString(), ModBuilderConstants.BundleParams.RawValue, StringComparison.OrdinalIgnoreCase))))
         {
             return (sourcePath, targetRelPath);
         }
@@ -990,17 +990,17 @@ public sealed class BuildEngineService(
         var ext = Path.GetExtension(sourcePath).ToLowerInvariant();
 
         // Check if converted output exists (DDS for image, CSF for string table)
-        if (ext is ".tga" or ".png")
+        if (ext is ModBuilderConstants.FileExtensions.Tga or ModBuilderConstants.FileExtensions.Png)
         {
-            var probed = ProbeConvertedOutput(rawDir, targetRelPath, sourcePath, ".dds");
+            var probed = ProbeConvertedOutput(rawDir, targetRelPath, sourcePath, ModBuilderConstants.FileExtensions.Dds);
             if (probed != null)
             {
                 return probed.Value;
             }
         }
-        else if (ext == ".str")
+        else if (ext == ModBuilderConstants.FileExtensions.Str)
         {
-            var probed = ProbeConvertedOutput(rawDir, targetRelPath, sourcePath, ".csf");
+            var probed = ProbeConvertedOutput(rawDir, targetRelPath, sourcePath, ModBuilderConstants.FileExtensions.Csf);
             if (probed != null)
             {
                 return probed.Value;
@@ -1176,7 +1176,7 @@ public sealed class BuildEngineService(
 
             Interlocked.Increment(ref _filesProcessed);
             var fileExt = Path.GetExtension(filePath).ToLowerInvariant();
-            var stageType = fileExt is ".tga" or ".png" or ".bmp" or ".dds" ? BuildStage.Converting : BuildStage.Processing;
+            var stageType = fileExt is ModBuilderConstants.FileExtensions.Tga or ModBuilderConstants.FileExtensions.Png or ModBuilderConstants.FileExtensions.Bmp or ModBuilderConstants.FileExtensions.Dds ? BuildStage.Converting : BuildStage.Processing;
             progress?.Report(new BuildProgress
             {
                 CurrentStage = stageType,
@@ -1200,17 +1200,17 @@ public sealed class BuildEngineService(
 
         return extension switch
         {
-            ".png" or ".tga" => await ConvertImageFileAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
-            ".str" => await ConvertStringTableFileAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
-            ".ini" => await ProcessIniFileAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
+            ModBuilderConstants.FileExtensions.Png or ModBuilderConstants.FileExtensions.Tga => await ConvertImageFileAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
+            ModBuilderConstants.FileExtensions.Str => await ConvertStringTableFileAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
+            ModBuilderConstants.FileExtensions.Ini => await ProcessIniFileAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
             _ => await CopyFileDirectlyAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
         };
     }
 
     private async Task<bool> ConvertImageFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
     {
-        var ddsTargetPath = Path.ChangeExtension(targetPath, ".dds");
-        var result = await fileConversionService.ConvertFileAsync(sourcePath, ddsTargetPath, "DDS", null, cancellationToken)
+        var ddsTargetPath = Path.ChangeExtension(targetPath, ModBuilderConstants.FileExtensions.Dds);
+        var result = await fileConversionService.ConvertFileAsync(sourcePath, ddsTargetPath, ModBuilderConstants.ConversionFormats.Dds, null, cancellationToken)
             .ConfigureAwait(false);
 
         return result.Success;
@@ -1218,8 +1218,8 @@ public sealed class BuildEngineService(
 
     private async Task<bool> ConvertStringTableFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
     {
-        var csfTargetPath = Path.ChangeExtension(targetPath, ".csf");
-        var result = await fileConversionService.ConvertFileAsync(sourcePath, csfTargetPath, "CSF", null, cancellationToken)
+        var csfTargetPath = Path.ChangeExtension(targetPath, ModBuilderConstants.FileExtensions.Csf);
+        var result = await fileConversionService.ConvertFileAsync(sourcePath, csfTargetPath, ModBuilderConstants.ConversionFormats.Csf, null, cancellationToken)
             .ConfigureAwait(false);
 
         return result.Success;
