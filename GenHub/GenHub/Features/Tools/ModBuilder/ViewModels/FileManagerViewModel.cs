@@ -77,7 +77,14 @@ public partial class FileManagerViewModel(
                         }
                         finally
                         {
-                            _loadLock.Release();
+                            try
+                            {
+                                _loadLock.Release();
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                // Disposed concurrently
+                            }
                         }
                     }
                     catch (OperationCanceledException)
@@ -901,7 +908,6 @@ public partial class FileManagerViewModel(
         {
             _reloadCts?.Cancel();
             _reloadCts?.Dispose();
-            _loadLock.Dispose();
         }
     }
 }

@@ -129,6 +129,7 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                 return ToolOperationResult.CreateFailure($"Tool execution timed out after {ModBuilderConstants.ExternalToolTimeoutSeconds} seconds: {toolPath}");
             }
 
+            process.WaitForExit();
             var exitCode = process.ExitCode;
             var success = exitCode == 0;
 
