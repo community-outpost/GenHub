@@ -114,52 +114,53 @@ public static class CatalogDocumentReader
         {
             if (!ImageCacheService.IsSafeIpAddress(ip))
             {
-                if (isRedirect)
-                {
-                    throw new InvalidDataException($"Catalog redirect target '{host}' resolves to an unsafe IP address.");
-                }
-
-                throw new ArgumentException($"Catalog host '{host}' resolves to an unsafe IP address.");
+                throw CreateSafetyException(
+                    $"Catalog {(isRedirect ? "redirect target" : "host")} '{host}' resolves to an unsafe IP address.",
+                    isRedirect);
             }
 
             return;
         }
 
+        await ValidateHostDnsAddressesAsync(host, isRedirect, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task ValidateHostDnsAddressesAsync(string host, bool isRedirect, CancellationToken cancellationToken)
+    {
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
-            if (addresses.Length > 0 && addresses.Any(a => !ImageCacheService.IsSafeIpAddress(a)) || addresses.Length == 0)
+            if (addresses.Length == 0 || addresses.Any(a => !ImageCacheService.IsSafeIpAddress(a)))
             {
-                if (isRedirect)
-                {
-                    throw new InvalidDataException($"Catalog redirect target '{host}' resolves to an unsafe IP address.");
-                }
-
-                throw new ArgumentException($"Catalog host '{host}' resolves to an unsafe IP address.");
+                throw CreateSafetyException(
+                    $"Catalog {(isRedirect ? "redirect target" : "host")} '{host}' resolves to an unsafe IP address.",
+                    isRedirect);
             }
         }
-        catch (ArgumentException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException or SocketException)
         {
-            throw;
-        }
-        catch (InvalidDataException)
-        {
-            throw;
-        }
-        catch (SocketException)
-        {
+            if (ex is not SocketException)
+            {
+                throw;
+            }
+
             // Socket exception indicates unresolved host (e.g. mock test host or offline environment).
             // Allow HttpClient pipeline to handle the request.
         }
         catch (Exception ex)
         {
-            if (isRedirect)
-            {
-                throw new InvalidDataException($"Failed to resolve redirect host '{host}': {ex.Message}", ex);
-            }
-
-            throw new ArgumentException($"Failed to resolve host '{host}': {ex.Message}", ex);
+            throw CreateSafetyException(
+                $"Failed to resolve {(isRedirect ? "redirect " : string.Empty)}host '{host}': {ex.Message}",
+                isRedirect,
+                ex);
         }
+    }
+
+    private static Exception CreateSafetyException(string message, bool isRedirect, Exception? innerException = null)
+    {
+        return isRedirect
+            ? new InvalidDataException(message, innerException)
+            : new ArgumentException(message, innerException);
     }
 
     private static string? ResolveLocalPath(string catalogLocation)

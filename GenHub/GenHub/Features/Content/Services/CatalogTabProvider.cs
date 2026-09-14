@@ -149,7 +149,7 @@ public class CatalogTabProvider(
             }
         }
 
-        var fetchTask = _inFlightFetches.GetOrAdd(publisherId, _ => FetchCatalogCoreAsync(publisherId, CancellationToken.None));
+        var fetchTask = _inFlightFetches.GetOrAdd(publisherId, id => FetchCatalogCoreAsync(id, CancellationToken.None));
 
         try
         {
@@ -199,9 +199,6 @@ public class CatalogTabProvider(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error fetching catalog for publisher '{PublisherId}', recording negative cache entry", publisherId);
-            TrimCacheIfNeeded();
-            _catalogCache[publisherId] = (DateTime.UtcNow, null);
             logger.LogWarning(ex, "Error fetching catalog for publisher '{PublisherId}', recording negative cache entry", publisherId);
             TrimCacheIfNeeded();
             _catalogCache[publisherId] = (DateTime.UtcNow, null);

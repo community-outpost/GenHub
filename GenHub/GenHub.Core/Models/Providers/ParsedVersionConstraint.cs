@@ -33,34 +33,39 @@ public sealed record ParsedVersionConstraint(
 
         if (CompatibleVersions != null)
         {
-            if (CompatibleVersions.Count == 0)
-            {
-                return false;
-            }
-
-            return CompatibleVersions.Any(cv =>
-                string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
-                CatalogManifestIdentity.CompareVersions(cv, version) == 0);
+            return SatisfiesCompatibleVersions(version);
         }
 
-        if (!string.IsNullOrEmpty(MinVersion))
+        return SatisfiesMin(version) && SatisfiesMax(version);
+    }
+
+    private bool SatisfiesCompatibleVersions(string version)
+    {
+        return CompatibleVersions!.Count > 0 &&
+               CompatibleVersions.Any(cv =>
+                   string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
+                   CatalogManifestIdentity.CompareVersions(cv, version) == 0);
+    }
+
+    private bool SatisfiesMin(string version)
+    {
+        if (string.IsNullOrEmpty(MinVersion))
         {
-            var cmp = CatalogManifestIdentity.CompareVersions(version, MinVersion);
-            if (MinInclusive ? cmp < 0 : cmp <= 0)
-            {
-                return false;
-            }
+            return true;
         }
 
-        if (!string.IsNullOrEmpty(MaxVersion))
+        var cmp = CatalogManifestIdentity.CompareVersions(version, MinVersion);
+        return MinInclusive ? cmp >= 0 : cmp > 0;
+    }
+
+    private bool SatisfiesMax(string version)
+    {
+        if (string.IsNullOrEmpty(MaxVersion))
         {
-            var cmp = CatalogManifestIdentity.CompareVersions(version, MaxVersion);
-            if (MaxInclusive ? cmp > 0 : cmp >= 0)
-            {
-                return false;
-            }
+            return true;
         }
 
-        return true;
+        var cmp = CatalogManifestIdentity.CompareVersions(version, MaxVersion);
+        return MaxInclusive ? cmp <= 0 : cmp < 0;
     }
 }

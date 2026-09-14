@@ -432,15 +432,10 @@ public class GenericCatalogDiscoverer(
             }
             else
             {
-                var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, key =>
-                {
-                    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                    return FetchAndCacheReleaseAsync(
-                        SuperHackersConstants.GeneralsGameCodeOwner,
-                        SuperHackersConstants.GeneralsGameCodeRepo,
-                        key,
-                        cts.Token);
-                });
+                var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, key => FetchReleaseWithTimeoutAsync(
+                    SuperHackersConstants.GeneralsGameCodeOwner,
+                    SuperHackersConstants.GeneralsGameCodeRepo,
+                    key));
 
                 latestRelease = await fetchTask.WaitAsync(cancellationToken);
             }
@@ -585,6 +580,12 @@ public class GenericCatalogDiscoverer(
                 }
             }
         }
+    }
+
+    private async Task<GitHubRelease?> FetchReleaseWithTimeoutAsync(string owner, string repo, string cacheKey)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        return await FetchAndCacheReleaseAsync(owner, repo, cacheKey, cts.Token).ConfigureAwait(false);
     }
 
     private async Task<GitHubRelease?> FetchAndCacheReleaseAsync(string owner, string repo, string cacheKey, CancellationToken cancellationToken)
