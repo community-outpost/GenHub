@@ -74,6 +74,24 @@ public static class GenHotkeysConstants
 
         /// <summary>CSF label for China Radar upgrade.</summary>
         public const string UpgradeChinaRadar = "CONTROLBAR:UpgradeChinaRadar";
+
+        /// <summary>CSF label for Particle Uplink Cannon fire ability.</summary>
+        public const string FireParticleUplinkCannon = "CONTROLBAR:FireParticleUplinkCannon";
+
+        /// <summary>CSF label for Comanche Rocket Pods upgrade.</summary>
+        public const string UpgradeComancheRocketPods = "CONTROLBAR:UpgradeComancheRocketPods";
+
+        /// <summary>CSF label for China Patriotism / Fanaticism upgrade.</summary>
+        public const string UpgradeChinaFanaticism = "CONTROLBAR:UpgradeChinaFanaticism";
+
+        /// <summary>CSF label for GLA Demo Trap Proximity Fuse trigger.</summary>
+        public const string ProximityFuse = "CONTROLBAR:ProximityFuse";
+
+        /// <summary>CSF label for Set Rally Point command.</summary>
+        public const string SetRallyPoint = "CONTROLBAR:SetRallyPoint";
+
+        /// <summary>CSF label for America Detention Camp construction.</summary>
+        public const string ConstructAmericaDetentionCamp = "CONTROLBAR:ConstructAmericaDetentionCamp";
     }
 
     /// <summary>Mutual exclusion and special action icon names.</summary>

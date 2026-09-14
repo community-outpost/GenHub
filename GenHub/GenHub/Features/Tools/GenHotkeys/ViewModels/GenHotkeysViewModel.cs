@@ -1107,7 +1107,11 @@ public partial class GenHotkeysViewModel(
              actions.All(IsSatelliteHack) ||
              IsRadarAndCashHack(actions) ||
              IsTimedAndRemoteDemo(actions) ||
-             IsGrangerCarpetBombAndCompositeArmor(actions)))
+             IsGrangerCarpetBombAndCompositeArmor(actions) ||
+             IsParticleCannonFireAndSell(actions) ||
+             IsBuildingOneTimeUpgradeAndSell(actions) ||
+             IsRallyPointOverlap(actions) ||
+             IsDetentionCampOverlap(actions)))
         {
             return true;
         }
@@ -1263,6 +1267,34 @@ public partial class GenHotkeysViewModel(
                string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaSatelliteHackTwo, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcSatelliteHack1, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcSatelliteHack2, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsParticleCannonFireAndSell(List<HotkeyActionViewModel> actions)
+    {
+        return actions.Count == 2 &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.FireParticleUplinkCannon, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsBuildingOneTimeUpgradeAndSell(List<HotkeyActionViewModel> actions)
+    {
+        return actions.Count == 2 &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeComancheRocketPods, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaFanaticism, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ProximityFuse, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsRallyPointOverlap(List<HotkeyActionViewModel> actions)
+    {
+        return actions.Count == 2 &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.SetRallyPoint, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsDetentionCampOverlap(List<HotkeyActionViewModel> actions)
+    {
+        return actions.Count == 2 &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructAmericaDetentionCamp, StringComparison.OrdinalIgnoreCase));
     }
 
     private static char? ResolveCurrentActionHotkey(HotkeyAction action, HotkeyProfile? profile)
