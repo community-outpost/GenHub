@@ -62,6 +62,18 @@ public class SampleProjectService(
     private const string SpanishLanguageName = "Spanish";
     private const string GeneralsCsfFileName = "generals.csf";
 
+    private sealed record SecondaryLanguageVariantSpec(
+        string ZipUrl,
+        string ZipPath,
+        string AssetLabel,
+        string LanguageSubDir);
+
+    private sealed record LeikezeVariantSpec(
+        string TargetGameSubDir,
+        string PackSubDir,
+        string LanguageFolder,
+        string BigFileName);
+
     /// <inheritdoc />
     public bool IsSampleProject(string projectPath)
     {
@@ -342,7 +354,7 @@ public class SampleProjectService(
         return false;
     }
 
-    private async Task<string?> ValidateDownloadedFileAsync(
+    private static async Task<string?> ValidateDownloadedFileAsync(
         string tempPath,
         long minLength,
         string? expectedSha256,
@@ -621,10 +633,7 @@ public class SampleProjectService(
     }
 
     private async Task AcquireSecondaryLanguageVariantAsync(
-        string zipUrl,
-        string zipPath,
-        string assetLabel,
-        string languageSubDir,
+        SecondaryLanguageVariantSpec spec,
         string gameFilesDir,
         string? releaseDir,
         IProgress<string>? progress,
@@ -632,12 +641,12 @@ public class SampleProjectService(
     {
         try
         {
-            progress?.Report($"Downloading {assetLabel}...");
+            progress?.Report($"Downloading {spec.AssetLabel}...");
             var dlResult = await EnsureAssetDownloadedAsync(
-                zipUrl,
-                zipPath,
+                spec.ZipUrl,
+                spec.ZipPath,
                 1_000_000,
-                assetLabel,
+                spec.AssetLabel,
                 cancellationToken).ConfigureAwait(false);
 
             if (!dlResult.Success)
@@ -645,11 +654,11 @@ public class SampleProjectService(
                 return;
             }
 
-            var staging = Path.Combine(Path.GetTempPath(), $"genhub_menus_{languageSubDir.ToLowerInvariant()}_{Guid.NewGuid():N}");
+            var staging = Path.Combine(Path.GetTempPath(), $"genhub_menus_{spec.LanguageSubDir.ToLowerInvariant()}_{Guid.NewGuid():N}");
             try
             {
                 Directory.CreateDirectory(staging);
-                await ExtractArchiveFileAsync(zipPath, staging, cancellationToken).ConfigureAwait(false);
+                await ExtractArchiveFileAsync(spec.ZipPath, staging, cancellationToken).ConfigureAwait(false);
                 var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories);
                 if (bigFiles.Length > 0)
                 {
@@ -658,10 +667,10 @@ public class SampleProjectService(
                     Directory.CreateDirectory(unpackDir);
                     await BigFilePacker.UnpackAsync(big, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-                    var langTexDir = Path.Combine(unpackDir, "Data", languageSubDir);
+                    var langTexDir = Path.Combine(unpackDir, "Data", spec.LanguageSubDir);
                     if (Directory.Exists(langTexDir))
                     {
-                        var targetDir = Path.Combine(gameFilesDir, "Data", languageSubDir);
+                        var targetDir = Path.Combine(gameFilesDir, "Data", spec.LanguageSubDir);
                         CopyDirectoryContents(langTexDir, targetDir, cancellationToken);
                     }
 
@@ -690,7 +699,7 @@ public class SampleProjectService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to acquire secondary {Language} variant for Improved Menus", languageSubDir);
+            logger.LogWarning(ex, "Failed to acquire secondary {Language} variant for Improved Menus", spec.LanguageSubDir);
         }
     }
 
@@ -732,10 +741,11 @@ public class SampleProjectService(
 
         // 2. Russian variant
         await AcquireSecondaryLanguageVariantAsync(
-            ModBuilderConstants.SampleProjects.ImprovedMenusRussianUrl,
-            Path.Combine(cacheDir, "0_ImprovedMenusRussian.zip"),
-            "Improved Menus Russian",
-            RussianLanguageName,
+            new SecondaryLanguageVariantSpec(
+                ModBuilderConstants.SampleProjects.ImprovedMenusRussianUrl,
+                Path.Combine(cacheDir, "0_ImprovedMenusRussian.zip"),
+                "Improved Menus Russian",
+                RussianLanguageName),
             gameFilesDir,
             releaseDir,
             progress,
@@ -743,10 +753,11 @@ public class SampleProjectService(
 
         // 3. Spanish variant
         await AcquireSecondaryLanguageVariantAsync(
-            ModBuilderConstants.SampleProjects.ImprovedMenusSpanishUrl,
-            Path.Combine(cacheDir, "0_ImprovedMenusSpanish.zip"),
-            "Improved Menus Spanish",
-            SpanishLanguageName,
+            new SecondaryLanguageVariantSpec(
+                ModBuilderConstants.SampleProjects.ImprovedMenusSpanishUrl,
+                Path.Combine(cacheDir, "0_ImprovedMenusSpanish.zip"),
+                "Improved Menus Spanish",
+                SpanishLanguageName),
             gameFilesDir,
             releaseDir,
             progress,
@@ -916,30 +927,66 @@ public class SampleProjectService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private async Task SetupLeikezeVariantAsync(
-        string sourceCsf,
-        string targetGameSubDir,
-        string packSubDir,
-        string languageFolder,
-        string bigFileName,
+    private static string? FindZhEnglishCsf(IReadOnlyList<string> csfFiles)
+    {
+        return csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains(EnglishLanguageName, StringComparison.OrdinalIgnoreCase)))
+            ?? csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase))
+            ?? csfFiles.FirstOrDefault();
+    }
+
+    private static string? FindGeneralsEnglishCsf(IReadOnlyList<string> csfFiles)
+    {
+        return csfFiles.FirstOrDefault(f => (f.Contains("Generals", StringComparison.OrdinalIgnoreCase) || f.Contains("Gen", StringComparison.OrdinalIgnoreCase)) && !f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains(EnglishLanguageName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static string? FindGermanCsf(IReadOnlyList<string> csfFiles)
+    {
+        return csfFiles.FirstOrDefault(f => f.Contains("DE", StringComparison.OrdinalIgnoreCase) || f.Contains(GermanLanguageName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task SetupLeikezeVariantIfPresentAsync(
+        string? sourceCsf,
+        LeikezeVariantSpec spec,
         string tempStaging,
         string gameFilesDir,
         string? releaseDir,
         CancellationToken cancellationToken)
     {
-        var targetDir = Path.Combine(gameFilesDir, targetGameSubDir);
+        if (string.IsNullOrEmpty(sourceCsf) || !File.Exists(sourceCsf))
+        {
+            return;
+        }
+
+        await SetupLeikezeVariantAsync(
+            sourceCsf,
+            spec,
+            tempStaging,
+            gameFilesDir,
+            releaseDir,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SetupLeikezeVariantAsync(
+        string sourceCsf,
+        LeikezeVariantSpec spec,
+        string tempStaging,
+        string gameFilesDir,
+        string? releaseDir,
+        CancellationToken cancellationToken)
+    {
+        var targetDir = Path.Combine(gameFilesDir, spec.TargetGameSubDir);
         Directory.CreateDirectory(targetDir);
         var destCsf = Path.Combine(targetDir, GeneralsCsfFileName);
         File.Copy(sourceCsf, destCsf, overwrite: true);
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
-            var packDir = Path.Combine(tempStaging, packSubDir);
-            var innerDir = Path.Combine(packDir, "Data", languageFolder);
+            var packDir = Path.Combine(tempStaging, spec.PackSubDir);
+            var innerDir = Path.Combine(packDir, "Data", spec.LanguageFolder);
             Directory.CreateDirectory(innerDir);
             File.Copy(destCsf, Path.Combine(innerDir, GeneralsCsfFileName), overwrite: true);
 
-            var outBig = Path.Combine(releaseDir, bigFileName);
+            var outBig = Path.Combine(releaseDir, spec.BigFileName);
             await BigFilePacker.PackAsync(packDir, outBig, cancellationToken: cancellationToken).ConfigureAwait(false);
             await TryExtractAndSaveManifestAsync(outBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
         }
@@ -985,55 +1032,46 @@ public class SampleProjectService(
             var csfFiles = Directory.GetFiles(tempStaging, "*.csf", SearchOption.AllDirectories);
 
             // 1. Zero Hour English
-            var zhEnCsf = csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains(EnglishLanguageName, StringComparison.OrdinalIgnoreCase)))
-                ?? csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase))
-                ?? csfFiles.FirstOrDefault();
-
-            if (zhEnCsf != null && File.Exists(zhEnCsf))
-            {
-                await SetupLeikezeVariantAsync(
-                    zhEnCsf,
-                    Path.Combine("ZeroHour", EnglishLanguageName, "Data", EnglishLanguageName),
-                    "pack_zhen",
-                    EnglishLanguageName,
-                    "!HotkeysLeikezeENZH.big",
-                    tempStaging,
-                    gameFilesDir,
-                    releaseDir,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            var zhEnSpec = new LeikezeVariantSpec(
+                Path.Combine("ZeroHour", EnglishLanguageName, "Data", EnglishLanguageName),
+                "pack_zhen",
+                EnglishLanguageName,
+                "!HotkeysLeikezeENZH.big");
+            await SetupLeikezeVariantIfPresentAsync(
+                FindZhEnglishCsf(csfFiles),
+                zhEnSpec,
+                tempStaging,
+                gameFilesDir,
+                releaseDir,
+                cancellationToken).ConfigureAwait(false);
 
             // 2. Generals English
-            var genEnCsf = csfFiles.FirstOrDefault(f => (f.Contains("Generals", StringComparison.OrdinalIgnoreCase) || f.Contains("Gen", StringComparison.OrdinalIgnoreCase)) && !f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains(EnglishLanguageName, StringComparison.OrdinalIgnoreCase)));
-            if (genEnCsf != null && File.Exists(genEnCsf))
-            {
-                await SetupLeikezeVariantAsync(
-                    genEnCsf,
-                    Path.Combine("Generals", EnglishLanguageName, "Data", EnglishLanguageName),
-                    "pack_genen",
-                    EnglishLanguageName,
-                    "!HotkeysLeikezeEN.big",
-                    tempStaging,
-                    gameFilesDir,
-                    releaseDir,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            var genEnSpec = new LeikezeVariantSpec(
+                Path.Combine("Generals", EnglishLanguageName, "Data", EnglishLanguageName),
+                "pack_genen",
+                EnglishLanguageName,
+                "!HotkeysLeikezeEN.big");
+            await SetupLeikezeVariantIfPresentAsync(
+                FindGeneralsEnglishCsf(csfFiles),
+                genEnSpec,
+                tempStaging,
+                gameFilesDir,
+                releaseDir,
+                cancellationToken).ConfigureAwait(false);
 
             // 3. Zero Hour German
-            var deCsf = csfFiles.FirstOrDefault(f => f.Contains("DE", StringComparison.OrdinalIgnoreCase) || f.Contains(GermanLanguageName, StringComparison.OrdinalIgnoreCase));
-            if (deCsf != null && File.Exists(deCsf))
-            {
-                await SetupLeikezeVariantAsync(
-                    deCsf,
-                    Path.Combine("ZeroHour", GermanLanguageName, "Data", GermanLanguageName),
-                    "pack_zhde",
-                    GermanLanguageName,
-                    "!HotkeysLeikezeDEZH.big",
-                    tempStaging,
-                    gameFilesDir,
-                    releaseDir,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            var deSpec = new LeikezeVariantSpec(
+                Path.Combine("ZeroHour", GermanLanguageName, "Data", GermanLanguageName),
+                "pack_zhde",
+                GermanLanguageName,
+                "!HotkeysLeikezeDEZH.big");
+            await SetupLeikezeVariantIfPresentAsync(
+                FindGermanCsf(csfFiles),
+                deSpec,
+                tempStaging,
+                gameFilesDir,
+                releaseDir,
+                cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation("Successfully unpacked Leikeze Hotkeys into {Dir}", gameFilesDir);
             return OperationResult<bool>.CreateSuccess(true);
