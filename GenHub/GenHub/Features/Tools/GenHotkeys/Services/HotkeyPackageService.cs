@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -30,11 +29,6 @@ public class HotkeyPackageService(
     IServiceScopeFactory scopeFactory,
     ILogger<HotkeyPackageService> logger) : IHotkeyPackageService
 {
-    private static readonly Regex SafeFileNameRegex = new(
-        @"[^a-zA-Z0-9_\-]",
-        RegexOptions.Compiled,
-        TimeSpan.FromSeconds(1));
-
     /// <inheritdoc />
     public async Task<OperationResult<ContentManifest>> CreateHotkeysAddonAsync(
         HotkeyProfile profile,
