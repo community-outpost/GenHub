@@ -2445,7 +2445,7 @@ public class ProfileSharingService(
         }
     }
 
-    private async Task<OperationResult<IReadOnlyList<ContentSearchResult>>> ExecuteFallbackSearchAsync(
+    private async Task<OperationResult<IEnumerable<ContentSearchResult>>> ExecuteFallbackSearchAsync(
         SharedManifestDependency dependency,
         string? targetProvider,
         CancellationToken cancellationToken)
@@ -2460,7 +2460,7 @@ public class ProfileSharingService(
         };
 
         var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
-        if (searchResult.Success && searchResult.Data?.Count > 0)
+        if (searchResult.Success && searchResult.Data != null && searchResult.Data.Any())
         {
             return searchResult;
         }
