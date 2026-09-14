@@ -795,6 +795,12 @@ public partial class ModBuilderViewModel(
             return;
         }
 
+        if (IsBuildRunning)
+        {
+            notificationService.ShowWarning("Operation in Progress", "Cannot import files while another operation is running.");
+            return;
+        }
+
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -826,11 +832,11 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning("Build in Progress", "Cannot import files while a build is running.");
+            notificationService.ShowWarning("Operation in Progress", "Cannot import files while another operation is running.");
             return;
         }
 
-        IsBuildRunning = true;
+        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
         try
         {
             logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
@@ -889,14 +895,14 @@ public partial class ModBuilderViewModel(
             {
                 if (_importCancellationTokenSource == cts)
                 {
-                    _importCancellationTokenSource.Dispose();
                     _importCancellationTokenSource = null;
+                    cts.Dispose();
                 }
             }
         }
         finally
         {
-            IsBuildRunning = false;
+            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
         }
     }
 
@@ -1190,9 +1196,17 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        logger.LogInformation("OpenSampleProjectAsync requested for {SampleId} ({SampleName})", item.Id, item.Name);
+        if (IsBuildRunning)
+        {
+            notificationService.ShowWarning("Operation in Progress", "Cannot open sample project while another operation is running.");
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
+        using var cts = new CancellationTokenSource();
         try
         {
+            logger.LogInformation("OpenSampleProjectAsync requested for {SampleId} ({SampleName})", item.Id, item.Name);
             var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
             var projectDir = Path.Combine(userSamplesDir, item.Id);
             var projectFile = Path.Combine(projectDir, $"{item.Id}{ModBuilderConstants.ProjectFileExtension}");
@@ -1203,7 +1217,7 @@ public partial class ModBuilderViewModel(
                 if (!string.IsNullOrEmpty(baseTemplateDir) && Directory.Exists(baseTemplateDir))
                 {
                     Directory.CreateDirectory(projectDir);
-                    await CopyDirectoryAsync(baseTemplateDir, projectDir).ConfigureAwait(false);
+                    await CopyDirectoryAsync(baseTemplateDir, projectDir, cts.Token).ConfigureAwait(false);
                 }
             }
 
@@ -1229,10 +1243,18 @@ public partial class ModBuilderViewModel(
                 AppendBuildLog($"Sample template {item.Id} not found in search paths.");
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("OpenSampleProjectAsync cancelled for {SampleId}", item.Id);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load sample project {SampleId}", item.Id);
             notificationService.ShowError("Load Failed", $"Failed to load sample project: {ex.Message}");
+        }
+        finally
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
         }
     }
 
@@ -1587,12 +1609,13 @@ public partial class ModBuilderViewModel(
         }
     }
 
-    private static async Task CopyDirectoryAsync(string sourceDir, string destinationDir)
+    private static async Task CopyDirectoryAsync(string sourceDir, string destinationDir, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(destinationDir);
 
         foreach (var file in Directory.GetFiles(sourceDir))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var fileName = Path.GetFileName(file);
             if (fileName.EndsWith(".msgpack", StringComparison.OrdinalIgnoreCase))
             {
@@ -1604,12 +1627,13 @@ public partial class ModBuilderViewModel(
             {
                 await using var sourceStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
                 await using var destinationStream = new FileStream(destFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
-                await sourceStream.CopyToAsync(destinationStream).ConfigureAwait(false);
+                await sourceStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
             }
         }
 
         foreach (var subDir in Directory.GetDirectories(sourceDir))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var subDirName = Path.GetFileName(subDir);
             if (subDirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
                 subDirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
@@ -1620,7 +1644,7 @@ public partial class ModBuilderViewModel(
             }
 
             var destSubDir = Path.Combine(destinationDir, subDirName);
-            await CopyDirectoryAsync(subDir, destSubDir).ConfigureAwait(false);
+            await CopyDirectoryAsync(subDir, destSubDir, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -2241,45 +2265,51 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        var fileCount = await CountFilesToBuildAsync(CancellationToken.None).ConfigureAwait(false);
-        if (fileCount == 0)
+        if (IsBuildRunning)
         {
-            await InvokeOnUIThreadAsync(() =>
-            {
-                const string warningMessage = "Your GameFilesEdited folder is empty or no bundles are configured.\n\n" +
-                    "Steps:\n" +
-                    "1. Click 'Open GameFilesEdited Folder'\n" +
-                    "2. Copy game files to appropriate folders\n" +
-                    "3. Edit config/ModBundleItems.json to configure bundles\n" +
-                    "4. Try building again";
-                notificationService.ShowWarning(
-                    "No Files to Build",
-                    warningMessage,
-                    autoDismissMs: 10000);
-            });
-            AppendBuildLog("Build aborted: No files to build");
+            notificationService.ShowWarning("Operation in Progress", "Cannot start build while another operation is running.");
             return;
         }
 
-        IsBuildRunning = true;
-        _buildCancellationTokenSource = new CancellationTokenSource();
-        _buildStopwatch.Restart();
-
-        await InvokeOnUIThreadAsync(() =>
-        {
-            BuildLog.Clear();
-            ProcessedFiles = 0;
-            TotalFiles = fileCount;
-            PercentComplete = 0;
-            EstimatedTimeRemaining = null;
-        });
-
-        AppendBuildLog("=== Build Started ===");
-        AppendBuildLog($"Files to process: {fileCount}");
-        StatusMessage = "Building...";
-
+        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
         try
         {
+            var fileCount = await CountFilesToBuildAsync(CancellationToken.None).ConfigureAwait(false);
+            if (fileCount == 0)
+            {
+                await InvokeOnUIThreadAsync(() =>
+                {
+                    const string warningMessage = "Your GameFilesEdited folder is empty or no bundles are configured.\n\n" +
+                        "Steps:\n" +
+                        "1. Click 'Open GameFilesEdited Folder'\n" +
+                        "2. Copy game files to appropriate folders\n" +
+                        "3. Edit config/ModBundleItems.json to configure bundles\n" +
+                        "4. Try building again";
+                    notificationService.ShowWarning(
+                        "No Files to Build",
+                        warningMessage,
+                        autoDismissMs: 10000);
+                });
+                AppendBuildLog("Build aborted: No files to build");
+                return;
+            }
+
+            _buildCancellationTokenSource = new CancellationTokenSource();
+            _buildStopwatch.Restart();
+
+            await InvokeOnUIThreadAsync(() =>
+            {
+                BuildLog.Clear();
+                ProcessedFiles = 0;
+                TotalFiles = fileCount;
+                PercentComplete = 0;
+                EstimatedTimeRemaining = null;
+            });
+
+            AppendBuildLog("=== Build Started ===");
+            AppendBuildLog($"Files to process: {fileCount}");
+            StatusMessage = "Building...";
+
             var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
             var selectedPacks = GetResolvedSelectedPacks(buildConfig);
 
@@ -2332,7 +2362,7 @@ public partial class ModBuilderViewModel(
         }
         finally
         {
-            IsBuildRunning = false;
+            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;
         }
@@ -2374,7 +2404,13 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        IsBuildRunning = true;
+        if (IsBuildRunning)
+        {
+            notificationService.ShowWarning("Operation in Progress", "Cannot create manifest while another operation is running.");
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = true);
         _buildCancellationTokenSource = new CancellationTokenSource();
         StatusMessage = "Creating ContentManifest...";
 
@@ -2434,7 +2470,7 @@ public partial class ModBuilderViewModel(
         }
         finally
         {
-            IsBuildRunning = false;
+            await Dispatcher.UIThread.InvokeAsync(() => IsBuildRunning = false);
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;
         }
@@ -2571,8 +2607,24 @@ public partial class ModBuilderViewModel(
     private void AbortBuild()
     {
         logger.LogInformation("AbortBuild requested");
-        _buildCancellationTokenSource?.Cancel();
-        _importCancellationTokenSource?.Cancel();
+        try
+        {
+            _buildCancellationTokenSource?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // CTS already disposed
+        }
+
+        try
+        {
+            _importCancellationTokenSource?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // CTS already disposed
+        }
+
         AppendBuildLog("\nAborting operation...");
         StatusMessage = "Aborting operation...";
     }

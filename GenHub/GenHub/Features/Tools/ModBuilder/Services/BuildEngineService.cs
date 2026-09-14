@@ -748,7 +748,6 @@ public sealed class BuildEngineService(
                 pack,
                 packStagingDir,
                 packFilePath,
-                packFileName,
                 manifestPath,
                 compressionLevel,
                 progress,
@@ -767,7 +766,7 @@ public sealed class BuildEngineService(
 
                 if (pack.IsBigPack && File.Exists(packFilePath))
                 {
-                    await VerifyBuiltArchiveHashAsync(packFilePath, manifestPath, cancellationToken).ConfigureAwait(false);
+                    await VerifyBuiltArchiveHashAsync(packFilePath, manifestPath, pack.ManifestFile, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -793,12 +792,12 @@ public sealed class BuildEngineService(
         BundlePack pack,
         string packStagingDir,
         string packFilePath,
-        string packFileName,
         string? manifestPath,
         System.IO.Compression.CompressionLevel compressionLevel,
         IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
+        var packFileName = Path.GetFileName(packFilePath);
         if (pack.IsBigPack)
         {
             var archiveProgress = new Progress<double>(p =>
@@ -821,31 +820,53 @@ public sealed class BuildEngineService(
         return await archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task VerifyBuiltArchiveHashAsync(string packFilePath, string? manifestPath, CancellationToken cancellationToken)
+    private async Task VerifyBuiltArchiveHashAsync(
+        string packFilePath,
+        string? manifestPath,
+        string? configuredManifest,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(manifestPath) || !File.Exists(manifestPath))
+        try
         {
-            return;
-        }
+            if (string.IsNullOrEmpty(manifestPath) || !File.Exists(manifestPath))
+            {
+                if (!string.IsNullOrEmpty(configuredManifest))
+                {
+                    logger.LogWarning("Manifest file '{Configured}' specified but not found at resolved path: {Path}", configuredManifest, manifestPath);
+                }
 
-        using var sha = System.Security.Cryptography.SHA256.Create();
-        using var stream = File.OpenRead(packFilePath);
-        var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
-        var builtSha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                return;
+            }
 
-        var manifest = await BigFilePacker.LoadManifestAsync(manifestPath, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(manifest?.Sha256))
-        {
-            return;
-        }
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            using var stream = File.OpenRead(packFilePath);
+            var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
+            var builtSha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
-        if (string.Equals(builtSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
-        {
-            logger.LogInformation("BYTE-FOR-BYTE EXACT MATCH: Built BIG archive matches publisher SHA256: {Sha256}", builtSha256);
+            var manifest = await BigFilePacker.LoadManifestAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(manifest?.Sha256))
+            {
+                return;
+            }
+
+            if (string.Equals(builtSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("BYTE-FOR-BYTE EXACT MATCH: Built BIG archive matches publisher SHA256: {Sha256}", builtSha256);
+            }
+            else
+            {
+                var mismatchMsg = $"BIG archive SHA256 mismatch for {Path.GetFileName(packFilePath)}! Expected {manifest.Sha256}, got {builtSha256}";
+                logger.LogWarning("{MismatchMessage}", mismatchMsg);
+                _lastErrorMessage = mismatchMsg;
+            }
         }
-        else
+        catch (OperationCanceledException)
         {
-            logger.LogWarning("BIG archive SHA256 mismatch with manifest! Expected {Expected}, got {Actual}", manifest.Sha256, builtSha256);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
         }
     }
 
@@ -945,9 +966,11 @@ public sealed class BuildEngineService(
             return (sourcePath, targetRelPath);
         }
 
-        if (file.Params?.ContainsKey("noconvert") == true ||
-            file.Params?.ContainsKey("raw") == true ||
-            string.Equals(file.Params?.GetValueOrDefault("outputformat")?.ToString(), "RAW", StringComparison.OrdinalIgnoreCase))
+        if (file.Params != null &&
+            (file.Params.Any(kvp => string.Equals(kvp.Key, "noconvert", StringComparison.OrdinalIgnoreCase)) ||
+             file.Params.Any(kvp => string.Equals(kvp.Key, "raw", StringComparison.OrdinalIgnoreCase)) ||
+             file.Params.Any(kvp => string.Equals(kvp.Key, "outputformat", StringComparison.OrdinalIgnoreCase) &&
+                                    string.Equals(kvp.Value?.ToString(), "RAW", StringComparison.OrdinalIgnoreCase))))
         {
             return (sourcePath, targetRelPath);
         }
