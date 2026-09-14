@@ -220,7 +220,7 @@ public async Task ShouldDownloadContent()
 
 ### Prerequisites
 
-- **.NET 8 SDK** or later
+- **.NET 8 SDK**, version **8.0.400 or newer** in the 8.0.4xx band (pinned by `global.json`; .NET 9 will not work)
 - **Visual Studio 2022** / **JetBrains Rider** / **VS Code**
 - **Git** for version control
 

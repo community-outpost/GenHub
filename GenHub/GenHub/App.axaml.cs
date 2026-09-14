@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -14,6 +15,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -86,8 +88,12 @@ public partial class App : Application
             // Repair desktop and application shortcuts if application executable has moved/relocated
             SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
 
-            // Clean any orphaned default AppData folders when running from a custom install location
-            StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
+            // Detect and resolve duplicate installation collisions across platforms
+            var conflictService = _serviceProvider.GetService<IInstallationConflictService>();
+            if (conflictService != null)
+            {
+                SafeFireAndForget(conflictService.CheckAndResolveConflictsAsync(), nameof(IInstallationConflictService.CheckAndResolveConflictsAsync));
+            }
         }
 
         base.OnFrameworkInitializationCompleted();

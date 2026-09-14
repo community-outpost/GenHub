@@ -8,7 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Linux" />
+        <InternalsVisibleTo Include="GenHub.MacOS" />
         <InternalsVisibleTo Include="GenHub.Tests.Core" />
+        <InternalsVisibleTo Include="GenHub.Tests.Linux" />
+        <InternalsVisibleTo Include="GenHub.Windows" />
     </ItemGroup>
 
     <ItemGroup>

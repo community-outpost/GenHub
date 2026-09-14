@@ -17,6 +17,11 @@ public static class PublisherInfoConstants
     /// </summary>
     public const string DefaultGenHubIconSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
 
+    /// <summary>
+    /// Publisher display name for local installations.
+    /// </summary>
+    public const string LocalInstallationPublisherName = "Local";
+
     private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
     [
         (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpost.LogoSource),
@@ -28,6 +33,13 @@ public static class PublisherInfoConstants
         (["genhublocal", "genhub local"], GenHubLocal.LogoSource),
         (["lutris"], Lutris.LogoSource),
         (["github"], GitHub.LogoSource),
+    ];
+
+    private static readonly (string[] Keywords, string CoverSource)[] CoverRules =
+    [
+        (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpostConstants.CoverSource),
+        (["superhacker"], SuperHackersConstants.ZeroHourCoverSource),
+        (["generalsonline", "generals online", "generals-online"], GeneralsOnlineConstants.CoverSource),
     ];
 
     /// <summary>
@@ -45,7 +57,7 @@ public static class PublisherInfoConstants
         public const string SupportUrl = "https://help.steampowered.com";
 
         /// <summary>Logo source for Steam.</summary>
-        public const string LogoSource = ""; // Placeholder/System managed
+        public const string LogoSource = ""; // Placeholder until asset lands
     }
 
     /// <summary>
@@ -57,13 +69,13 @@ public static class PublisherInfoConstants
         public const string Name = "EA App";
 
         /// <summary>Website URL for EA App.</summary>
-        public const string Website = "https://www.ea.com";
+        public const string Website = "https://www.ea.com/ea-app";
 
         /// <summary>Support URL for EA App.</summary>
         public const string SupportUrl = "https://help.ea.com";
 
         /// <summary>Logo source for EA App.</summary>
-        public const string LogoSource = ""; // Placeholder/System managed
+        public const string LogoSource = ""; // Placeholder until asset lands
     }
 
     /// <summary>
@@ -75,13 +87,13 @@ public static class PublisherInfoConstants
         public const string Name = "The First Decade";
 
         /// <summary>Website URL for The First Decade.</summary>
-        public const string Website = "https://westwood.com";
+        public const string Website = "https://www.ea.com";
 
-        /// <summary>Support URL for The First Decade (empty).</summary>
-        public const string SupportUrl = "";
+        /// <summary>Support URL for The First Decade.</summary>
+        public const string SupportUrl = "https://help.ea.com";
 
         /// <summary>Logo source for The First Decade.</summary>
-        public const string LogoSource = ""; // Placeholder/System managed
+        public const string LogoSource = ""; // Placeholder until asset lands
     }
 
     /// <summary>
@@ -371,6 +383,20 @@ public static class PublisherInfoConstants
         return primary ?? secondary;
     }
 
+    /// <summary>
+    /// Gets the cover source URI for a publisher or content item based on publisher ID, provider name, or title.
+    /// </summary>
+    /// <param name="publisherIdOrName">The publisher ID or provider display name.</param>
+    /// <param name="contentIdOrName">The content ID, title, or manifest ID context.</param>
+    /// <returns>A cover image path string, or null if unmapped.</returns>
+    public static string? GetPublisherCover(string? publisherIdOrName, string? contentIdOrName = null)
+    {
+        var primary = MatchCover(publisherIdOrName);
+        var secondary = MatchCover(contentIdOrName);
+
+        return primary ?? secondary;
+    }
+
     private static string? MatchLogo(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -383,6 +409,24 @@ public static class PublisherInfoConstants
             if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
             {
                 return logoSource;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? MatchCover(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        foreach (var (keywords, coverSource) in CoverRules)
+        {
+            if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+            {
+                return coverSource;
             }
         }
 

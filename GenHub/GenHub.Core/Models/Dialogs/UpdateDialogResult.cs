@@ -18,6 +18,11 @@ public class UpdateDialogResult
     public UpdateStrategy Strategy { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether superseded version files should be deleted from storage.
+    /// </summary>
+    public bool DeleteOldVersions { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets a value indicating whether to apply this choice for future updates.
     /// </summary>
     public bool IsDoNotAskAgain { get; set; }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 
@@ -433,7 +434,7 @@ public static class GenPatcherContentRegistry
             return CreateUnknownMetadata(contentCode ?? string.Empty);
         }
 
-        var normalizedCode = contentCode.Trim();
+        var normalizedCode = NormalizeContentCode(contentCode);
 
         // Check for known content first (case-insensitive due to dictionary comparer)
         if (KnownContent.TryGetValue(normalizedCode, out var metadata))
@@ -450,6 +451,45 @@ public static class GenPatcherContentRegistry
 
         // Return unknown metadata
         return CreateUnknownMetadata(contentCode);
+    }
+
+    /// <summary>
+    /// Normalizes a raw or composite content code to its canonical registered code.
+    /// Handles hyphenated suffixes (e.g. "hlei-zerohour-ru" -> "hlei") and unhyphenated compound names
+    /// (e.g. "hleizerohourru" -> "hlei").
+    /// </summary>
+    /// <param name="rawCode">The raw content code string.</param>
+    /// <returns>The normalized known content code, or the lowercased first hyphen-segment of the raw code if not recognized.</returns>
+    public static string NormalizeContentCode(string? rawCode)
+    {
+        if (string.IsNullOrWhiteSpace(rawCode))
+        {
+            return string.Empty;
+        }
+
+        var candidate = rawCode.Trim();
+
+        var exactKnown = KnownContent.Keys.FirstOrDefault(k => string.Equals(k, candidate, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(exactKnown))
+        {
+            return exactKnown;
+        }
+
+        var prefixKnown = KnownContent.Keys
+            .OrderByDescending(c => c.Length)
+            .FirstOrDefault(c => candidate.StartsWith(c, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(prefixKnown))
+        {
+            return prefixKnown;
+        }
+
+        var hyphenIdx = candidate.IndexOf('-');
+        if (hyphenIdx > 0)
+        {
+            candidate = candidate[..hyphenIdx];
+        }
+
+        return candidate.ToLowerInvariant();
     }
 
     /// <summary>

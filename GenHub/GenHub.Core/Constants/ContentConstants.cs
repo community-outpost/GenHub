@@ -160,6 +160,11 @@ public static class ContentConstants
     public const string FileContentIdPrefix = "file:";
 
     /// <summary>
+    /// Suffix/marker in manifest IDs identifying a GameInstallation manifest.
+    /// </summary>
+    public const string InstallationManifestIdMarker = "-installation";
+
+    /// <summary>
     /// Status message displayed when content download is initiated.
     /// </summary>
     public const string StartingDownloadStatusMessage = "Starting download...";
@@ -268,6 +273,16 @@ public static class ContentConstants
     /// Status message displayed when content download failed.
     /// </summary>
     public const string DownloadFailedStatusMessage = "Download failed";
+
+    /// <summary>
+    /// Status message displayed when content update failed.
+    /// </summary>
+    public const string UpdateFailedStatusMessage = "Failed to update content";
+
+    /// <summary>
+    /// Status message displayed when content update was cancelled or failed.
+    /// </summary>
+    public const string UpdateCancelledOrFailedStatusMessage = "Update was canceled or failed.";
 
     /// <summary>
     /// Status message displayed while selecting a profile.

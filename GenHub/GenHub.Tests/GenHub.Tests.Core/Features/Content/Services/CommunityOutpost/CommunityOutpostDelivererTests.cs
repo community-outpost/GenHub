@@ -8,12 +8,14 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.Services.CommunityOutpost;
 
@@ -204,6 +206,75 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that delivering a multi-variant package with a selected variant returns the matching variant manifest.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithSelectedVariant_ReturnsMatchingVariantManifestAsync()
+    {
+        var targetDirectory = Path.Combine(_workingDirectory, "target_selected_variant");
+        Directory.CreateDirectory(targetDirectory);
+
+        var downloadService = new Mock<IDownloadService>();
+        downloadService
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+            {
+                CreateArchive(
+                    destination,
+                    "ZH/BIG EN/generals.csf",
+                    "ZH/BIG RU/generals.csf",
+                    "CCG/BIG EN/generals.csf");
+                return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+            });
+
+        var manifestPool = new Mock<IContentManifestPool>();
+        manifestPool
+            .Setup(p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var deliverer = CreateDeliverer(downloadService.Object, manifestPool.Object);
+        var packageManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei"),
+            Name = "Leikeze's Hotkeys",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                SelectedVariantId = "zerohour-ru",
+                Tags = ["contentCode:hlei", "selectedVariant:zerohour-ru"],
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "content.zip",
+                    DownloadUrl = "https://legi.cc/gp2/f/hlei.zip",
+                },
+            ],
+        };
+
+        var result = await deliverer.DeliverContentAsync(packageManifest, targetDirectory, null, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-ru", result.Data.Id.Value);
+        Assert.Equal("zerohour-ru", result.Data.Metadata?.SelectedVariantId);
+        Assert.Equal("Leikeze's Hotkeys (RU)", result.Data.Name);
+    }
+
+    /// <summary>
     /// Verifies that multi-variant hotkeys packages like hlei repack all language/game subdirectories.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -330,9 +401,13 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
         var controlBarProcessor = new ControlBarPackageProcessor(
             converter,
             NullLogger<ControlBarPackageProcessor>.Instance);
+        var hashProviderMock = new Mock<IFileHashProvider>();
+        hashProviderMock
+            .Setup(h => h.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("abc123hash");
         var manifestFactory = new CommunityOutpostManifestFactory(
             NullLogger<CommunityOutpostManifestFactory>.Instance,
-            new Mock<IFileHashProvider>().Object,
+            hashProviderMock.Object,
             controlBarProcessor);
 
         return new CommunityOutpostDeliverer(

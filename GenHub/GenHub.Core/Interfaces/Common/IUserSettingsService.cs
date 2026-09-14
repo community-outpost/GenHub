@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
@@ -43,4 +44,14 @@ public interface IUserSettingsService
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task that represents the asynchronous save operation.</returns>
     Task SaveAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Synchronously reloads the user settings from disk into memory under a synchronizing lock,
+    /// discarding any in-memory changes applied via <see cref="Update(Action{UserSettings})"/> that have not been persisted.
+    /// </summary>
+    /// <remarks>
+    /// Because this method performs synchronous file I/O while holding the service lock, callers on UI threads
+    /// should execute it on a background thread (e.g. using <see cref="Task.Run(Action)"/>).
+    /// </remarks>
+    void Reload();
 }

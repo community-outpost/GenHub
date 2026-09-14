@@ -174,4 +174,17 @@ public static class RegistryConstants
 
     /// <summary>WMI Query for Video Controller.</summary>
     public const string WmiQueryVideoController = "SELECT * FROM Win32_VideoController";
+
+    // ===== Shell & Classes Keys =====
+
+    /// <summary>Registry shell open command subkey path for GenHub URI scheme.</summary>
+    public const string GenHubUriSchemeCommandKey = @"Software\Classes\" + CommandLineConstants.SchemeName + @"\shell\open\command";
+
+    // ===== GenHub Application Keys =====
+
+    /// <summary>Registry subkey under HKCU for GenHub application settings and install state.</summary>
+    public const string GenHubSubKey = @"Software\GenHub";
+
+    /// <summary>Registry value name for 'CustomInstallPath'.</summary>
+    public const string CustomInstallPathValueName = "CustomInstallPath";
 }

@@ -129,4 +129,66 @@ public static class StorageMigrationConstants
     /// CAS directory marker name.
     /// </summary>
     public const string DotGenHubCasDirectoryName = ".genhub-cas";
+
+    /// <summary>
+    /// Title for the duplicate installation detected notification.
+    /// </summary>
+    public const string DuplicateInstallationDetectedTitle = "Duplicate Installation Detected";
+
+    /// <summary>
+    /// Auto-dismiss duration in milliseconds for the duplicate installation notification (12 seconds).
+    /// </summary>
+    public const int DuplicateInstallationNotificationAutoDismissMs = 12000;
+
+    /// <summary>
+    /// File extension for macOS application bundles.
+    /// </summary>
+    public const string MacAppBundleExtension = ".app";
+
+    /// <summary>
+    /// Contents directory name within a macOS application bundle.
+    /// </summary>
+    public const string MacContentsDirectoryName = "Contents";
+
+    /// <summary>
+    /// Info.plist file name within a macOS application bundle.
+    /// </summary>
+    public const string MacInfoPlistFileName = "Info.plist";
+
+    /// <summary>
+    /// MacOS directory name within a macOS application bundle.
+    /// </summary>
+    public const string MacOsDirectoryName = "MacOS";
+
+    /// <summary>
+    /// Marker file name placed in the installation root during user data adoption to track pending retries.
+    /// </summary>
+    public const string AdoptionPendingMarkerFileName = ".adoption-pending";
+
+    /// <summary>
+    /// Environment variable name for the configured application data path override.
+    /// </summary>
+    public const string AppDataPathEnvVar = "GENHUB_GenHub__AppDataPath";
+
+    /// <summary>
+    /// File name used to persist custom installation location markers across platforms.
+    /// </summary>
+    public const string CustomInstallPathFileName = "install-location";
+
+    /// <summary>
+    /// Configuration directory name within the user's home directory.
+    /// </summary>
+    public const string GenHubConfigDirectoryName = ".genhub";
+
+    /// <summary>
+    /// Notification message format when user data has been successfully adopted from a custom installation.
+    /// </summary>
+    public const string DuplicateInstallationAdoptedMessageFormat =
+        "GenHub detected a custom installation at '{0}'. Your settings, profiles, and game manifests have been preserved in this installation.";
+
+    /// <summary>
+    /// Notification message format when a duplicate installation exists but data was not adopted.
+    /// </summary>
+    public const string DuplicateInstallationDetectedMessageFormat =
+        "GenHub is running from the default directory, but an existing installation was detected at '{0}'.";
 }

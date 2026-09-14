@@ -69,7 +69,7 @@ public sealed class CommunityOutpostResolverTests
 
         var builtManifest = new ContentManifest
         {
-            Id = ManifestId.Create("1.0.communityoutpost.addon.cbpr1080p"),
+            Id = ManifestId.Create("1.0.communityoutpost.addon.cbpr"),
             Name = "Control Bar Pro (ExiLe)",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
@@ -89,10 +89,65 @@ public sealed class CommunityOutpostResolverTests
         Assert.True(result.Success);
         var manifest = result.Data;
         Assert.NotNull(manifest);
+        builderMock.Verify(
+            b => b.WithBasicInfo(CommunityOutpostConstants.PublisherType, "cbpr", It.IsAny<string?>()),
+            Times.Once);
         Assert.Equal("1080p", manifest.Metadata?.SelectedVariantId);
         Assert.Contains(manifest.Metadata?.Tags ?? [], t => t == "requestedVariant:1080p");
         Assert.Contains(manifest.Metadata?.Tags ?? [], t => t == "selectedVariant:1080p");
         Assert.Contains(manifest.Metadata?.Tags ?? [], t => t == "contentCode:cbpr");
+    }
+
+    /// <summary>
+    /// Verifies that resolving Leikeze's Hotkeys (RU) variant preserves base content code hlei and sets SelectedVariantId.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithHleiRussianVariant_ResolvesPackageWithCleanContentCodeAndSelectedVariantTagsAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hlei-zerohour-ru",
+            Name = "Leikeze's Hotkeys (RU)",
+            ProviderName = "communityoutpost",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://example.com/hlei.dat",
+        };
+        searchResult.ResolverMetadata["contentCode"] = "hlei";
+        searchResult.ResolverMetadata["selectedVariant"] = "zerohour-ru";
+
+        var builtManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei"),
+            Name = "Leikeze's Hotkeys",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Files = [new ManifestFile { RelativePath = "hlei.dat" }],
+        };
+
+        var builderMock = CreateBuilderMock(builtManifest);
+        var resolver = new CommunityOutpostResolver(
+            () => builderMock.Object,
+            _providerLoaderMock.Object,
+            NullLogger<CommunityOutpostResolver>.Instance);
+
+        // Act
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifest = result.Data;
+        Assert.NotNull(manifest);
+        builderMock.Verify(
+            b => b.WithBasicInfo(CommunityOutpostConstants.PublisherType, "hlei", It.IsAny<string?>()),
+            Times.Once);
+        Assert.Equal("zerohour-ru", manifest.Metadata?.SelectedVariantId);
+        Assert.Contains(manifest.Metadata?.Tags ?? [], t => t == "requestedVariant:zerohour-ru");
+        Assert.Contains(manifest.Metadata?.Tags ?? [], t => t == "selectedVariant:zerohour-ru");
+        Assert.Contains(manifest.Metadata?.Tags ?? [], t => t == "variant:zerohour-ru");
+        Assert.Contains(manifest.Metadata?.Tags ?? [], t => t == "contentCode:hlei");
     }
 
     /// <summary>

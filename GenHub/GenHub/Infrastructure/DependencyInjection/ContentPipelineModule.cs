@@ -39,6 +39,7 @@ using GenHub.Features.Storage.Services;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -63,6 +64,7 @@ public static class ContentPipelineModule
         AddGeneralsOnlinePipeline(services);
         AddCommunityOutpostPipeline(services);
         AddCNCLabsPipeline(services);
+        AddAODMapsPipeline(services);
         AddModDBPipeline(services);
         AddLocalFileSystemPipeline(services);
         AddCsvPipeline(services);
@@ -337,6 +339,38 @@ public static class ContentPipelineModule
         // Register CNCLabs manifest factory
         services.AddTransient<CNCLabsManifestFactory>();
         services.AddTransient<IPublisherManifestFactory, CNCLabsManifestFactory>();
+    }
+
+    /// <summary>
+    /// Registers AODMaps content pipeline services.
+    /// </summary>
+    private static void AddAODMapsPipeline(IServiceCollection services)
+    {
+        // Register named HTTP client for AODMaps
+        services.AddHttpClient(AODMapsConstants.PublisherType, httpClient =>
+        {
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+        });
+
+        // Register AODMaps content provider
+        services.AddTransient<IContentProvider, AODMapsContentProvider>();
+
+        // Register AODMaps page parser (concrete and interface)
+        services.AddSingleton<AODMapsPageParser>();
+        services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<AODMapsPageParser>());
+
+        // Register AODMaps discoverer (concrete and interface)
+        services.AddSingleton<AODMapsDiscoverer>();
+        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<AODMapsDiscoverer>());
+
+        // Register AODMaps resolver
+        services.AddTransient<AODMapsResolver>();
+        services.AddTransient<IContentResolver, AODMapsResolver>();
+
+        // Register AODMaps manifest factory
+        services.AddTransient<AODMapsManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, AODMapsManifestFactory>();
     }
 
     /// <summary>

@@ -187,11 +187,11 @@ public class CommunityOutpostManifestFactory(
     {
         // Look for contentCode tag in metadata
         var contentCodeTag = manifest.Metadata?.Tags?
-            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(contentCodeTag))
         {
-            return contentCodeTag["contentCode:".Length..];
+            return GenPatcherContentRegistry.NormalizeContentCode(contentCodeTag[ManifestTagConstants.ContentCodePrefix.Length..]);
         }
 
         // Try to extract from manifest ID
@@ -199,7 +199,7 @@ public class CommunityOutpostManifestFactory(
         var idParts = manifest.Id.Value?.Split('.') ?? [];
         if (idParts.Length >= 5)
         {
-            return idParts[4]; // The content name part
+            return GenPatcherContentRegistry.NormalizeContentCode(idParts[4]);
         }
 
         return "unknown";
@@ -395,7 +395,7 @@ public class CommunityOutpostManifestFactory(
                 inclusionContext,
                 cancellationToken);
 
-            var (manifestId, manifestName) = ResolveVariantIdentity(originalManifest, variant, fileEntries.Count);
+            var (manifestId, manifestName) = ResolveVariantIdentity(originalManifest, contentMetadata, variant, fileEntries.Count);
             return AssembleManifest(originalManifest, contentMetadata, variant, manifestId, manifestName, fileEntries);
         }
         catch (Exception ex)
@@ -495,6 +495,7 @@ public class CommunityOutpostManifestFactory(
 
     private (ManifestId ManifestId, string ManifestName) ResolveVariantIdentity(
         ContentManifest originalManifest,
+        GenPatcherContentMetadata contentMetadata,
         ContentVariant? variant,
         int fileCount)
     {
@@ -509,12 +510,41 @@ public class CommunityOutpostManifestFactory(
         var idParts = originalManifest.Id.Value.Split('.');
         if (idParts.Length >= 5)
         {
-            var contentCode = idParts[4];
-            var variantContentName = $"{contentCode}-{variant.Id}";
+            var contentCode = contentMetadata.ContentCode;
+            if (string.IsNullOrEmpty(contentCode))
+            {
+                contentCode = originalManifest.Metadata?.Tags?
+                    .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase))?[ManifestTagConstants.ContentCodePrefix.Length..];
+            }
+
+            if (string.IsNullOrEmpty(contentCode))
+            {
+                contentCode = idParts[4];
+            }
+
+            contentCode = GenPatcherContentRegistry.NormalizeContentCode(contentCode);
+
+            var variantContentName = $"{contentCode}-{variant.Id}".ToLowerInvariant();
             manifestId = ManifestId.Create($"{idParts[0]}.{idParts[1]}.{idParts[2]}.{idParts[3]}.{variantContentName}");
         }
 
-        manifestName = $"{originalManifest.Name} - {variant.Name}";
+        var baseDisplayName = !string.IsNullOrWhiteSpace(contentMetadata.DisplayName)
+            ? contentMetadata.DisplayName
+            : originalManifest.Name;
+
+        if (string.IsNullOrWhiteSpace(variant.Name))
+        {
+            manifestName = originalManifest.Name;
+        }
+        else if (variant.Name.Contains(baseDisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            manifestName = variant.Name;
+        }
+        else
+        {
+            manifestName = $"{baseDisplayName} - {variant.Name}";
+        }
+
         logger.LogInformation(
             "Creating variant manifest: {ManifestId} ({ManifestName}) with {FileCount} files",
             manifestId,
@@ -532,6 +562,28 @@ public class CommunityOutpostManifestFactory(
         string manifestName,
         List<ManifestFile> fileEntries)
     {
+        var variantTags = new List<string>();
+        if (originalManifest.Metadata?.Tags != null)
+        {
+            variantTags.AddRange(originalManifest.Metadata.Tags.Where(t =>
+                !t.StartsWith(ManifestTagConstants.SelectedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.RequestedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.VariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var normalizedCode = GenPatcherContentRegistry.NormalizeContentCode(contentMetadata.ContentCode);
+        if (!string.IsNullOrEmpty(normalizedCode))
+        {
+            variantTags.Add($"{ManifestTagConstants.ContentCodePrefix}{normalizedCode}");
+        }
+
+        if (variant != null)
+        {
+            variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Id}");
+            variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Id}");
+        }
+
         var manifest = new ContentManifest
         {
             Id = manifestId,
@@ -546,14 +598,14 @@ public class CommunityOutpostManifestFactory(
             Publisher = originalManifest.Publisher,
             Metadata = new ContentMetadata
             {
-                Description = originalManifest.Metadata.Description,
-                ReleaseDate = originalManifest.Metadata.ReleaseDate,
+                Description = originalManifest.Metadata?.Description ?? string.Empty,
+                ReleaseDate = originalManifest.Metadata?.ReleaseDate ?? default,
                 IconUrl = CommunityOutpostConstants.LogoSource,
                 CoverUrl = CommunityOutpostConstants.CoverSource,
                 ThemeColor = CommunityOutpostConstants.ThemeColor,
-                ScreenshotUrls = originalManifest.Metadata.ScreenshotUrls,
-                Tags = originalManifest.Metadata.Tags,
-                ChangelogUrl = originalManifest.Metadata.ChangelogUrl,
+                ScreenshotUrls = originalManifest.Metadata?.ScreenshotUrls ?? [],
+                Tags = variantTags,
+                ChangelogUrl = originalManifest.Metadata?.ChangelogUrl,
                 Variants = variant != null ? [] : (contentMetadata.Variants ?? []),
                 RequiresVariantSelection = false,
                 SelectedVariantId = variant?.Id,

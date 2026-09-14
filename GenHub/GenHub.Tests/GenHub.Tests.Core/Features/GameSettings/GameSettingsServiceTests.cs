@@ -610,6 +610,57 @@ MoneyTransactionVolume=60
         }
     }
 
+    /// <summary>
+    /// Verifies that flat root TheSuperHackers settings in Options.ini merge with existing [TheSuperHackers] section
+    /// and preserve section-only keys like GameWindowTransitionSpeedMultiplier, while video keys like ShowTrees
+    /// are categorized into Video.AdditionalProperties.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadOptionsAsync_Should_MergeRootTshSettingsWithSectionSettingsAsync()
+    {
+        // Arrange
+        var content = @"ShowTrees = yes
+UseCloudMap = yes
+ScrollFactor = 55
+[TheSuperHackers]
+GameWindowTransitionSpeedMultiplier = 2.5
+MoneyTransactionVolume = 70
+";
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, content);
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.LoadOptionsAsync(GameType.ZeroHour);
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            var options = result.Data!;
+
+            // Video keys moved to Video.AdditionalProperties
+            Assert.Equal("yes", options.Video.AdditionalProperties["ShowTrees"]);
+            Assert.Equal("yes", options.Video.AdditionalProperties["UseCloudMap"]);
+
+            // Merged TheSuperHackers section preserves both section keys and root TSH keys
+            Assert.True(options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection));
+            Assert.Equal("2.5", tshSection["GameWindowTransitionSpeedMultiplier"]);
+            Assert.Equal("70", tshSection["MoneyTransactionVolume"]);
+            Assert.Equal("55", tshSection["ScrollFactor"]);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     private GameSettingsService CreateServiceWritingGeneralsOnlineSettingsTo(string settingsPath)
     {
         var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)

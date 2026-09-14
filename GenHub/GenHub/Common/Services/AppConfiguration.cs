@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -19,6 +20,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     private const string FailedToResolveCustomInstallRootMessage = "Failed to resolve custom install root for configured data path, falling back to default";
 
     private readonly IConfiguration? _configuration = configuration;
+
     private readonly ILogger<AppConfiguration>? _logger = logger;
 
     /// <summary>
@@ -30,9 +32,9 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         try
         {
             var configured = _configuration?.GetValue<string>(ConfigurationKeys.AppDataPath);
-            if (!string.IsNullOrEmpty(configured))
+            if (!string.IsNullOrWhiteSpace(configured) && PathHelper.TrySanitizeLocalPath(configured, out var sanitizedConfigured))
             {
-                return configured;
+                return sanitizedConfigured;
             }
 
             if (StorageMigrationService.IsCustomInstallRoot())
@@ -40,27 +42,27 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
                 return StorageMigrationService.GetSourceRootDirectory();
             }
 
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            return StorageMigrationService.GetDefaultDataRoot();
         }
         catch (IOException ex)
         {
             _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            return StorageMigrationService.GetDefaultDataRoot();
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            return StorageMigrationService.GetDefaultDataRoot();
         }
         catch (System.Security.SecurityException ex)
         {
             _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            return StorageMigrationService.GetDefaultDataRoot();
         }
         catch (ArgumentException ex)
         {
             _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            return StorageMigrationService.GetDefaultDataRoot();
         }
     }
 
@@ -247,9 +249,9 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         if (_configuration != null)
         {
             var configured = _configuration[ConfigurationKeys.AppDataPath];
-            if (!string.IsNullOrEmpty(configured))
+            if (!string.IsNullOrWhiteSpace(configured) && PathHelper.TrySanitizeLocalPath(configured, out var sanitizedConfigured))
             {
-                return configured;
+                return sanitizedConfigured;
             }
         }
 
@@ -277,7 +279,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
             _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
         }
 
-        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        return StorageMigrationService.GetDefaultDataRoot();
     }
 
     /// <summary>

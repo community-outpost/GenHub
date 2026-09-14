@@ -1,6 +1,7 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
@@ -11,11 +12,13 @@ using GenHub.Features.Content.Services.GitHub;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Features.Content.Services.GitHub;
 
@@ -34,8 +37,6 @@ public class GitHubContentDelivererTests
     /// </summary>
     public GitHubContentDelivererTests()
     {
-        // PublisherManifestFactoryResolver is a class with virtual methods or injectables?
-        // Let's check how to mock it or just use a real one with mocks.
         _factoryResolver = new Mock<PublisherManifestFactoryResolver>(null!, null!);
     }
 
@@ -76,19 +77,122 @@ public class GitHubContentDelivererTests
     /// <param name="shouldExtract">Expected value for whether extraction should occur.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Theory]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.Mod, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.GameClient, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.Addon, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.ModdingTool, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.Executable, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.MapPack, false)]
-    public Task DeliverContentAsync_ShouldExtractZip_ForMatchingContentTypesAsync(GenHub.Core.Models.Enums.ContentType contentType, bool shouldExtract)
+    [InlineData(ContentType.Mod, true)]
+    [InlineData(ContentType.GameClient, true)]
+    [InlineData(ContentType.Addon, true)]
+    [InlineData(ContentType.ModdingTool, true)]
+    [InlineData(ContentType.Executable, true)]
+    [InlineData(ContentType.MapPack, false)]
+    public Task DeliverContentAsync_ShouldExtractZip_ForMatchingContentTypesAsync(ContentType contentType, bool shouldExtract)
     {
         // Dummy usage to satisfy xUnit analysis
-        Assert.True(Enum.IsDefined(typeof(GenHub.Core.Models.Enums.ContentType), contentType));
+        Assert.True(Enum.IsDefined(typeof(ContentType), contentType));
         Assert.NotNull(shouldExtract.ToString());
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync returns the manifest matching the requested variant when multiple manifests are produced.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithMultipleManifestsAndSelectedVariant_ReturnsRequestedVariantManifestAsync()
+    {
+        var targetDirectory = CreateWorkingDirectory();
+
+        try
+        {
+            _downloadService
+                .Setup(d => d.DownloadFileAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+                {
+                    CreateArchive(destination, "data.big");
+                    return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                });
+
+            var variantDefault = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.github.addon.item-en"),
+                Name = "Item (EN)",
+                ContentType = ContentType.Addon,
+                Metadata = new ContentMetadata { SelectedVariantId = "en" },
+                Files = [new ManifestFile { RelativePath = "data.big" }],
+            };
+
+            var variantRu = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.github.addon.item-ru"),
+                Name = "Item (RU)",
+                ContentType = ContentType.Addon,
+                Metadata = new ContentMetadata { SelectedVariantId = "ru" },
+                Files = [new ManifestFile { RelativePath = "data.big" }],
+            };
+
+            var factoryMock = new Mock<IPublisherManifestFactory>();
+            factoryMock.Setup(f => f.CanHandle(It.IsAny<ContentManifest>())).Returns(true);
+            factoryMock
+                .Setup(f => f.CreateManifestsFromExtractedContentAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync([variantDefault, variantRu]);
+
+            var factoryResolver = new PublisherManifestFactoryResolver(
+                [factoryMock.Object],
+                NullLogger<PublisherManifestFactoryResolver>.Instance);
+
+            _manifestPool
+                .Setup(p => p.AddManifestAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<IProgress<ContentStorageProgress>?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+            var deliverer = new GitHubContentDeliverer(
+                _downloadService.Object,
+                _manifestPool.Object,
+                factoryResolver,
+                _logger.Object);
+
+            var packageManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.github.addon.item"),
+                Name = "Item",
+                ContentType = ContentType.Addon,
+                Metadata = new ContentMetadata
+                {
+                    SelectedVariantId = "ru",
+                    Tags = ["selectedVariant:ru"],
+                },
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "release.zip",
+                        DownloadUrl = "https://github.com/user/repo/release.zip",
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(packageManifest, targetDirectory, cancellationToken: CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Id.Value.Should().Be("1.0.github.addon.item-ru");
+            result.Data.Name.Should().Be("Item (RU)");
+            result.Data.Metadata?.SelectedVariantId.Should().Be("ru");
+        }
+        finally
+        {
+            Directory.Delete(targetDirectory, recursive: true);
+        }
     }
 
     /// <summary>

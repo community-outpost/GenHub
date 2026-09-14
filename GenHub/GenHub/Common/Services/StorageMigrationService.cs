@@ -47,6 +47,18 @@ public class StorageMigrationService(
         string FinalCasRoot,
         string FinalWorkspaceRoot);
 
+    private const string ImportUserDataFailureMessage =
+        "Failed to import user data from custom installation directory {CustomRoot}";
+
+    private const string WriteAdoptionMarkerErrorMessage = "Failed to write adoption marker file";
+
+    private static readonly EnumerationOptions RecursiveEnumerationOptions = new()
+    {
+        IgnoreInaccessible = false,
+        AttributesToSkip = FileAttributes.None,
+        RecurseSubdirectories = true,
+    };
+
     private static readonly HashSet<string> ExcludedUserDataNames = new(PathHelper.PathComparer)
     {
         FileTypes.SettingsFileName,
@@ -70,6 +82,76 @@ public class StorageMigrationService(
 
     private static readonly Lazy<bool> CachedIsCustomInstallRoot = new(ComputeIsCustomInstallRoot);
     private static bool? _customInstallRootOverride;
+    private static bool? _defaultInstallRootOverride;
+    private static string? _defaultInstallRootPathOverride;
+    private static string? _defaultDataRootOverride;
+    private static Func<string?>? _configuredDataPathResolver;
+
+    /// <summary>
+    /// Gets a value indicating whether user configuration was successfully adopted
+    /// during early startup prior to service container initialization.
+    /// </summary>
+    public static bool WasEarlyAdopted { get; internal set; }
+
+    /// <summary>
+    /// Synchronously copies user settings and data from a custom installation before dependency injection
+    /// registers services, ensuring UserSettingsService reads adopted configuration on initial startup.
+    /// </summary>
+    /// <param name="registeredCustomPath">The registered custom installation path from tracker.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><see langword="true"/> if data was imported; otherwise, <see langword="false"/>.</returns>
+    public static bool EarlyAdoptIfConflict(string? registeredCustomPath, ILogger? logger = null)
+    {
+        if (IsCustomInstallRoot() || string.IsNullOrWhiteSpace(registeredCustomPath))
+        {
+            return false;
+        }
+
+        if (!HasDuplicateInstallationConflict(registeredCustomPath, out var detectedCustomPath) ||
+            string.IsNullOrWhiteSpace(detectedCustomPath))
+        {
+            return false;
+        }
+
+        if (_configuredDataPathResolver == null)
+        {
+            try
+            {
+                Infrastructure.DependencyInjection.ConfigurationModule.InitializeConfiguredDataPathResolver();
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to initialize configured data path resolver during early adoption conflict resolution.");
+            }
+        }
+
+        FileInstallationLocationTracker.RecordCustomInstallPathStatic(detectedCustomPath, logger);
+
+        var defaultRoot = GetDefaultDataRoot();
+        var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
+        var isPendingRetry = IsMarkerMatchingPath(markerPath, detectedCustomPath);
+        var hasExistingData = HasExistingUserData(defaultRoot);
+
+        if ((hasExistingData && !isPendingRetry) || !HasExistingUserData(detectedCustomPath))
+        {
+            return false;
+        }
+
+        if (!WriteAdoptionMarkerSafely(markerPath, detectedCustomPath, logger))
+        {
+            logger?.LogWarning("Aborting early adoption because adoption marker could not be written to {MarkerPath}", markerPath);
+            return false;
+        }
+
+        logger?.LogInformation("Adopting configuration from '{Custom}' before service initialization", detectedCustomPath);
+        var result = TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
+        if (result)
+        {
+            WasEarlyAdopted = true;
+        }
+
+        return result;
+    }
 
     /// <inheritdoc />
     public async Task<OperationResult<StorageMigrationPreflightResult>> ValidatePreflightAsync(
@@ -174,7 +256,7 @@ public class StorageMigrationService(
             var segments = appBaseDir.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
             for (var i = 0; i < segments.Length; i++)
             {
-                if (segments[i].EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+                if (segments[i].EndsWith(StorageMigrationConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
                 {
                     const string prefix = "/";
                     return prefix + string.Join('/', segments.Take(i + 1));
@@ -186,9 +268,10 @@ public class StorageMigrationService(
         if (parentDir != null)
         {
             // Check for Velopack markers (Update.exe / Update, packages dir, app-* directories, or companion executable)
-            var hasUpdateExe = File.Exists(Path.Combine(parentDir, "Update.exe")) || File.Exists(Path.Combine(parentDir, "Update"));
-            var hasPackagesDir = Directory.Exists(Path.Combine(parentDir, "packages"));
-            var hasAppDirs = Directory.GetDirectories(parentDir, "app-*").Length > 0;
+            var hasUpdateExe = File.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackUpdateExe)) ||
+                               File.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackUpdateUnix));
+            var hasPackagesDir = Directory.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackPackagesDirectoryName));
+            var hasAppDirs = Directory.GetDirectories(parentDir, StorageMigrationConstants.VelopackAppDirectoryPattern).Length > 0;
 
             if (hasUpdateExe || hasPackagesDir || hasAppDirs)
             {
@@ -240,9 +323,17 @@ public class StorageMigrationService(
 
         try
         {
-            var hasUpdateExe = File.Exists(Path.Combine(directoryPath, "Update.exe")) || File.Exists(Path.Combine(directoryPath, "Update"));
-            var hasPackagesDir = Directory.Exists(Path.Combine(directoryPath, "packages"));
-            var hasAppDirs = Directory.GetDirectories(directoryPath, "app-*").Length > 0;
+            if (OperatingSystem.IsMacOS() && directoryPath.EndsWith(StorageMigrationConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                var contentsDir = Path.Combine(directoryPath, StorageMigrationConstants.MacContentsDirectoryName);
+                return Directory.Exists(contentsDir) &&
+                       (File.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacInfoPlistFileName)) || Directory.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacOsDirectoryName)));
+            }
+
+            var hasUpdateExe = File.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackUpdateExe)) ||
+                               File.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackUpdateUnix));
+            var hasPackagesDir = Directory.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackPackagesDirectoryName));
+            var hasAppDirs = Directory.GetDirectories(directoryPath, StorageMigrationConstants.VelopackAppDirectoryPattern).Length > 0;
             return hasUpdateExe || hasPackagesDir || hasAppDirs;
         }
         catch (IOException)
@@ -273,6 +364,131 @@ public class StorageMigrationService(
     internal static void SetCustomInstallRootOverrideForTesting(bool? isCustom) => _customInstallRootOverride = isCustom;
 
     /// <summary>
+    /// Determines whether the running instance is located in the default Velopack installation root directory.
+    /// </summary>
+    /// <returns><see langword="true"/> if running from the default installation directory; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsDefaultInstallRoot()
+    {
+        if (_defaultInstallRootOverride.HasValue)
+        {
+            return _defaultInstallRootOverride.Value;
+        }
+
+        var defaultInstallRoot = GetDefaultInstallRoot();
+        if (string.IsNullOrWhiteSpace(defaultInstallRoot))
+        {
+            return false;
+        }
+
+        var sourceRoot = GetSourceRootDirectory();
+        if (PathHelper.AreSamePath(sourceRoot, defaultInstallRoot))
+        {
+            return true;
+        }
+
+        var sourceParent = Directory.GetParent(sourceRoot)?.FullName;
+        return sourceParent != null && PathHelper.AreSamePath(sourceParent, defaultInstallRoot);
+    }
+
+    /// <summary>
+    /// Sets an override for <see cref="IsDefaultInstallRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="isDefault">The override value, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultInstallRootOverrideForTesting(bool? isDefault) => _defaultInstallRootOverride = isDefault;
+
+    /// <summary>
+    /// Sets an override for <see cref="GetDefaultInstallRoot"/> path for unit testing.
+    /// </summary>
+    /// <param name="path">The override directory path, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultInstallRootPathOverrideForTesting(string? path) => _defaultInstallRootPathOverride = path;
+
+    /// <summary>
+    /// Sets an override for <see cref="GetDefaultDataRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="path">The override directory path, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultDataRootOverrideForTesting(string? path) => _defaultDataRootOverride = path;
+
+    /// <summary>
+    /// Sets a resolver callback for configured data path (e.g. from <c>IConfiguration</c>).
+    /// </summary>
+    /// <param name="resolver">The resolver function, or <see langword="null"/> to reset.</param>
+    internal static void SetConfiguredDataPathResolver(Func<string?>? resolver) => _configuredDataPathResolver = resolver;
+
+    /// <summary>
+    /// Gets the default application data root directory in LocalApplicationData across all platforms.
+    /// </summary>
+    /// <returns>The path to the default application data root.</returns>
+    internal static string GetDefaultDataRoot()
+    {
+        if (_defaultDataRootOverride != null)
+        {
+            return _defaultDataRootOverride;
+        }
+
+        var configured = _configuredDataPathResolver?.Invoke();
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            configured = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
+        }
+
+        if (!string.IsNullOrWhiteSpace(configured) && PathHelper.TrySanitizeLocalPath(configured, out var sanitized))
+        {
+            return sanitized;
+        }
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localAppData))
+        {
+            localAppData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        return !string.IsNullOrWhiteSpace(localAppData)
+            ? Path.Combine(localAppData, AppConstants.AppName)
+            : Path.Combine(Path.GetTempPath(), AppConstants.AppName);
+    }
+
+    /// <summary>
+    /// Gets the default Velopack installation root directory in LocalApplicationData.
+    /// </summary>
+    /// <returns>The path to the default installation root.</returns>
+    internal static string GetDefaultInstallRoot()
+    {
+        if (_defaultInstallRootPathOverride != null)
+        {
+            return _defaultInstallRootPathOverride;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrWhiteSpace(userProfile))
+            {
+                var userApplications = Path.Combine(
+                    userProfile,
+                    "Applications",
+                    $"{AppConstants.AppName}.app");
+
+                if (Directory.Exists(userApplications))
+                {
+                    return userApplications;
+                }
+            }
+
+            return $"/Applications/{AppConstants.AppName}.app";
+        }
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localAppData))
+        {
+            localAppData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        return !string.IsNullOrWhiteSpace(localAppData)
+            ? Path.Combine(localAppData, AppConstants.AppName)
+            : string.Empty;
+    }
+
+    /// <summary>
     /// If running from a custom install location, removes empty %LOCALAPPDATA%\GenHub and %APPDATA%\GenHub folders
     /// if they were created during bootstrap or leftover from default paths.
     /// </summary>
@@ -283,13 +499,352 @@ public class StorageMigrationService(
             return;
         }
 
-        CleanIfEmpty(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName));
+        var defaultInstall = GetDefaultInstallRoot();
+        if (!string.IsNullOrWhiteSpace(defaultInstall) && Path.IsPathRooted(defaultInstall))
+        {
+            CleanIfEmpty(defaultInstall);
+        }
 
-        CleanIfEmpty(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            AppConstants.AppName));
+        var defaultData = GetDefaultDataRoot();
+        if (!string.IsNullOrWhiteSpace(defaultData) && Path.IsPathRooted(defaultData))
+        {
+            CleanIfEmpty(defaultData);
+        }
+
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData) && Path.IsPathRooted(appData))
+        {
+            CleanIfEmpty(Path.Combine(appData, AppConstants.AppName));
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a duplicate installation conflict exists where the current instance is running
+    /// from the default install root, but a valid custom installation exists elsewhere.
+    /// </summary>
+    /// <param name="candidateCustomPath">The candidate custom installation directory.</param>
+    /// <param name="detectedCustomPath">The resolved valid custom installation path if detected.</param>
+    /// <returns><see langword="true"/> if a valid custom installation exists elsewhere while running from default; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasDuplicateInstallationConflict(string? candidateCustomPath, out string? detectedCustomPath)
+    {
+        detectedCustomPath = null;
+        if (IsCustomInstallRoot() || !IsDefaultInstallRoot() || string.IsNullOrWhiteSpace(candidateCustomPath))
+        {
+            return false;
+        }
+
+        if (!PathHelper.TrySanitizeLocalPath(candidateCustomPath, out var sanitizedCandidate))
+        {
+            return false;
+        }
+
+        try
+        {
+            var currentRoot = GetSourceRootDirectory();
+            var normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sanitizedCandidate));
+
+            if (PathHelper.AreSamePath(currentRoot, normalizedCandidate))
+            {
+                return false;
+            }
+
+            if (Directory.Exists(normalizedCandidate) && IsVelopackRoot(normalizedCandidate))
+            {
+                detectedCustomPath = normalizedCandidate;
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if the specified root directory contains existing user configuration, game profiles, or manifests.
+    /// </summary>
+    /// <param name="rootPath">The root directory to inspect.</param>
+    /// <returns><see langword="true"/> if existing user data is present; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasExistingUserData(string? rootPath)
+    {
+        if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (File.Exists(Path.Combine(rootPath, FileTypes.SettingsFileName)))
+            {
+                return true;
+            }
+
+            var profilesDir = Path.Combine(rootPath, DirectoryNames.Profiles);
+            if (Directory.Exists(profilesDir) && Directory.EnumerateFileSystemEntries(profilesDir).Any())
+            {
+                return true;
+            }
+
+            var manifestsDir = Path.Combine(rootPath, FileTypes.ManifestsDirectory);
+            if (Directory.Exists(manifestsDir) && Directory.EnumerateFileSystemEntries(manifestsDir).Any())
+            {
+                return true;
+            }
+
+            var userDataDir = Path.Combine(rootPath, DirectoryNames.UserData);
+            if (Directory.Exists(userDataDir) && Directory.EnumerateFileSystemEntries(userDataDir).Any())
+            {
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Adopts user data from an existing custom directory installation into the current target installation root.
+    /// Copies settings.json, Profiles, UserData, and custom manifests if they do not already exist in the target.
+    /// Derived states such as Workspaces and CAS storage are intentionally excluded so they can be cleanly rebuilt.
+    /// </summary>
+    /// <param name="customRoot">The custom installation root directory to import from.</param>
+    /// <param name="targetRoot">The target installation root directory.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    /// <returns><see langword="true"/> if data was imported; otherwise, <see langword="false"/>.</returns>
+    internal static bool TryImportUserDataFromCustomInstall(
+        string customRoot,
+        string targetRoot,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
+            !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var importedAny = false;
+            var settingsSrc = Path.Combine(customRoot, FileTypes.SettingsFileName);
+            var settingsDest = Path.Combine(targetRoot, FileTypes.SettingsFileName);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (File.Exists(settingsSrc) && !File.Exists(settingsDest))
+            {
+                File.Copy(settingsSrc, settingsDest, overwrite: false);
+                importedAny = true;
+                logger?.LogInformation("Imported settings from custom installation: {Src} -> {Dest}", settingsSrc, settingsDest);
+            }
+
+            var dirsToCopy = new[]
+            {
+                DirectoryNames.Profiles,
+                FileTypes.ManifestsDirectory,
+                DirectoryNames.UserData,
+            };
+
+            foreach (var dirName in dirsToCopy)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var srcDir = Path.Combine(customRoot, dirName);
+                var destDir = Path.Combine(targetRoot, dirName);
+                if (Directory.Exists(srcDir) && CopyMissingFilesRecursive(srcDir, destDir, cancellationToken))
+                {
+                    importedAny = true;
+                    logger?.LogInformation("Imported {Directory} from custom installation: {Src} -> {Dest}", dirName, srcDir, destDir);
+                }
+            }
+
+            return importedAny;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (NotSupportedException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the custom installation contains user configuration or data
+    /// (settings, profiles, manifests, or user data) that has not yet been imported into the target root.
+    /// </summary>
+    /// <param name="customRoot">The custom installation root directory.</param>
+    /// <param name="targetRoot">The target installation root directory.</param>
+    /// <returns><see langword="true"/> if unadopted user data is confirmed present;
+    /// <see langword="false"/> if all user data has been adopted or paths do not exist;
+    /// or <see langword="null"/> if an error prevented inspection.</returns>
+    internal static bool? HasUnadoptedUserData(string customRoot, string targetRoot)
+    {
+        if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
+            !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var settingsSrc = Path.Combine(customRoot, FileTypes.SettingsFileName);
+            var settingsDest = Path.Combine(targetRoot, FileTypes.SettingsFileName);
+            if (File.Exists(settingsSrc) && !File.Exists(settingsDest))
+            {
+                return true;
+            }
+
+            var dirs = new[]
+            {
+                DirectoryNames.Profiles,
+                FileTypes.ManifestsDirectory,
+                DirectoryNames.UserData,
+            };
+
+            foreach (var dir in dirs)
+            {
+                var srcDir = Path.Combine(customRoot, dir);
+                var destDir = Path.Combine(targetRoot, dir);
+                if (HasUnadoptedDirectoryData(srcDir, destDir))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (SecurityException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Recursively copies files from source to destination if they do not already exist in the destination.
+    /// </summary>
+    /// <param name="srcDir">Source directory.</param>
+    /// <param name="destDir">Destination directory.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    /// <returns><see langword="true"/> if any file was copied; otherwise, <see langword="false"/>.</returns>
+    internal static bool CopyMissingFilesRecursive(string srcDir, string destDir, CancellationToken cancellationToken = default)
+    {
+        var copiedAny = false;
+        Directory.CreateDirectory(destDir);
+
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", RecursiveEnumerationOptions))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var relPath = Path.GetRelativePath(srcDir, file);
+            var destFile = Path.Combine(destDir, relPath);
+            if (!File.Exists(destFile))
+            {
+                var targetSubDir = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(targetSubDir))
+                {
+                    Directory.CreateDirectory(targetSubDir);
+                }
+
+                File.Copy(file, destFile, overwrite: false);
+                copiedAny = true;
+            }
+        }
+
+        return copiedAny;
+    }
+
+    /// <summary>
+    /// Determines whether the source directory contains any files not yet adopted into the destination directory.
+    /// </summary>
+    /// <param name="srcDir">Source directory.</param>
+    /// <param name="destDir">Destination directory.</param>
+    /// <returns><see langword="true"/> if unadopted files exist; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasUnadoptedDirectoryData(string srcDir, string destDir)
+    {
+        if (!Directory.Exists(srcDir))
+        {
+            return false;
+        }
+
+        if (!Directory.Exists(destDir))
+        {
+            return Directory.EnumerateFileSystemEntries(srcDir, "*", RecursiveEnumerationOptions).Any();
+        }
+
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", RecursiveEnumerationOptions))
+        {
+            var relPath = Path.GetRelativePath(srcDir, file);
+            var destFile = Path.Combine(destDir, relPath);
+            if (!File.Exists(destFile))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -432,18 +987,130 @@ public class StorageMigrationService(
         }
     }
 
+    /// <summary>
+    /// Checks whether an adoption pending marker file exists and matches the specified custom installation path.
+    /// </summary>
+    /// <param name="markerPath">Path to the adoption pending marker file.</param>
+    /// <param name="customPath">The candidate custom installation path.</param>
+    /// <returns><see langword="true"/> if the marker exists and contains a non-empty path matching <paramref name="customPath"/>; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsMarkerMatchingPath(string markerPath, string customPath)
+    {
+        if (string.IsNullOrWhiteSpace(markerPath) || string.IsNullOrWhiteSpace(customPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!File.Exists(markerPath))
+            {
+                return false;
+            }
+
+            var recorded = File.ReadAllText(markerPath).Trim();
+            if (string.IsNullOrWhiteSpace(recorded))
+            {
+                try
+                {
+                    File.Delete(markerPath);
+                }
+                catch (IOException)
+                {
+                    // Best-effort cleanup of corrupted marker
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Best-effort cleanup of corrupted marker
+                }
+
+                return false;
+            }
+
+            return PathHelper.AreSamePath(recorded, customPath);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Writes the adoption pending marker file safely, ensuring directory existence and catching transient errors.
+    /// </summary>
+    /// <param name="markerPath">The path of the marker file to write.</param>
+    /// <param name="detectedCustomPath">The custom installation root path to record.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><see langword="true"/> if written successfully or already matches; otherwise, <see langword="false"/>.</returns>
+    internal static bool WriteAdoptionMarkerSafely(string markerPath, string detectedCustomPath, ILogger? logger = null)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(markerPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            if (!File.Exists(markerPath) || !PathHelper.AreSamePath(File.ReadAllText(markerPath).Trim(), detectedCustomPath))
+            {
+                File.WriteAllText(markerPath, detectedCustomPath);
+            }
+
+            return true;
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+    }
+
     private static bool ComputeIsCustomInstallRoot()
     {
         try
         {
             var sourceRoot = GetSourceRootDirectory();
-            var defaultInstallRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName);
+            var defaultInstallRoot = GetDefaultInstallRoot();
 
-            if (string.Equals(sourceRoot, defaultInstallRoot, PathHelper.PathComparison))
+            if (!string.IsNullOrWhiteSpace(defaultInstallRoot))
             {
-                return false;
+                if (PathHelper.AreSamePath(sourceRoot, defaultInstallRoot))
+                {
+                    return false;
+                }
+
+                var sourceParent = Directory.GetParent(sourceRoot)?.FullName;
+                if (sourceParent != null && PathHelper.AreSamePath(sourceParent, defaultInstallRoot))
+                {
+                    return false;
+                }
             }
 
             return IsVelopackRoot(sourceRoot);

@@ -6,6 +6,7 @@
 !.github/
 !.gitignore
 !.gitattributes
+!.editorconfig
 !.agents/
 !.claude/
 !.pr_agent.toml

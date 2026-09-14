@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Avalonia;
 using DotNetEnv;
 using GenHub.Core.Constants;
@@ -6,8 +8,6 @@ using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Velopack;
 
@@ -94,6 +94,12 @@ public class Program
             bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
         }
 
+        // Check for duplicate installation collision: adopt custom configuration early and preserve registry entry
+        HandleEarlyInstallationConflict(bootstrapLogger);
+
+        // Record custom installation location in registry if running outside default root
+        Features.Storage.WindowsInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
+
         // Register the genhub:// URI scheme with Windows so clicked links open this executable.
         // Registered for primary instance only; idempotent and per-user (HKCU).
         Features.Shortcuts.UriSchemeRegistrar.Register(bootstrapLogger);
@@ -147,4 +153,24 @@ public class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    private static void HandleEarlyInstallationConflict(ILogger logger)
+    {
+        // Initialize configured data-path resolver before checking conflict so AppDataPath is respected
+        ConfigurationModule.InitializeConfiguredDataPathResolver();
+
+        // Check for duplicate installation collision: if running from default %LOCALAPPDATA%
+        // but a custom installation was previously registered or recorded, adopt user configuration early
+        // before dependency injection initializes UserSettingsService.
+        var registeredCustom = Features.Storage.WindowsInstallationTracker.GetRegisteredCustomInstallPathStatic(logger);
+        Common.Services.StorageMigrationService.EarlyAdoptIfConflict(registeredCustom, logger);
+
+        // If a duplicate custom installation was discovered during conflict check or adoption,
+        // persist it in Windows registry before URI scheme re-registration overwrites the open command.
+        if (Common.Services.StorageMigrationService.HasDuplicateInstallationConflict(registeredCustom, out var detectedCustom) &&
+            !string.IsNullOrWhiteSpace(detectedCustom))
+        {
+            Features.Storage.WindowsInstallationTracker.RecordCustomInstallPathStatic(detectedCustom, logger);
+        }
+    }
 }

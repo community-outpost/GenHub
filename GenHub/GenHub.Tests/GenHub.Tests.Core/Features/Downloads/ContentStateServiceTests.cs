@@ -1500,6 +1500,486 @@ public class ContentStateServiceTests
         Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(cardSpanish));
     }
 
+    /// <summary>
+    /// Verifies that CNC Labs content downloaded in a previous session is correctly recognized
+    /// as Downloaded across application restarts when re-discovered in the browser.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CncLabsDownloadedContent_AfterRestart_ReturnsDownloadedAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.cnclabs.map.shipwarv1"),
+            Name = "ShipWar_V1",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "cnclabs",
+            OriginalContentId = "cnclabs.map.3380",
+            Publisher = new PublisherInfo
+            {
+                Name = "CNC Labs",
+                PublisherType = "cnclabs",
+                SupportUrl = "https://www.cnclabs.com/downloads/details/3380/",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3380",
+            Name = "ShipWar_V1",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3380/",
+        };
+        card.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3380";
+
+        var state = await service.GetStateAsync(card);
+        var manifestId = await service.GetLocalManifestIdAsync(card);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(storedManifest.Id.Value, manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that two distinct CNC Labs maps do not cross-match.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CncLabsDistinctMaps_DoNotCrossMatchAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.cnclabs.map.shipwarv1"),
+            Name = "ShipWar_V1",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "cnclabs",
+            OriginalContentId = "cnclabs.map.3380",
+            Publisher = new PublisherInfo
+            {
+                Name = "CNC Labs",
+                PublisherType = "cnclabs",
+                SupportUrl = "https://www.cnclabs.com/downloads/details/3380/",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var differentCard = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3381",
+            Name = "War of Pizza Deluxe",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3381/",
+        };
+        differentCard.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3381";
+
+        var state = await service.GetStateAsync(differentCard);
+        var manifestId = await service.GetLocalManifestIdAsync(differentCard);
+
+        Assert.Equal(ContentState.NotDownloaded, state);
+        Assert.Null(manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that CNC Labs publisher aliases are recognized as compatible.
+    /// </summary>
+    /// <param name="p1">The first publisher string to test.</param>
+    /// <param name="p2">The second publisher string to test.</param>
+    [Theory]
+    [InlineData("cnclabs", "CNC Labs Maps")]
+    [InlineData("CNC Labs", "cnclabsmaps")]
+    [InlineData("C&C Labs", "cnclabs")]
+    [InlineData("cnclab", "CNC Labs Maps")]
+    public void IsCompatiblePublisherAlias_CncLabsVariations_ReturnsTrue(string p1, string p2)
+    {
+        Assert.True(ContentStateService.IsCompatiblePublisherAlias(p1, p2));
+    }
+
+    /// <summary>
+    /// Verifies that CNC Labs content with a tokenized download URL in the manifest support/content URL
+    /// matches the catalog card by MapId metadata even across restarts.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CncLabsDownloadedContent_WithTokenInManifestUrl_ReturnsDownloadedAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.cnclabs.map.defcon8"),
+            Name = "Defcon 8",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "cnclabs",
+            OriginalContentId = "cnclabs.map.3394",
+            Publisher = new PublisherInfo
+            {
+                Name = "CNC Labs",
+                PublisherType = "cnclabs",
+                SupportUrl = "https://www.cnclabs.com/downloads/file/3394/?token=9635e98d",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "cnclabs.map.3394",
+            Name = "Defcon 8",
+            ProviderName = "CNC Labs Maps",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.cnclabs.com/downloads/details/3394/",
+        };
+        card.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey] = "3394";
+
+        var state = await service.GetStateAsync(card);
+        var manifestId = await service.GetLocalManifestIdAsync(card);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(storedManifest.Id.Value, manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that ModDB content matches by ContentIdMetadataKey.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbDownloadedContent_MatchesByContentIdMetadataKeyAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260807.moddb.mod.generalsundonev101patch"),
+            Name = "Generals Undone v1.01 Patch",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "moddb",
+            OriginalContentId = "moddb.mod.314093",
+            Publisher = new PublisherInfo
+            {
+                Name = "ModDB",
+                PublisherType = "moddb",
+                SupportUrl = "https://www.moddb.com/mods/cc-generals-undone/downloads/cc-generals-undone-v101-patch",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "moddb.mod.314093",
+            Name = "Generals Undone v1.01 Patch",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.moddb.com/mods/cc-generals-undone/downloads/cc-generals-undone-v101-patch",
+        };
+        card.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "314093";
+
+        var state = await service.GetStateAsync(card);
+        var manifestId = await service.GetLocalManifestIdAsync(card);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(storedManifest.Id.Value, manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that ModDB publisher aliases are recognized as compatible.
+    /// </summary>
+    /// <param name="p1">The first publisher string to test.</param>
+    /// <param name="p2">The second publisher string to test.</param>
+    [Theory]
+    [InlineData("moddb", "ModDB")]
+    [InlineData("ModDB", "moddbmods")]
+    [InlineData("moddb", "ModDB Mods")]
+    public void IsCompatiblePublisherAlias_ModDbVariations_ReturnsTrue(string p1, string p2)
+    {
+        Assert.True(ContentStateService.IsCompatiblePublisherAlias(p1, p2));
+    }
+
+    /// <summary>
+    /// Verifies that when both an older Generals Online release (e.g. 032926) and the current release (082826_QFE1)
+    /// exist in the manifest pool, ContentStateService correctly matches the current release, returns Downloaded,
+    /// and does not spuriously report UpdateAvailable due to selecting the older manifest.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GeneralsOnlineWithOlderAndCurrentInstalledManifests_ReturnsDownloadedAsync()
+    {
+        var olderManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.329260.generalsonline.gameclient.60hz"),
+            Name = "Generals Online 60Hz",
+            Version = "032926",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = "https://www.playgenerals.online",
+            },
+        };
+
+        var currentManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
+            Name = "Generals Online 60Hz",
+            Version = "082826_QFE1",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = "https://www.playgenerals.online",
+            },
+        };
+
+        var item = new ContentSearchResult
+        {
+            Id = "GeneralsOnline_082826_QFE1",
+            Name = "Generals Online",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "082826_QFE1",
+            SourceUrl = "https://www.playgenerals.online",
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([olderManifest, currentManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken _) => OperationResult<bool>.CreateSuccess(id == olderManifest.Id || id == currentManifest.Id));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var state = await service.GetStateAsync(item);
+        var localManifestId = await service.GetLocalManifestIdAsync(item);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(currentManifest.Id.Value, localManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that CompareVersions correctly evaluates Generals Online MMddyy[_QFE#] versions.
+    /// </summary>
+    [Fact]
+    public void CompareVersions_GeneralsOnlineVersionScheme_OrdersChronologicallyAndByQfe()
+    {
+        Assert.True(ContentStateService.CompareVersions("082826_QFE1", "082826", isGeneralsOnline: true) > 0);
+        Assert.True(ContentStateService.CompareVersions("082826_QFE2", "082826_QFE1", isGeneralsOnline: true) > 0);
+        Assert.True(ContentStateService.CompareVersions("090126", "082826_QFE1", isGeneralsOnline: true) > 0);
+        Assert.True(ContentStateService.CompareVersions("032926", "082826_QFE1", isGeneralsOnline: true) < 0);
+        Assert.Equal(0, ContentStateService.CompareVersions("082826_QFE1", "082826_QFE1", isGeneralsOnline: true));
+    }
+
+    /// <summary>
+    /// Verifies that non-Generals Online publisher content IDs retain standard integer comparisons
+    /// without falling into date-based sorting semantics.
+    /// </summary>
+    [Fact]
+    public void IsNewerVersion_NonGeneralsOnlinePublisher_RetainsIntegerSemantics()
+    {
+        // Under integer semantics: prospective 101099 < local 901010, so IsNewer is false.
+        // Under date semantics: 101099 (2009) > 901010 (2001), so without the publisher gate it would erroneously be true.
+        Assert.False(ContentStateService.IsNewerVersion("1.101099.communityoutpost.patch.name", "1.901010.communityoutpost.patch.name"));
+        Assert.True(ContentStateService.IsNewerVersion("1.901010.communityoutpost.patch.name", "1.101099.communityoutpost.patch.name"));
+    }
+
+    /// <summary>
+    /// Verifies that explicit non-Generals Online version strings like 123125 and 010126
+    /// are not parsed as MMDDYY dates and retain numeric/string ordering.
+    /// </summary>
+    [Fact]
+    public void CompareVersions_NonGeneralsOnlineNumericStrings_DoesNotApplyDateSemantics()
+    {
+        // 123125 should be greater than 010126 when evaluated without Generals Online scheme
+        Assert.True(ContentStateService.CompareVersions("123125", "010126", isGeneralsOnline: false) > 0);
+
+        // Under Generals Online scheme (MMddyy), 010126 (2026-01-01) is newer than 123125 (2025-12-31)
+        Assert.True(ContentStateService.CompareVersions("123125", "010126", isGeneralsOnline: true) < 0);
+    }
+
+    /// <summary>
+    /// Verifies that when selecting Russian hotkeys, GetLocalManifestIdAsync resolves strictly to the Russian
+    /// manifest and does not conflate with German or other sibling variants.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetLocalManifestIdAsync_WhenRussianHotkeySelected_ResolvesRussianManifestAndIgnoresGermanAsync()
+    {
+        var germanManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei-zerohour-de"),
+            Name = "Leikeze's Hotkeys (DE)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                SelectedVariantId = "zerohour-de",
+                Tags = ["contentCode:hlei", "variant:zerohour-de"],
+            },
+        };
+
+        var russianManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei-zerohour-ru"),
+            Name = "Leikeze's Hotkeys (RU)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                SelectedVariantId = "zerohour-ru",
+                Tags = ["contentCode:hlei", "variant:zerohour-ru"],
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([germanManifest, russianManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(russianManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(germanManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != russianManifest.Id.Value && m.Value != germanManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var cardRu = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hleizerohourru",
+            Name = "Leikeze's Hotkeys (RU)",
+            ProviderName = "communityoutpost",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0",
+        };
+
+        var resolvedId = await service.GetLocalManifestIdAsync(cardRu);
+        var state = await service.GetStateAsync(cardRu);
+
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-ru", resolvedId);
+        Assert.Equal(ContentState.Downloaded, state);
+    }
+
+    /// <summary>
+    /// Verifies that when only German hotkeys are installed, querying for Russian hotkeys returns null and NotDownloaded.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetLocalManifestIdAsync_WhenOnlyGermanManifestInstalled_RussianReturnsNullAsync()
+    {
+        var germanManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei-zerohour-de"),
+            Name = "Leikeze's Hotkeys (DE)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                SelectedVariantId = "zerohour-de",
+                Tags = ["contentCode:hlei", "variant:zerohour-de"],
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([germanManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(germanManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != germanManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var cardRu = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hleizerohourru",
+            Name = "Leikeze's Hotkeys (RU)",
+            ProviderName = "communityoutpost",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0",
+        };
+
+        var resolvedId = await service.GetLocalManifestIdAsync(cardRu);
+        var state = await service.GetStateAsync(cardRu);
+
+        Assert.Null(resolvedId);
+        Assert.Equal(ContentState.NotDownloaded, state);
+    }
+
+    /// <summary>
+    /// Verifies that common English words whose endings happen to collide with ISO language codes
+    /// (e.g. Golden, Blade, Upgrade, Resources, Unit, Script) are NOT identified as language variants.
+    /// </summary>
+    /// <param name="word">The word to test.</param>
+    [Theory]
+    [InlineData("Golden")]
+    [InlineData("Blade")]
+    [InlineData("Upgrade")]
+    [InlineData("Resources")]
+    [InlineData("Unit")]
+    [InlineData("Script")]
+    public void ExtractVariantToken_CommonEnglishWords_DoesNotExtractVariant(string word)
+    {
+        var token = ContentStateService.ExtractVariantToken(word);
+        Assert.Null(token);
+    }
+
+    /// <summary>
+    /// Verifies that compound registered content codes and 4-letter zh codes extract the expected variant.
+    /// </summary>
+    /// <param name="input">The compound input.</param>
+    /// <param name="expectedLanguage">The expected language variant.</param>
+    [Theory]
+    [InlineData("hleizerohourru", "russian")]
+    [InlineData("hleizerohourde", "german")]
+    [InlineData("enzh", "english")]
+    [InlineData("ruzh", "russian")]
+    public void ExtractVariantToken_CompoundAndRegisteredCodes_ExtractsVariant(string input, string expectedLanguage)
+    {
+        var token = ContentStateService.ExtractVariantToken(input);
+        Assert.Equal(expectedLanguage, token);
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

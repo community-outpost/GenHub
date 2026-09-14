@@ -58,6 +58,11 @@ public static class UiConstants
     public const string StatusErrorColor = "#F44336";
 
     /// <summary>
+    /// Color used to indicate inactive or unconfigured status.
+    /// </summary>
+    public const string StatusInactiveColor = "#888888";
+
+    /// <summary>
     /// Color used for downloaded status indicator.
     /// </summary>
     public const string StatusDownloadedColor = "#4CAF50";

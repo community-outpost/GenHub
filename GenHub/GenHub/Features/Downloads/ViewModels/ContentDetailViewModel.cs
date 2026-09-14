@@ -87,7 +87,6 @@ public partial class ContentDetailViewModel(
     private readonly object _contentTypePersistLock = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _pendingRowStateTasks = [];
-    private readonly Func<CancellationToken, Task>? _updateAction = updateAction;
     private ContentSearchResult? _updateTargetSearchResult = updateTargetSearchResult;
     private bool _initialIsUpdateAvailable = isUpdateAvailable ?? (updateTargetSearchResult != null);
     private string? _pendingSelectedVariantManifestId = initialVariantManifestId;
@@ -148,16 +147,6 @@ public partial class ContentDetailViewModel(
     [NotifyPropertyChangedFor(nameof(CanDownload))]
     [NotifyPropertyChangedFor(nameof(CanUpdate))]
     private bool _hasActiveDownloads;
-
-    /// <summary>
-    /// Gets a value indicating whether this item can start a download.
-    /// </summary>
-    public bool CanDownload => !IsDownloading && !HasActiveDownloads;
-
-    /// <summary>
-    /// Gets a value indicating whether this item can start an update.
-    /// </summary>
-    public bool CanUpdate => !IsDownloading && !HasActiveDownloads;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
@@ -314,6 +303,16 @@ public partial class ContentDetailViewModel(
     private ObservableCollection<CustomTabDefinition> _customTabs = [];
 
     // ===== Properties =====
+
+    /// <summary>
+    /// Gets a value indicating whether this item can start a download.
+    /// </summary>
+    public bool CanDownload => !IsDownloading && !HasActiveDownloads;
+
+    /// <summary>
+    /// Gets a value indicating whether this item can start an update.
+    /// </summary>
+    public bool CanUpdate => !IsDownloading && !HasActiveDownloads;
 
     /// <summary>
     /// Gets the content search result this detail view is displaying.
@@ -1303,18 +1302,13 @@ public partial class ContentDetailViewModel(
     /// </summary>
     private static string? GetFileNameFromUrl(string url)
     {
-        try
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
-            var uri = new Uri(url);
             var fileName = Path.GetFileName(uri.LocalPath);
             if (!string.IsNullOrWhiteSpace(fileName) && fileName.Contains('.'))
             {
                 return fileName;
             }
-        }
-        catch
-        {
-            // Ignore parsing errors
         }
 
         return null;
@@ -1878,7 +1872,7 @@ public partial class ContentDetailViewModel(
                 }
 
                 var baseName = !string.IsNullOrEmpty(searchResult.VariantFamilyName) ? searchResult.VariantFamilyName : searchResult.Name;
-                var variantName = !string.IsNullOrEmpty(v.Name) && v.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase)
+                var variantName = !string.IsNullOrEmpty(v.Name) && (v.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase) || v.Name.Contains(baseName, StringComparison.OrdinalIgnoreCase))
                     ? v.Name
                     : $"{baseName} - {v.Name}";
 
@@ -2278,15 +2272,21 @@ public partial class ContentDetailViewModel(
             var state = await contentStateService.GetStateAsync(searchResult, _cts.Token);
 
             var idRewritten = false;
-            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) &&
-                (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id, out _)))
+            string? localManifestId = null;
+            if (state is ContentState.Downloaded or ContentState.UpdateAvailable)
             {
-                var manifestId = await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
-                if (!string.IsNullOrEmpty(manifestId))
-                {
-                    searchResult.UpdateId(manifestId);
-                    idRewritten = true;
-                }
+                localManifestId = await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
+            }
+
+            // Only rewrite the search result ID when the content is already downloaded and does NOT have an update available.
+            // If an update is available, the search result represents the newer prospective release; rewriting its ID
+            // to the older locally installed manifest would corrupt the prospective item's identity and break update detection.
+            if (state == ContentState.Downloaded &&
+                (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id, out _)) &&
+                !string.IsNullOrEmpty(localManifestId))
+            {
+                searchResult.UpdateId(localManifestId);
+                idRewritten = true;
             }
 
             await RunOnUiThreadAsync(() =>
@@ -2308,9 +2308,19 @@ public partial class ContentDetailViewModel(
                 {
                     Releases[0].IsDownloaded = true;
                     Releases[0].IsUpdateAvailable = IsUpdateAvailable;
-                    if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
+                    string? manifestIdForRelease = null;
+                    if (!string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _))
                     {
-                        Releases[0].DownloadedManifestId = searchResult.Id;
+                        manifestIdForRelease = localManifestId;
+                    }
+                    else if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
+                    {
+                        manifestIdForRelease = searchResult.Id;
+                    }
+
+                    if (!string.IsNullOrEmpty(manifestIdForRelease))
+                    {
+                        Releases[0].DownloadedManifestId = manifestIdForRelease;
                     }
 
                     RefreshSelectedTargetProperties();
@@ -2323,9 +2333,13 @@ public partial class ContentDetailViewModel(
                 }
             });
 
-            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(searchResult.Id))
+            var dependencyManifestId = !string.IsNullOrEmpty(localManifestId)
+                ? localManifestId
+                : searchResult.Id;
+
+            if ((state == ContentState.Downloaded || state == ContentState.UpdateAvailable) && !string.IsNullOrEmpty(dependencyManifestId) && ManifestIdValidator.IsValid(dependencyManifestId, out _))
             {
-                await LoadDependencySummaryAsync(searchResult.Id);
+                await LoadDependencySummaryAsync(dependencyManifestId);
             }
         }
         catch (Exception ex)
@@ -2597,8 +2611,7 @@ public partial class ContentDetailViewModel(
         var parsedTitle = parsedPage.Context?.Title ?? string.Empty;
         if (parsedPage.Sections.Count == 0 &&
             (string.IsNullOrWhiteSpace(parsedTitle) ||
-             parsedTitle.Contains("Just a moment", StringComparison.OrdinalIgnoreCase) ||
-             parsedTitle.Contains("Attention Required", StringComparison.OrdinalIgnoreCase)))
+             ModDBConstants.BotProtectionTitleMarkers.Any(marker => parsedTitle.Contains(marker, StringComparison.OrdinalIgnoreCase))))
         {
             logger.LogWarning(
                 "Parsed page for {Url} looks like a bot-protection challenge (title: '{Title}'); ignoring it",
@@ -3373,9 +3386,11 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        if (_updateAction != null)
+        DownloadStatusMessage = string.Empty;
+
+        if (updateAction != null)
         {
-            var task = _updateAction(cancellationToken);
+            var task = updateAction(cancellationToken);
             bool success;
             if (task is Task<bool> boolTask)
             {
@@ -3389,6 +3404,11 @@ public partial class ContentDetailViewModel(
 
             if (_disposed || !success)
             {
+                if (!success && !_disposed && string.IsNullOrWhiteSpace(DownloadStatusMessage))
+                {
+                    DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
+                }
+
                 return;
             }
 
@@ -3410,6 +3430,11 @@ public partial class ContentDetailViewModel(
             var success = await ExecuteDownloadFlowAsync(_updateTargetSearchResult, cancellationToken);
             if (_disposed || !success)
             {
+                if (!success && !_disposed && string.IsNullOrWhiteSpace(DownloadStatusMessage))
+                {
+                    DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
+                }
+
                 return;
             }
 
@@ -3893,7 +3918,7 @@ public partial class ContentDetailViewModel(
             var detailUrl = file.DetailsUrl ?? file.DownloadUrl;
             if (!string.IsNullOrWhiteSpace(detailUrl))
             {
-                rowSearchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = ExtractModDbIdFromUrl(detailUrl);
+                rowSearchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = ModDbHelper.ExtractModDbIdFromUrl(detailUrl);
             }
             else
             {
@@ -4133,6 +4158,11 @@ public partial class ContentDetailViewModel(
 
     private async Task LoadDependencySummaryAsync(string manifestId)
     {
+        if (!ManifestIdValidator.IsValid(manifestId, out _))
+        {
+            return;
+        }
+
         var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
         if (manifestResult.Success && manifestResult.Data != null)
         {
@@ -4956,17 +4986,4 @@ public partial class ContentDetailViewModel(
                  a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private string ExtractModDbIdFromUrl(string url)
-    {
-        try
-        {
-            var uri = new Uri(url);
-            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            return segments.Length > 0 ? segments[^1] : Guid.NewGuid().ToString();
-        }
-        catch
-        {
-            return Guid.NewGuid().ToString();
-        }
-    }
 }

@@ -1,3 +1,6 @@
+using System;
+using System.Runtime.Versioning;
+using GenHub.Common.Services;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Shortcuts;
@@ -10,8 +13,8 @@ using GenHub.Features.Workspace;
 using GenHub.MacOS.Features.Shortcuts;
 using GenHub.MacOS.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
-using System.Runtime.Versioning;
 
 namespace GenHub.MacOS.Infrastructure.DependencyInjection;
 
@@ -32,6 +35,7 @@ public static class MacOSServicesModule
         services.AddSingleton<IGamePathProvider, MacOSGamePathProvider>();
         services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, MacOSShortcutService>();
+        services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, FileInstallationLocationTracker>());
 
         // Real hard links via link(2). Without this the base implementation throws, which
         // is deliberate: silently copying made a missing registration invisible while

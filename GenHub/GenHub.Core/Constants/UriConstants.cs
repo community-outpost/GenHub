@@ -76,9 +76,19 @@ public static class UriConstants
     public const string ZeroHourIconFilename = "zerohour-icon.png";
 
     /// <summary>
+    /// Substring marker for Zero Hour icon asset.
+    /// </summary>
+    public const string ZeroHourIconMarker = "zerohour-icon";
+
+    /// <summary>
     /// Filename for GenHub default icon.
     /// </summary>
     public const string GenHubIconFilename = "generalshub-icon.png";
+
+    /// <summary>
+    /// Substring marker for GenHub default icon asset.
+    /// </summary>
+    public const string GenHubIconMarker = "generalshub-icon";
 
     /// <summary>
     /// Filename for Steam platform icon.
@@ -118,6 +128,11 @@ public static class UriConstants
     public const string CoversBasePath = "/Assets/Covers";
 
     /// <summary>
+    /// Directory path for cover assets with trailing slash.
+    /// </summary>
+    public const string CoversDirectoryPath = "/Assets/Covers/";
+
+    /// <summary>
     /// Filename for Generals cover.
     /// </summary>
     public const string GeneralsCoverFilename = "generals-cover.png";
@@ -126,6 +141,46 @@ public static class UriConstants
     /// Filename for Zero Hour cover.
     /// </summary>
     public const string ZeroHourCoverFilename = "zerohour-cover.png";
+
+    /// <summary>
+    /// Substring marker for Zero Hour cover asset.
+    /// </summary>
+    public const string ZeroHourCoverMarker = "zerohour-cover";
+
+    /// <summary>
+    /// Filename for China cover.
+    /// </summary>
+    public const string ChinaCoverFilename = "china-cover.png";
+
+    /// <summary>
+    /// Filename for USA cover.
+    /// </summary>
+    public const string UsaCoverFilename = "usa-cover.png";
+
+    /// <summary>
+    /// Filename for GLA cover.
+    /// </summary>
+    public const string GlaCoverFilename = "gla-cover.png";
+
+    /// <summary>
+    /// Legacy base path for image assets.
+    /// </summary>
+    public const string LegacyImagesBasePath = "/Assets/Images/";
+
+    /// <summary>
+    /// Legacy filename for China poster.
+    /// </summary>
+    public const string LegacyChinaPosterFilename = "china-poster.png";
+
+    /// <summary>
+    /// Legacy filename for USA poster.
+    /// </summary>
+    public const string LegacyUsaPosterFilename = "usa-poster.png";
+
+    /// <summary>
+    /// Legacy filename for GLA poster.
+    /// </summary>
+    public const string LegacyGlaPosterFilename = "gla-poster.png";
 
     // Logo Path Constants
 

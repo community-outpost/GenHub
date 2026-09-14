@@ -480,4 +480,18 @@ public static class ModDBConstants
 
     /// <summary>Content tags for search and categorization.</summary>
     public static readonly string[] Tags = ["ModDB", "Community", "Mods", "Maps"];
+
+    // ===== Bot Protection Markers =====
+
+    /// <summary>
+    /// Title markers used to detect bot protection / Cloudflare challenge interstitial pages.
+    /// </summary>
+    public static readonly string[] BotProtectionTitleMarkers =
+    [
+        "Just a moment",
+        "Attention Required",
+        "Checking your browser",
+        "Verify you are human",
+        "Cloudflare",
+    ];
 }

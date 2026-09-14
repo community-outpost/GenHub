@@ -21,6 +21,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -220,7 +221,9 @@ public sealed partial class DownloadsBrowserViewModel(
     public bool CanSearch => SelectedPublisher?.PublisherId is not
         PublisherTypeConstants.GeneralsOnline and not
         CommunityOutpostConstants.PublisherType and not
-        PublisherTypeConstants.TheSuperHackers;
+        PublisherTypeConstants.TheSuperHackers and not
+        AODMapsConstants.PublisherType and not
+        CNCLabsConstants.PublisherType;
 
     /// <summary>
     /// Gets a value indicating whether search or filter UI controls are available for the current publisher.
@@ -387,9 +390,12 @@ public sealed partial class DownloadsBrowserViewModel(
                 continue;
             }
 
+            var isGeneralsOnline = family.Any(f =>
+                string.Equals(f.SearchResult.ProviderName, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
+
             var familyItems = family
                 .OrderByDescending(it => it.SearchResult.LastUpdated ?? DateTime.MinValue)
-                .ThenByDescending(it => it.SearchResult.Version, Comparer<string?>.Create(ContentStateService.CompareVersions))
+                .ThenByDescending(it => it.SearchResult.Version, Comparer<string?>.Create((a, b) => ContentStateService.CompareVersions(a, b, isGeneralsOnline)))
                 .ToList();
             if (familyItems.Count <= 1)
             {
@@ -645,7 +651,8 @@ public sealed partial class DownloadsBrowserViewModel(
     private static void PopulateSynthesizedVariants(
         ContentGridItemViewModel variantVm,
         ContentSearchResult primaryItem,
-        IList<ContentVariantInfo> singleVariants)
+        IList<ContentVariantInfo> singleVariants,
+        ILogger? logger = null)
     {
         var lastSegment = primaryItem.Id?.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
         if (string.IsNullOrWhiteSpace(lastSegment))
@@ -653,35 +660,53 @@ public sealed partial class DownloadsBrowserViewModel(
             lastSegment = ContentConstants.DefaultContentFallbackId;
         }
 
+        var baseContentCode = GenPatcherContentRegistry.NormalizeContentCode(lastSegment);
+        if (string.IsNullOrEmpty(baseContentCode))
+        {
+            baseContentCode = lastSegment;
+        }
+
         foreach (var v in singleVariants)
         {
             var provider = !string.IsNullOrWhiteSpace(primaryItem.ProviderName) ? primaryItem.ProviderName : ContentConstants.DefaultContentFallbackId;
             var variantId = !string.IsNullOrWhiteSpace(v.Id) ? v.Id : ContentConstants.DefaultContentFallbackId;
-            var composedName = $"{lastSegment}-{variantId}";
+            var composedName = $"{baseContentCode}-{variantId}";
             if (composedName.All(c => !char.IsLetterOrDigit(c)))
             {
-                composedName = $"{lastSegment}-{ContentConstants.DefaultContentFallbackId}";
+                composedName = $"{baseContentCode}-{ContentConstants.DefaultContentFallbackId}";
             }
 
             string manifestId;
-            if (!string.IsNullOrEmpty(v.ManifestId))
+            if (!string.IsNullOrEmpty(v.ManifestId) && ManifestIdValidator.IsValid(v.ManifestId, out _))
             {
                 manifestId = v.ManifestId;
             }
             else
             {
-                try
+                var cleanedProvider = new string(provider.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+                var safeProvider = string.IsNullOrWhiteSpace(cleanedProvider) ? ContentConstants.DefaultContentFallbackId : cleanedProvider;
+
+                var cleanedComposedName = new string(composedName.ToLowerInvariant().Where(c => char.IsLetterOrDigit(c) || c == '-').ToArray()).Trim('-');
+                var safeComposedName = string.IsNullOrWhiteSpace(cleanedComposedName) ? ContentConstants.DefaultContentFallbackId : cleanedComposedName;
+
+                var candidateId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{safeProvider}.{primaryItem.ContentType.ToManifestIdString()}.{safeComposedName}";
+                if (ManifestIdValidator.IsValid(candidateId, out _))
                 {
-                    manifestId = ManifestIdGenerator.GeneratePublisherContentId(provider, primaryItem.ContentType, composedName, 0);
+                    manifestId = candidateId;
                 }
-                catch (ArgumentException)
+                else
                 {
-                    manifestId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{ContentConstants.DefaultContentFallbackId}.{primaryItem.ContentType.ToManifestIdString()}.{ContentConstants.DefaultContentFallbackId}";
+                    logger?.LogWarning(
+                        "Synthesized variant candidate ID '{CandidateId}' failed validation for provider '{Provider}', content '{ContentName}'. Falling back to default ID.",
+                        candidateId,
+                        provider,
+                        primaryItem.Name);
+                    manifestId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{safeProvider}.{primaryItem.ContentType.ToManifestIdString()}.{ContentConstants.DefaultContentFallbackId}";
                 }
             }
 
             var baseName = !string.IsNullOrEmpty(primaryItem.VariantFamilyName) ? primaryItem.VariantFamilyName : primaryItem.Name;
-            var variantName = !string.IsNullOrEmpty(v.Name) && v.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase)
+            var variantName = !string.IsNullOrEmpty(v.Name) && (v.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase) || v.Name.Contains(baseName, StringComparison.OrdinalIgnoreCase))
                 ? v.Name
                 : $"{baseName} - {v.Name}";
 
@@ -715,7 +740,7 @@ public sealed partial class DownloadsBrowserViewModel(
             var installable = new InstallableVariant
             {
                 Name = !string.IsNullOrWhiteSpace(v.Name) ? v.Name : VariantSwap.ResolveDisplayName(variantSr, v),
-                ManifestId = VariantSwap.ResolveCatalogKey(variantSr, v),
+                ManifestId = manifestId,
                 IconUrl = primaryItem.IconUrl ?? string.Empty,
                 VariantType = v.VariantType ?? string.Empty,
             };
@@ -831,6 +856,16 @@ public sealed partial class DownloadsBrowserViewModel(
                 GitHubTopicsConstants.PublisherType,
                 PublisherInfoConstants.GitHub.Name,
                 PublisherInfoConstants.GitHub.LogoSource,
+                ContentConstants.CategoryDynamic),
+            new PublisherItemViewModel(
+                CNCLabsConstants.PublisherType,
+                PublisherInfoConstants.CNCLabs.Name,
+                PublisherInfoConstants.CNCLabs.LogoSource,
+                ContentConstants.CategoryDynamic),
+            new PublisherItemViewModel(
+                AODMapsConstants.PublisherType,
+                PublisherInfoConstants.AODMaps.Name,
+                PublisherInfoConstants.AODMaps.LogoSource,
                 ContentConstants.CategoryDynamic),
         ];
     }
@@ -1608,7 +1643,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             if (groupItems.Count == 1 && primaryItem.Variants is { Count: > 0 } singleVariants)
             {
-                PopulateSynthesizedVariants(variantVm, primaryItem, singleVariants);
+                PopulateSynthesizedVariants(variantVm, primaryItem, singleVariants, logger);
             }
             else
             {
@@ -1619,7 +1654,17 @@ public sealed partial class DownloadsBrowserViewModel(
 
             await variantVm.RefreshVariantStatesAsync();
             variantVm.CurrentState = await contentStateService.GetStateAsync(defaultVariant, ct);
+            variantVm.IsDownloaded = variantVm.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(defaultVariant.Id) || !ManifestIdValidator.IsValid(defaultVariant.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(defaultVariant, ct);
+                if (!string.IsNullOrEmpty(manifestId))
+                {
+                    defaultVariant.UpdateId(manifestId);
+                }
+            }
 
+            variantVm.NotifyStateChanged();
             return variantVm;
         }
         catch
@@ -1636,6 +1681,18 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             var singletonState = await contentStateService.GetStateAsync(primaryItem, ct);
             vm.CurrentState = singletonState;
+            vm.IsDownloaded = singletonState is ContentState.Downloaded or ContentState.UpdateAvailable;
+
+            if (vm.IsDownloaded && (string.IsNullOrEmpty(primaryItem.Id) || !ManifestIdValidator.IsValid(primaryItem.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(primaryItem, ct);
+                if (!string.IsNullOrEmpty(manifestId))
+                {
+                    primaryItem.UpdateId(manifestId);
+                }
+            }
+
+            vm.NotifyStateChanged();
             return vm;
         }
         catch
@@ -1691,7 +1748,10 @@ public sealed partial class DownloadsBrowserViewModel(
             if (!result.Success)
             {
                 logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
+                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
             }
+
+            return false;
         }
 
         return await DownloadContentAsync(targetItem, ct);
@@ -1789,6 +1849,8 @@ public sealed partial class DownloadsBrowserViewModel(
             PublisherTypeConstants.TheSuperHackers => contentDiscoverers.OfType<GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer>().FirstOrDefault(),
             CommunityOutpostConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer>().FirstOrDefault(),
             GitHubTopicsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer>().FirstOrDefault(),
+            CNCLabsConstants.PublisherType => contentDiscoverers.OfType<CNCLabsMapDiscoverer>().FirstOrDefault(),
+            AODMapsConstants.PublisherType => contentDiscoverers.OfType<AODMapsDiscoverer>().FirstOrDefault(),
 
             // User-subscribed GenHub catalogs (and later definition-resolved endpoints)
             _ => _subscribedDiscoverers.TryGetValue(publisherId, out var subscribed) ? subscribed : null,
@@ -1907,7 +1969,24 @@ public sealed partial class DownloadsBrowserViewModel(
                         if (match != null)
                         {
                             var state = await contentStateService.GetStateAsync(match.SearchResult, _vmCts.Token);
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => match.CurrentState = state);
+                            var isDownloaded = state is ContentState.Downloaded or ContentState.UpdateAvailable;
+                            if (state == ContentState.Downloaded && (string.IsNullOrEmpty(match.SearchResult.Id) || !ManifestIdValidator.IsValid(match.SearchResult.Id, out _)))
+                            {
+                                var manifestId = await contentStateService.GetLocalManifestIdAsync(match.SearchResult, _vmCts.Token);
+                                if (!string.IsNullOrEmpty(manifestId))
+                                {
+                                    match.SearchResult.UpdateId(manifestId);
+                                }
+                            }
+
+                            await match.RefreshVariantStatesAsync().ConfigureAwait(false);
+                            RunOnUi(() =>
+                            {
+                                match.CurrentState = state;
+                                match.IsDownloaded = isDownloaded;
+                                match.NotifyStateChanged();
+                                ReconcileReleaseUpdateStates(ContentItems);
+                            });
                         }
                     }
                     catch (Exception ex)
@@ -2054,6 +2133,8 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         // Dynamic publisher filters
         _filterViewModels[GitHubTopicsConstants.PublisherType] = new GitHubFilterViewModel();
+        _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
+        _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
     }
 
     [RelayCommand]
@@ -2112,6 +2193,7 @@ public sealed partial class DownloadsBrowserViewModel(
             var errorMsg = result.FirstError ?? "Unknown error";
             logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
+            notificationService.ShowError("Download failed", errorMsg);
             return false;
         }
         catch (OperationCanceledException ex)
@@ -2124,6 +2206,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogError(ex, "Error downloading content: {Name}", item.Name);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
+            notificationService.ShowError("Download failed", ex.Message);
             return false;
         }
         finally
@@ -2308,21 +2391,36 @@ public sealed partial class DownloadsBrowserViewModel(
             }
             else
             {
-                // Get the manifest ID - first try from SearchResult, then look up from manifest pool
-                manifestId = item.SearchResult.Id;
+                // Prefer the variant-specific search result if a variant is selected
+                var searchResultToMatch = item.SearchResult;
+                if (item.SelectedVariant != null &&
+                    !string.IsNullOrEmpty(item.SelectedVariant.ManifestId) &&
+                    item.VariantSearchResults.TryGetValue(item.SelectedVariant.ManifestId, out var variantSr))
+                {
+                    searchResultToMatch = variantSr;
+                }
 
-                // A SearchResult ID may be manifest-shaped (5 segments) but still NOT be the on-disk
-                // manifest ID — publishers such as GitHub encode a different content-name in the stored
-                // manifest than the catalog card carries. Validate that the manifest is actually acquired
-                // before trusting the ID; otherwise fall back to the provenance-aware pool lookup.
+                manifestId = searchResultToMatch.Id;
+                if (string.IsNullOrEmpty(manifestId) && item.SelectedVariant != null)
+                {
+                    manifestId = item.SelectedVariant.ManifestId;
+                }
+
                 var trustSearchResultId = !string.IsNullOrEmpty(manifestId)
                     && ManifestIdValidator.IsValid(manifestId, out _)
                     && await contentStateService.GetStateByManifestIdAsync(manifestId, _vmCts.Token) == ContentState.Downloaded;
 
+                if (!trustSearchResultId && !string.IsNullOrEmpty(item.SelectedVariant?.ManifestId))
+                {
+                    manifestId = item.SelectedVariant.ManifestId;
+                    trustSearchResultId = ManifestIdValidator.IsValid(manifestId, out _)
+                        && await contentStateService.GetStateByManifestIdAsync(manifestId, _vmCts.Token) == ContentState.Downloaded;
+                }
+
                 if (!trustSearchResultId)
                 {
-                    logger.LogDebug("SearchResult ID '{Id}' is not an acquired manifest, looking up from pool", manifestId);
-                    manifestId = await contentStateService.GetLocalManifestIdAsync(item.SearchResult, _vmCts.Token);
+                    logger.LogDebug("SearchResult ID '{Id}' is not an acquired manifest, looking up from pool", searchResultToMatch.Id);
+                    manifestId = await contentStateService.GetLocalManifestIdAsync(searchResultToMatch, _vmCts.Token);
                 }
 
                 if (string.IsNullOrEmpty(manifestId))
@@ -2382,9 +2480,6 @@ public sealed partial class DownloadsBrowserViewModel(
             if (profileSelectionVm.WasSuccessful && !string.IsNullOrEmpty(profileSelectionVm.SelectedProfileName))
             {
                 item.DownloadStatus = $"{ContentConstants.AddedToProfileStatusPrefix}{profileSelectionVm.SelectedProfileName}";
-                notificationService.ShowSuccess(
-                    "Added to Profile",
-                    $"'{item.Name}' has been added to profile '{profileSelectionVm.SelectedProfileName}'.");
 
                 // Send profile updated message to notify other components
                 try
@@ -2406,9 +2501,6 @@ public sealed partial class DownloadsBrowserViewModel(
             else if (!profileSelectionVm.WasSuccessful && !profileSelectionVm.WasCancelled && !string.IsNullOrEmpty(profileSelectionVm.ErrorMessage))
             {
                 item.DownloadStatus = $"{ContentConstants.FailedStatusPrefix}{profileSelectionVm.ErrorMessage}";
-                notificationService.ShowError(
-                    "Failed to Add to Profile",
-                    profileSelectionVm.ErrorMessage);
                 logger.LogError("Failed to add content to profile: {Error}", profileSelectionVm.ErrorMessage);
             }
             else

@@ -43,7 +43,7 @@ internal sealed class TemporaryApplicationEnvironment : IDisposable
 
         File.WriteAllText(Path.Combine(AppDataPath, FileTypes.SettingsFileName), settingsJson);
 
-        SetEnvironmentVariable("GENHUB_GenHub__AppDataPath", AppDataPath);
+        SetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar, AppDataPath);
         SetEnvironmentVariable("APPDATA", Path.Combine(RootPath, "RoamingAppData"));
         SetEnvironmentVariable("LOCALAPPDATA", Path.Combine(RootPath, "LocalAppData"));
         SetEnvironmentVariable("USERPROFILE", RootPath);

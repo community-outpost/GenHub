@@ -48,6 +48,8 @@ public static class CompositionRootAssertions
         typeof(IConfigurationProviderService),
         typeof(IFileOperationsService),
         typeof(IGamePathProvider),
+        typeof(IInstallationConflictService),
+        typeof(IInstallationLocationTracker),
         typeof(IShortcutService),
         typeof(IStorageMigrationService),
         typeof(ISymlinkCapabilityProvider),

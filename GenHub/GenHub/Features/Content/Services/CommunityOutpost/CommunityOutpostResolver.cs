@@ -74,7 +74,17 @@ public class CommunityOutpostResolver(
                 patchPageUrl);
 
             // Extract metadata from resolver metadata (set by the discoverer/parser)
-            var contentCode = GetMetadataValue(discoveredItem, "contentCode", "unknown");
+            var rawContentCode = GetMetadataValue(discoveredItem, "contentCode", "unknown");
+            var contentCode = GenPatcherContentRegistry.NormalizeContentCode(rawContentCode);
+            if (string.Equals(contentCode, "unknown", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(discoveredItem.Id))
+            {
+                var idParts = discoveredItem.Id.Split('.');
+                if (idParts.Length >= 5)
+                {
+                    contentCode = GenPatcherContentRegistry.NormalizeContentCode(idParts[4]);
+                }
+            }
+
             var category = GetMetadataValue(discoveredItem, "category", "Other");
             var fileSize = GetMetadataValueLong(discoveredItem, "fileSize", 0);
 
@@ -100,11 +110,15 @@ public class CommunityOutpostResolver(
                 fileSize);
 
             // Generate a deterministic content name from the content code.
-            // Preserve a catalog variant suffix (e.g. cbpr-1080p) so the factory builds
-            // only the selected resolution instead of every variant.
+            // For multi-variant packages (e.g. hlei, cbpr), keep the base content code so the
+            // resolved package ID matches 1.0.communityoutpost.<type>.<code> and the factory can
+            // produce canonical variant manifest IDs (e.g. 1.0.communityoutpost.addon.hlei-zerohour-ru).
             var contentName = GenerateContentName(contentCode, contentMetadata);
             var requestedVariantSuffix = TryExtractVariantSuffix(discoveredItem, contentMetadata);
-            if (!string.IsNullOrEmpty(requestedVariantSuffix) &&
+
+            // Defensive fallback for hypothetical catalog items with Variants defined but SupportsVariants = false
+            if (!contentMetadata.SupportsVariants &&
+                !string.IsNullOrEmpty(requestedVariantSuffix) &&
                 contentName.IndexOf('-') < 0)
             {
                 contentName = $"{contentCode}-{requestedVariantSuffix}".ToLowerInvariant();
@@ -378,18 +392,18 @@ public class CommunityOutpostResolver(
         if (!string.IsNullOrEmpty(context.RequestedVariantSuffix))
         {
             builtManifest.Metadata.SelectedVariantId = context.RequestedVariantSuffix;
-            builtManifest.Metadata.Tags.Add($"requestedVariant:{context.RequestedVariantSuffix}");
-            builtManifest.Metadata.Tags.Add($"selectedVariant:{context.RequestedVariantSuffix}");
-            builtManifest.Metadata.Tags.Add($"variant:{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.RequestedVariantPrefix}{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.VariantPrefix}{context.RequestedVariantSuffix}");
         }
 
         if (context.MirrorUrls.Count > 1)
         {
-            builtManifest.Metadata.Tags.Add($"mirrors:{context.MirrorUrls.Count}");
+            builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.MirrorsPrefix}{context.MirrorUrls.Count}");
         }
 
-        builtManifest.Metadata.Tags.Add($"contentCode:{context.ContentCode}");
-        builtManifest.Metadata.Tags.Add($"installTarget:{context.ContentMetadata.InstallTarget}");
+        builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.ContentCodePrefix}{context.ContentCode}");
+        builtManifest.Metadata.Tags.Add($"{ManifestTagConstants.InstallTargetPrefix}{context.ContentMetadata.InstallTarget}");
     }
 
     private static void ApplyManifestFileConfig(ContentManifest builtManifest, in PostResolutionContext context)

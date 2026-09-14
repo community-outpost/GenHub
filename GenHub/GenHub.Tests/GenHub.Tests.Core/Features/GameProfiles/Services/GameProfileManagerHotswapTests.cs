@@ -529,6 +529,75 @@ public class GameProfileManagerHotswapTests
         Assert.Equal("-restoredargs", rollbackResult.Data?.CommandLineArguments);
     }
 
+    /// <summary>
+    /// Verifies that a running profile accepts the workspace id its own active launch prepared.
+    /// The launch path persists this after the placeholder launch has already been registered,
+    /// so the running-profile guard must not reject it.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenRunning_PersistsActiveWorkspaceIdFromOwnLaunchAsync()
+    {
+        // Arrange
+        const string profileId = "profile-launch";
+        const string workspaceId = "ws-launched";
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Launching Profile",
+            ActiveWorkspaceId = string.Empty,
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([CreateActiveLaunch(profileId, workspaceId: workspaceId)]);
+
+        var request = new UpdateProfileRequest { ActiveWorkspaceId = workspaceId };
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(workspaceId, existingProfile.ActiveWorkspaceId);
+    }
+
+    /// <summary>
+    /// Verifies that a running profile still rejects an attempt to point it at a workspace
+    /// other than the one its active launch prepared.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenRunning_RejectsDifferentActiveWorkspaceIdAsync()
+    {
+        // Arrange
+        const string profileId = "profile-running";
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Running Profile",
+            ActiveWorkspaceId = "ws-current",
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([CreateActiveLaunch(profileId, workspaceId: "ws-current")]);
+
+        var request = new UpdateProfileRequest { ActiveWorkspaceId = "ws-somewhere-else" };
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("ws-current", existingProfile.ActiveWorkspaceId);
+        _profileRepositoryMock.Verify(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static GameLaunchInfo CreateActiveLaunch(string profileId, string launchId = "launch-1", string workspaceId = "ws-1") => new()
     {
         LaunchId = launchId,

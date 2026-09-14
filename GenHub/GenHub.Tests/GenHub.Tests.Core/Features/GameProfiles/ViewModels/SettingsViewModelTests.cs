@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
@@ -11,6 +12,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.CAS;
@@ -1193,6 +1195,99 @@ public class SettingsViewModelTests
         _mockInstallationService.Verify(x => x.RemoveCustomInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that TestPatAsync saves the token when validation succeeds.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenPatIsValid_SavesTokenAndSetsSuccessStateAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockApiClient = new Mock<IGitHubApiClient>();
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitHubUser { Login = "testuser" });
+
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
+        viewModel.GitHubPatInput = "ghp_validToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(viewModel.IsPatValid);
+        Assert.True(viewModel.HasGitHubPat);
+        Assert.Empty(viewModel.GitHubPatInput);
+        Assert.Contains("PAT validated successfully", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
+        mockApiClient.Verify(x => x.SetAuthenticationToken(It.IsAny<System.Security.SecureString>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that TestPatAsync restores existing token when API validation fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenValidationFails_RestoresExistingTokenAndSetsErrorStateAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockApiClient = new Mock<IGitHubApiClient>();
+        using var existingToken = new System.Security.SecureString();
+        existingToken.AppendChar('x');
+        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync(existingToken);
+
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubUser?)null);
+
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
+        viewModel.GitHubPatInput = "ghp_invalidToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        Assert.Contains("GitHub authentication failed", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Never);
+        mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that TestPatAsync restores existing token when token storage SaveTokenAsync throws.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenSaveTokenThrows_RestoresExistingTokenAndSetsErrorStateAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockApiClient = new Mock<IGitHubApiClient>();
+        using var existingToken = new System.Security.SecureString();
+        existingToken.AppendChar('x');
+        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync(existingToken);
+        mockTokenStorage
+            .Setup(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()))
+            .ThrowsAsync(new System.IO.IOException("Storage persistence failed"));
+
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitHubUser { Login = "testuser" });
+
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
+        viewModel.GitHubPatInput = "ghp_validToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        Assert.Contains("Storage persistence failed", viewModel.PatStatusMessage);
+        mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
+    }
+
     private void SetupDeletableData()
     {
         _mockProfileManager
@@ -1206,7 +1301,10 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
 
-    private SettingsViewModel CreateViewModel(IThemeService? themeService = null) => new(
+    private SettingsViewModel CreateViewModel(
+        IThemeService? themeService = null,
+        IGitHubTokenStorage? gitHubTokenStorage = null,
+        IGitHubApiClient? gitHubApiClient = null) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
@@ -1221,5 +1319,7 @@ public class SettingsViewModelTests
         _mockUserDataTracker.Object,
         _mockDialogService.Object,
         _mockStorageMigrationService.Object,
-        themeService);
+        themeService,
+        gitHubTokenStorage,
+        gitHubApiClient);
 }

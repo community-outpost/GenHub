@@ -835,8 +835,9 @@ public class ProfileLauncherFacade(
                     }
                     else
                     {
-                        logger.LogWarning(
-                            "Failed to persist active workspace ID to profile '{ProfileId}': {Error}",
+                        logger.LogError(
+                            "Failed to persist active workspace ID '{WorkspaceId}' to profile '{ProfileId}': {Error}. The game is running; content reconciliation will not be able to invalidate this workspace.",
+                            launchInfo.WorkspaceId,
                             profileId,
                             updateResult.FirstError);
                     }

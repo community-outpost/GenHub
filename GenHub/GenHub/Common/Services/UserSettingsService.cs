@@ -226,6 +226,62 @@ public class UserSettingsService : IUserSettingsService
         }
     }
 
+    /// <inheritdoc/>
+    public void Reload()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                var isUninitialized = string.IsNullOrWhiteSpace(_target.Path);
+                var targetPath = !isUninitialized
+                    ? _target.Path
+                    : GetDefaultSettingsFilePath();
+
+                var sourcePath = isUninitialized
+                    ? ResolveSettingsSourcePath(targetPath)
+                    : targetPath;
+
+                var initialSettings = LoadSettings(sourcePath, out var outcome);
+
+                string writePath;
+                if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
+                    !PathHelper.AreSamePath(initialSettings.SettingsFilePath, targetPath))
+                {
+                    writePath = initialSettings.SettingsFilePath;
+                    _settings = LoadSettings(writePath, out outcome);
+                }
+                else
+                {
+                    writePath = targetPath;
+                    _settings = initialSettings;
+                }
+
+                _target = TargetFor(writePath, outcome);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or JsonException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Failed to reload settings, continuing with defaults and without persistence");
+                if (string.IsNullOrWhiteSpace(_target.Path))
+                {
+                    _settings = new UserSettings();
+                    _target = SettingsFileTarget.Unverified(string.Empty);
+                }
+
+                return;
+            }
+
+            try
+            {
+                NormalizeAndValidateLocked(_settings, _appConfig);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Failed to normalize settings, keeping the loaded values as they are");
+            }
+        }
+    }
+
     /// <summary>
     /// Adopts <paramref name="path"/> as the settings file, reading it into the in-memory settings.
     /// This is the "start using this file" move, and it necessarily discards the settings currently
@@ -534,46 +590,7 @@ public class UserSettingsService : IUserSettingsService
     /// </remarks>
     private void InitializeSettings()
     {
-        try
-        {
-            var defaultPath = GetDefaultSettingsFilePath();
-            var initialSettings = LoadSettings(ResolveSettingsSourcePath(defaultPath), out var outcome);
-
-            // If the user has a custom path, reload from there; otherwise keep what the default path gave us.
-            string writePath;
-            if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
-                !PathHelper.AreSamePath(initialSettings.SettingsFilePath, defaultPath))
-            {
-                writePath = initialSettings.SettingsFilePath;
-                _settings = LoadSettings(writePath, out outcome);
-            }
-            else
-            {
-                writePath = defaultPath;
-                _settings = initialSettings;
-            }
-
-            _target = TargetFor(writePath, outcome);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to initialize settings, continuing with defaults and without persistence");
-            _settings = new UserSettings();
-            _target = SettingsFileTarget.Unverified(string.Empty);
-            return;
-        }
-
-        try
-        {
-            lock (_lock)
-            {
-                NormalizeAndValidateLocked(_settings, _appConfig);
-            }
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogError(ex, "Failed to normalize settings, keeping the loaded values as they are");
-        }
+        Reload();
     }
 
     /// <summary>

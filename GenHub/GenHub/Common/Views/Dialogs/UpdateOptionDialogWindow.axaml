@@ -62,15 +62,21 @@
                                          Content="Replace (Update current version)"
                                          Foreground="White" FontWeight="Medium"/>
 
-                            <TextBlock Text="Updates the current version in existing profiles. This will replace the files in your current installation."
-                                       FontSize="12" Foreground="#A0A0A0" Margin="28,-8,0,4"
+                            <TextBlock Text="Updates the current version in existing profiles. Superseded version files (old game client, map pack, data patch) will be deleted to save disk space."
+                                       FontSize="12" Foreground="#A0A0A0" Margin="28,-8,0,0"
                                        TextWrapping="Wrap"/>
+
+                            <CheckBox IsChecked="{Binding DeleteOldVersions}"
+                                      IsEnabled="{Binding CanDeleteOldVersions}"
+                                      Content="Delete superseded version files from storage"
+                                      ToolTip.Tip="Removes previous version files from local storage to prevent accumulating unused versions"
+                                      Foreground="#B0B0B0" FontSize="12" Margin="28,-4,0,4"/>
 
                             <RadioButton IsChecked="{Binding IsCreateNewProfile}"
                                          Content="Create New Profile"
                                          Foreground="White" FontWeight="Medium"/>
 
-                            <TextBlock Text="Creates a new companion profile for the new version, keeping your current version and profile intact."
+                            <TextBlock Text="Creates a new companion profile for the new version, keeping your current version, files, and profile intact."
                                        FontSize="12" Foreground="#A0A0A0" Margin="28,-8,0,0"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
@@ -82,13 +88,14 @@
                     <CheckBox Grid.Column="0"
                               IsChecked="{Binding IsDoNotAskAgain}"
                               Content="Don't ask again"
+                              ToolTip.Tip="Remember this choice for future updates"
                               Foreground="#C0C0C0" VerticalAlignment="Center"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="16">
-                        <Button Command="{Binding SkipCommand}" Content="Skip"
+                        <Button Command="{Binding SkipCommand}" Content="Cancel"
                                 Background="Transparent" BorderBrush="#40FFFFFF" BorderThickness="1"
                                 Foreground="White" Padding="20,10" CornerRadius="4"
-                                ToolTip.Tip="Skip this update (you'll be notified again for newer versions)"/>
+                                ToolTip.Tip="Cancel this update (no files will be downloaded or modified)"/>
 
                         <Button Command="{Binding UpdateCommand}" Content="Update"
                                 Background="{DynamicResource PrimaryGradientBrush}"

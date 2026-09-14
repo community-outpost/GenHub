@@ -57,6 +57,10 @@ public sealed class ProfileSelectionViewModelTests
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
 
+        manifestPoolMock
+            .Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
+
         var vm = new ProfileSelectionViewModel(
             NullLogger<ProfileSelectionViewModel>.Instance,
             profileManagerMock.Object,
@@ -78,7 +82,7 @@ public sealed class ProfileSelectionViewModelTests
     }
 
     /// <summary>
-    /// Verifies that selecting a profile with a single manifest calls the single manifest overload and closes the dialog.
+    /// Verifies that selecting a profile with a single manifest calls the single manifest overload, shows success notification, and closes the dialog.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -125,11 +129,69 @@ public sealed class ProfileSelectionViewModelTests
         await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
 
         // Assert
-        Assert.True(vm.WasSuccessful);
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
         Assert.True(closeRequested);
         Assert.Equal("Zero Hour Profile", vm.SelectedProfileName);
         profileContentMock.Verify(
             x => x.AddContentToProfileAsync("zh-profile-1", "1.0.test.manifest", It.IsAny<CancellationToken>()),
+            Times.Once);
+        notificationMock.Verify(
+            x => x.ShowSuccess("Added to Profile", "'Test Content' has been added to profile 'Zero Hour Profile'.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that swapping content in a profile shows a content updated notification and closes the dialog.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectProfileCommand_ContentSwapped_ShowsUpdatedNotificationAndClosesAsync()
+    {
+        // Arrange
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        var profileContentMock = new Mock<IProfileContentService>();
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var notificationMock = new Mock<INotificationService>();
+
+        var zhProfile = new GameProfile
+        {
+            Id = "zh-profile-1",
+            Name = "Zero Hour Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        profileManagerMock
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([zhProfile]));
+
+        manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        profileContentMock
+            .Setup(x => x.AddContentToProfileAsync("zh-profile-1", "1.0.test.manifest", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AddToProfileResult.CreateSuccessWithSwap("1.0.test.manifest", "New Content", "1.0.old.manifest", "Old Content", GenHub.Core.Models.Enums.ContentType.Addon));
+
+        var vm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            profileManagerMock.Object,
+            profileContentMock.Object,
+            manifestPoolMock.Object,
+            notificationMock.Object);
+
+        var closeRequested = false;
+        vm.RequestClose += (_, _) => closeRequested = true;
+
+        await vm.LoadProfilesAsync(GameType.ZeroHour, "1.0.test.manifest", "New Content");
+
+        // Act
+        await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
+
+        // Assert
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
+        Assert.True(closeRequested);
+        notificationMock.Verify(
+            x => x.ShowSuccess("Content Updated", "Replaced 'Old Content' with 'New Content' in profile 'Zero Hour Profile'.", It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
     }
 
@@ -183,15 +245,18 @@ public sealed class ProfileSelectionViewModelTests
         await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
 
         // Assert
-        Assert.True(vm.WasSuccessful);
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
         Assert.True(closeRequested);
         profileContentMock.Verify(
             x => x.AddContentToProfileAsync("zh-profile-1", It.Is<IReadOnlyList<string>>(l => l.Count == 3), It.IsAny<CancellationToken>()),
             Times.Once);
+        notificationMock.Verify(
+            x => x.ShowSuccess("Added to Profile", "'Test Bundle' has been added to profile 'Zero Hour Profile'.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
-    /// Verifies that a failure to add content to profile sets the error message and keeps the dialog open.
+    /// Verifies that a failure to add content to profile sets the error message, shows an error notification, and keeps the dialog open.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -241,6 +306,72 @@ public sealed class ProfileSelectionViewModelTests
         Assert.False(vm.WasSuccessful);
         Assert.False(closeRequested);
         Assert.Equal("Incompatible version conflict", vm.ErrorMessage);
+        notificationMock.Verify(
+            x => x.ShowError("Failed to Add to Profile", "Incompatible version conflict", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that creating a new profile closes the dialog and sets success without showing a duplicate toast (delegated to ProfileContentService).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateNewProfileCommand_Success_ShowsProfileCreatedNotificationAndClosesAsync()
+    {
+        // Arrange
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        var profileContentMock = new Mock<IProfileContentService>();
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var notificationMock = new Mock<INotificationService>();
+
+        var newProfile = new GameProfile
+        {
+            Id = "zh-profile-new",
+            Name = "New ZH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        profileManagerMock
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        manifestPoolMock
+            .Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
+
+        profileContentMock
+            .Setup(x => x.CreateProfileWithContentAsync(It.IsAny<string>(), "1.0.test.manifest", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(newProfile));
+
+        var vm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            profileManagerMock.Object,
+            profileContentMock.Object,
+            manifestPoolMock.Object,
+            notificationMock.Object);
+
+        var closeRequested = false;
+        vm.RequestClose += (_, _) => closeRequested = true;
+
+        await vm.LoadProfilesAsync(GameType.ZeroHour, "1.0.test.manifest", "Test Content");
+
+        // Act
+        await vm.CreateNewProfileCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
+        Assert.True(closeRequested);
+        Assert.Equal("New ZH Profile", vm.SelectedProfileName);
+        profileContentMock.Verify(
+            x => x.CreateProfileWithContentAsync(It.IsAny<string>(), "1.0.test.manifest", It.IsAny<CancellationToken>()),
+            Times.Once);
+        notificationMock.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     /// <summary>

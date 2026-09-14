@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Downloads.ViewModels;
@@ -352,7 +353,7 @@ public sealed partial class ProfileSelectionViewModel(
                 ContentManifestId,
                 profile.Name);
 
-            var (selectedManifestId, selectedContentName, idsToAdd) = await ResolveContentToAddAsync();
+            var (selectedManifestId, _, selectedContentName, idsToAdd) = await ResolveContentToAddAsync();
 
             var result = idsToAdd.Count > 1
                 ? await profileContentService.AddContentToProfileAsync(
@@ -375,6 +376,9 @@ public sealed partial class ProfileSelectionViewModel(
                     profile.Name,
                     result.FirstError);
                 ErrorMessage = result.FirstError ?? "Failed to add content to profile";
+                notificationService.ShowError(
+                    "Failed to Add to Profile",
+                    ErrorMessage);
                 WasSuccessful = false;
             }
         }
@@ -388,6 +392,9 @@ public sealed partial class ProfileSelectionViewModel(
         {
             logger.LogError(ex, "Error adding content to profile '{ProfileName}'", profile.Name);
             ErrorMessage = ex.Message;
+            notificationService.ShowError(
+                "Failed to Add to Profile",
+                $"An error occurred: {ex.Message}");
             WasSuccessful = false;
         }
     }
@@ -432,36 +439,9 @@ public sealed partial class ProfileSelectionViewModel(
                 ContentName ?? "Unknown",
                 ContentManifestId);
 
-            // Check whether this content is a member of a downloaded variant family.
-            var manifestResult = await manifestPool.GetManifestAsync(
-                ManifestId.Create(ContentManifestId),
-                _cts.Token);
-
-            var (selectedManifestId, selectedContentName) = manifestResult.Success && manifestResult.Data != null
-                ? (manifestResult.Data.Id.Value, manifestResult.Data.Name)
-                : (ContentManifestId, ContentName ?? "New Profile");
-
-            var profileName = await ResolveUniqueProfileNameAsync(selectedManifestId, selectedContentName);
-
-            IReadOnlyList<string> idsToEnable;
-            if (ContentManifestIds.Count > 0)
-            {
-                idsToEnable = ContentManifestIds;
-            }
-            else
-            {
-                idsToEnable = string.IsNullOrEmpty(selectedManifestId) ? [] : [selectedManifestId];
-            }
-
-            var result = idsToEnable.Count > 1
-                ? await profileContentService.CreateProfileWithContentAsync(
-                    profileName,
-                    idsToEnable,
-                    _cts.Token)
-                : await profileContentService.CreateProfileWithContentAsync(
-                    profileName,
-                    selectedManifestId,
-                    _cts.Token);
+            var (selectedManifestId, selectedManifest, selectedContentName, idsToEnable) = await ResolveProfileCreationContentAsync();
+            var profileName = await ResolveUniqueProfileNameAsync(selectedManifest, selectedContentName);
+            var result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
 
             if (result.Success && result.Data != null)
             {
@@ -500,12 +480,26 @@ public sealed partial class ProfileSelectionViewModel(
         }
     }
 
-    private async Task<string> ResolveUniqueProfileNameAsync(string selectedManifestId, string selectedContentName)
+    private async Task<(string SelectedManifestId, ContentManifest? SelectedManifest, string SelectedContentName, IReadOnlyList<string> IdsToEnable)> ResolveProfileCreationContentAsync()
     {
-        var selectedManifestResult = await manifestPool.GetManifestAsync(
-            ManifestId.Create(selectedManifestId),
-            _cts.Token);
-        var selectedManifest = selectedManifestResult.Success ? selectedManifestResult.Data : null;
+        var (selectedManifestId, selectedManifest, selectedContentName, idsToEnable) = await ResolveContentToAddAsync();
+        var safeId = !string.IsNullOrEmpty(selectedManifestId) ? selectedManifestId : (ContentManifestId ?? string.Empty);
+        var displayName = string.IsNullOrWhiteSpace(selectedContentName) ? (ContentName ?? "New Profile") : selectedContentName;
+        return (safeId, selectedManifest, displayName, idsToEnable);
+    }
+
+    private Task<ProfileOperationResult<GameProfile>> CreateProfileWithContentAsync(
+        string profileName,
+        string selectedManifestId,
+        IReadOnlyList<string> idsToEnable)
+    {
+        return idsToEnable.Count > 1
+            ? profileContentService.CreateProfileWithContentAsync(profileName, idsToEnable, _cts.Token)
+            : profileContentService.CreateProfileWithContentAsync(profileName, selectedManifestId, _cts.Token);
+    }
+
+    private async Task<string> ResolveUniqueProfileNameAsync(ContentManifest? selectedManifest, string selectedContentName)
+    {
         string baseName;
         if (selectedManifest?.ContentType == ContentType.GameClient &&
             !string.IsNullOrWhiteSpace(selectedManifest.Name))
@@ -553,7 +547,7 @@ public sealed partial class ProfileSelectionViewModel(
         return false;
     }
 
-    private async Task<(string? SelectedManifestId, string SelectedContentName, IReadOnlyList<string> IdsToAdd)> ResolveContentToAddAsync()
+    private async Task<(string? SelectedManifestId, ContentManifest? SelectedManifest, string SelectedContentName, IReadOnlyList<string> IdsToAdd)> ResolveContentToAddAsync()
     {
         ContentManifest? selectedManifest = null;
         if (!string.IsNullOrWhiteSpace(ContentManifestId) && ManifestId.TryCreate(ContentManifestId, out var parsedManifestId))
@@ -580,7 +574,7 @@ public sealed partial class ProfileSelectionViewModel(
             idsToAdd = [];
         }
 
-        return (selectedManifestId, selectedContentName, idsToAdd);
+        return (selectedManifestId, selectedManifest, selectedContentName, idsToAdd);
     }
 
     private void HandleAddContentSuccess(GameProfile profile, string selectedContentName, AddToProfileResult result)
@@ -592,6 +586,14 @@ public sealed partial class ProfileSelectionViewModel(
                 result.SwappedContentName,
                 selectedContentName,
                 profile.Name);
+
+            var replacedText = !string.IsNullOrWhiteSpace(result.SwappedContentName)
+                ? $"Replaced '{result.SwappedContentName}' with '{selectedContentName}' in profile '{profile.Name}'."
+                : $"Updated '{selectedContentName}' in profile '{profile.Name}'.";
+
+            notificationService.ShowSuccess(
+                "Content Updated",
+                replacedText);
         }
         else
         {
@@ -599,8 +601,8 @@ public sealed partial class ProfileSelectionViewModel(
 
             // Show success notification for new content addition
             notificationService.ShowSuccess(
-                "Content Added",
-                $"Added '{selectedContentName}' to profile '{profile.Name}'");
+                "Added to Profile",
+                $"'{selectedContentName}' has been added to profile '{profile.Name}'.");
         }
 
         SelectedProfileName = profile.Name;

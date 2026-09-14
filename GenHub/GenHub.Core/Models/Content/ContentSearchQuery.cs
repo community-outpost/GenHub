@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
@@ -125,6 +128,23 @@ public class ContentSearchQuery
     /// Gets the CNCLabs map tag filters (Cramped, Spacious, Well-balanced, etc.).
     /// </summary>
     public Collection<string> CNCLabsMapTags { get; } = [];
+
+    // ===== AODMaps-specific filters =====
+
+    /// <summary>
+    /// Gets or sets the AODMaps player count filter (2, 3, 4, 6, 8 players).
+    /// </summary>
+    public string? AODMapsPlayerCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the AODMaps category filter (Compstomp, Air, Race, Map Packs).
+    /// </summary>
+    public string? AODMapsCategory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the AODMaps map type filter (1v1, 2v2, FFA).
+    /// </summary>
+    public string? AODMapsMapType { get; set; }
 
     // ===== GitHub-specific filters =====
 

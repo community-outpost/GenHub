@@ -1799,3 +1799,53 @@ folder under `Documents`.
 
 - [Manifest ID System](manifest-id-system.md)
 - [Complete System Architecture](../architecture.md)
+
+---
+
+## GameSettingsTheSuperHackersConstants Class
+
+Constants for TheSuperHackers (TSH) client settings in `Options.ini`.
+
+| Constant | Value | Description |
+| --- | --- | --- |
+| `SectionName` | `"TheSuperHackers"` | Section name in `Options.ini` for TSH configuration |
+| `UseDoubleClickAttackMoveKey` | `"UseDoubleClickAttackMove"` | Key for double-click attack move toggle |
+| `UseDoubleClickKey` | `"UseDoubleClick"` | Fallback key for double-click setting |
+| `ScrollFactorKey` | `"ScrollFactor"` | Key for scroll speed factor |
+| `RetaliationKey` | `"Retaliation"` | Key for retaliation behavior |
+| `DynamicLODKey` | `"DynamicLOD"` | Key for dynamic level-of-detail toggle |
+| `MaxParticleCountKey` | `"MaxParticleCount"` | Key for maximum particle count |
+| `ArchiveReplaysKey` | `"ArchiveReplays"` | Key for automatic replay archiving |
+| `ShowMoneyPerMinuteKey` | `"ShowMoneyPerMinute"` | Key for displaying income rate |
+| `PlayerObserverEnabledKey` | `"PlayerObserverEnabled"` | Key for observer mode toggle |
+| `SystemTimeFontSizeKey` | `"SystemTimeFontSize"` | Key for system time overlay font size |
+| `NetworkLatencyFontSizeKey` | `"NetworkLatencyFontSize"` | Key for network latency overlay font size |
+| `RenderFpsFontSizeKey` | `"RenderFpsFontSize"` | Key for render FPS overlay font size |
+| `ResolutionFontAdjustmentKey` | `"ResolutionFontAdjustment"` | Key for resolution font adjustment |
+| `CursorCaptureEnabledInFullscreenGameKey` | `"CursorCaptureEnabledInFullscreenGame"` | Key for cursor capture in fullscreen game |
+| `CursorCaptureEnabledInFullscreenMenuKey` | `"CursorCaptureEnabledInFullscreenMenu"` | Key for cursor capture in fullscreen menu |
+| `CursorCaptureEnabledInWindowedGameKey` | `"CursorCaptureEnabledInWindowedGame"` | Key for cursor capture in windowed game |
+| `CursorCaptureEnabledInWindowedMenuKey` | `"CursorCaptureEnabledInWindowedMenu"` | Key for cursor capture in windowed menu |
+| `ScreenEdgeScrollEnabledInFullscreenAppKey` | `"ScreenEdgeScrollEnabledInFullscreenApp"` | Key for screen edge scroll in fullscreen app |
+| `ScreenEdgeScrollEnabledInWindowedAppKey` | `"ScreenEdgeScrollEnabledInWindowedApp"` | Key for screen edge scroll in windowed app |
+| `MoneyTransactionVolumeKey` | `"MoneyTransactionVolume"` | Key for transaction sound volume |
+| `MinFontSize` | `0` | Minimum font size value |
+| `MaxFontSize` | `72` | Maximum font size value |
+| `MinResolutionFontAdjustment` | `-100` | Minimum resolution font adjustment |
+| `MaxResolutionFontAdjustment` | `100` | Maximum resolution font adjustment |
+| `DefaultResolutionFontAdjustment` | `-100` | Default resolution font adjustment |
+| `DefaultNetworkLatencyFontSize` | `8` | Default font size for network latency display |
+| `DefaultRenderFpsFontSize` | `8` | Default font size for FPS display |
+| `DefaultSystemTimeFontSize` | `8` | Default font size for system time display |
+| `DefaultMoneyTransactionVolume` | `50` | Default transaction audio volume (0-100 scale) |
+| `DefaultPlayerObserverEnabled` | `true` | Default observer mode toggle |
+| `DefaultCursorCaptureEnabledInFullscreenGame` | `true` | Default cursor capture in fullscreen game |
+| `DefaultCursorCaptureEnabledInFullscreenMenu` | `true` | Default cursor capture in fullscreen menu |
+| `DefaultCursorCaptureEnabledInWindowedGame` | `true` | Default cursor capture in windowed game |
+| `DefaultCursorCaptureEnabledInWindowedMenu` | `false` | Default cursor capture in windowed menu |
+| `DefaultScreenEdgeScrollEnabledInFullscreenApp` | `true` | Default screen edge scrolling in fullscreen app |
+| `DefaultScreenEdgeScrollEnabledInWindowedApp` | `false` | Default screen edge scrolling in windowed app |
+| `GameWindowTransitionSpeedMultiplierKey` | `"GameWindowTransitionSpeedMultiplier"` | Key for window transition animation speed multiplier |
+| `DefaultGameWindowTransitionSpeedMultiplier` | `1.0f` | Default transition speed multiplier |
+| `MinGameWindowTransitionSpeedMultiplier` | `1.0f` | Minimum allowed transition speed multiplier |
+| `MaxGameWindowTransitionSpeedMultiplier` | `4.0f` | Maximum allowed transition speed multiplier |

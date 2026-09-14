@@ -30,6 +30,12 @@ public partial class UpdateOptionDialogViewModel : ViewModelBase
     private UpdateStrategy _strategy = UpdateStrategy.ReplaceCurrent;
 
     /// <summary>
+    /// Gets or sets a value indicating whether superseded version files should be deleted from storage.
+    /// </summary>
+    [ObservableProperty]
+    private bool _deleteOldVersions = true;
+
+    /// <summary>
     /// Gets or sets a value indicating whether the user selected "Replace Current Version".
     /// </summary>
     public bool IsReplaceCurrentVersion
@@ -40,9 +46,11 @@ public partial class UpdateOptionDialogViewModel : ViewModelBase
             if (value)
             {
                 Strategy = UpdateStrategy.ReplaceCurrent;
+                DeleteOldVersions = true;
             }
 
             OnPropertyChanged(nameof(IsReplaceCurrentVersion));
+            OnPropertyChanged(nameof(CanDeleteOldVersions));
         }
     }
 
@@ -57,11 +65,19 @@ public partial class UpdateOptionDialogViewModel : ViewModelBase
             if (value)
             {
                 Strategy = UpdateStrategy.CreateNewProfile;
+                DeleteOldVersions = false;
             }
 
             OnPropertyChanged(nameof(IsCreateNewProfile));
+            OnPropertyChanged(nameof(CanDeleteOldVersions));
         }
     }
+
+    /// <summary>
+    /// Gets a value indicating whether the delete old versions option can be toggled.
+    /// Superseded versions can only be deleted when replacing in existing profiles.
+    /// </summary>
+    public bool CanDeleteOldVersions => IsReplaceCurrentVersion;
 
     /// <summary>
     /// Gets or sets a value indicating whether the "Do not ask again" checkbox is checked.
@@ -87,6 +103,7 @@ public partial class UpdateOptionDialogViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsReplaceCurrentVersion));
         OnPropertyChanged(nameof(IsCreateNewProfile));
+        OnPropertyChanged(nameof(CanDeleteOldVersions));
     }
 
     /// <summary>
@@ -99,6 +116,7 @@ public partial class UpdateOptionDialogViewModel : ViewModelBase
         {
             Action = "Update",
             Strategy = Strategy,
+            DeleteOldVersions = IsReplaceCurrentVersion && DeleteOldVersions,
             IsDoNotAskAgain = IsDoNotAskAgain,
         };
         CloseAction?.Invoke(Result);
@@ -114,6 +132,7 @@ public partial class UpdateOptionDialogViewModel : ViewModelBase
         {
             Action = "Skip",
             Strategy = Strategy,
+            DeleteOldVersions = false,
             IsDoNotAskAgain = IsDoNotAskAgain,
         };
         CloseAction?.Invoke(Result);

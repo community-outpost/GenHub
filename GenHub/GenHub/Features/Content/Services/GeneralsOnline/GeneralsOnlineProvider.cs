@@ -67,13 +67,13 @@ public class GeneralsOnlineProvider(
         {
             // ContentId format from discoverer: "GeneralsOnline_{Version}" (e.g., "GeneralsOnline_101525_QFE5")
             // Manifest IDs in pool: "1.1015255.generalsonline.gameclient.30hz" or "1.1015255.generalsonline.gameclient.60hz"
-            if (!contentId.StartsWith("GeneralsOnline_", StringComparison.OrdinalIgnoreCase))
+            if (!contentId.StartsWith(GeneralsOnlineConstants.ContentIdPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Invalid contentId format: '{contentId}'. Expected format: 'GeneralsOnline_{{version}}'");
+                    $"Invalid contentId format: '{contentId}'. Expected format: '{GeneralsOnlineConstants.ContentIdPrefix}{{version}}'");
             }
 
-            var version = contentId.Substring("GeneralsOnline_".Length);
+            var version = contentId.Substring(GeneralsOnlineConstants.ContentIdPrefix.Length);
 
             if (string.IsNullOrWhiteSpace(version))
             {

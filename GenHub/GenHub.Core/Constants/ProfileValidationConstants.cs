@@ -89,4 +89,51 @@ public static class ProfileValidationConstants
     /// Notification title when tool launch fails.
     /// </summary>
     public const string ToolLaunchFailedTitle = "Tool Launch Failed";
+
+    /// <summary>
+    /// Notification title when removing a game installation is blocked by active dependent clients.
+    /// </summary>
+    public const string CannotRemoveInstallationTitle = "Cannot Remove Installation";
+
+    /// <summary>
+    /// Notification title when deleting a game installation is blocked by active dependent clients.
+    /// </summary>
+    public const string CannotDeleteInstallationTitle = "Cannot Delete Installation";
+
+    /// <summary>
+    /// Status message format when removing or deleting a game installation is blocked by active dependent clients.
+    /// Format arguments: {0} action verb (remove/delete), {1} installation display name, {2} comma-separated client names.
+    /// </summary>
+    public const string InstallationActionBlockedStatusFormat = "Cannot {0} {1} while dependent game client {2} is active";
+
+    /// <summary>
+    /// Notification message format when removing or deleting a game installation is blocked by active dependent clients.
+    /// Format arguments: {0} action verb (remove/delete), {1} installation display name, {2} comma-separated client names.
+    /// </summary>
+    public const string InstallationActionBlockedNotificationFormat = "Cannot {0} game installation '{1}' while dependent game client {2} is active. Please remove the game client first.";
+
+    /// <summary>
+    /// Notification title when saving without a required game installation.
+    /// </summary>
+    public const string MissingGameInstallationTitle = "Missing Game Installation";
+
+    /// <summary>
+    /// Notification message when saving without a required game installation.
+    /// </summary>
+    public const string SelectGameInstallationBeforeSaving = "Please select a game installation before saving.";
+
+    /// <summary>
+    /// Notification title when saving without a profile name.
+    /// </summary>
+    public const string MissingProfileNameTitle = "Missing Name";
+
+    /// <summary>
+    /// Notification message when saving without a profile name.
+    /// </summary>
+    public const string EnterProfileNameBeforeSaving = "Please enter a profile name before saving.";
+
+    /// <summary>
+    /// Notification title when content cannot be modified in the current mode.
+    /// </summary>
+    public const string CannotModifyContentTitle = "Cannot Modify Content";
 }

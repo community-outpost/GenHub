@@ -16,6 +16,12 @@ public static class GeneralsOnlineConstants
     /// <summary>Content name for manifests.</summary>
     public const string ContentName = "Generals Online";
 
+    /// <summary>Client name and identifier prefix for GeneralsOnline.</summary>
+    public const string ClientName = "GeneralsOnline";
+
+    /// <summary>Default executable file name for Generals Online clients.</summary>
+    public const string DefaultExecutableFileName = "GeneralsOnline.exe";
+
     /// <summary>Full content description.</summary>
     public const string Description = "Community-driven multiplayer service for C&C Generals Zero Hour. Features 60Hz tick rate, automatic updates, and improved stability.";
 
@@ -83,6 +89,9 @@ public static class GeneralsOnlineConstants
     public const int UpdateCheckIntervalHours = 24;
 
     // ===== Manifest Generation =====
+
+    /// <summary>Prefix for GeneralsOnline catalog content identifiers.</summary>
+    public const string ContentIdPrefix = "GeneralsOnline_";
 
     /// <summary>Publisher ID for the Generals Online service.</summary>
     public const string PublisherId = PublisherType;

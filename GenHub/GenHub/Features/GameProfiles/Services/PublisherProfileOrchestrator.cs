@@ -37,6 +37,7 @@ public class PublisherProfileOrchestrator(
         GameInstallation installation,
         GameClient gameClient,
         bool forceReacquireContent = false,
+        bool skipAcquisition = false,
         CancellationToken cancellationToken = default)
     {
         try
@@ -60,7 +61,14 @@ public class PublisherProfileOrchestrator(
             var existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
 
             bool shouldAcquire = false;
-            if (existingManifests.Count == 0)
+            if (skipAcquisition && existingManifests.Count > 0)
+            {
+                logger.LogInformation(
+                    "Skip acquisition requested for {PublisherType}, creating profiles from {Count} existing manifests",
+                    publisherType,
+                    existingManifests.Count);
+            }
+            else if (existingManifests.Count == 0)
             {
                 // No manifests in pool - need to acquire
                 shouldAcquire = true;

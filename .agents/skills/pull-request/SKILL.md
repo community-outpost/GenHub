@@ -25,6 +25,11 @@ Before opening a PR, verify every item:
       - `chore/<maintenance-task>`
       - `refactor/<target-area>`
 - [ ] Targeted tests pass locally before pushing
+- [ ] Static analysis & bot pre-flight:
+      - Async methods returning `Task`/`ValueTask` end with `Async`
+      - No unused local variables, assignments, or uninitialized out vars
+      - New code duplication kept below 3.0% (SonarCloud quality gate)
+      - `CancellationToken` forwarded across asynchronous I/O calls
 - [ ] UI changes include before/after screenshots or media recordings
 
 ---

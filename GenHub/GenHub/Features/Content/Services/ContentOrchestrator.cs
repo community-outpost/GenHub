@@ -442,37 +442,14 @@ public class ContentOrchestrator : IContentOrchestrator
             }
 
             // Step 2: Get complete manifest
-            var manifest = searchResult.GetData<ContentManifest>();
-            if (manifest == null)
+            var manifestResult = await ObtainManifestAsync(provider, searchResult, cancellationToken);
+            if (!manifestResult.Success || manifestResult.Data == null)
             {
-                if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
-                {
-                    // Content requires resolution through a resolver (e.g., GitHub releases)
-                    _logger.LogInformation(
-                        "Content requires resolution. Using resolver: {ResolverId}",
-                        searchResult.ResolverId);
-
-                    var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
-                    if (!resolveResult.Success || resolveResult.Data == null)
-                    {
-                        return OperationResult<ContentManifest>.CreateFailure(
-                            $"Failed to resolve manifest: {resolveResult.FirstError}");
-                    }
-
-                    manifest = resolveResult.Data;
-                }
-                else
-                {
-                    var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
-                    if (!manifestResult.Success || manifestResult.Data == null)
-                    {
-                        return OperationResult<ContentManifest>.CreateFailure(
-                            $"Failed to get manifest: {manifestResult.FirstError}");
-                    }
-
-                    manifest = manifestResult.Data;
-                }
+                return manifestResult;
             }
+
+            var manifest = manifestResult.Data;
+            PopulateOriginalMetadata(manifest, searchResult);
 
             // Step 3: Validate manifest structure only
             progress?.Report(new ContentAcquisitionProgress
@@ -704,6 +681,58 @@ public class ContentOrchestrator : IContentOrchestrator
             ContentSortField.Rating => results.OrderByDescending(r => r.Rating),
             _ => results, // Relevance - keep original order
         };
+    }
+
+    private static void PopulateOriginalMetadata(ContentManifest manifest, ContentSearchResult searchResult)
+    {
+        if (string.IsNullOrEmpty(manifest.OriginalProviderName) && !string.IsNullOrEmpty(searchResult.ProviderName))
+        {
+            manifest.OriginalProviderName = searchResult.ProviderName;
+        }
+
+        if (string.IsNullOrEmpty(manifest.OriginalContentId))
+        {
+            string? parentId = null;
+            searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentId);
+            manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : searchResult.Id;
+        }
+    }
+
+    private async Task<OperationResult<ContentManifest>> ObtainManifestAsync(
+        IContentProvider provider,
+        ContentSearchResult searchResult,
+        CancellationToken cancellationToken)
+    {
+        var manifest = searchResult.GetData<ContentManifest>();
+        if (manifest != null)
+        {
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+
+        if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
+        {
+            _logger.LogInformation(
+                "Content requires resolution. Using resolver: {ResolverId}",
+                searchResult.ResolverId);
+
+            var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
+            if (!resolveResult.Success || resolveResult.Data == null)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to resolve manifest: {resolveResult.FirstError}");
+            }
+
+            return OperationResult<ContentManifest>.CreateSuccess(resolveResult.Data);
+        }
+
+        var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
+        if (!manifestResult.Success || manifestResult.Data == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Failed to get manifest: {manifestResult.FirstError}");
+        }
+
+        return OperationResult<ContentManifest>.CreateSuccess(manifestResult.Data);
     }
 
     /// <summary>

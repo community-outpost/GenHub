@@ -26,6 +26,11 @@ public class MockUserSettingsService : IUserSettingsService
     public Task SaveAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <inheritdoc/>
+    public void Reload()
+    {
+    }
+
+    /// <inheritdoc/>
     public void Update(Action<UserSettings> updateAction) => updateAction(_settings);
 
     /// <inheritdoc/>
