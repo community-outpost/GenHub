@@ -1,13 +1,31 @@
 {
   "BundleItems": [
     {
-      "Name": "HotkeyStrings",
+      "Name": "Hotkeys_ZH_English",
       "SourceFiles": [
-        "GameFilesEdited/Data/English/**/*.csf"
+        "GameFilesEdited/ZeroHour/English/**/*.csf"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
-      "Description": "Leikeze generals.csf string table with custom hotkeys"
+      "Description": "Leikeze Zero Hour English hotkey CSF string tables"
+    },
+    {
+      "Name": "Hotkeys_Generals_English",
+      "SourceFiles": [
+        "GameFilesEdited/Generals/English/**/*.csf"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "Description": "Leikeze Generals English hotkey CSF string tables"
+    },
+    {
+      "Name": "Hotkeys_ZH_German",
+      "SourceFiles": [
+        "GameFilesEdited/ZeroHour/German/**/*.csf"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "Description": "Leikeze Zero Hour German hotkey CSF string tables"
     }
   ]
 }

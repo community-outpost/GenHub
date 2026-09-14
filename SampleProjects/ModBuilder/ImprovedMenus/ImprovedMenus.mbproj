@@ -1,10 +1,10 @@
 {
   "name": "ImprovedMenus",
   "contentType": "Addon",
-  "version": "1.0.0",
-  "author": "GenHub Community",
+  "version": "1.3.0",
+  "author": "ElTioRata",
   "targetGame": "ZeroHour",
-  "description": "16:9 widescreen menu overhauls and custom UI windows (.wnd) for C&C Generals: Zero Hour",
+  "description": "16:9 widescreen menu overhauls with 3 language variants (English, Russian, Spanish) for C&C Generals: Zero Hour",
   "directories": {
     "configs": "config",
     "gameFilesEdited": "GameFilesEdited",

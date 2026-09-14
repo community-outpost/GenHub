@@ -620,6 +620,12 @@ public sealed class BuildEngineService(
     {
         if (!string.IsNullOrEmpty(file.RelTargetFile))
         {
+            var normalized = file.RelTargetFile.Replace('\\', '/');
+            if (normalized.EndsWith('/') || string.IsNullOrEmpty(Path.GetExtension(normalized)))
+            {
+                return $"{normalized.TrimEnd('/')}/{Path.GetFileName(file.AbsSourceFile)}";
+            }
+
             return file.RelTargetFile;
         }
 
@@ -1219,12 +1225,12 @@ public sealed class BuildEngineService(
         return result.Success;
     }
 
-    private static async Task<bool> ProcessIniFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
+    private async Task<bool> ProcessIniFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
     {
         return await CopyFileDirectlyAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<bool> CopyFileDirectlyAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
+    private async Task<bool> CopyFileDirectlyAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
     {
         try
         {
@@ -1245,6 +1251,7 @@ public sealed class BuildEngineService(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            logger.LogError(ex, "Failed to copy file from {SourcePath} to {TargetPath}", sourcePath, targetPath);
             return false;
         }
     }
@@ -1717,15 +1724,18 @@ public sealed class BuildEngineService(
                 {
                     _cachedBuildStructure.Setup.Folders.AbsBuildDir = configuration.Folders.AbsBuildDir;
                 }
+
                 if (!string.IsNullOrEmpty(configuration.Folders.AbsReleaseDir))
                 {
                     _cachedBuildStructure.Setup.Folders.AbsReleaseDir = configuration.Folders.AbsReleaseDir;
                 }
+
                 if (!string.IsNullOrEmpty(configuration.Folders.AbsGameDir))
                 {
                     _cachedBuildStructure.Setup.Folders.AbsGameDir = configuration.Folders.AbsGameDir;
                 }
             }
+
             return _cachedBuildStructure;
         }
 

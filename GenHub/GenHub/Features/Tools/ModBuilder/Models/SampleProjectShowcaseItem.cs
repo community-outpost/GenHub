@@ -41,12 +41,17 @@ public sealed class SampleProjectShowcaseItem
     public required string Tag { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether byte-for-byte reproducible build is verified against official publisher binary.
+    /// Gets a summary of available variants or bundle packs (e.g. "3 Language Variants (EN, RU, ES)").
     /// </summary>
-    public bool IsReproducibleVerified => !string.IsNullOrWhiteSpace(ExpectedSha256);
+    public string VariantSummary { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the expected SHA-256 hash of the publisher's binary.
+    /// Gets the count of bundle pack variants in this project.
+    /// </summary>
+    public int VariantCount { get; init; } = 1;
+
+    /// <summary>
+    /// Gets the expected SHA-256 hash of the publisher's binary for internal integrity checks.
     /// </summary>
     public string ExpectedSha256 { get; init; } = string.Empty;
 }

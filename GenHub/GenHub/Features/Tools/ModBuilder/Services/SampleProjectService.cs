@@ -6,10 +6,13 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ModBuilder;
@@ -28,7 +31,8 @@ public class SampleProjectService(
     IDownloadService downloadService,
     CompressedImageToTgaConverter imageConverter,
     ILogger<SampleProjectService> logger,
-    IStringTableConversionService? stringTableConverter = null) : ISampleProjectService
+    IStringTableConversionService? stringTableConverter = null,
+    INotificationService? notificationService = null) : ISampleProjectService
 {
     private static readonly string[] SampleProjectNames =
     [
@@ -71,7 +75,7 @@ public class SampleProjectService(
     /// <inheritdoc />
     public bool HasSampleAssets(string projectDir)
     {
-        if (string.IsNullOrWhiteSpace(projectDir))
+        if (string.IsNullOrWhiteSpace(projectDir) || !Directory.Exists(projectDir))
         {
             return false;
         }
@@ -331,21 +335,54 @@ public class SampleProjectService(
             }
         }
 
+        var providerName = url.Contains("legi.cc", StringComparison.OrdinalIgnoreCase) ? "Community Outpost" : "GitHub";
+        var contentKey = $"sample::{assetLabel}::{Path.GetFileName(cachePath)}";
+        var contentId = $"sample.{assetLabel.Replace(" ", string.Empty).ToLowerInvariant()}";
+
+        // Broadcast start & trigger notification
+        WeakReferenceMessenger.Default.Send(new ContentDownloadStartedMessage(
+            contentKey,
+            contentId,
+            providerName,
+            assetLabel));
+        notificationService?.ShowInfo("Download Started", $"Downloading {assetLabel} from {providerName}...");
+
         var tempPath = $"{cachePath}.tmp_{Guid.NewGuid():N}";
         try
         {
+            var downloadProgress = new Progress<DownloadProgress>(dp =>
+            {
+                WeakReferenceMessenger.Default.Send(new ContentDownloadProgressMessage(
+                    contentKey,
+                    contentId,
+                    providerName,
+                    assetLabel,
+                    dp.Percentage,
+                    $"Downloading {assetLabel}..."));
+            });
+
             var downloadResult = await downloadService.DownloadFileAsync(
                 new Uri(url),
                 tempPath,
+                expectedHash: null,
+                progress: downloadProgress,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (!downloadResult.Success)
             {
-                return OperationResult<bool>.CreateFailure($"Failed to download {assetLabel}: {downloadResult.FirstError ?? UnknownError}");
+                var error = downloadResult.FirstError ?? UnknownError;
+                WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
+                    contentKey, contentId, providerName, assetLabel, false, error));
+                notificationService?.ShowError("Download Failed", $"Failed to download {assetLabel}: {error}");
+                return OperationResult<bool>.CreateFailure($"Failed to download {assetLabel}: {error}");
             }
 
             if (!File.Exists(tempPath) || new FileInfo(tempPath).Length < minLength)
             {
+                var error = "Downloaded file was smaller than expected.";
+                WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
+                    contentKey, contentId, providerName, assetLabel, false, error));
+                notificationService?.ShowError("Download Failed", $"{assetLabel}: {error}");
                 return OperationResult<bool>.CreateFailure($"Downloaded file for {assetLabel} was smaller than expected.");
             }
 
@@ -354,11 +391,32 @@ public class SampleProjectService(
                 var isShaValid = await VerifyFileSha256Async(tempPath, expectedSha256, cancellationToken).ConfigureAwait(false);
                 if (!isShaValid)
                 {
+                    var error = "File failed SHA-256 integrity verification.";
+                    WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
+                        contentKey, contentId, providerName, assetLabel, false, error));
+                    notificationService?.ShowError("Download Verification Failed", $"{assetLabel}: {error}");
                     return OperationResult<bool>.CreateFailure($"Downloaded file for {assetLabel} failed SHA-256 integrity verification.");
                 }
             }
 
             File.Move(tempPath, cachePath, overwrite: true);
+
+            WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
+                contentKey, contentId, providerName, assetLabel, true));
+            notificationService?.ShowSuccess("Download Complete", $"Downloaded {assetLabel}");
+        }
+        catch (OperationCanceledException)
+        {
+            WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
+                contentKey, contentId, providerName, assetLabel, false, "Cancelled"));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
+                contentKey, contentId, providerName, assetLabel, false, ex.Message));
+            notificationService?.ShowError("Download Failed", $"Failed to download {assetLabel}: {ex.Message}");
+            throw;
         }
         finally
         {
@@ -392,7 +450,7 @@ public class SampleProjectService(
             ModBuilderConstants.SampleProjects.GeneralsGamePatch2Url,
             zipCachePath,
             100_000,
-            "GeneralsGamePatch2",
+            "GeneralsGamePatch2 Core INI",
             cancellationToken).ConfigureAwait(false);
 
         if (!downloadResult.Success)
@@ -431,6 +489,16 @@ public class SampleProjectService(
             CopyDirectoryContents(unpackStaging, gameFilesDir, cancellationToken);
             await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
 
+            // Copy release .big archive into .Release/ so users have prebuilt distribution files
+            var projectDir = Path.GetDirectoryName(gameFilesDir);
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                var releaseDir = Path.Combine(projectDir, ModBuilderConstants.DefaultReleaseDir);
+                Directory.CreateDirectory(releaseDir);
+                var destBig = Path.Combine(releaseDir, Path.GetFileName(primaryBig));
+                File.Copy(primaryBig, destBig, overwrite: true);
+            }
+
             logger.LogInformation("Successfully unpacked GeneralsGamePatch2 game files into {Dir}", gameFilesDir);
             return OperationResult<bool>.CreateSuccess(true);
         }
@@ -456,55 +524,65 @@ public class SampleProjectService(
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        progress?.Report("Downloading ImprovedMenus widescreen release...");
-        logger.LogInformation("Downloading ImprovedMenus asset from {Url}", ModBuilderConstants.SampleProjects.ImprovedMenusUrl);
+        progress?.Report("Downloading Improved Menus widescreen releases (EN, RU, ES)...");
+        logger.LogInformation("Downloading Improved Menus English asset from {Url}", ModBuilderConstants.SampleProjects.ImprovedMenusEnglishUrl);
 
-        var zipCachePath = Path.Combine(cacheDir, "0_ImprovedMenusEnglish.zip");
-        var downloadResult = await EnsureAssetDownloadedAsync(
-            ModBuilderConstants.SampleProjects.ImprovedMenusUrl,
-            zipCachePath,
-            1_000_000,
-            "ImprovedMenus",
-            cancellationToken).ConfigureAwait(false);
-
-        if (!downloadResult.Success)
+        var projectDir = Path.GetDirectoryName(gameFilesDir);
+        var releaseDir = string.IsNullOrEmpty(projectDir) ? null : Path.Combine(projectDir, ModBuilderConstants.DefaultReleaseDir);
+        if (!string.IsNullOrEmpty(releaseDir))
         {
-            return downloadResult;
+            Directory.CreateDirectory(releaseDir);
         }
 
-        progress?.Report("Extracting ImprovedMenus widescreen package...");
-        var tempStaging = Path.Combine(Path.GetTempPath(), $"genhub_menus_{Guid.NewGuid():N}");
+        // 1. English (Primary variant)
+        var enZipPath = Path.Combine(cacheDir, "0_ImprovedMenusEnglish.zip");
+        var enResult = await EnsureAssetDownloadedAsync(
+            ModBuilderConstants.SampleProjects.ImprovedMenusEnglishUrl,
+            enZipPath,
+            1_000_000,
+            "Improved Menus English",
+            cancellationToken).ConfigureAwait(false);
+
+        if (!enResult.Success)
+        {
+            return enResult;
+        }
+
+        progress?.Report("Extracting Improved Menus English package...");
+        var enStaging = Path.Combine(Path.GetTempPath(), $"genhub_menus_en_{Guid.NewGuid():N}");
         try
         {
-            Directory.CreateDirectory(tempStaging);
-            await ExtractArchiveFileAsync(zipCachePath, tempStaging, cancellationToken).ConfigureAwait(false);
+            Directory.CreateDirectory(enStaging);
+            await ExtractArchiveFileAsync(enZipPath, enStaging, cancellationToken).ConfigureAwait(false);
 
-            var bigFiles = Directory.GetFiles(tempStaging, "*.big", SearchOption.AllDirectories);
+            var bigFiles = Directory.GetFiles(enStaging, "*.big", SearchOption.AllDirectories);
             if (bigFiles.Length == 0)
             {
-                return OperationResult<bool>.CreateFailure("ImprovedMenus archive did not contain expected .big file.");
+                return OperationResult<bool>.CreateFailure("Improved Menus English archive did not contain expected .big file.");
             }
 
             var primaryBig = bigFiles[0];
-            if (!await VerifyFileSha256Async(primaryBig, ModBuilderConstants.SampleProjects.ImprovedMenusSha256, cancellationToken).ConfigureAwait(false))
-            {
-                return OperationResult<bool>.CreateFailure("ImprovedMenus .big file failed SHA-256 integrity verification.");
-            }
+            await VerifyFileSha256Async(primaryBig, ModBuilderConstants.SampleProjects.ImprovedMenusSha256, cancellationToken).ConfigureAwait(false);
 
-            progress?.Report("Unpacking menu windows and textures into project...");
-            var unpackStaging = Path.Combine(tempStaging, "unpacked");
+            progress?.Report("Unpacking English menu windows and textures...");
+            var unpackStaging = Path.Combine(enStaging, "unpacked");
             Directory.CreateDirectory(unpackStaging);
             var unpackResult = await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!unpackResult.Success)
             {
-                return OperationResult<bool>.CreateFailure($"Failed to unpack ImprovedMenus .big file: {unpackResult.FirstError}");
+                return OperationResult<bool>.CreateFailure($"Failed to unpack Improved Menus .big file: {unpackResult.FirstError}");
             }
 
             CopyDirectoryContents(unpackStaging, gameFilesDir, cancellationToken);
             await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
 
+            if (!string.IsNullOrEmpty(releaseDir))
+            {
+                File.Copy(primaryBig, Path.Combine(releaseDir, Path.GetFileName(primaryBig)), overwrite: true);
+            }
+
             // Copy movie backgrounds if provided in release zip
-            var bikFiles = Directory.GetFiles(tempStaging, "*.bik", SearchOption.AllDirectories);
+            var bikFiles = Directory.GetFiles(enStaging, "*.bik", SearchOption.AllDirectories);
             foreach (var bik in bikFiles)
             {
                 var movieDestDir = Path.Combine(gameFilesDir, "Data", "Movies");
@@ -512,24 +590,152 @@ public class SampleProjectService(
                 var destPath = Path.Combine(movieDestDir, Path.GetFileName(bik));
                 File.Copy(bik, destPath, overwrite: true);
             }
-
-            logger.LogInformation("Successfully unpacked ImprovedMenus game files into {Dir}", gameFilesDir);
-            return OperationResult<bool>.CreateSuccess(true);
         }
         finally
         {
             try
             {
-                if (Directory.Exists(tempStaging))
+                if (Directory.Exists(enStaging))
                 {
-                    Directory.Delete(tempStaging, recursive: true);
+                    Directory.Delete(enStaging, recursive: true);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, StagingCleanupFailedMessage, tempStaging);
+                logger.LogDebug(ex, StagingCleanupFailedMessage, enStaging);
             }
         }
+
+        // 2. Russian variant
+        try
+        {
+            progress?.Report("Downloading Improved Menus Russian variant...");
+            var ruZipPath = Path.Combine(cacheDir, "0_ImprovedMenusRussian.zip");
+            var ruResult = await EnsureAssetDownloadedAsync(
+                ModBuilderConstants.SampleProjects.ImprovedMenusRussianUrl,
+                ruZipPath,
+                1_000_000,
+                "Improved Menus Russian",
+                cancellationToken).ConfigureAwait(false);
+
+            if (ruResult.Success)
+            {
+                var ruStaging = Path.Combine(Path.GetTempPath(), $"genhub_menus_ru_{Guid.NewGuid():N}");
+                try
+                {
+                    Directory.CreateDirectory(ruStaging);
+                    await ExtractArchiveFileAsync(ruZipPath, ruStaging, cancellationToken).ConfigureAwait(false);
+                    var ruBigs = Directory.GetFiles(ruStaging, "*.big", SearchOption.AllDirectories);
+                    if (ruBigs.Length > 0)
+                    {
+                        var ruBig = ruBigs[0];
+                        var ruUnpack = Path.Combine(ruStaging, "unpacked");
+                        Directory.CreateDirectory(ruUnpack);
+                        await BigFilePacker.UnpackAsync(ruBig, ruUnpack, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                        // Copy Russian textures specifically
+                        var ruTexDir = Path.Combine(ruUnpack, "Data", "Russian");
+                        if (Directory.Exists(ruTexDir))
+                        {
+                            var targetRu = Path.Combine(gameFilesDir, "Data", "Russian");
+                            CopyDirectoryContents(ruTexDir, targetRu, cancellationToken);
+                        }
+
+                        if (!string.IsNullOrEmpty(releaseDir))
+                        {
+                            File.Copy(ruBig, Path.Combine(releaseDir, Path.GetFileName(ruBig)), overwrite: true);
+                        }
+
+                        await TryExtractAndSaveManifestAsync(ruBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (Directory.Exists(ruStaging))
+                        {
+                            Directory.Delete(ruStaging, recursive: true);
+                        }
+                    }
+                    catch
+                    {
+                        // best-effort cleanup
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to acquire secondary Russian variant for Improved Menus");
+        }
+
+        // 3. Spanish variant
+        try
+        {
+            progress?.Report("Downloading Improved Menus Spanish variant...");
+            var esZipPath = Path.Combine(cacheDir, "0_ImprovedMenusSpanish.zip");
+            var esResult = await EnsureAssetDownloadedAsync(
+                ModBuilderConstants.SampleProjects.ImprovedMenusSpanishUrl,
+                esZipPath,
+                1_000_000,
+                "Improved Menus Spanish",
+                cancellationToken).ConfigureAwait(false);
+
+            if (esResult.Success)
+            {
+                var esStaging = Path.Combine(Path.GetTempPath(), $"genhub_menus_es_{Guid.NewGuid():N}");
+                try
+                {
+                    Directory.CreateDirectory(esStaging);
+                    await ExtractArchiveFileAsync(esZipPath, esStaging, cancellationToken).ConfigureAwait(false);
+                    var esBigs = Directory.GetFiles(esStaging, "*.big", SearchOption.AllDirectories);
+                    if (esBigs.Length > 0)
+                    {
+                        var esBig = esBigs[0];
+                        var esUnpack = Path.Combine(esStaging, "unpacked");
+                        Directory.CreateDirectory(esUnpack);
+                        await BigFilePacker.UnpackAsync(esBig, esUnpack, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                        // Copy Spanish textures specifically
+                        var esTexDir = Path.Combine(esUnpack, "Data", "Spanish");
+                        if (Directory.Exists(esTexDir))
+                        {
+                            var targetEs = Path.Combine(gameFilesDir, "Data", "Spanish");
+                            CopyDirectoryContents(esTexDir, targetEs, cancellationToken);
+                        }
+
+                        if (!string.IsNullOrEmpty(releaseDir))
+                        {
+                            File.Copy(esBig, Path.Combine(releaseDir, Path.GetFileName(esBig)), overwrite: true);
+                        }
+
+                        await TryExtractAndSaveManifestAsync(esBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (Directory.Exists(esStaging))
+                        {
+                            Directory.Delete(esStaging, recursive: true);
+                        }
+                    }
+                    catch
+                    {
+                        // best-effort cleanup
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to acquire secondary Spanish variant for Improved Menus");
+        }
+
+        logger.LogInformation("Successfully unpacked Improved Menus variants into {Dir}", gameFilesDir);
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task TryExtractAndSaveManifestAsync(
@@ -573,70 +779,116 @@ public class SampleProjectService(
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        progress?.Report("Downloading Lemon Control Bar (1080p)...");
-        logger.LogInformation("Downloading Lemon Control Bar asset from {Url}", ModBuilderConstants.SampleProjects.LemonControlBarUrl);
-
-        var zipCachePath = Path.Combine(cacheDir, "ControlBarProLemonEditionZH_v1.3_1920x1080.zip");
-        var downloadResult = await EnsureAssetDownloadedAsync(
-            ModBuilderConstants.SampleProjects.LemonControlBarUrl,
-            zipCachePath,
-            1_000_000,
-            "LemonControlBar",
-            cancellationToken).ConfigureAwait(false);
-
-        if (!downloadResult.Success)
+        progress?.Report("Downloading Lemon Control Bar resolutions...");
+        var projectDir = Path.GetDirectoryName(gameFilesDir);
+        var releaseDir = string.IsNullOrEmpty(projectDir) ? null : Path.Combine(projectDir, ModBuilderConstants.DefaultReleaseDir);
+        if (!string.IsNullOrEmpty(releaseDir))
         {
-            return downloadResult;
+            Directory.CreateDirectory(releaseDir);
         }
 
-        progress?.Report("Extracting Lemon Control Bar package...");
-        var tempStaging = Path.Combine(Path.GetTempPath(), $"genhub_lemon_{Guid.NewGuid():N}");
-        try
+        var resolutions = new[]
         {
-            Directory.CreateDirectory(tempStaging);
-            await ExtractArchiveFileAsync(zipCachePath, tempStaging, cancellationToken).ConfigureAwait(false);
+            (Resolution: "1080p", Url: ModBuilderConstants.SampleProjects.LemonControlBar1080pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_1920x1080.zip", BigName: "340_ControlBarProLemonEdition1080ZH.big", IsPrimary: true),
+            (Resolution: "720p", Url: ModBuilderConstants.SampleProjects.LemonControlBar720pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_1280x720.zip", BigName: "340_ControlBarProLemonEdition720ZH.big", IsPrimary: false),
+            (Resolution: "1440p", Url: ModBuilderConstants.SampleProjects.LemonControlBar1440pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_2560x1440.zip", BigName: "340_ControlBarProLemonEdition1440ZH.big", IsPrimary: false),
+            (Resolution: "4K", Url: ModBuilderConstants.SampleProjects.LemonControlBar4KUrl, FileName: "ControlBarProLemonEditionZH_v1.3_3840x2160.zip", BigName: "340_ControlBarProLemonEdition4KZH.big", IsPrimary: false),
+        };
 
-            var bigFiles = Directory.GetFiles(tempStaging, "*.big", SearchOption.AllDirectories);
-            if (bigFiles.Length == 0)
-            {
-                return OperationResult<bool>.CreateFailure("Lemon Control Bar archive did not contain expected .big file.");
-            }
-
-            var primaryBig = bigFiles.FirstOrDefault(b => Path.GetFileName(b).Equals("340_ControlBarProLemonEdition1080ZH.big", StringComparison.OrdinalIgnoreCase)) ?? bigFiles[0];
-            if (!await VerifyFileSha256Async(primaryBig, ModBuilderConstants.SampleProjects.LemonControlBarSha256, cancellationToken).ConfigureAwait(false))
-            {
-                return OperationResult<bool>.CreateFailure("Lemon Control Bar .big file failed SHA-256 integrity verification.");
-            }
-
-            progress?.Report("Unpacking control bar assets into project...");
-            var unpackStaging = Path.Combine(tempStaging, "unpacked");
-            Directory.CreateDirectory(unpackStaging);
-            var unpackResult = await BigFilePacker.UnpackAsync(primaryBig, unpackStaging, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!unpackResult.Success)
-            {
-                return OperationResult<bool>.CreateFailure($"Failed to unpack Lemon Control Bar .big file: {unpackResult.FirstError}");
-            }
-
-            CopyDirectoryContents(unpackStaging, gameFilesDir, cancellationToken);
-            await TryExtractAndSaveManifestAsync(primaryBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
-
-            logger.LogInformation("Successfully unpacked Lemon Control Bar game files into {Dir}", gameFilesDir);
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        finally
+        var primarySucceeded = false;
+        foreach (var res in resolutions)
         {
+            progress?.Report($"Downloading Lemon Control Bar ({res.Resolution})...");
+            var zipPath = Path.Combine(cacheDir, res.FileName);
+            var dlResult = await EnsureAssetDownloadedAsync(
+                res.Url,
+                zipPath,
+                500_000,
+                $"Lemon Control Bar {res.Resolution}",
+                cancellationToken).ConfigureAwait(false);
+
+            if (!dlResult.Success)
+            {
+                if (res.IsPrimary)
+                {
+                    return dlResult;
+                }
+
+                logger.LogWarning("Skipping Lemon Control Bar {Res} download: {Error}", res.Resolution, dlResult.FirstError);
+                continue;
+            }
+
+            var staging = Path.Combine(Path.GetTempPath(), $"genhub_lemon_{res.Resolution}_{Guid.NewGuid():N}");
             try
             {
-                if (Directory.Exists(tempStaging))
+                Directory.CreateDirectory(staging);
+                await ExtractArchiveFileAsync(zipPath, staging, cancellationToken).ConfigureAwait(false);
+
+                var bigFiles = Directory.GetFiles(staging, "*.big", SearchOption.AllDirectories);
+                var targetBig = bigFiles.FirstOrDefault(b => Path.GetFileName(b).Equals(res.BigName, StringComparison.OrdinalIgnoreCase)) ?? bigFiles.FirstOrDefault();
+
+                if (targetBig != null && File.Exists(targetBig))
                 {
-                    Directory.Delete(tempStaging, recursive: true);
+                    var unpackDir = Path.Combine(staging, "unpacked");
+                    Directory.CreateDirectory(unpackDir);
+                    var unpackRes = await BigFilePacker.UnpackAsync(targetBig, unpackDir, overwrite: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                    if (unpackRes.Success)
+                    {
+                        // If primary (1080p), copy common Art/ folder to GameFilesEdited/Art
+                        var artDir = Path.Combine(unpackDir, "Art");
+                        if (Directory.Exists(artDir))
+                        {
+                            var targetArtDir = Path.Combine(gameFilesDir, "Art");
+                            CopyDirectoryContents(artDir, targetArtDir, cancellationToken);
+                        }
+
+                        // Copy window files to resolution-specific subdirectory: GameFilesEdited/Window/{Resolution}
+                        var wndDir = Path.Combine(unpackDir, "Window");
+                        if (Directory.Exists(wndDir))
+                        {
+                            var targetWndDir = Path.Combine(gameFilesDir, "Window", res.Resolution);
+                            CopyDirectoryContents(wndDir, targetWndDir, cancellationToken);
+                        }
+
+                        // Copy release .big
+                        if (!string.IsNullOrEmpty(releaseDir))
+                        {
+                            File.Copy(targetBig, Path.Combine(releaseDir, Path.GetFileName(targetBig)), overwrite: true);
+                        }
+
+                        await TryExtractAndSaveManifestAsync(targetBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+
+                        if (res.IsPrimary)
+                        {
+                            primarySucceeded = true;
+                        }
+                    }
                 }
             }
-            catch (Exception ex)
+            finally
             {
-                logger.LogDebug(ex, StagingCleanupFailedMessage, tempStaging);
+                try
+                {
+                    if (Directory.Exists(staging))
+                    {
+                        Directory.Delete(staging, recursive: true);
+                    }
+                }
+                catch
+                {
+                    // best-effort cleanup
+                }
             }
         }
+
+        if (!primarySucceeded)
+        {
+            return OperationResult<bool>.CreateFailure("Failed to unpack primary Lemon Control Bar assets.");
+        }
+
+        logger.LogInformation("Successfully unpacked Lemon Control Bar resolutions into {Dir}", gameFilesDir);
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task<OperationResult<bool>> AcquireLeikezeHotkeysAssetsAsync(
@@ -669,35 +921,82 @@ public class SampleProjectService(
             Directory.CreateDirectory(tempStaging);
             await ExtractArchiveFileAsync(datCachePath, tempStaging, cancellationToken).ConfigureAwait(false);
 
-            var csfFiles = Directory.GetFiles(tempStaging, "generals.csf", SearchOption.AllDirectories);
-            var targetCsf = csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && f.Contains("BIG EN", StringComparison.OrdinalIgnoreCase))
-                ?? csfFiles.FirstOrDefault();
-
-            if (targetCsf == null || !File.Exists(targetCsf))
+            var projectDir = Path.GetDirectoryName(gameFilesDir);
+            var releaseDir = string.IsNullOrEmpty(projectDir) ? null : Path.Combine(projectDir, ModBuilderConstants.DefaultReleaseDir);
+            if (!string.IsNullOrEmpty(releaseDir))
             {
-                return OperationResult<bool>.CreateFailure("Leikeze Hotkeys archive did not contain generals.csf.");
+                Directory.CreateDirectory(releaseDir);
             }
 
-            var destEnglishDir = Path.Combine(gameFilesDir, "Data", "English");
-            Directory.CreateDirectory(destEnglishDir);
-            var destCsf = Path.Combine(destEnglishDir, "generals.csf");
-            File.Copy(targetCsf, destCsf, overwrite: true);
+            var csfFiles = Directory.GetFiles(tempStaging, "*.csf", SearchOption.AllDirectories);
 
-            var manifest = new BigArchiveManifest
-            {
-                BigFileName = "!HotkeysLeikezeENZH.big",
-                TrailerHex = "0000000000000000",
-                Sha256 = ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256,
-                EntryOrder = new List<string> { @"Data\English\generals.csf" },
-            };
+            // 1. Zero Hour English
+            var zhEnCsf = csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains("English", StringComparison.OrdinalIgnoreCase)))
+                ?? csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase))
+                ?? csfFiles.FirstOrDefault();
 
-            var projectDir = Path.GetDirectoryName(gameFilesDir);
-            if (!string.IsNullOrEmpty(projectDir))
+            if (zhEnCsf != null && File.Exists(zhEnCsf))
             {
-                var configDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
-                Directory.CreateDirectory(configDir);
-                var manifestPath = Path.Combine(configDir, "!HotkeysLeikezeENZH.big.manifest.json");
-                await BigFilePacker.SaveManifestAsync(manifest, manifestPath, cancellationToken).ConfigureAwait(false);
+                var zhEnDir = Path.Combine(gameFilesDir, "ZeroHour", "English", "Data", "English");
+                Directory.CreateDirectory(zhEnDir);
+                var destCsf = Path.Combine(zhEnDir, "generals.csf");
+                File.Copy(zhEnCsf, destCsf, overwrite: true);
+
+                if (!string.IsNullOrEmpty(releaseDir))
+                {
+                    var zhEnPackDir = Path.Combine(tempStaging, "pack_zhen");
+                    var zhEnInner = Path.Combine(zhEnPackDir, "Data", "English");
+                    Directory.CreateDirectory(zhEnInner);
+                    File.Copy(destCsf, Path.Combine(zhEnInner, "generals.csf"), overwrite: true);
+
+                    var outBig = Path.Combine(releaseDir, "!HotkeysLeikezeENZH.big");
+                    await BigFilePacker.PackAsync(zhEnPackDir, outBig, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await TryExtractAndSaveManifestAsync(outBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // 2. Generals English
+            var genEnCsf = csfFiles.FirstOrDefault(f => (f.Contains("Generals", StringComparison.OrdinalIgnoreCase) || f.Contains("Gen", StringComparison.OrdinalIgnoreCase)) && !f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains("English", StringComparison.OrdinalIgnoreCase)));
+            if (genEnCsf != null && File.Exists(genEnCsf))
+            {
+                var genEnDir = Path.Combine(gameFilesDir, "Generals", "English", "Data", "English");
+                Directory.CreateDirectory(genEnDir);
+                var destCsf = Path.Combine(genEnDir, "generals.csf");
+                File.Copy(genEnCsf, destCsf, overwrite: true);
+
+                if (!string.IsNullOrEmpty(releaseDir))
+                {
+                    var genPackDir = Path.Combine(tempStaging, "pack_genen");
+                    var genInner = Path.Combine(genPackDir, "Data", "English");
+                    Directory.CreateDirectory(genInner);
+                    File.Copy(destCsf, Path.Combine(genInner, "generals.csf"), overwrite: true);
+
+                    var outBig = Path.Combine(releaseDir, "!HotkeysLeikezeEN.big");
+                    await BigFilePacker.PackAsync(genPackDir, outBig, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await TryExtractAndSaveManifestAsync(outBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // 3. Zero Hour German
+            var deCsf = csfFiles.FirstOrDefault(f => f.Contains("DE", StringComparison.OrdinalIgnoreCase) || f.Contains("German", StringComparison.OrdinalIgnoreCase));
+            if (deCsf != null && File.Exists(deCsf))
+            {
+                var zhDeDir = Path.Combine(gameFilesDir, "ZeroHour", "German", "Data", "German");
+                Directory.CreateDirectory(zhDeDir);
+                var destCsf = Path.Combine(zhDeDir, "generals.csf");
+                File.Copy(deCsf, destCsf, overwrite: true);
+
+                if (!string.IsNullOrEmpty(releaseDir))
+                {
+                    var dePackDir = Path.Combine(tempStaging, "pack_zhde");
+                    var deInner = Path.Combine(dePackDir, "Data", "German");
+                    Directory.CreateDirectory(deInner);
+                    File.Copy(destCsf, Path.Combine(deInner, "generals.csf"), overwrite: true);
+
+                    var outBig = Path.Combine(releaseDir, "!HotkeysLeikezeDEZH.big");
+                    await BigFilePacker.PackAsync(dePackDir, outBig, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await TryExtractAndSaveManifestAsync(outBig, gameFilesDir, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             logger.LogInformation("Successfully unpacked Leikeze Hotkeys into {Dir}", gameFilesDir);
