@@ -162,12 +162,9 @@ public class GameProcessManager(
             }
 
             // Observe initialization failures before reporting a running process.
-            if (!isBatchFile)
+            if (!isBatchFile && await WaitForExitWithinWindowAsync(process, cancellationToken))
             {
-                if (await WaitForExitWithinWindowAsync(process, cancellationToken))
-                {
-                    return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
-                }
+                return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
             }
 
             _managedProcesses[process.Id] = process;
@@ -226,77 +223,62 @@ public class GameProcessManager(
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default)
     {
-        // Use semaphore to prevent concurrent termination attempts on the same or different processes
-        // This prevents race conditions and ensures clean process state management
         await _terminationSemaphore.WaitAsync(cancellationToken);
+        Process? process = null;
+        var ownsProcess = false;
+        var terminated = false;
+        var exitObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void ObserveExit(object? sender, GameProcessExitedEventArgs args)
+        {
+            if (args.ProcessId == processId)
+            {
+                exitObserved.TrySetResult();
+            }
+        }
+
+        // Subscribe before looking up the process: an exit before the lookup removes
+        // it from managed state, while a later managed exit is observed by this handler.
+        ProcessExited += ObserveExit;
         try
         {
-            logger.LogInformation("[Terminate] Starting termination of process {ProcessId}", processId);
-
-            // Try to get from managed processes first
-            if (!_managedProcesses.TryRemove(processId, out Process? process))
+            // Keep a managed process tracked until its exit is observed. A failed or
+            // cancelled Stop must leave it available for later monitoring and retries.
+            if (!_managedProcesses.TryGetValue(processId, out process))
             {
-                logger.LogDebug("[Terminate] Process {ProcessId} not in managed processes, trying system lookup", processId);
-
-                // Try to get from system processes
                 try
                 {
                     process = Process.GetProcessById(processId);
-                    logger.LogDebug("[Terminate] Found process {ProcessId} via system lookup", processId);
+                    ownsProcess = true;
                 }
                 catch (ArgumentException)
                 {
-                    // Process not found - it may have already exited
-                    logger.LogInformation("[Terminate] Process {ProcessId} not found - already exited", processId);
                     return OperationResult<bool>.CreateSuccess(true);
                 }
-                catch (InvalidOperationException)
+            }
+
+            logger.LogInformation("[Terminate] Force killing process {ProcessId} and its process tree", processId);
+            await Task.Run(
+                () =>
                 {
-                    // Process access denied or already exited
-                    logger.LogInformation("[Terminate] Process {ProcessId} is no longer accessible - access denied or already exited", processId);
-                    return OperationResult<bool>.CreateSuccess(true);
-                }
-            }
-            else
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!ownsProcess)
+                    {
+                        _requestedTerminations[processId] = 1;
+                    }
+
+                    process.Kill(entireProcessTree: true);
+                },
+                cancellationToken);
+
+            // Once Kill has been issued, finish observing the exit even if the caller
+            // cancels. Disposal before the exit callback can suppress its notification.
+            await process.WaitForExitAsync(CancellationToken.None);
+            if (!ownsProcess)
             {
-                logger.LogDebug("[Terminate] Found process {ProcessId} in managed processes", processId);
+                await exitObserved.Task;
             }
 
-            if (process == null)
-            {
-                logger.LogInformation("[Terminate] Process {ProcessId} is null - already exited", processId);
-                return OperationResult<bool>.CreateSuccess(true);
-            }
-
-            // Force kill immediately - run on background thread to avoid blocking UI
-            // process.Kill(entireProcessTree: true) is a synchronous blocking operation
-            // that can take several seconds when terminating a process tree
-            try
-            {
-                logger.LogInformation("[Terminate] Force killing process {ProcessId} and its process tree", processId);
-
-                // Marked before the kill so the exit event this triggers is classified
-                // as a requested termination, not a crash.
-                _requestedTerminations[processId] = 1;
-
-                // Run Kill() on a background thread to prevent UI freeze
-                await Task.Run(() => process.Kill(entireProcessTree: true), cancellationToken);
-
-                logger.LogInformation("[Terminate] Process {ProcessId} terminated successfully", processId);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Process already exited
-                logger.LogInformation(ex, "[Terminate] Process {ProcessId} already exited", processId);
-            }
-            catch (System.ComponentModel.Win32Exception ex)
-            {
-                logger.LogError(ex, "[Terminate] Win32 error killing process {ProcessId}: {ErrorCode}", processId, ex.NativeErrorCode);
-                process.Dispose();
-                return OperationResult<bool>.CreateFailure($"Failed to terminate process: {ex.Message}");
-            }
-
-            process.Dispose();
+            terminated = true;
             logger.LogInformation("Terminated process {ProcessId}", processId);
             return OperationResult<bool>.CreateSuccess(true);
         }
@@ -305,6 +287,11 @@ public class GameProcessManager(
             logger.LogInformation("Process {ProcessId} termination was cancelled", processId);
             throw;
         }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogInformation(ex, "Process {ProcessId} already exited", processId);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to terminate process {ProcessId}", processId);
@@ -312,6 +299,17 @@ public class GameProcessManager(
         }
         finally
         {
+            ProcessExited -= ObserveExit;
+            if (!terminated || ownsProcess)
+            {
+                _requestedTerminations.TryRemove(processId, out _);
+            }
+
+            if (ownsProcess || terminated)
+            {
+                process?.Dispose();
+            }
+
             _terminationSemaphore.Release();
         }
     }
@@ -436,8 +434,8 @@ public class GameProcessManager(
 
         try
         {
-            process.EnableRaisingEvents = true;
             process.Exited += OnProcessExited;
+            process.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
@@ -472,8 +470,8 @@ public class GameProcessManager(
 
                 try
                 {
-                    process.EnableRaisingEvents = true;
                     process.Exited += OnProcessExited;
+                    process.EnableRaisingEvents = true;
                 }
                 catch (Exception ex)
                 {
@@ -1001,8 +999,8 @@ public class GameProcessManager(
     {
         try
         {
-            process.EnableRaisingEvents = true;
             process.Exited += OnProcessExited;
+            process.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
@@ -1255,8 +1253,8 @@ public class GameProcessManager(
 
         try
         {
-            spawnedProcess.EnableRaisingEvents = true;
             spawnedProcess.Exited += OnProcessExited;
+            spawnedProcess.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
@@ -1357,10 +1355,17 @@ public class GameProcessManager(
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // The window elapsed. Re-check rather than assume: the process may have
-            // exited in the race between the timer firing and the wait observing it.
-            return process.HasExited;
+            // Only the detection window elapsed; the launch itself is not cancelled.
         }
+        finally
+        {
+            // WaitForExitAsync enables exit events internally. Disable them before the
+            // final check so an exit after this check is delivered when the long-lived
+            // handler is attached and events are re-enabled with tracking state ready.
+            process.EnableRaisingEvents = false;
+        }
+
+        return process.HasExited;
     }
 
     /// <summary>
@@ -1581,8 +1586,8 @@ public class GameProcessManager(
 
                     try
                     {
-                        child.EnableRaisingEvents = true;
                         child.Exited += OnProcessExited;
+                        child.EnableRaisingEvents = true;
                     }
                     catch (Exception ex)
                     {
