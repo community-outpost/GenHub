@@ -115,6 +115,37 @@ public class GameInstallationValidator(
             cancellationToken: cancellationToken);
     }
 
+    /// <summary>
+    /// Determines whether an extraneous-file issue actually names a root archive of the
+    /// sibling game in a combined directory.
+    /// </summary>
+    /// <param name="issue">The issue reported by content validation.</param>
+    /// <param name="gameType">The game whose pass produced the issue.</param>
+    /// <returns>True when the issue refers to the other game's known root archive.</returns>
+    /// <remarks>
+    /// Recognition uses the same retail vocabulary that classified the directory in the
+    /// first place: in the Generals pass any root-level <c>*zh.big</c> belongs to Zero
+    /// Hour, and in the Zero Hour pass any canonical Generals archive name belongs to
+    /// Generals. Only the directory root is tolerated — deeper files are outside the
+    /// vocabulary and stay reported.
+    /// </remarks>
+    private static bool IsSiblingGameRootArchive(ValidationIssue issue, GameType gameType)
+    {
+        if (issue.IssueType != ValidationIssueType.UnexpectedFile || string.IsNullOrEmpty(issue.Path))
+        {
+            return false;
+        }
+
+        if (issue.Path.Contains(Path.DirectorySeparatorChar) || issue.Path.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return false;
+        }
+
+        return gameType == GameType.Generals
+            ? RetailArchiveConstants.ZeroHourArchiveNames.Contains(issue.Path)
+            : RetailArchiveConstants.GeneralsArchiveNames.Contains(issue.Path);
+    }
+
     private async Task<ValidationResult> ValidateInternalAsync(
         GameInstallation installation,
         string? language,
@@ -228,7 +259,7 @@ public class GameInstallationValidator(
                 targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
             }
 
-            manifest = await manifestProvider.GetManifestAsync(targetInstall, cancellationToken);
+            manifest = await manifestProvider.GetManifestAsync(targetInstall, gameType, cancellationToken);
         }
 
         if (manifest == null)
@@ -254,8 +285,6 @@ public class GameInstallationValidator(
         }
 
         progress?.Report(new ValidationProgress(2, 4, "Core manifest validation"));
-        var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
-        issues.AddRange(manifestValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(3, 4, "Validating content files"));
         int totalFiles = 0;
@@ -264,9 +293,12 @@ public class GameInstallationValidator(
             var fullValidation = await contentValidator.ValidateAllAsync(
                 installationPath,
                 manifest,
-                progress,
+                null,
                 cancellationToken);
-            issues.AddRange(fullValidation.Issues);
+            var contentIssues = installation?.IsCombinedDirectory == true
+                ? fullValidation.Issues.Where(issue => !IsSiblingGameRootArchive(issue, gameType))
+                : fullValidation.Issues;
+            issues.AddRange(contentIssues);
             totalFiles = fullValidation.TotalFilesValidated > 0
                 ? fullValidation.TotalFilesValidated
                 : manifest.Files?.Count ?? 0;

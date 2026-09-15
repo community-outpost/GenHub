@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -93,25 +94,21 @@ public class InstallationPathResolver(
                 return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
             }
 
-            // Check if it contains expected game files
+            // Check if it still holds the games' retail archives — the same signal that
+            // flagged the games at detection time, so a native install whose binary is
+            // extensionless does not read as vanished.
             var hasValidFiles = false;
 
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath)
+                && RetailArchiveClassifier.ClassifyArchives(installation.GeneralsPath).HasGeneralsArchives)
             {
-                var generalsExe = Path.Combine(installation.GeneralsPath, "generals.exe");
-                if (File.Exists(generalsExe))
-                {
-                    hasValidFiles = true;
-                }
+                hasValidFiles = true;
             }
 
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath)
+                && RetailArchiveClassifier.ClassifyArchives(installation.ZeroHourPath).HasZeroHourArchives)
             {
-                var zhExe = Path.Combine(installation.ZeroHourPath, "generals.exe");
-                if (File.Exists(zhExe))
-                {
-                    hasValidFiles = true;
-                }
+                hasValidFiles = true;
             }
 
             if (!hasValidFiles)
@@ -304,9 +301,10 @@ public class InstallationPathResolver(
     {
         try
         {
-            // Check for generals.exe (both Generals and Zero Hour use this)
-            var generalsExe = Path.Combine(directory, "generals.exe");
-            if (!File.Exists(generalsExe))
+            var archives = RetailArchiveClassifier.ClassifyArchives(directory);
+            if ((!installation.HasGenerals && !installation.HasZeroHour)
+                || (installation.HasGenerals && !archives.HasGeneralsArchives)
+                || (installation.HasZeroHour && !archives.HasZeroHourArchives))
             {
                 return false;
             }
@@ -325,24 +323,7 @@ public class InstallationPathResolver(
                 }
             }
 
-            // Check for game type specific files
-            if (installation.HasZeroHour)
-            {
-                // Zero Hour has DbgHelp.dll
-                var dbgHelpDll = Path.Combine(directory, "DbgHelp.dll");
-                if (File.Exists(dbgHelpDll))
-                {
-                    return true;
-                }
-            }
-
-            if (installation.HasGenerals)
-            {
-                // Just having generals.exe is enough for Generals
-                return true;
-            }
-
-            return false;
+            return true;
         }
         catch (Exception ex)
         {

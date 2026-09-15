@@ -170,16 +170,34 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     /// <summary>
     /// Gets or generates a manifest for a <see cref="GameInstallation"/>.
     /// </summary>
-    /// <param name="installation">The installation to get a manifest for.</param>
+    /// <param name="gameInstallation">The installation to get a manifest for.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The manifest if found or generated; otherwise null.</returns>
-    public async Task<ContentManifest?> GetManifestAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// This single-manifest entry point can only surface one game, and it prefers Zero
+    /// Hour when both are flagged — a combined installation carries both games, so a
+    /// caller that relies on this overload never sees a Generals manifest for it. Callers
+    /// that know which game they are asking about must use
+    /// <see cref="GetManifestAsync(GameInstallation, GameType, CancellationToken)"/>.
+    /// </remarks>
+    public Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, CancellationToken cancellationToken = default)
+    {
+        var gameType = gameInstallation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+        return GetManifestAsync(gameInstallation, gameType, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets or generates a manifest for one game of a <see cref="GameInstallation"/>.
+    /// </summary>
+    /// <param name="gameInstallation">The installation to get a manifest for.</param>
+    /// <param name="gameType">The game whose manifest is requested.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The manifest if found or generated; otherwise null.</returns>
+    public async Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, GameType gameType, CancellationToken cancellationToken = default)
     {
         // Prefer a deterministic manifest id for installations so tests and embedded resources can
         // reference stable ids instead of runtime GUIDs. Generate using ManifestIdGenerator.
-        var tempInstallForId = new GameInstallation(installation.InstallationPath, installation.InstallationType, null);
-
-        var gameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+        var tempInstallForId = new GameInstallation(gameInstallation.InstallationPath, gameInstallation.InstallationType, null);
 
         // Use appropriate manifest version for generated installation manifests
         var manifestVersion = gameType == GameType.ZeroHour
@@ -197,51 +215,27 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             return casResult.Data;
         }
 
-        // 2. Try embedded (deterministic id)
-        var manifestName = $"GenHub.Manifests.{deterministicId}.json";
-        var assembly = Assembly.GetExecutingAssembly();
-        using var stream = assembly.GetManifestResourceStream(manifestName);
-        if (stream != null)
+        var embedded = await LoadEmbeddedInstallationManifestAsync(gameInstallation, deterministicId, cancellationToken);
+        if (embedded != null)
         {
-            try
-            {
-                var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
-                if (manifest != null)
-                {
-                    ValidateCachedManifest(manifest, deterministicId);
-
-                    // For embedded installation manifests, provide the installation path as source when available.
-                    var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, null, cancellationToken);
-                    if (addRes?.Success != true)
-                    {
-                        logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
-                    }
-
-                    return manifest;
-                }
-            }
-            catch (JsonException ex)
-            {
-                logger.LogError(ex, "Failed to parse embedded manifest {ManifestName}", manifestName);
-                throw new ManifestValidationException(deterministicId, $"JSON parsing failed: {ex.Message}", ex);
-            }
+            return embedded;
         }
 
         // 3. Generate fallback (optional)
         if (options.GenerateFallbackManifests)
         {
-            logger.LogInformation("Generating fallback manifest for installation {Id}", installation.Id);
+            logger.LogInformation("Generating fallback manifest for installation {Id}", gameInstallation.Id);
 
             // Determine the correct source path based on the game type
-            var manifestGameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+            var manifestGameType = gameType;
             var sourcePath = manifestGameType == GameType.ZeroHour
-                ? (!string.IsNullOrEmpty(installation.ZeroHourPath) ? installation.ZeroHourPath : installation.InstallationPath)
-                : (!string.IsNullOrEmpty(installation.GeneralsPath) ? installation.GeneralsPath : installation.InstallationPath);
+                ? (!string.IsNullOrEmpty(gameInstallation.ZeroHourPath) ? gameInstallation.ZeroHourPath : gameInstallation.InstallationPath)
+                : (!string.IsNullOrEmpty(gameInstallation.GeneralsPath) ? gameInstallation.GeneralsPath : gameInstallation.InstallationPath);
 
-            var publisherName = installation.InstallationType.GetDisplayName();
+            var publisherName = gameInstallation.InstallationType.GetDisplayName();
 
             var builder = manifestBuilder
-                .WithBasicInfo(installation.InstallationType, manifestGameType, manifestVersion)
+                .WithBasicInfo(gameInstallation.InstallationType, manifestGameType, manifestVersion)
                 .WithContentType(ContentType.GameInstallation, manifestGameType)
                 .WithPublisher(publisherName, string.Empty)
                 .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
@@ -318,4 +312,43 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             throw new ManifestValidationException(requestedId, rejectionReason!);
         }
     }
+    /// <summary>Loads and caches an embedded installation manifest when available.</summary>
+    /// <param name="gameInstallation">The installation used as the content source.</param>
+    /// <param name="deterministicId">The expected manifest identifier.</param>
+    /// <param name="cancellationToken">Cancellation for reading and caching.</param>
+    /// <returns>The embedded manifest, or null if none exists.</returns>
+    private async Task<ContentManifest?> LoadEmbeddedInstallationManifestAsync(GameInstallation gameInstallation, string deterministicId, CancellationToken cancellationToken)
+    {
+        var manifestName = $"GenHub.Manifests.{deterministicId}.json";
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream(manifestName);
+        if (stream != null)
+        {
+            try
+            {
+                var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
+                if (manifest != null)
+                {
+                    ValidateCachedManifest(manifest, deterministicId);
+
+                    // For embedded installation manifests, provide the installation path as source when available.
+                    var addRes = await manifestPool.AddManifestAsync(manifest, gameInstallation.InstallationPath ?? string.Empty, null, cancellationToken);
+                    if (addRes?.Success != true)
+                    {
+                        logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
+                    }
+
+                    return manifest;
+                }
+            }
+            catch (JsonException ex)
+            {
+                logger.LogError(ex, "Failed to parse embedded manifest {ManifestName}", manifestName);
+                throw new ManifestValidationException(deterministicId, $"JSON parsing failed: {ex.Message}", ex);
+            }
+        }
+
+        return null;
+    }
+
 }
