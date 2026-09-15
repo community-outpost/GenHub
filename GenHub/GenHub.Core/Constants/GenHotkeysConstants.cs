@@ -101,6 +101,12 @@ public static class GenHotkeysConstants
 
         /// <summary>CSF label for GLA Angry Mob construction.</summary>
         public const string ConstructGLAInfantryAngryMob = "CONTROLBAR:ConstructGLAInfantryAngryMob";
+
+        /// <summary>CSF label for America Tomahawk Launcher construction.</summary>
+        public const string ConstructAmericaVehicleTomahawk = "CONTROLBAR:ConstructAmericaVehicleTomahawk";
+
+        /// <summary>CSF label for Laser General Crusader / Laser Tank construction.</summary>
+        public const string LazrConstructAmericaTankCrusader = "CONTROLBAR:Lazr_ConstructAmericaTankCrusader";
     }
 
     /// <summary>Mutual exclusion and special action icon names.</summary>
@@ -187,6 +193,9 @@ public static class GenHotkeysConstants
 
         /// <summary>Keyword identifying Air Force general.</summary>
         public const string KeywordAirForce = "AirForce";
+
+        /// <summary>Keyword identifying Laser general.</summary>
+        public const string KeywordLaser = "Laser";
     }
 
     /// <summary>Standard UI text, button labels, and fallback constants for GenHotkeys.</summary>

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.Logging;
@@ -134,5 +135,36 @@ public class TechTreeServiceTests
         Assert.NotNull(dozerAction);
         Assert.Equal('D', dozerAction.DefaultHotkey);
         Assert.Equal('D', dozerAction.Hotkey);
+    }
+
+    /// <summary>
+    /// Verifies that Laser General does not contain Tomahawk Launcher in War Factory or Vehicles list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaserGeneral_WarFactoryAndVehicles_DoNotContainTomahawkLauncherAsync()
+    {
+        // Act
+        var factions = await _service.LoadTechTreeAsync(GameType.ZeroHour);
+
+        // Assert
+        var laserFaction = factions.FirstOrDefault(f =>
+            string.Equals(f.ShortName, "LSR", StringComparison.OrdinalIgnoreCase) ||
+            f.DisplayName.Contains("Laser", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(laserFaction);
+
+        // Assert War Factory does not offer Tomahawk Launcher
+        var warFactory = laserFaction.GameObjects.FirstOrDefault(b =>
+            b.Name.Contains("WarFactory", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(warFactory);
+        var warFactoryActions = warFactory.KeyboardLayouts.SelectMany(l => l).ToList();
+        Assert.DoesNotContain(warFactoryActions, a =>
+            string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructAmericaVehicleTomahawk, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.IconName, "USATomahawkLauncher", StringComparison.OrdinalIgnoreCase));
+
+        // Assert Vehicles does not include Tomahawk Launcher
+        var tomahawkVehicle = laserFaction.GameObjects.FirstOrDefault(v =>
+            string.Equals(v.Name, "USATomahawkLauncher", StringComparison.OrdinalIgnoreCase));
+        Assert.Null(tomahawkVehicle);
     }
 }

@@ -1443,7 +1443,6 @@
                             {"IconName" : "LSRLaserTank",        "HotkeyString" : "CONTROLBAR:Lazr_ConstructAmericaTankCrusader"},
                             {"IconName" : "USAHumvee",           "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleHumvee"},
                             {"IconName" : "USAAvenger",          "HotkeyString" : "CONTROLBAR:ConstructAmericaTankAvenger"},
-                            {"IconName" : "USATomahawkLauncher", "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleTomahawk"},
                             {"IconName" : "USAAmbulance",        "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleMedic"},
                             {"IconName" : "USASentryDrone",      "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleSentryDrone"},
                             {"IconName" : "USAMicrowave",        "HotkeyString" : "CONTROLBAR:ConstructAmericaTankMicrowave"},
@@ -1623,22 +1622,6 @@
                 {
                     "Name"            : "USAAvenger",
                     "IngameName"      : "OBJECT:Avenger",
-                    "KeyboardLayouts" : 
-                    [
-                        [
-                            {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
-                            {"IconName" : "USAHellfireDrone", "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleHellfireDrone"},
-                            {"IconName" : "USADrone",         "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleScoutDrone"},
-                            {"IconName" : "AttackMove",       "HotkeyString" : "CONTROLBAR:AttackMove"},
-                            {"IconName" : "Guard",            "HotkeyString" : "CONTROLBAR:Guard"},
-                            {"IconName" : "Stop",             "HotkeyString" : "CONTROLBAR:Stop"}
-                        ]
-                    ]
-                },
-
-                {
-                    "Name"            : "USATomahawkLauncher",
-                    "IngameName"      : "OBJECT:Tomahawk",
                     "KeyboardLayouts" : 
                     [
                         [

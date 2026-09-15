@@ -135,6 +135,95 @@ public class GenHotkeysConflictTests
     }
 
     /// <summary>
+    /// Verifies that the Vanilla preset produces zero layout conflicts across all factions and game objects in both Zero Hour and Generals.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PresetValidation_Vanilla_ProducesZeroConflictsAsync()
+    {
+        var service = new TechTreeService(Mock.Of<ILogger<TechTreeService>>());
+        var allFailures = new List<string>();
+
+        foreach (var game in new[] { GameType.ZeroHour, GameType.Generals })
+        {
+            var factions = await service.LoadTechTreeAsync(game);
+            var presetPath = GenHotkeysConstants.GetVanillaPresetCsfPath(game);
+
+            using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetPath);
+            Assert.NotNull(stream);
+            var csf = CsfFile.Load(stream);
+
+            var profile = new HotkeyProfile { BasePreset = GenHotkeysConstants.PresetVanilla };
+            foreach (var kvp in csf.Strings)
+            {
+                var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+                if (hotkey.HasValue)
+                {
+                    profile.KeyMappings[kvp.Key] = hotkey.Value;
+                }
+            }
+
+            var conflictList = new List<string>();
+
+            foreach (var faction in factions)
+            {
+                foreach (var obj in faction.GameObjects)
+                {
+                    var objName = obj.Name ?? obj.DisplayName;
+                    var factionCode = faction.ShortName ?? faction.DisplayName;
+
+                    foreach (var layout in obj.KeyboardLayouts)
+                    {
+                        var vms = layout.Select(a =>
+                        {
+                            char? key = null;
+                            if (profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey))
+                            {
+                                key = mappedKey;
+                            }
+                            else
+                            {
+                                key = a.DefaultHotkey;
+                            }
+
+                            return new HotkeyActionViewModel
+                            {
+                                DisplayName = a.DisplayName ?? string.Empty,
+                                IconName = a.IconName ?? string.Empty,
+                                HotkeyString = a.HotkeyString ?? string.Empty,
+                                Hotkey = key,
+                            };
+                        }).ToList();
+
+                        var obs = new ObservableCollection<HotkeyActionViewModel>(vms);
+                        var conflicts = GenHotkeysViewModel.ValidateLayoutConflicts(obs, objName, factionCode);
+                        if (conflicts > 0)
+                        {
+                            var conflictingActions = obs.Where(x => x.IsConflict).ToList();
+                            foreach (var group in conflictingActions.GroupBy(x => x.Hotkey))
+                            {
+                                conflictList.Add(
+                                    $"[{game}][Vanilla][{faction.ShortName}][{objName}] Key '{group.Key}': " +
+                                    string.Join(" vs ", group.Select(x => $"{x.DisplayName} ({x.HotkeyString})")));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (conflictList.Count > 0)
+            {
+                allFailures.Add($"[{game} Vanilla: {conflictList.Count} conflicts]\n" + string.Join("\n", conflictList));
+            }
+        }
+
+        if (allFailures.Count > 0)
+        {
+            Assert.Fail("Conflicts detected in Vanilla preset:\n\n" + string.Join("\n\n", allFailures));
+        }
+    }
+
+    /// <summary>
     /// Verifies that Daisy Cutter (Fuel Air Bomb) and MOAB sharing the same hotkey are treated as mutually exclusive upgrades, not conflicts.
     /// </summary>
     [Fact]
@@ -585,5 +674,38 @@ public class GenHotkeysConflictTests
         Assert.Equal(2, conflictCount);
         Assert.True(sell.IsConflict);
         Assert.True(ranger.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Laser General Crusader (Laser Tank) and Tomahawk sharing hotkey 'T' in War Factory are treated as permitted overlap.
+    /// </summary>
+    [Fact]
+    public void LaserWarFactory_LaserTankAndTomahawk_AreTreatedAsPermittedOverlap()
+    {
+        var laserTank = new HotkeyActionViewModel
+        {
+            DisplayName = "Laser Tank",
+            IconName = "LSRLaserTank",
+            HotkeyString = GenHotkeysConstants.CsfLabels.LazrConstructAmericaTankCrusader,
+            Hotkey = 'T',
+        };
+
+        var tomahawk = new HotkeyActionViewModel
+        {
+            DisplayName = "Tomahawk Launcher",
+            IconName = "USATomahawkLauncher",
+            HotkeyString = GenHotkeysConstants.CsfLabels.ConstructAmericaVehicleTomahawk,
+            Hotkey = 'T',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { laserTank, tomahawk };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USAWarFactory", "LSR");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(laserTank.IsConflict);
+        Assert.Null(laserTank.ConflictReason);
+        Assert.False(tomahawk.IsConflict);
+        Assert.Null(tomahawk.ConflictReason);
     }
 }

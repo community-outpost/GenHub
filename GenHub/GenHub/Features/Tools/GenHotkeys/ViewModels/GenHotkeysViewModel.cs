@@ -1026,6 +1026,11 @@ public partial class GenHotkeysViewModel(
             return true;
         }
 
+        if (IsLaserWarFactoryTomahawkOverlap(actions, objName, faction))
+        {
+            return true;
+        }
+
         if (IsBlackMarketLegionnaireOverlap(actions, objName))
         {
             return true;
@@ -1109,6 +1114,19 @@ public partial class GenHotkeysViewModel(
 
         return actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructGlaVehicleRadarVan, StringComparison.OrdinalIgnoreCase)) &&
                actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeGlaCamoNetting, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsLaserWarFactoryTomahawkOverlap(List<HotkeyActionViewModel> actions, string objName, string faction)
+    {
+        if ((!string.Equals(faction, GenHotkeysConstants.FactionCodes.Laser, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(faction, GenHotkeysConstants.FactionCodes.KeywordLaser, StringComparison.OrdinalIgnoreCase)) ||
+            !objName.Contains("WarFactory", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.LazrConstructAmericaTankCrusader, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructAmericaVehicleTomahawk, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsRadarAndCashHack(List<HotkeyActionViewModel> actions)
