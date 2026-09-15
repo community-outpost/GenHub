@@ -4,6 +4,7 @@ using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Windows.Features.ActionSets.Infrastructure;
 using GenHub.Windows.Features.ActionSets.UI;
 using Microsoft.Extensions.Logging;
 using Moq;
