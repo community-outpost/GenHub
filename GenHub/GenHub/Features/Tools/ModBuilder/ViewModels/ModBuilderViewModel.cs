@@ -449,9 +449,6 @@ public partial class ModBuilderViewModel(
     private string _statusText = ModBuilderConstants.ReadyStatus;
 
     /// <summary>
-    /// Default status color value for the status bar.
-    /// </summary>
-    /// <summary>
     /// Gets or sets the status color for the status bar.
     /// </summary>
     [ObservableProperty]
@@ -1337,15 +1334,18 @@ public partial class ModBuilderViewModel(
             foreach (var configFile in Directory.GetFiles(templateConfigDir, "*.json"))
             {
                 var targetFile = Path.Combine(userConfigDir, Path.GetFileName(configFile));
-                File.Copy(configFile, targetFile, overwrite: true);
+                if (!File.Exists(targetFile))
+                {
+                    File.Copy(configFile, targetFile, overwrite: false);
+                }
             }
         }
 
         var templateProjFile = Path.Combine(baseTemplateDir, $"{sampleId}{ModBuilderConstants.ProjectFileExtension}");
         var userProjFile = Path.Combine(projectDir, $"{sampleId}{ModBuilderConstants.ProjectFileExtension}");
-        if (File.Exists(templateProjFile))
+        if (File.Exists(templateProjFile) && !File.Exists(userProjFile))
         {
-            File.Copy(templateProjFile, userProjFile, overwrite: true);
+            File.Copy(templateProjFile, userProjFile, overwrite: false);
         }
 
         await Task.CompletedTask.ConfigureAwait(false);
@@ -1389,11 +1389,23 @@ public partial class ModBuilderViewModel(
     [RelayCommand]
     private async Task LoadSampleProjectAsync()
     {
+        if (IsBuildRunning)
+        {
+            logger.LogWarning("LoadSampleProjectAsync ignored because build or import is already running");
+            return;
+        }
+
         logger.LogInformation("LoadSampleProjectAsync requested");
+        _importCancellationTokenSource?.Cancel();
         var cts = new CancellationTokenSource();
         _importCancellationTokenSource = cts;
         try
         {
+            await InvokeOnUIThreadAsync(() =>
+            {
+                IsBuildRunning = true;
+            });
+
             var samplePath = await ResolveSampleProjectPathAsync().ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(samplePath))
@@ -1411,7 +1423,6 @@ public partial class ModBuilderViewModel(
             {
                 await InvokeOnUIThreadAsync(() =>
                 {
-                    IsBuildRunning = true;
                     StatusMessage = $"Acquiring sample assets for {sampleId}...";
                 });
 

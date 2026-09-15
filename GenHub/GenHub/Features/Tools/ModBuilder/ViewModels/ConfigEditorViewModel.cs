@@ -695,6 +695,10 @@ public partial class ConfigEditorViewModel(
                 OutputFormat = existing?.OutputFormat,
                 Compression = existing?.Compression,
                 GenerateMipmaps = existing?.GenerateMipmaps == true,
+                BaseDir = existing?.BaseDir,
+                TargetDir = existing?.TargetDir,
+                Description = existing?.Description,
+                NoConvert = existing?.NoConvert == true,
             };
         }).ToList() ?? new List<SimplifiedBundleItem>();
     }

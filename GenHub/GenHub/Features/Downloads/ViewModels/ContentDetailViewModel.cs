@@ -2003,6 +2003,11 @@ public partial class ContentDetailViewModel(
 
     private void OnDownloadStarted(ContentDownloadStartedMessage message)
     {
+        if (message.ContentKey?.StartsWith("sample::", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return;
+        }
+
         RunOnUiThread(() =>
         {
             HasActiveDownloads = true;
