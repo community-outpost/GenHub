@@ -350,4 +350,52 @@ public class LaunchRegistryTests
         Assert.Equal(0, launch.ExitCode);
         Assert.False(launch.IsRunning);
     }
+    /// <summary>A retained terminated launch must not swallow a new exit for its recycled PID.</summary>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RecycledPidExitBeforeRegistration_PreservesNewExitAsync(bool repeatOldEvent)
+    {
+        var manager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        const int pid = 987660;
+        var oldExit = new GameProcessExitedEventArgs { ProcessId = pid, ExitCode = 0, ExitTime = DateTime.UtcNow.AddMilliseconds(-10) };
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = "old", ProfileId = "profile", WorkspaceId = "workspace",
+            ProcessInfo = new GameProcessInfo { ProcessId = pid },
+        });
+        manager.Raise(m => m.ProcessExited += null, oldExit);
+        if (repeatOldEvent)
+        {
+            manager.Raise(m => m.ProcessExited += null, oldExit);
+            var unrelated = new GameLaunchInfo
+            {
+                LaunchId = "unrelated", ProfileId = "profile", WorkspaceId = "workspace",
+                ProcessInfo = new GameProcessInfo { ProcessId = pid },
+            };
+            await registry.RegisterLaunchAsync(unrelated);
+            Assert.Null(unrelated.TerminatedAt);
+            await registry.UnregisterLaunchAsync("unrelated");
+        }
+
+        var newExit = new GameProcessExitedEventArgs
+        {
+            ProcessId = pid, ExitCode = 1, ExitTime = DateTime.UtcNow,
+            StandardErrorTail = "new process failed", UnmountableArchives = ["TexturesZH.big"],
+        };
+        manager.Raise(m => m.ProcessExited += null, newExit);
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = "new", ProfileId = "profile", WorkspaceId = "workspace",
+            ProcessInfo = new GameProcessInfo { ProcessId = pid },
+        });
+        var launch = await registry.GetLaunchInfoAsync("new");
+        Assert.True(launch!.HasFailed);
+        Assert.Equal(newExit.ExitTime, launch.TerminatedAt);
+        Assert.Equal(1, launch.ExitCode);
+        Assert.Contains("TexturesZH.big", launch.FailureReason);
+    }
+
 }

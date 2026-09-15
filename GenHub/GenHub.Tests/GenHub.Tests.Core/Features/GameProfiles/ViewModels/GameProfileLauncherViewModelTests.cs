@@ -1,3 +1,5 @@
+using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -639,7 +641,7 @@ public class GameProfileLauncherViewModelTests
     /// notification channel as a failed launch, naming the archive when known.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUser()
     {
         var gameProcessManager = new Mock<IGameProcessManager>();
@@ -650,17 +652,19 @@ public class GameProfileLauncherViewModelTests
         await vm.InitializeAsync();
 
         var profile = CreateProfileItem("Failing Profile");
+        profile.PropertyChanged += (_, _) => Assert.True(Dispatcher.UIThread.CheckAccess());
         profile.ProcessId = 4242;
         profile.IsProcessRunning = true;
         vm.Profiles.Add(profile);
 
-        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        await Task.Run(() => gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
         {
             ProcessId = 4242,
             ExitCode = 1,
             StandardErrorTail = "init abort",
             UnmountableArchives = ["TexturesZH.big"],
-        });
+        }));
+        await Dispatcher.UIThread.InvokeAsync(() => { });
 
         Assert.False(profile.IsProcessRunning);
         Assert.Equal(0, profile.ProcessId);
@@ -681,7 +685,7 @@ public class GameProfileLauncherViewModelTests
     /// reported as an error.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task ProcessExitedCleanly_DoesNotReportAFailure()
     {
         var gameProcessManager = new Mock<IGameProcessManager>();
@@ -715,7 +719,7 @@ public class GameProfileLauncherViewModelTests
     /// not raise the "exited unexpectedly" alarm — the stop path's own status stands.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task ProcessExitedFromARequestedStop_DoesNotRaiseTheFailureAlarm()
     {
         var gameProcessManager = new Mock<IGameProcessManager>();
