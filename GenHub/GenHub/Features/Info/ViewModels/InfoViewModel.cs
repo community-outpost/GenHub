@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Messages;
@@ -41,12 +42,27 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     [ObservableProperty]
     private object? _selectedSidebarItem;
 
+    [ObservableProperty]
+    private ObservableCollection<string> _modules =
+    [
+        InfoConstants.ModuleGuide,
+        InfoConstants.ModuleZeroHour,
+        InfoConstants.ModuleGeneralsOnline,
+    ];
+
+    private readonly ILocalizationService? _localizationService;
+    private readonly System.ComponentModel.PropertyChangedEventHandler? _localizationHandler;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="InfoViewModel"/> class.
     /// </summary>
     /// <param name="sectionViewModels">The available info section view models.</param>
-    public InfoViewModel(IEnumerable<IInfoSectionViewModel> sectionViewModels)
+    /// <param name="localizationService">The optional localization service.</param>
+    public InfoViewModel(
+        IEnumerable<IInfoSectionViewModel> sectionViewModels,
+        ILocalizationService? localizationService = null)
     {
+        _localizationService = localizationService;
         Sections = new ObservableCollection<IInfoSectionViewModel>(sectionViewModels.OrderBy(s => s.Order));
 
         // Default to GenHub Guide
@@ -56,19 +72,15 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         // Initialize sidebar items
         UpdateSidebarItems();
 
+        if (_localizationService != null)
+        {
+            _localizationHandler = OnLocalizationPropertyChanged;
+            _localizationService.PropertyChanged += _localizationHandler;
+        }
+
         // Register for navigation messages
         WeakReferenceMessenger.Default.Register<OpenInfoSectionMessage>(this);
     }
-
-    /// <summary>
-    /// Gets the list of available modules.
-    /// </summary>
-    public ObservableCollection<string> Modules { get; } =
-    [
-        InfoConstants.ModuleGuide,
-        InfoConstants.ModuleZeroHour,
-        InfoConstants.ModuleGeneralsOnline,
-    ];
 
     /// <summary>
     /// Gets the available info sections.
@@ -138,6 +150,11 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         if (_disposed)
         {
             return;
+        }
+
+        if (_localizationService != null && _localizationHandler != null)
+        {
+            _localizationService.PropertyChanged -= _localizationHandler;
         }
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
@@ -274,6 +291,23 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
                     _ = faqSection.InitializeAsync();
                 }
             }
+        }
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName) ||
+            e.PropertyName == nameof(ILocalizationService.CurrentCulture) ||
+            e.PropertyName == LocalizationConstants.IndexerPropertyName)
+        {
+            var selected = SelectedModule;
+            Modules =
+            [
+                InfoConstants.ModuleGuide,
+                InfoConstants.ModuleZeroHour,
+                InfoConstants.ModuleGeneralsOnline,
+            ];
+            SelectedModule = selected;
         }
     }
 

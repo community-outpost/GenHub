@@ -552,10 +552,8 @@ public partial class GenPatcherViewModel(
         var title = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllTitle")
             ?? ActionSetConstants.Dialogs.ApplyAllConfirmationTitle;
         var message = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllMessage", targetInstallation.InstallationType, targetInstallation.InstallationPath)
-            ?? $"Are you sure you want to apply all recommended fixes for {targetInstallation.InstallationType}?
-
-This will modify game files and configuration settings at:
-{targetInstallation.InstallationPath}";
+            ?? $"Are you sure you want to apply all recommended fixes for {targetInstallation.InstallationType}?\r\n\r\n" +
+               $"This will modify game files and configuration settings at:\r\n{targetInstallation.InstallationPath}";
         var confirmText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllConfirm")
             ?? ActionSetConstants.Dialogs.ApplyAllConfirmButtonText;
         var cancelText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllCancel")
