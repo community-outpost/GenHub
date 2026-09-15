@@ -78,6 +78,12 @@ public class GameProfileEndToEndLaunchTests : IDisposable
         _configurationProviderServiceMock.Setup(x => x.GetApplicationDataPath()).Returns(_testTempDir);
         _configurationProviderServiceMock.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.SymlinkOnly);
 
+        var receiptService = new Mock<ILaunchReceiptService>();
+        receiptService.Setup(x => x.RevalidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchReceiptDriftReport>.CreateSuccess(new LaunchReceiptDriftReport()));
+        receiptService.Setup(x => x.RecordLaunchAsync(It.IsAny<LaunchReceiptContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchReceipt>.CreateSuccess(new LaunchReceipt()));
+
         _gameLauncher = new GameLauncher(
             _launcherLoggerMock.Object,
             _profileManager,
@@ -92,7 +98,8 @@ public class GameProfileEndToEndLaunchTests : IDisposable
             _gameSettingsServiceMock.Object,
             _profileContentLinkerMock.Object,
             _steamLauncherMock.Object,
-            _configurationProviderServiceMock.Object);
+            _configurationProviderServiceMock.Object,
+            receiptService.Object);
     }
 
     /// <inheritdoc/>
