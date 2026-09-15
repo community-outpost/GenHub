@@ -1135,7 +1135,7 @@ public class SampleProjectService(
 
     private static string? FindGeneralsEnglishCsf(IReadOnlyList<string> csfFiles, string stagingDir)
     {
-        return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, [GeneralsInstallationType, "Gen"], ["EN", EnglishLanguageName], [ZeroHourInstallationType, "ZH", GermanLanguageName, "DE"]));
+        return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, [ModBuilderConstants.GeneralsInstallationType, "Gen"], ["EN", EnglishLanguageName], [ModBuilderConstants.ZeroHourInstallationType, "ZH", GermanLanguageName, "DE"]));
     }
 
     private static string? FindGermanCsf(IReadOnlyList<string> csfFiles, string stagingDir)
