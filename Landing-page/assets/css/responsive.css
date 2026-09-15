@@ -171,10 +171,6 @@
         font-size: 0.72rem;
     }
 
-    .steps-grid {
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
-    }
 
     .app-body {
         padding: 1rem;
@@ -296,13 +292,6 @@
         padding: 1.5rem 1.25rem;
     }
 
-    .bottom-cta-card {
-        padding: 2.5rem 1.25rem;
-    }
-
-    .bottom-cta-card h2 {
-        font-size: 1.75rem;
-    }
 
     .pill-tab {
         font-size: 0.72rem;
