@@ -496,7 +496,7 @@ public class SampleProjectService(
         }
 
         var providerName = url.Contains("legi.cc", StringComparison.OrdinalIgnoreCase) ? "Community Outpost" : "GitHub";
-        var contentKey = $"sample::{assetLabel}::{Path.GetFileName(cachePath)}";
+        var contentKey = $"{ContentConstants.SampleContentKeyPrefix}{assetLabel}::{Path.GetFileName(cachePath)}";
         var contentId = $"sample.{assetLabel.Replace(" ", string.Empty).ToLowerInvariant()}";
 
         // Broadcast start & trigger notification
@@ -976,13 +976,11 @@ public class SampleProjectService(
         CancellationToken cancellationToken)
     {
         var fileName = Path.GetFileName(bigFile);
-        if (string.Equals(resolution, "1080p", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(resolution, "1080p", StringComparison.OrdinalIgnoreCase) &&
+            !await VerifyFileSha256Async(bigFile, ModBuilderConstants.SampleProjects.LemonControlBarSha256, cancellationToken).ConfigureAwait(false))
         {
-            if (!await VerifyFileSha256Async(bigFile, ModBuilderConstants.SampleProjects.LemonControlBarSha256, cancellationToken).ConfigureAwait(false))
-            {
-                logger.LogWarning("Lemon Control Bar 1080p BIG file failed SHA-256 integrity verification: {File}", fileName);
-                return false;
-            }
+            logger.LogWarning("Lemon Control Bar 1080p BIG file failed SHA-256 integrity verification: {File}", fileName);
+            return false;
         }
         var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(fileName)}");
         Directory.CreateDirectory(unpackDir);
@@ -1188,57 +1186,74 @@ public class SampleProjectService(
         var destCsf = Path.Combine(targetDir, GeneralsCsfFileName);
         File.Copy(csfPath, destCsf, overwrite: true);
 
-        if (stringTableConverter != null)
-        {
-            var strPath = Path.Combine(targetDir, ModBuilderConstants.FileNames.GeneralsStr);
-            try
-            {
-                await stringTableConverter.ConvertCsfToStrAsync(destCsf, strPath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Optional CSF to STR conversion skipped for {Path}", destCsf);
-            }
-        }
+        await TryConvertCsfToStrInTargetDirAsync(destCsf, targetDir, cancellationToken).ConfigureAwait(false);
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
-            var packStaging = Path.Combine(Path.GetTempPath(), $"genhub_leikeze_pack_{Guid.NewGuid():N}");
+            await CreateLeikezeReleaseBigAsync(destCsf, releaseDir, gameFilesDir, spec, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task TryConvertCsfToStrInTargetDirAsync(string destCsf, string targetDir, CancellationToken cancellationToken)
+    {
+        if (stringTableConverter == null)
+        {
+            return;
+        }
+
+        var strPath = Path.Combine(targetDir, ModBuilderConstants.FileNames.GeneralsStr);
+        try
+        {
+            await stringTableConverter.ConvertCsfToStrAsync(destCsf, strPath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Optional CSF to STR conversion skipped for {Path}", destCsf);
+        }
+    }
+
+    private async Task CreateLeikezeReleaseBigAsync(
+        string destCsf,
+        string releaseDir,
+        string gameFilesDir,
+        LeikezeVariantSpec spec,
+        CancellationToken cancellationToken)
+    {
+        var packStaging = Path.Combine(Path.GetTempPath(), $"genhub_leikeze_pack_{Guid.NewGuid():N}");
+        try
+        {
+            var stagingLangDir = Path.Combine(packStaging, ModBuilderConstants.DirectoryNames.Data, spec.LanguageFolder);
+            Directory.CreateDirectory(stagingLangDir);
+            File.Copy(destCsf, Path.Combine(stagingLangDir, GeneralsCsfFileName), overwrite: true);
+
+            var outBigPath = Path.Combine(releaseDir, spec.BigFileName);
+            await BigFilePacker.PackAsync(packStaging, outBigPath, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await TryExtractAndSaveManifestAsync(outBigPath, gameFilesDir, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to create prebuilt release BIG for Leikeze {Big}", spec.BigFileName);
+        }
+        finally
+        {
             try
             {
-                var stagingLangDir = Path.Combine(packStaging, ModBuilderConstants.DirectoryNames.Data, spec.LanguageFolder);
-                Directory.CreateDirectory(stagingLangDir);
-                File.Copy(destCsf, Path.Combine(stagingLangDir, GeneralsCsfFileName), overwrite: true);
-
-                var outBigPath = Path.Combine(releaseDir, spec.BigFileName);
-                await BigFilePacker.PackAsync(packStaging, outBigPath, cancellationToken: cancellationToken).ConfigureAwait(false);
-                await TryExtractAndSaveManifestAsync(outBigPath, gameFilesDir, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
+                if (Directory.Exists(packStaging))
+                {
+                    Directory.Delete(packStaging, recursive: true);
+                }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to create prebuilt release BIG for Leikeze {Big}", spec.BigFileName);
-            }
-            finally
-            {
-                try
-                {
-                    if (Directory.Exists(packStaging))
-                    {
-                        Directory.Delete(packStaging, recursive: true);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, StagingCleanupFailedMessage, packStaging);
-                }
+                logger.LogDebug(ex, StagingCleanupFailedMessage, packStaging);
             }
         }
     }
