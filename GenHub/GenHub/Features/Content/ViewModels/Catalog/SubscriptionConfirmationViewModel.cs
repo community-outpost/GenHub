@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Mail;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -16,6 +8,14 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Mail;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.ViewModels.Catalog;
 
@@ -174,9 +174,7 @@ public partial class SubscriptionConfirmationViewModel(
             {
                 _parsedCatalog = result.Data;
                 PublisherName = _parsedCatalog.Publisher.Name;
-                PublisherAvatarUrl = !string.IsNullOrWhiteSpace(_parsedCatalog.Publisher.AvatarUrl) && ImageCacheService.IsSafeRemoteUrl(_parsedCatalog.Publisher.AvatarUrl, out _)
-                    ? _parsedCatalog.Publisher.AvatarUrl
-                    : null;
+                PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(_parsedCatalog.Publisher.AvatarUrl);
                 PublisherWebsite = _parsedCatalog.Publisher.Website;
                 PublisherSupportUrl = _parsedCatalog.Publisher.SupportUrl ?? string.Empty;
                 PublisherContactEmail = _parsedCatalog.Publisher.ContactEmail ?? string.Empty;
@@ -341,9 +339,7 @@ public partial class SubscriptionConfirmationViewModel(
                 DefinitionUrl = existingSub?.DefinitionUrl, // preserve definition URL if already set
                 Added = existingSub?.Added ?? DateTime.UtcNow,
                 TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
-                AvatarUrl = !string.IsNullOrWhiteSpace(_parsedCatalog.Publisher.AvatarUrl) && ImageCacheService.IsSafeRemoteUrl(_parsedCatalog.Publisher.AvatarUrl, out _)
-                    ? _parsedCatalog.Publisher.AvatarUrl
-                    : null,
+                AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(_parsedCatalog.Publisher.AvatarUrl),
                 AutoUpdate = existingSub?.AutoUpdate ?? true,
                 NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
                 CachedCatalogHash = existingSub?.CachedCatalogHash,

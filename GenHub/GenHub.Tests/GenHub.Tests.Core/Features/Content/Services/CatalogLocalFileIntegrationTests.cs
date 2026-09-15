@@ -200,4 +200,55 @@ public sealed class CatalogLocalFileIntegrationTests
             throw new InvalidOperationException("A local catalog must not be requested over HTTP.");
         }
     }
+
+    /// <summary>
+    /// Verifies that ReadAsync propagates OperationCanceledException when cancellation is requested.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReadAsync_CancellationRequested_PropagatesOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        using var httpClient = new HttpClient(new ThrowingHttpMessageHandler());
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => CatalogDocumentReader.ReadAsync(httpClient, "https://raw.githubusercontent.com/test/catalog.json", cancellationToken: cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that ReadAsync throws InvalidDataException when redirected to an insecure or unsafe URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReadAsync_RedirectToInsecureOrUnsafeUrl_ThrowsInvalidDataExceptionAsync()
+    {
+        var redirectHandler = new TestRedirectHandler(
+            System.Net.HttpStatusCode.MovedPermanently,
+            new Uri("http://example.com/insecure-target.json"));
+
+        using var httpClient = new HttpClient(redirectHandler);
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+
+        try
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => CatalogDocumentReader.ReadAsync(httpClient, "https://raw.githubusercontent.com/test/catalog.json"));
+        }
+        finally
+        {
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+        }
+    }
+
+    private sealed class TestRedirectHandler(System.Net.HttpStatusCode statusCode, Uri location) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(statusCode);
+            response.Headers.Location = location;
+            return Task.FromResult(response);
+        }
+    }
 }

@@ -1,8 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -11,6 +6,11 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.ContentDeliverers;
 
@@ -42,11 +42,11 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
 
         var files = manifest.Files;
 
-        // Dependency-only packages (e.g. ContentBundle) have no remote files to fetch,
+        // Dependency-only packages (bundles or meta-packages) have no remote files to fetch,
         // but must declare dependencies to be deliverable.
         if ((files?.Count ?? 0) == 0)
         {
-            return manifest.ContentType == ContentType.ContentBundle && manifest.Dependencies is { Count: > 0 };
+            return manifest.Dependencies is { Count: > 0 };
         }
 
         // Can deliver if files have HTTP download URLs

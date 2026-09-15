@@ -227,7 +227,7 @@ public class ManifestDiscoveryService(
 
             var typeMatches = string.Equals(mContentType, depContentType, StringComparison.OrdinalIgnoreCase);
 
-            var nameMatches = string.Equals(mContentName, depContentName, StringComparison.OrdinalIgnoreCase);
+            var nameMatches = CatalogManifestIdentity.IsContentNameOrVariantMatch(mContentName, depContentName);
 
             return publisherMatches && typeMatches && nameMatches;
         });

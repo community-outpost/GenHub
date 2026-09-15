@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Infrastructure.Services;
 using System;
 using System.IO;
 using System.Linq;
@@ -7,7 +9,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Infrastructure.Services;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -28,16 +29,22 @@ namespace GenHub.Features.Content.Services.Catalog;
 public static class CatalogDocumentReader
 {
     /// <summary>
-    /// Reads catalog JSON from the supplied catalog location.
+    /// Gets or sets a value indicating whether DNS resolution failures (SocketException)
+    /// should be permitted (e.g. for mock test hosts or offline testing environments).
     /// </summary>
-    /// <param name="httpClient">HTTP client used for HTTPS catalog locations.</param>
-    /// <param name="catalogLocation">An HTTPS URL, a local file URI, or a fully qualified local file path.</param>
-    /// <param name="maximumSizeBytes">Optional maximum permitted catalog size.</param>
+    internal static bool AllowUnresolvableDnsForTesting { get; set; }
+
+    /// <summary>
+    /// Reads catalog text from a local path/file URI or an HTTPS endpoint within the size limit.
+    /// </summary>
+    /// <param name="httpClient">HTTP client used for remote requests.</param>
+    /// <param name="catalogLocation">A local file path, file URI, or HTTPS URL.</param>
+    /// <param name="maximumSizeBytes">Optional maximum document size in bytes.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The catalog JSON payload.</returns>
-    /// <exception cref="ArgumentException">Thrown when the location is blank, uses an unsupported scheme, or resolves to an unsafe IP address.</exception>
-    /// <exception cref="FileNotFoundException">Thrown when a local file does not exist.</exception>
-    /// <exception cref="InvalidDataException">Thrown when the catalog exceeds the configured size limit or redirects to an unsafe URI.</exception>
+    /// <returns>The raw catalog document payload.</returns>
+    /// <exception cref="ArgumentException">Thrown when the location is invalid, uses an unapproved scheme, or targets a private host.</exception>
+    /// <exception cref="FileNotFoundException">Thrown when a local catalog file does not exist.</exception>
+    /// <exception cref="InvalidDataException">Thrown when size limits are exceeded or a remote redirect violates security policy.</exception>
     public static async Task<string> ReadAsync(
         HttpClient httpClient,
         string catalogLocation,
@@ -82,31 +89,83 @@ public static class CatalogDocumentReader
                 nameof(catalogLocation));
         }
 
-        await ValidateHostDnsSafetyAsync(uri.DnsSafeHost, isRedirect: false, cancellationToken).ConfigureAwait(false);
+        var currentUri = uri;
+        var redirectCount = 0;
+        HttpResponseMessage? response = null;
 
-        using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        if (response.RequestMessage?.RequestUri != null)
+        try
         {
-            var redirectUri = response.RequestMessage.RequestUri;
-            if (!string.Equals(redirectUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
-                !ImageCacheService.IsSafeRemoteUrl(redirectUri.AbsoluteUri, out _))
+            while (true)
             {
-                throw new InvalidDataException("Catalog request was redirected to an insecure non-HTTPS or unsafe URI.");
+                await ValidateHostDnsSafetyAsync(currentUri.DnsSafeHost, isRedirect: redirectCount > 0, cancellationToken).ConfigureAwait(false);
+
+                var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+                response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+
+                if (IsRedirectStatusCode(response.StatusCode))
+                {
+                    if (++redirectCount > CatalogConstants.MaxCatalogRedirects)
+                    {
+                        throw new InvalidDataException($"Too many redirects (exceeded {CatalogConstants.MaxCatalogRedirects}).");
+                    }
+
+                    var location = response.Headers.Location;
+                    if (location == null)
+                    {
+                        throw new InvalidDataException("Redirect response missing Location header.");
+                    }
+
+                    var nextUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+
+                    if (!string.Equals(nextUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                        !ImageCacheService.IsSafeRemoteUrl(nextUri.AbsoluteUri, out _))
+                    {
+                        throw new InvalidDataException("Catalog request was redirected to an insecure non-HTTPS or unsafe URI.");
+                    }
+
+                    response.Dispose();
+                    response = null;
+                    currentUri = nextUri;
+                    continue;
+                }
+
+                // If HttpClient was configured with auto-redirect enabled, validate final URI as defense-in-depth:
+                if (response.RequestMessage?.RequestUri != null && response.RequestMessage.RequestUri != currentUri)
+                {
+                    var finalUri = response.RequestMessage.RequestUri;
+                    if (!string.Equals(finalUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                        !ImageCacheService.IsSafeRemoteUrl(finalUri.AbsoluteUri, out _))
+                    {
+                        throw new InvalidDataException("Catalog request was redirected to an insecure non-HTTPS or unsafe URI.");
+                    }
+
+                    await ValidateHostDnsSafetyAsync(finalUri.DnsSafeHost, isRedirect: true, cancellationToken).ConfigureAwait(false);
+                }
+
+                response.EnsureSuccessStatusCode();
+                break;
             }
 
-            await ValidateHostDnsSafetyAsync(redirectUri.DnsSafeHost, isRedirect: true, cancellationToken).ConfigureAwait(false);
-        }
+            if (response.Content.Headers.ContentLength is { } headerLength)
+            {
+                EnsureWithinSizeLimit(headerLength, maximumSizeBytes);
+            }
 
-        if (response.Content.Headers.ContentLength is { } headerLength)
+            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadStreamWithLimitAsync(stream, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
+        }
+        finally
         {
-            EnsureWithinSizeLimit(headerLength, maximumSizeBytes);
+            response?.Dispose();
         }
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        return await ReadStreamWithLimitAsync(stream, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
     }
+
+    private static bool IsRedirectStatusCode(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.MovedPermanently or
+                      HttpStatusCode.Found or
+                      HttpStatusCode.SeeOther or
+                      HttpStatusCode.TemporaryRedirect or
+                      HttpStatusCode.PermanentRedirect;
 
     private static async Task ValidateHostDnsSafetyAsync(string host, bool isRedirect, CancellationToken cancellationToken)
     {
@@ -137,15 +196,25 @@ public static class CatalogDocumentReader
                     isRedirect);
             }
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidDataException or SocketException)
+        catch (OperationCanceledException)
         {
-            if (ex is not SocketException)
+            throw;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            throw;
+        }
+        catch (SocketException ex)
+        {
+            if (AllowUnresolvableDnsForTesting)
             {
-                throw;
+                return;
             }
 
-            // Socket exception indicates unresolved host (e.g. mock test host or offline environment).
-            // Allow HttpClient pipeline to handle the request.
+            throw CreateSafetyException(
+                $"Failed to resolve {(isRedirect ? "redirect " : string.Empty)}host '{host}': {ex.Message}",
+                isRedirect,
+                ex);
         }
         catch (Exception ex)
         {

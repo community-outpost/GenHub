@@ -416,4 +416,65 @@ public sealed class CatalogManifestIdentityTests
         var variants = CatalogManifestIdentity.GetVariantArtifacts(release);
         Assert.Empty(variants);
     }
+
+    /// <summary>
+    /// Tests that IsContentNameOrVariantMatch matches exact content names and known variant suffixes.
+    /// </summary>
+    /// <param name="manifestName">Candidate manifest content name.</param>
+    /// <param name="depName">Target dependency content name.</param>
+    /// <param name="expected">Expected match outcome.</param>
+    [Theory]
+    [InlineData("gamecode", "gamecode", true)]
+    [InlineData("GameCode", "gamecode", true)]
+    [InlineData("gamecode-resolution-1080p", "gamecode", true)]
+    [InlineData("gamecode-zerohour", "gamecode", true)]
+    [InlineData("gamecode-4k", "gamecode", true)]
+    [InlineData("gamecode-1080p", "gamecode", true)]
+    [InlineData("gamecode-unrelated-addon", "gamecode", false)]
+    [InlineData("othercode", "gamecode", false)]
+    public void IsContentNameOrVariantMatch_MatchesExpectedPatterns(string manifestName, string depName, bool expected)
+    {
+        var result = CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestName, depName);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Tests that space-separated multi-version lists are parsed as list constraints.
+    /// </summary>
+    [Fact]
+    public void ParseVersionConstraint_SpaceSeparatedVersions_ParsedAsList()
+    {
+        var parsed = CatalogManifestIdentity.ParseVersionConstraint("1.04 1.08");
+        Assert.NotNull(parsed.CompatibleVersions);
+        Assert.Equal(2, parsed.CompatibleVersions.Count);
+        Assert.Contains("1.04", parsed.CompatibleVersions);
+        Assert.Contains("1.08", parsed.CompatibleVersions);
+        Assert.True(parsed.IsSatisfiedBy("1.04"));
+        Assert.True(parsed.IsSatisfiedBy("1.08"));
+        Assert.False(parsed.IsSatisfiedBy("1.02"));
+    }
+
+    /// <summary>
+    /// Tests that contradictory exact pins produce an unsatisfiable constraint.
+    /// </summary>
+    [Fact]
+    public void ParseVersionConstraint_ContradictoryExactPins_ProducesUnsatisfiableConstraint()
+    {
+        var parsed = CatalogManifestIdentity.ParseVersionConstraint("=1.04 =1.08");
+        Assert.NotNull(parsed.CompatibleVersions);
+        Assert.Empty(parsed.CompatibleVersions);
+        Assert.False(parsed.IsSatisfiedBy("1.04"));
+        Assert.False(parsed.IsSatisfiedBy("1.08"));
+    }
+
+    /// <summary>
+    /// Tests that =latest token is not treated as a valid version bound.
+    /// </summary>
+    [Fact]
+    public void ParseVersionConstraint_EqualLatest_DoesNotSetLatestAsBound()
+    {
+        var parsed = CatalogManifestIdentity.ParseVersionConstraint("=latest");
+        Assert.Empty(parsed.MinVersion);
+        Assert.Empty(parsed.MaxVersion);
+    }
 }

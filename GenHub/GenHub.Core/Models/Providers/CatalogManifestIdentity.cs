@@ -1,3 +1,8 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Services.Providers.VersionSchemes;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -5,11 +10,6 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Services.Providers.VersionSchemes;
 
 namespace GenHub.Core.Models.Providers;
 
@@ -21,6 +21,52 @@ public static class CatalogManifestIdentity
 {
     private const string WeeklyPrefix = "weekly-";
     private static readonly NumericVersionScheme VersionScheme = new();
+
+    private static readonly string[] KnownVariantPrefixes =
+    [
+        "resolution",
+        "gametype",
+        "game",
+        "edition",
+        "quality",
+        "1080p",
+        "1440p",
+        "4k",
+        "720p",
+        "zerohour",
+        "generals",
+    ];
+
+    /// <summary>
+    /// Checks whether a candidate manifest content name matches a dependency content name exactly,
+    /// or represents a variant sibling of that content (e.g. suffixed with a known variant axis or resolution/game label).
+    /// </summary>
+    /// <param name="manifestContentName">The content name segment from the installed manifest ID.</param>
+    /// <param name="depContentName">The target content name segment from the dependency ID.</param>
+    /// <returns><c>true</c> if the manifest matches exactly or via a known variant suffix; otherwise, <c>false</c>.</returns>
+    public static bool IsContentNameOrVariantMatch(string manifestContentName, string depContentName)
+    {
+        if (string.Equals(manifestContentName, depContentName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (manifestContentName.Length > depContentName.Length &&
+            manifestContentName.StartsWith(depContentName, StringComparison.OrdinalIgnoreCase) &&
+            manifestContentName[depContentName.Length] == '-')
+        {
+            var suffix = manifestContentName[(depContentName.Length + 1)..];
+            foreach (var prefix in KnownVariantPrefixes)
+            {
+                if (suffix.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Compares two version strings numerically and semantically.
@@ -542,6 +588,15 @@ public static class CatalogManifestIdentity
             return ParseListConstraint(trimmed);
         }
 
+        if (trimmed.IndexOfAny(['>', '<', '^', '~', '=']) < 0)
+        {
+            var spaceTokens = trimmed.Split([' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (spaceTokens.Length > 1)
+            {
+                return ParseListConstraint(trimmed.Replace(' ', '|'));
+            }
+        }
+
         return ParseRangedTokens(trimmed);
     }
 
@@ -582,6 +637,13 @@ public static class CatalogManifestIdentity
             ApplyTokenBound(token, ref minVersion, ref maxVersion, ref minInclusive, ref maxInclusive);
         }
 
+        if (!string.IsNullOrEmpty(minVersion) &&
+            !string.IsNullOrEmpty(maxVersion) &&
+            CompareVersions(minVersion, maxVersion) > 0)
+        {
+            return new(minVersion, maxVersion, false, false, Array.Empty<string>());
+        }
+
         return new(minVersion, maxVersion, minInclusive, maxInclusive, null);
     }
 
@@ -619,8 +681,13 @@ public static class CatalogManifestIdentity
         else if (token.StartsWith('='))
         {
             var exact = StripVersionConstraint(token);
-            UpdateLowerBound(exact, true, ref minVersion, ref minInclusive);
-            UpdateUpperBound(exact, true, ref maxVersion, ref maxInclusive);
+            if (!string.IsNullOrWhiteSpace(exact) &&
+                !string.Equals(exact, CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase) &&
+                IsValidVersion(exact))
+            {
+                UpdateLowerBound(exact, true, ref minVersion, ref minInclusive);
+                UpdateUpperBound(exact, true, ref maxVersion, ref maxInclusive);
+            }
         }
         else if (TryParseExactVersion(token, out var exact))
         {

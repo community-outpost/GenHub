@@ -59,6 +59,16 @@ public static class CatalogConstants
     public const long MaxCatalogSizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Named HTTP client for catalog downloads configured with SSRF protection and manual redirect validation.
+    /// </summary>
+    public const string CatalogHttpClientName = "CatalogHttpClient";
+
+    /// <summary>
+    /// Maximum allowed HTTP redirects when fetching remote catalogs.
+    /// </summary>
+    public const int MaxCatalogRedirects = 5;
+
+    /// <summary>
     /// Default fallback filename for downloads when parsing or sanitizing fails.
     /// </summary>
     public const string DefaultDownloadFilename = "download.zip";

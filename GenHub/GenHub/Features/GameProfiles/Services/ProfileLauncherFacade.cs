@@ -1455,7 +1455,7 @@ public class ProfileLauncherFacade(
 
                         var typeMatches = string.Equals(manifestContentType, depContentType, StringComparison.OrdinalIgnoreCase);
 
-                        var nameMatches = string.Equals(manifestContentName, depContentName, StringComparison.OrdinalIgnoreCase);
+                        var nameMatches = CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestContentName, depContentName);
 
                         return publisherMatches && typeMatches && nameMatches;
                     }

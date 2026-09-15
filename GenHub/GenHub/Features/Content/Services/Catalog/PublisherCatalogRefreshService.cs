@@ -1,3 +1,8 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -5,11 +10,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Results;
-using GenHub.Infrastructure.Services;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -72,7 +72,7 @@ public class PublisherCatalogRefreshService(
             var subscription = subResult.Data;
             logger.LogInformation("Refreshing catalog for: {PublisherName}", subscription.PublisherName);
 
-            var httpClient = httpClientFactory.CreateClient();
+            var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
             var catalogJson = await CatalogDocumentReader.ReadAsync(httpClient, subscription.CatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken: cancellationToken);
@@ -102,11 +102,12 @@ public class PublisherCatalogRefreshService(
             var hash = ComputeHash(catalogJson);
             currentSubscription.CachedCatalogHash = hash;
             currentSubscription.LastFetched = DateTime.UtcNow;
-            var newAvatar = parseResult.Data?.Publisher.AvatarUrl;
-            if (!string.IsNullOrWhiteSpace(newAvatar) && ImageCacheService.IsSafeRemoteUrl(newAvatar, out _))
+            var newAvatar = ImageCacheService.SanitizeRemoteImageUrl(parseResult.Data?.Publisher.AvatarUrl);
+            if (newAvatar != null)
             {
                 currentSubscription.AvatarUrl = newAvatar;
             }
+
             currentSubscription.PublisherName = parseResult.Data?.Publisher.Name ?? currentSubscription.PublisherName;
 
             var updateResult = await subscriptionStore.UpdateSubscriptionAsync(currentSubscription, cancellationToken);

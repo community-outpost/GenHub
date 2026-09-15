@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
@@ -18,6 +10,14 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -566,6 +566,11 @@ public class GenericCatalogDiscoverer(
             else if (!string.IsNullOrWhiteSpace(dep.VersionConstraint))
             {
                 var parsed = CatalogManifestIdentity.ParseVersionConstraint(dep.VersionConstraint);
+                if (parsed.CompatibleVersions is { Count: > 0 })
+                {
+                    continue;
+                }
+
                 if (parsed.IsSatisfiedBy(cleanTag))
                 {
                     if (!string.IsNullOrEmpty(parsed.MaxVersion))
@@ -606,6 +611,7 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Catalog discovery failures are reported via OperationResult.")]
     private async Task<OperationResult<PublisherCatalog>> FetchCatalogAsync(CancellationToken cancellationToken)
     {
         if (_subscription == null)
@@ -615,7 +621,7 @@ public class GenericCatalogDiscoverer(
 
         try
         {
-            var httpClient = httpClientFactory.CreateClient();
+            var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
             if (!string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
@@ -639,14 +645,13 @@ public class GenericCatalogDiscoverer(
             logger.LogError(ex, "HTTP error fetching catalog");
             return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
         }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation("Catalog fetch cancelled by user");
+            throw new OperationCanceledException("Catalog fetch cancelled by user", ex, cancellationToken);
+        }
         catch (TaskCanceledException ex)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                logger.LogInformation("Catalog fetch cancelled by user");
-                throw new OperationCanceledException("Catalog fetch cancelled by user", ex, cancellationToken);
-            }
-
             logger.LogWarning(ex, "Catalog fetch timed out");
             return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
         }

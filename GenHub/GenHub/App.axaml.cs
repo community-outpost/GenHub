@@ -425,7 +425,7 @@ public partial class App : Application
                 targetUrl,
                 subscriptionStore,
                 catalogParser,
-                httpClientFactory.CreateClient(),
+                httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName),
                 vmLogger);
 
             var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);

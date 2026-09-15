@@ -1,16 +1,17 @@
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.Catalog;
+using Microsoft.Extensions.Logging;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Results.Content;
-using GenHub.Features.Content.Services;
-using Microsoft.Extensions.Logging;
-using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Services;
@@ -18,8 +19,22 @@ namespace GenHub.Tests.Core.Features.Content.Services;
 /// <summary>
 /// Tests mapping publisher catalog tab cards into the Downloads detail tab contract.
 /// </summary>
-public sealed class CatalogTabProviderTests
+public sealed class CatalogTabProviderTests : IDisposable
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CatalogTabProviderTests"/> class.
+    /// </summary>
+    public CatalogTabProviderTests()
+    {
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+    }
+
     /// <summary>
     /// Ensures optional publisher card data is retained for the detail view renderer.
     /// </summary>
