@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Launching;
@@ -9,7 +10,7 @@ namespace GenHub.Core.Models.Launching;
 public class LaunchReceipt
 {
     /// <summary>Gets or sets the receipt schema version.</summary>
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = LaunchReceiptConstants.CurrentSchemaVersion;
 
     /// <summary>Gets or sets when the receipt was recorded, in UTC.</summary>
     public DateTime RecordedAtUtc { get; set; }
@@ -42,33 +43,11 @@ public class LaunchReceipt
     public Dictionary<string, LaunchReceiptArchiveRoot> ArchiveRoots { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets a hash per environment variable GenHub itself set for the child process:
-    /// the built launch environment — retail archive roots plus any profile-defined variables.
-    /// The inherited process environment is deliberately not recorded; it is large, differs
-    /// between hosts without meaning anything for the launch, and can carry secrets that a
-    /// receipt on disk must never capture.
+    /// Gets or sets the names of environment variables explicitly configured for the launch.
+    /// Arbitrary values and value fingerprints are never stored. Archive locations are
+    /// recorded separately in <see cref="ArchiveRoots"/>.
     /// </summary>
-    /// <remarks>
-    /// Values are hashed rather than stored, because a profile-defined variable can itself
-    /// carry a secret and detecting drift only needs to know that a value changed, not what
-    /// it changed to. Archive root paths are exempt and recorded in full under
-    /// <see cref="ArchiveRoots"/>: they are locations, not credentials, and naming them is
-    /// what makes a misconfigured root actionable.
-    /// </remarks>
-    public Dictionary<string, string> EnvironmentVariableHashes { get; set; } = [];
-
-    /// <summary>
-    /// Gets or sets the random salt the environment value hashes were computed with, so the
-    /// same value hashes differently in every receipt.
-    /// </summary>
-    /// <remarks>
-    /// Comparison always runs against the receipt that carries the salt, so drift detection is
-    /// unaffected. This does not defeat an attacker who holds the receipt and guesses likely
-    /// values — they hold the salt too — but it does stop precomputed tables, and it stops
-    /// receipts being compared across hosts or profiles to confirm that two installations share
-    /// a value without ever recovering it.
-    /// </remarks>
-    public string EnvironmentHashSalt { get; set; } = string.Empty;
+    public List<string> EnvironmentVariableNames { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the resolved variant and entry-point identity that determined what was
