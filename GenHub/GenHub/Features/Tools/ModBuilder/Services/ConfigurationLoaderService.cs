@@ -924,6 +924,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
 
         var targetNormalized = StripGameFilesEditedPrefix(targetTemplate.Replace('\\', '/'));
+        if (string.IsNullOrEmpty(targetNormalized))
+        {
+            return normalizedRel;
+        }
+
         if (!ContainsWildcard(targetNormalized))
         {
             if (string.IsNullOrEmpty(Path.GetExtension(targetNormalized)) || targetNormalized.EndsWith('/'))
@@ -973,6 +978,16 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         if (!string.IsNullOrEmpty(targetDir))
         {
+            if (normalizedRel.StartsWith(targetDir + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                var subPath = normalizedRel.Substring(targetDir.Length + 1);
+                var subDir = Path.GetDirectoryName(subPath)?.Replace('\\', '/');
+                var fileWithoutExt = Path.GetFileNameWithoutExtension(subPath);
+                return string.IsNullOrEmpty(subDir)
+                    ? $"{targetDir}/{fileWithoutExt}{effectiveExt}"
+                    : $"{targetDir}/{subDir}/{fileWithoutExt}{effectiveExt}";
+            }
+
             return $"{targetDir}/{sourceNameWithoutExt}{effectiveExt}";
         }
 
@@ -1215,16 +1230,22 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         if (simpItem.SourceFiles != null)
         {
+            var relTarget = !string.IsNullOrWhiteSpace(simpItem.TargetDir) ? simpItem.TargetDir : string.Empty;
             foreach (var pattern in simpItem.SourceFiles)
             {
                 item.Files.Add(new BundleFile
                 {
                     AbsSourceParent = projectDir,
                     AbsSourceFile = pattern,
-                    RelTargetFile = string.Empty,
+                    RelTargetFile = relTarget,
                     Params = fileParams.Count > 0 ? fileParams.ToDictionary(k => k.Key, v => (object)v.Value) : null,
                 });
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(simpItem.Description))
+        {
+            item.Description = simpItem.Description;
         }
 
         return item;

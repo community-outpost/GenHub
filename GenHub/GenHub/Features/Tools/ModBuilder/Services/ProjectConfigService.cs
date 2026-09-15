@@ -1499,7 +1499,7 @@ public sealed class ProjectConfigService(
             var configsDir = Path.Combine(projectDir, directories.Configs);
             Directory.CreateDirectory(configsDir);
 
-            if (template?.Name == ProjectTemplate.Hotkeys.Name || template?.Name == "CustomIcons")
+            if (template?.Name == ProjectTemplate.Hotkeys.Name || template?.Name == ModBuilderConstants.CustomIconsAlias)
             {
                 await CreateCustomIconsSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
@@ -1507,7 +1507,7 @@ public sealed class ProjectConfigService(
             {
                 await CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
-            else if (template?.Name == LemonControlBarSampleName || template?.Name == "ControlBar")
+            else if (template?.Name == ProjectTemplate.LemonControlBar.Name || template?.Name == LemonControlBarSampleName || template?.Name == ModBuilderConstants.ControlBarAlias)
             {
                 await CreateLemonControlBarSampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
             }

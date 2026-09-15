@@ -49,7 +49,7 @@
         "LemonControlBarData",
         "LemonControlBarWindows_4K"
       ],
-      "OutputFile": ".Release/340_ControlBarProLemonEdition4KZH.big",
+      "OutputFile": ".Release/340_ControlBarProLemonEdition2160ZH.big",
       "ManifestFile": "config/340_ControlBarProLemonEdition2160ZH.big.manifest.json",
       "Big": true,
       "AllowBuild": true,

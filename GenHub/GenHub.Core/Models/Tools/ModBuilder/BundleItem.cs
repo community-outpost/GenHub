@@ -14,6 +14,12 @@ public class BundleItem
     public required string Name { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional description of this bundle item.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
     /// Gets or sets the list of files to be processed in this bundle item.
     /// </summary>
     [JsonPropertyName("files")]

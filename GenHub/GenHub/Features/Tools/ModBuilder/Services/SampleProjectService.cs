@@ -781,11 +781,18 @@ public class SampleProjectService(
                         continue;
                     }
 
-                    var langTexDir = Path.Combine(unpackDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures, spec.LanguageSubDir);
-                    if (Directory.Exists(langTexDir))
+                    var sourceCandidates = new[]
                     {
-                        var targetDir = Path.Combine(gameFilesDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures, spec.LanguageSubDir);
-                        CopyDirectoryContents(langTexDir, targetDir, cancellationToken);
+                        Path.Combine(unpackDir, ModBuilderConstants.DirectoryNames.Data, spec.LanguageSubDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures),
+                        Path.Combine(unpackDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures, spec.LanguageSubDir),
+                        Path.Combine(unpackDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures),
+                    };
+
+                    var sourceTexDir = sourceCandidates.FirstOrDefault(Directory.Exists);
+                    if (sourceTexDir != null)
+                    {
+                        var targetDir = Path.Combine(gameFilesDir, ModBuilderConstants.DirectoryNames.Data, spec.LanguageSubDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures);
+                        CopyDirectoryContents(sourceTexDir, targetDir, cancellationToken);
                     }
 
                     if (!string.IsNullOrEmpty(releaseDir))
@@ -810,6 +817,10 @@ public class SampleProjectService(
                     logger.LogDebug(ex, StagingCleanupFailedMessage, staging);
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -965,6 +976,14 @@ public class SampleProjectService(
         CancellationToken cancellationToken)
     {
         var fileName = Path.GetFileName(bigFile);
+        if (string.Equals(resolution, "1080p", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!await VerifyFileSha256Async(bigFile, ModBuilderConstants.SampleProjects.LemonControlBarSha256, cancellationToken).ConfigureAwait(false))
+            {
+                logger.LogWarning("Lemon Control Bar 1080p BIG file failed SHA-256 integrity verification: {File}", fileName);
+                return false;
+            }
+        }
         var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(fileName)}");
         Directory.CreateDirectory(unpackDir);
 
@@ -1084,9 +1103,17 @@ public class SampleProjectService(
             }
 
             var success = await ProcessLemonResolutionArchiveAsync(zipPath, res.Resolution, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
-            if (res.IsPrimary && success)
+            if (res.IsPrimary)
             {
-                primarySucceeded = true;
+                if (success)
+                {
+                    primarySucceeded = true;
+                }
+                else
+                {
+                    logger.LogError("Primary Lemon Control Bar ({Res}) unpack failed; aborting additional downloads", res.Resolution);
+                    return OperationResult<bool>.CreateFailure("Failed to unpack primary Lemon Control Bar assets.");
+                }
             }
         }
 
@@ -1099,21 +1126,49 @@ public class SampleProjectService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static string? FindZhEnglishCsf(IReadOnlyList<string> csfFiles)
+    private static string? FindZhEnglishCsf(IReadOnlyList<string> csfFiles, string stagingDir)
     {
-        return csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains(EnglishLanguageName, StringComparison.OrdinalIgnoreCase)))
-            ?? csfFiles.FirstOrDefault(f => f.Contains("ZH", StringComparison.OrdinalIgnoreCase))
+        return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, ["ZH"], ["EN", EnglishLanguageName], [GermanLanguageName, "DE"]))
+            ?? csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, ["ZH"], null, [GermanLanguageName, "DE"]))
             ?? csfFiles.FirstOrDefault();
     }
 
-    private static string? FindGeneralsEnglishCsf(IReadOnlyList<string> csfFiles)
+    private static string? FindGeneralsEnglishCsf(IReadOnlyList<string> csfFiles, string stagingDir)
     {
-        return csfFiles.FirstOrDefault(f => (f.Contains("Generals", StringComparison.OrdinalIgnoreCase) || f.Contains("Gen", StringComparison.OrdinalIgnoreCase)) && !f.Contains("ZH", StringComparison.OrdinalIgnoreCase) && (f.Contains("EN", StringComparison.OrdinalIgnoreCase) || f.Contains(EnglishLanguageName, StringComparison.OrdinalIgnoreCase)));
+        return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, [GeneralsInstallationType, "Gen"], ["EN", EnglishLanguageName], [ZeroHourInstallationType, "ZH", GermanLanguageName, "DE"]));
     }
 
-    private static string? FindGermanCsf(IReadOnlyList<string> csfFiles)
+    private static string? FindGermanCsf(IReadOnlyList<string> csfFiles, string stagingDir)
     {
-        return csfFiles.FirstOrDefault(f => f.Contains("DE", StringComparison.OrdinalIgnoreCase) || f.Contains(GermanLanguageName, StringComparison.OrdinalIgnoreCase));
+        return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, null, [GermanLanguageName, "DE"], null));
+    }
+
+    private static bool MatchesCsfTokens(
+        string filePath,
+        string stagingDir,
+        string[]? requiredTokens,
+        string[]? requiredLanguageTokens,
+        string[]? excludedTokens)
+    {
+        var relPath = Path.GetRelativePath(stagingDir, filePath);
+        var tokens = relPath.Split(['/', '\\', '_', '.', '-', ' '], StringSplitOptions.RemoveEmptyEntries);
+
+        if (requiredTokens != null && !requiredTokens.Any(t => tokens.Any(tok => tok.Equals(t, StringComparison.OrdinalIgnoreCase))))
+        {
+            return false;
+        }
+
+        if (requiredLanguageTokens != null && !requiredLanguageTokens.Any(t => tokens.Any(tok => tok.Equals(t, StringComparison.OrdinalIgnoreCase))))
+        {
+            return false;
+        }
+
+        if (excludedTokens != null && excludedTokens.Any(t => tokens.Any(tok => tok.Equals(t, StringComparison.OrdinalIgnoreCase))))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private async Task SetupLeikezeVariantIfPresentAsync(
@@ -1140,6 +1195,10 @@ public class SampleProjectService(
             {
                 await stringTableConverter.ConvertCsfToStrAsync(destCsf, strPath, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Optional CSF to STR conversion skipped for {Path}", destCsf);
@@ -1148,9 +1207,9 @@ public class SampleProjectService(
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
+            var packStaging = Path.Combine(Path.GetTempPath(), $"genhub_leikeze_pack_{Guid.NewGuid():N}");
             try
             {
-                var packStaging = Path.Combine(Path.GetTempPath(), $"genhub_leikeze_pack_{Guid.NewGuid():N}");
                 var stagingLangDir = Path.Combine(packStaging, ModBuilderConstants.DirectoryNames.Data, spec.LanguageFolder);
                 Directory.CreateDirectory(stagingLangDir);
                 File.Copy(destCsf, Path.Combine(stagingLangDir, GeneralsCsfFileName), overwrite: true);
@@ -1158,19 +1217,28 @@ public class SampleProjectService(
                 var outBigPath = Path.Combine(releaseDir, spec.BigFileName);
                 await BigFilePacker.PackAsync(packStaging, outBigPath, cancellationToken: cancellationToken).ConfigureAwait(false);
                 await TryExtractAndSaveManifestAsync(outBigPath, gameFilesDir, cancellationToken).ConfigureAwait(false);
-
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to create prebuilt release BIG for Leikeze {Big}", spec.BigFileName);
+            }
+            finally
+            {
                 try
                 {
-                    Directory.Delete(packStaging, recursive: true);
+                    if (Directory.Exists(packStaging))
+                    {
+                        Directory.Delete(packStaging, recursive: true);
+                    }
                 }
                 catch (Exception ex)
                 {
                     logger.LogDebug(ex, StagingCleanupFailedMessage, packStaging);
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to create prebuilt release BIG for Leikeze {Big}", spec.BigFileName);
             }
         }
     }
@@ -1220,7 +1288,7 @@ public class SampleProjectService(
                 "pack_zhen",
                 EnglishLanguageName,
                 "400_Hotkeys_ZH_EN.big");
-            var zhEnCsf = FindZhEnglishCsf(csfFiles);
+            var zhEnCsf = FindZhEnglishCsf(csfFiles, tempStaging);
             await SetupLeikezeVariantIfPresentAsync(zhEnCsf, zhEnSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
             // 2. Generals Classic English
@@ -1229,7 +1297,7 @@ public class SampleProjectService(
                 "pack_genen",
                 EnglishLanguageName,
                 "400_Hotkeys_Generals_EN.big");
-            var genEnCsf = FindGeneralsEnglishCsf(csfFiles);
+            var genEnCsf = FindGeneralsEnglishCsf(csfFiles, tempStaging);
             await SetupLeikezeVariantIfPresentAsync(genEnCsf, genEnSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
             // 3. Zero Hour German
@@ -1238,7 +1306,7 @@ public class SampleProjectService(
                 "pack_zhde",
                 GermanLanguageName,
                 "400_Hotkeys_ZH_DE.big");
-            var zhDeCsf = FindGermanCsf(csfFiles);
+            var zhDeCsf = FindGermanCsf(csfFiles, tempStaging);
             await SetupLeikezeVariantIfPresentAsync(zhDeCsf, zhDeSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation("Successfully unpacked Leikeze Hotkeys string tables into {Dir}", gameFilesDir);

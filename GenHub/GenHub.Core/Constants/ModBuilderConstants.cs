@@ -303,62 +303,72 @@ public static class ModBuilderConstants
     /// <summary>
     /// Search pattern for BIG archive files.
     /// </summary>
-    public const string BigFileSearchPattern = "*.big";
+    public const string BigFileSearchPattern = FileNames.BigSearchPattern;
 
     /// <summary>
     /// Unpacked folder name used for asset staging.
     /// </summary>
-    public const string UnpackedFolderName = "unpacked";
+    public const string UnpackedFolderName = DirectoryNames.Unpacked;
 
     /// <summary>
     /// Standard Window directory name.
     /// </summary>
-    public const string WindowDirectoryName = "Window";
+    public const string WindowDirectoryName = DirectoryNames.Window;
 
     /// <summary>
     /// Standard Art directory name.
     /// </summary>
-    public const string ArtDirectoryName = "Art";
+    public const string ArtDirectoryName = DirectoryNames.Art;
 
     /// <summary>
     /// Standard Data directory name.
     /// </summary>
-    public const string DataDirectoryName = "Data";
+    public const string DataDirectoryName = DirectoryNames.Data;
 
     /// <summary>
     /// Standard GenTool directory name.
     /// </summary>
-    public const string GenToolDirectoryName = "GenTool";
+    public const string GenToolDirectoryName = DirectoryNames.GenTool;
 
     /// <summary>
     /// Language name for English.
     /// </summary>
-    public const string EnglishLanguageName = "English";
+    public const string EnglishLanguageName = DirectoryNames.English;
 
     /// <summary>
     /// Language name for German.
     /// </summary>
-    public const string GermanLanguageName = "German";
+    public const string GermanLanguageName = DirectoryNames.German;
 
     /// <summary>
     /// Language name for Russian.
     /// </summary>
-    public const string RussianLanguageName = "Russian";
+    public const string RussianLanguageName = DirectoryNames.Russian;
 
     /// <summary>
     /// Language name for Spanish.
     /// </summary>
-    public const string SpanishLanguageName = "Spanish";
+    public const string SpanishLanguageName = DirectoryNames.Spanish;
 
     /// <summary>
     /// Default Generals CSF file name.
     /// </summary>
-    public const string GeneralsCsfFileName = "generals.csf";
+    public const string GeneralsCsfFileName = FileNames.GeneralsCsf;
 
     /// <summary>
     /// Default ControlBarPro documentation text file name.
     /// </summary>
-    public const string ControlBarProTxtFileName = "ControlBarPro.txt";
+    public const string ControlBarProTxtFileName = FileNames.ControlBarProTxt;
+
+    /// <summary>
+    /// Legacy alias template name for ControlBar.
+    /// </summary>
+    public const string ControlBarAlias = "ControlBar";
+
+    /// <summary>
+    /// Legacy alias template name for CustomIcons.
+    /// </summary>
+    public const string CustomIconsAlias = "CustomIcons";
 
     /// <summary>
     /// Candidate search paths for the crunch tool executable.
@@ -670,15 +680,17 @@ public static class ModBuilderConstants
     {
         try
         {
-            var repoRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
-            if (Directory.Exists(repoRoot) &&
-                (File.Exists(Path.Combine(repoRoot, "GenHub.sln")) || Directory.Exists(Path.Combine(repoRoot, ".git"))))
+            var current = new DirectoryInfo(baseDir);
+            for (var i = 0; i < 6 && current != null; i++)
             {
-                var candidate = Path.Combine(repoRoot, SampleProjectsDirectoryName, ModBuilderDirName);
+                var candidate = Path.Combine(current.FullName, SampleProjectsDirectoryName, ModBuilderDirName);
                 if (Directory.Exists(candidate))
                 {
                     dirs.Add(candidate);
+                    break;
                 }
+
+                current = current.Parent;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
@@ -706,9 +718,21 @@ public static class ModBuilderConstants
         /// <summary>
         /// Download URLs for Improved Menus widescreen sample assets (English, Russian, Spanish).
         /// </summary>
-        public const string ImprovedMenusUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
         public const string ImprovedMenusEnglishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
+
+        /// <summary>
+        /// Download URL for Improved Menus widescreen sample assets (canonical default).
+        /// </summary>
+        public const string ImprovedMenusUrl = ImprovedMenusEnglishUrl;
+
+        /// <summary>
+        /// Download URL for Improved Menus Russian assets.
+        /// </summary>
         public const string ImprovedMenusRussianUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusRussian.zip";
+
+        /// <summary>
+        /// Download URL for Improved Menus Spanish assets.
+        /// </summary>
         public const string ImprovedMenusSpanishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusSpanish.zip";
 
         /// <summary>
@@ -719,10 +743,26 @@ public static class ModBuilderConstants
         /// <summary>
         /// Download URLs for Lemon Control Bar sample assets (720p, 1080p, 1440p, 4K).
         /// </summary>
-        public const string LemonControlBarUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
-        public const string LemonControlBar720pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip";
         public const string LemonControlBar1080pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
+
+        /// <summary>
+        /// Download URL for Lemon Control Bar sample assets (canonical default).
+        /// </summary>
+        public const string LemonControlBarUrl = LemonControlBar1080pUrl;
+
+        /// <summary>
+        /// Download URL for Lemon Control Bar 720p assets.
+        /// </summary>
+        public const string LemonControlBar720pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip";
+
+        /// <summary>
+        /// Download URL for Lemon Control Bar 1440p assets.
+        /// </summary>
         public const string LemonControlBar1440pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip";
+
+        /// <summary>
+        /// Download URL for Lemon Control Bar 4K assets.
+        /// </summary>
         public const string LemonControlBar4KUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip";
 
         /// <summary>
