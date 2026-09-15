@@ -1,10 +1,10 @@
 [build]
   command = "pnpm run build"
   publish = "docs/.vitepress/dist"
-  ignore = "git diff --quiet ${CACHED_COMMIT_REF:-HEAD^} $COMMIT_REF docs/ package.json pnpm-lock.yaml"
+  ignore = "bash ./scripts/netlify-ignore.sh"
 
 [context.deploy-preview]
-  ignore = "if git rev-parse --verify origin/development >/dev/null 2>&1; then git diff --quiet origin/development...HEAD docs/ package.json pnpm-lock.yaml; else git diff --quiet ${CACHED_COMMIT_REF:-HEAD^} HEAD docs/ package.json pnpm-lock.yaml; fi"
+  ignore = "bash ./scripts/netlify-ignore.sh"
 
 [build.environment]
   NODE_VERSION = "20"
