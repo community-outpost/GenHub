@@ -40,7 +40,7 @@ public class GenPatcherViewModelTests
     /// Tests that Dispose unsubscribes from ILocalizationService PropertyChanged.
     /// </summary>
     [Fact]
-    public async Task Dispose_UnsubscribesFromLocalizationService()
+    public async Task Dispose_UnsubscribesFromLocalizationServiceAsync()
     {
         var vm = CreateViewModel();
         await vm.InitializeAsync();
