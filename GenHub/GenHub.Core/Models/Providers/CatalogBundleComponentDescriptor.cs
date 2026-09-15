@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -9,6 +10,8 @@ namespace GenHub.Core.Models.Providers;
 /// </summary>
 public sealed class CatalogBundleComponentDescriptor
 {
+    private List<CatalogBundleComponentVariantDescriptor> _variants = [];
+
     /// <summary>Gets or sets the publisher id of the component.</summary>
     [JsonPropertyName("publisherId")]
     public string PublisherId { get; set; } = string.Empty;
@@ -36,11 +39,37 @@ public sealed class CatalogBundleComponentDescriptor
     [JsonPropertyName("isBaseGame")]
     public bool IsBaseGame { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the component could be resolved in the catalog.
+    /// </summary>
+    [JsonPropertyName("isAvailable")]
+    public bool IsAvailable { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the diagnostic reason if the component could not be resolved.
+    /// </summary>
+    [JsonPropertyName("unavailableReason")]
+    public string? UnavailableReason { get; set; }
+
+    /// <summary>Gets or sets the version constraint for this component.</summary>
+    [JsonPropertyName("versionConstraint")]
+    public string? VersionConstraint { get; set; }
+
+    /// <summary>
+    /// Gets or sets the resolved release version for this component.
+    /// </summary>
+    [JsonPropertyName("releaseVersion")]
+    public string ReleaseVersion { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the serialized catalog item JSON used to acquire this component.</summary>
     [JsonPropertyName("catalogItemJson")]
     public string CatalogItemJson { get; set; } = string.Empty;
 
     /// <summary>Gets or sets installable variants (one entry for non-variant content).</summary>
     [JsonPropertyName("variants")]
-    public List<CatalogBundleComponentVariantDescriptor> Variants { get; set; } = [];
+    public List<CatalogBundleComponentVariantDescriptor> Variants
+    {
+        get => _variants;
+        set => _variants = value ?? [];
+    }
 }

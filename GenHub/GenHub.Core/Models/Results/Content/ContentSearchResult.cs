@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Parsers;
 

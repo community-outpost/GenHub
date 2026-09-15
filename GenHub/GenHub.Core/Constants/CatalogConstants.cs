@@ -34,6 +34,11 @@ public static class CatalogConstants
     public const string SubscriptionFileName = "subscriptions.json";
 
     /// <summary>
+    /// Well-known publisher ID for TheSuperHackers.
+    /// </summary>
+    public const string SuperHackersPublisherId = SuperHackersConstants.PublisherId;
+
+    /// <summary>
     /// Sidebar / discoverer category for user-subscribed catalogs (vs built-in static/dynamic).
     /// </summary>
     public const string SubscribedPublisherCategory = "subscribed";
@@ -52,6 +57,46 @@ public static class CatalogConstants
     /// Maximum catalog size in bytes (10 MB).
     /// </summary>
     public const long MaxCatalogSizeBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Named HTTP client for catalog downloads configured with SSRF protection and manual redirect validation.
+    /// </summary>
+    public const string CatalogHttpClientName = "CatalogHttpClient";
+
+    /// <summary>
+    /// Maximum allowed HTTP redirects when fetching remote catalogs.
+    /// </summary>
+    public const int MaxCatalogRedirects = 5;
+
+    /// <summary>
+    /// Default fallback filename for downloads when parsing or sanitizing fails.
+    /// </summary>
+    public const string DefaultDownloadFilename = "download.zip";
+
+    /// <summary>
+    /// Default discoverer source name when a subscription is unconfigured.
+    /// </summary>
+    public const string DefaultDiscovererSourceName = "Generic Catalog";
+
+    /// <summary>
+    /// Default discoverer description when a subscription is unconfigured.
+    /// </summary>
+    public const string DefaultDiscovererDescription = "Generic catalog-based content source";
+
+    /// <summary>
+    /// Notification title for a removed subscription.
+    /// </summary>
+    public const string SubscriptionRemovedNotificationTitle = "Subscription Removed";
+
+    /// <summary>
+    /// Notification title for refreshed catalogs.
+    /// </summary>
+    public const string CatalogsRefreshedNotificationTitle = "Catalogs Refreshed";
+
+    /// <summary>
+    /// Error notification title when loading subscriptions fails.
+    /// </summary>
+    public const string LoadSubscriptionsFailedTitle = "Failed to load subscriptions";
 
     /// <summary>
     /// Maximum number of entries allowed when extracting publisher catalog archives.
@@ -107,4 +152,74 @@ public static class CatalogConstants
     /// Badge text for official providers.
     /// </summary>
     public const string OfficialProviderBadge = "Official Provider";
+
+    /// <summary>
+    /// Base game content ID for Command &amp; Conquer Generals.
+    /// </summary>
+    public const string GeneralsContentId = "generals";
+
+    /// <summary>
+    /// Base game content ID for Command &amp; Conquer Generals: Zero Hour.
+    /// </summary>
+    public const string ZeroHourContentId = "zerohour";
+
+    /// <summary>
+    /// Publisher ID for Electronic Arts base game installations.
+    /// </summary>
+    public const string EaPublisherId = "ea";
+
+    /// <summary>
+    /// Publisher wildcard for base game installations satisfied by any publisher.
+    /// </summary>
+    public const string AnyPublisherId = ManifestConstants.AnyPublisherToken;
+
+    /// <summary>
+    /// Variant axis name for target game discrimination (Generals vs Zero Hour).
+    /// </summary>
+    public const string GameTypeVariantAxis = "game-type";
+
+    /// <summary>
+    /// Variant axis name for display resolution.
+    /// </summary>
+    public const string ResolutionVariantAxis = "resolution";
+
+    /// <summary>
+    /// Variant label for Command &amp; Conquer Generals.
+    /// </summary>
+    public const string GeneralsVariantLabel = "Generals";
+
+    /// <summary>
+    /// Variant label for Command &amp; Conquer Generals: Zero Hour.
+    /// </summary>
+    public const string ZeroHourVariantLabel = "Zero Hour";
+
+    /// <summary>
+    /// Compact variant label for Command &amp; Conquer Generals: Zero Hour (without spaces).
+    /// </summary>
+    public const string ZeroHourCompactVariantLabel = "ZeroHour";
+
+    /// <summary>
+    /// Version constraint keyword indicating the latest available release.
+    /// </summary>
+    public const string LatestVersionToken = "latest";
+
+    /// <summary>
+    /// Minimum year recognized for date-based versions (YYYYMMDD or YYYY.MM.DD).
+    /// </summary>
+    public const int MinDateVersionYear = 1990;
+
+    /// <summary>
+    /// Maximum year recognized for date-based versions (YYYYMMDD or YYYY.MM.DD).
+    /// </summary>
+    public const int MaxDateVersionYear = 2100;
+
+    /// <summary>
+    /// Standard 1080p resolution variant label.
+    /// </summary>
+    public const string Resolution1080pLabel = "1080p";
+
+    /// <summary>
+    /// Standard 1920x1080 resolution variant label.
+    /// </summary>
+    public const string Resolution1920x1080Label = "1920x1080";
 }

@@ -94,6 +94,11 @@ public sealed partial class BundleComponentViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(bundleResult);
 
+        if (bundleResult.ContentType != ContentType.ContentBundle)
+        {
+            return [];
+        }
+
         if (!bundleResult.ResolverMetadata.TryGetValue(
                 CatalogConstants.BundleComponentsJsonMetadataKey,
                 out var json) ||

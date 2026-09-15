@@ -21,16 +21,26 @@ public static class CommandLineParser
 
             if (arg.Equals(CommandLineConstants.LaunchProfileArg, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                return args[i + 1].Trim('"');
+                return args[i + 1].Trim('\"');
             }
 
             if (arg.StartsWith(CommandLineConstants.LaunchProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
             {
-                return arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..].Trim('"');
+                return arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..].Trim('\"');
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Extracts the absolute URL from a single <c>genhub://subscribe?url=...</c> argument or URL string.
+    /// </summary>
+    /// <param name="arg">The command line argument or URL string.</param>
+    /// <returns>The decoded absolute URL if present; otherwise, <c>null</c>.</returns>
+    public static string? ExtractSubscriptionUrl(string? arg)
+    {
+        return string.IsNullOrWhiteSpace(arg) ? null : ExtractSubscriptionUrl([arg]);
     }
 
     /// <summary>
@@ -62,17 +72,25 @@ public static class CommandLineParser
                     string unescaped = Uri.UnescapeDataString(url)
                         .Replace("\r", string.Empty)
                         .Replace("\n", string.Empty)
-                        .Trim('"', '\'', ' ', '\t');
+                        .Trim('\"', '\'', ' ', '\t');
 
                     if (string.IsNullOrWhiteSpace(unescaped))
                     {
                         return null;
                     }
 
-                    if (Uri.TryCreate(unescaped, UriKind.Absolute, out var uri) &&
-                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                    if (Uri.TryCreate(unescaped, UriKind.Absolute, out var uri))
                     {
-                        return unescaped;
+                        if (uri.Scheme == Uri.UriSchemeHttps)
+                        {
+                            return unescaped;
+                        }
+
+                        // Allow local non-UNC file:// URIs matching CatalogDocumentReader rules
+                        if (uri.IsFile && !uri.IsUnc && string.IsNullOrEmpty(uri.Host))
+                        {
+                            return unescaped;
+                        }
                     }
 
                     return null;

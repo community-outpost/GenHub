@@ -82,14 +82,16 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         var hasDot1 = normalized1.Contains('.');
         var hasDot2 = normalized2.Contains('.');
 
-        // A dotted version with a major of 1 or higher outranks a bare date stamp,
+        // A dotted version with a small product major (e.g. 1 in "1.20260116") outranks a bare date stamp,
         // so "1.20260116" is newer than "20260116" rather than astronomically older.
-        if (hasDot1 && isDateStamp2 && parsedVersion1.Components[0] >= 1)
+        // This only applies to small product majors (< 1000), not calendar years like 2026 in "2026.07.31".
+        const long MaxProductMajor = 999;
+        if (hasDot1 && isDateStamp2 && parsedVersion1.Components[0] >= 1 && parsedVersion1.Components[0] <= MaxProductMajor)
         {
             return 1;
         }
 
-        if (isDateStamp1 && hasDot2 && parsedVersion2.Components[0] >= 1)
+        if (isDateStamp1 && hasDot2 && parsedVersion2.Components[0] >= 1 && parsedVersion2.Components[0] <= MaxProductMajor)
         {
             return -1;
         }
@@ -132,9 +134,17 @@ public sealed class NumericVersionScheme : VersionSchemeBase
 
         normalized = normalized.TrimStart('v', 'V');
 
-        if (normalized.Length == 10 && normalized[4] == '-' && normalized[7] == '-')
+        if (normalized.Contains('.') || normalized.Contains('-'))
         {
-            normalized = normalized.Replace("-", string.Empty);
+            var parts = normalized.Split(['.', '-'], StringSplitOptions.None);
+            if (parts.Length == 3 &&
+                int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var y) &&
+                int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var m) &&
+                int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var d) &&
+                y >= CatalogConstants.MinDateVersionYear && y <= CatalogConstants.MaxDateVersionYear && m >= 1 && m <= 12 && d >= 1 && d <= 31)
+            {
+                normalized = $"{y:D4}{m:D2}{d:D2}";
+            }
         }
 
         return normalized;

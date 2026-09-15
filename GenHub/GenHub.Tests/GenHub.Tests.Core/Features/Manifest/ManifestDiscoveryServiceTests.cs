@@ -295,6 +295,96 @@ public class ManifestDiscoveryServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that ValidateDependencies rejects dependencies when version is not in CompatibleVersions list.
+    /// </summary>
+    [Fact]
+    public void ValidateDependencies_RejectsDependency_WhenVersionNotInCompatibleVersionsList()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genhub.mod.content"),
+            Dependencies =
+            [
+                new()
+                {
+                    Id = ManifestId.Create("1.0.genhub.mod.dep1"),
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    CompatibleVersions = ["1.0.0", "2.0.0"],
+                },
+            ],
+        };
+        var availableManifests = new Dictionary<string, ContentManifest>
+        {
+            ["1.0.genhub.mod.dep1"] = new() { Id = ManifestId.Create("1.0.genhub.mod.dep1"), Version = "1.5.0" },
+        };
+
+        var result = _discoveryService.ValidateDependencies(manifest, availableManifests);
+
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that ValidateDependencies compares version segments numerically (e.g. 1.10 is greater than 1.9).
+    /// </summary>
+    [Fact]
+    public void ValidateDependencies_AcceptsDependency_WhenVersionMatchesNumerically()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genhub.mod.content"),
+            Dependencies =
+            [
+                new()
+                {
+                    Id = ManifestId.Create("1.0.genhub.mod.dep1"),
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    MinVersion = "1.9",
+                    MaxVersion = "2.0",
+                    MinInclusive = true,
+                    MaxInclusive = false,
+                },
+            ],
+        };
+        var availableManifests = new Dictionary<string, ContentManifest>
+        {
+            ["1.0.genhub.mod.dep1"] = new() { Id = ManifestId.Create("1.0.genhub.mod.dep1"), Version = "1.10" },
+        };
+
+        var result = _discoveryService.ValidateDependencies(manifest, availableManifests);
+
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that ValidateDependencies accepts dependencies when version matches CompatibleVersions numerically or with v-prefix.
+    /// </summary>
+    [Fact]
+    public void ValidateDependencies_AcceptsDependency_WhenVersionMatchesCompatibleVersionsNumerically()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genhub.mod.content"),
+            Dependencies =
+            [
+                new()
+                {
+                    Id = ManifestId.Create("1.0.genhub.mod.dep1"),
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    CompatibleVersions = ["1.04", "1.08"],
+                },
+            ],
+        };
+        var availableManifests = new Dictionary<string, ContentManifest>
+        {
+            ["1.0.genhub.mod.dep1"] = new() { Id = ManifestId.Create("1.0.genhub.mod.dep1"), Version = "v1.04" },
+        };
+
+        var result = _discoveryService.ValidateDependencies(manifest, availableManifests);
+
+        Assert.True(result);
+    }
+
+    /// <summary>
     /// Deletes temporary files created by filesystem discovery tests.
     /// </summary>
     public void Dispose()

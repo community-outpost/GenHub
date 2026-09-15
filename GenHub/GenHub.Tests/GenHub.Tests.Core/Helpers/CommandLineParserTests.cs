@@ -194,16 +194,42 @@ public sealed class CommandLineParserTests
     }
 
     /// <summary>
-    /// Verifies that ExtractSubscriptionUrl returns null for non-HTTP and non-HTTPS URI schemes.
+    /// Verifies that ExtractSubscriptionUrl accepts local non-UNC file:// URI schemes.
     /// </summary>
     [Fact]
-    public void ExtractSubscriptionUrl_NonHttpOrHttpsScheme_ReturnsNull()
+    public void ExtractSubscriptionUrl_LocalFileScheme_ReturnsDecodedUrl()
     {
-        var fileSchemeArgs = new[] { "genhub://subscribe?url=file:///C:/malicious.exe" };
-        var jsSchemeArgs = new[] { "genhub://subscribe?url=javascript:alert(1)" };
+        var args = new[] { "genhub://subscribe?url=file:///C:/catalog.json" };
 
-        Assert.Null(CommandLineParser.ExtractSubscriptionUrl(fileSchemeArgs));
+        var result = CommandLineParser.ExtractSubscriptionUrl(args);
+
+        Assert.Equal("file:///C:/catalog.json", result);
+    }
+
+    /// <summary>
+    /// Verifies that ExtractSubscriptionUrl rejects UNC file:// URIs.
+    /// </summary>
+    [Fact]
+    public void ExtractSubscriptionUrl_UncFileScheme_ReturnsNull()
+    {
+        var uncArgs = new[] { "genhub://subscribe?url=file://server/share/catalog.json" };
+
+        var result = CommandLineParser.ExtractSubscriptionUrl(uncArgs);
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Verifies that ExtractSubscriptionUrl returns null for non-HTTP, non-HTTPS, and non-file URI schemes.
+    /// </summary>
+    [Fact]
+    public void ExtractSubscriptionUrl_DisallowedScheme_ReturnsNull()
+    {
+        var jsSchemeArgs = new[] { "genhub://subscribe?url=javascript:alert(1)" };
+        var ftpSchemeArgs = new[] { "genhub://subscribe?url=ftp://example.com/catalog.json" };
+
         Assert.Null(CommandLineParser.ExtractSubscriptionUrl(jsSchemeArgs));
+        Assert.Null(CommandLineParser.ExtractSubscriptionUrl(ftpSchemeArgs));
     }
 
     /// <summary>

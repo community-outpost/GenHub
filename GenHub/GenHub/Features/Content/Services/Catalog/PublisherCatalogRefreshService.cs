@@ -1,3 +1,8 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -5,10 +10,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -71,7 +72,7 @@ public class PublisherCatalogRefreshService(
             var subscription = subResult.Data;
             logger.LogInformation("Refreshing catalog for: {PublisherName}", subscription.PublisherName);
 
-            var httpClient = httpClientFactory.CreateClient();
+            var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
             var catalogJson = await CatalogDocumentReader.ReadAsync(httpClient, subscription.CatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken: cancellationToken);
@@ -85,15 +86,28 @@ public class PublisherCatalogRefreshService(
 
             // Re-fetch latest subscription state before updating to preserve user settings
             var latestSubResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
-            var currentSubscription = (latestSubResult.Success && latestSubResult.Data != null)
-                ? latestSubResult.Data
-                : subscription;
+            if (!latestSubResult.Success || latestSubResult.Data == null)
+            {
+                return OperationResult<bool>.CreateFailure($"Subscription '{publisherId}' not found");
+            }
+
+            var currentSubscription = latestSubResult.Data;
+            if (!string.Equals(currentSubscription.CatalogUrl, subscription.CatalogUrl, StringComparison.Ordinal))
+            {
+                logger.LogWarning("Catalog URL changed for {PublisherId} during refresh; discarding stale fetch result", publisherId);
+                return OperationResult<bool>.CreateSuccess(false);
+            }
 
             // Update subscription metadata
             var hash = ComputeHash(catalogJson);
             currentSubscription.CachedCatalogHash = hash;
             currentSubscription.LastFetched = DateTime.UtcNow;
-            currentSubscription.AvatarUrl = parseResult.Data?.Publisher.AvatarUrl ?? currentSubscription.AvatarUrl;
+            var newAvatar = ImageCacheService.SanitizeRemoteImageUrl(parseResult.Data?.Publisher.AvatarUrl);
+            if (newAvatar != null)
+            {
+                currentSubscription.AvatarUrl = newAvatar;
+            }
+
             currentSubscription.PublisherName = parseResult.Data?.Publisher.Name ?? currentSubscription.PublisherName;
 
             var updateResult = await subscriptionStore.UpdateSubscriptionAsync(currentSubscription, cancellationToken);

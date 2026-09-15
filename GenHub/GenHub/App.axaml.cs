@@ -1,3 +1,8 @@
+using System.Net.Http;
+using Avalonia.Controls;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Features.Downloads.Views;
 using System;
 using System.IO;
 using System.Linq;
@@ -27,6 +32,34 @@ namespace GenHub;
 /// </summary>
 public partial class App : Application
 {
+    /// <summary>
+    /// Delegate used to display the subscription confirmation dialog.
+    /// Can be overridden in integration tests to simulate user actions headlessly.
+    /// </summary>
+    internal Func<SubscriptionConfirmationViewModel, Window?, Task<bool>> ShowSubscriptionDialogAsync { get; set; } =
+        async (vm, owner) =>
+        {
+            var dialog = new SubscriptionConfirmationDialog
+            {
+                DataContext = vm,
+            };
+
+            if (owner != null)
+            {
+                return await dialog.ShowDialog<bool>(owner);
+            }
+
+            var tcs = new TaskCompletionSource<bool>();
+            dialog.Closed += (_, _) => tcs.TrySetResult(dialog.DialogResult);
+            vm.RequestClose = (result) =>
+            {
+                dialog.CloseDialog(result);
+                tcs.TrySetResult(result);
+            };
+            dialog.Show();
+            return await tcs.Task;
+        };
+
     private readonly IServiceProvider _serviceProvider;
     private readonly IUserSettingsService _userSettingsService;
     private readonly IConfigurationProviderService _configurationProvider;
@@ -356,48 +389,98 @@ public partial class App : Application
         }
     }
 
-    private async Task HandleSubscriptionUrlAsync(string subscriptionUrl, MainWindow mainWindow)
+    internal async Task HandleSubscriptionUrlAsync(string subscriptionUrl, MainWindow? mainWindow = null)
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
 
         try
         {
-            var sanitizedUrl = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
-            if (!Uri.TryCreate(sanitizedUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            if (string.IsNullOrWhiteSpace(subscriptionUrl))
+            {
+                return;
+            }
+
+            var targetUrl = ResolveTargetSubscriptionUrl(subscriptionUrl);
+            if (string.IsNullOrWhiteSpace(targetUrl))
             {
                 logger?.LogWarning("Invalid or unsafe subscription URL: {Url}", subscriptionUrl);
                 return;
             }
 
-            logger?.LogInformation("Handling subscription URL: {Url}", uri.AbsoluteUri);
+            logger?.LogInformation("Handling subscription URL: {Url}", targetUrl);
 
-            var dialogService = _serviceProvider.GetService<IDialogService>();
-            if (dialogService != null)
+            var subscriptionStore = _serviceProvider.GetService<IPublisherSubscriptionStore>();
+            var catalogParser = _serviceProvider.GetService<IPublisherCatalogParser>();
+            var httpClientFactory = _serviceProvider.GetService<IHttpClientFactory>();
+            var loggerFactory = _serviceProvider.GetService<ILoggerFactory>();
+
+            if (subscriptionStore == null || catalogParser == null || httpClientFactory == null || loggerFactory == null)
             {
-                var confirmed = await dialogService.ShowConfirmationAsync(
-                    "Subscribe to Catalog",
-                    $"Do you want to subscribe to content from:\n{uri.AbsoluteUri}",
-                    "Subscribe",
-                    "Cancel");
+                logger?.LogError("Required services for catalog subscription are not registered");
+                return;
+            }
 
-                if (confirmed)
-                {
-                    if (mainWindow?.DataContext is MainViewModel mainViewModel)
-                    {
-                        mainViewModel.SelectTab(NavigationTab.Downloads);
-                    }
+            var vmLogger = loggerFactory.CreateLogger<SubscriptionConfirmationViewModel>();
+            var confirmationVm = new SubscriptionConfirmationViewModel(
+                targetUrl,
+                subscriptionStore,
+                catalogParser,
+                httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName),
+                vmLogger);
 
-                    logger?.LogInformation("User confirmed subscription to: {Url}", uri.AbsoluteUri);
-                    var notificationService = _serviceProvider.GetService<INotificationService>();
-                    notificationService?.ShowSuccess("Subscribed", $"Successfully subscribed to: {uri.AbsoluteUri}");
-                }
+            var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);
+            if (confirmed)
+            {
+                await HandleConfirmedSubscriptionAsync(mainWindow, targetUrl, logger);
+            }
+            else
+            {
+                logger?.LogInformation("Subscription was cancelled or not confirmed for URL: {Url}", targetUrl);
             }
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
         }
+    }
+
+    private static string? ResolveTargetSubscriptionUrl(string subscriptionUrl)
+    {
+        var targetUrl = CommandLineParser.ExtractSubscriptionUrl([subscriptionUrl]);
+        if (!string.IsNullOrWhiteSpace(targetUrl))
+        {
+            return targetUrl;
+        }
+
+        var sanitized = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
+        if (Uri.TryCreate(sanitized, UriKind.Absolute, out var directUri) && IsAllowedSubscriptionScheme(directUri))
+        {
+            return sanitized;
+        }
+
+        return null;
+    }
+
+    private static bool IsAllowedSubscriptionScheme(Uri uri)
+    {
+        return uri.Scheme == Uri.UriSchemeHttps ||
+               (uri.IsFile && !uri.IsUnc && string.IsNullOrEmpty(uri.Host));
+    }
+
+    private async Task HandleConfirmedSubscriptionAsync(MainWindow? mainWindow, string targetUrl, ILogger<App>? logger)
+    {
+        if (mainWindow?.DataContext is MainViewModel mainViewModel)
+        {
+            mainViewModel.SelectTab(NavigationTab.Downloads);
+            if (mainViewModel.DownloadsBrowserViewModel != null)
+            {
+                await mainViewModel.DownloadsBrowserViewModel.InitializeAsync();
+            }
+        }
+
+        logger?.LogInformation("User confirmed subscription to: {Url}", targetUrl);
+        var notificationService = _serviceProvider.GetService<INotificationService>();
+        notificationService?.ShowSuccess("Subscribed", "Successfully subscribed to content catalog.");
     }
 
     private async Task RepairShortcutsAsync()

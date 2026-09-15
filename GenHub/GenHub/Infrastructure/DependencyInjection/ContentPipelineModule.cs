@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -41,6 +36,13 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -96,6 +98,42 @@ public static class ContentPipelineModule
         services.AddHttpClient(GeneralsOnlineConstants.PublisherType, static httpClient =>
         {
             httpClient.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // Register named HTTP client for publisher catalog downloads with SSRF protection and manual redirect validation
+        services.AddHttpClient(CatalogConstants.CatalogHttpClientName, static httpClient =>
+        {
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            ConnectTimeout = TimeSpan.FromSeconds(10),
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                if (Uri.CheckHostName(context.DnsEndPoint.Host) == UriHostNameType.Unknown)
+                {
+                    throw new HttpRequestException($"Invalid host name: '{context.DnsEndPoint.Host}'.");
+                }
+
+                var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
+                if (addresses.Length == 0 || !addresses.All(ImageCacheService.IsSafeIpAddress))
+                {
+                    throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe IP address.");
+                }
+
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                try
+                {
+                    await socket.ConnectAsync(addresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            },
         });
 
         // Register core storage and manifest services

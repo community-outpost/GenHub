@@ -1,3 +1,11 @@
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using GenHub;
+using GenHub.Common.Services;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -9,14 +17,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
-using GenHub;
-using GenHub.Common.Services;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
-using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
 
 namespace GenHub.Infrastructure.Services;
 
@@ -251,6 +251,31 @@ public sealed class ImageCacheService : IImageCacheService
         return true;
     }
 
+    /// <summary>
+    /// Validates and sanitizes a remote avatar or image URL, requiring HTTPS and a safe remote host.
+    /// </summary>
+    /// <param name="url">The URL string to evaluate.</param>
+    /// <returns>The validated HTTPS URL string, or null if invalid or unsafe.</returns>
+    internal static string? SanitizeRemoteImageUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        if (!IsSafeRemoteUrl(url, out var uri))
+        {
+            return null;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return null;
+        }
+
+        return uri.AbsoluteUri;
+    }
+
     private static HttpClient CreateDefaultHttpClient()
     {
         var handler = new SocketsHttpHandler
@@ -364,7 +389,7 @@ public sealed class ImageCacheService : IImageCacheService
         return true;
     }
 
-    private static bool IsSafeIpAddress(IPAddress address)
+    internal static bool IsSafeIpAddress(IPAddress address)
     {
         var bytes = address.GetAddressBytes();
         return bytes.Length switch
