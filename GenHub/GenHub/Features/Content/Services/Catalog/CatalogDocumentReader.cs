@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Helpers;
 using GenHub.Infrastructure.Services;
 
 namespace GenHub.Features.Content.Services.Catalog;
@@ -73,9 +74,11 @@ public static class CatalogDocumentReader
             return await ReadStreamWithLimitAsync(localStream, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
         }
 
-        if (!Uri.TryCreate(catalogLocation, UriKind.Absolute, out var uri) ||
+        var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogLocation);
+
+        if (!Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps ||
-            !ImageCacheService.IsSafeRemoteUrl(catalogLocation, out _))
+            !ImageCacheService.IsSafeRemoteUrl(normalizedUrl, out _))
         {
             throw new ArgumentException(
                 "Catalog locations must use HTTPS with a safe public host, a local file URI, or a fully qualified local file path.",

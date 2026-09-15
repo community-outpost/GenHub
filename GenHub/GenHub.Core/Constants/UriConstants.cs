@@ -53,6 +53,11 @@ public static class UriConstants
     /// </summary>
     public const string MapManagerIconUri = "avares://GenHub/Assets/Icons/mapmanager-icon.png";
 
+    /// <summary>
+    /// Icon URI for Publisher Studio tool.
+    /// </summary>
+    public const string PublisherStudioIconUri = "avares://GenHub/Assets/Icons/publisherstudio-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -109,6 +114,11 @@ public static class UriConstants
     /// Filename for Map Manager icon.
     /// </summary>
     public const string MapManagerIconFilename = "mapmanager-icon.png";
+
+    /// <summary>
+    /// Filename for Publisher Studio icon.
+    /// </summary>
+    public const string PublisherStudioIconFilename = "publisherstudio-icon.png";
 
     // Cover Path Constants
 
