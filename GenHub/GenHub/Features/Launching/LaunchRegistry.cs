@@ -212,10 +212,10 @@ public class LaunchRegistry : ILaunchRegistry
                 return;
             }
 
-            // Only a terminated launch holds this PID, so this is the second delivery of an
-            // exit already applied through the buffer. Absorb it: buffering it here would
-            // hand a spent event to whichever launch next receives this PID.
-            if (_activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId))
+            // A repeated delivery has the same exit identity. A recycled PID with a
+            // different exit time/code belongs to a new launch awaiting registration.
+            if (_activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId
+                && l.TerminatedAt == e.ExitTime && l.ExitCode == e.ExitCode))
             {
                 return;
             }
