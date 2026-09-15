@@ -212,6 +212,10 @@ public static class GameSettingsMapper
         profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus;
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress;
+        if (request.UseSteamLaunch.HasValue)
+        {
+            profile.UseSteamLaunch = request.UseSteamLaunch.Value;
+        }
     }
 
     /// <summary>
@@ -317,6 +321,10 @@ public static class GameSettingsMapper
         profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus;
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress;
+        if (request.UseSteamLaunch.HasValue)
+        {
+            profile.UseSteamLaunch = request.UseSteamLaunch.Value;
+        }
     }
 
     /// <summary>

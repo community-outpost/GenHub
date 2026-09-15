@@ -109,56 +109,30 @@ public partial class CommunityOutpostDiscoverer(
 
             var results = new List<ContentSearchResult>();
 
+            // Cap catalog timeout to at most 8 seconds to prevent long hangs on unresponsive networks
+            catalogTimeout = Math.Clamp(catalogTimeout, CommunityOutpostCatalogConstants.MinCatalogTimeoutSeconds, CommunityOutpostCatalogConstants.MaxCatalogTimeoutSeconds);
+
             using var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(catalogTimeout);
 
             // First, discover the Community Patch GameClient from legi.cc/patch
-            var communityPatchResult = await DiscoverCommunityPatchAsync(client, patchPageUrl, provider, cancellationToken);
+            var (communityPatchResult, patchHostFailed) = await DiscoverCommunityPatchAsync(client, patchPageUrl, provider, cancellationToken);
             if (communityPatchResult != null && MatchesQuery(communityPatchResult, query))
             {
                 results.Add(communityPatchResult);
                 logger.LogInformation("Discovered Community Patch: {Version}", communityPatchResult.Version);
             }
 
-            // Then, fetch and parse the catalog using the appropriate parser
-            try
+            if (patchHostFailed && TryGetSameHost(patchPageUrl, catalogUrl, out var unreachableHost))
             {
-                var catalogContent = await client.GetStringAsync(catalogUrl, cancellationToken);
-
-                // Get the catalog parser for this provider's format
-                var parser = catalogParserFactory.GetParser(provider.CatalogFormat);
-                if (parser == null)
-                {
-                    logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
-
-                    // Return success with just community patch if parser fails
-                    return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
-                    {
-                        Items = results,
-                        HasMoreItems = false,
-                    });
-                }
-
-                // Parse the catalog - the parser uses GenPatcherContentRegistry for metadata
-                var parseResult = await parser.ParseAsync(catalogContent, provider, cancellationToken);
-                if (parseResult.Success && parseResult.Data != null)
-                {
-                    var catalogResults = parseResult.Data.Where(r => MatchesQuery(r, query)).ToList();
-                    results.AddRange(catalogResults);
-
-                    logger.LogInformation(
-                        "Found {ItemCount} content items from catalog (after filtering: {FilteredCount})",
-                        parseResult.Data.Count(),
-                        catalogResults.Count);
-                }
-                else
-                {
-                    logger.LogWarning("Failed to parse catalog: {Error}", parseResult.FirstError);
-                }
+                logger.LogWarning(
+                    "Skipping catalog fetch from {CatalogUrl} because host {Host} was unreachable",
+                    catalogUrl,
+                    unreachableHost);
             }
-            catch (Exception ex)
+            else
             {
-                logger.LogWarning(ex, "Failed to fetch/parse GenPatcher catalog, returning Community Patch only");
+                await FetchAndAppendCatalogResultsAsync(client, catalogUrl, provider, query, results, cancellationToken);
             }
 
             // Ensure official game clients are present (fallback if missing from catalog)
@@ -174,10 +148,73 @@ public partial class CommunityOutpostDiscoverer(
                 HasMoreItems = false, // Catalog based, all items returned at once
             });
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to discover Community Outpost content");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
+        }
+    }
+
+    private static bool TryGetSameHost(string url1, string url2, out string? host)
+    {
+        if (Uri.TryCreate(url1, UriKind.Absolute, out var uri1) &&
+            Uri.TryCreate(url2, UriKind.Absolute, out var uri2) &&
+            string.Equals(uri1.Host, uri2.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            host = uri1.Host;
+            return true;
+        }
+
+        host = null;
+        return false;
+    }
+
+    private async Task FetchAndAppendCatalogResultsAsync(
+        HttpClient client,
+        string catalogUrl,
+        ProviderDefinition provider,
+        ContentSearchQuery query,
+        List<ContentSearchResult> results,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var catalogContent = await client.GetStringAsync(catalogUrl, cancellationToken);
+
+            var parser = catalogParserFactory.GetParser(provider.CatalogFormat);
+            if (parser == null)
+            {
+                logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
+                return;
+            }
+
+            var parseResult = await parser.ParseAsync(catalogContent, provider, cancellationToken);
+            if (parseResult.Success && parseResult.Data != null)
+            {
+                var catalogResults = parseResult.Data.Where(r => MatchesQuery(r, query)).ToList();
+                results.AddRange(catalogResults);
+
+                logger.LogInformation(
+                    "Found {ItemCount} content items from catalog (after filtering: {FilteredCount})",
+                    parseResult.Data.Count(),
+                    catalogResults.Count);
+            }
+            else
+            {
+                logger.LogWarning("Failed to parse catalog: {Error}", parseResult.FirstError);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to fetch/parse GenPatcher catalog, returning Community Patch only");
         }
     }
 
@@ -277,9 +314,9 @@ public partial class CommunityOutpostDiscoverer(
         // Check search term
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            var term = query.SearchTerm.ToLowerInvariant();
-            var nameMatches = result.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
-            var descMatches = result.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
+            var term = query.SearchTerm;
+            var nameMatches = result.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
+            var descMatches = result.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
             var tagMatches = result.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase));
 
             if (!nameMatches && !descMatches && !tagMatches)
@@ -322,7 +359,7 @@ public partial class CommunityOutpostDiscoverer(
     /// <summary>
     /// Discovers the Community Patch (TheSuperHackers Patch Build) from legi.cc/patch.
     /// </summary>
-    private async Task<ContentSearchResult?> DiscoverCommunityPatchAsync(
+    private async Task<(ContentSearchResult? Result, bool HostFailed)> DiscoverCommunityPatchAsync(
         HttpClient client,
         string patchPageUrl,
         ProviderDefinition? provider,
@@ -350,7 +387,7 @@ public partial class CommunityOutpostDiscoverer(
             if (!downloadUrlMatch.Success)
             {
                 logger.LogWarning("Could not find Community Patch download link on {Url}", patchPageUrl);
-                return null;
+                return (null, false);
             }
 
             logger.LogInformation("Community Patch regex matched successfully");
@@ -415,12 +452,27 @@ public partial class CommunityOutpostDiscoverer(
             result.ResolverMetadata["downloadUrl"] = downloadUrl;
             result.ResolverMetadata["category"] = "CommunityPatch";
 
-            return result;
+            return (result, false);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Failed to reach Community Patch page from {Url} (host unreachable)", patchPageUrl);
+            return (null, true);
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogWarning(ex, "Timed out reaching Community Patch page from {Url} (host unresponsive)", patchPageUrl);
+            return (null, true);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Timed out reaching Community Patch page from {Url} (host unresponsive)", patchPageUrl);
+            return (null, true);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to discover Community Patch from {Url}", patchPageUrl);
-            return null;
+            return (null, false);
         }
     }
 
@@ -493,7 +545,7 @@ public partial class CommunityOutpostDiscoverer(
                 DownloadSize = item.FileSize,
                 RequiresResolution = true,
                 ResolverId = CommunityOutpostConstants.PublisherId,
-                LastUpdated = DateTime.Now, // dl.dat doesn't include timestamps
+                LastUpdated = DateTime.UtcNow, // dl.dat doesn't include timestamps
 
                 // Use publisher logo as default content icon
                 IconUrl = CommunityOutpostConstants.LogoSource,

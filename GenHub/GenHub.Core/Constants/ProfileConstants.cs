@@ -6,6 +6,11 @@ namespace GenHub.Core.Constants;
 public static class ProfileConstants
 {
     /// <summary>
+    /// The maximum allowed length for a profile name.
+    /// </summary>
+    public const int MaxProfileNameLength = 100;
+
+    /// <summary>
     /// The default profile name used for new profiles.
     /// </summary>
     public const string DefaultProfileName = "New Profile";

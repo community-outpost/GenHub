@@ -70,6 +70,13 @@ public class ProfileContentLinkerService(
             // If skipping cleanup, adopt old profile's manifests for the new profile
             if (skipCleanup && !string.IsNullOrEmpty(oldProfileId))
             {
+                // Deactivate old profile manifests without removing physical files so new profile can adopt them without conflict
+                var deactRes = await userDataTracker.DeactivateProfileUserDataAsync(oldProfileId, removeFiles: false, cancellationToken);
+                if (deactRes != null && !deactRes.Success)
+                {
+                    logger.LogWarning("[ProfileContentLinker] Could not deactivate old profile user data for {OldProfileId}: {Error}", oldProfileId, deactRes.FirstError);
+                }
+
                 var oldUserDataResult = await userDataTracker.GetProfileUserDataAsync(oldProfileId, cancellationToken);
                 if (oldUserDataResult.Success && oldUserDataResult.Data != null)
                 {

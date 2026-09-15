@@ -1,9 +1,9 @@
-using System.Security.Cryptography;
-using System.Text;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GenHub.Core.Models.Providers;
 
@@ -192,15 +192,15 @@ public static class CatalogManifestIdentity
 
         var publisher = dependency.PublisherId ?? string.Empty;
         var contentId = dependency.ContentId ?? string.Empty;
-        var isEaOrAny = publisher.Equals("ea", StringComparison.OrdinalIgnoreCase) ||
-                        publisher.Equals("any", StringComparison.OrdinalIgnoreCase);
+        var isEaOrAny = publisher.Equals(PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) ||
+                        publisher.Equals(ManifestConstants.AnyPublisherToken, StringComparison.OrdinalIgnoreCase);
         if (!isEaOrAny)
         {
             return false;
         }
 
-        return contentId.Equals("zerohour", StringComparison.OrdinalIgnoreCase) ||
-               contentId.Equals("generals", StringComparison.OrdinalIgnoreCase);
+        return contentId.Equals(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+               contentId.Equals(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

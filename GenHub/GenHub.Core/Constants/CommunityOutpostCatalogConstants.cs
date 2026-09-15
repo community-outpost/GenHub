@@ -46,4 +46,10 @@ public static class CommunityOutpostCatalogConstants
 
     /// <summary>Default version for content metadata.</summary>
     public const string DefaultMetadataVersion = "1.0";
+
+    /// <summary>Minimum catalog download timeout in seconds.</summary>
+    public const int MinCatalogTimeoutSeconds = 1;
+
+    /// <summary>Maximum catalog download timeout in seconds.</summary>
+    public const int MaxCatalogTimeoutSeconds = 8;
 }

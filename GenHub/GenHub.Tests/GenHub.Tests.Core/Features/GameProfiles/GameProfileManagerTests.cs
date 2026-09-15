@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
@@ -357,6 +358,35 @@ public class GameProfileManagerTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Profile name cannot be empty", result.FirstError);
+    }
+
+    /// <summary>
+    /// Should reject profile creation when profile name exceeds the maximum length limit.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfileAsync_Should_ReturnFailure_When_NameExceedsMaxLengthAsync()
+    {
+        // Arrange
+        var clientId = Guid.NewGuid().ToString();
+        var installation = CreateTestInstallation(clientId);
+        var overlongName = new string('a', ProfileConstants.MaxProfileNameLength + 1);
+        var request = new CreateProfileRequest
+        {
+            Name = overlongName,
+            GameInstallationId = installation.Id,
+            GameClientId = clientId,
+        };
+
+        _installationServiceMock.Setup(x => x.GetInstallationAsync(installation.Id, default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
+
+        // Act
+        var result = await _profileManager.CreateProfileAsync(request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Profile name is too long", result.FirstError);
     }
 
     /// <summary>

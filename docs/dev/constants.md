@@ -69,6 +69,7 @@ Application-wide constants for GenHub.
 | `DefaultTheme`            | `Theme.Dark`        | Default UI theme                                 |
 | `DefaultThemeName`        | `"Dark"`            | Default theme name as string                     |
 | `TokenFileName`           | `".ghtoken"`        | Default GitHub token file name                   |
+| `GameInstallationFilesRegistryFolderName` | `"GameInstallationFilesRegistry"` | Subdirectory name in app data for the game installation files registry |
 | `DeleteAllDataConfirmationTitle`   | `"Delete All Application Data"` | Title of the confirmation prompt shown before all application data is deleted |
 | `DeleteAllDataConfirmationMessage` | string              | Body of that prompt, warning that the deletion is irreversible and that pristine game data backups are discarded |
 | `DeleteAllDataConfirmText`         | `"Delete Everything"` | Confirm button text for the delete-all-application-data prompt |
@@ -340,6 +341,21 @@ Constants related to manifest ID generation, validation, and file operations.
 | `SimpleIdPrefix`               | `"simple"`           | Prefix for simple test IDs                                                            |
 | `GeneralsManifestVersion`      | `"1.08"`             | Version string for Generals game installation manifests (dots removed in IDs: "108")  |
 | `ZeroHourManifestVersion`      | `"1.04"`             | Version string for Zero Hour game installation manifests (dots removed in IDs: "104") |
+| `AnyPublisherToken`            | `"any"`              | Wildcard token representing any publisher in dependency declarations                  |
+| `GeneralsContentName`          | `"generals"`         | Content name for Generals game segment                                                |
+| `ZeroHourContentName`          | `"zerohour"`         | Content name for Zero Hour game segment                                                |
+| `ZeroHourHyphenContentName`    | `"zero-hour"`        | Content name for Zero Hour with hyphen                                                |
+| `ZeroHourSpacedContentName`    | `"zero hour"`        | Content name for Zero Hour with space                                                 |
+| `ZeroHourShortContentName`     | `"zh"`               | Short content name for Zero Hour segment                                              |
+| `GeneralsZeroHourContentName`  | `"generalszh"`       | Content name for combined Generals Zero Hour segment                                  |
+| `GameClientContentTypeName`    | `"gameclient"`       | Content type name for game client segment                                             |
+| `GameDataContentTypeName`      | `"gamedata"`         | Content type name for game data segment                                               |
+| `SixtyHzKeyword`               | `"60hz"`             | Content keyword for 60Hz variant segment                                              |
+| `SixtyFpsKeyword`              | `"60fps"`            | Content keyword for 60fps variant segment                                             |
+| `SixtyHzHyphenSuffix`          | `"-60"`              | Content suffix for 60Hz hyphen variant segment                                        |
+| `MinManifestSegments`          | `5`                  | Minimum number of segments in manifest ID (must be exactly 5)                         |
+| `ManifestIdSegmentSeparator`   | `'.'`                | Separator character for manifest ID segments                                          |
+| `VariantSeparator`             | `"-"`                | Separator used to append variant identifiers to content names                         |
 
 ### Manifest Validation
 
@@ -403,6 +419,10 @@ Constants related to Steam integration and the proxy launcher.
 | `BackupDirName`          | `".genhub-backup"`        | Backup directory for original game files         |
 | `BackupExtension`        | `".ghbak"`                | Extension for backed up game executables         |
 | `ProxyLauncherFileName`  | `"GenHub.ProxyLauncher.exe"` | Filename of the proxy launcher executable        |
+| `ProxyLauncherDllFileName` | `"GenHub.ProxyLauncher.dll"` | Filename of the proxy launcher assembly         |
+| `ProxyLauncherName`      | `"GenHub.ProxyLauncher"`  | Product and internal name of the proxy launcher  |
+| `AppNameToken`           | `"GenHub"`                | Application name token used for identifying proxy launchers |
+| `ProxyDescriptionToken`  | `"Proxy"`                 | Proxy description token used for identifying proxy launchers |
 
 ---
 
@@ -487,6 +507,7 @@ Well-known publisher type identifiers for content sources. Uses lowercase string
 | Constant         | Value              | Description                       |
 | ---------------- | ------------------ | --------------------------------- |
 | `EaApp`          | `"eaapp"`          | EA App (formerly Origin) platform |
+| `Ea`             | `"ea"`             | Official Electronic Arts publisher identifier |
 | `Steam`          | `"steam"`          | Steam platform                    |
 | `Retail`         | `"retail"`         | Retail/physical installation      |
 | `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation      |
@@ -499,6 +520,8 @@ Well-known publisher type identifiers for content sources. Uses lowercase string
 | ------------------ | -------------------- | ---------------------------------- |
 | `GeneralsOnline`   | `"generalsonline"`   | Generals Online community platform |
 | `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform         |
+| `TheSuperHackers`  | `"thesuperhackers"`  | The Super Hackers community publisher |
+| `LegacySuperHackers`| `"superhackers"`   | Legacy alias for The Super Hackers community publisher |
 | `ModDb`            | `"moddb"`            | ModDB hosting platform             |
 | `CncLabs`          | `"cnclabs"`          | C&C Labs community site            |
 
@@ -1082,6 +1105,8 @@ Publisher types are **string-based** (not an enum) for extensibility. Any string
 | ------------------ | -------------------- | --------------------------------------------------------- |
 | `GeneralsOnline`   | `"generalsonline"`   | Generals Online community launcher (auto-updates clients) |
 | `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform                                |
+| `TheSuperHackers`  | `"thesuperhackers"`  | The Super Hackers community publisher                     |
+| `LegacySuperHackers`| `"superhackers"`   | Legacy alias for The Super Hackers community publisher    |
 | `ModDb`            | `"moddb"`            | ModDB hosting platform                                    |
 | `CncLabs`          | `"cnclabs"`          | C&C Labs community site                                   |
 
@@ -1541,6 +1566,8 @@ Constants related to the Community Outpost (GenPatcher) catalog and metadata.
 - `MirrorsKey`: Metadata key for mirror names display string (`"mirrors"`)
 - `PatchPageUrlEndpoint`: Endpoint key for patch page URL (`"patchPageUrl"`)
 - `DefaultMetadataVersion`: Default version for content metadata (`"1.0"`)
+- `MinCatalogTimeoutSeconds`: Minimum catalog download timeout in seconds (`1`)
+- `MaxCatalogTimeoutSeconds`: Maximum catalog download timeout in seconds (`8`)
 
 ### GeneralsOnlineConstants Class
 
@@ -1672,7 +1699,7 @@ Constants specifically for the Replay Manager feature.
 
 | Constant                       | Value                                 | Description                                                                 |
 | ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
-| `MaxReplaySizeBytes`           | `1048576` (1MB)                       | Maximum size for a single replay file                                       |
+| `MaxReplaySizeBytes`           | `10485760` (10MB)                     | Maximum size for a single replay file                                       |
 | `MaxZipEntries`                | `100`                                 | Maximum allowed entries in a replay ZIP archive                             |
 | `MaxAggregateUncompressedBytes`| `52428800` (50MB)                     | Maximum aggregate uncompressed bytes for replay ZIP archives                |
 | `MaxCompressionRatio`          | `50.0`                                | Maximum compression ratio allowed for replay ZIP archives                   |
@@ -1686,6 +1713,16 @@ Constants specifically for the Replay Manager feature.
 | `UploadCategory`               | `"replays"`                           | Category identifier for replay uploads                                      |
 | `WindowsMockPathSegment`       | `"\\Mock\\"`                          | Mock path separator indicator for demo environments on Windows              |
 | `UnixMockPathSegment`          | `"/Mock/"`                            | Mock path separator indicator for demo environments on Unix                 |
+| `RetailZeroHourExeCrcFirstDecade` | `"0xDA2B4B18"` | Hexadecimal Exe CRC string for retail Zero Hour CD / First Decade |
+| `RetailZeroHourExeCrcFirstDecadeValue` | `0xDA2B4B18` | Numeric Exe CRC for retail Zero Hour CD / First Decade |
+| `RetailZeroHourExeCrcSteam` | `"0x401D89EA"` | Hexadecimal Exe CRC string for retail Zero Hour Steam / EA App |
+| `RetailZeroHourExeCrcSteamValue` | `0x401D89EA` | Numeric Exe CRC for retail Zero Hour Steam / EA App |
+| `RetailGeneralsExeCrcFirstDecade` | `"0x89C1F821"` | Hexadecimal Exe CRC string for retail Generals CD / First Decade |
+| `RetailGeneralsExeCrcFirstDecadeValue` | `0x89C1F821` | Numeric Exe CRC for retail Generals CD / First Decade |
+| `RetailGeneralsExeCrcSteam` | `"0x1C96366F"` | Hexadecimal Exe CRC string for retail Generals Steam / EA App |
+| `RetailGeneralsExeCrcSteamValue` | `0x1C96366F` | Numeric Exe CRC for retail Generals Steam / EA App |
+| `GeneralsOnlineContentIdPattern` | `"GeneralsOnline_{0}"` | Composite content ID pattern for GeneralsOnline client content |
+| `ThirdPartyClientContentIdPattern` | `"Client_{0}_{1}"` | Composite content ID pattern for third-party client content |
 
 ---
 

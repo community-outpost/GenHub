@@ -108,9 +108,9 @@ public static class AppConstants
     public const string GitHubDefaultBranch = "main";
 
     /// <summary>
-    /// The folder path where the CSV registry files are stored.
+    /// The folder name for the CSV game installation files registry.
     /// </summary>
-    public const string RegistryFolderPath = "docs\\GameInstallationFilesRegistry";
+    public const string GameInstallationFilesRegistryFolderName = "GameInstallationFilesRegistry";
 
     /// <summary>
     /// Length of the git short hash used in versioning (7 characters).

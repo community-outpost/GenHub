@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -42,9 +43,9 @@ public class GameProfileManager(
             }
 
             // Validate request
-            if (string.IsNullOrWhiteSpace(request.Name))
+            if (!TryValidateProfileName(request.Name, out var nameValidationError))
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure("Profile name cannot be empty");
+                return ProfileOperationResult<GameProfile>.CreateFailure(nameValidationError!);
             }
 
             // Detect if this is a Tool profile using centralized helper
@@ -135,6 +136,7 @@ public class GameProfileManager(
                 CoverPath = request.CoverPath,
                 CommandLineArguments = request.CommandLineArguments ?? string.Empty,
                 GameSpyIPAddress = request.GameSpyIPAddress,
+                UseSteamLaunch = request.UseSteamLaunch,
             };
 
             // Load settings only for regular game profiles (Tool profiles don't have game settings)
@@ -405,7 +407,7 @@ public class GameProfileManager(
             return false;
         }
 
-        if (name.Length > 100)
+        if (name.Length > ProfileConstants.MaxProfileNameLength)
         {
             errorMessage = "Profile name is too long.";
             return false;
@@ -618,6 +620,11 @@ public class GameProfileManager(
         profile.GameInstallationId = request.GameInstallationId ?? profile.GameInstallationId;
         profile.ToolContentId = request.ToolContentId ?? profile.ToolContentId;
         profile.CommandLineArguments = request.CommandLineArguments ?? profile.CommandLineArguments;
+
+        if (request.UseSteamLaunch.HasValue)
+        {
+            profile.UseSteamLaunch = request.UseSteamLaunch.Value;
+        }
 
         if (request.ActiveWorkspaceId != null)
         {

@@ -45,6 +45,7 @@ public partial class MapManagerViewModel : ObservableObject
     private readonly INotificationService _notificationService;
     private readonly TgaImageParser _tgaImageParser;
     private readonly ILogger<MapManagerViewModel> _logger;
+    private readonly IDialogService? _dialogService;
     private readonly DispatcherTimer _searchTimer;
 
     /// <summary>
@@ -58,6 +59,7 @@ public partial class MapManagerViewModel : ObservableObject
     /// <param name="notificationService">The notification service.</param>
     /// <param name="tgaImageParser">The TGA image parser.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="dialogService">Optional dialog service for user confirmations.</param>
     public MapManagerViewModel(
         IMapDirectoryService directoryService,
         IMapImportService importService,
@@ -66,7 +68,8 @@ public partial class MapManagerViewModel : ObservableObject
         IUploadHistoryService uploadHistoryService,
         INotificationService notificationService,
         TgaImageParser tgaImageParser,
-        ILogger<MapManagerViewModel> logger)
+        ILogger<MapManagerViewModel> logger,
+        IDialogService? dialogService = null)
     {
         _directoryService = directoryService;
         _importService = importService;
@@ -76,6 +79,7 @@ public partial class MapManagerViewModel : ObservableObject
         _notificationService = notificationService;
         _tgaImageParser = tgaImageParser;
         _logger = logger;
+        _dialogService = dialogService;
 
         _searchTimer = new DispatcherTimer
         {
@@ -178,9 +182,6 @@ public partial class MapManagerViewModel : ObservableObject
     /// </summary>
     public List<MapFile> ZeroHourMaps { get; } = [];
 
-    /// <summary>
-    /// Gets the list of currently selected maps.
-    /// </summary>
     /// <summary>
     /// Gets or sets the list of currently selected maps.
     /// </summary>
@@ -1160,6 +1161,19 @@ public partial class MapManagerViewModel : ObservableObject
             return;
         }
 
+        if (_dialogService != null)
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Delete Upload",
+                $"Are you sure you want to delete '{item.FileName}' from cloud storage and remove it from history?",
+                confirmText: "Delete",
+                cancelText: "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
         try
         {
             var success = await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
@@ -1196,6 +1210,19 @@ public partial class MapManagerViewModel : ObservableObject
                 "Clear History",
                 "Permanently deletes all uploaded files from cloud storage and clears upload history.");
             return;
+        }
+
+        if (_dialogService != null)
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Clear Upload History",
+                "Are you sure you want to delete all uploaded files from cloud storage and clear your upload history? This cannot be undone.",
+                confirmText: "Clear All",
+                cancelText: "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
         }
 
         try
