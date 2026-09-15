@@ -1379,19 +1379,6 @@ public class SettingsViewModelTests
         Assert.False(viewModel.HasUploads);
     }
 
-    private void SetupDeletableData()
-    {
-        _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
-        _mockWorkspaceManager
-            .Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([new WorkspaceInfo { Id = "workspace-to-delete" }]));
-        _mockManifestPool
-            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
-    }
-
     /// <summary>
     /// Verifies that TestPatAsync saves token and reports pending validation when no validation provider ran.
     /// </summary>
@@ -1417,6 +1404,47 @@ public class SettingsViewModelTests
         Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
         mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that TestPatAsync does not treat update manager check as PAT validation when API client is absent.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenUpdateManagerProvidedWithoutApiClient_SavesTokenAndReportsPendingValidationAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var viewModel = CreateViewModel(
+            gitHubTokenStorage: mockTokenStorage.Object,
+            gitHubApiClient: null,
+            includeUpdateManager: true);
+        viewModel.GitHubPatInput = "ghp_unvalidatedToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(viewModel.IsPatValid);
+        Assert.True(viewModel.HasGitHubPat);
+        Assert.Empty(viewModel.GitHubPatInput);
+        Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
+    }
+
+    private void SetupDeletableData()
+    {
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
+        _mockWorkspaceManager
+            .Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([new WorkspaceInfo { Id = "workspace-to-delete" }]));
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
+    }
+
+
 
     private SettingsViewModel CreateViewModel(
         IThemeService? themeService = null,

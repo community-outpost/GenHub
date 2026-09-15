@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
 using Avalonia.Threading;
@@ -15,6 +8,13 @@ using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Tools;
 

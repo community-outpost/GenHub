@@ -117,6 +117,7 @@ public class Program
             .WithInterFont()
             .LogToTrace();
 
+    [SupportedOSPlatform("linux")]
     private static void TryForwardToPrimaryInstance(string[] args, ILogger bootstrapLogger)
     {
         for (int attempt = 1; attempt <= CommandLineConstants.SingleInstanceMaxForwardAttempts; attempt++)

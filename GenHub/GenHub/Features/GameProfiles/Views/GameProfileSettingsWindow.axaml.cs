@@ -1,10 +1,10 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
+using System;
 
 namespace GenHub.Features.GameProfiles.Views;
 

@@ -266,6 +266,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="storageMigrationService">Storage and installation migration service.</param>
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
+    /// <param name="uploadHistoryService">Upload history service.</param>
     /// <param name="gitHubApiClient">GitHub API client.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
@@ -381,7 +382,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the status color for the PAT indicator.
     /// </summary>
-    public string PatStatusColor => _isPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+    public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.
@@ -1491,11 +1492,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     return;
                 }
 
-                validated = true;
-            }
-            else if (_updateManager != null)
-            {
-                _ = await _updateManager.CheckForArtifactUpdatesAsync(cancellationToken);
                 validated = true;
             }
 

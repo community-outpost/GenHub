@@ -166,24 +166,26 @@ public sealed partial class ImportProfileInspectionViewModel(
                 // CancellationTokenSource was already disposed during cancellation.
             }
 
-            _ = Task.Run(async () =>
-            {
-                try
+            _ = Task.Run(
+                async () =>
                 {
-                    if (_importTask != null)
+                    try
                     {
-                        await _importTask.ConfigureAwait(false);
+                        if (_importTask != null)
+                        {
+                            await _importTask.ConfigureAwait(false);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Suppressed exception while awaiting cancelled import task during disposal.");
-                }
-                finally
-                {
-                    cts.Dispose();
-                }
-            }, CancellationToken.None);
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Suppressed exception while awaiting cancelled import task during disposal.");
+                    }
+                    finally
+                    {
+                        cts.Dispose();
+                    }
+                },
+                CancellationToken.None);
         }
 
         GC.SuppressFinalize(this);

@@ -1334,6 +1334,216 @@ public class ProfileSharingService(
             !string.IsNullOrWhiteSpace(f.Hash) &&
             (!Uri.TryCreate(f.DownloadUrl, UriKind.Absolute, out var uri) || !ModDBConstants.IsModDbOrDbolicalUri(uri)));
 
+    private static bool IsGameInstallationDependency(SharedManifestDependency dep) =>
+        dep.ContentType == ContentType.GameInstallation ||
+        dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static OperationResult<string> CreateFallbackAcquisitionFailure(SharedManifestDependency dependency)
+    {
+        if (dependency.ManifestId.Contains(ManifestConstants.LocalSegment, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(dependency.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Custom local component '{dependency.DisplayName}' ({dependency.ManifestId}) was exported without cloud storage and does not exist in your local cache. Request an online share link from the author.");
+        }
+
+        return OperationResult<string>.CreateFailure(
+            $"Dependency '{dependency.DisplayName}' ({dependency.ManifestId}) was not found in the local cache or any connected content source.");
+    }
+
+    private static ContentSearchResult? FindMatchingResult(
+        IEnumerable<ContentSearchResult> results,
+        SharedManifestDependency dependency)
+    {
+        var resultList = results.ToList();
+
+        return FindExactManifestIdMatch(resultList, dependency.ManifestId)
+            ?? FindDisplayNameMatch(resultList, dependency.DisplayName)
+            ?? FindNormalizedDisplayNameMatch(resultList, dependency.DisplayName)
+            ?? FindSegmentMatch(resultList, dependency.ManifestId);
+    }
+
+    private static ContentSearchResult? FindExactManifestIdMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string manifestId) =>
+        results.FirstOrDefault(r =>
+            string.Equals(r.Id, manifestId, StringComparison.OrdinalIgnoreCase));
+
+    private static ContentSearchResult? FindDisplayNameMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return null;
+        }
+
+        return results.FirstOrDefault(r =>
+            !string.IsNullOrWhiteSpace(r.Name) &&
+            string.Equals(r.Name, displayName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static ContentSearchResult? FindNormalizedDisplayNameMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return null;
+        }
+
+        var normalizedDepName = NormalizeContentName(displayName);
+        if (string.IsNullOrEmpty(normalizedDepName))
+        {
+            return null;
+        }
+
+        return results.FirstOrDefault(r =>
+            !string.IsNullOrWhiteSpace(r.Name) &&
+            string.Equals(NormalizeContentName(r.Name), normalizedDepName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static ContentSearchResult? FindSegmentMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string manifestId)
+    {
+        var depSegments = manifestId.Split('.');
+        if (depSegments.Length < 5)
+        {
+            return null;
+        }
+
+        var depPub = depSegments[2];
+        var depType = depSegments[3];
+        var depSlug = depSegments[^1];
+
+        return results.FirstOrDefault(r => MatchesSegments(r.Id, depPub, depType, depSlug));
+    }
+
+    private static bool MatchesSegments(string? id, string depPub, string depType, string depSlug)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        var rSegments = id.Split('.');
+        return rSegments.Length >= 5 &&
+               string.Equals(rSegments[^1], depSlug, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(rSegments[3], depType, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(rSegments[2], depPub, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeContentName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        return new string(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+    }
+
+    private static string? ResolveProviderName(SharedManifestDependency dependency)
+    {
+        return ResolveProviderFromPublisherType(dependency.PublisherType)
+            ?? ResolveProviderFromPublisher(dependency.Publisher)
+            ?? ResolveProviderFromManifestId(dependency.ManifestId);
+    }
+
+    private static string? ResolveProviderFromPublisherType(string? publisherType)
+    {
+        if (string.IsNullOrWhiteSpace(publisherType))
+        {
+            return null;
+        }
+
+        if (publisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(publisherType, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherType;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveProviderFromPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return null;
+        }
+
+        if (publisher.Contains(ModDBConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (publisher.Contains(AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (publisher.Contains(CNCLabsConstants.AuthorName, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains(PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveProviderFromManifestId(string? manifestId)
+    {
+        if (string.IsNullOrWhiteSpace(manifestId) || !ManifestId.TryCreate(manifestId, out _))
+        {
+            return null;
+        }
+
+        var segments = manifestId.Split('.');
+        if (segments.Length < 5)
+        {
+            return null;
+        }
+
+        var pubSegment = segments[2];
+        if (pubSegment.StartsWith(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(pubSegment, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(pubSegment, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        if (string.Equals(pubSegment, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherType;
+        }
+
+        return null;
+    }
+
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(installationId))
@@ -1344,10 +1554,6 @@ public class ProfileSharingService(
         var instResult = await installationService.GetInstallationAsync(installationId, cancellationToken);
         return instResult.Success ? instResult.Data : null;
     }
-
-    private static bool IsGameInstallationDependency(SharedManifestDependency dep) =>
-        dep.ContentType == ContentType.GameInstallation ||
-        dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase);
 
     private async Task<OperationResult<string>> EnsureDependencyManifestAcquiredAsync(
         SharedManifestDependency dep,
@@ -1411,7 +1617,7 @@ public class ProfileSharingService(
 
             if (!acquireResult.Success)
             {
-                return OperationResult<List<string>>.CreateFailure(acquireResult.FirstError);
+                return OperationResult<List<string>>.CreateFailure(acquireResult.FirstError ?? "Failed to acquire dependency manifest.");
             }
 
             requiredManifestIds.Add(acquireResult.Data);
@@ -2459,24 +2665,28 @@ public class ProfileSharingService(
             Take = ProfileSharingConstants.FallbackSearchLimit,
         };
 
-        var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
-        if (searchResult.Success && searchResult.Data != null && searchResult.Data.Any())
-        {
-            return searchResult;
-        }
-
-        if (string.IsNullOrEmpty(targetProvider))
-        {
-            return searchResult;
-        }
-
-        logger?.LogInformation(
-            "Targeted search for '{DisplayName}' on provider '{Provider}' yielded no results. Falling back to broad search.",
-            dependency.DisplayName,
-            targetProvider);
-
-        query.ProviderName = null;
         return await contentOrchestrator.SearchAsync(query, cancellationToken);
+    }
+
+    private async Task<OperationResult<string>?> TrySearchMatchAndAcquireAsync(
+        SharedManifestDependency dependency,
+        string? targetProvider,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var searchResult = await ExecuteFallbackSearchAsync(dependency, targetProvider, cancellationToken);
+        if (!searchResult.Success || searchResult.Data == null)
+        {
+            return null;
+        }
+
+        var match = FindMatchingResult(searchResult.Data, dependency);
+        if (match == null)
+        {
+            return null;
+        }
+
+        return await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
     }
 
     private async Task<OperationResult<string>?> TryAcquireMatchedFallbackAsync(
@@ -2509,59 +2719,30 @@ public class ProfileSharingService(
         return null;
     }
 
-    private static OperationResult<string> CreateFallbackAcquisitionFailure(SharedManifestDependency dependency)
-    {
-        if (dependency.ManifestId.Contains(ManifestConstants.LocalSegment, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(dependency.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
-        {
-            return OperationResult<string>.CreateFailure(
-                $"Custom local component '{dependency.DisplayName}' ({dependency.ManifestId}) was exported without cloud storage and does not exist in your local cache. Request an online share link from the author.");
-        }
-
-        return OperationResult<string>.CreateFailure(
-            $"Dependency '{dependency.DisplayName}' ({dependency.ManifestId}) was not found in the local cache or any connected content source.");
-    }
-
     private async Task<OperationResult<string>> SearchAndAcquireFallbackManifestAsync(
         SharedManifestDependency dependency,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
         var targetProvider = ResolveProviderName(dependency);
-        var searchResult = await ExecuteFallbackSearchAsync(dependency, targetProvider, cancellationToken);
-
-        if (searchResult.Success && searchResult.Data != null)
+        if (!string.IsNullOrEmpty(targetProvider))
         {
-            var match = FindMatchingResult(searchResult.Data, dependency);
-            if (match != null)
+            var acquireResult = await TrySearchMatchAndAcquireAsync(dependency, targetProvider, progress, cancellationToken);
+            if (acquireResult != null)
             {
-                var acquireResult = await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
-                if (acquireResult != null)
-                {
-                    return acquireResult;
-                }
+                return acquireResult;
             }
-            else if (!string.IsNullOrEmpty(targetProvider))
-            {
-                logger?.LogInformation(
-                    "Targeted search for '{DisplayName}' on provider '{Provider}' returned no matching candidates. Retrying with broad search.",
-                    dependency.DisplayName,
-                    targetProvider);
 
-                var broadSearchResult = await ExecuteFallbackSearchAsync(dependency, null, cancellationToken);
-                if (broadSearchResult.Success && broadSearchResult.Data != null)
-                {
-                    var broadMatch = FindMatchingResult(broadSearchResult.Data, dependency);
-                    if (broadMatch != null)
-                    {
-                        var acquireResult = await TryAcquireMatchedFallbackAsync(broadMatch, dependency, progress, cancellationToken);
-                        if (acquireResult != null)
-                        {
-                            return acquireResult;
-                        }
-                    }
-                }
-            }
+            logger?.LogInformation(
+                "Targeted search for '{DisplayName}' on provider '{Provider}' yielded no matching candidates. Retrying with broad search.",
+                dependency.DisplayName,
+                targetProvider);
+        }
+
+        var broadResult = await TrySearchMatchAndAcquireAsync(dependency, null, progress, cancellationToken);
+        if (broadResult != null)
+        {
+            return broadResult;
         }
 
         logger?.LogWarning(
@@ -2570,200 +2751,6 @@ public class ProfileSharingService(
             dependency.ManifestId);
 
         return CreateFallbackAcquisitionFailure(dependency);
-    }
-
-    private static ContentSearchResult? FindMatchingResult(
-        IEnumerable<ContentSearchResult> results,
-        SharedManifestDependency dependency)
-    {
-        var resultList = results.ToList();
-
-        // 1. Exact Manifest ID match
-        var match = resultList.FirstOrDefault(r =>
-            string.Equals(r.Id, dependency.ManifestId, StringComparison.OrdinalIgnoreCase));
-        if (match != null)
-        {
-            return match;
-        }
-
-        if (!string.IsNullOrWhiteSpace(dependency.DisplayName))
-        {
-            // 2. Exact Display Name match
-            match = resultList.FirstOrDefault(r =>
-                !string.IsNullOrWhiteSpace(r.Name) &&
-                string.Equals(r.Name, dependency.DisplayName, StringComparison.OrdinalIgnoreCase));
-            if (match != null)
-            {
-                return match;
-            }
-
-            // 3. Normalized Display Name match
-            var normalizedDepName = NormalizeContentName(dependency.DisplayName);
-            if (!string.IsNullOrEmpty(normalizedDepName))
-            {
-                match = resultList.FirstOrDefault(r =>
-                {
-                    if (string.IsNullOrWhiteSpace(r.Name))
-                    {
-                        return false;
-                    }
-
-                    var normalizedResultName = NormalizeContentName(r.Name);
-                    return !string.IsNullOrEmpty(normalizedResultName) &&
-                           string.Equals(normalizedResultName, normalizedDepName, StringComparison.OrdinalIgnoreCase);
-                });
-
-                if (match != null)
-                {
-                    return match;
-                }
-            }
-        }
-
-        // 4. Manifest ID segment match (publisher + contentType + contentName/slug)
-        // Manifest format: schema.userVersion.publisher.contentType.contentName
-        var depSegments = dependency.ManifestId.Split('.');
-        if (depSegments.Length >= 5)
-        {
-            var depPub = depSegments[2];
-            var depType = depSegments[3];
-            var depSlug = depSegments[^1];
-
-            match = resultList.FirstOrDefault(r =>
-            {
-                if (string.IsNullOrWhiteSpace(r.Id))
-                {
-                    return false;
-                }
-
-                var rSegments = r.Id.Split('.');
-                if (rSegments.Length < 5)
-                {
-                    return false;
-                }
-
-                return string.Equals(rSegments[^1], depSlug, StringComparison.OrdinalIgnoreCase) &&
-                       string.Equals(rSegments[3], depType, StringComparison.OrdinalIgnoreCase) &&
-                       string.Equals(rSegments[2], depPub, StringComparison.OrdinalIgnoreCase);
-            });
-
-            if (match != null)
-            {
-                return match;
-            }
-        }
-
-        return null;
-    }
-
-    private static string NormalizeContentName(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return string.Empty;
-        }
-
-        return new string(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
-    }
-
-    private static string? ResolveProviderName(SharedManifestDependency dependency)
-    {
-        return ResolveProviderFromPublisherType(dependency.PublisherType)
-            ?? ResolveProviderFromPublisher(dependency.Publisher)
-            ?? ResolveProviderFromManifestId(dependency.ManifestId);
-    }
-
-    private static string? ResolveProviderFromPublisherType(string? publisherType)
-    {
-        if (string.IsNullOrWhiteSpace(publisherType))
-        {
-            return null;
-        }
-
-        if (publisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return ModDBConstants.DiscovererSourceName;
-        }
-
-        if (string.Equals(publisherType, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return AODMapsConstants.DiscovererSourceName;
-        }
-
-        if (string.Equals(publisherType, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
-        {
-            return CNCLabsConstants.SourceName;
-        }
-
-        if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return CommunityOutpostConstants.PublisherType;
-        }
-
-        return null;
-    }
-
-    private static string? ResolveProviderFromPublisher(string? publisher)
-    {
-        if (string.IsNullOrWhiteSpace(publisher))
-        {
-            return null;
-        }
-
-        if (publisher.Contains(ModDBConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase))
-        {
-            return ModDBConstants.DiscovererSourceName;
-        }
-
-        if (publisher.Contains(AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
-        {
-            return AODMapsConstants.DiscovererSourceName;
-        }
-
-        if (publisher.Contains(CNCLabsConstants.AuthorName, StringComparison.OrdinalIgnoreCase) ||
-            publisher.Contains(PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
-        {
-            return CNCLabsConstants.SourceName;
-        }
-
-        return null;
-    }
-
-    private static string? ResolveProviderFromManifestId(string? manifestId)
-    {
-        if (string.IsNullOrWhiteSpace(manifestId) || !ManifestId.TryCreate(manifestId, out _))
-        {
-            return null;
-        }
-
-        var segments = manifestId.Split('.');
-        if (segments.Length < 5)
-        {
-            return null;
-        }
-
-        var pubSegment = segments[2];
-        if (pubSegment.StartsWith(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return ModDBConstants.DiscovererSourceName;
-        }
-
-        if (string.Equals(pubSegment, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return AODMapsConstants.DiscovererSourceName;
-        }
-
-        if (string.Equals(pubSegment, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
-        {
-            return CNCLabsConstants.SourceName;
-        }
-
-        if (string.Equals(pubSegment, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return CommunityOutpostConstants.PublisherType;
-        }
-
-        return null;
     }
 
     private async Task<OperationResult<SharedGameProfilePackage>> ResolveAndDeserializePackageAsync(

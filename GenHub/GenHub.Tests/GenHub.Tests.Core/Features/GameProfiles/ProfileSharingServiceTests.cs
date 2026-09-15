@@ -2048,43 +2048,6 @@ public class ProfileSharingServiceTests
         Assert.DoesNotContain(prospectiveId, savedProfile.EnabledContentIds);
     }
 
-    private static GameProfile CreateTestProfile(string id, string name)
-    {
-        return new GameProfile
-        {
-            Id = id,
-            Name = name,
-            Description = "Test profile description",
-            EnabledContentIds = ["1.0.generalsonline.gameclient.generalsonline"],
-            GameClient = new GameClient
-            {
-                Id = "1.0.generalsonline.gameclient.generalsonline",
-                Name = "Generals Online",
-                Version = "1.0",
-                GameType = GameType.ZeroHour,
-            },
-            VideoResolutionWidth = 1920,
-            VideoResolutionHeight = 1080,
-            VideoWindowed = true,
-        };
-    }
-
-    private static ContentManifest CreateTestManifest(string id, string name, ContentType type)
-    {
-        return new ContentManifest
-        {
-            Id = ManifestId.Create(id),
-            Name = name,
-            Version = "1.0",
-            ContentType = type,
-            Publisher = new PublisherInfo
-            {
-                Name = "Community",
-                PublisherType = PublisherTypeConstants.GeneralsOnline,
-            },
-        };
-    }
-
     /// <summary>
     /// Verifies that when targeted search returns non-matching results, fallback search retries with broad search.
     /// </summary>
@@ -2253,4 +2216,137 @@ public class ProfileSharingServiceTests
         Assert.False(result.Success);
         _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    /// <summary>
+    /// Verifies that when targeted search returns empty results, fallback search retries with broad search.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_RetryWithBroadSearch_WhenTargetedSearchYieldsEmptyResultsAsync()
+    {
+        // Arrange
+        const string depId = "1.0.moddb.mod.shockwave";
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Broad Fallback Empty Profile",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = depId,
+                    DisplayName = "ShockWave Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    Publisher = "ModDB",
+                    PublisherType = PublisherTypeConstants.ModDB,
+                    Files = [],
+                },
+            ],
+        };
+
+        var matchingBroadResult = new ContentSearchResult
+        {
+            Id = depId,
+            Name = "ShockWave Mod",
+            ProviderName = "CommunityOutpost",
+            ContentType = ContentType.Mod,
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients = [new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+            }));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(depId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var searchCallCount = 0;
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentSearchQuery q, CancellationToken _) =>
+            {
+                searchCallCount++;
+                if (q.ProviderName != null)
+                {
+                    // Targeted search returns empty results
+                    return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]);
+                }
+
+                // Broad search returns matching result
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([matchingBroadResult]);
+            });
+
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(matchingBroadResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(depId),
+                Name = "ShockWave Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+            }));
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "Broad Fallback Empty Profile",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(2, searchCallCount);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(matchingBroadResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static GameProfile CreateTestProfile(string id, string name)
+    {
+        return new GameProfile
+        {
+            Id = id,
+            Name = name,
+            Description = "Test profile description",
+            EnabledContentIds = ["1.0.generalsonline.gameclient.generalsonline"],
+            GameClient = new GameClient
+            {
+                Id = "1.0.generalsonline.gameclient.generalsonline",
+                Name = "Generals Online",
+                Version = "1.0",
+                GameType = GameType.ZeroHour,
+            },
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+            VideoWindowed = true,
+        };
+    }
+
+    private static ContentManifest CreateTestManifest(string id, string name, ContentType type)
+    {
+        return new ContentManifest
+        {
+            Id = ManifestId.Create(id),
+            Name = name,
+            Version = "1.0",
+            ContentType = type,
+            Publisher = new PublisherInfo
+            {
+                Name = "Community",
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
+        };
+    }
+
 }
