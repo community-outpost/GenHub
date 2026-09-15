@@ -20,6 +20,7 @@ namespace GenHub.Features.Launching;
 public class LaunchRegistry : ILaunchRegistry
 {
     private const int MaxInspectionFailures = 5;
+
     /// <summary>
     /// How long an exit event that matched no launch is kept for a late registration.
     /// </summary>

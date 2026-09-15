@@ -164,7 +164,6 @@ public class GameProcessManager(
             // Observe initialization failures before reporting a running process.
             if (!isBatchFile)
             {
-
                 if (await WaitForExitWithinWindowAsync(process, cancellationToken))
                 {
                     return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
