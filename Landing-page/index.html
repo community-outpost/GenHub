@@ -3058,100 +3058,125 @@ End
             const STATS_CACHE_KEY = 'genhub_release_stats_cache_v1';
             const STATS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
+            function getCachedStats() {
+                try {
+                    const cached = sessionStorage.getItem(STATS_CACHE_KEY);
+                    if (!cached) return null;
+                    const parsed = JSON.parse(cached);
+                    if (parsed && (Date.now() - parsed.timestamp < STATS_CACHE_TTL)) {
+                        return parsed.data;
+                    }
+                } catch {
+                    sessionStorage.removeItem(STATS_CACHE_KEY);
+                }
+                return null;
+            }
+
+            function cacheStats(data) {
+                try {
+                    sessionStorage.setItem(STATS_CACHE_KEY, JSON.stringify({
+                        timestamp: Date.now(),
+                        data: data
+                    }));
+                } catch {
+                    // Ignore storage quota exceptions
+                }
+            }
+
+            async function fetchReleasesData() {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                try {
+                    const res = await fetch('https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100', {
+                        signal: controller.signal
+                    });
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    return Array.isArray(data) ? data : null;
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            function isInstallerAsset(name) {
+                const lower = (name || '').toLowerCase();
+                return /\.(exe|msi|dmg|deb|appimage|pkg)$/i.test(lower) || 
+                       /portable/i.test(lower) || 
+                       (/\.zip$/i.test(lower) && !/symbols|debug/i.test(lower));
+            }
+
+            function processReleaseAsset(asset, metrics) {
+                const cnt = asset.download_count || 0;
+                metrics.totalDownloads += cnt;
+                if (isInstallerAsset(asset.name)) {
+                    metrics.installerDownloads += cnt;
+                } else {
+                    metrics.updateDownloads += cnt;
+                }
+                return cnt;
+            }
+
+            function aggregateReleaseMetrics(releases) {
+                const metrics = { totalDownloads: 0, installerDownloads: 0, updateDownloads: 0, breakdownRows: [] };
+                for (const rel of releases) {
+                    if (rel.draft || !Array.isArray(rel.assets)) continue;
+                    let relTotal = 0;
+                    for (const a of rel.assets) {
+                        relTotal += processReleaseAsset(a, metrics);
+                    }
+                    if (relTotal > 0 && metrics.breakdownRows.length < 5) {
+                        metrics.breakdownRows.push({
+                            tag: rel.tag_name || rel.name || 'Release',
+                            count: relTotal
+                        });
+                    }
+                }
+                return metrics;
+            }
+
+            function renderBreakdownHtml(breakdownRows, installerDownloads, updateDownloads) {
+                const rowsHtml = breakdownRows.map(r => `
+                    <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #cbd5e1; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                        <span>${escapeHtml(r.tag)}</span>
+                        <strong style="color: #38bdf8;">${formatNum(r.count)}</strong>
+                    </div>
+                `).join('');
+                const summaryHtml = `
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; padding-top: 5px;">
+                        <span>Installers: ${formatNum(installerDownloads)}</span>
+                        <span>Updates: ${formatNum(updateDownloads)}</span>
+                    </div>
+                `;
+                return rowsHtml + summaryHtml;
+            }
+
+            function applyStatsToDom(metrics) {
+                if (metrics.totalDownloads > 0) {
+                    if (installsEl) installsEl.textContent = formatNum(metrics.totalDownloads) + '+';
+                    if (updatesEl) updatesEl.textContent = formatNum(Math.max(baselineUpdates, metrics.updateDownloads)) + '+';
+                }
+                if (!breakdownEl) return;
+                if (metrics.breakdownRows.length > 0) {
+                    breakdownEl.innerHTML = renderBreakdownHtml(metrics.breakdownRows, metrics.installerDownloads, metrics.updateDownloads);
+                } else {
+                    breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Historical releases recorded on GitHub.</div>';
+                }
+            }
+
             async function fetchStats() {
                 try {
-                    let data = null;
-                    const cached = sessionStorage.getItem(STATS_CACHE_KEY);
-                    if (cached) {
-                        try {
-                            const parsed = JSON.parse(cached);
-                            if (parsed && (Date.now() - parsed.timestamp < STATS_CACHE_TTL)) {
-                                data = parsed.data;
-                            }
-                        } catch {
-                            sessionStorage.removeItem(STATS_CACHE_KEY);
-                        }
-                    }
-
+                    let data = getCachedStats();
                     if (!data) {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 10000);
-                        const res = await fetch('https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100', {
-                            signal: controller.signal
-                        });
-                        clearTimeout(timeoutId);
-
-                        if (!res.ok) {
-                            if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
-                            return;
-                        }
-                        data = await res.json();
-                        if (Array.isArray(data)) {
-                            try {
-                                sessionStorage.setItem(STATS_CACHE_KEY, JSON.stringify({
-                                    timestamp: Date.now(),
-                                    data: data
-                                }));
-                            } catch {
-                                // Ignore storage quota exceptions
-                            }
-                        }
+                        data = await fetchReleasesData();
+                        if (data) cacheStats(data);
                     }
-
-                    if (!Array.isArray(data)) return;
-
-                    let totalDownloads = 0;
-                    let installerDownloads = 0;
-                    let updateDownloads = 0;
-                    const breakdownRows = [];
-
-                    data.forEach(rel => {
-                        if (rel.draft) return;
-                        let relTotal = 0;
-                        if (rel.assets && Array.isArray(rel.assets)) {
-                            rel.assets.forEach(a => {
-                                const cnt = a.download_count || 0;
-                                totalDownloads += cnt;
-                                relTotal += cnt;
-                                const name = (a.name || '').toLowerCase();
-                                const isInstaller = /\.(exe|msi|dmg|deb|appimage|pkg)$/i.test(name) || /portable/i.test(name) || (/\.zip$/i.test(name) && !/symbols|debug/i.test(name));
-                                if (isInstaller) {
-                                    installerDownloads += cnt;
-                                } else {
-                                    updateDownloads += cnt;
-                                }
-                            });
-                        }
-                        if (relTotal > 0 && breakdownRows.length < 5) {
-                            breakdownRows.push({
-                                tag: rel.tag_name || rel.name || 'Release',
-                                count: relTotal
-                            });
-                        }
-                    });
-
-                    if (totalDownloads > 0) {
-                        if (installsEl) installsEl.textContent = formatNum(totalDownloads) + '+';
-                        if (updatesEl) updatesEl.textContent = formatNum(Math.max(baselineUpdates, updateDownloads)) + '+';
+                    if (!data) {
+                        if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
+                        return;
                     }
-
-                    if (breakdownEl && breakdownRows.length > 0) {
-                        breakdownEl.innerHTML = breakdownRows.map(r => `
-                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #cbd5e1; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                                <span>${escapeHtml(r.tag)}</span>
-                                <strong style="color: #38bdf8;">${formatNum(r.count)}</strong>
-                            </div>
-                        `).join('') + `
-                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; padding-top: 5px;">
-                                <span>Installers: ${formatNum(installerDownloads)}</span>
-                                <span>Updates: ${formatNum(updateDownloads)}</span>
-                            </div>
-                        `;
-                    } else if (breakdownEl) {
-                        breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Historical releases recorded on GitHub.</div>';
-                    }
+                    const metrics = aggregateReleaseMetrics(data);
+                    applyStatsToDom(metrics);
                 } catch (e) {
-                    // Fallback to static summary when GitHub API rate-limit, timeout, or network failure occurs
                     console.info('GitHub release metrics fallback active:', e);
                     if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
                 }
