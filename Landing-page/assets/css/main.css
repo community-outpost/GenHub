@@ -1739,6 +1739,8 @@ main {
 .gh-catalog-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-auto-rows: max-content;
+    align-content: start;
     gap: 14px;
     padding: 16px 18px 75px 18px;
     flex: 1;
@@ -1760,6 +1762,8 @@ main {
     flex-direction: column;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
     transition: all 0.18s ease;
+    min-height: 310px;
+    box-sizing: border-box;
 }
 
 .gh-content-card:hover {
@@ -1835,10 +1839,24 @@ main {
 }
 
 .gh-content-action {
-    padding: 0 14px 12px;
+    padding: 0 14px 14px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
+.gh-content-action .gh-btn-secondary,
+.gh-content-action .gh-action-btn {
+    width: 100%;
+    min-height: 34px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex-shrink: 0;
 }
 
 .gh-card-progress-bar {
