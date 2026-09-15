@@ -14,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
@@ -555,6 +556,49 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Creates a profile item bound to a mocked profile.
+    /// </summary>
+    /// <param name="profileId">The profile identifier.</param>
+    /// <param name="name">The profile name.</param>
+    /// <returns>The profile item.</returns>
+    private static GameProfileItemViewModel CreateProfileItem(string profileId, string name)
+    {
+        var profile = new Mock<IGameProfile>();
+        profile.Setup(x => x.Name).Returns(name);
+        return new GameProfileItemViewModel(profileId, profile.Object, "icon.png", "cover.jpg");
+    }
+
+    /// <summary>
+    /// Creates a GameProfileLauncherViewModel wired to the given launcher facade and
+    /// notification service, with everything else mocked.
+    /// </summary>
+    /// <param name="launcherFacade">The launcher facade mock.</param>
+    /// <param name="notificationService">The notification service mock.</param>
+    /// <returns>The view model.</returns>
+    private static GameProfileLauncherViewModel CreateLauncherViewModel(
+        Mock<IProfileLauncherFacade> launcherFacade,
+        Mock<INotificationService> notificationService)
+    {
+        return new GameProfileLauncherViewModel(
+            new Mock<IGameInstallationService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            launcherFacade.Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            notificationService.Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance);
+    }
+
+    /// <summary>
     /// Creates a GameProfileLauncherViewModel with mocked dependencies for testing.
     /// </summary>
     /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
@@ -593,4 +637,108 @@ public class GameProfileLauncherViewModelTests
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
     }
+
+    /// <summary>
+    /// Verifies that a successful launch carrying receipt drift shows an informational
+    /// notice naming the drift, while the success presentation stays unchanged.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_WithReceiptDrift_ShowsInformationalNotice()
+    {
+        var notificationService = new Mock<INotificationService>();
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "profile-1",
+            WorkspaceId = "profile-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+            ReceiptDriftWarnings = ["Executable size changed from 1 to 2 bytes: generalszh"],
+        };
+        launcherFacade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var vm = CreateLauncherViewModel(launcherFacade, notificationService);
+        var profileItem = CreateProfileItem("profile-1", "Test Profile");
+
+        await vm.LaunchProfileCommand.ExecuteAsync(profileItem);
+
+        Assert.Contains("launched successfully", vm.StatusMessage);
+        notificationService.Verify(
+            x => x.ShowSuccess("Game Launched", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationService.Verify(
+            x => x.ShowInfo(
+                "Launch Configuration Changed",
+                It.Is<string>(m =>
+                    m.Contains("Launch configuration changed since the last run") &&
+                    m.Contains("Executable size changed from 1 to 2 bytes")),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+        notificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>Long drift reports show five details and an accurate remainder.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_WithManyReceiptChanges_CapsNoticeAsync()
+    {
+        var notifications = new Mock<INotificationService>();
+        var facade = new Mock<IProfileLauncherFacade>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "profile-1",
+            WorkspaceId = "profile-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+            ReceiptDriftWarnings = Enumerable.Range(1, 8).Select(i => $"Change {i}").ToList(),
+        };
+        facade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+        var vm = CreateLauncherViewModel(facade, notifications);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(CreateProfileItem("profile-1", "Test Profile"));
+
+        notifications.Verify(x => x.ShowInfo(
+            "Launch Configuration Changed",
+            It.Is<string>(m => Enumerable.Range(1, 5).All(i => m.Contains($"Change {i}"))
+                && !m.Contains("Change 6") && !m.Contains("Change 7") && !m.Contains("Change 8")
+                && m.Contains("...and 3 more; see the logs for full detail.")),
+            It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a successful launch without receipt drift shows no notice.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_WithoutReceiptDrift_ShowsNoNotice()
+    {
+        var notificationService = new Mock<INotificationService>();
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "profile-1",
+            WorkspaceId = "profile-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+        };
+        launcherFacade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var vm = CreateLauncherViewModel(launcherFacade, notificationService);
+        var profileItem = CreateProfileItem("profile-1", "Test Profile");
+
+        await vm.LaunchProfileCommand.ExecuteAsync(profileItem);
+
+        Assert.Contains("launched successfully", vm.StatusMessage);
+        notificationService.Verify(
+            x => x.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
 }

@@ -50,7 +50,8 @@ public class GameLauncher(
     IGameSettingsService gameSettingsService,
     IProfileContentLinker profileContentLinker,
     ISteamLauncher steamLauncher,
-    IConfigurationProviderService configurationProvider) : IGameLauncher
+    IConfigurationProviderService configurationProvider,
+    ILaunchReceiptService launchReceiptService) : IGameLauncher
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
@@ -720,6 +721,79 @@ public class GameLauncher(
         return path.Replace('\\', '/');
     }
 
+    /// <summary>
+    /// Builds the receipt context describing what this launch consists of, shared by the
+    /// configuration comparison before spawn and the recording after it.
+    /// </summary>
+    /// <param name="profile">The profile being launched.</param>
+    /// <param name="gameClient">The game client being launched.</param>
+    /// <param name="workspaceInfo">The prepared workspace.</param>
+    /// <param name="launchConfig">The configuration the process is started with.</param>
+    /// <param name="manifests">The manifests resolved for the launch.</param>
+    /// <param name="launchId">The launch identifier.</param>
+    /// <returns>The receipt context.</returns>
+    private static LaunchReceiptContext BuildLaunchReceiptContext(
+        GameProfile profile,
+        GameClient gameClient,
+        WorkspaceInfo workspaceInfo,
+        GameLaunchConfiguration launchConfig,
+        IReadOnlyList<ContentManifest> manifests,
+        string launchId)
+    {
+        var manifestVersions = new Dictionary<string, string>();
+        foreach (var manifest in manifests)
+        {
+            manifestVersions[manifest.Id.Value] = manifest.Version;
+        }
+
+        return new LaunchReceiptContext
+        {
+            LaunchId = launchId,
+            ProfileId = profile.Id,
+            GameClientId = gameClient.Id,
+            GameType = gameClient.GameType,
+            WorkspaceId = workspaceInfo.Id,
+            WorkspacePath = workspaceInfo.WorkspacePath,
+            ExecutablePath = launchConfig.ExecutablePath,
+            WorkingDirectory = launchConfig.WorkingDirectory ?? workspaceInfo.WorkspacePath,
+            EnvironmentVariables = launchConfig.EnvironmentVariables,
+            ManifestIds = manifests.Select(m => m.Id.Value).ToList(),
+            ManifestVersions = manifestVersions,
+            Variant = ResolveVariantIdentity(manifests),
+        };
+    }
+
+    /// <summary>
+    /// Resolves the variant and entry-point identity for the receipt by re-running the
+    /// same <see cref="ManifestVariantResolver"/> resolution workspace preparation applies
+    /// to the game client manifest — same manifest, same host runtime, same outcome. Null
+    /// when no game client manifest is part of the launch: that is the legacy fallback,
+    /// which resolves the executable by filename search with no variant machinery involved.
+    /// </summary>
+    /// <param name="manifests">The manifests resolved for the launch.</param>
+    /// <returns>The identity, or null when nothing variant-shaped participated.</returns>
+    private static LaunchReceiptVariant? ResolveVariantIdentity(IReadOnlyList<ContentManifest> manifests)
+    {
+        var gameClientManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+        if (gameClientManifest is null)
+        {
+            return null;
+        }
+
+        var variant = ManifestVariantResolver.ResolveVariant(gameClientManifest);
+        var entryPoint = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
+
+        return new LaunchReceiptVariant
+        {
+            GameClientManifestId = gameClientManifest.Id.Value,
+            RuntimeIdentifier = ManifestVariantResolver.CurrentRuntimeIdentifier,
+            HasVariants = gameClientManifest.Variants.Count > 0,
+            VariantRuntimeIdentifiers = variant is null ? [] : [.. variant.RuntimeIdentifiers],
+            EntryPointRelativePath = entryPoint.RelativePath,
+            Resolution = entryPoint.Reason,
+        };
+    }
+
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
@@ -763,6 +837,11 @@ public class GameLauncher(
             }
 
             var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
+
+            // Reconciliation removes the prior receipt, so compare it before preparation.
+            var receiptDriftWarnings = new List<string>();
+            var previousReceipt = await RevalidateLaunchReceiptAsync(
+                Path.Combine(dynamicWorkspacePath, profile.Id), profile.Id, receiptDriftWarnings, cancellationToken);
 
             var workspaceSetupResult = await SetupAndAcquireWorkspaceAsync(
                 profile,
@@ -831,6 +910,9 @@ public class GameLauncher(
             var (launchConfig, steamPrep, steamAppId) = prepResult.Data;
             var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
 
+            var receiptContext = BuildLaunchReceiptContext(profile, gameClient, workspaceInfo, launchConfig, manifests, launchId);
+            AppendConfigurationDrift(profile.Id, previousReceipt, receiptContext, receiptDriftWarnings);
+
             var processResult = await LaunchProcessAsync(
                 isSteamLaunch,
                 manifests,
@@ -852,6 +934,10 @@ public class GameLauncher(
             var processInfo = processResult.Data;
             logger.LogInformation("[GameLauncher] Process started successfully - PID: {ProcessId}", processInfo.ProcessId);
 
+            await RecordLaunchReceiptAsync(receiptContext);
+
+            // Update the placeholder launch entry with real process info
+            // (The placeholder was registered earlier to prevent deletion during launch)
             var launchInfo = new GameLaunchInfo
             {
                 LaunchId = launchId,
@@ -859,6 +945,7 @@ public class GameLauncher(
                 WorkspaceId = workspaceInfo.Id,
                 ProcessInfo = processInfo,
                 LaunchedAt = DateTime.UtcNow,
+                ReceiptDriftWarnings = receiptDriftWarnings,
             };
             logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
             await launchRegistry.RegisterLaunchAsync(launchInfo);
@@ -1567,6 +1654,102 @@ public class GameLauncher(
 
         logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", processName);
         return processName;
+    }
+
+    /// <summary>
+    /// Cheaply revalidates the previous launch receipt against the filesystem, if any, and
+    /// logs a warning naming each drifted field. Drift never blocks the launch; blocking on
+    /// a misconfigured root remains the job of <see cref="ValidateRetailArchiveRoots"/>.
+    /// </summary>
+    /// <param name="workspacePath">The workspace directory the receipt would live in.</param>
+    /// <param name="profileId">The profile being launched.</param>
+    /// <param name="driftWarnings">Collects the drifted fields for the launch result.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>The parsed receipt, when one was present and readable, for the later configuration comparison.</returns>
+    private async Task<LaunchReceipt?> RevalidateLaunchReceiptAsync(string workspacePath, string profileId, List<string> driftWarnings, CancellationToken cancellationToken)
+    {
+        var driftResult = await launchReceiptService.RevalidateAsync(workspacePath, cancellationToken);
+        if (!driftResult.Success)
+        {
+            logger.LogWarning("[GameLauncher] Launch receipt revalidation failed: {Error}", driftResult.FirstError);
+            return null;
+        }
+
+        if (driftResult.Data is not { HasReceipt: true } driftReport)
+        {
+            return null;
+        }
+
+        if (!driftReport.HasDrift)
+        {
+            logger.LogDebug("[GameLauncher] Launch receipt for profile {ProfileId} matches the current state", profileId);
+        }
+
+        LogReceiptDrift(profileId, driftReport);
+        driftWarnings.AddRange(driftReport.DriftedFields);
+        return driftReport.Receipt;
+    }
+
+    /// <summary>Appends configuration changes when a previous receipt is available.</summary>
+    /// <param name="profileId">The profile being launched.</param>
+    /// <param name="previousReceipt">The previous receipt, if any.</param>
+    /// <param name="context">The upcoming launch configuration.</param>
+    /// <param name="warnings">The accumulated drift warnings.</param>
+    private void AppendConfigurationDrift(string profileId, LaunchReceipt? previousReceipt, LaunchReceiptContext context, List<string> warnings)
+    {
+        if (previousReceipt is null)
+        {
+            return;
+        }
+
+        var drift = launchReceiptService.CompareUpcomingLaunch(previousReceipt, context);
+        LogReceiptDrift(profileId, drift);
+        warnings.AddRange(drift.DriftedFields);
+    }
+
+    /// <summary>
+    /// Logs a structured warning per drifted field.
+    /// </summary>
+    /// <param name="profileId">The profile being launched.</param>
+    /// <param name="driftReport">The report to log.</param>
+    private void LogReceiptDrift(string profileId, LaunchReceiptDriftReport driftReport)
+    {
+        foreach (var driftedField in driftReport.DriftedFields)
+        {
+            logger.LogWarning(
+                "[GameLauncher] Launch receipt drift for profile {ProfileId}: {DriftedField}",
+                profileId,
+                driftedField);
+        }
+    }
+
+    /// <summary>
+    /// Records a receipt of what this launch consisted of into the workspace. A failure to
+    /// record is logged and never fails a launch that has already started.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not passed the launch cancellation token: the child process is already
+    /// running by the time this is called, so cancelling the launch operation must not abandon
+    /// the write half-done, and the resulting <see cref="OperationCanceledException"/> must not
+    /// reach the caller's catch and report a running game as a failed launch. Everything else
+    /// is caught here for the same reason.
+    /// </remarks>
+    /// <param name="receiptContext">What the launch consisted of.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task RecordLaunchReceiptAsync(LaunchReceiptContext receiptContext)
+    {
+        try
+        {
+            var receiptResult = await launchReceiptService.RecordLaunchAsync(receiptContext, CancellationToken.None);
+            if (!receiptResult.Success)
+            {
+                logger.LogWarning("[GameLauncher] Failed to record launch receipt: {Error}", receiptResult.FirstError);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[GameLauncher] Failed to record launch receipt for profile {ProfileId}", receiptContext.ProfileId);
+        }
     }
 
     /// <summary>
