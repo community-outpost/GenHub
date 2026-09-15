@@ -32,7 +32,7 @@ internal static class GenHotkeysAssetLoader
                 return AssetLoader.Open(uri);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or UriFormatException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or UriFormatException or InvalidOperationException)
         {
             // Ignore and fall back to filesystem
         }
@@ -95,7 +95,7 @@ internal static class GenHotkeysAssetLoader
                 return AssetLoader.Open(uri);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or UriFormatException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or UriFormatException or InvalidOperationException)
         {
             // Ignore and fall back to null
         }
