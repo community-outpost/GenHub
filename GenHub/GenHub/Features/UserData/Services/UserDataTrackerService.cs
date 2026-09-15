@@ -351,7 +351,6 @@ public class UserDataTrackerService(
                             allSuccess = false;
                         }
                     }
-                    }
                 }
 
                 // Update manifest state only after all files in this manifest are processed without errors
@@ -1227,7 +1226,6 @@ public class UserDataTrackerService(
                     logger.LogError("[UserData] Adoption target {Path} was indexed under installation {Key} but missing from its manifest; aborting installation", targetPath, conflictResult.Data);
                     return OperationResult<UserDataFileEntry>.CreateFailure($"File '{targetPath}' is indexed under installation '{conflictResult.Data}' but missing from its manifest. Installation aborted.");
                 }
-            }
             }
             else
             {

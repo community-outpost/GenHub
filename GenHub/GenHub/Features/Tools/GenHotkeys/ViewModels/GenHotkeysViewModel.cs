@@ -982,7 +982,6 @@ public partial class GenHotkeysViewModel(
         return count;
     }
 
-
     private static bool IsPermittedEngineOverlap(
         List<HotkeyActionViewModel> actions,
         string? objectName = null,
@@ -1527,6 +1526,46 @@ public partial class GenHotkeysViewModel(
             f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true;
     }
 
+    private static HotkeyActionViewModel CreateActionViewModel(
+        HotkeyAction action,
+        HotkeyProfile? selectedProfile,
+        Action<Action<Bitmap?>, string, CancellationToken> loadBitmapForIcon,
+        CancellationToken cancellationToken)
+    {
+        var actionVm = new HotkeyActionViewModel
+        {
+            IconName = action.IconName,
+            HotkeyString = action.HotkeyString,
+            DisplayName = action.DisplayName,
+            DefaultHotkey = action.DefaultHotkey,
+            Hotkey = ResolveCurrentActionHotkey(action, selectedProfile),
+        };
+
+        loadBitmapForIcon(bmp => actionVm.IconBitmap = bmp, action.IconName, cancellationToken);
+        return actionVm;
+    }
+
+    private static void CollectObjectConflicts(HotkeyGameObjectViewModel obj, HotkeyFaction defaultFaction, List<HotkeyConflictTarget> targets)
+    {
+        var objName = obj.Name ?? obj.DisplayName;
+        foreach (var layout in obj.Layouts)
+        {
+            foreach (var act in layout)
+            {
+                if (act.IsConflict)
+                {
+                    var actionKey = ResolveActionConflictKey(act);
+                    targets.Add(new HotkeyConflictTarget(
+                        defaultFaction,
+                        objName,
+                        actionKey,
+                        act.Hotkey,
+                        act));
+                }
+            }
+        }
+    }
+
     private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
     {
         if (notificationService is null)
@@ -1914,35 +1953,19 @@ public partial class GenHotkeysViewModel(
 
         LoadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, cancellationToken);
 
+        var selectedProfile = SelectedProfile;
         foreach (var layout in obj.KeyboardLayouts)
         {
             var layoutVm = new ObservableCollection<HotkeyActionViewModel>();
             foreach (var action in layout)
             {
-                layoutVm.Add(CreateActionViewModel(action, cancellationToken));
+                layoutVm.Add(CreateActionViewModel(action, selectedProfile, LoadBitmapForIcon, cancellationToken));
             }
 
             vm.Layouts.Add(layoutVm);
         }
 
         return vm;
-    }
-
-    private HotkeyActionViewModel CreateActionViewModel(
-        HotkeyAction action,
-        CancellationToken cancellationToken)
-    {
-        var actionVm = new HotkeyActionViewModel
-        {
-            IconName = action.IconName,
-            HotkeyString = action.HotkeyString,
-            DisplayName = action.DisplayName,
-            DefaultHotkey = action.DefaultHotkey,
-            Hotkey = ResolveCurrentActionHotkey(action, SelectedProfile),
-        };
-
-        LoadBitmapForIcon(bmp => actionVm.IconBitmap = bmp, action.IconName, cancellationToken);
-        return actionVm;
     }
 
     private void LoadBitmapForIcon(
@@ -2149,27 +2172,6 @@ public partial class GenHotkeysViewModel(
         foreach (var obj in FilteredGameObjects)
         {
             CollectObjectConflicts(obj, defaultFaction, targets);
-        }
-    }
-
-    private static void CollectObjectConflicts(HotkeyGameObjectViewModel obj, HotkeyFaction defaultFaction, List<HotkeyConflictTarget> targets)
-    {
-        var objName = obj.Name ?? obj.DisplayName;
-        foreach (var layout in obj.Layouts)
-        {
-            foreach (var act in layout)
-            {
-                if (act.IsConflict)
-                {
-                    var actionKey = ResolveActionConflictKey(act);
-                    targets.Add(new HotkeyConflictTarget(
-                        defaultFaction,
-                        objName,
-                        actionKey,
-                        act.Hotkey,
-                        act));
-                }
-            }
         }
     }
 

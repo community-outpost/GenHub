@@ -6,12 +6,12 @@
             "DisplayName"            : "USA",
             "DisplayNameDescription" : "United States Of America",
 
-            "Buildings" : 
+            "Buildings" :
             [
                 {
                     "Name"            : "USACommandCenter",
                     "IngameName"      : "OBJECT:CommandCenter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USADozer",                       "HotkeyString" : "CONTROLBAR:ConstructAmericaDozer"},
@@ -30,7 +30,7 @@
                 {
                     "Name"            : "USAColdFusionReactor",
                     "IngameName"      : "OBJECT:ColdFusionReactor",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAControlRods", "HotkeyString" : "CONTROLBAR:UpgradeAmericaAdvancedControlRods"},
@@ -42,7 +42,7 @@
                 {
                     "Name"            : "USABarracks",
                     "IngameName"      : "OBJECT:Barracks",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USARanger",          "HotkeyString" : "CONTROLBAR:ConstructAmericaInfantryRanger"},
@@ -60,7 +60,7 @@
                 {
                     "Name"            : "USASupplyCenter",
                     "IngameName"      : "OBJECT:SupplyCenter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAChinook", "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleChinook"},
@@ -73,7 +73,7 @@
                 {
                     "Name"            : "USAPatriot",
                     "IngameName"      : "OBJECT:PatriotBattery",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "Stop", "HotkeyString" : "CONTROLBAR:Stop"},
@@ -85,7 +85,7 @@
                 {
                     "Name"            : "USAWarFactory",
                     "IngameName"      : "OBJECT:WarFactory",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USACrusaderTank",     "HotkeyString" : "CONTROLBAR:ConstructAmericaTankCrusader"},
@@ -103,7 +103,7 @@
                 {
                     "Name"            : "USAAirfield",
                     "IngameName"      : "OBJECT:Airfield",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USARaptor",              "HotkeyString" : "CONTROLBAR:ConstructAmericaJetRaptor"},
@@ -121,7 +121,7 @@
                 {
                     "Name"            : "USAStrategyCenter",
                     "IngameName"      : "OBJECT:StrategyCenter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USABombardment",      "HotkeyString" : "CONTROLBAR:InitiateBattlePlanBombardment"},
@@ -139,7 +139,7 @@
                 {
                     "Name"            : "USADetentionCamp",
                     "IngameName"      : "OBJECT:DetentionCamp",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAIntelligence", "HotkeyString" : "CONTROLBAR:CIAIntelligence"},
@@ -151,7 +151,7 @@
                 {
                     "Name"            : "USADropZone",
                     "IngameName"      : "OBJECT:AmericaSupplyDropZone",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "Sell", "HotkeyString" : "CONTROLBAR:Sell"}
@@ -162,7 +162,7 @@
                 {
                     "Name"            : "USAParticleCannon",
                     "IngameName"      : "OBJECT:ParticleCannon",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAParticleCannonFire", "HotkeyString" : "CONTROLBAR:FireParticleUplinkCannon"},
@@ -171,12 +171,12 @@
                     ]
                 }
             ],
-            "Infantry" : 
+            "Infantry" :
             [
                 {
                     "Name"            : "USARanger",
                     "IngameName"      : "OBJECT:Ranger",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "CaptureBuilding",     "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
@@ -206,7 +206,7 @@
                 {
                     "Name"            : "USAPathfinder",
                     "IngameName"      : "OBJECT:Pathfinder",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -219,7 +219,7 @@
                 {
                     "Name"            : "USABurton",
                     "IngameName"      : "OBJECT:ColonelBurton",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAKnifeAttack",      "HotkeyString" : "CONTROLBAR:KnifeAttack"},
@@ -233,12 +233,12 @@
                     ]
                 }
             ],
-            "Vehicles" : 
+            "Vehicles" :
             [
                 {
                     "Name"            : "USADozer",
                     "IngameName"      : "OBJECT:Dozer",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAColdFusionReactor",    "HotkeyString" : "CONTROLBAR:ConstructAmericaPowerPlant"},
@@ -260,7 +260,7 @@
                 {
                     "Name"            : "USACrusaderTank",
                     "IngameName"      : "OBJECT:Crusader",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
@@ -275,7 +275,7 @@
                 {
                     "Name"            : "USAPaladinTank",
                     "IngameName"      : "OBJECT:Paladin",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
@@ -290,7 +290,7 @@
                 {
                     "Name"            : "USATomahawkLauncher",
                     "IngameName"      : "OBJECT:Tomahawk",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
@@ -305,7 +305,7 @@
                 {
                     "Name"            : "USAHumvee",
                     "IngameName"      : "OBJECT:Humvee",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAEvacuate",      "HotkeyString" : "CONTROLBAR:Evacuate"},
@@ -321,7 +321,7 @@
                 {
                     "Name"            : "USAAmbulance",
                     "IngameName"      : "OBJECT:Ambulance",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAEvacuate",             "HotkeyString" : "CONTROLBAR:Evacuate"},
@@ -335,12 +335,12 @@
                     ]
                 }
             ],
-            "Aircrafts" : 
+            "Aircrafts" :
             [
                 {
                     "Name"            : "USAChinook",
                     "IngameName"      : "OBJECT:Chinook",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAEvacuate",   "HotkeyString" : "CONTROLBAR:Evacuate"},
@@ -353,7 +353,7 @@
                 {
                     "Name"            : "USAComanche",
                     "IngameName"      : "OBJECT:Comanche",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "USAFireRocketPods", "HotkeyString" : "CONTROLBAR:FireRocketPods"},
@@ -367,7 +367,7 @@
                 {
                     "Name"            : "USAStealthFighter",
                     "IngameName"      : "OBJECT:StealthFighter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -380,7 +380,7 @@
                 {
                     "Name"            : "USARaptor",
                     "IngameName"      : "OBJECT:Raptor",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AirGuard",   "HotkeyString" : "CONTROLBAR:GuardFlyingUnitsOnly"},
@@ -394,7 +394,7 @@
                 {
                     "Name"            : "USAAurora",
                     "IngameName"      : "OBJECT:Aurora",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -410,13 +410,13 @@
             "ShortName"               : "PRC",
             "DisplayName"             : "CHINA",
             "DisplayNameDescription"  : "China",
-            
-            "Buildings"               : 
+
+            "Buildings"               :
             [
                 {
                     "Name"            : "PRCNuclearReactor",
                     "IngameName"      : "OBJECT:NuclearReactor",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCOvercharge",   "HotkeyString" : "CONTROLBAR:Overcharge"},
@@ -429,7 +429,7 @@
                 {
                     "Name"            : "PRCBarracks",
                     "IngameName"      : "OBJECT:Barracks",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCRedGuard",     "HotkeyString" : "CONTROLBAR:ConstructChinaInfantryRedguard"},
@@ -447,7 +447,7 @@
                 {
                     "Name"            : "PRCSupplyCenter",
                     "IngameName"      : "OBJECT:SupplyCenter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCSupplyTruck",  "HotkeyString" : "CONTROLBAR:ConstructChinaVehicleSupplyTruck"},
@@ -461,7 +461,7 @@
                 {
                     "Name"            : "PRCBunker",
                     "IngameName"      : "OBJECT:Bunker",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
@@ -474,7 +474,7 @@
                 {
                     "Name"            : "PRCGattlingCannon",
                     "IngameName"      : "OBJECT:GattlingCannon",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
@@ -487,7 +487,7 @@
                 {
                     "Name"            : "PRCWarFactory",
                     "IngameName"      : "OBJECT:WarFactory",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCBattlemaster",  "HotkeyString" : "CONTROLBAR:ConstructGLATankBattleMaster"},
@@ -509,7 +509,7 @@
                 {
                     "Name"            : "PRCAirfield",
                     "IngameName"      : "OBJECT:Airfield",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCMIG",          "HotkeyString" : "CONTROLBAR:ConstructChinaJetMIG"},
@@ -523,7 +523,7 @@
                 {
                     "Name"            : "PRCPropagandaCenter",
                     "IngameName"      : "OBJECT:PropagandaCenter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCNationalismIcon",     "HotkeyString" : "CONTROLBAR:UpgradeChinaFanaticism"},
@@ -537,7 +537,7 @@
                 {
                     "Name"            : "PRCSpeakerTower",
                     "IngameName"      : "OBJECT:SpeakerTower",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "Sell", "HotkeyString" : "CONTROLBAR:Sell"}
@@ -548,7 +548,7 @@
                 {
                     "Name"            : "PRCNuclearMissileSilo",
                     "IngameName"      : "OBJECT:NeutronMissile",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCNuclearMissile", "HotkeyString" : "CONTROLBAR:NeutronMissile"},
@@ -563,7 +563,7 @@
                 {
                     "Name"            : "PRCCommandCenter",
                     "IngameName"      : "OBJECT:CommandCenter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCDozer",              "HotkeyString" : "CONTROLBAR:ConstructChinaDozer"},
@@ -580,12 +580,12 @@
                     ]
                 }
             ],
-            "Infantry"                : 
+            "Infantry"                :
             [
                 {
                     "Name"            : "PRCRedGuard",
                     "IngameName"      : "OBJECT:Redguard",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "CaptureBuilding", "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
@@ -599,7 +599,7 @@
                 {
                     "Name"            : "PRCTankHunter",
                     "IngameName"      : "OBJECT:TankHunter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCTNTAttack", "HotkeyString" : "CONTROLBAR:TNTAttack"},
@@ -613,7 +613,7 @@
                 {
                     "Name"            : "PRCHacker",
                     "IngameName"      : "OBJECT:Hacker",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCDisableBuilding", "HotkeyString" : "CONTROLBAR:DisableBuildingHack"},
@@ -626,7 +626,7 @@
                 {
                     "Name"            : "PRCBlackLotus",
                     "IngameName"      : "OBJECT:BlackLotus",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCBlackLotusCaptureBuilding", "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
@@ -637,12 +637,12 @@
                     ]
                 }
             ],
-            "Vehicles"                : 
+            "Vehicles"                :
             [
                 {
                     "Name"            : "PRCBattlemaster",
                     "IngameName"      : "OBJECT:BattleMaster",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -655,7 +655,7 @@
                 {
                     "Name"            : "PRCInfernoCannon",
                     "IngameName"      : "OBJECT:InfernoCannon",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -668,7 +668,7 @@
                 {
                     "Name"            : "PRCGattlingTank",
                     "IngameName"      : "OBJECT:GattlingTank",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -681,7 +681,7 @@
                 {
                     "Name"            : "PRCDragonTank",
                     "IngameName"      : "OBJECT:Dragon",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCFireWall", "HotkeyString" : "CONTROLBAR:FireWall"},
@@ -695,7 +695,7 @@
                 {
                     "Name"            : "PRCTroopCrawler",
                     "IngameName"      : "OBJECT:TroopCrawler",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "Evacuate",   "HotkeyString" : "CONTROLBAR:Evacuate"},
@@ -708,7 +708,7 @@
                 {
                     "Name"            : "PRCOverlordTank",
                     "IngameName"      : "OBJECT:Overlord",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCOverlordBattleBunker",    "HotkeyString" : "CONTROLBAR:UpgradeChinaOverlordBattleBunker"},
@@ -724,7 +724,7 @@
                 {
                     "Name"            : "PRCNukeCannon",
                     "IngameName"      : "OBJECT:NukeLauncher",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove",       "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -737,7 +737,7 @@
                 {
                     "Name"            : "PRCDozer",
                     "IngameName"      : "OBJECT:Dozer",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "PRCNuclearReactor",     "HotkeyString" : "CONTROLBAR:ConstructChinaPowerPlant"},
@@ -756,12 +756,12 @@
                     ]
                 }
             ],
-            "Aircrafts"                : 
+            "Aircrafts"                :
             [
                 {
                     "Name"            : "PRCMIG",
                     "IngameName"      : "OBJECT:MIG",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AirGuard",   "HotkeyString" : "CONTROLBAR:GuardFlyingUnitsOnly"},
@@ -779,12 +779,12 @@
             "DisplayName"             : "GLA",
             "DisplayNameDescription"  : "Global Liberation Army",
 
-            "Buildings"               : 
+            "Buildings"               :
             [
                 {
                     "Name"            : "GLASupplyStash",
                     "IngameName"      : "OBJECT:SupplyStash",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAWorker",  "HotkeyString" : "CONTROLBAR:ConstructGLAWorker"},
@@ -797,7 +797,7 @@
                 {
                     "Name"            : "GLABarracks",
                     "IngameName"      : "OBJECT:Barracks",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLARebel",        "HotkeyString" : "CONTROLBAR:ConstructGLAInfantryRebel"},
@@ -816,7 +816,7 @@
                 {
                     "Name"            : "GLAStingerSite",
                     "IngameName"      : "OBJECT:StingerSite",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                           [
                             {"IconName" : "Stop",           "HotkeyString" : "CONTROLBAR:Stop"},
@@ -828,7 +828,7 @@
                 {
                     "Name"            : "GLATunnelNetwork",
                     "IngameName"      : "OBJECT:TunnelNetwork",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "Evacuate",       "HotkeyString" : "CONTROLBAR:Evacuate"},
@@ -841,7 +841,7 @@
                 {
                     "Name"            : "GLAArmsDealer",
                     "IngameName"      : "OBJECT:ArmsDealer",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAScorpionTank",   "HotkeyString" : "CONTROLBAR:ConstructGLATankScorpion"},
@@ -863,7 +863,7 @@
                 {
                     "Name"            : "GLADemoTrap",
                     "IngameName"      : "OBJECT:DemoTrap",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAProximityFuse", "HotkeyString" : "CONTROLBAR:ProximityFuse"},
@@ -877,7 +877,7 @@
                 {
                     "Name"            : "GLAPalace",
                     "IngameName"      : "OBJECT:Palace",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLACamouflage",         "HotkeyString" : "CONTROLBAR:UpgradeGLACamouflage"},
@@ -893,7 +893,7 @@
                 {
                     "Name"            : "GLABlackMarket",
                     "IngameName"      : "OBJECT:BlackMarket",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAAPBullets",       "HotkeyString" : "CONTROLBAR:UpgradeGLAAPBullets"},
@@ -909,7 +909,7 @@
                 {
                     "Name"            : "GLAScudStorm",
                     "IngameName"      : "OBJECT:ScudStorm",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAScudStormLaunch", "HotkeyString" : "CONTROLBAR:ScudStorm"},
@@ -921,7 +921,7 @@
                 {
                     "Name"            : "GLACommandCenter",
                     "IngameName"      : "OBJECT:CommandCenter",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAWorker",       "HotkeyString" : "CONTROLBAR:ConstructGLAWorker"},
@@ -934,12 +934,12 @@
                     ]
                 }
             ],
-            "Infantry"                : 
+            "Infantry"                :
             [
                 {
                     "Name"            : "GLARebel",
                     "IngameName"      : "OBJECT:Rebel",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "CaptureBuilding", "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
@@ -953,7 +953,7 @@
                 {
                     "Name"            : "GLARPGTrooper",
                     "IngameName"      : "OBJECT:TunnelDefender",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -966,7 +966,7 @@
                 {
                     "Name"            : "GLATerrorist",
                     "IngameName"      : "OBJECT:Terrorist",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLACarBomb", "HotkeyString" : "CONTROLBAR:CarBomb"},
@@ -979,7 +979,7 @@
                 {
                     "Name"            : "GLAJarmenKell",
                     "IngameName"      : "OBJECT:JarmenKell",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAPilotKill", "HotkeyString" : "CONTROLBAR:SniperAttack"},
@@ -993,7 +993,7 @@
                 {
                     "Name"            : "GLAAngryMob",
                     "IngameName"      : "OBJECT:AngryMob",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -1006,7 +1006,7 @@
                 {
                     "Name"            : "GLAHijacker",
                     "IngameName"      : "OBJECT:Hijacker",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAHijack", "HotkeyString" : "CONTROLBAR:Hijack"},
@@ -1018,7 +1018,7 @@
                 {
                     "Name"            : "GLAWorker",
                     "IngameName"      : "OBJECT:Worker",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLASupplyStash",        "HotkeyString" : "CONTROLBAR:ConstructGLASupplyStash"},
@@ -1036,12 +1036,12 @@
                     ]
                 }
             ],
-            "Vehicles"                : 
+            "Vehicles"                :
             [
                 {
                     "Name"            : "GLAScorpionTank",
                     "IngameName"      : "OBJECT:Scorpion",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -1054,7 +1054,7 @@
                 {
                     "Name"            : "GLATechnical",
                     "IngameName"      : "OBJECT:Technical",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "Evacuate",   "HotkeyString" : "CONTROLBAR:Evacuate"},
@@ -1068,7 +1068,7 @@
                 {
                     "Name"            : "GLAQuadCannon",
                     "IngameName"      : "OBJECT:QuadCannon",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -1081,7 +1081,7 @@
                 {
                     "Name"            : "GLARocketBuggy",
                     "IngameName"      : "OBJECT:RocketBuggy",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -1094,7 +1094,7 @@
                 {
                     "Name"            : "GLAMarauderTank",
                     "IngameName"      : "OBJECT:Marauder",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
@@ -1107,7 +1107,7 @@
                 {
                     "Name"            : "GLAToxinTractor",
                     "IngameName"      : "OBJECT:ToxinTruck",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAContaminate", "HotkeyString" : "CONTROLBAR:Contaminate"},
@@ -1121,7 +1121,7 @@
                 {
                     "Name"            : "GLAScudLauncher",
                     "IngameName"      : "OBJECT:ScudLauncher",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLAExplosiveWarhead", "HotkeyString" : "CONTROLBAR:ExplosiveWarhead"},
@@ -1136,7 +1136,7 @@
                 {
                     "Name"            : "GLABombTruck",
                     "IngameName"      : "OBJECT:BombTruck",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLADisguise",          "HotkeyString" : "CONTROLBAR:DisguiseAsVehicle"},
@@ -1153,7 +1153,7 @@
                 {
                     "Name"            : "GLARadarVan",
                     "IngameName"      : "OBJECT:RadarVan",
-                    "KeyboardLayouts" : 
+                    "KeyboardLayouts" :
                     [
                         [
                             {"IconName" : "GLARadarVanScan", "HotkeyString" : "CONTROLBAR:RadarVanScan"},

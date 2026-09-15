@@ -48,6 +48,7 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin, IDisposable
             };
 
             var serviceProvider = _serviceProvider;
+
             // Trigger activation load on first view creation
             _ = viewModel.InitializeAsync().ContinueWith(
                 t =>
