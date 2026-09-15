@@ -217,9 +217,8 @@ public class SuperHackersManifestFactory(
     /// Candidates are selected via <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate"/>
     /// instead of a <c>*.exe</c> glob, because a native Mach-O or ELF build of the same
     /// client is extensionless and the glob hid it entirely. The name match then accepts
-    /// either the Windows executable name or its extensionless form; a content-based
-    /// (magic-byte) classification slots in at the classifier call without this site
-    /// changing. Windows <c>.exe</c> results are unaffected.
+    /// either the Windows executable name or its extensionless form. The classifier
+    /// verifies native executable signatures for extensionless candidates.
     /// </remarks>
     private Dictionary<GameType, string> DetectGameExecutables(string directory)
     {

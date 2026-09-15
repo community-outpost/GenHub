@@ -121,21 +121,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         return Task.FromResult(result);
     }
 
-    /// <summary>
-    /// Determines whether both games are flagged at the same directory.
-    /// </summary>
-    /// <param name="installation">The installation to inspect.</param>
-    /// <returns>True when Generals and Zero Hour share one path.</returns>
-    private static bool IsCombinedDirectory(GameInstallation installation)
-    {
-        return installation.HasGenerals
-            && installation.HasZeroHour
-            && !string.IsNullOrEmpty(installation.GeneralsPath)
-            && !string.IsNullOrEmpty(installation.ZeroHourPath)
-            && Path.GetFullPath(installation.GeneralsPath).Equals(
-                Path.GetFullPath(installation.ZeroHourPath),
-                StringComparison.OrdinalIgnoreCase);
-    }
+
 
     private List<GameInstallation> DetectRetailInstallations()
     {
@@ -228,10 +214,10 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             // Splitting it across sources by clearing whichever game another source
             // already claimed would leave the same directory owned by two installations
             // and scanned twice for clients, so it is kept whole or dropped whole.
-            if (IsCombinedDirectory(installation))
+            if (installation.IsCombinedDirectory)
             {
                 var combinedPath = Path.GetFullPath(installation.GeneralsPath);
-                if (seenGeneralsPaths.Contains(combinedPath) || seenZeroHourPaths.Contains(combinedPath))
+                if (seenGeneralsPaths.Contains(combinedPath) && seenZeroHourPaths.Contains(combinedPath))
                 {
                     logger.LogWarning(
                         "Skipping combined {InstallationType} installation at {CombinedPath} (directory already detected from another source)",
@@ -317,21 +303,5 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         return deduplicated;
     }
 
-    /// <summary>
-    /// Classifies a directory's archives without letting a filesystem error abort detection.
-    /// </summary>
-    /// <param name="path">The directory to classify.</param>
-    /// <returns>The classification, or neither game when the directory cannot be read.</returns>
-    private RetailArchiveClassification ClassifyArchivesSafely(string path)
-    {
-        try
-        {
-            return RetailArchiveClassifier.ClassifyArchives(path);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            logger.LogWarning(ex, "Could not read {Path} while classifying retail archives; treating it as holding none", path);
-            return default;
-        }
-    }
+
 }

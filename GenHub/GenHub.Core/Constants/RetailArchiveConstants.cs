@@ -42,19 +42,6 @@ public static class RetailArchiveConstants
     public const string ArchiveSearchPattern = "*.big";
 
     /// <summary>
-    /// Filename suffix that marks an archive as Zero Hour content.
-    /// </summary>
-    /// <remarks>
-    /// A retail fact, not an engine one: a retail Zero Hour installation ships its
-    /// archives with this suffix (<c>INIZH.big</c>, <c>AudioZH.big</c>, …), verifiable
-    /// against a real installation, so any such archive marks Zero Hour data. Deliberately
-    /// not derived from any engine build's loading code, so the rule stays valid for a
-    /// stock retail install with no community client. Compare case-insensitively — retail
-    /// data copied from a disc or a Windows machine is frequently upper-cased.
-    /// </remarks>
-    public const string ZeroHourArchiveSuffix = "zh.big";
-
-    /// <summary>
     /// How <see cref="ArchiveSearchPattern"/> is matched within a retail root.
     /// </summary>
     /// <remarks>
@@ -97,7 +84,7 @@ public static class RetailArchiveConstants
     /// client. Any one of them marks a directory as holding Generals data — localised SKUs
     /// vary in which language archives they carry, so requiring the full set would reject
     /// valid installs. The comparer is case-insensitive for the same reason as
-    /// <see cref="ZeroHourArchiveSuffix"/>.
+    /// <see cref="ArchiveSearch"/>.
     /// </remarks>
     public static readonly IReadOnlySet<string> GeneralsArchiveNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -116,5 +103,35 @@ public static class RetailArchiveConstants
         "textures.big",
         "w3d.big",
         "window.big",
+    };
+
+    /// <summary>Recognized retail Zero Hour root archives, including localized editions.</summary>
+    public static readonly IReadOnlySet<string> ZeroHourArchiveNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "audiozh.big",
+        "audioenglishzh.big",
+        "chinesezh.big",
+        "englishzh.big",
+        "frenchzh.big",
+        "genseczh.big",
+        "germanzh.big",
+        "inizh.big",
+        "italianzh.big",
+        "koreanzh.big",
+        "mapszh.big",
+        "musiczh.big",
+        "patchzh.big",
+        "polishzh.big",
+        "portuguesezh.big",
+        "russianzh.big",
+        "shaderszh.big",
+        "spanishzh.big",
+        "speechzh.big",
+        "speechenglishzh.big",
+        "terrainzh.big",
+        "textureszh.big",
+        "w3dzh.big",
+        "w3denglishzh.big",
+        "windowzh.big",
     };
 }
