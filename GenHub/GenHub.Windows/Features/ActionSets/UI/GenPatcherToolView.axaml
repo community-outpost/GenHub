@@ -316,7 +316,7 @@
                                                     <TextBlock Text="{localization:Localize Tools.GenPatcher.Badge.Crucial}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource GenPatcherBadgeCrucialForegroundBrush}"/>
                                                 </Border>
                                                 <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,1">
-                                                    <TextBlock Text="{Binding Category}" FontSize="9.5" Foreground="{DynamicResource TextSecondary}"/>
+                                                    <TextBlock Text="{Binding CategoryDisplay}" FontSize="9.5" Foreground="{DynamicResource TextSecondary}"/>
                                                 </Border>
                                             </StackPanel>
                                         </StackPanel>

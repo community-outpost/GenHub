@@ -38,7 +38,7 @@ public class GenPatcherViewModelTests
         var propertyChangedRaised = false;
         vm.PropertyChanged += (sender, args) =>
         {
-            if (args.PropertyName == nameof(GenPatcherViewModel.ProgressSummaryText))
+            if (args.PropertyName == nameof(GenPatcherViewModel.AllCategoryText))
             {
                 propertyChangedRaised = true;
             }

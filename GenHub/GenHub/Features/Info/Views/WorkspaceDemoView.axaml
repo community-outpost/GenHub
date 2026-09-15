@@ -32,17 +32,17 @@
             </Grid>
 
             <!-- Operation List -->
-            <Border Grid.Row="1" Background="#0F0F0F" CornerRadius="8" BorderBrush="#252525" BorderThickness="1">
+            <Border Grid.Row="1" Background="{DynamicResource CardBackground}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                 <ScrollViewer x:Name="OperationsScroll">
                     <ItemsControl ItemsSource="{Binding Operations}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="#1A1A1A" BorderThickness="0,0,0,1" Padding="12,10">
+                                <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="12,10">
                                     <Grid ColumnDefinitions="*, Auto, *">
                                         <!-- Source -->
                                         <StackPanel Grid.Column="0">
-                                            <TextBlock Text="{localization:Localize Info.WorkspaceDemo.Source}" FontSize="9" FontWeight="Bold" Foreground="#666"/>
-                                            <TextBlock Text="{Binding Source}" FontSize="11" Foreground="#999" TextWrapping="NoWrap"/>
+                                            <TextBlock Text="{localization:Localize Info.WorkspaceDemo.Source}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
+                                            <TextBlock Text="{Binding Source}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="NoWrap"/>
                                         </StackPanel>
 
                                         <!-- Link Visual -->
@@ -53,8 +53,8 @@
 
                                         <!-- Target -->
                                         <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                            <TextBlock Text="{localization:Localize Info.WorkspaceDemo.Workspace}" FontSize="9" FontWeight="Bold" Foreground="#666" HorizontalAlignment="Right"/>
-                                            <TextBlock Text="{Binding Target}" FontSize="11" Foreground="#CCC" TextWrapping="NoWrap" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="{localization:Localize Info.WorkspaceDemo.Workspace}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="{Binding Target}" FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="NoWrap" HorizontalAlignment="Right"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

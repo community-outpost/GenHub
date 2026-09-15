@@ -4438,4 +4438,244 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>Add to Profile</value>
   </data>
+  <data name="Color.Amber" xml:space="preserve">
+    <value>Amber</value>
+  </data>
+  <data name="Color.Blue" xml:space="preserve">
+    <value>Blue</value>
+  </data>
+  <data name="Color.BlueGrey" xml:space="preserve">
+    <value>Blue Grey</value>
+  </data>
+  <data name="Color.Brown" xml:space="preserve">
+    <value>Brown</value>
+  </data>
+  <data name="Color.Cyan" xml:space="preserve">
+    <value>Cyan</value>
+  </data>
+  <data name="Color.CyanBlue" xml:space="preserve">
+    <value>Cyan Blue</value>
+  </data>
+  <data name="Color.DarkBlue" xml:space="preserve">
+    <value>Dark Blue</value>
+  </data>
+  <data name="Color.DarkCyan" xml:space="preserve">
+    <value>Dark Cyan</value>
+  </data>
+  <data name="Color.DarkGreen" xml:space="preserve">
+    <value>Dark Green</value>
+  </data>
+  <data name="Color.DarkGrey" xml:space="preserve">
+    <value>Dark Grey</value>
+  </data>
+  <data name="Color.DarkOrange" xml:space="preserve">
+    <value>Dark Orange</value>
+  </data>
+  <data name="Color.DarkOrangeRed" xml:space="preserve">
+    <value>Dark Orange Red</value>
+  </data>
+  <data name="Color.DarkTeal" xml:space="preserve">
+    <value>Dark Teal</value>
+  </data>
+  <data name="Color.DeepIndigo" xml:space="preserve">
+    <value>Deep Indigo</value>
+  </data>
+  <data name="Color.DeepOrange" xml:space="preserve">
+    <value>Deep Orange</value>
+  </data>
+  <data name="Color.DeepPink" xml:space="preserve">
+    <value>Deep Pink</value>
+  </data>
+  <data name="Color.DeepPurple" xml:space="preserve">
+    <value>Deep Purple</value>
+  </data>
+  <data name="Color.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Color.Green" xml:space="preserve">
+    <value>Green</value>
+  </data>
+  <data name="Color.Indigo" xml:space="preserve">
+    <value>Indigo</value>
+  </data>
+  <data name="Color.LightBlue" xml:space="preserve">
+    <value>Light Blue</value>
+  </data>
+  <data name="Color.LightGreen" xml:space="preserve">
+    <value>Light Green</value>
+  </data>
+  <data name="Color.Lime" xml:space="preserve">
+    <value>Lime</value>
+  </data>
+  <data name="Color.OliveGreen" xml:space="preserve">
+    <value>Olive Green</value>
+  </data>
+  <data name="Color.Orange" xml:space="preserve">
+    <value>Orange</value>
+  </data>
+  <data name="Color.Pink" xml:space="preserve">
+    <value>Pink</value>
+  </data>
+  <data name="Color.Purple" xml:space="preserve">
+    <value>Purple</value>
+  </data>
+  <data name="Color.Red" xml:space="preserve">
+    <value>Red</value>
+  </data>
+  <data name="Color.Teal" xml:space="preserve">
+    <value>Teal</value>
+  </data>
+  <data name="Color.Yellow" xml:space="preserve">
+    <value>Yellow</value>
+  </data>
+  <data name="Color.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Common.LoadingEllipsis" xml:space="preserve">
+    <value>Loading...</value>
+  </data>
+  <data name="Common.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Common.SavingEllipsis" xml:space="preserve">
+    <value>Saving...</value>
+  </data>
+  <data name="Downloads.Subscription.NewCatalogBadge" xml:space="preserve">
+    <value>+ New Catalog</value>
+  </data>
+  <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
+    <value>ADD CONTENT</value>
+  </data>
+  <data name="Profiles.AddLocalContent.BrowseFiles" xml:space="preserve">
+    <value>Browse Files</value>
+  </data>
+  <data name="Profiles.AddLocalContent.BrowseFolder" xml:space="preserve">
+    <value>Browse Folder</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ContentPreview" xml:space="preserve">
+    <value>CONTENT PREVIEW</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NameLabel" xml:space="preserve">
+    <value>NAME</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NameWatermark" xml:space="preserve">
+    <value>e.g. My Awesome Mod</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NoContentLoaded" xml:space="preserve">
+    <value>No Content Loaded</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NoContentSelected" xml:space="preserve">
+    <value>No content selected</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Processing" xml:space="preserve">
+    <value>Processing...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.RemoveItemTip" xml:space="preserve">
+    <value>Remove Item</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SelectExecutableTip" xml:space="preserve">
+    <value>Select as main executable</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SourceLabel" xml:space="preserve">
+    <value>SOURCE</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Subtitle" xml:space="preserve">
+    <value>Drag and drop archives or folders, or browse below.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.TargetGameLabel" xml:space="preserve">
+    <value>TARGET GAME</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Title" xml:space="preserve">
+    <value>Import Content</value>
+  </data>
+  <data name="Profiles.AddLocalContent.TypeLabel" xml:space="preserve">
+    <value>TYPE</value>
+  </data>
+  <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
+    <value>Add Content</value>
+  </data>
+  <data name="Profiles.Settings.AddLocalContentTitle" xml:space="preserve">
+    <value>Add Local Content</value>
+  </data>
+  <data name="Profiles.Settings.BasicInformation" xml:space="preserve">
+    <value>Basic Information</value>
+  </data>
+  <data name="Profiles.Settings.CommandLineArguments" xml:space="preserve">
+    <value>Command Line Arguments</value>
+  </data>
+  <data name="Profiles.Settings.CommandLineArgumentsHint" xml:space="preserve">
+    <value>Optional arguments passed to the game executable</value>
+  </data>
+  <data name="Profiles.Settings.ContentName" xml:space="preserve">
+    <value>Content Name</value>
+  </data>
+  <data name="Profiles.Settings.ContentNameWatermark" xml:space="preserve">
+    <value>Enter a name for this content</value>
+  </data>
+  <data name="Profiles.Settings.ContentType" xml:space="preserve">
+    <value>Content Type</value>
+  </data>
+  <data name="Profiles.Settings.Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Profiles.Settings.DescriptionWatermark" xml:space="preserve">
+    <value>Optional description</value>
+  </data>
+  <data name="Profiles.Settings.FailedToLoadSettings" xml:space="preserve">
+    <value>Failed to load settings</value>
+  </data>
+  <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
+    <value>Icon &amp; Cover</value>
+  </data>
+  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
+    <value>Launch Options</value>
+  </data>
+  <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
+    <value>Profile Cover</value>
+  </data>
+  <data name="Profiles.Settings.ProfileIcon" xml:space="preserve">
+    <value>Profile Icon</value>
+  </data>
+  <data name="Profiles.Settings.ProfileName" xml:space="preserve">
+    <value>Profile Name</value>
+  </data>
+  <data name="Profiles.Settings.ProfileNameWatermark" xml:space="preserve">
+    <value>Enter profile name</value>
+  </data>
+  <data name="Profiles.Settings.PublisherLocalHint" xml:space="preserve">
+    <value>Publisher will be set to 'GenHub (Local)' for local content</value>
+  </data>
+  <data name="Profiles.Settings.RandomizeColorTooltip" xml:space="preserve">
+    <value>Randomize color</value>
+  </data>
+  <data name="Profiles.Settings.SaveTooltip" xml:space="preserve">
+    <value>Save profile changes (Ctrl+S)</value>
+  </data>
+  <data name="Profiles.Settings.SelectedFolder" xml:space="preserve">
+    <value>Selected Folder</value>
+  </data>
+  <data name="Profiles.Settings.TabContent" xml:space="preserve">
+    <value>Content</value>
+  </data>
+  <data name="Profiles.Settings.TabGameSettings" xml:space="preserve">
+    <value>Game Settings</value>
+  </data>
+  <data name="Profiles.Settings.TabProfileSettings" xml:space="preserve">
+    <value>Profile Settings</value>
+  </data>
+  <data name="Profiles.Settings.TargetGame" xml:space="preserve">
+    <value>Target Game</value>
+  </data>
+  <data name="Profiles.Settings.TargetGameHint" xml:space="preserve">
+    <value>Specify which game version this executable belongs to</value>
+  </data>
+  <data name="Profiles.Settings.ThemeColor" xml:space="preserve">
+    <value>Theme Color</value>
+  </data>
+  <data name="Profiles.Settings.WorkspaceStrategy" xml:space="preserve">
+    <value>Workspace Strategy</value>
+  </data>
+  <data name="Profiles.Wizard.SelectComponentsSubtitle" xml:space="preserve">
+    <value>Select the components you wish to configure.</value>
+  </data>
 </root>

@@ -287,7 +287,9 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                 ApplyFilter();
             });
 
-            StatusMessage = $"Loaded {maps.Count} maps.";
+            StatusMessage = _localizationService != null
+                ? string.Format(_localizationService.GetString("Maps.Status.LoadedCount") ?? "Loaded {0} maps.", maps.Count)
+                : $"Loaded {maps.Count} maps.";
 
             // Load thumbnails in background to avoid UI hang
             _ = Task.Run(() =>

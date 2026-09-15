@@ -8,6 +8,9 @@ namespace GenHub.Core.Models.Info;
 /// </summary>
 public class InfoCard
 {
+    /// <summary>Gets or sets the unique identifier of the card.</summary>
+    public string Id { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the title of the card.</summary>
     public string Title { get; set; } = string.Empty;
 

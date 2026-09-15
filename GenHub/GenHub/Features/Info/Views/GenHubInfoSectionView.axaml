@@ -266,7 +266,7 @@
                                                 <PathIcon Data="M10,2H19V11M19,2L6,15" Width="12" Height="12" Foreground="Black" RenderTransform="rotate(-45deg)" RenderTransformOrigin="50%,50%"/>
                                             </Border>
                                          </Grid>
-                                         <TextBlock Text="Zero Hour Demo" Foreground="White" TextAlignment="Center" TextWrapping="Wrap" FontSize="12"
+                                         <TextBlock Text="{localization:Localize Info.Demo.ZeroHourDemo}" Foreground="White" TextAlignment="Center" TextWrapping="Wrap" FontSize="12"
                                                     Effect="drop-shadow(1 1 2 black)"/>
                                      </StackPanel>
                                  </Border>
@@ -651,24 +651,24 @@
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsModPresetActive}"
                                     Classes="preset-btn"
                                     Margin="0,0,8,0"
-                                    ToolTip.Tip="ShockWave mod package with .big archives, INIs, and maps. No executable needed."/>
+                                    ToolTip.Tip="{localization:Localize Info.Demo.LocalContent.PresetModTooltip}"/>
                             <Button Content="{localization:Localize Info.Demo.LocalContent.PresetClient}"
                                     Command="{Binding DemoAddLocalContent.LoadGameClientPresetCommand}"
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsGameClientPresetActive}"
                                     Classes="preset-btn"
                                     Margin="0,0,8,0"
-                                    ToolTip.Tip="Custom engine client build with generals.exe marked as the game binary."/>
+                                    ToolTip.Tip="{localization:Localize Info.Demo.LocalContent.PresetClientTooltip}"/>
                             <Button Content="{localization:Localize Info.Demo.LocalContent.PresetTool}"
                                     Command="{Binding DemoAddLocalContent.LoadModdingToolPresetCommand}"
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsModdingToolPresetActive}"
                                     Classes="preset-btn"
                                     Margin="0,0,8,0"
-                                    ToolTip.Tip="Modding utility showing interactive executable selection in the preview tree."/>
+                                    ToolTip.Tip="{localization:Localize Info.Demo.LocalContent.PresetToolTooltip}"/>
                             <Button Content="{localization:Localize Info.Demo.LocalContent.PresetExe}"
                                     Command="{Binding DemoAddLocalContent.LoadExecutablePresetCommand}"
                                     Classes.preset-active="{Binding DemoAddLocalContent.IsExecutablePresetActive}"
                                     Classes="preset-btn"
-                                    ToolTip.Tip="Standalone editor executable configured as a launch target."/>
+                                    ToolTip.Tip="{localization:Localize Info.Demo.LocalContent.PresetExeTooltip}"/>
                         </WrapPanel>
                     </Grid>
                 </Border>

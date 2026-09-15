@@ -59,7 +59,8 @@ public partial class MainViewModel(
     IDialogService dialogService,
     NotificationFeedViewModel notificationFeedViewModel,
     InfoViewModel infoViewModel,
-    ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
+    ILogger<MainViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
 {
     private readonly CancellationTokenSource _initializationCts = new();
     private bool _disposed;
@@ -70,7 +71,7 @@ public partial class MainViewModel(
 #pragma warning disable CS8625
     [Obsolete("Use DI constructor for runtime. This is only for XAML tools.")]
     public MainViewModel()
-        : this(null, null, null, null, null, null, null, null, null, null, null, null, null)
+        : this(null, null, null, null, null, null, null, null, null, null, null, null, null, null)
     {
     }
 #pragma warning restore CS8625
@@ -267,7 +268,7 @@ public partial class MainViewModel(
                 {
                     new DialogAction
                     {
-                        Text = "Open Quickstart",
+                        Text = localizationService?.GetString("GettingStarted.Action.OpenQuickstart") ?? "Open Quickstart",
                         Style = NotificationActionStyle.Primary,
                         Action = () =>
                         {
@@ -279,12 +280,12 @@ public partial class MainViewModel(
                     },
                     new DialogAction
                     {
-                        Text = "Close",
+                        Text = localizationService?.GetString("Common.Button.Close") ?? "Close",
                         Style = NotificationActionStyle.Secondary,
                     },
                 };
 
-                var content = """
+                var content = localizationService?.GetString("GettingStarted.Content") ?? """
                 **Welcome to GenHub!**
 
                 Your modern, community-focused command center for **C&C: Generals & Zero Hour** is ready. The **Quickstart Guide** will help you get started with:
@@ -294,8 +295,10 @@ public partial class MainViewModel(
                 *   Adding your own mods and content
                 """;
 
+                var title = localizationService?.GetString("GettingStarted.Title") ?? "Getting Started";
+
                 var result = await dialogService.ShowMessageAsync(
-                    "Getting Started",
+                    title,
                     content,
                     actions,
                     showDoNotAskAgain: true);

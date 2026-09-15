@@ -34,6 +34,8 @@ public partial class GenPatcherViewModel(
     ILogger<GenPatcherViewModel> logger,
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
+    private bool _disposed;
+
     [ObservableProperty]
     private ObservableCollection<GameInstallation> availableInstallations = [];
 
@@ -170,6 +172,8 @@ public partial class GenPatcherViewModel(
         {
             vm.NotifyLocalizationChanged();
         }
+
+        ApplyFilter();
     }
 
     private static bool MatchesCategory(ActionSetViewModel vm, string category) =>
@@ -807,21 +811,40 @@ public partial class GenPatcherViewModel(
     }
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public void Dispose()
     {
-        if (localizationService != null)
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
         {
-            localizationService.PropertyChanged -= OnLocalizationChanged;
+            return;
         }
 
-        _refreshCts?.Cancel();
-        _refreshCts?.Dispose();
-        _refreshCts = null;
+        if (disposing)
+        {
+            if (localizationService != null)
+            {
+                localizationService.PropertyChanged -= OnLocalizationChanged;
+            }
 
-        _batchCts?.Cancel();
-        _batchCts?.Dispose();
-        _batchCts = null;
+            _refreshCts?.Cancel();
+            _refreshCts?.Dispose();
+            _refreshCts = null;
 
-        GC.SuppressFinalize(this);
+            _batchCts?.Cancel();
+            _batchCts?.Dispose();
+            _batchCts = null;
+        }
+
+        _disposed = true;
     }
 }

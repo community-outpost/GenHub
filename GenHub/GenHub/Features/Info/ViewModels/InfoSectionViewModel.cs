@@ -1,10 +1,10 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Models.Info;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Info;
 
 namespace GenHub.Features.Info.ViewModels;
 
@@ -33,15 +33,7 @@ public partial class InfoSectionViewModel(InfoSection model, ILocalizationServic
     /// <summary>
     /// Gets the collection of cards in this section.
     /// </summary>
-    public ObservableCollection<InfoCardViewModel> Cards { get; } = new(model.Cards.Select(c => new InfoCardViewModel
-    {
-        Title = c.Title,
-        Content = c.Content,
-        Type = c.Type,
-        IsExpandable = c.IsExpandable,
-        DetailedContent = c.DetailedContent,
-        Actions = c.Actions,
-    }));
+    public ObservableCollection<InfoCardViewModel> Cards { get; } = new(model.Cards.Select(c => new InfoCardViewModel(c, model.Id, localizationService)));
 
     /// <summary>
     /// Notifies that localization has changed.
@@ -50,6 +42,10 @@ public partial class InfoSectionViewModel(InfoSection model, ILocalizationServic
     {
         Title = ResolveString(localizationService, $"Info.Section.{Id}.Title", model.Title);
         Description = ResolveString(localizationService, $"Info.Section.{Id}.Description", model.Description);
+        foreach (var card in Cards)
+        {
+            card.NotifyLocalizationChanged();
+        }
     }
 
     private static string ResolveString(ILocalizationService? loc, string key, string fallback)

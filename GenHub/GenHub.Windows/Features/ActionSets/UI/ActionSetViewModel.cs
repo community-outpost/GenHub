@@ -64,9 +64,14 @@ public partial class ActionSetViewModel(
         ActionSet.DetailedDescription);
 
     /// <summary>
-    /// Gets the category of the action set.
+    /// Gets the invariant category identifier of the action set.
     /// </summary>
-    public string Category
+    public string Category => ActionSet.Category;
+
+    /// <summary>
+    /// Gets the localized category of the action set for display.
+    /// </summary>
+    public string CategoryDisplay
     {
         get
         {
@@ -255,6 +260,7 @@ public partial class ActionSetViewModel(
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(DetailedDescription));
         OnPropertyChanged(nameof(Category));
+        OnPropertyChanged(nameof(CategoryDisplay));
     }
 
     partial void OnIsApplyingChanged(bool value)

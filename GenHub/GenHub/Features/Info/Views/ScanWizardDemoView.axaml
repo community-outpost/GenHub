@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="500"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              x:Class="GenHub.Features.Info.Views.ScanWizardDemoView"
              x:DataType="vm:ScanWizardDemoViewModel">
 
@@ -43,7 +44,7 @@
             <Border Grid.Row="0" Padding="30,24,30,16">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Found Game Installations" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4"/>
+                        <TextBlock Text="{localization:Localize Info.ScanWizard.FoundInstallations}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4"/>
                         <TextBlock Text="{Binding Status}" FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     </StackPanel>
                     <Button Grid.Column="1"
@@ -57,8 +58,8 @@
                             CornerRadius="6"
                             Padding="12,6"
                             Margin="12,0,0,0"
-                            ToolTip.Tip="Simulate scanning for installed games">
-                        <TextBlock Text="Rescan" FontSize="12"/>
+                            ToolTip.Tip="{localization:Localize Info.ScanWizard.RescanTooltip}">
+                        <TextBlock Text="{localization:Localize Info.ScanWizard.Rescan}" FontSize="12"/>
                     </Button>
                 </Grid>
             </Border>
@@ -97,7 +98,7 @@
             <Border Grid.Row="2" Padding="30,20" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0">
                 <Grid ColumnDefinitions="*,Auto">
                     <Button Grid.Column="0"
-                            Content="Cancel"
+                            Content="{localization:Localize Common.Button.Cancel}"
                             Command="{Binding CancelCommand}"
                             HorizontalAlignment="Left"
                             Background="Transparent"

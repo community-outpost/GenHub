@@ -8,11 +8,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Messages;
-using GenHub.Features.Info.ViewModels;
 
 namespace GenHub.Features.Info.ViewModels;
 
@@ -162,6 +161,11 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         if (faqSection != null)
         {
             faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
+        }
+
+        foreach (var disposableSection in Sections.OfType<IDisposable>())
+        {
+            disposableSection.Dispose();
         }
 
         _disposed = true;

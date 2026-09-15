@@ -3,10 +3,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
         x:Class="GenHub.Features.Downloads.Views.DependencyPreviewView"
         x:DataType="vm:DependencyPreviewViewModel"
-        Title="Dependency Preview"
+        Title="{localization:Localize Downloads.DependencyPreview.Title}"
         Width="600" Height="500"
         MinWidth="500" MinHeight="400"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
@@ -37,7 +38,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
                 <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
                        Width="24" Height="24" />
-                <TextBlock Text="Dependency Preview"
+                <TextBlock Text="{localization:Localize Downloads.DependencyPreview.Title}"
                            VerticalAlignment="Center"
                            FontSize="14" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimary}" />
@@ -125,7 +126,7 @@
         <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto" Margin="24,16,24,24">
         <!-- Header -->
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
-            <TextBlock Text="Review Dependencies" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="{localization:Localize Downloads.DependencyPreview.ReviewDependencies}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             <TextBlock Text="{Binding ContentName, StringFormat='Adding: {0}'}" FontSize="14" Foreground="{DynamicResource AccentBrush}"/>
             <TextBlock Text="{Binding TotalDependencyCount, StringFormat='{}{0} dependencies will be enabled'}"
                        FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
@@ -136,8 +137,8 @@
             <StackPanel Spacing="16">
                 <!-- Resolved Dependencies Section -->
                 <StackPanel Spacing="12" IsVisible="{Binding !!ResolvedDependencies.Count}">
-                    <TextBlock Text="Dependencies to Add" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBlock Text="The following content will be enabled in your profile:"
+                    <TextBlock Text="{localization:Localize Downloads.DependencyPreview.DependenciesToAdd}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="{localization:Localize Downloads.DependencyPreview.DependenciesToAddDesc}"
                                FontSize="13" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
 
                     <ItemsControl ItemsSource="{Binding ResolvedDependencies}">
@@ -166,12 +167,12 @@
 
                 <!-- Missing Dependencies Section -->
                 <StackPanel Spacing="12" IsVisible="{Binding HasMissingDependencies}">
-                    <TextBlock Text="Missing Dependencies" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}"/>
+                    <TextBlock Text="{localization:Localize Downloads.DependencyPreview.MissingDependencies}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}"/>
                     <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="⚠ Warning: Some required dependencies are missing"
+                            <TextBlock Text="{localization:Localize Downloads.DependencyPreview.MissingWarning}"
                                        FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}"/>
-                            <TextBlock Text="The following dependencies are required but not available in your library. The content may not work correctly without them."
+                            <TextBlock Text="{localization:Localize Downloads.DependencyPreview.MissingDesc}"
                                        FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
@@ -202,7 +203,7 @@
 
                     <!-- Accept Risk Checkbox -->
                     <CheckBox IsChecked="{Binding UserAcceptedRisk}" Margin="0,8,0,0">
-                        <TextBlock Text="I understand the risks and want to proceed anyway"
+                        <TextBlock Text="{localization:Localize Downloads.DependencyPreview.UnderstandRisks}"
                                    Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     </CheckBox>
                 </StackPanel>
@@ -212,7 +213,7 @@
         <!-- Footer -->
         <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,24,0,0">
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                <Button Content="Cancel"
+                <Button Content="{localization:Localize Downloads.DependencyPreview.Cancel}"
                         Command="{Binding CancelCommand}"
                         Width="100" Height="36"
                         Background="{DynamicResource SurfaceElevatedBrush}"
@@ -221,7 +222,7 @@
                         Foreground="{DynamicResource TextPrimary}"
                         CornerRadius="6"/>
 
-                <Button Content="Proceed"
+                <Button Content="{localization:Localize Downloads.DependencyPreview.Proceed}"
                         Command="{Binding ProceedCommand}"
                         Width="100" Height="36"
                         Background="{DynamicResource AccentBrush}"

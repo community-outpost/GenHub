@@ -61,6 +61,7 @@ public partial class GenHubInfoSectionViewModel(
     public GeneralsOnlineChangelogViewModel GoChangelog => goChangelogViewModel;
 
     private readonly List<InfoSectionViewModel> _allSections = [];
+    private bool _disposed;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
@@ -574,6 +575,35 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            if (localizationService != null)
+            {
+                localizationService.PropertyChanged -= OnLocalizationChanged;
+            }
+        }
+
+        _disposed = true;
+    }
+
     partial void OnSelectedSectionChanged(InfoSectionViewModel? value)
     {
         OnPropertyChanged(nameof(IsQuickStartSelected));
@@ -601,14 +631,4 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        if (localizationService != null)
-        {
-            localizationService.PropertyChanged -= OnLocalizationChanged;
-        }
-
-        GC.SuppressFinalize(this);
-    }
 }

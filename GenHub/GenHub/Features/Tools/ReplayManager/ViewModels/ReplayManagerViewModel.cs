@@ -39,13 +39,15 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="uploadHistoryService">The upload history and rate limit service.</param>
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="localizationService">The optional localization service.</param>
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
     IReplayImportService importService,
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
-    ILogger<ReplayManagerViewModel> logger) : ObservableObject
+    ILogger<ReplayManagerViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -188,13 +190,17 @@ public partial class ReplayManagerViewModel(
                 ApplyFilter();
             });
 
-            StatusMessage = $"Loaded {replays.Count} replays.";
+            StatusMessage = localizationService != null
+                ? string.Format(localizationService.GetString("Replays.Status.LoadedCount") ?? "Loaded {0} replays.", replays.Count)
+                : $"Loaded {replays.Count} replays.";
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load replays");
-            notificationService.ShowError("Load Error", "Failed to load replays.");
-            StatusMessage = "Error loading replays.";
+            notificationService.ShowError(
+                localizationService?.GetString("Common.Status.Error") ?? "Load Error",
+                localizationService?.GetString("Replays.Error.FailedToLoad") ?? "Failed to load replays.");
+            StatusMessage = localizationService?.GetString("Replays.Status.ErrorLoading") ?? "Error loading replays.";
         }
         finally
         {

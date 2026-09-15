@@ -4438,4 +4438,244 @@
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>إضافة إلى الملف الشخصي</value>
   </data>
+  <data name="Color.Amber" xml:space="preserve">
+    <value>كهرماني</value>
+  </data>
+  <data name="Color.Blue" xml:space="preserve">
+    <value>أزرق</value>
+  </data>
+  <data name="Color.BlueGrey" xml:space="preserve">
+    <value>رمادي مزرق</value>
+  </data>
+  <data name="Color.Brown" xml:space="preserve">
+    <value>بني</value>
+  </data>
+  <data name="Color.Cyan" xml:space="preserve">
+    <value>سماوي</value>
+  </data>
+  <data name="Color.CyanBlue" xml:space="preserve">
+    <value>أزرق سماوي</value>
+  </data>
+  <data name="Color.DarkBlue" xml:space="preserve">
+    <value>أزرق داكن</value>
+  </data>
+  <data name="Color.DarkCyan" xml:space="preserve">
+    <value>سماوي داكن</value>
+  </data>
+  <data name="Color.DarkGreen" xml:space="preserve">
+    <value>أخضر داكن</value>
+  </data>
+  <data name="Color.DarkGrey" xml:space="preserve">
+    <value>رمادي داكن</value>
+  </data>
+  <data name="Color.DarkOrange" xml:space="preserve">
+    <value>برتقالي داكن</value>
+  </data>
+  <data name="Color.DarkOrangeRed" xml:space="preserve">
+    <value>أحمر برتقالي داكن</value>
+  </data>
+  <data name="Color.DarkTeal" xml:space="preserve">
+    <value>أزرق مخضر داكن</value>
+  </data>
+  <data name="Color.DeepIndigo" xml:space="preserve">
+    <value>نيلي داكن</value>
+  </data>
+  <data name="Color.DeepOrange" xml:space="preserve">
+    <value>برتقالي غامق</value>
+  </data>
+  <data name="Color.DeepPink" xml:space="preserve">
+    <value>وردي غامق</value>
+  </data>
+  <data name="Color.DeepPurple" xml:space="preserve">
+    <value>أرجواني داكن</value>
+  </data>
+  <data name="Color.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Color.Green" xml:space="preserve">
+    <value>أخضر</value>
+  </data>
+  <data name="Color.Indigo" xml:space="preserve">
+    <value>نيلي</value>
+  </data>
+  <data name="Color.LightBlue" xml:space="preserve">
+    <value>أزرق فاتح</value>
+  </data>
+  <data name="Color.LightGreen" xml:space="preserve">
+    <value>أخضر فاتح</value>
+  </data>
+  <data name="Color.Lime" xml:space="preserve">
+    <value>ليموني</value>
+  </data>
+  <data name="Color.OliveGreen" xml:space="preserve">
+    <value>أخضر زيتوني</value>
+  </data>
+  <data name="Color.Orange" xml:space="preserve">
+    <value>برتقالي</value>
+  </data>
+  <data name="Color.Pink" xml:space="preserve">
+    <value>وردي</value>
+  </data>
+  <data name="Color.Purple" xml:space="preserve">
+    <value>أرجواني</value>
+  </data>
+  <data name="Color.Red" xml:space="preserve">
+    <value>أحمر</value>
+  </data>
+  <data name="Color.Teal" xml:space="preserve">
+    <value>أزرق مخضر</value>
+  </data>
+  <data name="Color.Yellow" xml:space="preserve">
+    <value>أصفر</value>
+  </data>
+  <data name="Color.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Common.LoadingEllipsis" xml:space="preserve">
+    <value>جارٍ التحميل...</value>
+  </data>
+  <data name="Common.Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Common.SavingEllipsis" xml:space="preserve">
+    <value>جارٍ الحفظ...</value>
+  </data>
+  <data name="Downloads.Subscription.NewCatalogBadge" xml:space="preserve">
+    <value>+ كتالوج جديد</value>
+  </data>
+  <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
+    <value>إضافة محتوى</value>
+  </data>
+  <data name="Profiles.AddLocalContent.BrowseFiles" xml:space="preserve">
+    <value>تصفح الملفات</value>
+  </data>
+  <data name="Profiles.AddLocalContent.BrowseFolder" xml:space="preserve">
+    <value>تصفح المجلد</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ContentPreview" xml:space="preserve">
+    <value>معاينة المحتوى</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NameLabel" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NameWatermark" xml:space="preserve">
+    <value>مثال: مود رائع خاص بي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NoContentLoaded" xml:space="preserve">
+    <value>لم يتم تحميل أي محتوى</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NoContentSelected" xml:space="preserve">
+    <value>لم يتم تحديد أي محتوى</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Processing" xml:space="preserve">
+    <value>جارٍ المعالجة...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.RemoveItemTip" xml:space="preserve">
+    <value>إزالة العنصر</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SelectExecutableTip" xml:space="preserve">
+    <value>تحديد كملف تنفيذي رئيسي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SourceLabel" xml:space="preserve">
+    <value>المصدر</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Subtitle" xml:space="preserve">
+    <value>قم بسحب وإفلات الأرشيفات أو المجلدات، أو تصفح أدناه.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.TargetGameLabel" xml:space="preserve">
+    <value>اللعبة المستهدفة</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Title" xml:space="preserve">
+    <value>استيراد المحتوى</value>
+  </data>
+  <data name="Profiles.AddLocalContent.TypeLabel" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
+    <value>إضافة محتوى</value>
+  </data>
+  <data name="Profiles.Settings.AddLocalContentTitle" xml:space="preserve">
+    <value>إضافة محتوى محلي</value>
+  </data>
+  <data name="Profiles.Settings.BasicInformation" xml:space="preserve">
+    <value>المعلومات الأساسية</value>
+  </data>
+  <data name="Profiles.Settings.CommandLineArguments" xml:space="preserve">
+    <value>وسائط سطر الأوامر</value>
+  </data>
+  <data name="Profiles.Settings.CommandLineArgumentsHint" xml:space="preserve">
+    <value>وسائط اختيارية يتم تمريرها إلى الملف التنفيذي للعبة</value>
+  </data>
+  <data name="Profiles.Settings.ContentName" xml:space="preserve">
+    <value>اسم المحتوى</value>
+  </data>
+  <data name="Profiles.Settings.ContentNameWatermark" xml:space="preserve">
+    <value>أدخل اسمًا لهذا المحتوى</value>
+  </data>
+  <data name="Profiles.Settings.ContentType" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="Profiles.Settings.Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Profiles.Settings.DescriptionWatermark" xml:space="preserve">
+    <value>وصف اختياري</value>
+  </data>
+  <data name="Profiles.Settings.FailedToLoadSettings" xml:space="preserve">
+    <value>فشل في تحميل الإعدادات</value>
+  </data>
+  <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
+    <value>الأيقونة والغلاف</value>
+  </data>
+  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
+    <value>خيارات التشغيل</value>
+  </data>
+  <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
+    <value>غلاف الملف الشخصي</value>
+  </data>
+  <data name="Profiles.Settings.ProfileIcon" xml:space="preserve">
+    <value>أيقونة الملف الشخصي</value>
+  </data>
+  <data name="Profiles.Settings.ProfileName" xml:space="preserve">
+    <value>اسم الملف الشخصي</value>
+  </data>
+  <data name="Profiles.Settings.ProfileNameWatermark" xml:space="preserve">
+    <value>أدخل اسم الملف الشخصي</value>
+  </data>
+  <data name="Profiles.Settings.PublisherLocalHint" xml:space="preserve">
+    <value>سيتم تعيين الناشر كـ 'GenHub (Local)' للمحتوى المحلي</value>
+  </data>
+  <data name="Profiles.Settings.RandomizeColorTooltip" xml:space="preserve">
+    <value>لون عشوائي</value>
+  </data>
+  <data name="Profiles.Settings.SaveTooltip" xml:space="preserve">
+    <value>حفظ تغييرات الملف الشخصي (Ctrl+S)</value>
+  </data>
+  <data name="Profiles.Settings.SelectedFolder" xml:space="preserve">
+    <value>المجلد المحدد</value>
+  </data>
+  <data name="Profiles.Settings.TabContent" xml:space="preserve">
+    <value>المحتوى</value>
+  </data>
+  <data name="Profiles.Settings.TabGameSettings" xml:space="preserve">
+    <value>إعدادات اللعبة</value>
+  </data>
+  <data name="Profiles.Settings.TabProfileSettings" xml:space="preserve">
+    <value>إعدادات الملف الشخصي</value>
+  </data>
+  <data name="Profiles.Settings.TargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة</value>
+  </data>
+  <data name="Profiles.Settings.TargetGameHint" xml:space="preserve">
+    <value>حدد إصدار اللعبة الذي ينتمي إليه هذا الملف التنفيذي</value>
+  </data>
+  <data name="Profiles.Settings.ThemeColor" xml:space="preserve">
+    <value>لون السمة</value>
+  </data>
+  <data name="Profiles.Settings.WorkspaceStrategy" xml:space="preserve">
+    <value>استراتيجية مساحة العمل</value>
+  </data>
+  <data name="Profiles.Wizard.SelectComponentsSubtitle" xml:space="preserve">
+    <value>حدد المكونات التي ترغب في تكوينها.</value>
+  </data>
 </root>

@@ -4438,4 +4438,244 @@
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>Добавить в профиль</value>
   </data>
+  <data name="Color.Amber" xml:space="preserve">
+    <value>Янтарный</value>
+  </data>
+  <data name="Color.Blue" xml:space="preserve">
+    <value>Синий</value>
+  </data>
+  <data name="Color.BlueGrey" xml:space="preserve">
+    <value>Серо-синий</value>
+  </data>
+  <data name="Color.Brown" xml:space="preserve">
+    <value>Коричневый</value>
+  </data>
+  <data name="Color.Cyan" xml:space="preserve">
+    <value>Циан</value>
+  </data>
+  <data name="Color.CyanBlue" xml:space="preserve">
+    <value>Сине-голубой</value>
+  </data>
+  <data name="Color.DarkBlue" xml:space="preserve">
+    <value>Тёмно-синий</value>
+  </data>
+  <data name="Color.DarkCyan" xml:space="preserve">
+    <value>Тёмный циан</value>
+  </data>
+  <data name="Color.DarkGreen" xml:space="preserve">
+    <value>Тёмно-зеленый</value>
+  </data>
+  <data name="Color.DarkGrey" xml:space="preserve">
+    <value>Тёмно-серый</value>
+  </data>
+  <data name="Color.DarkOrange" xml:space="preserve">
+    <value>Тёмно-оранжевый</value>
+  </data>
+  <data name="Color.DarkOrangeRed" xml:space="preserve">
+    <value>Красно-оранжевый</value>
+  </data>
+  <data name="Color.DarkTeal" xml:space="preserve">
+    <value>Тёмно-бирюзовый</value>
+  </data>
+  <data name="Color.DeepIndigo" xml:space="preserve">
+    <value>Тёмный индиго</value>
+  </data>
+  <data name="Color.DeepOrange" xml:space="preserve">
+    <value>Насыщенный оранжевый</value>
+  </data>
+  <data name="Color.DeepPink" xml:space="preserve">
+    <value>Тёмно-розовый</value>
+  </data>
+  <data name="Color.DeepPurple" xml:space="preserve">
+    <value>Тёмно-пурпурный</value>
+  </data>
+  <data name="Color.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Color.Green" xml:space="preserve">
+    <value>Зеленый</value>
+  </data>
+  <data name="Color.Indigo" xml:space="preserve">
+    <value>Индиго</value>
+  </data>
+  <data name="Color.LightBlue" xml:space="preserve">
+    <value>Голубой</value>
+  </data>
+  <data name="Color.LightGreen" xml:space="preserve">
+    <value>Светло-зеленый</value>
+  </data>
+  <data name="Color.Lime" xml:space="preserve">
+    <value>Лаймовый</value>
+  </data>
+  <data name="Color.OliveGreen" xml:space="preserve">
+    <value>Оливково-зеленый</value>
+  </data>
+  <data name="Color.Orange" xml:space="preserve">
+    <value>Оранжевый</value>
+  </data>
+  <data name="Color.Pink" xml:space="preserve">
+    <value>Розовый</value>
+  </data>
+  <data name="Color.Purple" xml:space="preserve">
+    <value>Пурпурный</value>
+  </data>
+  <data name="Color.Red" xml:space="preserve">
+    <value>Красный</value>
+  </data>
+  <data name="Color.Teal" xml:space="preserve">
+    <value>Бирюзовый</value>
+  </data>
+  <data name="Color.Yellow" xml:space="preserve">
+    <value>Желтый</value>
+  </data>
+  <data name="Color.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Common.LoadingEllipsis" xml:space="preserve">
+    <value>Загрузка...</value>
+  </data>
+  <data name="Common.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Common.SavingEllipsis" xml:space="preserve">
+    <value>Сохранение...</value>
+  </data>
+  <data name="Downloads.Subscription.NewCatalogBadge" xml:space="preserve">
+    <value>+ Новый каталог</value>
+  </data>
+  <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
+    <value>ДОБАВИТЬ КОНТЕНТ</value>
+  </data>
+  <data name="Profiles.AddLocalContent.BrowseFiles" xml:space="preserve">
+    <value>Обзор файлов</value>
+  </data>
+  <data name="Profiles.AddLocalContent.BrowseFolder" xml:space="preserve">
+    <value>Обзор папки</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ContentPreview" xml:space="preserve">
+    <value>ПРЕДПРОСМОТР КОНТЕНТА</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NameLabel" xml:space="preserve">
+    <value>НАЗВАНИЕ</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NameWatermark" xml:space="preserve">
+    <value>например, Мой отличный мод</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NoContentLoaded" xml:space="preserve">
+    <value>Контент не загружен</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NoContentSelected" xml:space="preserve">
+    <value>Контент не выбран</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Processing" xml:space="preserve">
+    <value>Обработка...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.RemoveItemTip" xml:space="preserve">
+    <value>Удалить элемент</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SelectExecutableTip" xml:space="preserve">
+    <value>Выбрать как основной исполняемый файл</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SourceLabel" xml:space="preserve">
+    <value>ИСТОЧНИК</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Subtitle" xml:space="preserve">
+    <value>Перетащите архивы или папки, либо выберите файлы ниже.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.TargetGameLabel" xml:space="preserve">
+    <value>ЦЕЛЕВАЯ ИГРА</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Title" xml:space="preserve">
+    <value>Импорт контента</value>
+  </data>
+  <data name="Profiles.AddLocalContent.TypeLabel" xml:space="preserve">
+    <value>ТИП</value>
+  </data>
+  <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
+    <value>Добавить контент</value>
+  </data>
+  <data name="Profiles.Settings.AddLocalContentTitle" xml:space="preserve">
+    <value>Добавить локальный контент</value>
+  </data>
+  <data name="Profiles.Settings.BasicInformation" xml:space="preserve">
+    <value>Основная информация</value>
+  </data>
+  <data name="Profiles.Settings.CommandLineArguments" xml:space="preserve">
+    <value>Аргументы командной строки</value>
+  </data>
+  <data name="Profiles.Settings.CommandLineArgumentsHint" xml:space="preserve">
+    <value>Необязательные аргументы, передаваемые исполняемому файлу игры</value>
+  </data>
+  <data name="Profiles.Settings.ContentName" xml:space="preserve">
+    <value>Название контента</value>
+  </data>
+  <data name="Profiles.Settings.ContentNameWatermark" xml:space="preserve">
+    <value>Введите название этого контента</value>
+  </data>
+  <data name="Profiles.Settings.ContentType" xml:space="preserve">
+    <value>Тип контента</value>
+  </data>
+  <data name="Profiles.Settings.Description" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Profiles.Settings.DescriptionWatermark" xml:space="preserve">
+    <value>Необязательное описание</value>
+  </data>
+  <data name="Profiles.Settings.FailedToLoadSettings" xml:space="preserve">
+    <value>Не удалось загрузить настройки</value>
+  </data>
+  <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
+    <value>Иконка и обложка</value>
+  </data>
+  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
+    <value>Параметры запуска</value>
+  </data>
+  <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
+    <value>Обложка профиля</value>
+  </data>
+  <data name="Profiles.Settings.ProfileIcon" xml:space="preserve">
+    <value>Иконка профиля</value>
+  </data>
+  <data name="Profiles.Settings.ProfileName" xml:space="preserve">
+    <value>Название профиля</value>
+  </data>
+  <data name="Profiles.Settings.ProfileNameWatermark" xml:space="preserve">
+    <value>Введите название профиля</value>
+  </data>
+  <data name="Profiles.Settings.PublisherLocalHint" xml:space="preserve">
+    <value>Издатель будет установлен как «GenHub (Local)» для локального контента</value>
+  </data>
+  <data name="Profiles.Settings.RandomizeColorTooltip" xml:space="preserve">
+    <value>Случайный цвет</value>
+  </data>
+  <data name="Profiles.Settings.SaveTooltip" xml:space="preserve">
+    <value>Сохранить изменения профиля (Ctrl+S)</value>
+  </data>
+  <data name="Profiles.Settings.SelectedFolder" xml:space="preserve">
+    <value>Выбранная папка</value>
+  </data>
+  <data name="Profiles.Settings.TabContent" xml:space="preserve">
+    <value>Контент</value>
+  </data>
+  <data name="Profiles.Settings.TabGameSettings" xml:space="preserve">
+    <value>Настройки игры</value>
+  </data>
+  <data name="Profiles.Settings.TabProfileSettings" xml:space="preserve">
+    <value>Настройки профиля</value>
+  </data>
+  <data name="Profiles.Settings.TargetGame" xml:space="preserve">
+    <value>Целевая игра</value>
+  </data>
+  <data name="Profiles.Settings.TargetGameHint" xml:space="preserve">
+    <value>Укажите, к какой версии игры относится этот исполняемый файл</value>
+  </data>
+  <data name="Profiles.Settings.ThemeColor" xml:space="preserve">
+    <value>Цвет темы</value>
+  </data>
+  <data name="Profiles.Settings.WorkspaceStrategy" xml:space="preserve">
+    <value>Стратегия рабочей области</value>
+  </data>
+  <data name="Profiles.Wizard.SelectComponentsSubtitle" xml:space="preserve">
+    <value>Выберите компоненты, которые вы хотите настроить.</value>
+  </data>
 </root>
