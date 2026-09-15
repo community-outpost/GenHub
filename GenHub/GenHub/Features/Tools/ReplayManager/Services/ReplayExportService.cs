@@ -122,13 +122,16 @@ public sealed class ReplayExportService(
         IProgress<double>? progress,
         CancellationToken ct)
     {
-        if (replayList.Count == 1 && replayList[0].FileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
+        if (replayList.Count == 1 &&
+            (replayList[0].FileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+             replayList[0].FileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+             replayList[0].FileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase)))
         {
             var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
             if (!isValid)
             {
-                logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
-                throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
+                logger.LogError("Archive validation failed for upload: {Error}", errorMessage);
+                throw new ArgumentException(errorMessage ?? "Invalid archive for upload.");
             }
 
             return (replayList[0].FullPath, false, progress);

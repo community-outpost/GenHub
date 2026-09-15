@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.GameProfile;
@@ -69,6 +70,12 @@ public class LaunchRegistry : ILaunchRegistry
         {
             _inspectionFailureCounts.TryRemove(launchId, out _);
             launchInfo.TerminatedAt = System.DateTime.UtcNow;
+            if (launchInfo.ProcessInfo.IsRunning)
+            {
+                launchInfo.ProcessInfo.IsRunning = false;
+                WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
+            }
+
             _logger.LogInformation("Unregistered launch {LaunchId} for profile {ProfileId}", launchId, launchInfo.ProfileId);
         }
         else
@@ -125,6 +132,7 @@ public class LaunchRegistry : ILaunchRegistry
             // e.ExitTime might be non-nullable DateTime
             launch.TerminatedAt = e.ExitTime != default ? e.ExitTime : DateTime.UtcNow;
             launch.ProcessInfo.IsRunning = false;
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, e.ProcessId));
         }
     }
 
@@ -167,6 +175,7 @@ public class LaunchRegistry : ILaunchRegistry
         _inspectionFailureCounts.TryRemove(launchId, out _);
         launchInfo.TerminatedAt = DateTime.UtcNow;
         launchInfo.ProcessInfo.IsRunning = false;
+        WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
     }
 
     private void HandleExitedProcess(GameLaunchInfo launchInfo, string launchId, Process runningProcess)
@@ -175,6 +184,7 @@ public class LaunchRegistry : ILaunchRegistry
         launchInfo.TerminatedAt = GetProcessExitTimeSafely(runningProcess);
         _inspectionFailureCounts.TryRemove(launchId, out _);
         launchInfo.ProcessInfo.IsRunning = false;
+        WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
     }
 
     private DateTime GetProcessExitTimeSafely(Process process)
@@ -209,6 +219,7 @@ public class LaunchRegistry : ILaunchRegistry
             launchInfo.TerminatedAt = DateTime.UtcNow;
             launchInfo.ProcessInfo.IsRunning = false;
             _inspectionFailureCounts.TryRemove(new KeyValuePair<string, int>(launchId, failures));
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
         }
         else
         {

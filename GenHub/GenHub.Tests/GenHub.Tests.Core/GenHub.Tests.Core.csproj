@@ -31,6 +31,12 @@
     <Using Include="Octokit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Features\Tools\Fixtures\*.rep">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   
 
 </Project>

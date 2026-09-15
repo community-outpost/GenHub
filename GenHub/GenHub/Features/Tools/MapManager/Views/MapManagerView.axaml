@@ -195,7 +195,7 @@
             <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
-                  Classes="Danger" IsEnabled="{Binding SelectedMaps.Count}"
+                  Classes="Danger ActionBarBtn" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="Permanently delete the selected maps from your computer.">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
@@ -210,26 +210,25 @@
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
           <Button Command="{Binding UncompressSelectedCommand}"
-                  Classes="Secondary" IsEnabled="{Binding HasSelectedZips}"
+                  Classes="Secondary ActionBarBtn" IsEnabled="{Binding HasSelectedZips}"
                   ToolTip.Tip="Extract maps from the selected ZIP archives.">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
               <TextBlock Text="Uncompress" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <TextBox MinWidth="110" MaxWidth="180" Watermark="ZIP Name (.zip added)" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="Filename for the new ZIP archive. The .zip extension will be added automatically."/>
+          <TextBox MinWidth="110" MaxWidth="180" Watermark="ZIP Name (.zip added)" Text="{Binding ZipName}" Height="32" VerticalAlignment="Center" ToolTip.Tip="Filename for the new ZIP archive. The .zip extension will be added automatically."/>
           <Button Command="{Binding ExportToZipCommand}"
-                  Classes="Secondary" IsEnabled="{Binding SelectedMaps.Count}"
+                  Classes="Secondary ActionBarBtn" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="Create a new ZIP archive containing the selected maps.">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.ZipBoxOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.ArchiveOutline}" Width="16" Height="16"/>
               <TextBlock Text="Zip" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
-                    Classes="Primary"
-                    CornerRadius="6,0,0,6"
+                    Classes="Primary SplitLeft ActionBarBtn"
                     ToolTip.Tip="Upload selected maps to cloud and copy share link.">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
@@ -238,11 +237,9 @@
             </Button>
             <ToggleButton
                     IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
-                    Classes="Primary"
-                    CornerRadius="0,6,6,0"
-                    Padding="8,0"
+                    Classes="Primary SplitRight ActionBarBtn"
                     ToolTip.Tip="View the history of your uploaded maps.">
-              <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="14" Height="14" VerticalAlignment="Center"/>
+              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
@@ -462,6 +459,53 @@
     </Style>
     <Style Selector="Button.Primary:pointerover, ToggleButton.Primary:pointerover">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+
+    <!-- Action Bar button height consistency -->
+    <Style Selector="Button.ActionBarBtn, ToggleButton.ActionBarBtn">
+      <Setter Property="Height" Value="32" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Flush split button styles for Upload + Chevron Toggle -->
+    <Style Selector="Button.SplitLeft">
+      <Setter Property="CornerRadius" Value="6,0,0,6" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight">
+      <Setter Property="CornerRadius" Value="0,6,6,0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="7,0" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight:checked">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight:checked PathIcon">
+      <Setter Property="RenderTransform" Value="rotate(90deg)" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight PathIcon">
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="Button.Secondary">

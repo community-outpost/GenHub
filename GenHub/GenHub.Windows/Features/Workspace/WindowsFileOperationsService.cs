@@ -130,6 +130,18 @@ public partial class WindowsFileOperationsService(
 
                     casSourcePath = pathResult.Data;
                     logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
+
+                    sameVolume = FileOperationsService.AreSameVolume(casSourcePath, destinationPath);
+                    if (!sameVolume)
+                    {
+                        logger.LogWarning(
+                            "Content {Hash} at {NewPath} is still on volume {SourceVolume} after migration, while workspace is on {DestVolume}. Hard link cannot cross volumes.",
+                            hash,
+                            casSourcePath,
+                            Path.GetPathRoot(casSourcePath),
+                            destRoot);
+                        return false;
+                    }
                 }
                 else if (!sameVolume)
                 {
@@ -138,7 +150,7 @@ public partial class WindowsFileOperationsService(
 
                     // Exception will be caught and logged by the outer catch block
                     throw new IOException(errorMessage);
-            }
+                }
             }
 
             FileOperationsService.EnsureDirectoryExists(destinationPath);

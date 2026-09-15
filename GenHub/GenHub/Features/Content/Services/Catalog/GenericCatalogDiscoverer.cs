@@ -570,7 +570,7 @@ public class GenericCatalogDiscoverer(
                     [
                         new CatalogDependency
                         {
-                            PublisherId = "ea",
+                            PublisherId = PublisherTypeConstants.Ea,
                             ContentId = item.TargetGame == GameType.Generals ? ContentConstants.GeneralsGameSegment : ContentConstants.ZeroHourGameSegment,
                             VersionConstraint = item.TargetGame == GameType.Generals ? "1.08" : "1.04",
                             ContentType = ContentType.GameInstallation.ToString(),
@@ -891,7 +891,7 @@ public class GenericCatalogDiscoverer(
                 {
                     return new CatalogDependency
                     {
-                        PublisherId = dep.PublisherId ?? "ea",
+                        PublisherId = dep.PublisherId ?? PublisherTypeConstants.Ea,
                         ContentId = siblingTargetGame == GameType.Generals ? ContentConstants.GeneralsGameSegment : ContentConstants.ZeroHourGameSegment,
                         VersionConstraint = siblingTargetGame == GameType.Generals ? "1.08" : "1.04",
                         ContentType = ContentType.GameInstallation.ToString(),

@@ -68,6 +68,18 @@ public interface IUserDataTracker
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Deactivates user data for a profile, optionally removing physical files from disk.
+    /// </summary>
+    /// <param name="profileId">The game profile ID.</param>
+    /// <param name="removeFiles">If true, removes materialized files from disk; if false, marks manifests inactive while preserving files.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if deactivation was successful.</returns>
+    Task<OperationResult<bool>> DeactivateProfileUserDataAsync(
+        string profileId,
+        bool removeFiles,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all user data manifests for a specific profile.
     /// </summary>
     /// <param name="profileId">The game profile ID.</param>
