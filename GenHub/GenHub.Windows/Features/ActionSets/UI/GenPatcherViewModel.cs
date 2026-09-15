@@ -32,7 +32,7 @@ public partial class GenPatcherViewModel(
     INotificationService notificationService,
     IDialogService dialogService,
     ILogger<GenPatcherViewModel> logger,
-    ILocalizationService? localizationService = null) : ObservableObject
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     [ObservableProperty]
     private ObservableCollection<GameInstallation> availableInstallations = [];
@@ -804,5 +804,24 @@ public partial class GenPatcherViewModel(
         }
 
         ApplyFilter();
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+        }
+
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
+        _refreshCts = null;
+
+        _batchCts?.Cancel();
+        _batchCts?.Dispose();
+        _batchCts = null;
+
+        GC.SuppressFinalize(this);
     }
 }

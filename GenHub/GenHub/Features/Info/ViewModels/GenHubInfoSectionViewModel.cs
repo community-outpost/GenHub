@@ -36,7 +36,7 @@ public partial class GenHubInfoSectionViewModel(
     ChangelogsViewModel changelogsViewModel,
     GeneralsOnlineChangelogViewModel goChangelogViewModel,
     INotificationService? notificationService = null,
-    ILocalizationService? localizationService = null) : ObservableObject, IInfoSectionViewModel
+    ILocalizationService? localizationService = null) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
     /// <summary>
     /// Gets the icon key.
@@ -599,5 +599,16 @@ public partial class GenHubInfoSectionViewModel(
         {
             _ = GoChangelog.LoadPatchNotesCommand.ExecuteAsync(null);
         }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+        }
+
+        GC.SuppressFinalize(this);
     }
 }
