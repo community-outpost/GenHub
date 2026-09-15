@@ -1127,8 +1127,8 @@ public class GameLauncherTests : IDisposable
             profile.Id,
             progress: null,
             skipUserDataCleanup: false,
-            cancellationToken: CancellationToken.None,
-            additionalArguments: badArgs);
+            additionalArguments: badArgs,
+            cancellationToken: CancellationToken.None);
 
         // Assert
         Assert.False(result.Success);
@@ -1136,6 +1136,83 @@ public class GameLauncherTests : IDisposable
         _processManagerMock.Verify(
             x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that LaunchProfileAsync rejects invalid additional argument keys containing whitespace, injection characters, or reserved prefixes.
+    /// </summary>
+    /// <param name="invalidKey">The invalid key to test.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("bad key")]
+    [InlineData("bad;key")]
+    [InlineData("_pos0")]
+    public async Task LaunchProfileAsync_WithInvalidAdditionalArgumentKey_ShouldFailLaunchAsync(string invalidKey)
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        ArrangeSuccessfulLaunch(profile);
+
+        var badArgs = new Dictionary<string, string>
+        {
+            [invalidKey] = "validValue",
+        };
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(
+            profile.Id,
+            progress: null,
+            skipUserDataCleanup: false,
+            additionalArguments: badArgs,
+            cancellationToken: CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Invalid additional command argument key", result.FirstError);
+        _processManagerMock.Verify(
+            x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that valid additional arguments override profile command line arguments and reach the process launch configuration.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithValidAdditionalArguments_PassesArgsAndAppliesPrecedenceAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.CommandLineArguments = "-replay old.rep -quickstart";
+        profile.VideoWindowed = true;
+        ArrangeSuccessfulLaunch(profile);
+
+        var additionalArgs = new Dictionary<string, string>
+        {
+            ["-replay"] = "new.rep",
+            ["-customFlag"] = "val",
+        };
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(
+            profile.Id,
+            progress: null,
+            skipUserDataCleanup: false,
+            additionalArguments: additionalArgs,
+            cancellationToken: CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        _processManagerMock.Verify(
+            x => x.StartProcessAsync(
+                It.Is<GameLaunchConfiguration>(cfg =>
+                    cfg.Arguments != null &&
+                    cfg.Arguments["-replay"] == "new.rep" &&
+                    cfg.Arguments.ContainsKey("-quickstart") &&
+                    cfg.Arguments["-customFlag"] == "val" &&
+                    cfg.Arguments.ContainsKey("-win")),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>

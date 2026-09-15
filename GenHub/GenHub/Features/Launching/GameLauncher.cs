@@ -1,12 +1,3 @@
-using System;
-using System.Buffers;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -30,6 +21,15 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Buffers;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Launching;
 
@@ -238,15 +238,15 @@ public class GameLauncher(
     /// <param name="profileId">The ID of the game profile to launch.</param>
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
     public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
-        CancellationToken cancellationToken = default,
-        IReadOnlyDictionary<string, string>? additionalArguments = null)
+        IReadOnlyDictionary<string, string>? additionalArguments = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
@@ -261,7 +261,7 @@ public class GameLauncher(
         }
 
         var profile = profileResult.Data;
-        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, cancellationToken, additionalArguments);
+        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, cancellationToken);
     }
 
     /// <summary>
@@ -270,15 +270,15 @@ public class GameLauncher(
     /// <param name="profile">The game profile to launch.</param>
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
     public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         GameProfile profile,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
-        CancellationToken cancellationToken = default,
-        IReadOnlyDictionary<string, string>? additionalArguments = null)
+        IReadOnlyDictionary<string, string>? additionalArguments = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
 
@@ -515,7 +515,10 @@ public class GameLauncher(
     {
         foreach (var kvp in additionalArguments)
         {
-            if (!IsValidCommandArgument(kvp.Key))
+            if (string.IsNullOrWhiteSpace(kvp.Key) ||
+                kvp.Key.Contains(' ') ||
+                kvp.Key.StartsWith("_pos", StringComparison.OrdinalIgnoreCase) ||
+                !IsValidCommandArgument(kvp.Key))
             {
                 return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
             }
@@ -530,6 +533,7 @@ public class GameLauncher(
 
         return OperationResult<bool>.CreateSuccess(true);
     }
+
     /// <summary>
     /// Builds the child process environment for a game client.
     /// </summary>
@@ -1505,7 +1509,7 @@ public class GameLauncher(
 
     private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(
         GameProfile profile,
-        IReadOnlyDictionary<string, string>? additionalArguments = null)
+        IReadOnlyDictionary<string, string>? additionalArguments)
     {
         var arguments = new Dictionary<string, string>();
         if (!string.IsNullOrEmpty(profile.CommandLineArguments))

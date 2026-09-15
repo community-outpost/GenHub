@@ -423,7 +423,7 @@
 
     <!-- Checkpoint Recovery Modal Dialog Overlay -->
     <Border Grid.Row="0" Grid.RowSpan="4"
-            Background="#A0000000"
+            Background="{DynamicResource OverlayScrimBrush}"
             IsVisible="{Binding IsCheckpointDrawerOpen}"
             HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
             ZIndex="100">
@@ -432,7 +432,7 @@
               BorderThickness="1"
               CornerRadius="16"
               Padding="24"
-              BoxShadow="0 16 48 0 #60000000"
+              BoxShadow="{DynamicResource DialogBoxShadow}"
               Width="580"
               MaxHeight="680"
               HorizontalAlignment="Center"

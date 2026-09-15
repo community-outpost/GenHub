@@ -1,4 +1,5 @@
 using System;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Models.Tools.ReplayManager;
 
@@ -42,8 +43,9 @@ public record ReplayCheckpointInfo
     /// </summary>
     public string FormattedSize => FileSizeBytes switch
     {
-        < 1024 => $"{FileSizeBytes} B",
-        < 1024 * 1024 => $"{FileSizeBytes / 1024.0:F1} KB",
-        _ => $"{FileSizeBytes / (1024.0 * 1024.0):F1} MB",
+        < ConversionConstants.BytesPerKilobyte => $"{FileSizeBytes} B",
+        < ConversionConstants.BytesPerMegabyte => $"{(double)FileSizeBytes / ConversionConstants.BytesPerKilobyte:F1} KB",
+        < ConversionConstants.BytesPerGigabyte => $"{(double)FileSizeBytes / ConversionConstants.BytesPerMegabyte:F1} MB",
+        _ => $"{(double)FileSizeBytes / ConversionConstants.BytesPerGigabyte:F1} GB",
     };
 }

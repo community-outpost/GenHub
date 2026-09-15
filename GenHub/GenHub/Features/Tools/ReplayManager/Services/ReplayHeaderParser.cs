@@ -1,3 +1,8 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Tools.ReplayManager;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.ReplayManager;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -5,11 +10,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Tools.ReplayManager;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Tools.ReplayManager;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
 
@@ -19,8 +19,15 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// </summary>
 public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IReplayHeaderParser
 {
-    private const int ReplayPostHeaderTrailerSizeBytes = 18;
     private static readonly byte[] ExpectedMagic = Encoding.ASCII.GetBytes(ReplayManagerConstants.ReplayHeaderMagic);
+
+    private readonly record struct ReplayTimingContext(
+        uint StartTime,
+        uint EndTime,
+        uint HeaderFrameCount,
+        string? VersionString,
+        string? BuildTimeString,
+        string? TitleString);
 
     /// <inheritdoc />
     public async Task<OperationResult<ReplayMetadata>> ParseHeaderAsync(string filePath, CancellationToken cancellationToken = default)
@@ -66,6 +73,11 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
     {
         ArgumentNullException.ThrowIfNull(stream);
 
+        if (!stream.CanRead)
+        {
+            return OperationResult<ReplayMetadata>.CreateFailure("Stream does not support reading.");
+        }
+
         if (stream.CanSeek && stream.Length > ReplayManagerConstants.MaxReplaySizeBytes)
         {
             return OperationResult<ReplayMetadata>.CreateFailure(
@@ -74,14 +86,16 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
         try
         {
-            var buffer = new byte[ReplayManagerConstants.ReplayHeaderBufferSize];
+            // Read up to MaxHeaderReadBytes to cover title, strings, CRCs, and match setup
+            var buffer = new byte[ReplayManagerConstants.MaxHeaderReadBytes];
             var bytesRead = await ReadHeaderBufferAsync(stream, buffer, cancellationToken);
 
-            if (bytesRead < ReplayManagerConstants.MinReplayHeaderSizeBytes)
+            if (bytesRead < ReplayManagerConstants.MinHeaderReadBytes)
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Replay file is too small to contain a valid header.");
             }
 
+            // 1. Verify "PART" magic bytes
             if (!IsValidMagic(buffer))
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Invalid replay file magic header (expected GENREP).");
@@ -128,9 +142,15 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
     private static OperationResult<ReplayMetadata> ParseHeaderBuffer(byte[] buffer, int bytesRead)
     {
-        var startTime = bytesRead >= 10 ? BitConverter.ToUInt32(buffer, 6) : 0u;
-        var endTime = bytesRead >= 14 ? BitConverter.ToUInt32(buffer, 10) : 0u;
-        var headerFrameCount = bytesRead >= 18 ? BitConverter.ToUInt32(buffer, 14) : 0u;
+        var startTime = bytesRead >= ReplayManagerConstants.StartTimeOffsetBytes + sizeof(uint)
+            ? BitConverter.ToUInt32(buffer, ReplayManagerConstants.StartTimeOffsetBytes)
+            : 0u;
+        var endTime = bytesRead >= ReplayManagerConstants.EndTimeOffsetBytes + sizeof(uint)
+            ? BitConverter.ToUInt32(buffer, ReplayManagerConstants.EndTimeOffsetBytes)
+            : 0u;
+        var headerFrameCount = bytesRead >= ReplayManagerConstants.HeaderFrameCountOffsetBytes + sizeof(uint)
+            ? BitConverter.ToUInt32(buffer, ReplayManagerConstants.HeaderFrameCountOffsetBytes)
+            : 0u;
 
         var offset = ReplayManagerConstants.ReplayHeaderInitialOffsetBytes;
 
@@ -241,7 +261,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         return OperationResult<ReplayMetadata>.CreateSuccess(metadata);
     }
 
-    private static (uint? TotalFrames, int Fps, TimeSpan? Duration, DateTime? GameDate) ResolveTimingAndDuration(
+    private static (uint? TotalFrames, int? Fps, TimeSpan? Duration, DateTime? GameDate) ResolveTimingAndDuration(
         byte[] buffer,
         int offsetAfterInitString,
         int bytesRead,
@@ -251,37 +271,34 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                      (ctx.BuildTimeString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
                      (ctx.TitleString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
                      (ctx.VersionString?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true);
-        var fps = is60Hz ? 60 : 30;
+        var baseFps = is60Hz ? 60 : 30;
 
         uint? totalFrames = ctx.HeaderFrameCount > 0 ? ctx.HeaderFrameCount : null;
-        if (!totalFrames.HasValue && offsetAfterInitString + ReplayPostHeaderTrailerSizeBytes < bytesRead)
+        if (!totalFrames.HasValue && offsetAfterInitString + ReplayManagerConstants.ReplayPostHeaderTrailerSizeBytes < bytesRead)
         {
-            totalFrames = TryScanMaxChunkTimecode(buffer, offsetAfterInitString + ReplayPostHeaderTrailerSizeBytes, bytesRead);
+            totalFrames = TryScanMaxChunkTimecode(buffer, offsetAfterInitString + ReplayManagerConstants.ReplayPostHeaderTrailerSizeBytes, bytesRead);
         }
 
         TimeSpan? duration = null;
+        int? fps = null;
+
         if (totalFrames.HasValue && totalFrames.Value > 0)
         {
-            duration = TimeSpan.FromSeconds((double)totalFrames.Value / fps);
+            fps = baseFps;
+            duration = TimeSpan.FromSeconds((double)totalFrames.Value / baseFps);
         }
         else if (ctx.EndTime > ctx.StartTime && ctx.StartTime > 0)
         {
             var seconds = ctx.EndTime - ctx.StartTime;
             duration = TimeSpan.FromSeconds(seconds);
-            totalFrames = (uint)Math.Round(seconds * (double)fps);
+            fps = baseFps;
+            totalFrames = (uint)Math.Round(seconds * (double)baseFps);
         }
 
         DateTime? gameDate = null;
-        if (ctx.StartTime > 0)
+        if (ctx.StartTime >= ReplayManagerConstants.MinSanityTimestampEpoch)
         {
-            try
-            {
-                gameDate = DateTimeOffset.FromUnixTimeSeconds(ctx.StartTime).UtcDateTime;
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                // Ignore unix timestamp conversion overflow
-            }
+            gameDate = DateTimeOffset.FromUnixTimeSeconds(ctx.StartTime).UtcDateTime;
         }
 
         return (totalFrames, fps, duration, gameDate);
@@ -293,7 +310,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         var cur = offset;
 
         // Each chunk header contains timecode (4), command (4), number (4), ncomms (1) = 13 bytes
-        while (cur + 13 <= bytesRead)
+        while (cur + ReplayManagerConstants.MaxChunkTimecodeStrideBytes <= bytesRead)
         {
             var timecode = BitConverter.ToUInt32(buffer, cur);
             if (timecode is 0xFFFFFFFF or 0x7FFFFFFF)
@@ -306,27 +323,21 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 maxTimecode = timecode;
             }
 
-            cur += 12;
-            var ncomms = buffer[cur++];
-            if (ncomms == 0)
-            {
-                continue;
-            }
-
-            var nextOffset = TryAdvanceChunkCommands(buffer, cur, ncomms, bytesRead);
-            if (!nextOffset.HasValue)
+            cur = SkipChunkPayload(buffer, cur, bytesRead) ?? -1;
+            if (cur < 0)
             {
                 break;
             }
-
-            cur = nextOffset.Value;
         }
 
         return maxTimecode > 0 ? maxTimecode : null;
     }
 
-    private static int? TryAdvanceChunkCommands(byte[] buffer, int cur, byte ncomms, int bytesRead)
+    private static int? SkipChunkPayload(byte[] buffer, int cur, int bytesRead)
     {
+        var ncomms = buffer[cur + 12];
+        cur += 13;
+
         var descriptorBytes = ncomms * 2;
         if (cur + descriptorBytes > bytesRead)
         {
@@ -445,9 +456,14 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         List<ReplaySlotInfo> structuredSlots,
         bool isSlotDefinition)
     {
-        var slots = slotData.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var slots = slotData.Split(':', StringSplitOptions.TrimEntries);
         for (var i = 0; i < slots.Length; i++)
         {
+            if (string.IsNullOrWhiteSpace(slots[i]))
+            {
+                continue;
+            }
+
             if (TryParseSlot(i, slots[i], isSlotDefinition, out var playerName, out var slotInfo))
             {
                 if (playerName != null && !players.Contains(playerName, StringComparer.OrdinalIgnoreCase))
@@ -474,11 +490,6 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         slotInfo = null;
 
         var parts = slot.Split(',', StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
-        {
-            return false;
-        }
-
         var rawMarkerAndName = parts[0];
         var cleaned = CleanPlayerName(rawMarkerAndName, isSlotDefinition);
         if (string.IsNullOrWhiteSpace(cleaned))
@@ -489,7 +500,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         playerName = cleaned;
         if (isSlotDefinition)
         {
-            var isHuman = !rawMarkerAndName.StartsWith('C') && !rawMarkerAndName.StartsWith('c');
+            var isHuman = !rawMarkerAndName.StartsWith('C');
             var (colorIndex, factionIndex) = ParseSlotIndices(parts, isHuman);
 
             slotInfo = new ReplaySlotInfo(
@@ -543,35 +554,27 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         if (trimmed.Length == 1)
         {
             // Standalone slot status markers with no player name: 'H' (Human), 'C' (Computer), 'X' (Closed), 'O' (Open)
-            return trimmed[0] is 'H' or 'C' or 'h' or 'c' or 'X' or 'O' or 'x' or 'o' ? string.Empty : trimmed;
+            return trimmed[0] is 'H' or 'C' or 'X' or 'O' ? string.Empty : trimmed;
         }
 
         // In C&C Generals wire format, slot entries in S= prepend uppercase 'H' (Human) or 'C' (Computer) to the player name.
-        if (trimmed[0] is 'H' or 'h')
+        if (trimmed[0] == 'H')
         {
             return trimmed[1..].Trim();
         }
 
-        if (trimmed[0] is 'C' or 'c')
+        if (trimmed[0] == 'C')
         {
             var diff = trimmed[1..].Trim();
             return diff switch
             {
-                "E" or "e" => "AI (Easy)",
-                "M" or "m" => "AI (Medium)",
-                "H" or "h" => "AI (Hard)",
+                "E" => "AI (Easy)",
+                "M" => "AI (Medium)",
+                "H" => "AI (Hard)",
                 _ => diff,
             };
         }
 
         return trimmed;
     }
-
-    private readonly record struct ReplayTimingContext(
-        uint StartTime,
-        uint EndTime,
-        uint HeaderFrameCount,
-        string? VersionString,
-        string? BuildTimeString,
-        string? TitleString);
 }

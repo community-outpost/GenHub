@@ -1,5 +1,6 @@
 using System;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Models.Tools.ReplayManager;
@@ -9,15 +10,15 @@ namespace GenHub.Core.Models.Tools.ReplayManager;
 /// </summary>
 public sealed record CrcMappingEntry
 {
-    private readonly GameClientCapabilities _capabilities = GameClientCapabilities.None;
+    private readonly GameClientCapabilities? _capabilities;
 
     /// <summary>
-    /// Gets the executable CRC in hexadecimal format (e.g., "0x27533BB0").
+    /// Gets the executable CRC in hexadecimal format (e.g., \"0x27533BB0\").
     /// </summary>
     public string ExeCrc { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the configuration INI CRC in hexadecimal format (e.g., "0x76B251A3").
+    /// Gets the configuration INI CRC in hexadecimal format (e.g., \"0x76B251A3\").
     /// </summary>
     public string IniCrc { get; init; } = string.Empty;
 
@@ -27,37 +28,37 @@ public sealed record CrcMappingEntry
     public string? Sha256 { get; init; }
 
     /// <summary>
-    /// Gets the 5-segment manifest ID (e.g., "1.20260821.thesuperhackers.gameclient.zerohour").
+    /// Gets the 5-segment manifest ID (e.g., \"1.20260821.thesuperhackers.gameclient.zerohour\").
     /// </summary>
     public string ManifestId { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the optional data patch or core INI manifest ID (e.g., "1.0828261.generalsonline.gamedata.zerohour").
+    /// Gets the optional data patch or core INI manifest ID (e.g., \"1.0828261.generalsonline.gamedata.zerohour\").
     /// </summary>
     public string? DataPatchManifestId { get; init; }
 
     /// <summary>
-    /// Gets the user-friendly name of the data patch or INI configuration (e.g., "Community Patch Core INI (81FB5632)").
+    /// Gets the user-friendly name of the data patch or INI configuration (e.g., \"Community Patch Core INI (81FB5632)\").
     /// </summary>
     public string? DataPatchName { get; init; }
 
     /// <summary>
-    /// Gets the publisher identifier (e.g., "steam", "ea", "thesuperhackers", "generalsonline").
+    /// Gets the publisher identifier (e.g., \"steam\", \"ea\", \"thesuperhackers\", \"generalsonline\").
     /// </summary>
     public string Publisher { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the game type (e.g., "ZeroHour", "Generals").
+    /// Gets the game type (e.g., \"ZeroHour\", \"Generals\").
     /// </summary>
     public string GameType { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the version string (e.g., "1.04", "2026-08-21", "082826_QFE1").
+    /// Gets the version string (e.g., \"1.04\", \"2026-08-21\", \"082826_QFE1\").
     /// </summary>
     public string Version { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the build date string (e.g., "2026-08-21").
+    /// Gets the build date string (e.g., \"2026-08-21\").
     /// </summary>
     public string? BuildDate { get; init; }
 
@@ -78,24 +79,11 @@ public sealed record CrcMappingEntry
 
     /// <summary>
     /// Gets the capability flags supported by this game client.
-    /// Defaults to ReplayCliLaunch and CheckpointSaves when published by TheSuperHackers.
+    /// Infers capabilities if not explicitly configured (e.g. for modern recovery clients or TheSuperHackers).
     /// </summary>
     public GameClientCapabilities Capabilities
     {
-        get
-        {
-            if (_capabilities != GameClientCapabilities.None)
-            {
-                return _capabilities;
-            }
-
-            if (string.Equals(Publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-            {
-                return GameClientCapabilities.AllRecoveryFeatures;
-            }
-
-            return GameClientCapabilities.None;
-        }
+        get => _capabilities ?? GameClientCapabilitiesHelper.InferCapabilities(Publisher, ManifestId, Description);
         init => _capabilities = value;
     }
 

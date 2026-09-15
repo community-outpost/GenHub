@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
@@ -13,6 +8,11 @@ using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.Services;
@@ -55,7 +55,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             {
                 Directory.Delete(_tempSaveDir, recursive: true);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Best effort test cleanup
             }

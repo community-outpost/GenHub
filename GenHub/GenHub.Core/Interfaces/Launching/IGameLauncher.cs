@@ -1,10 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Threading;
+using System;
 
 namespace GenHub.Core.Interfaces.Launching;
 
@@ -19,15 +19,15 @@ public interface IGameLauncher
     /// <param name="profileId">The ID of the game profile to launch.</param>
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
     Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
-        CancellationToken cancellationToken = default,
-        IReadOnlyDictionary<string, string>? additionalArguments = null);
+        IReadOnlyDictionary<string, string>? additionalArguments = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Launches a game using the provided game profile object.
@@ -35,15 +35,15 @@ public interface IGameLauncher
     /// <param name="profile">The game profile to launch.</param>
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
     Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         GameProfile profile,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
-        CancellationToken cancellationToken = default,
-        IReadOnlyDictionary<string, string>? additionalArguments = null);
+        IReadOnlyDictionary<string, string>? additionalArguments = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Terminates a running game instance by its launch ID.

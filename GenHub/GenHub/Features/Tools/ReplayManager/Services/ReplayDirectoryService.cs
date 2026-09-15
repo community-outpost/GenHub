@@ -73,8 +73,6 @@ public sealed class ReplayDirectoryService(
         GameClient? CustomGameClient,
         string? CustomClientManifestId);
 
-    private const string RecoveryKeyword = "recovery";
-    private const string CheckpointKeyword = "checkpoint";
     private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
@@ -571,7 +569,7 @@ public sealed class ReplayDirectoryService(
             .ToList();
     }
 
-/// <inheritdoc/>
+    /// <inheritdoc/>
     public IReadOnlyList<GameProfile> FindRecoveryProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
     {
         ArgumentNullException.ThrowIfNull(replay);
@@ -1002,17 +1000,6 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
-    /// Synchronously resolves the compatibility status and matching profile for the specified replay file.
-    /// </summary>
-    /// <param name="replay">The replay file.</param>
-    /// <param name="acquiredIds">The set of acquired manifest IDs.</param>
-    /// <param name="profiles">The list of existing profiles.</param>
-    internal void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
-    {
-        ResolveCompatibilityAsync(replay, acquiredIds, profiles).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
     /// Asynchronously resolves the compatibility status and matching profile for the specified replay file.
     /// </summary>
     /// <param name="replay">The replay file.</param>
@@ -1255,36 +1242,43 @@ public sealed class ReplayDirectoryService(
 
     private static bool HasCheckpointCapability(GameProfile profile)
     {
-        if (profile.GameClient != null && (profile.GameClient.Capabilities & GameClientCapabilities.CheckpointSaves) != 0)
+        return HasClientCheckpointCapability(profile.GameClient) ||
+               HasEnabledContentCheckpointCapability(profile.EnabledContentIds);
+    }
+
+    private static bool HasClientCheckpointCapability(GameClient? client)
+    {
+        if (client == null)
+        {
+            return false;
+        }
+
+        if ((client.Capabilities & GameClientCapabilities.CheckpointSaves) != 0)
         {
             return true;
         }
 
-        if (profile.GameClient != null &&
-            (string.Equals(profile.GameClient.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-             (!string.IsNullOrEmpty(profile.GameClient.Id) && (profile.GameClient.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                                               profile.GameClient.Id.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                                               profile.GameClient.Id.Contains(CheckpointKeyword, StringComparison.OrdinalIgnoreCase))) ||
-             (!string.IsNullOrEmpty(profile.GameClient.Name) && (profile.GameClient.Name.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                                                 profile.GameClient.Name.Contains(CheckpointKeyword, StringComparison.OrdinalIgnoreCase)))))
+        return GameClientCapabilitiesHelper.IsSuperHackersPublisher(client.PublisherType) ||
+               HasMatchingCheckpointKeywords(client.Id) ||
+               HasMatchingCheckpointKeywords(client.Name);
+    }
+
+    private static bool HasEnabledContentCheckpointCapability(IEnumerable<string>? contentIds)
+    {
+        return contentIds?.Any(id =>
+            GameClientCapabilitiesHelper.IsSuperHackersPublisher(id) ||
+            HasMatchingCheckpointKeywords(id)) == true;
+    }
+
+    private static bool HasMatchingCheckpointKeywords(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
         {
-            return true;
+            return false;
         }
 
-        if (profile.EnabledContentIds?.Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                                id.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                                id.Contains(CheckpointKeyword, StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            return true;
-        }
-
-        if (profile.Name.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
-            profile.Description?.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        return false;
+        return text.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
+               text.Contains(ReplayManagerConstants.CapabilityCheckpointKeyword, StringComparison.OrdinalIgnoreCase);
     }
 
     private static int ScoreRecoveryProfile(
@@ -1325,7 +1319,7 @@ public sealed class ReplayDirectoryService(
         {
             score += 150;
         }
-        else if (isRetailReplay && (profileClientId.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) || profile.Name.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase)))
+        else if (isRetailReplay && (profileClientId.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase) || profile.Name.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase)))
         {
             score += 100;
         }

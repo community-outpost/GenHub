@@ -304,6 +304,7 @@ public class MockReplayDirectoryService : IReplayDirectoryService
 /// <summary>
 /// Mock implementation of <see cref="IReplayCheckpointService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockReplayCheckpointService : IReplayCheckpointService
 {
     /// <inheritdoc/>

@@ -1,14 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -35,6 +24,17 @@ using GenHub.Features.Tools.ReplayManager.Views;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 
@@ -1597,9 +1597,10 @@ public partial class ReplayManagerViewModel(
     /// <param name="replay">The replay file.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler.")]
     private async Task OpenCheckpointDrawerAsync(ReplayFile replay)
     {
-        if (replay == null)
+        if (replay == null || (IsCheckpointDrawerOpen && ActiveCheckpointReplay == replay))
         {
             return;
         }
@@ -1705,16 +1706,11 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
-    /// Alias for CancelMintCheckpointCommand.
-    /// </summary>
-    [RelayCommand]
-    private void CancelCheckpoint() => CancelMintCheckpoint();
-
-    /// <summary>
     /// Creates a new checkpoint save at the target time and frame for the active replay.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler.")]
     private async Task CreateCheckpointAsync()
     {
         if (ActiveCheckpointReplay == null)
@@ -1780,12 +1776,6 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    /// <summary>
-    /// Alias for backwards compatibility with MintCheckpointCommand.
-    /// </summary>
-    [RelayCommand]
-    private Task MintCheckpointAsync() => CreateCheckpointAsync();
-
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance properties for Avalonia UI data binding")]
     private void UpdateReplayTimingBounds()
     {
@@ -1842,6 +1832,7 @@ public partial class ReplayManagerViewModel(
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler.")]
     private async Task ResumeReplayFromCheckpointAsync()
     {
         if (ActiveCheckpointReplay == null || SelectedCheckpoint == null)
@@ -1880,6 +1871,11 @@ public partial class ReplayManagerViewModel(
                 StatusMessage = "Resume failed.";
             }
         }
+        catch (OperationCanceledException)
+        {
+            notificationService.ShowInfo("Resume Canceled", "Replay resume was canceled.");
+            StatusMessage = "Resume canceled.";
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to resume replay from checkpoint");
@@ -1897,6 +1893,7 @@ public partial class ReplayManagerViewModel(
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler.")]
     private async Task TakeoverMatchFromCheckpointAsync()
     {
         if (ActiveCheckpointReplay == null || SelectedCheckpoint == null)
@@ -1938,6 +1935,11 @@ public partial class ReplayManagerViewModel(
                 StatusMessage = "Takeover failed.";
             }
         }
+        catch (OperationCanceledException)
+        {
+            notificationService.ShowInfo("Takeover Canceled", "Match takeover was canceled.");
+            StatusMessage = "Takeover canceled.";
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to take over match from checkpoint");
@@ -1956,6 +1958,7 @@ public partial class ReplayManagerViewModel(
     /// <param name="checkpoint">The checkpoint to delete.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler.")]
     private async Task DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint)
     {
         if (checkpoint == null)
@@ -1984,7 +1987,8 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private static int GetReplayFps(ReplayFile? replay, GameProfile? profile)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private int GetReplayFps(ReplayFile? replay, GameProfile? profile)
     {
         if (replay?.Metadata?.FramesPerSecond is { } fps && fps > 0)
         {
@@ -1999,7 +2003,8 @@ public partial class ReplayManagerViewModel(
         return replay?.FramesPerSecond ?? 30;
     }
 
-    private static bool IsGeneralsOnlineProfile(GameProfile? profile)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private bool IsGeneralsOnlineProfile(GameProfile? profile)
     {
         if (profile?.GameClient == null)
         {

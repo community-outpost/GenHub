@@ -1,6 +1,7 @@
 using System;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.GameClients;
@@ -10,7 +11,7 @@ namespace GenHub.Core.Models.GameClients;
 /// </summary>
 public class GameClient
 {
-    private GameClientCapabilities _capabilities = GameClientCapabilities.None;
+    private GameClientCapabilities? _capabilities;
 
     /// <summary>Gets or sets the display name for this game client.</summary>
     public string Name { get; set; } = string.Empty;
@@ -42,7 +43,7 @@ public class GameClient
     {
         get
         {
-            // If ExecutablePath is not set, not valid
+            // If ExecutablePath is not set, consider it not valid
             if (string.IsNullOrEmpty(ExecutablePath))
             {
                 return false;
@@ -85,25 +86,7 @@ public class GameClient
     /// </summary>
     public GameClientCapabilities Capabilities
     {
-        get
-        {
-            if (_capabilities != GameClientCapabilities.None)
-            {
-                return _capabilities;
-            }
-
-            if (string.Equals(PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                (Id != null && (Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                Id.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-                                Id.Contains("checkpoint", StringComparison.OrdinalIgnoreCase))) ||
-                (Name != null && (Name.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-                                  Name.Contains("checkpoint", StringComparison.OrdinalIgnoreCase))))
-            {
-                return GameClientCapabilities.AllRecoveryFeatures;
-            }
-
-            return GameClientCapabilities.None;
-        }
+        get => _capabilities ?? GameClientCapabilitiesHelper.InferCapabilities(PublisherType, Id, Name);
         set => _capabilities = value;
     }
 

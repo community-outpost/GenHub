@@ -73,6 +73,46 @@ public static class ReplayManagerConstants
     public const string CliResumeAs = "-resumeas";
 
     /// <summary>
+    /// Keyword substring identifying recovery engine builds or capabilities.
+    /// </summary>
+    public const string CapabilityRecoveryKeyword = "recovery";
+
+    /// <summary>
+    /// Keyword substring identifying checkpoint save capabilities.
+    /// </summary>
+    public const string CapabilityCheckpointKeyword = "checkpoint";
+
+    /// <summary>
+    /// Keyword substring identifying player takeover capabilities.
+    /// </summary>
+    public const string CapabilityTakeoverKeyword = "takeover";
+
+    /// <summary>
+    /// Prefix prepended to generated checkpoint save files.
+    /// </summary>
+    public const string CheckpointFilePrefix = "cp_";
+
+    /// <summary>
+    /// File search pattern used to discover checkpoint save files.
+    /// </summary>
+    public const string CheckpointFileSearchPattern = "*.sav";
+
+    /// <summary>
+    /// Default polling interval in milliseconds when waiting for checkpoint process exits.
+    /// </summary>
+    public const int DefaultCheckpointPollIntervalMs = 500;
+
+    /// <summary>
+    /// Maximum consecutive retry attempts allowed during process status inspection.
+    /// </summary>
+    public const int MaxProcessExitRetries = 3;
+
+    /// <summary>
+    /// Sanity floor Unix epoch timestamp (2000-01-01 00:00:00 UTC) below which header timestamps are treated as invalid.
+    /// </summary>
+    public const uint MinSanityTimestampEpoch = 946684800u;
+
+    /// <summary>
     /// Environment variable name to override the default community CRC mapping catalog endpoint.
     /// </summary>
     public const string CrcCatalogUrlEnvironmentVariable = "GENHUB_CRC_CATALOG_URL";
@@ -163,14 +203,49 @@ public static class ReplayManagerConstants
     public const int ReplayHeaderBufferSize = 16384;
 
     /// <summary>
+    /// Maximum buffer size in bytes for reading replay headers (16 KB).
+    /// </summary>
+    public const int MaxHeaderReadBytes = ReplayHeaderBufferSize;
+
+    /// <summary>
     /// Minimum size in bytes required for a valid replay header (28 bytes).
     /// </summary>
     public const int MinReplayHeaderSizeBytes = 28;
 
     /// <summary>
+    /// Minimum size in bytes required for reading a replay header (28 bytes).
+    /// </summary>
+    public const int MinHeaderReadBytes = MinReplayHeaderSizeBytes;
+
+    /// <summary>
     /// Fixed offset in bytes to skip the replay magic header and initial fixed metadata fields.
     /// </summary>
     public const int ReplayHeaderInitialOffsetBytes = 28;
+
+    /// <summary>
+    /// Offset in bytes from the start of the replay file to the StartTime field (6 bytes).
+    /// </summary>
+    public const int StartTimeOffsetBytes = 6;
+
+    /// <summary>
+    /// Offset in bytes from the start of the replay file to the EndTime field (10 bytes).
+    /// </summary>
+    public const int EndTimeOffsetBytes = 10;
+
+    /// <summary>
+    /// Offset in bytes from the start of the replay file to the HeaderFrameCount field (14 bytes).
+    /// </summary>
+    public const int HeaderFrameCountOffsetBytes = 14;
+
+    /// <summary>
+    /// Stride in bytes between consecutive chunk header timecode markers when scanning replay chunks (13 bytes).
+    /// </summary>
+    public const int MaxChunkTimecodeStrideBytes = 13;
+
+    /// <summary>
+    /// Size in bytes of the post-header trailer structure (18 bytes: 4 end timestamp + 4 max chunk timecode + 4 max chunk frame count + 4 final chunk size + 2 unknown trailer marker).
+    /// </summary>
+    public const int ReplayPostHeaderTrailerSizeBytes = 18;
 
     /// <summary>
     /// Size in bytes of the SYSTEMTIME timestamp structure embedded in the replay header (16 bytes).

@@ -4239,8 +4239,9 @@ public sealed class ReplayDirectoryServiceTests
     /// <summary>
     /// Verifies that ResolveCompatibility sets SupportsCheckpoints and RecoveryProfile properties on retail 1.04 replay.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public void ResolveCompatibility_WhenRetailReplayAndRecoveryProfileExists_SetsSupportsCheckpointsAndRecoveryProfile()
+    public async Task ResolveCompatibilityAsync_WhenRetailReplayAndRecoveryProfileExists_SetsSupportsCheckpointsAndRecoveryProfile()
     {
         var replay = new ReplayFile
         {
@@ -4292,7 +4293,7 @@ public sealed class ReplayDirectoryServiceTests
             _mockScopeFactory.Object,
             NullLogger<ReplayDirectoryService>.Instance);
 
-        service.ResolveCompatibility(replay, new HashSet<string>(), [recoveryProfile]);
+        await service.ResolveCompatibilityAsync(replay, new HashSet<string>(), [recoveryProfile]);
 
         Assert.True(replay.SupportsCheckpoints);
         Assert.Equal("fd09bf9b12bc41e294c051028b5085f9", replay.RecoveryProfileId);

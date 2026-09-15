@@ -16,9 +16,9 @@ public sealed record ReplaySlotInfo(
     int? ColorIndex = null)
 {
     /// <summary>
-    /// Gets the formatted display label for the slot in UI dropdowns.
+    /// Gets the formatted display label for the slot in UI dropdowns (using 1-based indexing for user display).
     /// </summary>
     public string DisplayLabel => IsHuman
-        ? $"Slot {SlotIndex}: {PlayerName}"
-        : $"Slot {SlotIndex}: {PlayerName} (AI)";
+        ? $"Slot {SlotIndex + 1}: {PlayerName}"
+        : $"Slot {SlotIndex + 1}: {PlayerName} (AI)";
 }
