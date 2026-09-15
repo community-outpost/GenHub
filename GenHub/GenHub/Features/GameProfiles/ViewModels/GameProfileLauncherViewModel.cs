@@ -1,7 +1,7 @@
-using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -27,15 +27,15 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.Views;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
+using System.Threading;
+using System;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -603,6 +603,25 @@ public partial class GameProfileLauncherViewModel(
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(action);
         }
+    }
+
+    /// <summary>
+    /// Composes the informational receipt-drift notice: a lead line plus the drifted
+    /// fields, capped so a long list does not flood the notification. Full detail stays
+    /// in the logs.
+    /// </summary>
+    /// <param name="driftWarnings">The drifted fields from the launch result.</param>
+    /// <returns>The notice text.</returns>
+    private static string BuildReceiptDriftNotice(IReadOnlyList<string> driftWarnings)
+    {
+        var lines = new List<string> { "Launch configuration changed since the last run:" };
+        lines.AddRange(driftWarnings.Take(MaxReceiptDriftNoticeLines));
+        if (driftWarnings.Count > MaxReceiptDriftNoticeLines)
+        {
+            lines.Add($"...and {driftWarnings.Count - MaxReceiptDriftNoticeLines} more; see the logs for full detail.");
+        }
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static Window? GetMainWindow()

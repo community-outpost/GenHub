@@ -429,7 +429,7 @@ public class LaunchReceiptServiceTests : IDisposable
         await _service.RecordLaunchAsync(CreateContext());
 
         var receipt = await ReadReceiptAsync();
-        Assert.Contains("GENHUB_TEST_VARIABLE", receipt.EnvironmentVariableHashes.Keys);
+        Assert.Contains("GENHUB_TEST_VARIABLE", receipt.EnvironmentVariableNames);
         Assert.NotNull(receipt.Variant);
         Assert.Equal("1.0.genhub.mod.test", receipt.Variant.GameClientManifestId);
         Assert.Equal("generalszh", receipt.Variant.EntryPointRelativePath);
@@ -440,50 +440,34 @@ public class LaunchReceiptServiceTests : IDisposable
         Assert.Contains(recordedRoot.Archives, a => a.FileName == "INIZH.big" && a.SizeBytes > 0);
     }
 
-    /// <summary>
-    /// The same environment value hashes differently in two receipts, so receipts cannot be
-    /// compared across hosts or profiles to confirm a shared value. Drift still resolves,
-    /// because comparison runs against the receipt that carries the salt.
-    /// </summary>
+    /// <summary>Changing a credential does not leave a verifiable value fingerprint on disk.</summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task RecordLaunchAsync_SaltsEnvironmentHashesPerReceipt()
-    {
-        await _service.RecordLaunchAsync(CreateContext());
-        var first = await ReadReceiptAsync();
-
-        await _service.RecordLaunchAsync(CreateContext());
-        var second = await ReadReceiptAsync();
-
-        Assert.NotEqual(first.EnvironmentHashSalt, second.EnvironmentHashSalt);
-        Assert.NotEmpty(first.EnvironmentHashSalt);
-        Assert.NotEqual(
-            first.EnvironmentVariableHashes["GENHUB_TEST_VARIABLE"],
-            second.EnvironmentVariableHashes["GENHUB_TEST_VARIABLE"]);
-
-        Assert.False(_service.CompareUpcomingLaunch(first, CreateContext()).HasDrift);
-        Assert.Contains(
-            _service.CompareUpcomingLaunch(first, CreateContext(environmentValue: "beta")).DriftedFields,
-            f => f.Contains("GENHUB_TEST_VARIABLE") && f.Contains("changed value"));
-    }
-
-    /// <summary>
-    /// A changed profile-defined environment variable is reported as drift naming the
-    /// variable, without either value appearing in the message.
-    /// </summary>
-    /// <returns>The async task.</returns>
-    [Fact]
-    public async Task CompareUpcomingLaunch_WithChangedEnvironmentVariable_ReportsDrift()
+    public async Task CompareUpcomingLaunch_WithChangedEnvironmentValue_DoesNotCompareSecretsAsync()
     {
         await _service.RecordLaunchAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
+        Assert.False(_service.CompareUpcomingLaunch(receipt, CreateContext(environmentValue: "beta")).HasDrift);
+    }
 
-        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(environmentValue: "beta"));
-
-        Assert.True(report.HasDrift);
-        Assert.Contains(report.DriftedFields, f =>
-            f.Contains("GENHUB_TEST_VARIABLE") && f.Contains("changed value"));
-        Assert.DoesNotContain(report.DriftedFields, f => f.Contains("alpha") || f.Contains("beta"));
+    /// <summary>Old receipts can still be read but legacy secret fingerprints are not retained.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RevalidateAsync_LegacyReceipt_DropsEnvironmentFingerprintsAsync()
+    {
+        var path = Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName);
+        await File.WriteAllTextAsync(path,
+            """{"SchemaVersion":1,"EnvironmentHashSalt":"legacy-key","EnvironmentVariableHashes":{"TOKEN":"legacy-digest"}}""");
+        var result = await _service.RevalidateAsync(_workspacePath);
+        Assert.True(result.Success);
+        var serialized = System.Text.Json.JsonSerializer.Serialize(result.Data!.Receipt);
+        Assert.DoesNotContain("legacy-key", serialized);
+        Assert.DoesNotContain("legacy-digest", serialized);
+        await _service.RecordLaunchAsync(CreateContext());
+        var rewritten = await File.ReadAllTextAsync(path);
+        Assert.DoesNotContain("EnvironmentHashSalt", rewritten);
+        Assert.DoesNotContain("EnvironmentVariableHashes", rewritten);
+        Assert.Equal(LaunchReceiptConstants.CurrentSchemaVersion, (await ReadReceiptAsync()).SchemaVersion);
     }
 
     /// <summary>
@@ -501,6 +485,8 @@ public class LaunchReceiptServiceTests : IDisposable
         var receiptJson = await File.ReadAllTextAsync(
             Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName));
         Assert.DoesNotContain(secret, receiptJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("EnvironmentVariableHashes", receiptJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("EnvironmentHashSalt", receiptJson, StringComparison.Ordinal);
         Assert.Contains("GENHUB_TEST_VARIABLE", receiptJson, StringComparison.Ordinal);
 
         var receipt = await ReadReceiptAsync();
@@ -595,7 +581,7 @@ public class LaunchReceiptServiceTests : IDisposable
         {
             Directory.Delete(_root, recursive: true);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort; a leftover temp directory is not worth failing the run over.
         }
