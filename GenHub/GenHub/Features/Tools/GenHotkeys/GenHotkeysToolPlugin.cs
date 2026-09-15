@@ -5,7 +5,9 @@ using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
 using GenHub.Features.Tools.GenHotkeys.Views;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.GenHotkeys;
 
@@ -46,7 +48,16 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin, IDisposable
             };
 
             // Trigger activation load on first view creation
-            _ = viewModel.InitializeAsync();
+            _ = viewModel.InitializeAsync().ContinueWith(
+                t =>
+                {
+                    if (t.IsFaulted && t.Exception != null)
+                    {
+                        var logger = _serviceProvider?.GetService<ILogger<GenHotkeysToolPlugin>>();
+                        logger?.LogError(t.Exception, "Unhandled exception during GenHotkeys initialization");
+                    }
+                },
+                TaskScheduler.Default);
         }
 
         return _view ?? new GenHotkeysView();

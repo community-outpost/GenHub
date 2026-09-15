@@ -5,6 +5,7 @@ using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.GenHotkeys;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Globalization;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -164,7 +165,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
                 {
                     foreach (var ext in IconExtensions)
                     {
-                        yield return string.Format(GenHotkeysConstants.ProfileIconsPathPattern, dir, sub, name, ext);
+                        yield return string.Format(CultureInfo.InvariantCulture, GenHotkeysConstants.ProfileIconsPathPattern, dir, sub, name, ext);
                     }
                 }
             }
@@ -173,10 +174,15 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
 
     private static void AddGameObjects(
         List<HotkeyGameObject> targetList,
-        List<TechTreeGameObjectJson> sourceList,
+        List<TechTreeGameObjectJson>? sourceList,
         HotkeyCategory category,
         CsfFile? refCsf)
     {
+        if (sourceList == null)
+        {
+            return;
+        }
+
         foreach (var objJson in sourceList)
         {
             targetList.Add(CreateGameObject(objJson, category, refCsf));

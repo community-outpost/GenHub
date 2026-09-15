@@ -313,26 +313,7 @@ public class CsfFileTests
     [Fact]
     public void Presets_LegionnaireEn_IsEnglishAndFreeOfCyrillic()
     {
-        var candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", GenHotkeysConstants.PresetsLegionnaireEn),
-        };
-
-        string? foundPath = null;
-        foreach (var c in candidates)
-        {
-            var full = Path.GetFullPath(c);
-            if (File.Exists(full))
-            {
-                foundPath = full;
-                break;
-            }
-        }
-
-        Assert.True(foundPath != null, $"Preset file '{GenHotkeysConstants.PresetsLegionnaireEn}' was not found.");
+        var foundPath = FindPresetPath(GenHotkeysConstants.PresetsLegionnaireEn);
 
         var csf = CsfFile.Load(foundPath);
         Assert.Equal(0u, csf.LanguageCode);

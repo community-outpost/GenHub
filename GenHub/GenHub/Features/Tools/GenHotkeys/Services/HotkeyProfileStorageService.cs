@@ -190,9 +190,19 @@ public class HotkeyProfileStorageService(
         }
 
         // Determine preset CSF asset
-        var presetCsfPath = presetName.Equals(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
-            ? GenHotkeysConstants.PresetsLegionnaireEn
-            : GenHotkeysConstants.PresetsLeikezeEn;
+        string presetCsfPath;
+        if (presetName.Equals(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase))
+        {
+            presetCsfPath = GenHotkeysConstants.PresetsLegionnaireEn;
+        }
+        else if (presetName.Equals(GenHotkeysConstants.PresetLeikeze, StringComparison.OrdinalIgnoreCase))
+        {
+            presetCsfPath = GenHotkeysConstants.PresetsLeikezeEn;
+        }
+        else
+        {
+            throw new ArgumentException($"Unknown hotkey preset name: '{presetName}'", nameof(presetName));
+        }
 
         return await Task.Run(
             () =>

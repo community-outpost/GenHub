@@ -1263,7 +1263,7 @@ public class UserDataTrackerService(
                             WasOverwritten = wasOverwritten,
                             IsHardLink = adoptedEntry.IsHardLink,
                             InstalledAt = DateTime.UtcNow,
-                            CasHash = !string.IsNullOrEmpty(adoptedEntry.CasHash) ? adoptedEntry.CasHash : file.Hash,
+                            CasHash = file.Hash,
                         });
                     }
                 }

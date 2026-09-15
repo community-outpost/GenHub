@@ -53,7 +53,7 @@ public class TechTreeServiceTests
 
         // Should not have any duplicate actions (every action unique by IconName or HotkeyString)
         var duplicates = layout
-            .GroupBy(a => a.HotkeyString ?? a.IconName)
+            .GroupBy(a => string.IsNullOrEmpty(a.HotkeyString) ? a.IconName : a.HotkeyString)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
             .ToList();

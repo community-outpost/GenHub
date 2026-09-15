@@ -190,6 +190,9 @@ public class HotkeyPackageServiceTests
         _mockTechTree.Setup(t => t.LoadTechTreeAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
             .ReturnsAsync(factions);
 
+        _mockTechTree.Setup(t => t.GetIconBytesAsync("SADozer", GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new byte[] { 1, 2, 3 });
+
         _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),

@@ -189,6 +189,31 @@ public static class GenHotkeysConstants
         public const string KeywordAirForce = "AirForce";
     }
 
+    /// <summary>Standard UI text, button labels, and fallback constants for GenHotkeys.</summary>
+    public static class UiText
+    {
+        /// <summary>Default fallback faction short name.</summary>
+        public const string DefaultFactionShortName = "DEFAULT";
+
+        /// <summary>Default fallback faction display name.</summary>
+        public const string DefaultFactionDisplayName = "Default";
+
+        /// <summary>Button text for creating a hotkey addon.</summary>
+        public const string CreateAddonText = "Create Addon";
+
+        /// <summary>Button text for updating an existing hotkey addon.</summary>
+        public const string UpdateAddonText = "Update Addon";
+
+        /// <summary>Button text for adding hotkey to profile.</summary>
+        public const string AddToProfileText = "Add to Profile";
+
+        /// <summary>Default button text for applying hotkey to all.</summary>
+        public const string DefaultApplyToAllText = "Apply to All";
+
+        /// <summary>Tooltip text for creating a hotkey addon.</summary>
+        public const string CreateAddonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
+    }
+
     /// <summary>Tool unique identifier.</summary>
     public const string ToolId = "genhotkeys";
 

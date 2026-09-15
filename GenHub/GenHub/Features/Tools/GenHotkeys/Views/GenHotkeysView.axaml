@@ -152,12 +152,7 @@
                 <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
                   <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
-                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
-                            BorderBrush="{DynamicResource BorderSubtleBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="16"
-                            BoxShadow="{DynamicResource FlyoutElevationShadow}">
+                    <Border Padding="16">
                       <StackPanel Spacing="12" Width="260">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                           <Border Width="28" Height="28" CornerRadius="6"
@@ -198,12 +193,7 @@
                 <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
                   <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
-                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
-                            BorderBrush="{DynamicResource BorderSubtleBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="16"
-                            BoxShadow="{DynamicResource FlyoutElevationShadow}">
+                    <Border Padding="16">
                       <StackPanel Spacing="12" Width="260">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                           <Border Width="28" Height="28" CornerRadius="6"

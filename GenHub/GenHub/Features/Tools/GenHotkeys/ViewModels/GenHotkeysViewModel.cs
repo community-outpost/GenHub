@@ -58,11 +58,11 @@ public partial class GenHotkeysViewModel(
         char? Hotkey,
         HotkeyActionViewModel? ActionVm = null);
 
-    private const string CreateAddonText = "Create Addon";
-    private const string UpdateAddonText = "Update Addon";
-    private const string AddToProfileText = "Add to Profile";
-    private const string DefaultApplyToAllText = "Apply to All";
-    private const string CreateAddonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
+    private const string CreateAddonText = GenHotkeysConstants.UiText.CreateAddonText;
+    private const string UpdateAddonText = GenHotkeysConstants.UiText.UpdateAddonText;
+    private const string AddToProfileText = GenHotkeysConstants.UiText.AddToProfileText;
+    private const string DefaultApplyToAllText = GenHotkeysConstants.UiText.DefaultApplyToAllText;
+    private const string CreateAddonToolTip = GenHotkeysConstants.UiText.CreateAddonToolTip;
 
     private static readonly HashSet<string> GeneralsPowersActions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -95,6 +95,7 @@ public partial class GenHotkeysViewModel(
 
     private List<HotkeyFaction> _allFactions = [];
     private bool _isInitializing;
+    private bool _isSyncingProfile;
     private bool _isDisposed;
     private CancellationTokenSource? _reloadCts;
     private CancellationTokenSource? _addonCheckCts;
@@ -1384,15 +1385,23 @@ public partial class GenHotkeysViewModel(
             return index;
         }
 
-        var currentActionKey = !string.IsNullOrWhiteSpace(selectedAction.HotkeyString)
-            ? selectedAction.HotkeyString
-            : (!string.IsNullOrWhiteSpace(selectedAction.IconName) ? selectedAction.IconName : selectedAction.DisplayName);
+        var currentActionKey = ResolveActionConflictKey(selectedAction);
         var currentObjName = selectedGameObject?.Name ?? selectedGameObject?.DisplayName;
 
         return allConflicts.FindIndex(c =>
             (selectedFaction == null || string.Equals(c.Faction.ShortName, selectedFaction.ShortName, StringComparison.OrdinalIgnoreCase)) &&
             string.Equals(c.GameObjectName, currentObjName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(c.HotkeyString, currentActionKey, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string ResolveActionConflictKey(HotkeyActionViewModel action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.HotkeyString))
+        {
+            return action.HotkeyString;
+        }
+
+        return !string.IsNullOrWhiteSpace(action.IconName) ? action.IconName : action.DisplayName;
     }
 
     private static Dictionary<string, char>? ExtractPresetMappings(string presetPath, HashSet<string> validActionKeys)
@@ -1764,9 +1773,18 @@ public partial class GenHotkeysViewModel(
 
         if (value != null)
         {
-            RenameProfileText = value.Name;
-            OverlayEnabled = value.OverlayEnabled;
-            SelectedCorner = value.OverlayCorner;
+            _isSyncingProfile = true;
+            try
+            {
+                RenameProfileText = value.Name;
+                OverlayEnabled = value.OverlayEnabled;
+                SelectedCorner = value.OverlayCorner;
+            }
+            finally
+            {
+                _isSyncingProfile = false;
+            }
+
             HasExistingAddon = false;
             ExistingAddonManifest = null;
             AddonButtonText = CreateAddonText;
@@ -1786,7 +1804,6 @@ public partial class GenHotkeysViewModel(
             AddonButtonToolTip = CreateAddonToolTip;
         }
     }
-
 
     private async Task SafeCheckExistingAddonAsync(CancellationToken cancellationToken)
     {
@@ -1820,7 +1837,7 @@ public partial class GenHotkeysViewModel(
 
     partial void OnOverlayEnabledChanged(bool value)
     {
-        if (SelectedProfile != null)
+        if (!_isSyncingProfile && SelectedProfile != null)
         {
             SelectedProfile.OverlayEnabled = value;
             _ = SaveCurrentProfileAsync(CancellationToken.None);
@@ -1829,7 +1846,7 @@ public partial class GenHotkeysViewModel(
 
     partial void OnSelectedCornerChanged(OverlayCorner value)
     {
-        if (SelectedProfile != null)
+        if (!_isSyncingProfile && SelectedProfile != null)
         {
             SelectedProfile.OverlayCorner = value;
             _ = SaveCurrentProfileAsync(CancellationToken.None);
@@ -1855,7 +1872,7 @@ public partial class GenHotkeysViewModel(
         {
             // Expected when user quickly toggles games
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException)
         {
             logger.LogError(ex, "Failed to reload hotkeys for game {Game}", SelectedGame);
             StatusMessage = $"Failed to reload: {ex.Message}";
@@ -1931,7 +1948,7 @@ public partial class GenHotkeysViewModel(
             IconName = obj.IconName,
         };
 
-        LoadBitmapForObject(vm, obj.IconName, cancellationToken);
+        LoadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, cancellationToken);
 
         foreach (var layout in obj.KeyboardLayouts)
         {
@@ -1960,12 +1977,12 @@ public partial class GenHotkeysViewModel(
             Hotkey = ResolveCurrentActionHotkey(action, SelectedProfile),
         };
 
-        LoadBitmapForAction(actionVm, action.IconName, cancellationToken);
+        LoadBitmapForIcon(bmp => actionVm.IconBitmap = bmp, action.IconName, cancellationToken);
         return actionVm;
     }
 
-    private void LoadBitmapForObject(
-        HotkeyGameObjectViewModel vm,
+    private void LoadBitmapForIcon(
+        Action<Bitmap?> setBitmap,
         string iconName,
         CancellationToken cancellationToken)
     {
@@ -1977,31 +1994,11 @@ public partial class GenHotkeysViewModel(
         var key = (SelectedGame, iconName);
         if (_bitmapCache.TryGetValue(key, out var cached))
         {
-            vm.IconBitmap = cached;
+            setBitmap(cached);
             return;
         }
 
-        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp, cancellationToken);
-    }
-
-    private void LoadBitmapForAction(
-        HotkeyActionViewModel vm,
-        string iconName,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(iconName))
-        {
-            return;
-        }
-
-        var key = (SelectedGame, iconName);
-        if (_bitmapCache.TryGetValue(key, out var cached))
-        {
-            vm.IconBitmap = cached;
-            return;
-        }
-
-        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp, cancellationToken);
+        _ = LoadBitmapAsync(iconName, SelectedGame, setBitmap, cancellationToken);
     }
 
     private Bitmap? GetOrAddBitmapToCache((GameType Game, string Icon) key, byte[] bytes)
@@ -2179,26 +2176,34 @@ public partial class GenHotkeysViewModel(
 
     private void CollectFilteredObjectConflicts(List<HotkeyConflictTarget> targets)
     {
-        var defaultFaction = SelectedFaction ?? new HotkeyFaction { ShortName = "DEFAULT", DisplayName = "Default" };
+        var defaultFaction = SelectedFaction ?? new HotkeyFaction
+        {
+            ShortName = GenHotkeysConstants.UiText.DefaultFactionShortName,
+            DisplayName = GenHotkeysConstants.UiText.DefaultFactionDisplayName,
+        };
+
         foreach (var obj in FilteredGameObjects)
         {
-            foreach (var layout in obj.Layouts)
-            {
-                foreach (var act in layout)
-                {
-                    if (act.IsConflict)
-                    {
-                        var actionKey = !string.IsNullOrWhiteSpace(act.HotkeyString)
-                            ? act.HotkeyString
-                            : (!string.IsNullOrWhiteSpace(act.IconName) ? act.IconName : act.DisplayName);
+            CollectObjectConflicts(obj, defaultFaction, targets);
+        }
+    }
 
-                        targets.Add(new HotkeyConflictTarget(
-                            defaultFaction,
-                            obj.Name ?? obj.DisplayName,
-                            actionKey,
-                            act.Hotkey,
-                            act));
-                    }
+    private static void CollectObjectConflicts(HotkeyGameObjectViewModel obj, HotkeyFaction defaultFaction, List<HotkeyConflictTarget> targets)
+    {
+        var objName = obj.Name ?? obj.DisplayName;
+        foreach (var layout in obj.Layouts)
+        {
+            foreach (var act in layout)
+            {
+                if (act.IsConflict)
+                {
+                    var actionKey = ResolveActionConflictKey(act);
+                    targets.Add(new HotkeyConflictTarget(
+                        defaultFaction,
+                        objName,
+                        actionKey,
+                        act.Hotkey,
+                        act));
                 }
             }
         }
