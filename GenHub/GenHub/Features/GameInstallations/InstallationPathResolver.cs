@@ -301,9 +301,10 @@ public class InstallationPathResolver(
     {
         try
         {
-            // Check for generals.exe (both Generals and Zero Hour use this)
-            var generalsExe = Path.Combine(directory, "generals.exe");
-            if (!File.Exists(generalsExe))
+            var archives = RetailArchiveClassifier.ClassifyArchives(directory);
+            if ((!installation.HasGenerals && !installation.HasZeroHour)
+                || (installation.HasGenerals && !archives.HasGeneralsArchives)
+                || (installation.HasZeroHour && !archives.HasZeroHourArchives))
             {
                 return false;
             }
@@ -322,24 +323,7 @@ public class InstallationPathResolver(
                 }
             }
 
-            // Check for game type specific files
-            if (installation.HasZeroHour)
-            {
-                // Zero Hour has DbgHelp.dll
-                var dbgHelpDll = Path.Combine(directory, "DbgHelp.dll");
-                if (File.Exists(dbgHelpDll))
-                {
-                    return true;
-                }
-            }
-
-            if (installation.HasGenerals)
-            {
-                // Just having generals.exe is enough for Generals
-                return true;
-            }
-
-            return false;
+            return true;
         }
         catch (Exception ex)
         {

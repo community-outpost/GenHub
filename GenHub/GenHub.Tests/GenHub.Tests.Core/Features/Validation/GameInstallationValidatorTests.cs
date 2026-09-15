@@ -1004,6 +1004,42 @@ public class GameInstallationValidatorTests
         }
     }
 
+    /// <summary>Manifest validation runs once and nested progress uses the outer scale.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task ValidateAsync_UsesOneContentPassAndConsistentProgressAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory.FullName, "INI.big"), "archive");
+            var installation = new GameInstallation(directory.FullName, GameInstallationType.Retail);
+            installation.SetPaths(directory.FullName, null);
+            var manifest = new ContentManifest { Files = new() };
+            _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manifest);
+            var issue = new ValidationIssue { IssueType = ValidationIssueType.ValidationUnavailable, Message = "Invalid manifest", Severity = ValidationSeverity.Error };
+            _contentValidatorMock.Setup(c => c.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .Callback<string, ContentManifest, IProgress<ValidationProgress>?, CancellationToken>((_, _, nested, _) => nested?.Report(new ValidationProgress(1, 3, "Nested")))
+                .ReturnsAsync(new ValidationResult(directory.FullName, [issue]));
+            _contentValidatorMock.Setup(c => c.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult(directory.FullName, [issue]));
+            var progress = new SynchronousProgress<ValidationProgress>();
+
+            var result = await _validator.ValidateAsync(installation, progress);
+
+            Assert.Single(result.Issues, i => i.Message == issue.Message);
+            _contentValidatorMock.Verify(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()), Times.Never);
+            _contentValidatorMock.Verify(c => c.ValidateAllAsync(directory.FullName, manifest, null, It.IsAny<CancellationToken>()), Times.Once);
+            Assert.NotEmpty(progress.GetReports());
+            Assert.All(progress.GetReports(), report => Assert.Equal(4, report.Total));
+        }
+        finally
+        {
+            directory.Delete(true);
+        }
+    }
+
     /// <summary>
     /// Custom progress implementation that captures reports synchronously.
     /// </summary>

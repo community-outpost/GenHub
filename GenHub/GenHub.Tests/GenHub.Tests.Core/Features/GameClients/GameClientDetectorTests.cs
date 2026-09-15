@@ -850,15 +850,12 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
-    /// A combined directory — both games flagged at the same path — holds one executable
-    /// set and must yield one standard client (Zero Hour), not a duplicate Generals
-    /// client wrapping the same executable. An extensionless native binary sitting
-    /// alongside generals.exe must reach publisher identification: the earlier *.exe
-    /// glob hid it from the scan entirely.
+    /// Combined archives retain a standard client for each game, and extensionless
+    /// native binaries still reach publisher identification.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithCombinedDirectory_YieldsSingleStandardClientAndSeesNativeBinary()
+    public async Task DetectGameClientsFromInstallationsAsync_WithCombinedDirectory_YieldsBothStandardClientsAndSeesNativeBinary()
     {
         // Arrange
         var combinedPath = Path.Combine(_tempDirectory, "Combined");
@@ -921,9 +918,11 @@ public class GameClientDetectorTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(3, result.Items.Count);
 
-        var standardClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType));
+        var generalsClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.Generals);
+        Assert.Equal(executablePath, generalsClient.ExecutablePath);
+        var standardClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.ZeroHour);
         Assert.Equal(GameType.ZeroHour, standardClient.GameType);
         Assert.Equal(executablePath, standardClient.ExecutablePath);
 

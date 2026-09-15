@@ -96,6 +96,15 @@ public class GameInstallation : IGameInstallation
         (string.IsNullOrEmpty(GeneralsPath) || Directory.Exists(GeneralsPath)) &&
         (string.IsNullOrEmpty(ZeroHourPath) || Directory.Exists(ZeroHourPath));
 
+    /// <summary>Gets whether both games share the same archive directory.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsCombinedDirectory => HasGenerals && HasZeroHour
+        && !string.IsNullOrEmpty(GeneralsPath) && !string.IsNullOrEmpty(ZeroHourPath)
+        && string.Equals(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(GeneralsPath)),
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(ZeroHourPath)),
+            StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Gets the GameClient for the Generals game type if available in the <see cref="AvailableGameClients"/> collection.
     /// </summary>
@@ -134,13 +143,13 @@ public class GameInstallation : IGameInstallation
     {
         if (!string.IsNullOrEmpty(generalsPath))
         {
-            HasGenerals = ClassifyArchivesSafely(generalsPath).HasGeneralsArchives;
+            HasGenerals = RetailArchiveClassifier.ClassifyArchivesSafely(generalsPath, _logger).HasGeneralsArchives;
             GeneralsPath = generalsPath;
         }
 
         if (!string.IsNullOrEmpty(zeroHourPath))
         {
-            HasZeroHour = ClassifyArchivesSafely(zeroHourPath).HasZeroHourArchives;
+            HasZeroHour = RetailArchiveClassifier.ClassifyArchivesSafely(zeroHourPath, _logger).HasZeroHourArchives;
             ZeroHourPath = zeroHourPath;
         }
 
@@ -183,13 +192,13 @@ public class GameInstallation : IGameInstallation
             bool foundZeroHour = false;
 
             // Preserve explicitly configured and valid paths (e.g. from platform detectors or manifests)
-            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && ClassifyArchivesSafely(GeneralsPath).HasGeneralsArchives)
+            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && RetailArchiveClassifier.ClassifyArchivesSafely(GeneralsPath, _logger).HasGeneralsArchives)
             {
                 HasGenerals = true;
                 foundGenerals = true;
             }
 
-            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && ClassifyArchivesSafely(ZeroHourPath).HasZeroHourArchives)
+            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && RetailArchiveClassifier.ClassifyArchivesSafely(ZeroHourPath, _logger).HasZeroHourArchives)
             {
                 HasZeroHour = true;
                 foundZeroHour = true;
@@ -236,28 +245,7 @@ public class GameInstallation : IGameInstallation
         return Id?.GetHashCode() ?? 0;
     }
 
-    /// <summary>
-    /// Classifies a directory's archives without letting a filesystem error escape.
-    /// </summary>
-    /// <param name="path">The directory to classify.</param>
-    /// <returns>The classification, or neither game when the directory cannot be read.</returns>
-    /// <remarks>
-    /// <see cref="SetPaths"/> is called from every platform detector, so it must not
-    /// throw. An unreadable directory is logged rather than silently reading as "no
-    /// archives" — the flag still ends up false, but the log names the real cause.
-    /// </remarks>
-    private RetailArchiveClassification ClassifyArchivesSafely(string path)
-    {
-        try
-        {
-            return RetailArchiveClassifier.ClassifyArchives(path);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            _logger?.LogWarning(ex, "Could not read {Path} while classifying retail archives; treating it as holding none", path);
-            return default;
-        }
-    }
+
 
     private void FetchSubdirectoryInstallations(ref bool foundGenerals, ref bool foundZeroHour)
     {
@@ -308,7 +296,7 @@ public class GameInstallation : IGameInstallation
         {
             if (InstallationPath.TryGetDirectoryCaseInsensitive(subDir, out var subDirPath))
             {
-                var classification = ClassifyArchivesSafely(subDirPath);
+                var classification = RetailArchiveClassifier.ClassifyArchivesSafely(subDirPath, _logger);
                 if (gameType == GameType.Generals ? classification.HasGeneralsArchives : classification.HasZeroHourArchives)
                 {
                     foundPath = subDirPath;
@@ -323,7 +311,7 @@ public class GameInstallation : IGameInstallation
 
     private void FetchRootInstallation(ref bool foundGenerals, ref bool foundZeroHour)
     {
-        var classification = ClassifyArchivesSafely(InstallationPath);
+        var classification = RetailArchiveClassifier.ClassifyArchivesSafely(InstallationPath, _logger);
         if (!foundGenerals && classification.HasGeneralsArchives)
         {
             HasGenerals = true;
