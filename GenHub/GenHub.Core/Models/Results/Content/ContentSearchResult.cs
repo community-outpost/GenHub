@@ -107,7 +107,8 @@ public class ContentSearchResult
         => Data = data;
 
     /// <summary>
-    /// Updates the content ID. Useful when the ID changes after resolution (e.g. from a partial ID to a full manifest ID).</summary>
+    /// Updates the content ID. Useful when the ID changes after resolution (e.g. from a partial ID to a full manifest ID).
+    /// </summary>
     /// <param name="newId">The new identifier.</param>
     public void UpdateId(string newId)
     {
