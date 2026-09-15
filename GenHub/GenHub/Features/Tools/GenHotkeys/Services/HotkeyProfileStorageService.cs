@@ -57,7 +57,7 @@ public class HotkeyProfileStorageService(
             {
                 throw;
             }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or ArgumentException)
             {
                 logger.LogWarning(ex, "Failed to deserialize hotkey profile from {Path}", file);
             }
@@ -98,7 +98,7 @@ public class HotkeyProfileStorageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or ArgumentException)
         {
             logger.LogError(ex, "Failed to read hotkey profile {Id} from {Path}", profileId, filePath);
             return null;

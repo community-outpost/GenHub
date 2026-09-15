@@ -842,7 +842,7 @@ public partial class GenHotkeysViewModel(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException)
         {
             logger.LogError(ex, "Failed to export hotkeys addon");
             StatusMessage = $"Export error: {ex.Message}";
@@ -1194,14 +1194,18 @@ public partial class GenHotkeysViewModel(
     private static bool IsRallyPointOverlap(List<HotkeyActionViewModel> actions)
     {
         return actions.Count == 2 &&
-               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.SetRallyPoint, StringComparison.OrdinalIgnoreCase));
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.SetRallyPoint, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructChinaVehicleInfernoCannon, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructGLAInfantryAngryMob, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsDetentionCampOverlap(List<HotkeyActionViewModel> actions)
     {
         return actions.Count == 2 &&
-               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructAmericaDetentionCamp, StringComparison.OrdinalIgnoreCase));
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructAmericaDetentionCamp, StringComparison.OrdinalIgnoreCase)) &&
+               actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructAmericaSupplyCenter, StringComparison.OrdinalIgnoreCase));
     }
+
 
     private static char? ResolveCurrentActionHotkey(HotkeyAction action, HotkeyProfile? profile)
     {
@@ -1698,22 +1702,34 @@ public partial class GenHotkeysViewModel(
 
     private static void UpdateAddonMatchState(GenHotkeysViewModel vm, ContentManifest? match)
     {
-        vm.ExistingAddonManifest = match;
-        vm.HasExistingAddon = match is not null;
-        if (match is not null)
+        void ApplyState()
         {
-            if (vm.SelectedProfile != null)
+            vm.ExistingAddonManifest = match;
+            vm.HasExistingAddon = match is not null;
+            if (match is not null)
             {
-                vm.SelectedProfile.AddonManifestId = match.Id.Value;
-            }
+                if (vm.SelectedProfile != null)
+                {
+                    vm.SelectedProfile.AddonManifestId = match.Id.Value;
+                }
 
-            vm.AddonButtonText = UpdateAddonText;
-            vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+                vm.AddonButtonText = UpdateAddonText;
+                vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+            }
+            else
+            {
+                vm.AddonButtonText = CreateAddonText;
+                vm.AddonButtonToolTip = CreateAddonToolTip;
+            }
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            ApplyState();
         }
         else
         {
-            vm.AddonButtonText = CreateAddonText;
-            vm.AddonButtonToolTip = CreateAddonToolTip;
+            Dispatcher.UIThread.Post(ApplyState);
         }
     }
 
@@ -1967,6 +1983,30 @@ public partial class GenHotkeysViewModel(
         _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp, cancellationToken);
     }
 
+    private Bitmap? GetOrAddBitmapToCache((GameType Game, string Icon) key, byte[] bytes)
+    {
+        using var ms = new MemoryStream(bytes);
+        var bmp = new Bitmap(ms);
+
+        lock (_bitmapCache)
+        {
+            if (_isDisposed)
+            {
+                bmp.Dispose();
+                return null;
+            }
+
+            if (_bitmapCache.TryGetValue(key, out var existing))
+            {
+                bmp.Dispose();
+                return existing;
+            }
+
+            _bitmapCache[key] = bmp;
+            return bmp;
+        }
+    }
+
     private async Task LoadBitmapAsync(
         string iconName,
         GameType gameType,
@@ -1988,43 +2028,24 @@ public partial class GenHotkeysViewModel(
             }
 
             var bytes = await techTreeService.GetIconBytesAsync(iconName, gameType, cancellationToken).ConfigureAwait(false);
-            if (cancellationToken.IsCancellationRequested || _isDisposed)
+            if (cancellationToken.IsCancellationRequested || _isDisposed || bytes is not { Length: > 0 })
             {
                 return;
             }
 
-            if (bytes is { Length: > 0 })
+            var bmp = GetOrAddBitmapToCache(key, bytes);
+            if (bmp == null)
             {
-                using var ms = new MemoryStream(bytes);
-                var bmp = new Bitmap(ms);
-
-                lock (_bitmapCache)
-                {
-                    if (_isDisposed)
-                    {
-                        bmp.Dispose();
-                        return;
-                    }
-
-                    if (_bitmapCache.TryGetValue(key, out var existing))
-                    {
-                        bmp.Dispose();
-                        bmp = existing;
-                    }
-                    else
-                    {
-                        _bitmapCache[key] = bmp;
-                    }
-                }
-
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (!_isDisposed)
-                    {
-                        onLoaded(bmp);
-                    }
-                });
+                return;
             }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!_isDisposed)
+                {
+                    onLoaded(bmp);
+                }
+            });
         }
         catch (OperationCanceledException)
         {

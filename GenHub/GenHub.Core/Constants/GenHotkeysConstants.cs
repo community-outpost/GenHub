@@ -92,6 +92,15 @@ public static class GenHotkeysConstants
 
         /// <summary>CSF label for America Detention Camp construction.</summary>
         public const string ConstructAmericaDetentionCamp = "CONTROLBAR:ConstructAmericaDetentionCamp";
+
+        /// <summary>CSF label for America Supply Center construction.</summary>
+        public const string ConstructAmericaSupplyCenter = "CONTROLBAR:ConstructAmericaSupplyCenter";
+
+        /// <summary>CSF label for China Inferno Cannon construction.</summary>
+        public const string ConstructChinaVehicleInfernoCannon = "CONTROLBAR:ConstructChinaVehicleInfernoCannon";
+
+        /// <summary>CSF label for GLA Angry Mob construction.</summary>
+        public const string ConstructGLAInfantryAngryMob = "CONTROLBAR:ConstructGLAInfantryAngryMob";
     }
 
     /// <summary>Mutual exclusion and special action icon names.</summary>
@@ -380,7 +389,7 @@ public static class GenHotkeysConstants
     /// </summary>
     /// <param name="profileName">Profile name.</param>
     /// <param name="targetGame">Target game.</param>
-    /// <param name="profileId">Optional profile ID to avoid collisions between profiles with matching sanitized names.</param>
+    /// <param name="profileId">The unique ID of the profile to avoid collisions between profiles with matching sanitized names, or <see langword="null"/>.</param>
     /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
     public static string GetBigFileName(string? profileName, GameType targetGame, string? profileId)
     {

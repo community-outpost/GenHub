@@ -37,10 +37,9 @@ public class HotkeyPackageService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
-        cancellationToken.ThrowIfCancellationRequested();
 
-        var stagingDir = Path.Combine(Path.GetTempPath(), $"GenHub_Hotkeys_{Guid.NewGuid():N}");
-        var packageDir = Path.Combine(Path.GetTempPath(), $"GenHub_Hotkeys_Pkg_{Guid.NewGuid():N}");
+        var stagingDir = Path.Combine(Path.GetTempPath(), $"GenHotkeys_Staging_{Guid.NewGuid():N}");
+        var packageDir = Path.Combine(Path.GetTempPath(), $"GenHotkeys_Pkg_{Guid.NewGuid():N}");
 
         try
         {
@@ -92,7 +91,7 @@ public class HotkeyPackageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
         {
             logger.LogError(ex, "Failed to package hotkeys addon for profile '{Name}'", profile.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to create hotkeys addon: {ex.Message}");
@@ -463,7 +462,7 @@ public class HotkeyPackageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
         {
             logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", iconName);
         }
