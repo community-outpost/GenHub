@@ -1,12 +1,12 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using GenHub.Core.Constants;
-using GenHub.Core.Extensions;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Results.Content;
 
 namespace GenHub.Core.Models.Content;
 
