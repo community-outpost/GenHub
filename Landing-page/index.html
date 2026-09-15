@@ -408,10 +408,10 @@
                         </div>
                         <div class="genhub-titlebar-right">
                             <div class="genhub-title-actions">
-                                <button class="genhub-tb-btn" id="ghTbBtnInfo" title="Information" aria-label="Information">
+                                <button class="genhub-tb-btn" id="ghTbBtnInfo" title="Information" aria-label="Information" aria-controls="gh-pane-info">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/></svg>
                                 </button>
-                                <button class="genhub-tb-btn" id="ghTbBtnSettings" title="Global Settings" aria-label="Settings">
+                                <button class="genhub-tb-btn" id="ghTbBtnSettings" title="Global Settings" aria-label="Settings" aria-controls="gh-pane-settings">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
                                 </button>
                                 <button class="genhub-tb-btn has-badge" id="ghTbBtnBell" title="Notifications" aria-label="Notifications">
@@ -590,7 +590,7 @@
 
                         
                         <!-- Profile Settings Window Modal (GameProfileSettingsWindow.axaml & GameProfileNavigationView.axaml) -->
-                        <div class="gh-modal-backdrop" id="ghGameProfileSettingsWindow" role="dialog" aria-modal="true" aria-labelledby="ghProfileWinTitle">
+                        <div class="gh-modal-backdrop" id="ghGameProfileSettingsWindow" role="dialog" aria-modal="true" aria-labelledby="ghWinProfileTitle">
                             <div class="gh-profile-settings-window">
                                 <!-- Edge Accent Glow -->
                                 <div class="gh-win-accent-edge"></div>
@@ -621,15 +621,15 @@
 
                                 <!-- Top Navigation Bar (GameProfileNavigationView.axaml - 3 Icon Buttons 56x56) -->
                                 <div class="gh-win-nav-bar" role="tablist">
-                                    <button class="gh-win-nav-btn active" data-win-tab="0" role="tab" aria-selected="true" title="Content Editor">
+                                    <button class="gh-win-nav-btn active" id="ghWinNavBtnContent" aria-controls="ghWinTabContent" data-win-tab="0" role="tab" aria-selected="true" title="Content Editor">
                                         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"/></svg>
                                         <span>Content</span>
                                     </button>
-                                    <button class="gh-win-nav-btn" data-win-tab="1" role="tab" aria-selected="false" title="Profile Settings">
+                                    <button class="gh-win-nav-btn" id="ghWinNavBtnGeneral" aria-controls="ghWinTabGeneral" data-win-tab="1" role="tab" aria-selected="false" title="Profile Settings">
                                         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
                                         <span>Profile Settings</span>
                                     </button>
-                                    <button class="gh-win-nav-btn" data-win-tab="2" role="tab" aria-selected="false" title="Game Settings">
+                                    <button class="gh-win-nav-btn" id="ghWinNavBtnGame" aria-controls="ghWinTabGame" data-win-tab="2" role="tab" aria-selected="false" title="Game Settings">
                                         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
                                         <span>Game Settings</span>
                                     </button>
@@ -638,7 +638,7 @@
                                 <!-- Tab Content Body -->
                                 <div class="gh-win-content-body">
                                     <!-- TAB 0: CONTENT EDITOR (GameProfileContentEditorView.axaml) -->
-                                    <div class="gh-win-tab-panel active" id="ghWinTabContent">
+                                    <div class="gh-win-tab-panel active" id="ghWinTabContent" role="tabpanel" aria-labelledby="ghWinNavBtnContent">
                                         <div class="gh-content-editor-toolbar">
                                             <button class="gh-btn-primary" id="ghWinAddLocalContentBtn">
                                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -683,7 +683,8 @@
                                                     <div class="gh-att-desc">High-DPI scaling, 60+ FPS uncap, multiplayer buffer overflow patches.</div>
                                                 </div>
                                                 <div class="gh-att-actions">
-                                                    <input type="checkbox" checked class="gh-wizard-chk" title="Enable / Disable">
+                                                    <label for="ghAttChk1" class="sr-only">Enable or disable TheSuperHackers Engine Patch</label>
+                                                    <input type="checkbox" checked class="gh-wizard-chk" id="ghAttChk1" title="Enable / Disable" aria-label="Enable or disable TheSuperHackers Engine Patch">
                                                     <button class="gh-att-remove-btn" title="Remove from profile">✕</button>
                                                 </div>
                                             </div>
@@ -701,7 +702,8 @@
                                                     <div class="gh-att-desc">Expanded general arsenals, balance rework, custom textures and voiceovers.</div>
                                                 </div>
                                                 <div class="gh-att-actions">
-                                                    <input type="checkbox" checked class="gh-wizard-chk" title="Enable / Disable">
+                                                    <label for="ghAttChk2" class="sr-only">Enable or disable Shockwave Mod</label>
+                                                    <input type="checkbox" checked class="gh-wizard-chk" id="ghAttChk2" title="Enable / Disable" aria-label="Enable or disable Shockwave Mod">
                                                     <button class="gh-att-remove-btn" title="Remove from profile">✕</button>
                                                 </div>
                                             </div>
@@ -719,7 +721,8 @@
                                                     <div class="gh-att-desc">DirectDraw proxy wrapper and modern camera FOV corrections.</div>
                                                 </div>
                                                 <div class="gh-att-actions">
-                                                    <input type="checkbox" checked class="gh-wizard-chk" title="Enable / Disable">
+                                                    <label for="ghAttChk3" class="sr-only">Enable or disable GenPatcher DirectDraw Wrapper</label>
+                                                    <input type="checkbox" checked class="gh-wizard-chk" id="ghAttChk3" title="Enable / Disable" aria-label="Enable or disable GenPatcher DirectDraw Wrapper">
                                                     <button class="gh-att-remove-btn" title="Remove from profile">✕</button>
                                                 </div>
                                             </div>
@@ -869,16 +872,16 @@
                                                 <h4>Display & Resolution</h4>
                                                 <div class="gh-form-row" style="margin-top: 12px;">
                                                     <div class="gh-form-group" style="flex: 1;">
-                                                        <label class="gh-form-label">Width (px)</label>
-                                                        <input type="number" id="ghGameResX" class="gh-form-input" value="2560">
+                                                        <label class="gh-form-label" for="ghGameResX">Width (px)</label>
+                                                        <input type="number" id="ghGameResX" class="gh-form-input" value="2560" aria-label="Width in pixels">
                                                     </div>
                                                     <div class="gh-form-group" style="flex: 1;">
-                                                        <label class="gh-form-label">Height (px)</label>
-                                                        <input type="number" id="ghGameResY" class="gh-form-input" value="1440">
+                                                        <label class="gh-form-label" for="ghGameResY">Height (px)</label>
+                                                        <input type="number" id="ghGameResY" class="gh-form-input" value="1440" aria-label="Height in pixels">
                                                     </div>
                                                     <div class="gh-form-group" style="flex: 1.5;">
-                                                        <label class="gh-form-label">Preset Resolution</label>
-                                                        <select id="ghGameResPreset" class="gh-form-select">
+                                                        <label class="gh-form-label" for="ghGameResPreset">Preset Resolution</label>
+                                                        <select id="ghGameResPreset" class="gh-form-select" aria-label="Preset Resolution">
                                                             <option value="2560x1440" selected>2560 x 1440 (16:9 WQHD)</option>
                                                             <option value="1920x1080">1920 x 1080 (16:9 FHD)</option>
                                                             <option value="3840x2160">3840 x 2160 (16:9 4K UHD)</option>
@@ -887,8 +890,8 @@
                                                     </div>
                                                 </div>
                                                 <div class="gh-form-group" style="margin-top: 12px;">
-                                                    <label class="gh-form-label">Display Mode</label>
-                                                    <select class="gh-form-select">
+                                                    <label class="gh-form-label" for="ghGameDisplayMode">Display Mode</label>
+                                                    <select class="gh-form-select" id="ghGameDisplayMode" aria-label="Display Mode">
                                                         <option value="borderless" selected>Borderless Windowed</option>
                                                         <option value="windowed">Standard Windowed</option>
                                                         <option value="fullscreen">Exclusive Fullscreen</option>
@@ -900,16 +903,16 @@
                                                 <h4>Graphics Quality</h4>
                                                 <div class="gh-form-row" style="margin-top: 12px;">
                                                     <div class="gh-form-group" style="flex: 1;">
-                                                        <label class="gh-form-label">Detail Level</label>
-                                                        <select class="gh-form-select">
+                                                        <label class="gh-form-label" for="ghGameDetailLevel">Detail Level</label>
+                                                        <select class="gh-form-select" id="ghGameDetailLevel" aria-label="Detail Level">
                                                             <option value="high" selected>High Detail</option>
                                                             <option value="medium">Medium Detail</option>
                                                             <option value="low">Low Detail</option>
                                                         </select>
                                                     </div>
                                                     <div class="gh-form-group" style="flex: 1;">
-                                                        <label class="gh-form-label">Particle Cap</label>
-                                                        <select class="gh-form-select">
+                                                        <label class="gh-form-label" for="ghGameParticleCap">Particle Cap</label>
+                                                        <select class="gh-form-select" id="ghGameParticleCap" aria-label="Particle Cap">
                                                             <option value="high" selected>High (10,000)</option>
                                                             <option value="medium">Medium (5,000)</option>
                                                             <option value="low">Low (2,000)</option>
@@ -921,19 +924,20 @@
                                                         <strong style="font-size: 13px; color: #ffffff;">Enable 3D Shadows</strong>
                                                         <div style="font-size: 11.5px; color: #64748b;">Dynamic shadow maps for vehicles and structures.</div>
                                                     </div>
-                                                    <input type="checkbox" checked class="gh-wizard-chk">
+                                                    <label for="ghGameShadowsChk" class="sr-only">Enable dynamic shadow maps</label>
+                                                    <input type="checkbox" checked class="gh-wizard-chk" id="ghGameShadowsChk" aria-label="Enable dynamic shadow maps">
                                                 </div>
                                             </div>
 
                                             <div class="gh-settings-card">
                                                 <h4>Audio & Camera</h4>
                                                 <div class="gh-form-group" style="margin-top: 12px;">
-                                                    <label class="gh-form-label">Master Audio Volume (85%)</label>
-                                                    <input type="range" min="0" max="100" value="85" class="gh-range-slider">
+                                                    <label class="gh-form-label" for="ghGameMasterVolume">Master Audio Volume (85%)</label>
+                                                    <input type="range" min="0" max="100" value="85" class="gh-range-slider" id="ghGameMasterVolume" aria-label="Master Audio Volume">
                                                 </div>
                                                 <div class="gh-form-group" style="margin-top: 12px;">
-                                                    <label class="gh-form-label">Camera Max Height (Zoom)</label>
-                                                    <input type="range" min="300" max="600" value="450" class="gh-range-slider">
+                                                    <label class="gh-form-label" for="ghGameCameraHeight">Camera Max Height (Zoom)</label>
+                                                    <input type="range" min="300" max="600" value="450" class="gh-range-slider" id="ghGameCameraHeight" aria-label="Camera Max Height">
                                                 </div>
                                             </div>
                                         </div>
@@ -1227,9 +1231,11 @@
                                             <div class="gh-downloads-controls">
                                                 <div class="gh-downloads-search-wrap">
                                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                                                    <input type="text" placeholder="Search catalog..." id="ghCatalogSearch" class="gh-downloads-search">
+                                                    <label for="ghCatalogSearch" class="sr-only">Search catalog</label>
+                                                    <input type="text" placeholder="Search catalog..." id="ghCatalogSearch" class="gh-downloads-search" aria-label="Search catalog">
                                                 </div>
-                                                <select class="gh-downloads-filter" id="ghCatalogFilter">
+                                                <label for="ghCatalogFilter" class="sr-only">Filter catalog by category</label>
+                                                <select class="gh-downloads-filter" id="ghCatalogFilter" aria-label="Filter catalog by category">
                                                     <option value="all">All Categories</option>
                                                     <option value="patch">Engine Patches</option>
                                                     <option value="mod">Mods</option>
@@ -1597,7 +1603,7 @@
                                             </div>
 
                                             <!-- CNC Labs Items -->
-                                            <div class="gh-content-card" data-pub="cnclabs" data-category="map" data-title="CNC Labs Map Pack Vol 1">
+                                            <div class="gh-content-card" data-pub="cnclabs" data-category="map" data-title="CNC Labs Community Map Pack Vol 1">
                                                 <div class="gh-content-banner">
                                                     <img src="./assets/images/china-cover.png" alt="CNC Labs" class="gh-banner-bg">
                                                     <div class="gh-content-banner-overlay"></div>
@@ -1614,12 +1620,12 @@
                                                     </div>
                                                 </div>
                                                 <div class="gh-content-action">
-                                                    <button class="gh-btn-secondary gh-card-details-btn" data-view-content="CNC Labs Map Pack Vol 1">Details</button>
-                                                    <button class="gh-action-btn add-profile gh-open-add-modal-btn" data-content-name="CNC Labs Map Pack Vol 1">Add to Profile</button>
+                                                    <button class="gh-btn-secondary gh-card-details-btn" data-view-content="CNC Labs Community Map Pack Vol 1">Details</button>
+                                                    <button class="gh-action-btn add-profile gh-open-add-modal-btn" data-content-name="CNC Labs Community Map Pack Vol 1">Add to Profile</button>
                                                 </div>
                                             </div>
 
-                                            <div class="gh-content-card" data-pub="cnclabs" data-category="map" data-title="Desert Storm Campaign">
+                                            <div class="gh-content-card" data-pub="cnclabs" data-category="map" data-title="Desert Storm Singleplayer Campaign">
                                                 <div class="gh-content-banner">
                                                     <img src="./assets/images/gla-cover.png" alt="Desert Campaign" class="gh-banner-bg">
                                                     <div class="gh-content-banner-overlay"></div>
@@ -1636,8 +1642,8 @@
                                                     </div>
                                                 </div>
                                                 <div class="gh-content-action">
-                                                    <button class="gh-btn-secondary gh-card-details-btn" data-view-content="Desert Storm Campaign">Details</button>
-                                                    <button class="gh-action-btn add-profile gh-open-add-modal-btn" data-content-name="Desert Storm Campaign">Add to Profile</button>
+                                                    <button class="gh-btn-secondary gh-card-details-btn" data-view-content="Desert Storm Singleplayer Campaign">Details</button>
+                                                    <button class="gh-action-btn add-profile gh-open-add-modal-btn" data-content-name="Desert Storm Singleplayer Campaign">Add to Profile</button>
                                                 </div>
                                             </div>
 
@@ -1775,7 +1781,7 @@
                                             </div>
 
                                             <!-- ModDB Mirror Items -->
-                                            <div class="gh-content-card" data-pub="moddb" data-category="mod" data-title="Cold War Crisis">
+                                            <div class="gh-content-card" data-pub="moddb" data-category="mod" data-title="Cold War Crisis Mod">
                                                 <div class="gh-content-banner">
                                                     <img src="./assets/images/usa-cover.png" alt="Cold War" class="gh-banner-bg">
                                                     <div class="gh-content-banner-overlay"></div>
@@ -1929,8 +1935,8 @@
                                                 <div class="gh-detail-action-card">
                                                     <div class="gh-action-card-header">Install & Link</div>
                                                     <div class="gh-form-group" style="margin: 12px 0;">
-                                                        <label class="gh-form-label">Target Profile</label>
-                                                        <select class="gh-form-select" id="ghDetailTargetProfile">
+                                                        <label class="gh-form-label" for="ghDetailTargetProfile">Target Profile</label>
+                                                        <select class="gh-form-select" id="ghDetailTargetProfile" aria-label="Target Profile">
                                                             <option value="Shockwave 1.201">Shockwave 1.201</option>
                                                             <option value="Contra 009">Contra 009</option>
                                                             <option value="Rise of the Reds">Rise of the Reds</option>
@@ -1958,7 +1964,7 @@
                         </div>
 
                         <!-- TAB 3: TOOLS (ToolsView.axaml, ReplayManagerView.axaml, MapManagerView.axaml) -->
-                        <div class="genhub-view-pane" id="gh-pane-tools" role="tabpanel">
+                        <div class="genhub-view-pane" id="gh-pane-tools" role="tabpanel" aria-label="Tools & Utilities">
                             <div class="gh-tools-view">
                                 <!-- Tools Sidebar (Fixed 210px, SidebarLayout) -->
                                 <div class="gh-tools-sidebar">
@@ -2003,11 +2009,12 @@
                                         <div class="gh-replay-panel">
                                             <div class="gh-replay-header">
                                                 <div class="gh-subtab-group">
-                                                    <button class="gh-subtab">Generals</button>
-                                                    <button class="gh-subtab active">Zero Hour</button>
+                                                    <button class="gh-subtab" data-replay-game="generals">Generals</button>
+                                                    <button class="gh-subtab active" data-replay-game="zerohour">Zero Hour</button>
                                                 </div>
                                                 <div class="gh-replay-import-bar">
-                                                    <input type="text" placeholder="Paste Replay URL or Match ID..." class="gh-import-input" id="ghReplayUrlInput">
+                                                    <label for="ghReplayUrlInput" class="sr-only">Paste Replay URL or Match ID</label>
+                                                    <input type="text" placeholder="Paste Replay URL or Match ID..." class="gh-import-input" id="ghReplayUrlInput" aria-label="Paste Replay URL or Match ID">
                                                     <button class="gh-import-btn" id="ghReplayImportBtn" title="Import from URL">
                                                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M2 12H4V17H20V12H22V17C22 18.11 21.11 19 20 19H4C2.9 19 2 18.11 2 17V12M12 15L17.55 9.54L16.13 8.13L13 11.25V2H11V11.25L7.88 8.13L6.46 9.55L12 15Z"/></svg>
                                                         <span>Import</span>
@@ -2017,8 +2024,9 @@
                                                     </button>
                                                 </div>
                                                 <div class="gh-replay-search-wrap">
+                                                    <label for="ghReplaySearch" class="sr-only">Search replays</label>
                                                     <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
-                                                    <input type="text" placeholder="Search replays..." class="gh-search-input" id="ghReplaySearch">
+                                                    <input type="text" placeholder="Search replays..." class="gh-search-input" id="ghReplaySearch" aria-label="Search replays">
                                                 </div>
                                                 <div class="gh-replay-actions">
                                                     <button class="gh-replay-action-icon" id="ghReplayRefreshBtn" title="Refresh Replay List">
@@ -2129,7 +2137,8 @@
                                             <!-- Import URL Bar & Search Box Toolbar (MapManagerView.axaml) -->
                                             <div class="gh-map-toolbar">
                                                 <div class="gh-map-import-bar">
-                                                    <input type="text" placeholder="Paste Map URL or download link..." id="ghMapUrlInput" class="gh-map-url-input">
+                                                    <label for="ghMapUrlInput" class="sr-only">Paste Map URL or download link</label>
+                                                    <input type="text" placeholder="Paste Map URL or download link..." id="ghMapUrlInput" class="gh-map-url-input" aria-label="Paste Map URL or download link">
                                                     <button class="gh-btn-primary" id="ghMapImportSubmitBtn">
                                                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                                         <span>Import</span>
@@ -2142,7 +2151,8 @@
 
                                                 <div class="gh-map-search-wrap">
                                                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                                                    <input type="text" placeholder="Search maps..." id="ghMapSearchInput" class="gh-map-search-input">
+                                                    <label for="ghMapSearchInput" class="sr-only">Search maps</label>
+                                                    <input type="text" placeholder="Search maps..." id="ghMapSearchInput" class="gh-map-search-input" aria-label="Search maps">
                                                 </div>
                                             </div>
 
@@ -2309,7 +2319,7 @@ End
                         </div>
 
                         <!-- TAB 4: GLOBAL SETTINGS (SettingsView.axaml) -->
-                        <div class="genhub-view-pane" id="gh-pane-settings" role="tabpanel">
+                        <div class="genhub-view-pane" id="gh-pane-settings" role="tabpanel" aria-label="Application Settings">
                             <div class="gh-settings-view">
                                 <!-- Settings Sidebar (SidebarLayout) -->
                                 <div class="gh-settings-sidebar">
@@ -2343,7 +2353,7 @@ End
 
                                     <!-- Section 1: Game Configuration -->
                                     <div class="gh-settings-expander open" id="secGameConfig">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z"/></svg>
                                                 <span>Game Configuration</span>
@@ -2352,8 +2362,8 @@ End
                                         </div>
                                         <div class="gh-expander-body">
                                             <div class="gh-form-group">
-                                                <label class="gh-form-label">Default Workspace Strategy</label>
-                                                <select class="gh-form-select" id="ghSettingStrategy">
+                                                <label class="gh-form-label" for="ghSettingStrategy">Default Workspace Strategy</label>
+                                                <select class="gh-form-select" id="ghSettingStrategy" aria-label="Default Workspace Strategy">
                                                     <option value="hardlinks" selected>NTFS Hardlinks (Recommended - 0 extra disk storage)</option>
                                                     <option value="symlinks">Symbolic Links (Requires Administrator privileges)</option>
                                                     <option value="copy">Full Directory Copy (Independent fallback)</option>
@@ -2386,7 +2396,7 @@ End
 
                                     <!-- Section 2: Downloads -->
                                     <div class="gh-settings-expander open" id="secDownloads">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                                 <span>Downloads</span>
@@ -2396,35 +2406,36 @@ End
                                         <div class="gh-expander-body">
                                             <div class="gh-form-row">
                                                 <div class="gh-form-group" style="flex: 1;">
-                                                    <label class="gh-form-label">Max Concurrent Downloads</label>
-                                                    <input type="number" class="gh-form-input" min="1" max="10" value="3" id="ghSettingConcurrentDl">
+                                                    <label class="gh-form-label" for="ghSettingConcurrentDl">Max Concurrent Downloads</label>
+                                                    <input type="number" class="gh-form-input" min="1" max="10" value="3" id="ghSettingConcurrentDl" aria-label="Max Concurrent Downloads">
                                                 </div>
                                                 <div class="gh-form-group" style="flex: 1;">
-                                                    <label class="gh-form-label">Download Buffer Size (KB)</label>
-                                                    <input type="number" class="gh-form-input" min="4" max="1024" value="80" id="ghSettingBuffer">
+                                                    <label class="gh-form-label" for="ghSettingBuffer">Download Buffer Size (KB)</label>
+                                                    <input type="number" class="gh-form-input" min="4" max="1024" value="80" id="ghSettingBuffer" aria-label="Download Buffer Size in KB">
                                                 </div>
                                                 <div class="gh-form-group" style="flex: 1;">
-                                                    <label class="gh-form-label">Download Timeout (seconds)</label>
-                                                    <input type="number" class="gh-form-input" min="10" max="3600" value="600" id="ghSettingTimeout">
+                                                    <label class="gh-form-label" for="ghSettingTimeout">Download Timeout (seconds)</label>
+                                                    <input type="number" class="gh-form-input" min="10" max="3600" value="600" id="ghSettingTimeout" aria-label="Download Timeout in seconds">
                                                 </div>
                                             </div>
                                             <div class="gh-form-group" style="margin-top: 14px;">
-                                                <label class="gh-form-label">User-Agent Header</label>
-                                                <input type="text" class="gh-form-input" value="GenHub/0.0.3" id="ghSettingUserAgent">
+                                                <label class="gh-form-label" for="ghSettingUserAgent">User-Agent Header</label>
+                                                <input type="text" class="gh-form-input" value="GenHub/0.0.3" id="ghSettingUserAgent" aria-label="User-Agent Header">
                                             </div>
                                             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px;">
                                                 <div>
                                                     <strong style="font-size: 13px; color: #ffffff;">Allow Background Downloads</strong>
                                                     <div style="font-size: 11.5px; color: #64748b;">Keep downloading mod assets and maps while running matches.</div>
                                                 </div>
-                                                <input type="checkbox" checked class="gh-wizard-chk">
+                                                <label for="ghSettingBackgroundDlChk" class="sr-only">Background asset downloads during match</label>
+                                                <input type="checkbox" checked class="gh-wizard-chk" id="ghSettingBackgroundDlChk" aria-label="Background asset downloads during match">
                                             </div>
                                         </div>
                                     </div>
 
                                     <!-- Section 3: Appearance (Theme Swatches from SettingsView.axaml) -->
                                     <div class="gh-settings-expander" id="secAppearance">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z"/></svg>
                                                 <span>Appearance</span>
@@ -2464,7 +2475,7 @@ End
 
                                     <!-- Section 4: Data Directories (Buttons from SettingsView.axaml) -->
                                     <div class="gh-settings-expander" id="secDataDirs">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"/></svg>
                                                 <span>Data Directories</span>
@@ -2480,9 +2491,9 @@ End
                                                 <button class="gh-btn-secondary gh-dir-act-btn" data-dir="CAS Pool">Open CAS Pool</button>
                                             </div>
                                             <div class="gh-form-group" style="margin-top: 14px;">
-                                                <label class="gh-form-label">Settings File Location</label>
+                                                <label class="gh-form-label" for="ghSettingsFileLocation">Settings File Location</label>
                                                 <div style="display: flex; gap: 8px;">
-                                                    <input type="text" class="gh-form-input" value="~/.config/GenHub/settings.json" readonly>
+                                                    <input type="text" class="gh-form-input" value="~/.config/GenHub/settings.json" id="ghSettingsFileLocation" readonly aria-label="Settings File Location">
                                                     <button class="gh-btn-secondary" id="ghSettingsBrowseBtn">Browse</button>
                                                 </div>
                                             </div>
@@ -2491,7 +2502,7 @@ End
 
                                     <!-- Section 5: Migrate Installation -->
                                     <div class="gh-settings-expander" id="secMigrate">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
                                                 <span>Migrate Installation</span>
@@ -2501,15 +2512,16 @@ End
                                         <div class="gh-expander-body">
                                             <p style="font-size: 12px; color: #94a3b8; margin: 0 0 12px 0;">Relocate GenHub internal storage, package cache, and workspaces to a different drive partition.</p>
                                             <div class="gh-form-group">
-                                                <label class="gh-form-label">Target Directory</label>
+                                                <label class="gh-form-label" for="ghSettingsTargetDir">Target Directory</label>
                                                 <div style="display: flex; gap: 8px;">
-                                                    <input type="text" class="gh-form-input" placeholder="D:\Games\GenHubData">
+                                                    <input type="text" class="gh-form-input" placeholder="D:\Games\GenHubData" id="ghSettingsTargetDir" aria-label="Target Directory">
                                                     <button class="gh-btn-secondary">Browse</button>
                                                 </div>
                                             </div>
                                             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;">
                                                 <span style="font-size: 12.5px; color: #cbd5e1;">Also relocate CAS storage pool and game workspaces</span>
-                                                <input type="checkbox" checked class="gh-wizard-chk">
+                                                <label for="ghSettingRelocatePoolChk" class="sr-only">Also relocate CAS storage pool and game workspaces</label>
+                                                <input type="checkbox" checked class="gh-wizard-chk" id="ghSettingRelocatePoolChk" aria-label="Also relocate CAS storage pool and game workspaces">
                                             </div>
                                             <button class="gh-btn-primary" id="ghMigrateBtn" style="margin-top: 14px; background: #dc2626; border-color: #ef4444;">Migrate Installation Location</button>
                                         </div>
@@ -2517,7 +2529,7 @@ End
 
                                     <!-- Section 6: Logs -->
                                     <div class="gh-settings-expander" id="secLogs">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                                                 <span>Logs</span>
@@ -2530,7 +2542,8 @@ End
                                                     <strong style="font-size: 13px; color: #ffffff;">Enable Detailed Logging (Debug Mode)</strong>
                                                     <div style="font-size: 11.5px; color: #64748b;">Record verbose engine hooking and process lifecycle logs.</div>
                                                 </div>
-                                                <input type="checkbox" class="gh-wizard-chk">
+                                                <label for="ghSettingVerboseLogsChk" class="sr-only">Record verbose engine hooking and process lifecycle logs</label>
+                                                <input type="checkbox" class="gh-wizard-chk" id="ghSettingVerboseLogsChk" aria-label="Record verbose engine hooking and process lifecycle logs">
                                             </div>
                                             <div class="gh-data-dirs-grid">
                                                 <button class="gh-btn-secondary gh-log-btn" data-log-act="open-dir">Open Logs Directory</button>
@@ -2543,7 +2556,7 @@ End
 
                                     <!-- Section 7: Performance -->
                                     <div class="gh-settings-expander" id="secPerformance">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
                                                 <span>Performance</span>
@@ -2563,7 +2576,7 @@ End
 
                                     <!-- Section 8: Content-Addressable Storage (CAS) -->
                                     <div class="gh-settings-expander" id="secCas">
-                                        <div class="gh-expander-header">
+                                        <div class="gh-expander-header" role="button" tabindex="0" aria-expanded="true">
                                             <div class="gh-expander-title">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6,2H18A2,2 0 0,1 20,4V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M12,4A6,6 0 0,0 6,10C6,12.74 7.84,15.05 10.36,15.77C10.15,15.17 10,14.6 10,14A6,6 0 0,1 16,8C16.6,8 17.17,8.15 17.77,8.36C17.05,5.84 14.74,4 12,4Z"/></svg>
                                                 <span>Content-Addressable Storage (CAS)</span>
@@ -2572,17 +2585,17 @@ End
                                         </div>
                                         <div class="gh-expander-body">
                                             <div class="gh-form-group">
-                                                <label class="gh-form-label">CAS Storage Root Directory</label>
-                                                <input type="text" class="gh-form-input" value="~/.local/share/GenHub/cas-pool" readonly>
+                                                <label class="gh-form-label" for="ghSettingCasRootDir">CAS Storage Root Directory</label>
+                                                <input type="text" class="gh-form-input" value="~/.local/share/GenHub/cas-pool" id="ghSettingCasRootDir" readonly aria-label="CAS Storage Root Directory">
                                             </div>
                                             <div class="gh-form-row" style="margin-top: 14px;">
                                                 <div class="gh-form-group" style="flex: 1;">
-                                                    <label class="gh-form-label">Maximum Cache Size (GB)</label>
-                                                    <input type="number" class="gh-form-input" value="50" min="1" max="1000">
+                                                    <label class="gh-form-label" for="ghSettingMaxCache">Maximum Cache Size (GB)</label>
+                                                    <input type="number" class="gh-form-input" value="50" min="1" max="1000" id="ghSettingMaxCache" aria-label="Maximum Cache Size in GB">
                                                 </div>
                                                 <div class="gh-form-group" style="flex: 1;">
-                                                    <label class="gh-form-label">Concurrent CAS Operations</label>
-                                                    <input type="number" class="gh-form-input" value="4" min="1" max="16">
+                                                    <label class="gh-form-label" for="ghSettingConcurrentCas">Concurrent CAS Operations</label>
+                                                    <input type="number" class="gh-form-input" value="4" min="1" max="16" id="ghSettingConcurrentCas" aria-label="Concurrent CAS Operations">
                                                 </div>
                                             </div>
                                             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px;">
@@ -2590,14 +2603,16 @@ End
                                                     <strong style="font-size: 13px; color: #ffffff;">Automatic Garbage Collection</strong>
                                                     <div style="font-size: 11.5px; color: #64748b;">Prune orphaned files not linked to any profile every 7 days.</div>
                                                 </div>
-                                                <input type="checkbox" checked class="gh-wizard-chk">
+                                                <label for="ghSettingPruneOrphanChk" class="sr-only">Prune orphaned files not linked to any profile every 7 days</label>
+                                                <input type="checkbox" checked class="gh-wizard-chk" id="ghSettingPruneOrphanChk" aria-label="Prune orphaned files not linked to any profile every 7 days">
                                             </div>
                                             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;">
                                                 <div>
                                                     <strong style="font-size: 13px; color: #ffffff;">Verify File Integrity on Cache Access</strong>
                                                     <div style="font-size: 11.5px; color: #64748b;">Compute SHA-256 before hardlinking files to workspace.</div>
                                                 </div>
-                                                <input type="checkbox" checked class="gh-wizard-chk">
+                                                <label for="ghSettingVerifyShaChk" class="sr-only">Compute SHA-256 before hardlinking files to workspace</label>
+                                                <input type="checkbox" checked class="gh-wizard-chk" id="ghSettingVerifyShaChk" aria-label="Compute SHA-256 before hardlinking files to workspace">
                                             </div>
                                         </div>
                                     </div>
@@ -2606,12 +2621,13 @@ End
                         </div>
 
                         <!-- TAB 5: INFO VIEW (InfoView.axaml & DefaultInfoContentProvider.cs) -->
-                        <div class="genhub-view-pane" id="gh-pane-info" role="tabpanel">
+                        <div class="genhub-view-pane" id="gh-pane-info" role="tabpanel" aria-label="Documentation & Information">
                             <div class="gh-info-view">
                                 <!-- Info Sidebar (SidebarLayout) -->
                                 <div class="gh-info-sidebar">
                                     <div class="gh-info-module-select-wrap">
-                                        <select class="gh-form-select" id="ghInfoModuleSelect">
+                                        <label for="ghInfoModuleSelect" class="sr-only">Select Documentation Module</label>
+                                        <select class="gh-form-select" id="ghInfoModuleSelect" aria-label="Select Documentation Module">
                                             <option value="guide" selected>GenHub Guides</option>
                                             <option value="faq">Zero Hour FAQ</option>
                                             <option value="changelogs">Changelogs</option>
@@ -3112,6 +3128,10 @@ End
         (function() {
             const installsEl = document.getElementById('gh-total-installs');
             const updatesEl = document.getElementById('gh-total-updates');
+            const trigger = document.getElementById('gh-stats-trigger');
+            const card = document.getElementById('gh-stats-card');
+            const breakdownEl = document.getElementById('gh-breakdown-list');
+
             const baselineDownloads = 650;
             const baselineUpdates = 450;
 
@@ -3122,28 +3142,57 @@ End
             if (installsEl) installsEl.textContent = formatNum(baselineDownloads) + '+';
             if (updatesEl) updatesEl.textContent = formatNum(baselineUpdates) + '+';
 
+            if (trigger && card) {
+                function setDisclosure(open) {
+                    card.classList.toggle('active', open);
+                    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+                }
+                trigger.addEventListener('click', function() {
+                    const isOpen = card.classList.contains('active');
+                    setDisclosure(!isOpen);
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && card.classList.contains('active')) {
+                        setDisclosure(false);
+                    }
+                });
+            }
+
             async function fetchStats() {
                 try {
                     const res = await fetch('https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100');
-                    if (!res.ok) return;
+                    if (!res.ok) {
+                        if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
+                        return;
+                    }
                     const data = await res.json();
                     if (!Array.isArray(data)) return;
 
                     let totalDownloads = 0;
                     let installerDownloads = 0;
                     let updateDownloads = 0;
+                    const breakdownRows = [];
 
                     data.forEach(rel => {
+                        let relTotal = 0;
                         if (rel.assets && Array.isArray(rel.assets)) {
                             rel.assets.forEach(a => {
                                 const cnt = a.download_count || 0;
                                 totalDownloads += cnt;
+                                relTotal += cnt;
                                 const name = (a.name || '').toLowerCase();
-                                if (name.endsWith('.exe') || name.endsWith('.zip') || name.includes('portable')) {
+                                const isInstaller = /\.(exe|msi|dmg|deb|appimage|pkg)$/i.test(name) || /portable/i.test(name) || (/\.zip$/i.test(name) && !/symbols|debug/i.test(name));
+                                if (isInstaller) {
                                     installerDownloads += cnt;
                                 } else {
                                     updateDownloads += cnt;
                                 }
+                            });
+                        }
+                        if (relTotal > 0 && breakdownRows.length < 5) {
+                            breakdownRows.push({
+                                tag: rel.tag_name || rel.name || 'Release',
+                                count: relTotal
                             });
                         }
                     });
@@ -3152,8 +3201,24 @@ End
                         if (installsEl) installsEl.textContent = formatNum(totalDownloads) + '+';
                         if (updatesEl) updatesEl.textContent = formatNum(Math.max(baselineUpdates, updateDownloads)) + '+';
                     }
+
+                    if (breakdownEl && breakdownRows.length > 0) {
+                        breakdownEl.innerHTML = breakdownRows.map(r => `
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #cbd5e1; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                <span>${r.tag}</span>
+                                <strong style="color: #38bdf8;">${formatNum(r.count)}</strong>
+                            </div>
+                        `).join('') + `
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; padding-top: 5px;">
+                                <span>Installers: ${formatNum(installerDownloads)}</span>
+                                <span>Updates: ${formatNum(updateDownloads)}</span>
+                            </div>
+                        `;
+                    } else if (breakdownEl) {
+                        breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Historical releases recorded on GitHub.</div>';
+                    }
                 } catch (e) {
-                    console.debug('GitHub stats fetch notice:', e);
+                    if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
                 }
             }
 

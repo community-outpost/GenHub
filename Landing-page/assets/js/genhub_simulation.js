@@ -5,8 +5,20 @@
 (function() {
     'use strict';
 
+    // HTML Escape Helper
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // Global Toast Notification Helper
     window.showGenHubToast = function(type, title, desc) {
+        if (window.isToastsMuted) return;
         const container = document.getElementById('ghToastContainer');
         if (!container) return;
 
@@ -20,8 +32,8 @@
         toast.innerHTML = `
             <div class="genhub-toast-icon">${iconSymbol}</div>
             <div class="genhub-toast-body">
-                <div class="genhub-toast-title">${title}</div>
-                <div class="genhub-toast-desc">${desc}</div>
+                <div class="genhub-toast-title">${escapeHtml(title)}</div>
+                <div class="genhub-toast-desc">${escapeHtml(desc)}</div>
             </div>
             <button class="genhub-toast-close" aria-label="Dismiss">✕</button>
         `;
@@ -44,6 +56,14 @@
         }, 4000);
     };
 
+    // Document Escape Key Listener
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.gh-modal-backdrop.open').forEach(modal => {
+                closeModal(modal.id);
+            });
+        }
+    });
     // Modal Control Helpers
     function openModal(id) {
         const modal = document.getElementById(id);
@@ -276,6 +296,14 @@
                 clone.classList.remove('active-profile');
                 const titleEl = clone.querySelector('.gh-card-title');
                 if (titleEl) titleEl.textContent = `${pName} (Copy)`;
+
+                const cloneLaunch = clone.querySelector('.gh-launch-btn');
+                if (cloneLaunch) {
+                    cloneLaunch.classList.remove('running');
+                    cloneLaunch.style.background = '';
+                    const launchText = cloneLaunch.querySelector('.launch-text') || cloneLaunch;
+                    if (launchText) launchText.textContent = 'LAUNCH';
+                }
                 
                 wireProfileCard(clone);
                 const list = document.getElementById('ghProfilesList');
@@ -312,7 +340,7 @@
     document.querySelectorAll('.gh-profile-card:not(.add-card)').forEach(wireProfileCard);
 
     function updateProfilesCount() {
-        const count = document.querySelectorAll('.gh-profile-card:not(.add-card)').length;
+        const count = document.querySelectorAll('#ghProfilesList .gh-profile-card:not(.add-card)').length;
         const countEl = document.getElementById('ghProfilesCount');
         if (countEl) countEl.textContent = `Loaded ${count} profiles`;
     }
@@ -451,7 +479,7 @@
                                 <img src="./assets/icons/generalshub-icon.png" alt="GenHub">
                             </div>
                             <div class="gh-card-texts">
-                                <div class="gh-card-title">${name}</div>
+                                <div class="gh-card-title">${escapeHtml(name)}</div>
                                 <div class="gh-card-sub">Configured via Profile Settings</div>
                             </div>
                         </div>
@@ -600,7 +628,7 @@
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const card = btn.closest('.gh-content-card');
-            const contentName = btn.getAttribute('data-view-content') || 'Item';
+            const contentName = btn.getAttribute('data-view-content') || card?.getAttribute('data-title') || 'Item';
             showContentDetail(contentName, card);
         });
     });
@@ -656,16 +684,17 @@
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const contentName = btn.getAttribute('data-content-name') || 'Item';
-            const titleEl = document.getElementById('ghAddModalContentTitle');
-            if (titleEl) titleEl.textContent = contentName;
+            const subEl = document.getElementById('ghAddModalSubtitle');
+            if (subEl) subEl.textContent = `${contentName} — Zero Hour`;
             openModal('ghAddToProfileModal');
         });
     });
 
     document.querySelectorAll('.gh-sel-card:not(.create-new)').forEach(card => {
         card.addEventListener('click', () => {
-            const pName = card.getAttribute('data-profile-name') || 'Profile';
-            const cTitle = document.getElementById('ghAddModalContentTitle')?.textContent || 'Item';
+            const pName = card.getAttribute('data-target-profile') || card.getAttribute('data-profile-name') || 'Profile';
+            const rawSub = document.getElementById('ghAddModalSubtitle')?.textContent || 'Item';
+            const cTitle = rawSub.split(' — ')[0];
             closeModal('ghAddToProfileModal');
             window.showGenHubToast('Success', 'Content Attached', `"${cTitle}" linked to "${pName}" workspace.`);
         });
@@ -677,6 +706,10 @@
             closeModal('ghAddToProfileModal');
             activeCardEditing = null;
             isCreatingProfile = true;
+            const winTitle = document.getElementById('ghWinProfileTitle');
+            if (winTitle) winTitle.textContent = 'New Profile';
+            const nameInput = document.getElementById('ghProfileNameInput');
+            if (nameInput) nameInput.value = 'Custom Profile';
             openModal('ghGameProfileSettingsWindow');
         });
     }
@@ -711,31 +744,46 @@
         });
     });
 
-    // Map Manager Interactivity
+    // Map Manager Interactivity - Unified Filter
+    function filterMaps() {
+        const activeTab = document.querySelector('[data-map-game].active');
+        const selectedGame = activeTab ? activeTab.getAttribute('data-map-game') : 'zerohour';
+        const q = (document.getElementById('ghMapSearchInput')?.value || '').toLowerCase().trim();
+        let count = 0;
+
+        document.querySelectorAll('#ghMapTable tbody tr').forEach(row => {
+            const rowGame = row.getAttribute('data-game') || 'zerohour';
+            const name = (row.querySelector('.map-name')?.textContent || '').toLowerCase();
+            const matchesGame = !selectedGame || rowGame === selectedGame;
+            const matchesQuery = !q || name.includes(q);
+            const show = matchesGame && matchesQuery;
+            row.style.display = show ? '' : 'none';
+            if (show) count++;
+        });
+
+        const statusBar = document.getElementById('ghMapStatusBar');
+        if (statusBar) {
+            const gameLabel = selectedGame === 'generals' ? 'Generals' : 'Zero Hour';
+            statusBar.textContent = `${count} Maps indexed (${gameLabel}) • 0 Selected`;
+        }
+    }
+
     const mapGameSubtabs = document.querySelectorAll('[data-map-game]');
     mapGameSubtabs.forEach(btn => {
         btn.addEventListener('click', () => {
             mapGameSubtabs.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            const g = btn.getAttribute('data-map-game');
-
-            document.querySelectorAll('#ghMapTable tbody tr').forEach(row => {
-                const rowGame = row.getAttribute('data-game') || 'zerohour';
-                row.style.display = rowGame === g ? '' : 'none';
-            });
+            filterMaps();
         });
     });
 
     const mapSearchInput = document.getElementById('ghMapSearchInput');
     if (mapSearchInput) {
-        mapSearchInput.addEventListener('input', (e) => {
-            const q = e.target.value.toLowerCase().trim();
-            document.querySelectorAll('#ghMapTable tbody tr').forEach(row => {
-                const name = (row.querySelector('.map-name')?.textContent || '').toLowerCase();
-                row.style.display = (!q || name.includes(q)) ? '' : 'none';
-            });
-        });
+        mapSearchInput.addEventListener('input', () => filterMaps());
     }
+
+    // Initialize Map filtering on load
+    filterMaps();
 
     const mapImportSubmitBtn = document.getElementById('ghMapImportSubmitBtn');
     if (mapImportSubmitBtn) {
@@ -1076,7 +1124,7 @@
                     "title": "Direct Connect / LAN Connection Failed",
                     "content": "Players on the same local network or VPN cannot see each other in the LAN lobby.",
                     "type": "Network Fix",
-                    "detailed": "**Cause:** Windows binds the game network socket to an inactive virtual network adapter (such as VMware or Docker).\n\n**Solution:**\n* In Options.ini, set IPAddress = <your_local_ip> to force Generals to listen on your primary LAN adapter."
+                    "detailed": "**Cause:** Windows binds the game network socket to an inactive virtual network adapter (such as VMware or Docker).\n\n**Solution:**\n* In Options.ini, set IPAddress = &lt;your_local_ip&gt; to force Generals to listen on your primary LAN adapter."
                 },
                 {
                     "title": "Port Forwarding and Firewall Setup",
@@ -1592,12 +1640,6 @@
             }
         ]
     },
-    "gochangelog": {
-        "id": "gochangelog",
-        "title": "Changelog",
-        "desc": "View the latest changes and updates to the Generals Online service.",
-        "cards": []
-    },
     "gochange": {
         "id": "gochange",
         "title": "Generals Online Changelog",
@@ -1607,12 +1649,12 @@
                 "title": "v2.1.4 Competitive Update",
                 "content": "Ranked ladder calibration and ping optimization.",
                 "type": "Changelog",
-                "detailed": "**v2.1.4 Changelog:**\\n* Optimized server relay latency for EU and NA players\\n* Fixed spectator mode desync during superweapon detonations\\n* Added automatic disconnect detection and ladder Elo adjustment\\n* GenTool 8.9 widescreen compatibility update"
+                "detailed": "**v2.1.4 Changelog:**\n* Optimized server relay latency for EU and NA players\n* Fixed spectator mode desync during superweapon detonations\n* Added automatic disconnect detection and ladder Elo adjustment\n* GenTool 8.9 widescreen compatibility update"
             }
         ]
     },
     "gofaq": {
-        "id": "faq",
+        "id": "gofaq",
         "title": "Frequently Asked Questions",
         "desc": "Common questions about the Generals Online service.",
         "cards": [
@@ -1833,14 +1875,14 @@
                     <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Automatic Game Discovery</div>
                     <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Scans registry keys, Steam libraries, and EA App directories.</div>
                     <div style="background: #090615; padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; color: #34d399;">
-                        <div>✓ Steam Library: C:\Program Files (x86)\Steam\steamapps\common\Command and Conquer Generals</div>
-                        <div style="margin-top: 4px;">✓ EA App: C:\Program Files\EA Games\Command and Conquer Generals Zero Hour</div>
+                        <div>✓ Steam Library: C:\\Program Files (x86)\\Steam\\steamapps\\common\\Command and Conquer Generals</div>
+                        <div style="margin-top: 4px;">✓ EA App: C:\\Program Files\\EA Games\\Command and Conquer Generals Zero Hour</div>
                         <div style="margin-top: 4px; color: #94a3b8;">• Retail CD/DVD: Not found (Skipped)</div>
                     </div>
                 </div>
             `;
         }
-        if (secId === 'workspace') {
+        if (secId === 'workspace' || secId === 'workspaces') {
             return `
                 <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
                     <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Virtual Workspace (NTFS Hardlinks)</div>
@@ -1863,12 +1905,12 @@
 
     function formatMarkdown(md) {
         if (!md) return '';
-        return md
+        let html = md
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^\*\s+(.*)$/gm, '<li>$1</li>')
-            .replace(/(<li>.*<\/li>)/gs, '<ul style="margin: 8px 0; padding-left: 20px;">$1</ul>')
-            .replace(/\n/g, '<br>');
+            .replace(/\*(\S[^*]*?)\*/g, '<em>$1</em>')
+            .replace(/^\s*[\*\-]\s+(.*)$/gm, '<li>$1</li>');
+        html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, '<ul style="margin: 8px 0; padding-left: 20px;">$1</ul>');
+        return html.replace(/\n/g, '<br>');
     }
 
     function renderInfoSection(secKey) {
@@ -2002,3 +2044,32 @@
     renderInfoSection('quickstart');
 
 })();
+
+    // Delegated listener for dynamically rendered demo buttons & expanders
+    document.addEventListener('click', (e) => {
+        const steamBtn = e.target.closest('#ghDemoSteamToggleBtn');
+        if (steamBtn) {
+            const isSteamActive = steamBtn.classList.toggle('steam-off');
+            const span = steamBtn.querySelector('span');
+            if (span) {
+                span.textContent = isSteamActive 
+                    ? 'Steam Integration Paused (Standby)' 
+                    : 'Steam Overlay Active (AppID: 24860)';
+            }
+            window.showGenHubToast(
+                isSteamActive ? 'Warning' : 'Success',
+                'Steam Status',
+                isSteamActive ? 'Steam overlay disconnected.' : 'Steam overlay re-synchronized.'
+            );
+        }
+    });
+
+    // Keyboard navigation (Enter / Space) for expander headers
+    document.querySelectorAll('.gh-expander-header').forEach(header => {
+        header.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                header.click();
+            }
+        });
+    });
