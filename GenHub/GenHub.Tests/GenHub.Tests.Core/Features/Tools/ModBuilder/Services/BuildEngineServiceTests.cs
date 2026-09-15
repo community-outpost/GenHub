@@ -1047,4 +1047,99 @@ public sealed class BuildEngineServiceTests : IDisposable
         result.Success.Should().BeFalse();
         result.FirstError.Should().Contain("Cannot execute build within the application installation directory");
     }
+
+    /// <summary>
+    /// Tests that Clean step deletes the build directory when it is located inside the project directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ExecuteBuildAsync_WithClean_WhenBuildDirIsInsideProject_DeletesBuildDirectory()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "CleanTestProject");
+        var buildDir = Path.Combine(projectDir, ".Build");
+        Directory.CreateDirectory(buildDir);
+        var testFile = Path.Combine(buildDir, "test.txt");
+        await File.WriteAllTextAsync(testFile, "data");
+
+        var project = new ModBuilderProject
+        {
+            Name = "CleanTestProject",
+            ProjectDir = projectDir,
+            Directories = new ProjectDirectories
+            {
+                Build = ".Build",
+                Release = ".Release",
+                GameFilesEdited = "GameFilesEdited",
+            },
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+            },
+        };
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string>(),
+            BuildStep.Clean);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        Directory.Exists(buildDir).Should().BeFalse();
+        _mockCacheService.Verify(c => c.Clear(), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that Clean step skips deleting the build directory when it is located outside the project directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ExecuteBuildAsync_WithClean_WhenBuildDirIsOutsideProject_SkipsDeletion()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "ProjectDir");
+        var outsideDir = Path.Combine(_tempDirectory, "OutsideDir");
+        Directory.CreateDirectory(projectDir);
+        Directory.CreateDirectory(outsideDir);
+        var testFile = Path.Combine(outsideDir, "important.txt");
+        await File.WriteAllTextAsync(testFile, "do not delete");
+
+        var project = new ModBuilderProject
+        {
+            Name = "OutsideTestProject",
+            ProjectDir = projectDir,
+            Directories = new ProjectDirectories
+            {
+                Build = outsideDir,
+                Release = ".Release",
+                GameFilesEdited = "GameFilesEdited",
+            },
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = outsideDir,
+            },
+        };
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string>(),
+            BuildStep.Clean);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        Directory.Exists(outsideDir).Should().BeTrue();
+        File.Exists(testFile).Should().BeTrue();
+    }
 }

@@ -1396,7 +1396,18 @@ public partial class ModBuilderViewModel(
         }
 
         logger.LogInformation("LoadSampleProjectAsync requested");
-        _importCancellationTokenSource?.Cancel();
+        if (_importCancellationTokenSource is { } oldImportCts)
+        {
+            try
+            {
+                await oldImportCts.CancelAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed
+            }
+        }
+
         var cts = new CancellationTokenSource();
         _importCancellationTokenSource = cts;
         try

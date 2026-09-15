@@ -20,8 +20,14 @@ public sealed class BundlePackListConverter : JsonConverter<List<BundlePack>>
             JsonTokenType.Null => [],
             JsonTokenType.StartArray => ReadArray(ref reader, options),
             JsonTokenType.StartObject => ReadObject(ref reader, options),
-            _ => throw new JsonException($"Unexpected token type {reader.TokenType} for BundlePack list")
+            _ => throw new JsonException($"Unexpected token type {reader.TokenType} for BundlePack list"),
         };
+    }
+
+    /// <inheritdoc/>
+    public override void Write(Utf8JsonWriter writer, List<BundlePack> value, JsonSerializerOptions options)
+    {
+        JsonSerializer.Serialize(writer, value, options);
     }
 
     private static List<BundlePack> ReadArray(ref Utf8JsonReader reader, JsonSerializerOptions options)
@@ -69,11 +75,5 @@ public sealed class BundlePackListConverter : JsonConverter<List<BundlePack>>
         }
 
         return list;
-    }
-
-    /// <inheritdoc/>
-    public override void Write(Utf8JsonWriter writer, List<BundlePack> value, JsonSerializerOptions options)
-    {
-        JsonSerializer.Serialize(writer, value, options);
     }
 }

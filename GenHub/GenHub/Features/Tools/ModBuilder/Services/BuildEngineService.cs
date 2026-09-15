@@ -314,21 +314,35 @@ public sealed class BuildEngineService(
         logger.LogInformation("Clean stage started");
         progress?.Report(new BuildProgress { CurrentStage = BuildStage.Loading, CurrentStep = "Cleaning build directories" });
 
-        var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
-        var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var buildDir = setup.Folders?.AbsBuildDir ?? (setup.ProjectDir != null ? Path.Combine(setup.ProjectDir, ModBuilderConstants.DefaultBuildDir) : null);
+        var releaseDir = setup.Folders?.AbsReleaseDir ?? (setup.ProjectDir != null ? Path.Combine(setup.ProjectDir, ModBuilderConstants.DefaultReleaseDir) : null);
 
         try
         {
-            if (Directory.Exists(buildDir))
+            if (!string.IsNullOrEmpty(buildDir) && Directory.Exists(buildDir))
             {
-                Directory.Delete(buildDir, true);
-                logger.LogInformation("Deleted build directory: {BuildDir}", buildDir);
+                if (IsSafeToCleanDirectory(setup.ProjectDir, buildDir))
+                {
+                    Directory.Delete(buildDir, true);
+                    logger.LogInformation("Deleted build directory: {BuildDir}", buildDir);
+                }
+                else
+                {
+                    logger.LogWarning("Skipping clean for unsafe or external build directory: {BuildDir}", buildDir);
+                }
             }
 
-            if (Directory.Exists(releaseDir))
+            if (!string.IsNullOrEmpty(releaseDir) && Directory.Exists(releaseDir))
             {
-                Directory.Delete(releaseDir, true);
-                logger.LogInformation("Deleted release directory: {ReleaseDir}", releaseDir);
+                if (IsSafeToCleanDirectory(setup.ProjectDir, releaseDir))
+                {
+                    Directory.Delete(releaseDir, true);
+                    logger.LogInformation("Deleted release directory: {ReleaseDir}", releaseDir);
+                }
+                else
+                {
+                    logger.LogWarning("Skipping clean for unsafe or external release directory: {ReleaseDir}", releaseDir);
+                }
             }
 
             cacheService.Clear();
@@ -347,6 +361,21 @@ public sealed class BuildEngineService(
             _lastErrorMessage = $"Failed to clean build directories: {ex.Message}";
             return false;
         }
+    }
+
+    private static bool IsSafeToCleanDirectory(string? projectDir, string targetDir)
+    {
+        if (string.IsNullOrWhiteSpace(targetDir) || PathHelper.IsPathInsideAppDirectory(targetDir))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(projectDir))
+        {
+            return false;
+        }
+
+        return !PathHelper.AreSamePath(projectDir, targetDir) && PathHelper.IsPathWithinDirectory(projectDir, targetDir);
     }
 
     private async Task<bool> BuildAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
