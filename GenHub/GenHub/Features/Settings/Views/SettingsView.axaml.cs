@@ -1,5 +1,3 @@
-using System;
-using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -8,6 +6,8 @@ using Avalonia.Threading;
 using GenHub.Core.Constants;
 using GenHub.Features.Settings.Models;
 using GenHub.Features.Settings.ViewModels;
+using System;
+using System.ComponentModel;
 
 namespace GenHub.Features.Settings.Views;
 
@@ -127,6 +127,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionLocalContent => "Expander_LocalContent",
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
+            SettingsConstants.SectionCloudUploads => SettingsConstants.ExpanderCloudUploads,
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };

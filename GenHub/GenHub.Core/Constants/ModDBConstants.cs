@@ -1,4 +1,6 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace GenHub.Core.Constants;
 
@@ -10,11 +12,17 @@ public static class ModDBConstants
 {
     // ===== Base URLs =====
 
+    /// <summary>Domain name for ModDB.</summary>
+    public const string Domain = "moddb.com";
+
+    /// <summary>Domain name for DBolical (ModDB parent network and CDN download mirrors).</summary>
+    public const string DBolicalDomain = "dbolical.com";
+
     /// <summary>Base URL for ModDB website.</summary>
     public const string BaseUrl = "https://www.moddb.com";
 
     /// <summary>Domain name fragment for ModDB URLs.</summary>
-    public const string DomainFragment = "moddb.com";
+    public const string DomainFragment = Domain;
 
     /// <summary>URL path fragment identifying mods.</summary>
     public const string ModsPathFragment = "/mods/";
@@ -27,11 +35,17 @@ public static class ModDBConstants
     /// </summary>
     public const string IconUrl = "avares://GenHub/Assets/Icons/Publishers/moddb.png";
 
+    /// <summary>Game slug for C&amp;C Generals.</summary>
+    public const string GeneralsGameSlug = "cc-generals";
+
+    /// <summary>Game slug for C&amp;C Generals Zero Hour.</summary>
+    public const string ZeroHourGameSlug = "cc-generals-zero-hour";
+
     /// <summary>Base URL for C&amp;C Generals content.</summary>
-    public const string GeneralsBaseUrl = BaseUrl + "/games/cc-generals";
+    public const string GeneralsBaseUrl = BaseUrl + "/games/" + GeneralsGameSlug;
 
     /// <summary>Base URL for C&amp;C Generals Zero Hour content.</summary>
-    public const string ZeroHourBaseUrl = BaseUrl + "/games/cc-generals-zero-hour";
+    public const string ZeroHourBaseUrl = BaseUrl + "/games/" + ZeroHourGameSlug;
 
     // ===== Section URLs =====
 
@@ -46,12 +60,6 @@ public static class ModDBConstants
 
     /// <summary>Downloads section for Zero Hour.</summary>
     public const string ZeroHourDownloadsUrl = ZeroHourBaseUrl + "/downloads";
-
-    /// <summary>Addons section for Generals.</summary>
-    public const string GeneralsAddonsUrl = GeneralsBaseUrl + "/addons";
-
-    /// <summary>Addons section for Zero Hour.</summary>
-    public const string ZeroHourAddonsUrl = ZeroHourBaseUrl + "/addons";
 
     // ===== Publisher Info =====
 
@@ -232,6 +240,9 @@ public static class ModDBConstants
 
     // Downloads Section - Releases
 
+    /// <summary>Category: Releases.</summary>
+    public const string CategoryReleases = "1";
+
     /// <summary>Category: Full Version (Mod).</summary>
     public const string CategoryFullVersion = "2";
 
@@ -249,6 +260,9 @@ public static class ModDBConstants
 
     // Downloads Section - Media
 
+    /// <summary>Category: Media.</summary>
+    public const string CategoryMedia = "6";
+
     /// <summary>Category: Trailer (Video).</summary>
     public const string CategoryTrailer = "7";
 
@@ -265,6 +279,9 @@ public static class ModDBConstants
     public const string CategoryWallpaper = "10";
 
     // Downloads Section - Tools
+
+    /// <summary>Category: Tools.</summary>
+    public const string CategoryTools = "11";
 
     /// <summary>Category: Archive Tool.</summary>
     public const string CategoryArchiveTool = "20";
@@ -292,6 +309,12 @@ public static class ModDBConstants
 
     /// <summary>Category: Source Code.</summary>
     public const string CategorySourceCode = "26";
+
+    /// <summary>Category: RTX Remix.</summary>
+    public const string CategoryRTXRemix = "31";
+
+    /// <summary>Category: RTX.conf.</summary>
+    public const string CategoryRTXConf = "32";
 
     // Downloads Section - Miscellaneous
 
@@ -490,8 +513,59 @@ public static class ModDBConstants
     [
         "Just a moment",
         "Attention Required",
-        "Checking your browser",
         "Verify you are human",
+        "Verifying you are human",
+        "Checking your browser",
         "Cloudflare",
     ];
+
+    // ===== Helper Methods =====
+
+    /// <summary>
+    /// Checks whether the specified page title indicates an interstitial challenge or verification page.
+    /// </summary>
+    /// <param name="title">The browser page title to evaluate.</param>
+    /// <returns><see langword="true"/> if the title contains known challenge keywords; otherwise <see langword="false"/>.</returns>
+    public static bool IsChallengePageTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return false;
+        }
+
+        return BotProtectionTitleMarkers.Any(keyword => title.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether the specified URI belongs to the ModDB or DBolical network (including CDN download mirrors).
+    /// </summary>
+    /// <param name="uri">The URI to evaluate.</param>
+    /// <returns><see langword="true"/> if the URI uses HTTP/HTTPS and its host belongs to moddb.com, dbolical.com, or their subdomains; otherwise <see langword="false"/>.</returns>
+    public static bool IsModDbOrDbolicalUri(Uri? uri)
+    {
+        if (uri == null || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return false;
+        }
+
+        return IsModDbOrDbolicalHost(uri.Host);
+    }
+
+    /// <summary>
+    /// Checks whether the specified host belongs to the ModDB or DBolical network (including CDN download mirrors).
+    /// </summary>
+    /// <param name="host">The host name to evaluate.</param>
+    /// <returns><see langword="true"/> if the host is moddb.com, dbolical.com, or any of their subdomains; otherwise <see langword="false"/>.</returns>
+    public static bool IsModDbOrDbolicalHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        return host.Equals(Domain, StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith("." + Domain, StringComparison.OrdinalIgnoreCase) ||
+               host.Equals(DBolicalDomain, StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith("." + DBolicalDomain, StringComparison.OrdinalIgnoreCase);
+    }
 }

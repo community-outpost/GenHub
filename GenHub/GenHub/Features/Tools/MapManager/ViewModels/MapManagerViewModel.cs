@@ -1,13 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -29,6 +19,16 @@ using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.MapManager.ViewModels;
 
@@ -751,11 +751,6 @@ public partial class MapManagerViewModel : ObservableObject
 
         var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : $"{MapManagerConstants.DefaultZipName}{Path.GetExtension(MapManagerConstants.ZipFilePattern)}";
         _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory);
-
-        if (IsHistoryOpen)
-        {
-            await LoadHistoryAsync();
-        }
 
         StatusMessage = "Uploaded! Link copied to clipboard.";
         _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");

@@ -42,4 +42,13 @@ public class TimeIntervalsTests
     {
         Assert.Equal(6000, TimeIntervals.ErrorNotificationHideDelay.TotalMilliseconds);
     }
+
+    /// <summary>
+    /// Tests that SingleInstanceForwardRetryDelayMs is 250 milliseconds.
+    /// </summary>
+    [Fact]
+    public void SingleInstanceForwardRetryDelayMs_ShouldBe250Milliseconds()
+    {
+        Assert.Equal(250, TimeIntervals.SingleInstanceForwardRetryDelayMs);
+    }
 }

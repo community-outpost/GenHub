@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
@@ -27,6 +20,13 @@ using GenHub.Features.Notifications.Services;
 using GenHub.Features.Notifications.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -52,8 +52,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
+    private readonly Func<IProfileSharingService>? _profileSharingServiceFactory;
+    private readonly IUploadHistoryService? _uploadHistoryService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly IProfileContentLinker? _profileContentLinker;
     private readonly ILaunchRegistry? _launchRegistry;
 
@@ -79,6 +82,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="profileSharingServiceFactory">The profile sharing service factory.</param>
+    /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="uploadHistoryService">The upload history service.</param>
     /// <param name="profileContentLinker">The profile content linker service.</param>
     /// <param name="launchRegistry">The launch registry service.</param>
     public GameProfileSettingsViewModel(
@@ -95,6 +101,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        Func<IProfileSharingService>? profileSharingServiceFactory = null,
+        ILoggerFactory? loggerFactory = null,
+        IUploadHistoryService? uploadHistoryService = null,
         IProfileContentLinker? profileContentLinker = null,
         ILaunchRegistry? launchRegistry = null)
     {
@@ -110,6 +119,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _dialogService = dialogService;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
+        _profileSharingServiceFactory = profileSharingServiceFactory;
+        _loggerFactory = loggerFactory;
+        _uploadHistoryService = uploadHistoryService;
         _profileContentLinker = profileContentLinker;
         _launchRegistry = launchRegistry;
 
@@ -172,16 +184,164 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     public GameSettingsViewModel GameSettingsViewModel { get; }
 
+    /// <summary>
+    /// Gets a value indicating whether the current profile can be shared (i.e. is already saved and has an ID).
+    /// </summary>
+    public bool CanShareProfile => !string.IsNullOrEmpty(CurrentProfileId);
+
     private static bool HasShownFirstLoadNotification { get; set; }
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
 
-    private string? CurrentProfileId { get; set; }
+    private string? _currentProfileId;
+
+    private string? CurrentProfileId
+    {
+        get => _currentProfileId;
+        set
+        {
+            if (SetProperty(ref _currentProfileId, value))
+            {
+                OnPropertyChanged(nameof(CanShareProfile));
+            }
+        }
+    }
+
+    private IProfileSharingService? ProfileSharingService => _profileSharingServiceFactory?.Invoke();
 
     /// <summary>
     /// Event triggered when the view model requests to close.
     /// </summary>
     public event EventHandler? CloseRequested;
+
+    /// <inheritdoc/>
+    public void Receive(Core.Models.Content.ContentAcquiredMessage message)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            _ = LoadAvailableContentAsync();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => _ = LoadAvailableContentAsync());
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Receive(ManifestReplacedMessage message)
+    {
+        // Global manifest replacement - update our state surgically to avoid losing unsaved toggles
+        // Dispatch to UI thread to ensure ObservableCollection mutations happen safely
+        Dispatcher.UIThread.Post(() => _ = HandleManifestReplacementAsync(message.OldId, message.NewId));
+    }
+
+    /// <summary>
+    /// Refreshes the hotswap mode and updates item lock states if the profile running state has changed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public virtual async Task RefreshHotswapStateAsync()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(CurrentProfileId))
+            {
+                return;
+            }
+
+            var isRunning = await DetermineHotswapModeAsync(CurrentProfileId);
+            if (isRunning != IsHotswapMode)
+            {
+                IsHotswapMode = isRunning;
+                UpdateAllItemsHotswapState();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to refresh hotswap state for profile {ProfileId}", CurrentProfileId);
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the visible filters and content based on available game clients.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected internal async Task RefreshFiltersAndContentAsync()
+    {
+        await RefreshVisibleFiltersAsync();
+        await LoadAvailableContentAsync();
+    }
+
+    /// <summary>
+    /// Handles the replacement of a manifest ID with a new one globally.
+    /// Updates enabled and available content collections to use the new manifest ID.
+    /// </summary>
+    /// <param name="oldId">The old manifest ID to replace.</param>
+    /// <param name="newId">The new manifest ID to use.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    internal async Task HandleManifestReplacementAsync(string oldId, string newId)
+    {
+        try
+        {
+            bool affected = false;
+
+            // 1. Check EnabledContent - use ManifestId.Value for comparison
+            var inEnabled = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == oldId);
+            if (inEnabled != null)
+            {
+                _logger?.LogInformation("Replacing manifest {OldId} with {NewId} in EnabledContent", oldId, newId);
+                var index = EnabledContent.IndexOf(inEnabled);
+
+                // Get the new presentation data for the item
+                if (_manifestPool != null && _profileContentLoader != null)
+                {
+                    var manifestResult = await _manifestPool.GetManifestAsync(newId);
+                    if (manifestResult.Success && manifestResult.Data != null)
+                    {
+                        var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+                        var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
+                        viewModelItem.IsEnabled = true;
+                        EnabledContent[index] = viewModelItem;
+                        affected = true;
+                    }
+                }
+            }
+
+            // 2. Check AvailableContent - use ManifestId.Value for comparison
+            var inAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == oldId);
+            if (inAvailable != null)
+            {
+                _logger?.LogInformation("Removing old manifest {OldId} from AvailableContent", oldId);
+                AvailableContent.Remove(inAvailable);
+                affected = true;
+            }
+
+            // 3. Check SelectedGameInstallation (if it's a GameClient replacement)
+            if (SelectedGameInstallation != null &&
+                SelectedGameInstallation.ManifestId.Value == oldId &&
+                _manifestPool != null &&
+                _profileContentLoader != null)
+            {
+                var manifestResult = await _manifestPool.GetManifestAsync(newId);
+                if (manifestResult.Success && manifestResult.Data != null)
+                {
+                    var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+                    SelectedGameInstallation = ConvertToViewModelContentDisplayItem(coreItem);
+                    SelectedGameInstallation.IsEnabled = true;
+                    affected = true;
+                }
+            }
+
+            if (affected)
+            {
+                // Refresh to ensure everything (filters, lists) is consistent
+                await RefreshFiltersAndContentAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error handling manifest replacement message");
+        }
+    }
 
     private static string NormalizeResourcePath(string? path, string defaultUri)
     {
@@ -380,146 +540,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    /// <inheritdoc/>
-    public void Receive(Core.Models.Content.ContentAcquiredMessage message)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            _ = LoadAvailableContentAsync();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(() => _ = LoadAvailableContentAsync());
-        }
-    }
-
-    /// <inheritdoc/>
-    public void Receive(ManifestReplacedMessage message)
-    {
-        // Global manifest replacement - update our state surgicaly to avoid losing unsaved toggles
-        // Dispatch to UI thread to ensure ObservableCollection mutations happen safely
-        Dispatcher.UIThread.Post(() => _ = HandleManifestReplacementAsync(message.OldId, message.NewId));
-    }
-
-    /// <summary>
-    /// Refreshes the hotswap mode and updates item lock states if the profile running state has changed.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public virtual async Task RefreshHotswapStateAsync()
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(CurrentProfileId))
-            {
-                return;
-            }
-
-            var isRunning = await DetermineHotswapModeAsync(CurrentProfileId);
-            if (isRunning != IsHotswapMode)
-            {
-                IsHotswapMode = isRunning;
-                UpdateAllItemsHotswapState();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Error refreshing hotswap mode for profile {ProfileId}", CurrentProfileId);
-        }
-    }
-
-    /// <summary>
-    /// Handles the replacement of a manifest ID with a new one globally.
-    /// Updates enabled and available content collections to use the new manifest ID.
-    /// </summary>
-    /// <param name="oldId">The old manifest ID to replace.</param>
-    /// <param name="newId">The new manifest ID to use.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    internal async Task HandleManifestReplacementAsync(string oldId, string newId)
-    {
-        try
-        {
-            bool affected = false;
-
-            // 1. Check EnabledContent - use ManifestId.Value for comparison
-            var inEnabled = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == oldId);
-            if (inEnabled != null)
-            {
-                _logger?.LogInformation("Replacing manifest {OldId} with {NewId} in EnabledContent", oldId, newId);
-                var index = EnabledContent.IndexOf(inEnabled);
-
-                // Get the new presentation data for the item
-                if (_manifestPool != null && _profileContentLoader != null)
-                {
-                    var manifestResult = await _manifestPool.GetManifestAsync(newId);
-                    if (manifestResult.Success && manifestResult.Data != null)
-                    {
-                        var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
-                        var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
-                        viewModelItem.IsEnabled = true;
-                        EnabledContent[index] = viewModelItem;
-                        affected = true;
-                    }
-                }
-            }
-
-            // 2. Check AvailableContent - use ManifestId.Value for comparison
-            var inAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == oldId);
-            if (inAvailable != null)
-            {
-                _logger?.LogInformation("Removing old manifest {OldId} from AvailableContent", oldId);
-                AvailableContent.Remove(inAvailable);
-                affected = true;
-            }
-
-            // 3. Check SelectedGameInstallation (if it's a GameClient replacement)
-            if (SelectedGameInstallation != null &&
-                SelectedGameInstallation.ManifestId.Value == oldId &&
-                _manifestPool != null &&
-                _profileContentLoader != null)
-            {
-                var manifestResult = await _manifestPool.GetManifestAsync(newId);
-                if (manifestResult.Success && manifestResult.Data != null)
-                {
-                    var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
-                    SelectedGameInstallation = ConvertToViewModelContentDisplayItem(coreItem);
-                    SelectedGameInstallation.IsEnabled = true;
-                    affected = true;
-                }
-            }
-
-            if (affected)
-            {
-                // Refresh to ensure everything (filters, lists) is consistent
-                await RefreshFiltersAndContentAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error handling manifest replacement message");
-        }
-    }
-
-    /// <summary>
-    /// Refreshes the visible filters and available content based on the current game type filter.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    protected internal async Task RefreshFiltersAndContentAsync()
-    {
-        await RefreshVisibleFiltersAsync();
-        await LoadAvailableContentAsync();
-    }
-
-    /// <summary>
-    /// Called when the game type filter changes.
-    /// </summary>
-    partial void OnGameTypeFilterChanged(GameType value)
-    {
-        _ = RefreshFiltersAndContentAsync();
-    }
-
-    /// <summary>
-    /// Handles synchronizing the EnabledContent collection with SelectedGameInstallation and deduplicating items.
-    /// </summary>
     private void OnEnabledContentCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (_isSynchronizingEnabledContent)
@@ -610,6 +630,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             ClearInstallationSelection();
         }
+    }
+
+    /// <summary>
+    /// Called when the game type filter changes.
+    /// </summary>
+    partial void OnGameTypeFilterChanged(GameType value)
+    {
+        _ = RefreshFiltersAndContentAsync();
     }
 
     private void SyncInstallationSelection(ContentDisplayItem value)

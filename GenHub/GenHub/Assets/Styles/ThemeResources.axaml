@@ -111,20 +111,28 @@
 
     <!-- Status Tokens: Success -->
     <Color x:Key="SuccessColor">#10B981</Color>
+    <Color x:Key="SuccessFillColor">#2510B981</Color>
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
     <SolidColorBrush x:Key="StatusSuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="SuccessFillBrush" Color="{StaticResource SuccessFillColor}" />
 
     <!-- Status Tokens: Warning -->
     <Color x:Key="WarningColor">#FFA500</Color>
     <Color x:Key="WarningHighlightColor">#F59E0B</Color>
+    <Color x:Key="WarningFillColor">#25FFA500</Color>
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
     <SolidColorBrush x:Key="WarningHighlightBrush" Color="{StaticResource WarningHighlightColor}" />
     <SolidColorBrush x:Key="WarningForegroundBrush" Color="{StaticResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="WarningFillBrush" Color="{StaticResource WarningFillColor}" />
 
     <!-- Status Tokens: Error -->
     <Color x:Key="ErrorColor">#EF4444</Color>
+    <Color x:Key="ErrorFillColor">#25EF4444</Color>
+    <Color x:Key="ErrorTextColor">#FF5252</Color>
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="ErrorFillBrush" Color="{StaticResource ErrorFillColor}" />
+    <SolidColorBrush x:Key="ErrorTextBrush" Color="{StaticResource ErrorTextColor}" />
 
     <!-- Gradients and UI Elements -->
     <Color x:Key="PrimaryGradientStart">#E040FB</Color>

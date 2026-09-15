@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
@@ -18,6 +12,12 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using CoreContentDisplayItem = GenHub.Core.Models.Content.ContentDisplayItem;
@@ -59,8 +59,8 @@ public class GameProfileSettingsViewModelHotswapTests
             null,
             NullLogger<GameProfileSettingsViewModel>.Instance,
             NullLogger<GameSettingsViewModel>.Instance,
-            _profileContentLinkerMock.Object,
-            _launchRegistryMock.Object);
+            profileContentLinker: _profileContentLinkerMock.Object,
+            launchRegistry: _launchRegistryMock.Object);
     }
 
     /// <summary>

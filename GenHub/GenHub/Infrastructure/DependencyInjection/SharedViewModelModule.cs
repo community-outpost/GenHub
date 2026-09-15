@@ -1,4 +1,3 @@
-using System;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -19,6 +18,7 @@ using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -59,6 +59,7 @@ public static class SharedViewModelModule
             sp.GetService<IThemeService>(),
             /* Optional dependencies that can be null if GitHub integration is not configured */
             sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<IUploadHistoryService>(),
             sp.GetService<IGitHubApiClient>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 

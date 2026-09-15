@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Avalonia;
 using DotNetEnv;
 using GenHub.Core.Constants;
@@ -9,6 +7,8 @@ using GenHub.Windows.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Linq;
 using Velopack;
 
 namespace GenHub.Windows;
@@ -33,65 +33,31 @@ public class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // Load environment variables (locally)
+        // Initialize Velopack - must be first to handle install/update hooks
+        VelopackApp.Build().Run();
+
+        // Load environment variables from .env file if it exists
+        Exception? envLoadException = null;
         try
         {
             Env.TraversePath().Load();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to load environment variables: {ex}");
+            envLoadException = ex;
         }
-
-        // Initialize Velopack - must be first to handle install/update hooks
-        VelopackApp.Build().Run();
 
         using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
 
-        // Extract profile ID from args if present (for IPC forwarding)
-        var profileId = CommandLineParser.ExtractProfileId(args);
-
-        // Extract genhub://subscribe?url=... target (catalog JSON today; definition URL later)
-        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
-
-        // Check for multi-instance mode (useful for debugging with multiple instances)
-        bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
-                             args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
-                             Environment.GetEnvironmentVariable("GENHUB_MULTI_INSTANCE") == "1";
-
-        if (!multiInstance)
+        if (envLoadException != null)
         {
-            // Initialize single-instance manager
-            _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
-
-            if (!_singleInstanceManager.IsFirstInstance)
-            {
-                // Forward launch command to primary instance if we have a profile ID
-                if (!string.IsNullOrEmpty(profileId))
-                {
-                    bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
-                }
-
-                // Forward subscribe so the running UI can show the confirmation dialog
-                if (!string.IsNullOrEmpty(subscriptionUrl))
-                {
-                    bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
-                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
-                }
-
-                // Focus the existing instance
-                SingleInstanceManager.FocusPrimaryInstance();
-
-                // Exit this secondary instance
-                _singleInstanceManager.Dispose();
-                return;
-            }
+            bootstrapLogger.LogWarning(envLoadException, "Failed to load environment variables from .env file");
         }
-        else
+
+        if (TryForwardToExistingInstance(args, bootstrapLogger, bootstrapLoggerFactory))
         {
-            bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
+            return;
         }
 
         // Check for duplicate installation collision: adopt custom configuration early and preserve registry entry
@@ -117,34 +83,30 @@ public class Program
             }
             catch (Exception configEx)
             {
-                bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
-                throw;
+                throw new InvalidOperationException("Failed to configure application services", configEx);
             }
 
-            var serviceProvider = services.BuildServiceProvider();
-            AppLocator.Services = serviceProvider;
+            using (_singleInstanceManager)
+            {
+                var serviceProvider = services.BuildServiceProvider();
+                AppLocator.Services = serviceProvider;
+                AppLocator.SingleInstanceManager = _singleInstanceManager;
 
-            // Store the single instance manager in the service locator for App to access
-            AppLocator.SingleInstanceManager = _singleInstanceManager;
-
-            BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
+                BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
+            }
         }
         catch (Exception ex)
         {
             bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
             throw;
         }
-        finally
-        {
-            _singleInstanceManager?.Dispose();
-        }
     }
 
     /// <summary>
     /// Avalonia configuration.
     /// </summary>
-    /// <param name="serviceProvider">The application's dependency injection service provider.</param>
     /// <returns>The <see cref="AppBuilder"/>.</returns>
+    /// <param name="serviceProvider">The application's dependency injection service provider.</param>
     /// <remarks>
     /// Don't remove; also used by visual designer.
     /// </remarks>
@@ -171,6 +133,54 @@ public class Program
             !string.IsNullOrWhiteSpace(detectedCustom))
         {
             Features.Storage.WindowsInstallationTracker.RecordCustomInstallPathStatic(detectedCustom, logger);
+        }
+    }
+
+    private static bool TryForwardToExistingInstance(string[] args, ILogger bootstrapLogger, ILoggerFactory bootstrapLoggerFactory)
+    {
+        bool multiInstance = args.Contains(CommandLineConstants.MultiInstanceArg, StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains(CommandLineConstants.MultiInstanceShortArg, StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable(CommandLineConstants.MultiInstanceEnvVar) == CommandLineConstants.MultiInstanceEnvEnabledValue;
+
+        if (multiInstance)
+        {
+            bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
+            return false;
+        }
+
+        _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+        if (_singleInstanceManager.IsFirstInstance)
+        {
+            return false;
+        }
+
+        ForwardCommandLineCommands(args, bootstrapLogger);
+        SingleInstanceManager.FocusPrimaryInstance();
+        _singleInstanceManager.Dispose();
+        return true;
+    }
+
+    private static void ForwardCommandLineCommands(string[] args, ILogger bootstrapLogger)
+    {
+        var profileId = CommandLineParser.ExtractProfileId(args);
+        if (!string.IsNullOrEmpty(profileId))
+        {
+            bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+        }
+
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+        {
+            bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
+        }
+
+        var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
+        if (!string.IsNullOrEmpty(profileShareUri))
+        {
+            bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
         }
     }
 }

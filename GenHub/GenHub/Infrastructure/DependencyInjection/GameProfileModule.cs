@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -9,6 +7,8 @@ using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameSettings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -62,6 +62,10 @@ public static class GameProfileModule
 
         // Register SetupWizardService
         services.AddScoped<ISetupWizardService, SetupWizardService>();
+
+        // Register ProfileSharingService
+        services.AddScoped<IProfileSharingService, ProfileSharingService>();
+        services.AddTransient<Func<IProfileSharingService>>(sp => sp.GetRequiredService<IProfileSharingService>);
 
         return services;
     }

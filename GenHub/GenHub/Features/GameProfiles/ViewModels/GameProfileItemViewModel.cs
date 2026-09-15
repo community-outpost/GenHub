@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
@@ -11,6 +7,10 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -53,6 +53,23 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets the action to toggle Steam launch mode.
     /// </summary>
     public Func<GameProfileItemViewModel, Task>? ToggleSteamLaunchAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to share the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? ShareProfileAction { get; set; }
+
+    /// <summary>
+    /// Shares the profile using the injected action.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShareProfile()
+    {
+        if (ShareProfileAction != null)
+        {
+            await ShareProfileAction(this);
+        }
+    }
 
     /// <summary>
     /// Launches the profile using the injected action.

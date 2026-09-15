@@ -1,14 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -37,9 +37,10 @@ public partial class GameProfileSettingsViewModel
 
             CurrentProfileId = null;
             IsHotswapMode = false;
+            OnPropertyChanged(nameof(CanShareProfile));
             Name = ProfileConstants.DefaultProfileName;
             Description = "A new game profile";
-            ColorValue = "#1976D2";
+            ColorValue = ProfileSharingConstants.DefaultThemeColor;
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();
             SelectedContentType = ContentType.GameClient;
 
@@ -105,6 +106,7 @@ public partial class GameProfileSettingsViewModel
             }
 
             CurrentProfileId = profileId;
+            OnPropertyChanged(nameof(CanShareProfile));
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
             if (_gameProfileManager == null)
@@ -227,7 +229,7 @@ public partial class GameProfileSettingsViewModel
         _originalProfile = profile;
         Name = profile.Name;
         Description = profile.Description ?? string.Empty;
-        ColorValue = profile.ThemeColor ?? "#1976D2";
+        ColorValue = profile.ThemeColor ?? ProfileSharingConstants.DefaultThemeColor;
         var defaultIconPath = _profileResourceService?.GetDefaultIconPath(profile.GameClient?.GameType.ToString() ?? "ZeroHour")
             ?? Core.Constants.UriConstants.DefaultIconUri;
         IconPath = NormalizeResourcePath(profile.IconPath, defaultIconPath);

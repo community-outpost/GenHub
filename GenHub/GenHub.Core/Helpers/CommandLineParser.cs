@@ -9,7 +9,8 @@ public static class CommandLineParser
 {
     /// <summary>
     /// Extracts a profile identifier from command line arguments.
-    /// Supports both spaced and inline formats: <c>--launch-profile &lt;id&gt;</c> and <c>--launch-profile=&lt;id&gt;</c>.
+    /// Supports both spaced and inline formats: <c>--launch-profile &lt;id&gt;</c> and <c>--launch-profile=&lt;id&gt;</c>.<br/>
+    /// Strips balanced quotes around the identifier if present.
     /// </summary>
     /// <param name="args">The command line arguments.</param>
     /// <returns>The extracted profile identifier if present; otherwise, <c>null</c>.</returns>
@@ -21,12 +22,16 @@ public static class CommandLineParser
 
             if (arg.Equals(CommandLineConstants.LaunchProfileArg, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                return args[i + 1].Trim('"');
+                var nextArg = args[i + 1];
+                if (!nextArg.StartsWith('-'))
+                {
+                    return Unquote(nextArg);
+                }
             }
 
             if (arg.StartsWith(CommandLineConstants.LaunchProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
             {
-                return arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..].Trim('"');
+                return Unquote(arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..]);
             }
         }
 
@@ -37,7 +42,7 @@ public static class CommandLineParser
     /// Extracts the absolute URL from a <c>genhub://subscribe?url=...</c> startup argument.
     /// </summary>
     /// <remarks>
-    /// The returned value is the <c>url</c> query value only (not the <c>genhub://</c> wrapper).
+    /// The returned value is the <c>url</c> query value only (not the <c>genhub://</c> wrapper).<br/>
     /// Callers treat it as a GenHub catalog JSON URL today; later it may also be a Provider
     /// Definition URL without changing this parser.
     /// </remarks>
@@ -62,7 +67,8 @@ public static class CommandLineParser
                     string unescaped = Uri.UnescapeDataString(url)
                         .Replace("\r", string.Empty)
                         .Replace("\n", string.Empty)
-                        .Trim('"', '\'', ' ', '\t');
+                        .Trim(' ', '\t');
+                    unescaped = Unquote(unescaped);
 
                     if (string.IsNullOrWhiteSpace(unescaped))
                     {
@@ -81,5 +87,63 @@ public static class CommandLineParser
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Extracts a profile share URI, catalog view URI, or .ghprofile file path from command line arguments.
+    /// Supports direct <c>genhub://profile/...</c> URIs, <c>--import-profile &lt;target&gt;</c>, <c>--import-profile=&lt;target&gt;</c>, and <c>.ghprofile</c> file paths.
+    /// </summary>
+    /// <param name="args">The command line arguments.</param>
+    /// <returns>The extracted share URI or file path if present; otherwise, <c>null</c>.</returns>
+    public static string? ExtractProfileShareUri(string[] args)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = Unquote(args[i].Trim());
+
+            if (arg.Equals(CommandLineConstants.ImportProfileArg, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                var nextArg = args[i + 1];
+                if (!nextArg.StartsWith('-'))
+                {
+                    return Unquote(nextArg.Trim());
+                }
+            }
+
+            if (arg.StartsWith(CommandLineConstants.ImportProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return Unquote(arg[CommandLineConstants.ImportProfileInlinePrefix.Length..].Trim());
+            }
+
+            if (arg.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+                arg.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return arg;
+            }
+
+            if (arg.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return arg;
+            }
+        }
+
+        return null;
+    }
+
+    private static string Unquote(string s)
+    {
+        if (string.IsNullOrEmpty(s))
+        {
+            return s;
+        }
+
+        if (s.Length >= 2 &&
+            ((s[0] == '"' && s[^1] == '"') ||
+             (s[0] == '\'' && s[^1] == '\'')))
+        {
+            return s[1..^1];
+        }
+
+        return s;
     }
 }

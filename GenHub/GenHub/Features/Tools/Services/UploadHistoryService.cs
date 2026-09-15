@@ -1,15 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Tools;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.Services;
 
@@ -42,12 +43,20 @@ public sealed class UploadHistoryService(
     private List<UploadRecord>? _cache;
 
     /// <inheritdoc />
+    public event EventHandler? UploadHistoryChanged;
+
+    /// <inheritdoc />
     public long MaxUploadBytesPerPeriod => MapManagerConstants.MaxUploadBytesPerPeriod;
 
     /// <inheritdoc />
-    public async Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null)
+    public Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null) =>
+        CanUploadAsync(fileSizeBytes, category, CancellationToken.None);
+
+    /// <inheritdoc />
+    public async Task<bool> CanUploadAsync(long fileSizeBytes, string? category, CancellationToken cancellationToken)
     {
-        var usage = await GetUsageInfoAsync(category);
+        cancellationToken.ThrowIfCancellationRequested();
+        var usage = await GetUsageInfoAsync(category, cancellationToken);
         return usage.UsedBytes + fileSizeBytes <= usage.LimitBytes;
     }
 
@@ -61,6 +70,7 @@ public sealed class UploadHistoryService(
         string? fileHash = null,
         string? category = null)
     {
+        bool recorded = false;
         lock (FileLock)
         {
             try
@@ -83,6 +93,7 @@ public sealed class UploadHistoryService(
                 SaveHistoryInternal(history);
                 _cache = history; // Update cache
                 logger.LogInformation("Recorded upload of {Size} bytes for category '{Category}'. Total history: {Count} items.", fileSizeBytes, resolvedCategory, history.Count);
+                recorded = true;
             }
             catch (IOException ex)
             {
@@ -97,11 +108,21 @@ public sealed class UploadHistoryService(
                 logger.LogError(ex, "Failed to record upload");
             }
         }
+
+        if (recorded)
+        {
+            UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     /// <inheritdoc />
-    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash)
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash) =>
+        FindExistingUploadAsync(fileHash, CancellationToken.None);
+
+    /// <inheritdoc />
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(fileHash))
         {
             return Task.FromResult<UploadRecord?>(null);
@@ -117,8 +138,17 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public Task<UsageInfo> GetUsageInfoAsync(string? category = null)
+    public Task<UsageInfo> GetUsageInfoAsync(string? category = null) =>
+        GetUsageInfoAsync(category, CancellationToken.None);
+
+    /// <inheritdoc />
+    public Task<UsageInfo> GetUsageInfoAsync(CancellationToken cancellationToken) =>
+        GetUsageInfoAsync(null, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<UsageInfo> GetUsageInfoAsync(string? category, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var history = LoadHistoryInternal();
         var periodStart = DateTime.UtcNow.AddDays(-RateLimitDays);
 
@@ -138,8 +168,17 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null) =>
+        GetUploadHistoryAsync(category, CancellationToken.None);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(CancellationToken cancellationToken) =>
+        GetUploadHistoryAsync(null, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var history = LoadHistoryInternal();
 
         var filtered = history.Where(r => MatchesCategory(r, category));
@@ -155,8 +194,17 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public async Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true)
+    public Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true) =>
+        RemoveHistoryItemAsync(url, deleteFromCloud, CancellationToken.None);
+
+    /// <inheritdoc />
+    public Task<bool> RemoveHistoryItemAsync(string url, CancellationToken cancellationToken) =>
+        RemoveHistoryItemAsync(url, true, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         UploadRecord? matchingRecord = null;
         lock (FileLock)
         {
@@ -173,7 +221,7 @@ public sealed class UploadHistoryService(
         {
             try
             {
-                var deleteResult = await uploadThingService.DeleteFileAsync(matchingRecord.FileKey, matchingRecord.DeleteToken);
+                var deleteResult = await uploadThingService.DeleteFileAsync(matchingRecord.FileKey, matchingRecord.DeleteToken, cancellationToken);
                 if (!deleteResult.Success || !deleteResult.Data)
                 {
                     logger.LogWarning(
@@ -190,10 +238,11 @@ public sealed class UploadHistoryService(
             }
         }
 
+        int removed = 0;
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
-            var removed = history.RemoveAll(r => r.Url == url);
+            removed = history.RemoveAll(r => r.Url == url);
             if (removed > 0)
             {
                 SaveHistoryInternal(history);
@@ -205,12 +254,26 @@ public sealed class UploadHistoryService(
             }
         }
 
+        if (removed > 0)
+        {
+            UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         return true;
     }
 
     /// <inheritdoc />
-    public async Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
+    public Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null) =>
+        ClearHistoryAsync(deleteFromCloud, category, CancellationToken.None);
+
+    /// <inheritdoc />
+    public Task<(int Deleted, int Failed)> ClearHistoryAsync(CancellationToken cancellationToken) =>
+        ClearHistoryAsync(true, null, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud, string? category, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         List<UploadRecord> candidateRecords = [];
         lock (FileLock)
         {
@@ -219,7 +282,7 @@ public sealed class UploadHistoryService(
         }
 
         var (successfullyDeleted, failedDeletions) = deleteFromCloud
-            ? await DeleteRecordsFromCloudAsync(candidateRecords)
+            ? await DeleteRecordsFromCloudAsync(candidateRecords, cancellationToken)
             : (candidateRecords.ToHashSet(), new HashSet<UploadRecord>());
 
         int removed = 0;
@@ -236,13 +299,28 @@ public sealed class UploadHistoryService(
             }
         }
 
+        if (removed > 0)
+        {
+            UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         return (removed, failedDeletions.Count);
     }
 
-    private static long GetLimitForCategory(string? category) =>
-        string.Equals(category, ReplayManagerConstants.UploadCategory, StringComparison.OrdinalIgnoreCase)
-            ? ReplayManagerConstants.MaxUploadBytesPerPeriod
-            : MapManagerConstants.MaxUploadBytesPerPeriod;
+    private static long GetLimitForCategory(string? category)
+    {
+        if (string.Equals(category, ReplayManagerConstants.UploadCategory, StringComparison.OrdinalIgnoreCase))
+        {
+            return ReplayManagerConstants.MaxUploadBytesPerPeriod;
+        }
+
+        if (string.Equals(category, ProfileSharingConstants.UploadCategoryProfiles, StringComparison.OrdinalIgnoreCase))
+        {
+            return ProfileSharingConstants.MaxUploadBytesPerPeriod;
+        }
+
+        return MapManagerConstants.MaxUploadBytesPerPeriod;
+    }
 
     private static string InferCategory(string? fileName)
     {
@@ -281,13 +359,14 @@ public sealed class UploadHistoryService(
         return string.Equals(inferred, category, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<(HashSet<UploadRecord> Succeeded, HashSet<UploadRecord> Failed)> DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
+    private async Task<(HashSet<UploadRecord> Succeeded, HashSet<UploadRecord> Failed)> DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records, CancellationToken cancellationToken = default)
     {
         var successfullyDeleted = new HashSet<UploadRecord>();
         var failedDeletions = new HashSet<UploadRecord>();
 
         foreach (var record in records)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (record.FileKey is not { Length: > 0 } fileKey || record.DeleteToken is not { Length: > 0 } deleteToken)
             {
                 successfullyDeleted.Add(record);
@@ -296,7 +375,7 @@ public sealed class UploadHistoryService(
 
             try
             {
-                var deleteResult = await uploadThingService.DeleteFileAsync(fileKey, deleteToken);
+                var deleteResult = await uploadThingService.DeleteFileAsync(fileKey, deleteToken, cancellationToken);
                 if (deleteResult.Success && deleteResult.Data)
                 {
                     successfullyDeleted.Add(record);

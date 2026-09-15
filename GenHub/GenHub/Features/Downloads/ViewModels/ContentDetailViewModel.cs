@@ -1,13 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -33,6 +23,16 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.Views;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
@@ -2611,7 +2611,7 @@ public partial class ContentDetailViewModel(
         var parsedTitle = parsedPage.Context?.Title ?? string.Empty;
         if (parsedPage.Sections.Count == 0 &&
             (string.IsNullOrWhiteSpace(parsedTitle) ||
-             ModDBConstants.BotProtectionTitleMarkers.Any(marker => parsedTitle.Contains(marker, StringComparison.OrdinalIgnoreCase))))
+             ModDBConstants.IsChallengePageTitle(parsedTitle)))
         {
             logger.LogWarning(
                 "Parsed page for {Url} looks like a bot-protection challenge (title: '{Title}'); ignoring it",
@@ -4985,5 +4985,4 @@ public partial class ContentDetailViewModel(
                 (trimmedSearchName.Contains(a.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
                  a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
     }
-
 }

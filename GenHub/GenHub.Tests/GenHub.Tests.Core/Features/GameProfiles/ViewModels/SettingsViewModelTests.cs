@@ -24,6 +24,7 @@ using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Globalization;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -1288,6 +1289,148 @@ public class SettingsViewModelTests
         mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that RefreshUploadsCommand populates active upload items and computes quota percentage.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RefreshUploadsCommand_PopulatesActiveUploadsAndComputesQuotaAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+        var items = new List<UploadHistoryItem>
+        {
+            new(DateTime.UtcNow, 2 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map1.zip"), "DesertStorm.zip"),
+            new(DateTime.UtcNow, 3 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "rep1.rep"), "FinalMatch.rep"),
+        };
+
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(items);
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UsageInfo(5 * ConversionConstants.BytesPerMegabyte, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = CreateViewModel(uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.RefreshUploadsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(viewModel.HasUploads);
+        Assert.Equal(2, viewModel.ActiveUploads.Count);
+        Assert.Equal(50.0, viewModel.UploadQuotaPercent);
+        Assert.Contains("5.0 MB / 10.0 MB", viewModel.UploadQuotaText);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteUploadCommand calls RemoveHistoryItemAsync and refreshes the list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteUploadCommand_RemovesItemFromCloudAndRefreshesAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+        var itemToDelete = new UploadHistoryItem(DateTime.UtcNow, ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map.zip"), "Map.zip");
+
+        mockUploadHistoryService.Setup(s => s.RemoveHistoryItemAsync(itemToDelete.Url, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<UploadHistoryItem>());
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UsageInfo(0, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = CreateViewModel(uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.DeleteUploadCommand.ExecuteAsync(itemToDelete);
+
+        // Assert
+        mockUploadHistoryService.Verify(s => s.RemoveHistoryItemAsync(itemToDelete.Url, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.False(viewModel.HasUploads);
+        Assert.Empty(viewModel.ActiveUploads);
+    }
+
+    /// <summary>
+    /// Verifies that ClearAllUploadsCommand calls ClearHistoryAsync and empties the active list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearAllUploadsCommand_PurgesAllUploadsAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+
+        _mockDialogService.Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        mockUploadHistoryService.Setup(s => s.ClearHistoryAsync(It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((1, 0));
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<UploadHistoryItem>());
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = CreateViewModel(uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.ClearAllUploadsCommand.ExecuteAsync(null);
+
+        // Assert
+        mockUploadHistoryService.Verify(s => s.ClearHistoryAsync(It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.False(viewModel.HasUploads);
+    }
+
+    /// <summary>
+    /// Verifies that TestPatAsync saves token and reports pending validation when no validation provider ran.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenNoValidationProviderAvailable_SavesTokenAndReportsPendingValidationAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var viewModel = CreateViewModel(
+            gitHubTokenStorage: mockTokenStorage.Object,
+            gitHubApiClient: null,
+            includeUpdateManager: false);
+        viewModel.GitHubPatInput = "ghp_unvalidatedToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        Assert.True(viewModel.HasGitHubPat);
+        Assert.Empty(viewModel.GitHubPatInput);
+        Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that TestPatAsync does not treat update manager check as PAT validation when API client is absent.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenUpdateManagerProvidedWithoutApiClient_SavesTokenAndReportsPendingValidationAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var viewModel = CreateViewModel(
+            gitHubTokenStorage: mockTokenStorage.Object,
+            gitHubApiClient: null,
+            includeUpdateManager: true);
+        viewModel.GitHubPatInput = "ghp_unvalidatedToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        Assert.True(viewModel.HasGitHubPat);
+        Assert.Empty(viewModel.GitHubPatInput);
+        Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
+    }
+
     private void SetupDeletableData()
     {
         _mockProfileManager
@@ -1304,14 +1447,16 @@ public class SettingsViewModelTests
     private SettingsViewModel CreateViewModel(
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
-        IGitHubApiClient? gitHubApiClient = null) => new(
+        IGitHubApiClient? gitHubApiClient = null,
+        IUploadHistoryService? uploadHistoryService = null,
+        bool includeUpdateManager = true) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
         _mockProfileManager.Object,
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,
-        _mockUpdateManager.Object,
+        includeUpdateManager ? _mockUpdateManager.Object : null,
         _mockNotificationService.Object,
         _mockConfigurationProvider.Object,
         _mockInstallationService.Object,
@@ -1321,5 +1466,6 @@ public class SettingsViewModelTests
         _mockStorageMigrationService.Object,
         themeService,
         gitHubTokenStorage,
-        gitHubApiClient);
+        uploadHistoryService: uploadHistoryService,
+        gitHubApiClient: gitHubApiClient);
 }

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 
 namespace GenHub.Core.Models.Common;
@@ -15,4 +16,20 @@ public record UploadHistoryItem(
     long SizeBytes,
     string Url,
     string FileName,
-    string? Category = null);
+    string? Category = null)
+{
+    /// <summary>
+    /// Gets the formatted file size string.
+    /// </summary>
+    public string FormattedSize => SizeBytes switch
+    {
+        >= ConversionConstants.BytesPerMegabyte => $"{SizeBytes / (double)ConversionConstants.BytesPerMegabyte:F1} MB",
+        >= ConversionConstants.BytesPerKilobyte => $"{SizeBytes / (double)ConversionConstants.BytesPerKilobyte:F1} KB",
+        _ => $"{SizeBytes} B",
+    };
+
+    /// <summary>
+    /// Gets the formatted upload date string.
+    /// </summary>
+    public string FormattedDate => Timestamp.ToLocalTime().ToString("g");
+}

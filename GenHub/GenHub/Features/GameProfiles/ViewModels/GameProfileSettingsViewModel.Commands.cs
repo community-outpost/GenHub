@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
@@ -14,6 +8,13 @@ using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -1379,6 +1380,62 @@ public partial class GameProfileSettingsViewModel
         finally
         {
             IsSaving = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ShareProfileAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentProfileId))
+        {
+            _localNotificationService.ShowWarning("Cannot Share", "Please save the profile first before sharing.");
+            return;
+        }
+
+        var sharingService = ProfileSharingService;
+        if (sharingService == null || _gameProfileManager == null)
+        {
+            _localNotificationService.ShowError("Error", "Profile sharing service is not available.");
+            return;
+        }
+
+        try
+        {
+            var profileResult = await _gameProfileManager.GetProfileAsync(CurrentProfileId);
+            if (!profileResult.Success || profileResult.Data == null)
+            {
+                _localNotificationService.ShowError("Share Failed", "Failed to load profile details.");
+                return;
+            }
+
+            var shareViewModel = new ShareProfileDialogViewModel(
+                CurrentProfileId,
+                profileResult.Data,
+                sharingService,
+                _loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? NullLogger<ShareProfileDialogViewModel>.Instance,
+                _uploadHistoryService);
+
+            var dialog = new Views.ShareProfileDialogWindow
+            {
+                DataContext = shareViewModel,
+            };
+
+            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var parent = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+
+            if (parent != null)
+            {
+                await dialog.ShowDialog(parent);
+            }
+            else
+            {
+                dialog.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to share profile {ProfileId}", CurrentProfileId);
+            _localNotificationService.ShowError("Share Error", $"An error occurred while preparing share: {ex.Message}");
         }
     }
 }
