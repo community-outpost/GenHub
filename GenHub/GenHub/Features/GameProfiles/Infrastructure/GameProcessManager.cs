@@ -275,7 +275,7 @@ public class GameProcessManager(
             await process.WaitForExitAsync(CancellationToken.None);
             if (!ownsProcess)
             {
-                await exitObserved.Task;
+                await WaitForExitNotificationAsync(exitObserved.Task, processId);
             }
 
             terminated = true;
@@ -578,6 +578,22 @@ public class GameProcessManager(
         GC.SuppressFinalize(this);
 
         logger.LogInformation("GameProcessManager disposed");
+    }
+
+    /// <summary>Bounds notification delivery so a missing callback cannot block future stops.</summary>
+    /// <param name="notification">Completion of the managed exit notification.</param>
+    /// <param name="processId">The process that has exited.</param>
+    /// <returns>A task completing after notification delivery or its timeout.</returns>
+    internal async Task WaitForExitNotificationAsync(Task notification, int processId)
+    {
+        try
+        {
+            await notification.WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs));
+        }
+        catch (TimeoutException)
+        {
+            logger.LogWarning("Timed out waiting for exit notification for process {ProcessId}; continuing termination cleanup", processId);
+        }
     }
 
     /// <summary>
@@ -1479,7 +1495,19 @@ public class GameProcessManager(
             TerminationRequested = terminationRequested,
         };
 
-        ProcessExited?.Invoke(this, args);
+        // This is a process-event boundary: one subscriber must not prevent the
+        // remaining subscribers (including termination completion) from observing exit.
+        foreach (EventHandler<GameProcessExitedEventArgs> subscriber in ProcessExited?.GetInvocationList() ?? [])
+        {
+            try
+            {
+                subscriber(this, args);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Process-exit subscriber failed for process {ProcessId}", processId);
+            }
+        }
 
         try
         {

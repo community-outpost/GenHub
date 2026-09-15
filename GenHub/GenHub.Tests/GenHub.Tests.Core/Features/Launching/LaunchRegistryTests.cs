@@ -350,6 +350,7 @@ public class LaunchRegistryTests
         Assert.Equal(0, launch.ExitCode);
         Assert.False(launch.IsRunning);
     }
+
     /// <summary>A retained terminated launch must not swallow a new exit for its recycled PID.</summary>
     /// <returns>The async task.</returns>
     [Theory]
@@ -369,7 +370,10 @@ public class LaunchRegistryTests
         manager.Raise(m => m.ProcessExited += null, oldExit);
         if (repeatOldEvent)
         {
-            manager.Raise(m => m.ProcessExited += null, oldExit);
+            manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+            {
+                ProcessId = oldExit.ProcessId, ExitCode = oldExit.ExitCode, ExitTime = oldExit.ExitTime,
+            });
             var unrelated = new GameLaunchInfo
             {
                 LaunchId = "unrelated", ProfileId = "profile", WorkspaceId = "workspace",
@@ -397,5 +401,4 @@ public class LaunchRegistryTests
         Assert.Equal(1, launch.ExitCode);
         Assert.Contains("TexturesZH.big", launch.FailureReason);
     }
-
 }
