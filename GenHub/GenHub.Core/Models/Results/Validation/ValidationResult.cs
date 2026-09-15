@@ -1,8 +1,8 @@
 namespace GenHub.Core.Models.Results;
 
+using GenHub.Core.Models.Validation;
 using System.Collections.Generic;
 using System.Linq;
-using GenHub.Core.Models.Validation;
 
 /// <summary>Encapsulates the result of a validation operation for a game version or installation.</summary>
 public class ValidationResult(string validatedTargetId, List<ValidationIssue>? issues, TimeSpan elapsed = default, int totalFilesValidated = 0)

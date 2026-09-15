@@ -781,12 +781,8 @@ public partial class GameProfileLauncherViewModel(
             var preferredStrategy = configService.GetDefaultWorkspaceStrategy();
 
             // Generate the GameInstallation manifest ID
-            // Logic must match GameInstallationService.GenerateAndPoolManifestForGameTypeAsync to ensure ID alignment
             string installationManifestId;
-            if (string.IsNullOrEmpty(gameClient.Version) ||
-                gameClient.Version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-                gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
-                gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
+            if (GameVersionHelper.IsUnknownVersion(gameClient.Version))
             {
                 // For unknown/auto versions, use the default version for the game type (1.04/1.08)
                 // This ensures we match the ID generated during dependency resolution

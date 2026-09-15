@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -62,6 +63,15 @@ public class ProfileContentLoader(
 
                 foreach (var gameType in uniqueGameTypes)
                 {
+                    if (gameType is not (GameType.Generals or GameType.ZeroHour))
+                    {
+                        logger.LogDebug(
+                            "Skipping installation {InstallationId} game type {GameType} - unsupported",
+                            installation.Id,
+                            gameType);
+                        continue;
+                    }
+
                     var baseClient = GetBaseGameClient(installation, gameType);
                     if (baseClient is null) continue;
 
@@ -411,18 +421,16 @@ public class ProfileContentLoader(
             }));
     }
 
-    private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion)
+    private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion, GameType gameType)
     {
-        var isUnknown = string.IsNullOrEmpty(detectedVersion) ||
-            detectedVersion.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-            detectedVersion.Equals(
-                GameClientConstants.AutoDetectedVersion,
-                StringComparison.OrdinalIgnoreCase);
-
-        if (isUnknown)
+        // GameInstallationService pools the manifest under the game-type default when detection
+        // fails, so the same fallback is needed here or the picker hands the profile an id that
+        // resolves to no manifest. Display stays empty so no version is fabricated in the UI.
+        // CreateEnabledInstallationItem reaches this with a pooled manifest's TargetGame, which can
+        // be a type with no default, so resolve defensively rather than relying on a caller's guard.
+        if (GameVersionHelper.IsUnknownVersion(detectedVersion))
         {
-            // Show empty string for version 0
-            return ("0", string.Empty);
+            return (GameVersionHelper.ResolveInstallationVersion(detectedVersion, gameType), string.Empty);
         }
 
         return (detectedVersion!, displayFormatter.NormalizeVersion(detectedVersion!));
@@ -434,7 +442,7 @@ public class ProfileContentLoader(
         GameType gameType,
         bool isEnabled = false)
     {
-        var (versionForManifestId, versionForDisplay) = GetVersionStrings(baseClient.Version);
+        var (versionForManifestId, versionForDisplay) = GetVersionStrings(baseClient.Version, gameType);
         var manifestId = ManifestIdGenerator.GenerateGameInstallationId(
             installation,
             gameType,

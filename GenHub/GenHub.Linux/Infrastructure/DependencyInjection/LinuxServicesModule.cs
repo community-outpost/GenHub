@@ -1,5 +1,3 @@
-using System;
-using System.Runtime.Versioning;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Shortcuts;
@@ -13,6 +11,8 @@ using GenHub.Linux.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Runtime.Versioning;
 
 namespace GenHub.Linux.Infrastructure.DependencyInjection;
 

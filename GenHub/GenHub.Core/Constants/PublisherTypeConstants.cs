@@ -1,7 +1,7 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Constants;
 

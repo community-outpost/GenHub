@@ -1,7 +1,7 @@
+using GenHub.Core.Models.Enums;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Constants;
 

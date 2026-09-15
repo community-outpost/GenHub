@@ -126,6 +126,11 @@ public static class GameClientConstants
     /// <summary>Version string used for automatically detected clients.</summary>
     public const string AutoDetectedVersion = GameClientConstants.UnknownVersion;
 
+    /// <summary>
+    /// Version sentinel used for clients that update themselves, so no fixed version can be read.
+    /// </summary>
+    public const string AutoUpdatedVersion = "Auto-Updated";
+
     /// <summary>Version string used for unknown/unrecognized clients.</summary>
     public const string UnknownVersion = "Unknown";
 

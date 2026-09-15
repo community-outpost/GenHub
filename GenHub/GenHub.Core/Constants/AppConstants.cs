@@ -1,5 +1,5 @@
-using System.Reflection;
 using GenHub.Core.Models.Enums;
+using System.Reflection;
 
 namespace GenHub.Core.Constants;
 
