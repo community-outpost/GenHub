@@ -423,7 +423,11 @@
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
         flex: 0 0 auto !important;
+        align-self: auto !important;
         border-right: none !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
         padding: 8px 12px 6px !important;
@@ -432,6 +436,7 @@
         gap: 6px !important;
         overflow: visible !important;
         background: #12121c !important;
+        box-sizing: border-box !important;
     }
 
     .gh-info-title {
@@ -441,6 +446,7 @@
     .gh-info-module-select-wrap {
         width: 100% !important;
         margin-bottom: 0 !important;
+        flex: 0 0 auto !important;
     }
 
     #ghInfoModuleSelect {
@@ -453,13 +459,20 @@
     .gh-info-nav-list {
         display: flex !important;
         flex-direction: row !important;
+        align-items: center !important;
         overflow-x: auto !important;
+        overflow-y: hidden !important;
         -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-x !important;
         scrollbar-width: none !important;
         gap: 6px !important;
         width: 100% !important;
         max-width: 100% !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 34px !important;
         padding-bottom: 2px !important;
+        box-sizing: border-box !important;
     }
 
     .gh-info-nav-list::-webkit-scrollbar {
@@ -469,10 +482,16 @@
     .gh-info-nav-btn {
         flex: 0 0 auto !important;
         width: auto !important;
+        height: auto !important;
+        min-height: 28px !important;
+        max-height: 34px !important;
         white-space: nowrap !important;
         padding: 5px 12px !important;
         border-radius: 20px !important;
         font-size: 11.5px !important;
+        line-height: 1.2 !important;
+        box-sizing: border-box !important;
+        align-self: center !important;
     }
 
     .gh-settings-content,
@@ -480,11 +499,14 @@
         padding: 12px 14px 60px !important;
         flex: 1 1 auto !important;
         min-height: 0 !important;
-        height: 100% !important;
+        height: auto !important;
+        max-height: none !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
         overscroll-behavior-y: contain !important;
+        touch-action: pan-y !important;
+        box-sizing: border-box !important;
     }
 
     .gh-info-card {
@@ -825,5 +847,26 @@
         width: 100% !important;
         max-width: 260px !important;
         height: 320px !important;
+    }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    :root {
+        --glass-bg: rgba(15, 20, 45, 0.95);
+        --glass-border: rgba(99, 102, 241, 0.6);
+        --text-muted: #cbd5e1;
     }
 }

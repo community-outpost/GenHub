@@ -1157,6 +1157,7 @@ main {
 }
 
 .gh-profile-card:hover .gh-card-actions-bar,
+.gh-profile-card:focus-within .gh-card-actions-bar,
 .gh-profile-card.active-profile .gh-card-actions-bar {
     opacity: 1;
     transform: translateY(0);
@@ -1294,6 +1295,7 @@ main {
     backdrop-filter: blur(2px);
     z-index: 3;
     opacity: 0;
+    pointer-events: none;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1302,8 +1304,17 @@ main {
     transition: opacity 0.2s ease;
 }
 
-.gh-profile-card:hover .gh-card-hover {
+.gh-profile-card:hover .gh-card-hover,
+.gh-profile-card:focus-within .gh-card-hover {
     opacity: 1;
+    pointer-events: auto;
+}
+
+.gh-profile-card:hover,
+.gh-profile-card:focus-within {
+    transform: translateY(-2px);
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .gh-launch-btn {
@@ -2204,6 +2215,42 @@ main {
     background: rgba(239, 68, 68, 0.2);
     color: #ef4444;
     border-color: rgba(239, 68, 68, 0.3);
+}
+
+.gh-table-act-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 11px;
+    padding: 0;
+    font-family: inherit;
+}
+
+.gh-table-act-btn:hover {
+    background: #232334;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.gh-table-act-btn.delete:hover,
+.gh-table-act-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.gh-table-act-btn.watch:hover {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-color: rgba(34, 197, 94, 0.3);
 }
 
 .gh-replay-action-bar {
@@ -3306,7 +3353,7 @@ main {
     background: #101018;
     flex-shrink: 0;
     box-sizing: border-box;
-    height: 100%;
+    align-self: stretch;
     min-height: 0;
 }
 
@@ -3330,7 +3377,6 @@ main {
     flex: 1;
     min-width: 0;
     min-height: 0;
-    height: 100%;
     padding: 20px 24px 80px 24px;
     overflow-y: auto;
     overflow-x: hidden;
