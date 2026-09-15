@@ -74,14 +74,12 @@ public static class ProcessConstants
     // Process discovery and timing constants
 
     /// <summary>
-    /// Minimum time in milliseconds a Windows launcher stub's child is given to appear,
-    /// measured from launch, before it is searched for.
+    /// Historical launcher delay in milliseconds, retained as a cancellation-test baseline.
     /// </summary>
     /// <remarks>
-    /// Formerly the fixed delay before the single exited-yet check. Exit detection now
-    /// waits on the process itself (see <see cref="PostSpawnExitDetectionWindowMs"/>),
-    /// which can observe a stub exiting well before 500 ms; this floor preserves the time
-    /// the fixed delay always gave the spawned game process to register.
+    /// Production launch timing uses <see cref="PostSpawnExitDetectionWindowMs"/>,
+    /// <see cref="SpawnedChildDiscoveryTimeoutMs"/>, and <see cref="SpawnedChildPollIntervalMs"/>.
+    /// This constant no longer imposes a minimum wait before child discovery.
     /// </remarks>
     public const int LauncherDetectionDelayMs = 500;
 
@@ -157,4 +155,8 @@ public static class ProcessConstants
     /// Timeout in milliseconds when waiting for helper or utility process commands (e.g., junction creation).
     /// </summary>
     public const int HelperProcessTimeoutMs = 5_000;
+
+    /// <summary>Maximum time to await a managed process exit notification after it has exited.</summary>
+    public const int TerminationExitNotificationTimeoutMs = 5_000;
+
 }
