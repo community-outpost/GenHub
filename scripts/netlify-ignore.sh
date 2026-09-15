@@ -9,7 +9,7 @@ echo "CACHED_COMMIT_REF: $CACHED_COMMIT_REF"
 echo "PULL_REQUEST: $PULL_REQUEST"
 
 # If this is a pull request, compare against origin/development
-if [ "$PULL_REQUEST" = "true" ] || [ "$CONTEXT" = "deploy-preview" ]; then
+if [[ "$PULL_REQUEST" == "true" || "$CONTEXT" == "deploy-preview" ]]; then
   git fetch origin development --depth=50 2>/dev/null || true
   if git rev-parse --verify origin/development >/dev/null 2>&1; then
     echo "Checking diff against origin/development for: $MONITORED_PATHS"
