@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Core.Helpers;
 
@@ -55,7 +56,7 @@ public static class RetailArchiveClassifier
             var archiveName = Path.GetFileName(archivePath);
 
             if (!hasZeroHour &&
-                archiveName.EndsWith(RetailArchiveConstants.ZeroHourArchiveSuffix, StringComparison.OrdinalIgnoreCase))
+                RetailArchiveConstants.ZeroHourArchiveNames.Contains(archiveName))
             {
                 hasZeroHour = true;
             }
@@ -72,5 +73,22 @@ public static class RetailArchiveClassifier
         }
 
         return new RetailArchiveClassification(hasGenerals, hasZeroHour);
+    }
+
+    /// <summary>Classifies archives without aborting discovery when a directory is unreadable.</summary>
+    /// <param name="directory">The directory to inspect.</param>
+    /// <param name="logger">Optional logger for filesystem failures.</param>
+    /// <returns>The classification, or neither game if the directory cannot be read.</returns>
+    public static RetailArchiveClassification ClassifyArchivesSafely(string? directory, ILogger? logger = null)
+    {
+        try
+        {
+            return ClassifyArchives(directory);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            logger?.LogWarning(ex, "Could not read {Path} while classifying retail archives; treating it as holding none", directory);
+            return default;
+        }
     }
 }

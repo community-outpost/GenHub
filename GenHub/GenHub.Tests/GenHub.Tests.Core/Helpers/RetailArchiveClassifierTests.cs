@@ -7,8 +7,8 @@ namespace GenHub.Tests.Core.Helpers;
 /// Tests for <see cref="RetailArchiveClassifier"/>.
 /// </summary>
 /// <remarks>
-/// Fixtures use the retail archive filenames a real installation holds: any
-/// <c>*zh.big</c> marks Zero Hour data, any archive from the canonical Generals set
+/// Fixtures use the retail archive filenames a real installation holds: an archive from the
+/// canonical Zero Hour set marks Zero Hour data, any archive from the canonical Generals set
 /// marks Generals data. An arbitrary <c>.big</c> proves neither.
 /// </remarks>
 public class RetailArchiveClassifierTests : IDisposable
@@ -84,7 +84,7 @@ public class RetailArchiveClassifierTests : IDisposable
     }
 
     /// <summary>
-    /// Archives that are neither Zero Hour suffixed nor in the canonical Generals set —
+    /// Archives outside the canonical retail sets —
     /// mod content, hotkey packs, control bars — must not make a directory read as a game.
     /// An arbitrary <c>.big</c> proves nothing about retail data, which is why the
     /// launch-side any-archive sentinel cannot be reused for classification.
@@ -92,7 +92,7 @@ public class RetailArchiveClassifierTests : IDisposable
     [Fact]
     public void ClassifyArchives_ModArchivesOnly_IsNeitherGame()
     {
-        var dir = CreateDirectoryWithArchives("mods-only", "somemod.big", "hotkeypack.big", "controlbarpro.big");
+        var dir = CreateDirectoryWithArchives("mods-only", "somemod.big", "hotkeypack.big", "controlbarpro.big", "ControlBarProZH.big", "HotkeysZH.big");
 
         var classification = RetailArchiveClassifier.ClassifyArchives(dir);
 

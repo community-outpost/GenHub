@@ -142,7 +142,7 @@ public class GameInstallationValidator(
         }
 
         return gameType == GameType.Generals
-            ? issue.Path.EndsWith(RetailArchiveConstants.ZeroHourArchiveSuffix, StringComparison.OrdinalIgnoreCase)
+            ? RetailArchiveConstants.ZeroHourArchiveNames.Contains(issue.Path)
             : RetailArchiveConstants.GeneralsArchiveNames.Contains(issue.Path);
     }
 
@@ -285,8 +285,6 @@ public class GameInstallationValidator(
         }
 
         progress?.Report(new ValidationProgress(2, 4, "Core manifest validation"));
-        var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
-        issues.AddRange(manifestValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(3, 4, "Validating content files"));
         int totalFiles = 0;
@@ -295,13 +293,9 @@ public class GameInstallationValidator(
             var fullValidation = await contentValidator.ValidateAllAsync(
                 installationPath,
                 manifest,
-                progress,
+                null,
                 cancellationToken);
-            var isCombinedDirectory = installation is { HasGenerals: true, HasZeroHour: true }
-                && !string.IsNullOrEmpty(installation.GeneralsPath)
-                && !string.IsNullOrEmpty(installation.ZeroHourPath)
-                && string.Equals(Path.GetFullPath(installation.GeneralsPath), Path.GetFullPath(installation.ZeroHourPath), StringComparison.OrdinalIgnoreCase);
-            var contentIssues = isCombinedDirectory
+            var contentIssues = installation?.IsCombinedDirectory == true
                 ? fullValidation.Issues.Where(issue => !IsSiblingGameRootArchive(issue, gameType))
                 : fullValidation.Issues;
             issues.AddRange(contentIssues);
