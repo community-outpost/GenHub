@@ -382,6 +382,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the status color for the PAT indicator.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Minor Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property required for Avalonia UI data binding.")]
     public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>

@@ -316,18 +316,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             }
 
             // 3. Check SelectedGameInstallation (if it's a GameClient replacement)
-            if (SelectedGameInstallation != null && SelectedGameInstallation.ManifestId.Value == oldId)
+            if (SelectedGameInstallation != null &&
+                SelectedGameInstallation.ManifestId.Value == oldId &&
+                _manifestPool != null &&
+                _profileContentLoader != null)
             {
-                if (_manifestPool != null && _profileContentLoader != null)
+                var manifestResult = await _manifestPool.GetManifestAsync(newId);
+                if (manifestResult.Success && manifestResult.Data != null)
                 {
-                    var manifestResult = await _manifestPool.GetManifestAsync(newId);
-                    if (manifestResult.Success && manifestResult.Data != null)
-                    {
-                        var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
-                        SelectedGameInstallation = ConvertToViewModelContentDisplayItem(coreItem);
-                        SelectedGameInstallation.IsEnabled = true;
-                        affected = true;
-                    }
+                    var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+                    SelectedGameInstallation = ConvertToViewModelContentDisplayItem(coreItem);
+                    SelectedGameInstallation.IsEnabled = true;
+                    affected = true;
                 }
             }
 
