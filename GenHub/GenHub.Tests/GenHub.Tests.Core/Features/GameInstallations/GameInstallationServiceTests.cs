@@ -173,6 +173,7 @@ public class GameInstallationServiceTests : IDisposable
         Directory.CreateDirectory(tempDir);
         var exePath = Path.Combine(tempDir, GameClientConstants.GeneralsExecutable);
         File.WriteAllText(exePath, "dummy");
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsIniBig), "archive");
 
         try
         {
@@ -208,7 +209,9 @@ public class GameInstallationServiceTests : IDisposable
         Directory.CreateDirectory(tempDir1);
         Directory.CreateDirectory(tempDir2);
         File.WriteAllText(Path.Combine(tempDir1, GameClientConstants.GeneralsExecutable), "dummy1");
+        File.WriteAllText(Path.Combine(tempDir1, GameClientConstants.GeneralsIniBig), "archive");
         File.WriteAllText(Path.Combine(tempDir2, GameClientConstants.GeneralsExecutable), "dummy2");
+        File.WriteAllText(Path.Combine(tempDir2, GameClientConstants.GeneralsIniBig), "archive");
 
         try
         {
@@ -268,6 +271,7 @@ public class GameInstallationServiceTests : IDisposable
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(tempDir);
         File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), "dummy");
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsIniBig), "archive");
 
         try
         {
@@ -302,6 +306,7 @@ public class GameInstallationServiceTests : IDisposable
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(tempDir);
         File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), "dummy");
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsIniBig), "archive");
 
         try
         {
@@ -337,6 +342,7 @@ public class GameInstallationServiceTests : IDisposable
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(tempDir);
         File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), "dummy");
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsIniBig), "archive");
 
         try
         {
@@ -663,6 +669,7 @@ public class GameInstallationServiceTests : IDisposable
         {
             File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
             File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsIniBig), string.Empty);
 
             _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
