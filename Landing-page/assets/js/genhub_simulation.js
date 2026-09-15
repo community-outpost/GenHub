@@ -843,34 +843,95 @@
         });
     });
 
-    // Replay Manager Actions
-    const replaySearch = document.getElementById('ghReplaySearch');
+    // Replay Manager Actions (PR #422 CRC Catalog & Compatibility Integration)
+    const replaySearch = document.getElementById("ghReplaySearch");
     if (replaySearch) {
-        replaySearch.addEventListener('input', (e) => {
+        replaySearch.addEventListener("input", (e) => {
             const q = e.target.value.toLowerCase().trim();
-            document.querySelectorAll('#ghReplaysTable tbody tr').forEach(row => {
+            document.querySelectorAll("#ghReplaysTable tbody tr").forEach(row => {
                 const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(q) ? '' : 'none';
+                row.style.display = text.includes(q) ? "" : "none";
             });
         });
     }
 
-    document.querySelectorAll('.gh-table-act-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const act = btn.getAttribute('data-rep-act');
-            const row = btn.closest('tr');
-            const matchName = row ? (row.querySelector('strong')?.textContent || 'Match') : 'Match';
+    function updateReplaySelectedCount() {
+        const countSpan = document.getElementById("ghReplaySelectedCount");
+        if (!countSpan) return;
+        const selected = document.querySelectorAll("#ghReplaysTable tbody tr.selected").length;
+        const total = document.querySelectorAll("#ghReplaysTable tbody tr").length;
+        countSpan.innerHTML = `<strong>${selected || (total > 0 ? 1 : 0)}</strong> Selected`;
+    }
 
-            if (act === 'watch') {
-                window.showGenHubToast('Success', 'Playing Replay', `Launching Zero Hour replay player for "${matchName}".`);
-            } else if (act === 'share') {
-                window.showGenHubToast('Info', 'Replay Link Copied', `Upload link generated: https://genhub.online/r/151553`);
-            } else if (act === 'delete') {
-                row.remove();
-                window.showGenHubToast('Warning', 'Replay Deleted', `Removed "${matchName}" from your local storage.`);
-            }
+    // Row selection toggle
+    document.querySelectorAll("#ghReplaysTable tbody tr").forEach(row => {
+        row.addEventListener("click", (e) => {
+            if (e.target.closest("button") || e.target.closest("input")) return;
+            row.classList.toggle("selected");
+            updateReplaySelectedCount();
         });
+    });
+
+    // Replay row actions (Launch, Setup, Profile, Folder, Delete)
+    document.getElementById("ghReplaysTable")?.addEventListener("click", (e) => {
+        const actBtn = e.target.closest("[data-rep-act]");
+        if (!actBtn) return;
+        e.stopPropagation();
+
+        const act = actBtn.getAttribute("data-rep-act");
+        const row = actBtn.closest("tr");
+        const matchName = row ? (row.querySelector("strong")?.textContent || "Replay") : "Replay";
+        const client = row?.getAttribute("data-rep-client") || "Zero Hour Client";
+        const exeCrc = row?.getAttribute("data-rep-exe") || "0x8F3A2B1C";
+
+        if (act === "launch") {
+            window.showGenHubToast("Success", "Launching Replay", `Matched ${client} (${exeCrc}). Starting desync-free playback for "${matchName}".`);
+        } else if (act === "setup") {
+            window.showGenHubToast("Info", "Auto-Configuring Profile", `Creating dedicated profile for ${client} via CRC catalog mapping.`);
+        } else if (act === "profile") {
+            window.showGenHubToast("Info", "Replay Profile Options", `Opening client selector dialog for "${matchName}".`);
+        } else if (act === "folder") {
+            window.showGenHubToast("Info", "Opening Explorer", `Revealed replay file in ~/.local/share/GenHub/Replays/`);
+        } else if (act === "delete") {
+            row.remove();
+            updateReplaySelectedCount();
+            window.showGenHubToast("Warning", "Replay Deleted", `Removed "${matchName}" from local storage.`);
+        }
+    });
+
+    // Replay Action Bar Controls
+    document.getElementById("ghReplayDeleteSelectedBtn")?.addEventListener("click", () => {
+        const selected = document.querySelectorAll("#ghReplaysTable tbody tr.selected");
+        if (selected.length > 0) {
+            const count = selected.length;
+            selected.forEach(r => r.remove());
+            updateReplaySelectedCount();
+            window.showGenHubToast("Warning", "Replays Deleted", `Deleted ${count} selected replay file(s).`);
+        } else {
+            const firstRow = document.querySelector("#ghReplaysTable tbody tr");
+            if (firstRow) {
+                firstRow.remove();
+                updateReplaySelectedCount();
+                window.showGenHubToast("Warning", "Replay Deleted", "Deleted 1 selected replay.");
+            }
+        }
+    });
+
+    document.getElementById("ghReplayUncompressBtn")?.addEventListener("click", () => {
+        window.showGenHubToast("Success", "Uncompress Archives", "Extracted .rep recordings from selected archives into replay directory.");
+    });
+
+    document.getElementById("ghReplayZipBtn")?.addEventListener("click", () => {
+        const zipName = document.getElementById("ghReplayZipName")?.value || "Replays.zip";
+        window.showGenHubToast("Success", "ZIP Export Complete", `Archived selected replays into "${zipName}".`);
+    });
+
+    document.getElementById("ghReplayUploadShareBtn")?.addEventListener("click", () => {
+        window.showGenHubToast("Success", "Cloud Link Ready", "Uploaded replay to cloud: https://genhub.online/r/8f3a2b1c");
+    });
+
+    document.getElementById("ghReplayHistoryToggleBtn")?.addEventListener("click", () => {
+        window.showGenHubToast("Info", "Upload History", "Viewing cloud upload history (3 shared replays active).");
     });
 
     const replayImportBtn = document.getElementById('ghReplayImportBtn');
@@ -1378,6 +1439,12 @@
         "title": "Tools & Utilities",
         "desc": "Inspect replays and manage custom maps directly.",
         "cards": [
+            {
+                "title": "Replay Manager: CRC Catalog & Compatibility",
+                "content": "Binary SAGE header parsing and 122 gameclient catalog matching.",
+                "type": "Feature",
+                "detailed": "**CRC Mapping Infrastructure (PR #422):**\n                    *   **Header Parsing:** GenHub reads the binary SAGE replay header (`GENREP`) to extract Exe CRC, INI CRC, build timestamp, and map metadata.\n                    *   **122 GameClient Catalog:** Automatically compares parsed checksums against an embedded catalog spanning TheSuperHackers (49 weekly releases), GeneralsOnline (21 periodic/QFE/EAC releases), and Retail 1.04.\n                    *   **Live Compatibility Resolution:**\n                        *   **Compatible (Green):** Executable and game data match an active profile — ready for instant 1-click launch.\n                        *   **Requires Profile (Blue):** The required gameclient exists on disk; GenHub auto-creates a dedicated isolated replay profile.\n                        *   **Downloadable (Orange):** Missing client or patch manifests can be directly acquired from the community catalog.\n                    *   **Desync Prevention:** Eliminates mismatch errors and ensures replays play back with perfect fidelity."
+            },
             {
                 "title": "Replay Manager: Import & Parse",
                 "content": "Import and inspect game recordings.",

@@ -349,6 +349,18 @@
         justify-content: space-between !important;
     }
 
+    .gh-replay-action-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .gh-replay-action-left,
+    .gh-replay-action-right {
+        flex-wrap: wrap !important;
+        justify-content: space-between !important;
+    }
+
     /* Content Detail View */
     .gh-detail-view {
         padding: 12px !important;

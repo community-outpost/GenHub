@@ -466,9 +466,9 @@
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                                 </div>
                                 <div class="gh-notif-content">
-                                    <div class="gh-notif-item-title">Replay Parsed</div>
-                                    <div class="gh-notif-item-text">Match 151553: 4 Players on Tournament Desert (24m 12s) indexed.</div>
-                                    <div class="gh-notif-item-time">Yesterday</div>
+                                    <div class="gh-notif-item-title">Replay Parsed: CRC Match Found</div>
+                                    <div class="gh-notif-item-text">Exe CRC: 0x8F3A2B1C &bull; Matched TheSuperHackers 2026-08-21 (Compatible).</div>
+                                    <div class="gh-notif-item-time">5m ago</div>
                                 </div>
                             </div>
                         </div>
@@ -2057,68 +2057,122 @@
                                                 <table class="gh-replay-table" id="ghReplaysTable">
                                                     <thead>
                                                         <tr>
-                                                            <th>Match / Filename</th>
+                                                            <th>Filename</th>
                                                             <th>Map</th>
-                                                            <th>Date & Time</th>
-                                                            <th>Duration</th>
-                                                            <th>Players</th>
+                                                            <th>Client / Build</th>
+                                                            <th>Exe CRC</th>
+                                                            <th>INI CRC</th>
+                                                            <th>Compatibility</th>
+                                                            <th>Size</th>
                                                             <th style="text-align: right;">Actions</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        <tr>
-                                                            <td><strong>00-31-37_3v3_Vayro_vs_Akhamene.rep</strong></td>
+                                                        <tr data-rep-file="00-31-37_3v3_Vayro_vs_Akhamene.rep" data-rep-client="TheSuperHackers 2026-08-21" data-rep-exe="0x8F3A2B1C" data-rep-compat="compatible">
+                                                            <td><strong title="00-31-37_3v3_Vayro_vs_Akhamene.rep">00-31-37_3v3_Vayro_vs_Akhamene.rep</strong></td>
                                                             <td><span class="gh-chip">Tournament Desert</span></td>
-                                                            <td>Sep 14, 2026</td>
-                                                            <td>24m 12s</td>
-                                                            <td><span class="gh-tag">6 Players</span></td>
+                                                            <td><span class="gh-client-text">TheSuperHackers 2026-08-21</span></td>
+                                                            <td><code class="gh-crc-badge">0x8F3A2B1C</code></td>
+                                                            <td><code class="gh-crc-badge">0x4A1E9D02</code></td>
+                                                            <td><span class="gh-compat-pill compatible" title="Profile configured and ready to play"><span class="gh-compat-dot">●</span> Compatible</span></td>
+                                                            <td>142 KB</td>
                                                             <td style="text-align: right;">
-                                                                <button class="gh-table-act-btn watch" title="Watch Replay" data-rep-act="watch">🎬</button>
-                                                                <button class="gh-table-act-btn share" title="Share / Upload Replay" data-rep-act="share">☁️</button>
-                                                                <button class="gh-table-act-btn delete" title="Delete Replay" data-rep-act="delete">🗑️</button>
+                                                                <div class="gh-table-actions-cell">
+                                                                    <button class="gh-btn-table primary" data-rep-act="launch" title="Launch replay with matched client"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch</button>
+                                                                    <button class="gh-btn-table secondary" data-rep-act="profile" title="Configure replay profile"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg> Profile</button>
+                                                                    <button class="gh-table-act-icon" data-rep-act="folder" title="Reveal in folder"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg></button>
+                                                                    <button class="gh-table-act-icon danger" data-rep-act="delete" title="Delete replay"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg></button>
+                                                                </div>
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td><strong>01-20-41_FFA_TournamentIsland_032926.rep</strong></td>
-                                                            <td><span class="gh-chip">Tournament Island</span></td>
-                                                            <td>Sep 13, 2026</td>
-                                                            <td>18m 45s</td>
-                                                            <td><span class="gh-tag">4 Players</span></td>
-                                                            <td style="text-align: right;">
-                                                                <button class="gh-table-act-btn watch" title="Watch Replay" data-rep-act="watch">🎬</button>
-                                                                <button class="gh-table-act-btn share" title="Share / Upload Replay" data-rep-act="share">☁️</button>
-                                                                <button class="gh-table-act-btn delete" title="Delete Replay" data-rep-act="delete">🗑️</button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td><strong>Match_151553_GeneralsOnline_Ranked.rep</strong></td>
+                                                        <tr data-rep-file="Match_151553_GeneralsOnline_Ranked.rep" data-rep-client="GeneralsOnline 0.8.28" data-rep-exe="0x7B29F1D0" data-rep-compat="compatible">
+                                                            <td><strong title="Match_151553_GeneralsOnline_Ranked.rep">Match_151553_GeneralsOnline_Ranked.rep</strong></td>
                                                             <td><span class="gh-chip">Flash Fire</span></td>
-                                                            <td>Sep 12, 2026</td>
-                                                            <td>11m 30s</td>
-                                                            <td><span class="gh-tag">2 Players</span></td>
+                                                            <td><span class="gh-client-text">GeneralsOnline 0.8.28</span></td>
+                                                            <td><code class="gh-crc-badge">0x7B29F1D0</code></td>
+                                                            <td><code class="gh-crc-badge">0x13C8D744</code></td>
+                                                            <td><span class="gh-compat-pill compatible" title="Profile configured and ready to play"><span class="gh-compat-dot">●</span> Compatible</span></td>
+                                                            <td>98 KB</td>
                                                             <td style="text-align: right;">
-                                                                <button class="gh-table-act-btn watch" title="Watch Replay" data-rep-act="watch">🎬</button>
-                                                                <button class="gh-table-act-btn share" title="Share / Upload Replay" data-rep-act="share">☁️</button>
-                                                                <button class="gh-table-act-btn delete" title="Delete Replay" data-rep-act="delete">🗑️</button>
+                                                                <div class="gh-table-actions-cell">
+                                                                    <button class="gh-btn-table primary" data-rep-act="launch" title="Launch replay with matched client"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch</button>
+                                                                    <button class="gh-btn-table secondary" data-rep-act="profile" title="Configure replay profile"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg> Profile</button>
+                                                                    <button class="gh-table-act-icon" data-rep-act="folder" title="Reveal in folder"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg></button>
+                                                                    <button class="gh-table-act-icon danger" data-rep-act="delete" title="Delete replay"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg></button>
+                                                                </div>
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td><strong>Shockwave_Finals_Game3_VOD.rep</strong></td>
-                                                            <td><span class="gh-chip">Twilight Flame</span></td>
-                                                            <td>Sep 10, 2026</td>
-                                                            <td>32m 04s</td>
-                                                            <td><span class="gh-tag">4 Players</span></td>
+                                                        <tr data-rep-file="01-20-41_FFA_TournamentIsland_032926.rep" data-rep-client="Retail Zero Hour 1.04" data-rep-exe="0x2D884A0E" data-rep-compat="req-profile">
+                                                            <td><strong title="01-20-41_FFA_TournamentIsland_032926.rep">01-20-41_FFA_TournamentIsland_032926.rep</strong></td>
+                                                            <td><span class="gh-chip">Tournament Island</span></td>
+                                                            <td><span class="gh-client-text">Retail Zero Hour 1.04</span></td>
+                                                            <td><code class="gh-crc-badge">0x2D884A0E</code></td>
+                                                            <td><code class="gh-crc-badge">0x62B514F1</code></td>
+                                                            <td><span class="gh-compat-pill req-profile" title="Client installed; click Setup to create replay profile"><span class="gh-compat-dot">●</span> Requires Profile</span></td>
+                                                            <td>186 KB</td>
                                                             <td style="text-align: right;">
-                                                                <button class="gh-table-act-btn watch" title="Watch Replay" data-rep-act="watch">🎬</button>
-                                                                <button class="gh-table-act-btn share" title="Share / Upload Replay" data-rep-act="share">☁️</button>
-                                                                <button class="gh-table-act-btn delete" title="Delete Replay" data-rep-act="delete">🗑️</button>
+                                                                <div class="gh-table-actions-cell">
+                                                                    <button class="gh-btn-table primary accent" data-rep-act="setup" title="Auto-create replay profile from catalog"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg> Setup</button>
+                                                                    <button class="gh-btn-table secondary" data-rep-act="profile" title="Configure replay profile"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg> Profile</button>
+                                                                    <button class="gh-table-act-icon" data-rep-act="folder" title="Reveal in folder"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg></button>
+                                                                    <button class="gh-table-act-icon danger" data-rep-act="delete" title="Delete replay"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg></button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr data-rep-file="Shockwave_Finals_Game3_VOD.rep" data-rep-client="Shockwave 1.201" data-rep-exe="0xA5C98144" data-rep-compat="downloadable">
+                                                            <td><strong title="Shockwave_Finals_Game3_VOD.rep">Shockwave_Finals_Game3_VOD.rep</strong></td>
+                                                            <td><span class="gh-chip">Twilight Flame</span></td>
+                                                            <td><span class="gh-client-text">Shockwave 1.201</span></td>
+                                                            <td><code class="gh-crc-badge">0xA5C98144</code></td>
+                                                            <td><code class="gh-crc-badge">0x5E0392F8</code></td>
+                                                            <td><span class="gh-compat-pill downloadable" title="Patch manifest available in catalog"><span class="gh-compat-dot">●</span> Downloadable</span></td>
+                                                            <td>210 KB</td>
+                                                            <td style="text-align: right;">
+                                                                <div class="gh-table-actions-cell">
+                                                                    <button class="gh-btn-table primary download" data-rep-act="setup" title="Download matching patch from catalog"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg> Setup</button>
+                                                                    <button class="gh-btn-table secondary" data-rep-act="profile" title="Configure replay profile"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg> Profile</button>
+                                                                    <button class="gh-table-act-icon" data-rep-act="folder" title="Reveal in folder"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg></button>
+                                                                    <button class="gh-table-act-icon danger" data-rep-act="delete" title="Delete replay"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg></button>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
                                             </div>
+
+                                            <!-- Replay Action Bar (ReplayManagerView.axaml action row) -->
+                                            <div class="gh-replay-action-bar">
+                                                <div class="gh-replay-action-left">
+                                                    <span class="gh-replay-selected-count" id="ghReplaySelectedCount"><strong>1</strong> Selected</span>
+                                                    <button class="gh-btn-secondary danger" id="ghReplayDeleteSelectedBtn" title="Delete selected replay files" style="font-size: 11.5px; padding: 4px 8px;">
+                                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
+                                                        <span>Delete</span>
+                                                    </button>
+                                                </div>
+                                                <div class="gh-replay-action-right">
+                                                    <button class="gh-btn-secondary" id="ghReplayUncompressBtn" title="Extract replay files from selected ZIP archives" style="font-size: 11.5px; padding: 4px 8px;">
+                                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,6V11H6V13H11V18H13V13H18V11H13V6H11Z"/></svg>
+                                                        <span>Uncompress</span>
+                                                    </button>
+                                                    <input type="text" placeholder="ZIP Name" class="gh-zip-name-input" id="ghReplayZipName" value="Tournament_Replays.zip" aria-label="ZIP file name">
+                                                    <button class="gh-btn-secondary" id="ghReplayZipBtn" title="Export selected replays to ZIP archive" style="font-size: 11.5px; padding: 4px 8px;">
+                                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M14,17H12V15H10V13H12V11H14V13H16V15H14M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"/></svg>
+                                                        <span>Zip</span>
+                                                    </button>
+                                                    <div class="gh-split-btn-group">
+                                                        <button class="gh-btn-primary split-left" id="ghReplayUploadShareBtn" title="Upload to cloud and copy share link">
+                                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04M14,13V17H10V13H7L12,8L17,13H14Z"/></svg>
+                                                            <span>Upload &amp; Share</span>
+                                                        </button>
+                                                        <button class="gh-btn-primary split-right" id="ghReplayHistoryToggleBtn" title="View upload history" aria-expanded="false">
+                                                            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div class="gh-table-status-bar">
-                                                <span>4 Replays indexed (Zero Hour) • 48.2 MB total</span>
+                                                <span>4 Replays indexed &bull; 122 GameClients in CRC Catalog (TheSuperHackers, GeneralsOnline, Retail)</span>
                                                 <span>Storage: ~/.local/share/GenHub/Replays/</span>
                                             </div>
                                         </div>
@@ -2843,6 +2897,18 @@ End
                     <section class="faq-answer" id="faq-ans-2" aria-labelledby="faq-btn-2" aria-hidden="true">
                         <p>
                             Yes. Profiles launch through Steam, keeping playtime tracking, friend status, and the Shift+Tab overlay active without modifying your clean install.
+                        </p>
+                    </section>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" id="faq-btn-rep" type="button" aria-expanded="false" aria-controls="faq-ans-rep">
+                        <span>How does GenHub play back replays without desync errors?</span>
+                        <svg class="faq-chevron" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <section class="faq-answer" id="faq-ans-rep" aria-labelledby="faq-btn-rep" aria-hidden="true">
+                        <p>
+                            GenHub inspects the binary replay header for exact Exe and INI checksums, matching them against an integrated catalog of 122 game client releases (TheSuperHackers, GeneralsOnline, Retail 1.04). It automatically sets up or launches the precise engine and companion files used to record the match, guaranteeing 100% desync-free playback.
                         </p>
                     </section>
                 </div>
