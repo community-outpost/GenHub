@@ -2195,116 +2195,6 @@ main {
     margin: 0;
 }
 
-/* ==========================================================================
-   TAB 4 & 5: SETTINGS & INFO VIEWS (SettingsView.axaml, InfoView.axaml)
-   ========================================================================== */
-.gh-settings-view, .gh-info-view {
-    display: flex;
-    height: 100%;
-    min-height: 0;
-    flex: 1;
-    overflow: hidden;
-}
-
-.gh-settings-sidebar, .gh-info-sidebar {
-    width: 210px;
-    min-width: 210px;
-    max-width: 210px;
-    background: #14141e;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    height: 100%;
-    min-height: 0;
-    box-sizing: border-box;
-    overflow-y: auto;
-}
-
-.gh-settings-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.gh-settings-nav-list, .gh-info-nav-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.gh-setting-nav-btn, .gh-info-nav-btn {
-    display: flex;
-    align-items: center;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: transparent;
-    border: 1px solid transparent;
-    color: #cbd5e1;
-    cursor: pointer;
-    font-size: 12.5px;
-    font-weight: 500;
-    font-family: inherit;
-    text-align: left;
-    width: 100%;
-}
-
-.gh-setting-nav-btn.active, .gh-info-nav-btn.active {
-    background: var(--gh-accent-light, rgba(139, 92, 246, 0.18)) !important;
-    border-color: var(--gh-accent-border, rgba(139, 92, 246, 0.45)) !important;
-    color: #ffffff !important;
-    font-weight: 600;
-}
-
-.gh-settings-content, .gh-info-content {
-    flex: 1;
-    padding: 20px 24px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    height: 100%;
-    min-height: 0;
-    box-sizing: border-box;
-    scroll-behavior: smooth;
-}
-
-.gh-settings-page-header h2, .gh-info-page-header h2 {
-    font-size: 20px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 3px 0;
-}
-
-.gh-settings-page-header p, .gh-info-page-header p {
-    font-size: 12.5px;
-    color: #94a3b8;
-    margin: 0;
-}
-
-.gh-settings-card, .gh-info-card {
-    background: #14141e;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 16px 18px;
-}
-
-.gh-settings-card h4, .gh-info-card h4 {
-    font-size: 14px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 6px 0;
-}
-
-.gh-info-card p {
-    font-size: 12.5px;
-    color: #94a3b8;
-    line-height: 1.5;
-    margin: 0;
-}
-
 /* Statusbar */
 .genhub-statusbar {
     height: 28px;
@@ -3035,13 +2925,6 @@ main {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.gh-table-status-bar {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: #64748b;
-    padding: 0 4px;
-}
 
 /* Settings View Expanders & Navigation */
 .gh-settings-view {
