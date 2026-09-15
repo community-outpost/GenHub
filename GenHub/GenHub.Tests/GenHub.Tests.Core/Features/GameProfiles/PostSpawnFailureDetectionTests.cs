@@ -331,7 +331,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     {
         // Wired exactly as in production: the registry subscribes to the manager's exit
         // event in its constructor, before this test's own completion probe.
-        var registry = new LaunchRegistry(NullLogger<LaunchRegistry>.Instance, null, _processManager);
+        var registry = new LaunchRegistry(NullLogger<LaunchRegistry>.Instance, _processManager);
 
         var exited = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
         _processManager.ProcessExited += (_, e) => exited.TrySetResult(e);
