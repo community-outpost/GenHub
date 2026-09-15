@@ -135,7 +135,11 @@
             else if (paneKey === 'downloads') statusText.textContent = 'Downloads Browser • Connected to Community Catalog';
             else if (paneKey === 'tools') statusText.textContent = 'Diagnostics & Replay Analyzer Initialized';
             else if (paneKey === 'settings') statusText.textContent = 'Configuration Loaded (~/.config/GenHub/settings.json)';
-            else if (paneKey === 'info') statusText.textContent = 'Documentation & Frequently Asked Questions';
+            else if (paneKey === 'info') {
+                statusText.textContent = 'Documentation & Frequently Asked Questions';
+                const infoContent = document.getElementById('ghInfoContentArea');
+                if (infoContent) infoContent.scrollTop = 0;
+            }
         }
     }
 
@@ -1947,30 +1951,30 @@
         }
         if (secId === 'scangames') {
             return `
-                <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
-                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Automatic Game Discovery</div>
-                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Scans registry keys, Steam libraries, and EA App directories.</div>
-                    <div style="background: #090615; padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; color: #34d399;">
+                <div class="gh-demo-wrapper">
+                    <div style="font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Automatic Game Discovery</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Scans registry keys, Steam libraries, and EA App directories.</div>
+                    <div style="background: #090615; padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; color: #34d399; overflow-x: auto; word-break: break-all; overflow-wrap: anywhere; line-height: 1.45;">
                         <div>✓ Steam Library: C:\\Program Files (x86)\\Steam\\steamapps\\common\\Command and Conquer Generals</div>
-                        <div style="margin-top: 4px;">✓ EA App: C:\\Program Files\\EA Games\\Command and Conquer Generals Zero Hour</div>
-                        <div style="margin-top: 4px; color: #94a3b8;">• Retail CD/DVD: Not found (Skipped)</div>
+                        <div style="margin-top: 6px;">✓ EA App: C:\\Program Files\\EA Games\\Command and Conquer Generals Zero Hour</div>
+                        <div style="margin-top: 6px; color: #94a3b8;">• Retail CD/DVD: Not found (Skipped)</div>
                     </div>
                 </div>
             `;
         }
         if (secId === 'workspace' || secId === 'workspaces') {
             return `
-                <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
-                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Virtual Workspace (NTFS Hardlinks)</div>
-                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Instant profile launching with 0 extra disk duplication.</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="gh-demo-wrapper">
+                    <div style="font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Virtual Workspace (NTFS Hardlinks)</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Instant profile launching with 0 extra disk duplication.</div>
+                    <div class="gh-workspace-demo-grid">
                         <div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
                             <strong style="color: #f87171; font-size: 12px;">Traditional Mod Copy:</strong>
-                            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Duplicates 10 GB per mod installation. 5 mods = 50 GB. Slow copy times.</div>
+                            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">Duplicates 10 GB per mod installation. 5 mods = 50 GB. Slow copy times.</div>
                         </div>
                         <div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
                             <strong style="color: #34d399; font-size: 12px;">GenHub Hardlinks:</strong>
-                            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Links to clean base files in 0.02s. 5 mods = 0 B extra disk space. Pristine core files.</div>
+                            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">Links to clean base files in 0.02s. 5 mods = 0 B extra disk space. Pristine core files.</div>
                         </div>
                     </div>
                 </div>
@@ -1997,9 +2001,11 @@
         const titleEl = document.getElementById('ghInfoSectionTitle');
         const descEl = document.getElementById('ghInfoSectionDesc');
         const container = document.getElementById('ghInfoCardsContainer');
+        const contentArea = document.getElementById('ghInfoContentArea');
 
         if (titleEl) titleEl.textContent = section.title;
         if (descEl) descEl.textContent = section.desc;
+        if (contentArea) contentArea.scrollTop = 0;
 
         if (container) {
             const demoHtml = renderDemoContainer(secKey);
@@ -2044,6 +2050,9 @@
             infoNavBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             renderInfoSection(id);
+            if (typeof btn.scrollIntoView === 'function') {
+                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            }
         });
     });
 
@@ -2077,6 +2086,9 @@
                             navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
                             b.classList.add('active');
                             renderInfoSection(b.getAttribute('data-info-id'));
+                            if (typeof b.scrollIntoView === 'function') {
+                                b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                            }
                         });
                     });
                 }
@@ -2093,6 +2105,9 @@
                             navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
                             b.classList.add('active');
                             renderInfoSection(b.getAttribute('data-info-id'));
+                            if (typeof b.scrollIntoView === 'function') {
+                                b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                            }
                         });
                     });
                 }
@@ -2108,6 +2123,9 @@
                             navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
                             b.classList.add('active');
                             renderInfoSection(b.getAttribute('data-info-id'));
+                            if (typeof b.scrollIntoView === 'function') {
+                                b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                            }
                         });
                     });
                 }

@@ -377,11 +377,12 @@
     .gh-info-view {
         flex-direction: column !important;
         height: 100% !important;
+        min-height: 0 !important;
+        flex: 1 1 auto !important;
         overflow: hidden !important;
     }
 
-    .gh-settings-sidebar,
-    .gh-info-sidebar {
+    .gh-settings-sidebar {
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
@@ -395,27 +396,80 @@
         scrollbar-width: none !important;
     }
 
-    .gh-settings-sidebar::-webkit-scrollbar,
-    .gh-info-sidebar::-webkit-scrollbar {
+    .gh-settings-sidebar::-webkit-scrollbar {
         display: none !important;
     }
 
-    .gh-settings-title,
-    .gh-info-title {
+    .gh-settings-title {
         display: none !important;
     }
 
-    .gh-settings-nav-list,
-    .gh-info-nav-list {
+    .gh-settings-nav-list {
         display: flex !important;
         flex-direction: row !important;
         gap: 6px !important;
     }
 
-    .gh-setting-nav-btn,
+    .gh-setting-nav-btn {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        padding: 5px 12px !important;
+        border-radius: 20px !important;
+        font-size: 11.5px !important;
+    }
+
+    /* Info Tab Responsive: Dedicated Mobile Header Controls & Fluid Touch Scroll */
+    .gh-info-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        flex: 0 0 auto !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        padding: 8px 12px 6px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        overflow: visible !important;
+        background: #12121c !important;
+    }
+
+    .gh-info-title {
+        display: none !important;
+    }
+
+    .gh-info-module-select-wrap {
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+
+    #ghInfoModuleSelect {
+        width: 100% !important;
+        min-height: 34px !important;
+        padding: 6px 30px 6px 10px !important;
+        font-size: 12px !important;
+    }
+
+    .gh-info-nav-list {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        gap: 6px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-bottom: 2px !important;
+    }
+
+    .gh-info-nav-list::-webkit-scrollbar {
+        display: none !important;
+    }
+
     .gh-info-nav-btn {
         flex: 0 0 auto !important;
         width: auto !important;
+        white-space: nowrap !important;
         padding: 5px 12px !important;
         border-radius: 20px !important;
         font-size: 11.5px !important;
@@ -424,6 +478,57 @@
     .gh-settings-content,
     .gh-info-content {
         padding: 12px 14px 60px !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior-y: contain !important;
+    }
+
+    .gh-info-card {
+        padding: 14px 14px !important;
+    }
+
+    .gh-info-card-header {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    .gh-info-card-header h4 {
+        font-size: 13.5px !important;
+        line-height: 1.4 !important;
+    }
+
+    .gh-info-expand-btn {
+        min-height: 30px !important;
+        padding: 5px 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+
+    .gh-info-detailed-content {
+        padding: 10px 12px !important;
+        font-size: 12px !important;
+        line-height: 1.55 !important;
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+    }
+
+    .gh-info-detailed-content ul {
+        padding-left: 18px !important;
+        margin: 6px 0 !important;
+    }
+
+    .gh-workspace-demo-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    .gh-demo-wrapper {
+        padding: 14px 12px !important;
+        margin-bottom: 14px !important;
     }
 }
 
@@ -614,6 +719,20 @@
         opacity: 1 !important;
         pointer-events: auto !important;
     }
+
+    /* Info Tab Responsive: Mobile 640px */
+    .gh-info-content {
+        padding: 10px 12px 50px !important;
+        gap: 12px !important;
+    }
+
+    .gh-info-page-header h2 {
+        font-size: 17px !important;
+    }
+
+    .gh-info-page-header p {
+        font-size: 11.5px !important;
+    }
 }
 
 /* Small Mobile Phones (<= 480px) */
@@ -673,5 +792,38 @@
     .gh-content-editor-toolbar {
         flex-wrap: wrap !important;
         gap: 8px !important;
+    }
+
+    /* Info Tab Responsive: Small Mobile 480px */
+    .gh-info-sidebar {
+        padding: 6px 10px 4px !important;
+        gap: 5px !important;
+    }
+
+    .gh-info-content {
+        padding: 8px 10px 45px !important;
+        gap: 10px !important;
+    }
+
+    .gh-info-card {
+        padding: 12px 10px !important;
+    }
+
+    .gh-info-card-header h4 {
+        font-size: 13px !important;
+    }
+
+    .gh-info-card p {
+        font-size: 12px !important;
+    }
+
+    .gh-demo-wrapper {
+        padding: 12px 10px !important;
+    }
+
+    .gh-demo-wrapper .gh-profile-card {
+        width: 100% !important;
+        max-width: 260px !important;
+        height: 320px !important;
     }
 }

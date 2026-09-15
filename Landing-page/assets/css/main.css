@@ -661,6 +661,8 @@ main {
 .genhub-view-pane.active {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 #gh-pane-profiles {
@@ -669,6 +671,8 @@ main {
 
 #gh-pane-profiles.active {
     display: block;
+    flex: 1;
+    min-height: 0;
 }
 
 @keyframes ghFadeIn {
@@ -3281,11 +3285,19 @@ main {
 /* Info View Components */
 .gh-info-view {
     display: flex;
+    flex-direction: row;
     height: 100%;
+    min-height: 0;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
 }
 
 .gh-info-sidebar {
     width: 220px;
+    min-width: 220px;
+    max-width: 220px;
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     padding: 16px 12px;
     display: flex;
@@ -3293,10 +3305,14 @@ main {
     gap: 6px;
     background: #101018;
     flex-shrink: 0;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
 }
 
 .gh-info-module-select-wrap {
     margin-bottom: 8px;
+    flex-shrink: 0;
 }
 
 .gh-info-nav-list {
@@ -3305,12 +3321,42 @@ main {
     gap: 4px;
     overflow-y: auto;
     flex: 1;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.gh-info-content {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    padding: 20px 24px 80px 24px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+.gh-info-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
 }
 
 .gh-info-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
 }
 
 .gh-info-card-header h4 {
@@ -3318,6 +3364,7 @@ main {
     font-size: 14px;
     font-weight: 700;
     color: #ffffff;
+    line-height: 1.4;
 }
 
 .gh-info-expand-btn {
@@ -3328,8 +3375,13 @@ main {
     font-size: 11.5px;
     font-weight: 600;
     cursor: pointer;
-    padding: 2px 0;
+    padding: 4px 0;
     margin-top: 4px;
+    transition: color 0.15s ease;
+}
+
+.gh-info-expand-btn:hover {
+    color: #c084fc;
 }
 
 .gh-info-detailed-content {
@@ -3342,6 +3394,8 @@ main {
     line-height: 1.6;
     color: #cbd5e1;
     margin-top: 6px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .gh-info-detailed-content.active {
@@ -3352,6 +3406,28 @@ main {
     display: flex;
     gap: 8px;
     margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.gh-demo-wrapper {
+    margin-bottom: 16px;
+    padding: 18px 20px;
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 12px;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.gh-demo-wrapper .gh-profile-card {
+    max-width: 100%;
+}
+
+.gh-workspace-demo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
 }
 
 
