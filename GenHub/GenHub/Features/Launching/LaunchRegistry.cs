@@ -206,6 +206,8 @@ public class LaunchRegistry : ILaunchRegistry
 
             // A repeated delivery has the same exit identity. A recycled PID with a
             // different exit time/code belongs to a new launch awaiting registration.
+            // Redelivery must preserve the original ExitTime even when cloning the args;
+            // stamping a new time describes a new exit and cannot be safely deduplicated.
             if (_activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId
                 && l.TerminatedAt == e.ExitTime && l.ExitCode == e.ExitCode))
             {
