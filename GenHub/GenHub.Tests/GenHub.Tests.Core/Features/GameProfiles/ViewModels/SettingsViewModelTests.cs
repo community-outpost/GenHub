@@ -1398,7 +1398,7 @@ public class SettingsViewModelTests
         await viewModel.TestPatCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.True(viewModel.IsPatValid);
+        Assert.False(viewModel.IsPatValid);
         Assert.True(viewModel.HasGitHubPat);
         Assert.Empty(viewModel.GitHubPatInput);
         Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
@@ -1424,7 +1424,7 @@ public class SettingsViewModelTests
         await viewModel.TestPatCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.True(viewModel.IsPatValid);
+        Assert.False(viewModel.IsPatValid);
         Assert.True(viewModel.HasGitHubPat);
         Assert.Empty(viewModel.GitHubPatInput);
         Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
@@ -1443,8 +1443,6 @@ public class SettingsViewModelTests
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
-
-
 
     private SettingsViewModel CreateViewModel(
         IThemeService? themeService = null,

@@ -342,4 +342,56 @@ public class ImportProfileInspectionViewModelTests
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
+    /// <summary>
+    /// Verifies that ConfirmImportCommand does not execute when an import is already in progress.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConfirmImportCommand_WhenAlreadyImporting_DoesNotImportAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata { Name = "Concurrent Test", GameType = GameType.ZeroHour },
+            RequiredManifests = [],
+        };
+
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [],
+            HasValidGameInstallation = true,
+            MatchedGameInstallationId = "inst-1",
+            CompatibleInstallations = [new GameInstallation("/games/zh", GameInstallationType.Steam) { Id = "inst-1", HasZeroHour = true }],
+            TotalDownloadBytesRequired = 0,
+            CachedManifestCount = 0,
+            MissingManifestCount = 0,
+            HasNameConflict = false,
+            SuggestedProfileName = "Concurrent Test",
+            SecurityWarnings = [],
+            Package = package,
+        };
+
+        var vm = new ImportProfileInspectionViewModel(
+            inspection,
+            _sharingServiceMock.Object,
+            _notificationServiceMock.Object,
+            NullLogger<ImportProfileInspectionViewModel>.Instance)
+        {
+            IsImporting = true,
+        };
+
+        // Act
+        await vm.ConfirmImportCommand.ExecuteAsync(null);
+
+        // Assert
+        _sharingServiceMock.Verify(
+            s => s.ImportSharedProfileAsync(
+                It.IsAny<SharedProfileImportRequest>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 }

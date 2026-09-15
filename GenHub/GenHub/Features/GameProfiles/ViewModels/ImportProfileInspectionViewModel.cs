@@ -260,7 +260,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     [RelayCommand]
     private async Task ConfirmImportAsync()
     {
-        if (_disposed)
+        if (_disposed || IsImporting)
         {
             return;
         }

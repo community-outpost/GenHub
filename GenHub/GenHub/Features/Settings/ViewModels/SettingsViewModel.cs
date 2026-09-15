@@ -1502,7 +1502,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
             PatStatusMessage = validated ? "PAT validated successfully ✓" : "PAT saved (validation pending)";
-            IsPatValid = true;
+            IsPatValid = validated;
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
         }

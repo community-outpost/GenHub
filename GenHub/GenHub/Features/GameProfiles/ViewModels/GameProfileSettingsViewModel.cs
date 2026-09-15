@@ -230,7 +230,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <inheritdoc/>
     public void Receive(ManifestReplacedMessage message)
     {
-        // Global manifest replacement - update our state surgicaly to avoid losing unsaved toggles
+        // Global manifest replacement - update our state surgically to avoid losing unsaved toggles
         // Dispatch to UI thread to ensure ObservableCollection mutations happen safely
         Dispatcher.UIThread.Post(() => _ = HandleManifestReplacementAsync(message.OldId, message.NewId));
     }
@@ -630,6 +630,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             ClearInstallationSelection();
         }
+    }
+
+    /// <summary>
+    /// Called when the game type filter changes.
+    /// </summary>
+    partial void OnGameTypeFilterChanged(GameType value)
+    {
+        _ = RefreshFiltersAndContentAsync();
     }
 
     private void SyncInstallationSelection(ContentDisplayItem value)
