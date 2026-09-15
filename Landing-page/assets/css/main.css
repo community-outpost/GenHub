@@ -3102,6 +3102,12 @@ main {
 }
 
 .gh-expander-header {
+    width: 100%;
+    border: none;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
     padding: 13px 18px;
     background: #171725;
     display: flex;
