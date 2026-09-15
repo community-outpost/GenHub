@@ -295,9 +295,10 @@ public class HotkeyPackageService(
         sb.AppendLine("; ------------------------------------------------------------");
         sb.AppendLine();
 
+        var written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var icon in processedIcons)
         {
-            AppendIconMappedImages(sb, icon);
+            AppendIconMappedImages(sb, icon, written);
         }
 
         var iniContent = sb.ToString();
@@ -313,10 +314,8 @@ public class HotkeyPackageService(
         await File.WriteAllTextAsync(Path.Combine(textureSizeDir, GenHotkeysConstants.TextureSize512HotkeysIniFileName), iniContent, cancellationToken);
     }
 
-    private static void AppendIconMappedImages(StringBuilder sb, string icon)
+    private static void AppendIconMappedImages(StringBuilder sb, string icon, HashSet<string> written)
     {
-        var written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
         void AddEntry(string name)
         {
             if (written.Add(name))

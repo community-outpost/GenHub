@@ -37,7 +37,7 @@ public class GenHotkeysConflictTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PresetValidation_LeikezeAndLegionnaire_ProduceZeroConflicts()
+    public async Task PresetValidation_LeikezeAndLegionnaire_ProduceZeroConflictsAsync()
     {
         var service = new TechTreeService(Mock.Of<ILogger<TechTreeService>>());
         var allFailures = new List<string>();
