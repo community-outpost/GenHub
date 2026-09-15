@@ -316,6 +316,13 @@ main {
    GENHUB NATIVE AVALONIA CLIENT SIMULATION (1:1 FIDELITY)
    ========================================================================== */
 
+
+.genhub-app-window input,
+.genhub-app-window textarea,
+.genhub-app-window select {
+    user-select: text;
+}
+
 .genhub-app-window {
     --gh-accent: #8b5cf6;
     --gh-accent-hover: #7c3aed;
@@ -913,136 +920,11 @@ main {
     color: #94a3b8;
 }
 
-/* Setup Wizard Modal */
-.gh-modal-window.wizard-window {
-    max-width: 680px;
-}
-
-.gh-wizard-header {
-    padding: 16px 22px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.gh-wizard-titles h3 {
-    font-size: 18px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 4px 0;
-}
-
-.gh-wizard-titles p {
-    font-size: 12px;
-    color: #94a3b8;
-    margin: 0;
-}
-
-.gh-wizard-body {
-    padding: 18px 22px;
-    max-height: 520px;
-    overflow-y: auto;
-}
-
-.gh-wizard-components-title {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 16px 0 10px 0;
-}
-
-.gh-wizard-checklist {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.gh-wizard-item {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: background 0.15s;
-}
-
-.gh-wizard-item:hover {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.gh-wizard-item-icon img {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    object-fit: contain;
-}
-
-.gh-wizard-item-info {
-    flex: 1;
-}
-
-.gh-wizard-item-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: #ffffff;
-    margin-bottom: 2px;
-}
-
-.gh-wizard-item-name .required-badge {
-    font-size: 10px;
-    color: #fbbf24;
-    background: rgba(245, 158, 11, 0.15);
-    padding: 1px 6px;
-    border-radius: 4px;
-    margin-left: 6px;
-}
-
-.gh-wizard-item-desc {
-    font-size: 11.5px;
-    color: #94a3b8;
-}
-
 .gh-wizard-chk {
     width: 18px;
     height: 18px;
-    accent-color: #8b5cf6;
+    accent-color: var(--gh-accent, #8b5cf6);
     cursor: pointer;
-}
-
-.gh-wizard-footer, .gh-edit-footer {
-    padding: 12px 22px;
-    background: #13131c;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-/* Edit Window */
-.gh-modal-window.edit-window {
-    max-width: 600px;
-}
-
-.gh-edit-header {
-    padding: 16px 22px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.gh-edit-header h3 {
-    font-size: 17px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0;
-}
-
-.gh-edit-body {
-    padding: 18px 22px;
 }
 
 .gh-form-group {
@@ -1113,11 +995,7 @@ main {
 .gh-btn-primary:hover {
     background: var(--gh-accent-hover, #7c3aed);
     border-color: var(--gh-accent, #8b5cf6);
-}
-
-.gh-btn-primary:hover {
-    background: #9333ea;
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+    box-shadow: 0 0 12px var(--gh-accent-glow, rgba(168, 85, 247, 0.4));
 }
 
 /* ==========================================================================
@@ -1522,9 +1400,6 @@ main {
     overflow: hidden;
 }
 
-.gh-pub-count {
-    display: none !important;
-}
 
 .gh-publishers-sidebar {
     width: 230px;
@@ -1605,13 +1480,6 @@ main {
     text-overflow: ellipsis;
 }
 
-.gh-pub-btn .gh-pub-count {
-    font-size: 10.5px;
-    color: #94a3b8;
-    background: rgba(255, 255, 255, 0.06);
-    padding: 1px 6px;
-    border-radius: 10px;
-}
 
 .gh-pub-btn:hover {
     background: rgba(255, 255, 255, 0.05);
@@ -1859,20 +1727,6 @@ main {
     flex-shrink: 0;
 }
 
-.gh-card-progress-bar {
-    height: 3px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 2px;
-    overflow: hidden;
-    display: none;
-}
-
-.gh-card-progress-bar .fill {
-    height: 100%;
-    width: 0%;
-    background: #10b981;
-    transition: width 0.3s ease;
-}
 
 .gh-action-btn {
     width: 100%;
@@ -1889,15 +1743,6 @@ main {
     transition: all 0.15s ease;
 }
 
-.gh-action-btn.download {
-    background: #0084ff;
-    border: 1px solid #38bdf8;
-    color: #ffffff;
-}
-
-.gh-action-btn.download:hover {
-    background: #0070d8;
-}
 
 .gh-action-btn.add-profile {
     background: #10b981;
@@ -2242,57 +2087,6 @@ main {
     color: #64748b;
 }
 
-/* Map Manager Panel */
-.gh-map-panel {
-    padding: 16px;
-}
-
-.gh-map-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.gh-map-actions-group {
-    display: flex;
-    gap: 8px;
-}
-
-.gh-maps-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 14px;
-}
-
-.gh-map-card {
-    background: #161622;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.gh-map-thumb {
-    width: 100%;
-    height: 110px;
-    object-fit: cover;
-}
-
-.gh-map-info {
-    padding: 12px;
-}
-
-.gh-map-info .title {
-    font-size: 13px;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.gh-map-info .meta {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-top: 2px;
-}
 
 /* ModBuilder & GenPatcher */
 .gh-modbuilder-view {
@@ -2428,7 +2222,7 @@ main {
     overflow-y: auto;
 }
 
-.gh-settings-title, .gh-info-title {
+.gh-settings-title {
     font-size: 14px;
     font-weight: 700;
     color: #ffffff;
@@ -3836,7 +3630,6 @@ main {
 .genhub-app-window select,
 .gh-form-select,
 .gh-downloads-filter,
-.gh-detail-select,
 #ghCatalogFilter,
 #ghDetailTargetProfile,
 #ghSettingStrategy,
@@ -3868,16 +3661,14 @@ main {
 
 .genhub-app-window select:hover,
 .gh-form-select:hover,
-.gh-downloads-filter:hover,
-.gh-detail-select:hover {
+.gh-downloads-filter:hover {
     border-color: rgba(255, 255, 255, 0.35) !important;
     background-color: #1c1c2e !important;
 }
 
 .genhub-app-window select:focus,
 .gh-form-select:focus,
-.gh-downloads-filter:focus,
-.gh-detail-select:focus {
+.gh-downloads-filter:focus {
     border-color: #8b5cf6 !important;
     box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3) !important;
     background-color: #1c1c2e !important;
@@ -3898,4 +3689,32 @@ main {
     background-color: #11111a !important;
     color: #a78bfa !important;
     font-weight: 700 !important;
+}
+
+.gh-import-input:focus-visible,
+.gh-search-input:focus-visible,
+.gh-map-search-input:focus-visible,
+.gh-map-url-input:focus-visible,
+.gh-downloads-search:focus-visible {
+    outline: none;
+    border-color: var(--gh-accent, #8b5cf6);
+    box-shadow: 0 0 0 2px var(--gh-accent-glow, rgba(139, 92, 246, 0.3));
+}
+
+.gh-range-slider {
+    accent-color: var(--gh-accent, #7c3aed);
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    outline: none;
+    cursor: pointer;
+}
+
+.gh-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 8px;
 }

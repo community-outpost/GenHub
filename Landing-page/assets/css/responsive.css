@@ -475,7 +475,7 @@
     .gh-downloads-search-wrap {
         flex: 1 !important;
     }
-    .gh-downloads-search-wrap .gh-search-input {
+    .gh-downloads-search-wrap .gh-downloads-search {
         width: 100% !important;
         box-sizing: border-box !important;
     }
@@ -532,7 +532,7 @@
         overflow-y: auto !important;
         padding: 12px !important;
     }
-    .gh-replay-topbar {
+    .gh-replay-header {
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 8px !important;
@@ -591,7 +591,7 @@
         flex-direction: row !important;
         gap: 6px !important;
     }
-    .gh-settings-nav-btn,
+    .gh-setting-nav-btn,
     .gh-info-nav-btn,
     .gh-settings-sidebar button,
     .gh-info-sidebar button {
@@ -775,5 +775,35 @@
     }
     .gh-content-desc {
         font-size: 11px;
+    }
+}
+
+@media (max-width: 768px) {
+    .gh-table-container,
+    .gh-map-datagrid-wrap {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media (max-width: 640px) {
+    .gh-general-settings-grid {
+        flex-direction: column !important;
+    }
+    .gh-sub-sidebar {
+        width: 100% !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        padding-bottom: 8px !important;
+    }
+    .gh-card-hover {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+}
+@media (max-width: 480px) {
+    .gh-content-editor-toolbar {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
     }
 }
