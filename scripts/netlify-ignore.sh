@@ -24,6 +24,11 @@ if [[ "$PULL_REQUEST" == "true" || "$CONTEXT" == "deploy-preview" ]]; then
 fi
 
 # For production / branch deploys (merges to development):
+if [[ "$CACHED_COMMIT_REF" == "$COMMIT_REF" ]]; then
+  echo "No prior cached commit is available. Proceeding with build as safe fallback."
+  exit 1
+fi
+
 TARGET_REF="${CACHED_COMMIT_REF:-HEAD~1}"
 if git rev-parse --verify "$TARGET_REF" >/dev/null 2>&1; then
   echo "Checking diff between $TARGET_REF and $COMMIT_REF for: $MONITORED_PATHS"
