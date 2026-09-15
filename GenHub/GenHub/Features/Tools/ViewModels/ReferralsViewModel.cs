@@ -100,8 +100,23 @@ public partial class ReferralsViewModel : ObservableObject
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(EditPublisherId))
+        {
+            _logger.LogWarning("Cannot save referral with empty publisher ID");
+            return;
+        }
+
+        var trimmedUrl = EditCatalogUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedUrl) ||
+            !Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            _logger.LogWarning("Cannot save referral with invalid catalog URL: {Url}", EditCatalogUrl);
+            return;
+        }
+
         SelectedReferral.PublisherId = EditPublisherId.ToLowerInvariant().Trim();
-        SelectedReferral.CatalogUrl = EditCatalogUrl.Trim();
+        SelectedReferral.CatalogUrl = trimmedUrl;
         SelectedReferral.Note = string.IsNullOrWhiteSpace(EditNote) ? null : EditNote.Trim();
 
         _parentViewModel.MarkDirty();

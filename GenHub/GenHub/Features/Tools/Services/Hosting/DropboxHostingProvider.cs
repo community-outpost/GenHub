@@ -33,14 +33,24 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private const string DropboxContentUrl = "https://content.dropboxapi.com/2";
     private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
 
-    private readonly HttpClient _httpClient = httpClientFactory.CreateClient();
+    private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);
+
+    private static HttpClient InitializeHttpClient(IHttpClientFactory factory)
+    {
+        var client = factory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        return client;
+    }
     private string? _accessToken;
     private bool _disposed;
 
     /// <summary>
     /// Gets the maximum file size supported by Dropbox.
     /// </summary>
-    public static long MaxFileSizeBytes => 2L * 1024 * 1024 * 1024; // 2GB free tier limit
+    /// <summary>
+    /// Gets the maximum file size supported by the Dropbox simple upload endpoint (150 MB).
+    /// </summary>
+    public static long MaxFileSizeBytes => 150L * 1024 * 1024; // 150MB simple upload endpoint limit
 
     /// <inheritdoc/>
     public string ProviderId => HostingConstants.Dropbox;
@@ -166,6 +176,12 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         try
         {
+            if (fileStream.CanSeek && fileStream.Length > MaxFileSizeBytes)
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure(
+                    $"File '{fileName}' is {fileStream.Length / (1024 * 1024)} MB, which exceeds Dropbox's 150 MB single-request upload limit.");
+            }
+
             folderPath ??= PublisherFolderPath;
             var targetPath = $"{folderPath}/{fileName}".Replace("//", "/");
 
@@ -565,31 +581,53 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private async Task<OperationResult<string>?> TryGetExistingSharedLinkAsync(string path, CancellationToken cancellationToken)
     {
         var listRequest = new { path, direct_only = true };
-        var listResponse = await _httpClient.PostAsync(
-            $"{DropboxApiUrl}/sharing/list_shared_links",
-            new StringContent(JsonSerializer.Serialize(listRequest), Encoding.UTF8, HostingConstants.JsonContentType),
-            cancellationToken).ConfigureAwait(false);
+        HttpResponseMessage? listResponse = null;
 
-        if (!listResponse.IsSuccessStatusCode)
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            var listError = await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogWarning("Dropbox list_shared_links returned {Status}: {Error}", listResponse.StatusCode, listError);
+            using var requestContent = new StringContent(JsonSerializer.Serialize(listRequest), Encoding.UTF8, HostingConstants.JsonContentType);
+            listResponse = await _httpClient.PostAsync(
+                $"{DropboxApiUrl}/sharing/list_shared_links",
+                requestContent,
+                cancellationToken).ConfigureAwait(false);
+
+            if ((int)listResponse.StatusCode == 429 && attempt < 2)
+            {
+                var delaySeconds = listResponse.Headers.RetryAfter?.Delta?.TotalSeconds is { } s && s > 0 ? (int)Math.Min(s, 10) : 2;
+                logger.LogWarning("Dropbox rate limit hit during shared link query for {Path}. Retrying in {Seconds}s...", path, delaySeconds);
+                listResponse.Dispose();
+                listResponse = null;
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            break;
+        }
+
+        if (listResponse == null || !listResponse.IsSuccessStatusCode)
+        {
+            var listError = listResponse != null ? await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false) : "No response";
+            logger.LogWarning("Dropbox list_shared_links returned {Status}: {Error}", listResponse?.StatusCode, listError);
+            listResponse?.Dispose();
             return null;
         }
 
-        var listContent = await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        using var listDoc = JsonDocument.Parse(listContent);
-        if (listDoc.RootElement.TryGetProperty("links", out var links) && links.GetArrayLength() > 0)
+        using (listResponse)
         {
-            var existingUrl = links[0].GetProperty("url").GetString();
-            if (!string.IsNullOrEmpty(existingUrl))
+            var listContent = await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var listDoc = JsonDocument.Parse(listContent);
+            if (listDoc.RootElement.TryGetProperty("links", out var links) && links.GetArrayLength() > 0)
             {
-                logger.LogInformation("Found existing Dropbox shared link: {Url}", existingUrl);
-                return OperationResult<string>.CreateSuccess(existingUrl);
+                var existingUrl = links[0].GetProperty("url").GetString();
+                if (!string.IsNullOrEmpty(existingUrl))
+                {
+                    logger.LogInformation("Found existing Dropbox shared link: {Url}", existingUrl);
+                    return OperationResult<string>.CreateSuccess(existingUrl);
+                }
             }
-        }
 
-        return null;
+            return null;
+        }
     }
 
     private async Task<OperationResult<string>> RequestNewSharedLinkAsync(string path, CancellationToken cancellationToken)

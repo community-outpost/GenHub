@@ -9,6 +9,8 @@ namespace GenHub.Core.Models.Providers;
 /// </summary>
 public class CatalogEntry
 {
+    private List<string> _mirrors = [];
+
     /// <summary>
     /// Gets or sets the unique ID for this catalog within the publisher (e.g., "zh-mods", "maps").
     /// </summary>
@@ -37,5 +39,9 @@ public class CatalogEntry
     /// Gets or sets the alternate URLs for redundancy.
     /// </summary>
     [JsonPropertyName("mirrors")]
-    public List<string> Mirrors { get; set; } = [];
+    public List<string> Mirrors
+    {
+        get => _mirrors ??= [];
+        set => _mirrors = value ?? [];
+    }
 }

@@ -1,4 +1,6 @@
+using GenHub.Core.Constants;
 using System;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Helpers;
@@ -17,6 +19,11 @@ public static class CloudUrlHelper
 
     private static readonly Regex GitHubBlobRegex = new(
         @"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexTimeout);
+
+    private static readonly Regex DropboxDlRegex = new(
+        @"(?<=[?&])dl=0(?=[&#]|$)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase,
         RegexTimeout);
 
@@ -42,19 +49,19 @@ public static class CloudUrlHelper
             if (match.Success)
             {
                 var fileId = match.Groups[1].Value;
-                return $"https://drive.google.com/uc?export=download&id={fileId}";
+                return string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, fileId);
             }
         }
 
         // 2. Dropbox share links (force dl=1)
         if (trimmed.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase))
         {
-            if (trimmed.EndsWith("?dl=0", StringComparison.OrdinalIgnoreCase))
+            if (DropboxDlRegex.IsMatch(trimmed))
             {
-                return trimmed[..^5] + "?dl=1";
+                return DropboxDlRegex.Replace(trimmed, "dl=1");
             }
 
-            if (!trimmed.Contains("?dl=", StringComparison.OrdinalIgnoreCase))
+            if (!trimmed.Contains("dl=1", StringComparison.OrdinalIgnoreCase))
             {
                 return trimmed + (trimmed.Contains('?') ? "&dl=1" : "?dl=1");
             }

@@ -12,6 +12,7 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         SystemDecorations="BorderOnly"
+        TransparencyLevelHint="AcrylicBlur, Blur, Transparent"
         Background="Transparent">
 
     <Window.Styles>

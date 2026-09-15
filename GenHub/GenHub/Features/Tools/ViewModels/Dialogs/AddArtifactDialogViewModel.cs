@@ -323,11 +323,18 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
                     IsComputingHash = true;
                     try
                     {
-                        Sha256Hash = await Task.Run(() => ComputeSha256(path));
+                        var computedHash = await Task.Run(() => ComputeSha256(path));
+                        if (LocalFilePath == path)
+                        {
+                            Sha256Hash = computedHash;
+                        }
                     }
                     finally
                     {
-                        IsComputingHash = false;
+                        if (LocalFilePath == path)
+                        {
+                            IsComputingHash = false;
+                        }
                     }
                 }
             }
@@ -373,23 +380,33 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
             return;
         }
 
+        var targetPath = LocalFilePath;
         IsComputingHash = true;
         ValidationError = null;
 
         try
         {
-            await using var stream = File.OpenRead(LocalFilePath);
+            await using var stream = File.OpenRead(targetPath);
             using var sha256 = SHA256.Create();
             var hashBytes = await sha256.ComputeHashAsync(stream, CancellationToken.None);
-            Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            if (LocalFilePath == targetPath)
+            {
+                Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            }
         }
         catch (Exception ex)
         {
-            ValidationError = $"Failed to compute hash: {ex.Message}";
+            if (LocalFilePath == targetPath)
+            {
+                ValidationError = $"Failed to compute hash: {ex.Message}";
+            }
         }
         finally
         {
-            IsComputingHash = false;
+            if (LocalFilePath == targetPath)
+            {
+                IsComputingHash = false;
+            }
         }
     }
 

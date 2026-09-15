@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,8 +19,14 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// </summary>
 public partial class AddDependencyDialogViewModel : ObservableValidator
 {
+    private static readonly HttpClient SharedHttpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(15),
+    };
+
     private readonly PublisherCatalog _catalog;
     private readonly Action<CatalogDependency> _onDependencyCreated;
+    private CancellationTokenSource? _discoveryCts;
 
     [ObservableProperty]
     private bool _isFromMyCatalog = true;
@@ -252,16 +260,24 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         ValidationError = null;
         DiscoveredContent.Clear();
 
+        _discoveryCts?.Cancel();
+        _discoveryCts?.Dispose();
+        _discoveryCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var ct = _discoveryCts.Token;
+
         try
         {
-            using var client = new System.Net.Http.HttpClient();
-            var json = await client.GetStringAsync(ExternalCatalogUrl);
-            await TryParseCatalogOrDefinitionAsync(client, json);
+            var json = await SharedHttpClient.GetStringAsync(ExternalCatalogUrl, ct);
+            await TryParseCatalogOrDefinitionAsync(SharedHttpClient, json, ct);
 
             if (DiscoveredContent.Count == 0)
             {
                 ValidationError = "No content found at the provided URL";
             }
+        }
+        catch (OperationCanceledException)
+        {
+            ValidationError = "Discovery request timed out or was canceled.";
         }
         catch (Exception ex)
         {
@@ -274,7 +290,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "Modifies instance state")]
-    private async Task TryParseCatalogOrDefinitionAsync(System.Net.Http.HttpClient client, string json)
+    private async Task TryParseCatalogOrDefinitionAsync(HttpClient client, string json, CancellationToken cancellationToken)
     {
         try
         {
@@ -302,7 +318,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
             {
                 ExternalPublisherId = definition.Publisher.Id;
 
-                var catalogJson = await client.GetStringAsync(definition.CatalogUrl);
+                var catalogJson = await client.GetStringAsync(definition.CatalogUrl, cancellationToken);
                 var catalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
                 if (catalog != null)
                 {

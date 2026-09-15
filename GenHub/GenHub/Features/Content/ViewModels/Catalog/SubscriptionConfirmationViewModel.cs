@@ -319,7 +319,7 @@ public partial class SubscriptionConfirmationViewModel(
                 AvatarUrl = !string.IsNullOrWhiteSpace(_parsedCatalog.Publisher.AvatarUrl) && ImageCacheService.IsSafeRemoteUrl(_parsedCatalog.Publisher.AvatarUrl, out _)
                     ? _parsedCatalog.Publisher.AvatarUrl
                     : null,
-                AutoUpdate = existingSub?.AutoUpdate == true,
+                AutoUpdate = existingSub?.AutoUpdate ?? true,
                 NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
                 CachedCatalogHash = existingSub?.CachedCatalogHash,
                 LastFetched = existingSub?.LastFetched,

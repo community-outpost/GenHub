@@ -142,6 +142,38 @@
         <GradientStop Color="{StaticResource PrimaryGradientEnd}" Offset="1" />
     </LinearGradientBrush>
 
+    <Color x:Key="CheckBoxCheckedColor">#AA00FF</Color>
+    <SolidColorBrush x:Key="CheckBoxCheckedBrush" Color="{StaticResource CheckBoxCheckedColor}" />
+
+    <!-- Legacy / Compatibility Component Brushes -->
+    <SolidColorBrush x:Key="TitleBarBackground" Color="{DynamicResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="TitleBarForeground" Color="{StaticResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="SidebarBackground" Color="{DynamicResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="EmptyStateForeground" Color="{StaticResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="TreeViewBackground" Color="{DynamicResource SurfaceCardDark}" />
+    <SolidColorBrush x:Key="ComboBoxBackground" Color="{DynamicResource SurfaceElevatedDark}" />
+    <SolidColorBrush x:Key="TextBoxBackground" Color="{DynamicResource SurfaceElevatedDark}" />
+    <SolidColorBrush x:Key="ButtonBackground" Color="{DynamicResource SurfaceElevatedDark}" />
+    <SolidColorBrush x:Key="PrimaryButtonForeground" Color="White" />
+
+    <!-- Glass & Alpha Tokens -->
+    <SolidColorBrush x:Key="GlassFillBrush" Color="#15FFFFFF" />
+    <SolidColorBrush x:Key="GlassFillSubtleBrush" Color="#0DFFFFFF" />
+    <SolidColorBrush x:Key="GlassBorderBrush" Color="#25FFFFFF" />
+    <SolidColorBrush x:Key="GlassBorderSubtleBrush" Color="#1AFFFFFF" />
+
+    <!-- Status Tokens: Draft -->
+    <Color x:Key="StatusDraftColor">#6B7280</Color>
+    <SolidColorBrush x:Key="StatusDraftBrush" Color="{StaticResource StatusDraftColor}" />
+    <SolidColorBrush x:Key="StatusDraftBadgeBackgroundBrush" Color="#206B7280" />
+
+    <!-- Deep Purple Nebula Background (Semi-Transparent) -->
+    <LinearGradientBrush x:Key="PurpleNebulaBackground" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#E60F0B1A" Offset="0" />
+        <GradientStop Color="#E61A122E" Offset="0.5" />
+        <GradientStop Color="#E60F0B1A" Offset="1" />
+    </LinearGradientBrush>
+
     <!-- Unified Status Bar Colors -->
     <!-- Light Mode: Subtle light grey background with refined border -->
     <Color x:Key="StatusBarBackgroundLight">#EAEAEF</Color>

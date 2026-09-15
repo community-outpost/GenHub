@@ -1596,5 +1596,5 @@ All errors return `OperationResult<T>` with descriptive messages.
 
 - [Content Pipeline Architecture](../content/content-pipeline.md)
 - [Provider Infrastructure](../content/provider-infrastructure.md)
-- [Publisher Studio Plan](../../publisher_studio_plan.md)
-- [Manifest ID System](../dev/manifest-id-system.md)
+- [Creator Publishing](../content/creator-publishing.md)
+- [Manifest ID System](../../dev/manifest-id-system.md)

@@ -55,7 +55,25 @@ public partial class ImportSubscriptionViewModel : ObservableObject
         var targetUrl = CommandLineParser.ExtractSubscriptionUrl(new[] { raw });
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
-            targetUrl = raw;
+            if (raw.StartsWith("genhub://", StringComparison.OrdinalIgnoreCase))
+            {
+                var queryIndex = raw.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
+                if (queryIndex != -1)
+                {
+                    var extracted = raw[(queryIndex + 4)..].Trim().Trim('"', '\'');
+                    var decoded = Uri.UnescapeDataString(extracted);
+                    if (Uri.TryCreate(decoded, UriKind.Absolute, out var parsedUri) &&
+                        (parsedUri.Scheme == Uri.UriSchemeHttp || parsedUri.Scheme == Uri.UriSchemeHttps))
+                    {
+                        targetUrl = decoded;
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(targetUrl))
+            {
+                targetUrl = raw;
+            }
         }
 
         targetUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(targetUrl);

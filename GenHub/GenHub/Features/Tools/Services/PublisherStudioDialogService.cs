@@ -54,7 +54,7 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
         // For now, this is handled within the Publisher Profile tab connections.
         // If we need a dedicated dialog later, it should be implemented here.
         await Task.CompletedTask;
-        return true;
+        return false;
     }
 
     /// <inheritdoc/>

@@ -532,6 +532,26 @@ public partial class AddContentDialogViewModel : ObservableValidator
 
         if (!IsEditMode && IncludeInitialRelease)
         {
+            if (!string.IsNullOrWhiteSpace(DownloadUrl))
+            {
+                if (!Uri.TryCreate(DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
+                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                {
+                    ValidationError = "Download URL must be a valid HTTP or HTTPS link.";
+                    IsValid = false;
+                    return;
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(LocalFilePath))
+            {
+                if (!System.IO.File.Exists(LocalFilePath) && !System.IO.Directory.Exists(LocalFilePath))
+                {
+                    ValidationError = $"Local path does not exist: {LocalFilePath}";
+                    IsValid = false;
+                    return;
+                }
+            }
+
             AttachInitialRelease(contentItem);
         }
         else if (IsEditMode)

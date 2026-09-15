@@ -182,6 +182,7 @@ public class GitHubHostingProvider : IHostingProvider
                 };
                 newGist.Files.Add(fileName, jsonContent);
 
+                cancellationToken.ThrowIfCancellationRequested();
                 var gist = await _client.Gist.Create(newGist);
                 progress?.Report(100);
 
@@ -369,6 +370,7 @@ public class GitHubHostingProvider : IHostingProvider
 
             var gistUpdate = new GistUpdate();
 
+            cancellationToken.ThrowIfCancellationRequested();
             // Check if the file already exists in the gist under the current or an older name
             var currentGist = await _client.Gist.Get(fileId);
             string? targetKey = null;
@@ -399,6 +401,7 @@ public class GitHubHostingProvider : IHostingProvider
                 };
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             var updatedGist = await _client.Gist.Edit(fileId, gistUpdate);
 
             progress?.Report(100);

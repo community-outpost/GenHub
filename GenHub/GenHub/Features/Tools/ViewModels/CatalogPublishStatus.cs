@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Publishers;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -58,15 +59,15 @@ public partial class CatalogPublishStatus : ObservableObject
         {
             if (!IsPublished)
             {
-                return "#6B7280";
+                return UiConstants.StatusInactiveColor;
             }
 
             if (HasChanges)
             {
-                return "#F59E0B";
+                return UiConstants.StatusUpdateAvailableColor;
             }
 
-            return "#10B981";
+            return UiConstants.StatusSuccessColor;
         }
     }
 

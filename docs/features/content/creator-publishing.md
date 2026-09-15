@@ -142,11 +142,11 @@ Settings → Subscriptions → Add Publisher → Paste catalog URL
 
 | Component | Purpose |
 |-----------|---------|
-| [PublisherSubscriptionStore](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/PublisherSubscriptionStore.cs) | File-based subscription persistence (`subscriptions.json`) |
-| [JsonPublisherCatalogParser](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/JsonPublisherCatalogParser.cs) | Parses & validates catalog JSON (15+ validation rules) |
-| [VersionSelector](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/VersionSelector.cs) | Filters versions (Latest Stable Only by default) |
-| [GenericCatalogDiscoverer](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/GenericCatalogDiscoverer.cs) | Fetches catalog, applies filters, returns search results |
-| [GenericCatalogResolver](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/GenericCatalogResolver.cs) | Converts catalog entry → ContentManifest |
+| [PublisherSubscriptionStore](../../../GenHub/GenHub/Features/Content/Services/Catalog/PublisherSubscriptionStore.cs) | File-based subscription persistence (`subscriptions.json`) |
+| [JsonPublisherCatalogParser](../../../GenHub/GenHub/Features/Content/Services/Catalog/JsonPublisherCatalogParser.cs) | Parses & validates catalog JSON (15+ validation rules) |
+| [VersionSelector](../../../GenHub/GenHub/Features/Content/Services/Catalog/VersionSelector.cs) | Filters versions (Latest Stable Only by default) |
+| [GenericCatalogDiscoverer](../../../GenHub/GenHub/Features/Content/Services/Catalog/GenericCatalogDiscoverer.cs) | Fetches catalog, applies filters, returns search results |
+| [GenericCatalogResolver](../../../GenHub/GenHub/Features/Content/Services/Catalog/GenericCatalogResolver.cs) | Converts catalog entry → ContentManifest |
 
 ### Multi-Catalog Support
 
@@ -438,13 +438,14 @@ GenHub → Settings → Logs → Filter: "PublisherCatalog"
 
 ### Full-Featured Catalog
 
-See [creator-publishing-roadmap.md](file:///z:/GenHub/docs/dev/creator-publishing-roadmap.md) for complete examples with metadata, dependencies, and multiple releases.
+See [Publisher Architecture](../../dev/publisher-architecture.md) for complete architectural details and examples.
 
 ---
 
 ## Related Documentation
 
-- [Roadmap](file:///z:/GenHub/docs/dev/creator-publishing-roadmap.md) - Comprehensive architectural design
-- [Manifest ID System](file:///z:/GenHub/docs/dev/manifest-id-system.md) - How content IDs are generated
-- [Provider Infrastructure](file:///z:/GenHub/docs/features/content/provider-infrastructure.md) - Existing provider system
-- [Downloads Flow](file:///z:/GenHub/docs/FlowCharts/Downloads-Flow.md) - Content discovery pipeline
+- [Publisher Architecture](../../dev/publisher-architecture.md) - Comprehensive architectural design
+- [Manifest ID System](../../dev/manifest-id-system.md) - How content IDs are generated
+- [Provider Infrastructure](provider-infrastructure.md) - Existing provider system
+- [Downloads Flow](../../FlowCharts/Downloads-Flow.md) - Content discovery pipeline
+- [Publisher Studio](../tools/publisher-studio.md) - Visual authoring and publishing tool

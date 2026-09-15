@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -185,4 +187,21 @@ public static class HostingConstants
         "dropbox.com",
         "dropboxusercontent.com",
     ];
+
+    /// <summary>
+    /// Checks whether the given host matches any recognized cloud provider domain.
+    /// </summary>
+    /// <param name="host">The host name to check.</param>
+    /// <returns><c>true</c> if the host is a recognized cloud provider; otherwise, <c>false</c>.</returns>
+    public static bool IsCloudProviderHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        return CloudProviderHostPatterns.Any(pattern =>
+            string.Equals(host, pattern, System.StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith("." + pattern, System.StringComparison.OrdinalIgnoreCase));
+    }
 }

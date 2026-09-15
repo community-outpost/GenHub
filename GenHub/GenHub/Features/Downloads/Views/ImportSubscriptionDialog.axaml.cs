@@ -1,6 +1,8 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Features.Downloads.ViewModels;
 
 namespace GenHub.Features.Downloads.Views;
 
@@ -18,10 +20,20 @@ public partial class ImportSubscriptionDialog : Window
     }
 
     /// <inheritdoc />
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            BeginMoveDrag(e);
+        }
+    }
+
+    /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (DataContext is GenHub.Features.Downloads.ViewModels.ImportSubscriptionViewModel vm)
+        if (DataContext is ImportSubscriptionViewModel vm)
         {
             vm.RequestClose = _ => Close();
         }

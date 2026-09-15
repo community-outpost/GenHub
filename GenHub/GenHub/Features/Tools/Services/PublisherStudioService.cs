@@ -22,6 +22,11 @@ public class PublisherStudioService(
     ILogger<PublisherStudioService> logger,
     IPublisherCatalogParser catalogParser) : IPublisherStudioService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true,
+    };
     /// <inheritdoc />
     public Task<OperationResult<PublisherStudioProject>> CreateProjectAsync(
         string name,
@@ -76,11 +81,11 @@ public class PublisherStudioService(
             }
 
             var json = await File.ReadAllTextAsync(path, cancellationToken);
-            var project = JsonSerializer.Deserialize<PublisherStudioProject>(json);
+            var project = JsonSerializer.Deserialize<PublisherStudioProject>(json, JsonOptions);
 
-            if (project == null)
+            if (project == null || (project.Catalog == null && (project.Catalogs == null || project.Catalogs.Count == 0)))
             {
-                return OperationResult<PublisherStudioProject>.CreateFailure("Failed to deserialize project");
+                return OperationResult<PublisherStudioProject>.CreateFailure("Failed to deserialize project: no valid catalog data found");
             }
 
             project.Catalogs ??= [];
@@ -120,12 +125,7 @@ public class PublisherStudioService(
 
             project.LastModified = DateTime.UtcNow;
 
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-            };
-
-            var json = JsonSerializer.Serialize(project, options);
+            var json = JsonSerializer.Serialize(project, JsonOptions);
             await File.WriteAllTextAsync(project.ProjectPath, json, cancellationToken);
 
             project.IsDirty = false;
@@ -365,6 +365,8 @@ public class PublisherStudioService(
         bool allowPendingArtifacts,
         CancellationToken cancellationToken)
     {
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var content in catalog.Content)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -372,6 +374,11 @@ public class PublisherStudioService(
             if (string.IsNullOrWhiteSpace(content.Id))
             {
                 return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
+            }
+
+            if (!seenIds.Add(content.Id))
+            {
+                return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
             }
 
             if (content.Releases.Count == 0)
@@ -532,7 +539,26 @@ public class PublisherStudioService(
     private static List<string> DetectCircularDependencies(PublisherCatalog catalog)
     {
         var errors = new List<string>();
-        var contentMap = catalog.Content.ToDictionary(c => c.Id, c => c);
+        var duplicateIds = catalog.Content
+            .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+            .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateIds.Count > 0)
+        {
+            errors.Add($"Duplicate content item IDs found: {string.Join(", ", duplicateIds)}");
+        }
+
+        var contentMap = new Dictionary<string, CatalogContentItem>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in catalog.Content)
+        {
+            if (!string.IsNullOrWhiteSpace(item.Id) && !contentMap.ContainsKey(item.Id))
+            {
+                contentMap[item.Id] = item;
+            }
+        }
 
         foreach (var content in catalog.Content)
         {

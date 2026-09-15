@@ -227,9 +227,6 @@ public static class ContentPipelineModule
         services.AddTransient<GenericCatalogManifestFactory>();
         services.AddTransient<IPublisherManifestFactory>(sp => sp.GetRequiredService<GenericCatalogManifestFactory>());
 
-        // Register tab provider registry and providers
-        services.AddSingleton<ITabProviderRegistry, TabProviderRegistry>();
-        services.AddSingleton<ITabProvider, CatalogTabProvider>();
     }
 
     /// <summary>

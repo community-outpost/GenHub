@@ -123,10 +123,7 @@ public partial class PublisherStudioViewModel : ObservableObject
         : this(logger, publisherStudioService, dialogService, autoInitialize: false)
     {
         _hostingProviderFactory = hostingProviderFactory;
-        if (hostingStateManager != null)
-        {
-            _hostingStateManager = hostingStateManager;
-        }
+        _hostingStateManager = hostingStateManager ?? _hostingStateManager;
 
         _notificationService = notificationService;
         _configurationProvider = configurationProvider;
@@ -477,12 +474,21 @@ public partial class PublisherStudioViewModel : ObservableObject
         CurrentProject.Catalog.Publisher ??= new();
         CurrentProject.Catalog.Content ??= [];
 
-        var newId = $"catalog-{CurrentProject.Catalogs.Count + 1}";
+        var existingIds = new System.Collections.Generic.HashSet<string>(
+            CurrentProject.Catalogs.Select(c => c.Id),
+            System.StringComparer.OrdinalIgnoreCase);
+        int index = CurrentProject.Catalogs.Count + 1;
+        while (existingIds.Contains($"catalog-{index}"))
+        {
+            index++;
+        }
+
+        var newId = $"catalog-{index}";
         var newCatalog = new NamedCatalog
         {
             Id = newId,
-            Name = $"Catalog {CurrentProject.Catalogs.Count + 1}",
-            FileName = $"catalog-{newId}.json",
+            Name = $"Catalog {index}",
+            FileName = $"{newId}.json",
             Catalog = new() { Publisher = CurrentProject.Catalog.Publisher },
         };
 
@@ -542,9 +548,19 @@ public partial class PublisherStudioViewModel : ObservableObject
         var newName = await _dialogService.ShowRenameCatalogDialogAsync(target.Name);
         if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == target.Name) return;
 
+        var newId = Slugify(newName);
+        if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = $"A catalog with ID '{newId}' already exists.";
+            _notificationService?.ShowWarning("Duplicate Catalog ID", StatusMessage);
+            return;
+        }
+
         target.Name = newName.Trim();
-        target.Id = Slugify(newName);
-        target.FileName = $"catalog-{target.Id}.json";
+        target.Id = newId;
+        target.FileName = target.Id.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase)
+            ? $"{target.Id}.json"
+            : $"catalog-{target.Id}.json";
 
         var idx = Catalogs.IndexOf(target);
         if (idx >= 0)

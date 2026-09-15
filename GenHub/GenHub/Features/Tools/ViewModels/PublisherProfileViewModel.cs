@@ -31,15 +31,23 @@ public partial class PublisherProfileViewModel : ObservableValidator
     private string _publisherName = string.Empty;
 
     [ObservableProperty]
+    [NotifyDataErrorInfo]
+    [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateUrl))]
     private string _avatarUrl = string.Empty;
 
     [ObservableProperty]
+    [NotifyDataErrorInfo]
+    [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateUrl))]
     private string _websiteUrl = string.Empty;
 
     [ObservableProperty]
+    [NotifyDataErrorInfo]
+    [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateUrl))]
     private string _supportUrl = string.Empty;
 
     [ObservableProperty]
+    [NotifyDataErrorInfo]
+    [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateEmail))]
     private string _contactEmail = string.Empty;
 
     [ObservableProperty]
@@ -159,5 +167,42 @@ public partial class PublisherProfileViewModel : ObservableValidator
             IsSavedSuccessfully = false;
             _logger.LogError(ex, "Failed to save publisher profile");
         }
+    }
+    /// <summary>
+    /// Validates that a string is either empty or a valid HTTP/HTTPS URL.
+    /// </summary>
+    public static ValidationResult? ValidateUrl(string? value, ValidationContext context)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return ValidationResult.Success;
+        }
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return ValidationResult.Success;
+        }
+
+        return new ValidationResult($"{context.DisplayName} must be a valid http or https URL.");
+    }
+
+    /// <summary>
+    /// Validates that an email address is either empty or valid.
+    /// </summary>
+    public static ValidationResult? ValidateEmail(string? value, ValidationContext context)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return ValidationResult.Success;
+        }
+
+        var attr = new EmailAddressAttribute();
+        if (attr.IsValid(value) && value.Contains('@') && !value.StartsWith('@') && !value.EndsWith('@'))
+        {
+            return ValidationResult.Success;
+        }
+
+        return new ValidationResult("Contact email must be a valid email address.");
     }
 }

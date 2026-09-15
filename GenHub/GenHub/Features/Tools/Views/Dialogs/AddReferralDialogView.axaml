@@ -3,10 +3,15 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
+             xmlns:conv="using:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddReferralDialogView"
              x:DataType="vm:AddReferralDialogViewModel"
              x:Name="RootView">
+
+    <UserControl.Resources>
+        <conv:StringEqualityMultiConverter x:Key="StringEqualityMultiConverter"/>
+    </UserControl.Resources>
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="24">
         <!-- Header -->
@@ -90,8 +95,14 @@
                                             <PathIcon Grid.Column="2"
                                                       Data="{StaticResource CheckmarkIcon}"
                                                       Width="18" Height="18"
-                                                      Foreground="#40FF40"
-                                                      IsVisible="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectedPublisher.PublisherId, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding PublisherId}}"/>
+                                                      Foreground="#40FF40">
+                                                <PathIcon.IsVisible>
+                                                    <MultiBinding Converter="{StaticResource StringEqualityMultiConverter}">
+                                                        <Binding Path="#RootView.((vm:AddReferralDialogViewModel)DataContext).SelectedPublisher.PublisherId"/>
+                                                        <Binding Path="PublisherId"/>
+                                                    </MultiBinding>
+                                                </PathIcon.IsVisible>
+                                            </PathIcon>
                                         </Grid>
                                     </Button>
                                 </DataTemplate>

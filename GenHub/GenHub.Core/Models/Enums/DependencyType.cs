@@ -1,6 +1,6 @@
-namespace GenHub.Core.Models.Enums;
-
 using System.Text.Json.Serialization;
+
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Defines the type of dependency relationship between content items.

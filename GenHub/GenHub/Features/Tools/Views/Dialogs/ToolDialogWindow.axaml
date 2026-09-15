@@ -15,19 +15,10 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1">
 
-    <Window.Resources>
-        <!-- Deep Purple Nebula Background (Semi-Transparent) -->
-        <LinearGradientBrush x:Key="PurpleNebulaBackground" StartPoint="0%,0%" EndPoint="100%,100%">
-            <GradientStop Color="#E60F0B1A" Offset="0" />
-            <GradientStop Color="#E61A122E" Offset="0.5" />
-            <GradientStop Color="#E60F0B1A" Offset="1" />
-        </LinearGradientBrush>
-    </Window.Resources>
-
-    <Panel Background="{StaticResource PurpleNebulaBackground}">
+    <Panel Background="{DynamicResource PurpleNebulaBackground}">
         <ContentControl Name="MainContent"/>
 
         <!-- Window Drag Region (since we are extending client area) -->
-        <Panel Height="30" VerticalAlignment="Top" Background="Transparent" IsHitTestVisible="False"/>
+        <Panel Height="30" VerticalAlignment="Top" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
     </Panel>
 </Window>

@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
@@ -44,9 +45,30 @@ public class CrossPublisherDependencyResolver(
                 var existingManifest = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
                 if (existingManifest.Success && existingManifest.Data != null)
                 {
-                    // Dependency is already installed, skip
-                    logger.LogDebug("Dependency {DependencyId} is already installed", dependency.Id);
-                    continue;
+                    VersionConstraint? installedConstraint = null;
+                    if (!string.IsNullOrEmpty(dependency.ExactVersion))
+                    {
+                        installedConstraint = VersionConstraint.Exact(dependency.ExactVersion);
+                    }
+                    else if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion))
+                    {
+                        installedConstraint = new VersionConstraint
+                        {
+                            MinVersion = dependency.MinVersion,
+                            MinInclusive = dependency.MinInclusive,
+                            MaxVersion = dependency.MaxVersion,
+                            MaxInclusive = dependency.MaxInclusive,
+                        };
+                    }
+
+                    if (installedConstraint == null || installedConstraint.IsSatisfiedBy(existingManifest.Data.Version))
+                    {
+                        // Dependency is already installed and satisfies constraints, skip
+                        logger.LogDebug("Dependency {DependencyId} (v{Version}) is already installed and satisfies constraints", dependency.Id, existingManifest.Data.Version);
+                        continue;
+                    }
+
+                    logger.LogInformation("Installed dependency {DependencyId} (v{Version}) does not satisfy constraints; attempting to resolve matching version", dependency.Id, existingManifest.Data.Version);
                 }
 
                 // Dependency is missing, try to resolve it
@@ -101,6 +123,19 @@ public class CrossPublisherDependencyResolver(
     {
         try
         {
+            var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogUrl);
+            if (string.IsNullOrWhiteSpace(normalizedUrl) ||
+                !Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure("Catalog URL must be a valid absolute HTTP or HTTPS URL.");
+            }
+
+            if (uri.IsLoopback || uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure("Loopback and local addresses are not allowed for catalog sources.");
+            }
+
             var httpClient = httpClientFactory.CreateClient();
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(HostingConstants.CatalogFetchTimeoutSeconds));
@@ -108,7 +143,7 @@ public class CrossPublisherDependencyResolver(
 
             logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
 
-            var response = await httpClient.GetAsync(catalogUrl, ct);
+            var response = await httpClient.GetAsync(normalizedUrl, ct);
             response.EnsureSuccessStatusCode();
 
             // Check size limit with bounded stream read
@@ -236,23 +271,42 @@ public class CrossPublisherDependencyResolver(
                 return OperationResult<ContentSearchResult?>.CreateSuccess(null);
             }
 
-            // Get the latest release
-            var latestRelease = matchingContent.Releases
+            VersionConstraint? constraint = null;
+            if (!string.IsNullOrEmpty(dependency.ExactVersion))
+            {
+                constraint = VersionConstraint.Exact(dependency.ExactVersion);
+            }
+            else if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion))
+            {
+                constraint = new VersionConstraint
+                {
+                    MinVersion = dependency.MinVersion,
+                    MinInclusive = dependency.MinInclusive,
+                    MaxVersion = dependency.MaxVersion,
+                    MaxInclusive = dependency.MaxInclusive,
+                };
+            }
+
+            var candidateReleases = matchingContent.Releases
+                .Where(r => constraint == null || constraint.IsSatisfiedBy(r.Version));
+
+            // Get the latest release matching constraints
+            var latestRelease = candidateReleases
                 .Where(r => r.IsLatest && !r.IsPrerelease)
                 .OrderByDescending(r => r.ReleaseDate)
                 .FirstOrDefault()
-                ?? matchingContent.Releases
+                ?? candidateReleases
                     .Where(r => !r.IsPrerelease)
                     .OrderByDescending(r => r.ReleaseDate)
                     .FirstOrDefault()
-                ?? matchingContent.Releases
+                ?? candidateReleases
                     .OrderByDescending(r => r.ReleaseDate)
                     .FirstOrDefault();
 
             if (latestRelease == null)
             {
                 logger.LogWarning(
-                    "No stable release found for content {ContentName}",
+                    "No release found matching version constraints for content {ContentName}",
                     contentName);
                 return OperationResult<ContentSearchResult?>.CreateSuccess(null);
             }

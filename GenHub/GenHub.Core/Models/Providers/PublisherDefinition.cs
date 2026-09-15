@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -9,6 +11,11 @@ namespace GenHub.Core.Models.Providers;
 /// </summary>
 public class PublisherDefinition
 {
+    private List<CatalogEntry> _catalogs = [];
+    private List<string> _previousDefinitionUrls = [];
+    private List<PublisherReferral> _referrals = [];
+    private List<string> _tags = [];
+
     /// <summary>
     /// Gets or sets the schema version for definition format compatibility.
     /// </summary>
@@ -26,13 +33,21 @@ public class PublisherDefinition
     /// Each catalog can contain different types of content.
     /// </summary>
     [JsonPropertyName("catalogs")]
-    public List<CatalogEntry> Catalogs { get; set; } = [];
+    public List<CatalogEntry> Catalogs
+    {
+        get => _catalogs ??= [];
+        set => _catalogs = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets previous definition URLs for migration/tracking.
     /// </summary>
     [JsonPropertyName("previousDefinitionUrls")]
-    public List<string> PreviousDefinitionUrls { get; set; } = [];
+    public List<string> PreviousDefinitionUrls
+    {
+        get => _previousDefinitionUrls ??= [];
+        set => _previousDefinitionUrls = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets the primary URL to the publisher's catalog JSON.
@@ -89,11 +104,19 @@ public class PublisherDefinition
     /// Gets or sets referrals to other publishers (cross-publisher discovery).
     /// </summary>
     [JsonPropertyName("referrals")]
-    public List<PublisherReferral> Referrals { get; set; } = [];
+    public List<PublisherReferral> Referrals
+    {
+        get => _referrals ??= [];
+        set => _referrals = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets tags for publisher categorization.
     /// </summary>
     [JsonPropertyName("tags")]
-    public List<string> Tags { get; set; } = [];
+    public List<string> Tags
+    {
+        get => _tags ??= [];
+        set => _tags = value ?? [];
+    }
 }

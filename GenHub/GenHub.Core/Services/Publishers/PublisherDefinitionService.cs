@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -172,7 +173,8 @@ public class PublisherDefinitionService(
             var hasUpdate = false;
 
             // Check if catalog URL changed
-            if (!string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
+                !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogInformation(
                     "Updating catalog URL for subscription {PublisherId} from {OldUrl} to {NewUrl}",
@@ -185,7 +187,8 @@ public class PublisherDefinitionService(
             }
 
             // Check if definition URL migrated
-            if (remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl, StringComparer.OrdinalIgnoreCase) &&
+            if (remoteDef.PreviousDefinitionUrls != null &&
+                remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl, StringComparer.OrdinalIgnoreCase) &&
                 !string.IsNullOrWhiteSpace(remoteDef.DefinitionUrl) &&
                 !string.Equals(subscription.DefinitionUrl, remoteDef.DefinitionUrl, StringComparison.OrdinalIgnoreCase))
             {
@@ -222,7 +225,7 @@ public class PublisherDefinitionService(
             var results = new Dictionary<string, PublisherCatalog>();
 
             // Handle V1 definitions (single catalog via CatalogUrl)
-            if (definition.Catalogs.Count == 0 && !string.IsNullOrEmpty(definition.CatalogUrl))
+            if ((definition.Catalogs == null || definition.Catalogs.Count == 0) && !string.IsNullOrEmpty(definition.CatalogUrl))
             {
                 var catalogResult = await FetchCatalogFromDefinitionAsync(definition, ct);
                 if (catalogResult.Success && catalogResult.Data != null)
@@ -241,22 +244,41 @@ public class PublisherDefinitionService(
             using var client = httpClientFactory.CreateClient("PublisherCatalog");
             var errors = new List<string>();
 
-            foreach (var catalogEntry in definition.Catalogs)
+            if (definition.Catalogs != null)
             {
-                var (id, catalog, error) = await TryFetchCatalogEntryAsync(client, catalogEntry, ct);
-                if (catalog != null && id != null)
+                foreach (var catalogEntry in definition.Catalogs)
                 {
-                    results[id] = catalog;
-                }
-                else if (!string.IsNullOrEmpty(error))
-                {
-                    errors.Add(error);
+                    var (id, catalog, error) = await TryFetchCatalogEntryAsync(client, catalogEntry, ct);
+                    if (catalog != null && id != null)
+                    {
+                        results[id] = catalog;
+                    }
+                    else if (!string.IsNullOrEmpty(error))
+                    {
+                        errors.Add(error);
+                    }
                 }
             }
 
             if (results.Count == 0)
             {
+                if (errors.Count == 0)
+                {
+                    errors.Add("No catalogs found or loaded from publisher definition.");
+                }
+
                 return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure(errors);
+            }
+
+            if (errors.Count > 0)
+            {
+                logger.LogWarning(
+                    "Partially loaded {SuccessCount}/{TotalCount} catalogs with errors: {Errors}",
+                    results.Count,
+                    (definition.Catalogs?.Count ?? 0),
+                    string.Join("; ", errors));
+
+                return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure(errors, results, TimeSpan.Zero);
             }
 
             return OperationResult<Dictionary<string, PublisherCatalog>>.CreateSuccess(results);
@@ -369,8 +391,21 @@ public class PublisherDefinitionService(
         CatalogEntry catalogEntry,
         CancellationToken ct)
     {
-        var urlsToTry = new List<string> { catalogEntry.Url };
-        urlsToTry.AddRange(catalogEntry.Mirrors);
+        var urlsToTry = new List<string>();
+        if (!string.IsNullOrWhiteSpace(catalogEntry.Url))
+        {
+            urlsToTry.Add(catalogEntry.Url);
+        }
+
+        if (catalogEntry.Mirrors != null)
+        {
+            urlsToTry.AddRange(catalogEntry.Mirrors.Where(m => !string.IsNullOrWhiteSpace(m)));
+        }
+
+        if (urlsToTry.Count == 0)
+        {
+            return (null, null, $"Catalog '{catalogEntry.Name}' ({catalogEntry.Id}) has no valid URLs configured");
+        }
 
         foreach (var rawUrl in urlsToTry)
         {

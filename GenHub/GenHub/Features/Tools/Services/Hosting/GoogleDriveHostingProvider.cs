@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -31,7 +32,17 @@ public class GoogleDriveHostingProvider(
     private const string PublisherFolderName = "GenHub_Publisher";
     private static readonly string[] Scopes = [DriveService.Scope.DriveFile];
 
+    private static readonly Regex GoogleDriveIdRegex = new(
+        @"(?:/file/d/|[?&]id=)([a-zA-Z0-9_-]+)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        TimeSpan.FromSeconds(1));
+
     private DriveService? _driveService;
+
+    private static string EscapeDriveQueryParameter(string input)
+    {
+        return input.Replace("\\", "\\\\").Replace("'", "\\'");
+    }
 
     /// <summary>
     /// Gets the maximum file size supported by Google Drive.
@@ -191,12 +202,25 @@ public class GoogleDriveHostingProvider(
             var folderId = folderResult.Data;
 
             // Check if file already exists in the folder
-            var searchRequest = _driveService.Files.List();
-            searchRequest.Q = $"name = '{fileName}' and '{folderId}' in parents and trashed = false";
-            searchRequest.Fields = "files(id, name)";
-            var searchResult = await searchRequest.ExecuteAsync(cancellationToken);
+            Google.Apis.Drive.v3.Data.File? existingFile = null;
+            string? searchPageToken = null;
+            do
+            {
+                var searchRequest = _driveService.Files.List();
+                searchRequest.Q = $"name = '{EscapeDriveQueryParameter(fileName)}' and '{EscapeDriveQueryParameter(folderId)}' in parents and trashed = false";
+                searchRequest.Fields = "nextPageToken, files(id, name)";
+                searchRequest.PageToken = searchPageToken;
+                searchRequest.PageSize = 100;
+                var searchResult = await searchRequest.ExecuteAsync(cancellationToken);
+                existingFile = searchResult.Files?.FirstOrDefault();
+                if (existingFile != null)
+                {
+                    break;
+                }
 
-            var existingFile = searchResult.Files?.FirstOrDefault();
+                searchPageToken = searchResult.NextPageToken;
+            }
+            while (!string.IsNullOrEmpty(searchPageToken));
             if (existingFile != null)
             {
                 // Update existing file
@@ -239,7 +263,13 @@ public class GoogleDriveHostingProvider(
             logger.LogInformation("Successfully uploaded {FileName} to Google Drive. ID: {FileId}", fileName, uploadedFile.Id);
 
             // Make the file publicly readable
-            await MakePublicAsync(uploadedFile.Id, cancellationToken);
+            var permResult = await MakePublicAsync(uploadedFile.Id, cancellationToken);
+            if (!permResult.Success)
+            {
+                logger.LogWarning("File {FileName} uploaded but failed to make public: {Error}", fileName, permResult.FirstError);
+                return OperationResult<HostingUploadResult>.CreateFailure(
+                    $"File '{fileName}' was uploaded to Google Drive, but setting public permissions failed: {permResult.FirstError}");
+            }
 
             var directDownloadUrl = string.Format(
                 HostingConstants.GoogleDriveDownloadUrlTemplate,
@@ -359,7 +389,7 @@ public class GoogleDriveHostingProvider(
         {
             // Search for existing folder
             var listRequest = _driveService.Files.List();
-            listRequest.Q = $"name = '{PublisherFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+            listRequest.Q = $"name = '{EscapeDriveQueryParameter(PublisherFolderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
             listRequest.Fields = "files(id, name)";
 
             var listResult = await listRequest.ExecuteAsync(cancellationToken);
@@ -384,7 +414,11 @@ public class GoogleDriveHostingProvider(
             logger.LogInformation("Created Google Drive publisher folder with ID: {FolderId}", folder.Id);
 
             // Make the folder publicly readable so files inside inherit read access
-            await MakePublicAsync(folder.Id, cancellationToken);
+            var folderPermResult = await MakePublicAsync(folder.Id, cancellationToken);
+            if (!folderPermResult.Success)
+            {
+                logger.LogWarning("Google Drive publisher folder created, but setting public permission failed: {Error}", folderPermResult.FirstError);
+            }
 
             return OperationResult<string>.CreateSuccess(folder.Id);
         }
@@ -410,7 +444,7 @@ public class GoogleDriveHostingProvider(
         try
         {
             var listFolderRequest = _driveService.Files.List();
-            listFolderRequest.Q = $"name = '{PublisherFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+            listFolderRequest.Q = $"name = '{EscapeDriveQueryParameter(PublisherFolderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
             listFolderRequest.Fields = "files(id, name)";
 
             var folderListResult = await listFolderRequest.ExecuteAsync(cancellationToken);
@@ -421,12 +455,6 @@ public class GoogleDriveHostingProvider(
             }
 
             var folderId = existingFolder.Id;
-            var listRequest = _driveService.Files.List();
-            listRequest.Q = $"'{folderId}' in parents and trashed = false";
-            listRequest.Fields = "files(id, name, size, modifiedTime, webViewLink)";
-
-            var result = await listRequest.ExecuteAsync(cancellationToken);
-
             var state = new HostingState
             {
                 ProviderId = ProviderId,
@@ -435,13 +463,27 @@ public class GoogleDriveHostingProvider(
                 LastPublished = DateTime.UtcNow,
             };
 
-            if (result.Files != null)
+            string? pageToken = null;
+            do
             {
-                foreach (var file in result.Files)
+                var listRequest = _driveService.Files.List();
+                listRequest.Q = $"'{EscapeDriveQueryParameter(folderId)}' in parents and trashed = false";
+                listRequest.Fields = "nextPageToken, files(id, name, size, modifiedTime, webViewLink)";
+                listRequest.PageToken = pageToken;
+                listRequest.PageSize = 100;
+
+                var result = await listRequest.ExecuteAsync(cancellationToken);
+                if (result.Files != null)
                 {
-                    ProcessGoogleDriveFile(file, state);
+                    foreach (var file in result.Files)
+                    {
+                        ProcessGoogleDriveFile(file, state);
+                    }
                 }
+
+                pageToken = result.NextPageToken;
             }
+            while (!string.IsNullOrEmpty(pageToken));
 
             return OperationResult<HostingState?>.CreateSuccess(state);
         }
@@ -507,28 +549,16 @@ public class GoogleDriveHostingProvider(
 
     private static string? ExtractFileId(string url)
     {
-        // Handle https://drive.google.com/file/d/{fileId}/view
-        var fileDIndex = url.IndexOf("/file/d/", StringComparison.OrdinalIgnoreCase);
-        if (fileDIndex >= 0)
+        if (string.IsNullOrWhiteSpace(url))
         {
-            var start = fileDIndex + "/file/d/".Length;
-            var end = url.IndexOf('/', start);
-            return end >= 0 ? url[start..end] : url[start..];
+            return null;
         }
 
-        // Handle https://drive.google.com/open?id={fileId}
-        var idIndex = url.IndexOf("id=", StringComparison.OrdinalIgnoreCase);
-        if (idIndex >= 0)
-        {
-            var start = idIndex + "id=".Length;
-            var end = url.IndexOf('&', start);
-            return end >= 0 ? url[start..end] : url[start..];
-        }
-
-        return null;
+        var match = GoogleDriveIdRegex.Match(url);
+        return match.Success ? match.Groups[1].Value : null;
     }
 
-    private async Task MakePublicAsync(string fileId, CancellationToken cancellationToken)
+    private async Task<OperationResult<bool>> MakePublicAsync(string fileId, CancellationToken cancellationToken)
     {
         try
         {
@@ -541,10 +571,16 @@ public class GoogleDriveHostingProvider(
             var permRequest = _driveService!.Permissions.Create(permission, fileId);
             await permRequest.ExecuteAsync(cancellationToken);
             logger.LogDebug("Made file/folder public: {FileId}", fileId);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to set public permission for {FileId}", fileId);
+            logger.LogError(ex, "Failed to set public permission for {FileId}", fileId);
+            return OperationResult<bool>.CreateFailure($"Failed to set public permission: {ex.Message}");
         }
     }
 

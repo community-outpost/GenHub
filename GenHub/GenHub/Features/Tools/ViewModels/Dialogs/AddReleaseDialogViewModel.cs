@@ -32,7 +32,7 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     private string _version = string.Empty;
 
     [ObservableProperty]
-    private DateTimeOffset _releaseDate = DateTimeOffset.Now;
+    private DateTimeOffset _releaseDate = DateTimeOffset.UtcNow;
 
     [ObservableProperty]
     private bool _isLatest = true;
@@ -185,7 +185,7 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
         IsEditMode = true;
         _originalVersion = existing.Version;
         Version = existing.Version;
-        ReleaseDate = existing.ReleaseDate.HasValue ? new DateTimeOffset(existing.ReleaseDate.Value) : DateTimeOffset.Now;
+        ReleaseDate = existing.ReleaseDate.HasValue ? new DateTimeOffset(existing.ReleaseDate.Value) : DateTimeOffset.UtcNow;
         IsLatest = existing.IsLatest;
         IsPrerelease = existing.IsPrerelease;
         IsFeatured = existing.IsFeatured;

@@ -178,6 +178,12 @@ public partial class ContentLibraryViewModel : ObservableObject
         var newContent = await _dialogService.ShowAddContentDialogAsync(initialPath);
         if (newContent != null)
         {
+            if (_activeCatalog.Catalog.Content.Any(c => string.Equals(c.Id, newContent.Id, System.StringComparison.OrdinalIgnoreCase)))
+            {
+                _logger.LogWarning("Content with ID '{ContentId}' already exists in catalog '{CatalogId}'", newContent.Id, _activeCatalog.Id);
+                return;
+            }
+
             _activeCatalog.Catalog.Content.Add(newContent);
             ContentItems.Add(newContent);
             OnPropertyChanged(nameof(FilteredContent));
@@ -263,6 +269,14 @@ public partial class ContentLibraryViewModel : ObservableObject
         var newRelease = await _dialogService.ShowAddReleaseDialogAsync(SelectedContent, _activeCatalog.Catalog);
         if (newRelease != null)
         {
+            if (newRelease.IsLatest)
+            {
+                foreach (var release in SelectedContent.Releases)
+                {
+                    release.IsLatest = false;
+                }
+            }
+
             SelectedContent.Releases.Add(newRelease);
 
             _parentViewModel.MarkDirty();

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 
 namespace GenHub.Features.Tools.Views.Dialogs;
 
@@ -13,5 +14,13 @@ public partial class ToolDialogWindow : Window
     public ToolDialogWindow()
     {
         InitializeComponent();
+    }
+
+    private void OnDragRegionPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            BeginMoveDrag(e);
+        }
     }
 }
