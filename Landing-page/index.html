@@ -3158,14 +3158,56 @@ End
                 });
             }
 
+            function escapeHtml(str) {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            const STATS_CACHE_KEY = 'genhub_release_stats_cache_v1';
+            const STATS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
             async function fetchStats() {
                 try {
-                    const res = await fetch('https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100');
-                    if (!res.ok) {
-                        if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
-                        return;
+                    let data = null;
+                    const cached = sessionStorage.getItem(STATS_CACHE_KEY);
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached);
+                            if (parsed && (Date.now() - parsed.timestamp < STATS_CACHE_TTL)) {
+                                data = parsed.data;
+                            }
+                        } catch {
+                            sessionStorage.removeItem(STATS_CACHE_KEY);
+                        }
                     }
-                    const data = await res.json();
+
+                    if (!data) {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 10000);
+                        const res = await fetch('https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100', {
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (!res.ok) {
+                            if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
+                            return;
+                        }
+                        data = await res.json();
+                        if (Array.isArray(data)) {
+                            try {
+                                sessionStorage.setItem(STATS_CACHE_KEY, JSON.stringify({
+                                    timestamp: Date.now(),
+                                    data: data
+                                }));
+                            } catch {
+                                // Ignore storage quota exceptions
+                            }
+                        }
+                    }
+
                     if (!Array.isArray(data)) return;
 
                     let totalDownloads = 0;
@@ -3174,6 +3216,7 @@ End
                     const breakdownRows = [];
 
                     data.forEach(rel => {
+                        if (rel.draft) return;
                         let relTotal = 0;
                         if (rel.assets && Array.isArray(rel.assets)) {
                             rel.assets.forEach(a => {
@@ -3205,7 +3248,7 @@ End
                     if (breakdownEl && breakdownRows.length > 0) {
                         breakdownEl.innerHTML = breakdownRows.map(r => `
                             <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #cbd5e1; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                                <span>${r.tag}</span>
+                                <span>${escapeHtml(r.tag)}</span>
                                 <strong style="color: #38bdf8;">${formatNum(r.count)}</strong>
                             </div>
                         `).join('') + `
@@ -3218,7 +3261,7 @@ End
                         breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Historical releases recorded on GitHub.</div>';
                     }
                 } catch (e) {
-                    // Fallback to static summary when GitHub API rate-limit or network failure occurs
+                    // Fallback to static summary when GitHub API rate-limit, timeout, or network failure occurs
                     console.info('GitHub release metrics fallback active:', e);
                     if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
                 }

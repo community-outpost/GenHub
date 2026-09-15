@@ -1,296 +1,137 @@
-/* ==========================================================================
-   Features & Capabilities Section (Bento Grid)
-   ========================================================================== */
+/* Features Section */
 .features-section {
-    padding: 5rem 1.5rem;
-    max-width: 1240px;
-    margin: 0 auto;
+    margin-bottom: 5rem;
 }
 
-/* Bento Grid Layout */
-.bento-grid {
+.section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.section-header h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+}
+
+.section-header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+/* Features Grid */
+.features {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
-    margin-top: 3rem;
+    margin-bottom: 5rem;
 }
 
-/* Base Bento Card */
-.bento-card {
-    background: var(--bg-card);
+.card {
+    background: var(--glass-bg);
     backdrop-filter: blur(var(--blur-md));
     -webkit-backdrop-filter: blur(var(--blur-md));
     border: 1px solid var(--glass-border);
     border-radius: 1.25rem;
-    padding: 2.25rem;
-    transition: all var(--transition-base);
+    padding: 2rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
-.bento-card::before {
+.card::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.25), transparent);
+    background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
 }
 
-.bento-card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(168, 85, 247, 0.5);
+.card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.4), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    border-color: var(--primary);
     box-shadow: 
-        0 20px 45px rgba(0, 0, 0, 0.4),
-        0 0 30px rgba(139, 92, 246, 0.2);
+        0 20px 40px rgba(0, 0, 0, 0.3),
+        0 0 30px rgba(124, 58, 237, 0.25);
 }
 
-/* Card Column Spans */
-.col-span-8 { grid-column: span 8; }
-.col-span-6 { grid-column: span 6; }
-.col-span-4 { grid-column: span 4; }
-.col-span-12 { grid-column: span 12; }
-
-/* Card Spotlight Visual Variations */
-.spotlight-steam {
-    background: radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.16) 0%, rgba(22, 14, 44, 0.8) 60%);
-    border-color: rgba(56, 189, 248, 0.35);
+.card:hover::after {
+    opacity: 0.3;
 }
 
-.spotlight-steam:hover {
-    border-color: rgba(56, 189, 248, 0.65);
-    box-shadow: 
-        0 20px 45px rgba(0, 0, 0, 0.4),
-        0 0 35px rgba(14, 165, 233, 0.25);
-}
-
-.spotlight-local {
-    background: radial-gradient(circle at 90% 10%, rgba(168, 85, 247, 0.16) 0%, rgba(22, 14, 44, 0.8) 60%);
-    border-color: rgba(168, 85, 247, 0.35);
-}
-
-.spotlight-local:hover {
-    border-color: rgba(168, 85, 247, 0.65);
-    box-shadow: 
-        0 20px 45px rgba(0, 0, 0, 0.4),
-        0 0 35px rgba(168, 85, 247, 0.25);
-}
-
-.spotlight-genpatcher {
-    background: radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.14) 0%, rgba(22, 14, 44, 0.8) 60%);
-    border-color: rgba(16, 185, 129, 0.35);
-}
-
-.spotlight-genpatcher:hover {
-    border-color: rgba(16, 185, 129, 0.65);
-    box-shadow: 
-        0 20px 45px rgba(0, 0, 0, 0.4),
-        0 0 35px rgba(16, 185, 129, 0.25);
-}
-
-.spotlight-updates {
-    background: radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.14) 0%, rgba(22, 14, 44, 0.8) 60%);
-    border-color: rgba(56, 189, 248, 0.35);
-}
-
-.spotlight-updates:hover {
-    border-color: rgba(56, 189, 248, 0.65);
-    box-shadow: 
-        0 20px 45px rgba(0, 0, 0, 0.4),
-        0 0 35px rgba(56, 189, 248, 0.25);
-}
-
-/* Card Header */
-.bento-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.card-icon-wrap {
+.card-icon {
     width: 56px;
     height: 56px;
-    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(139, 92, 246, 0.12);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: var(--gradient-glow);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    margin-bottom: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.card-icon i,
+.card-icon svg {
+    width: 24px;
+    height: 24px;
     color: var(--primary-light);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease, background-color 0.25s ease;
-    flex-shrink: 0;
-    position: relative;
+    stroke-width: 2;
 }
 
-.card-icon-wrap svg {
-    width: 32px;
-    height: 32px;
-    transition: transform 0.25s ease, color 0.25s ease;
+.card:hover .card-icon {
+    transform: scale(1.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 20px var(--primary-glow);
 }
 
-.bento-card:hover .card-icon-wrap svg {
-    transform: scale(1.08);
-}
-
-.icon-steam {
-    background-color: #0c1a29;
-    background-image: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.24), rgba(14, 165, 233, 0.05));
-    border-color: rgba(56, 189, 248, 0.35);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(14, 165, 233, 0.15);
-}
-
-.icon-steam svg {
-    color: #38bdf8;
-}
-
-.bento-card:hover .icon-steam {
-    transform: translateY(-2px);
-    border-color: rgba(56, 189, 248, 0.7);
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(56, 189, 248, 0.35);
-    background-color: #0f273d;
-    background-image: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.35), rgba(14, 165, 233, 0.12));
-}
-
-.bento-card:hover .icon-steam svg {
-    color: #7dd3fc;
-}
-
-.icon-cyan {
-    background-color: #091c24;
-    background-image: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.24), rgba(6, 182, 212, 0.05));
-    border-color: rgba(6, 182, 212, 0.35);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(6, 182, 212, 0.15);
-}
-
-.icon-cyan svg {
-    color: #22d3ee;
-}
-
-.bento-card:hover .icon-cyan {
-    transform: translateY(-2px);
-    border-color: rgba(6, 182, 212, 0.7);
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(6, 182, 212, 0.35);
-    background-color: #0c2b38;
-    background-image: radial-gradient(circle at 35% 35%, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.12));
-}
-
-.bento-card:hover .icon-cyan svg {
-    color: #67e8f9;
-}
-
-.icon-emerald {
-    background-color: #091f17;
-    background-image: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.24), rgba(16, 185, 129, 0.05));
-    border-color: rgba(16, 185, 129, 0.35);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(16, 185, 129, 0.15);
-}
-
-.icon-emerald svg {
-    color: #34d399;
-}
-
-.bento-card:hover .icon-emerald {
-    transform: translateY(-2px);
-    border-color: rgba(16, 185, 129, 0.7);
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(16, 185, 129, 0.35);
-    background-color: #0f2e22;
-    background-image: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.35), rgba(16, 185, 129, 0.12));
-}
-
-.bento-card:hover .icon-emerald svg {
-    color: #6ee7b7;
-}
-
-.icon-deck {
-    background-color: #1a102b;
-    background-image: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.24), rgba(147, 51, 234, 0.05));
-    border-color: rgba(168, 85, 247, 0.35);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(168, 85, 247, 0.15);
-}
-
-.icon-deck svg {
-    color: #c084fc;
-}
-
-.bento-card:hover .icon-deck {
-    transform: translateY(-2px);
-    border-color: rgba(168, 85, 247, 0.7);
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 0 24px rgba(168, 85, 247, 0.35);
-    background-color: #261642;
-    background-image: radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.35), rgba(147, 51, 234, 0.12));
-}
-
-.bento-card:hover .icon-deck svg {
-    color: #e9d5ff;
-}
-
-/* Card Badge - Tactical HUD telemetry chip */
-.card-badge {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.28rem 0.7rem;
-    border-radius: 6px;
-    font-family: var(--font-mono, monospace);
-    background: rgba(15, 15, 25, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: var(--text-muted);
-}
-
-.badge-workspaces {
-    background: #0d2134;
-    color: #7dd3fc;
-    border-color: rgba(56, 189, 248, 0.3);
-}
-
-.badge-catalog {
-    background: #0c2328;
-    color: #67e8f9;
-    border-color: rgba(34, 211, 238, 0.3);
-}
-
-.badge-tools {
-    background: #0d251d;
-    color: #6ee7b7;
-    border-color: rgba(52, 211, 153, 0.3);
-}
-
-.badge-deck {
-    background: #231435;
-    color: #d8b4fe;
-    border-color: rgba(192, 132, 252, 0.3);
-}
-
-/* Card Body */
-.bento-title {
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: var(--text-main);
+.card h3 {
+    font-size: 1.2rem;
     margin-bottom: 0.75rem;
-    letter-spacing: -0.015em;
+    color: var(--text-main);
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
 
-.bento-desc {
-    color: var(--text-secondary);
+.card p {
+    color: var(--text-muted);
     font-size: 0.95rem;
-    line-height: 1.65;
-    margin-bottom: 1.5rem;
+    line-height: 1.6;
 }
 
-.bento-desc:last-child {
-    margin-bottom: 0;
+/* Feature Highlight Cards (for main features) */
+.card-highlight {
+    grid-column: span 2;
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
 }
 
-.bento-desc code {
-    color: #38bdf8;
-    background: #0d2233;
-    padding: 0.15rem 0.4rem;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    font-family: var(--font-mono);
+.card-highlight .card-content {
+    flex: 1;
+}
+
+.card-highlight .card-visual {
+    flex: 0 0 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
