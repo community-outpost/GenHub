@@ -204,10 +204,23 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : IGameInstal
                 return false;
             }
 
-            path = key.GetValue("Install Dir") as string;
-            var success = !string.IsNullOrEmpty(path);
-            logger?.LogDebug("CD/ISO Games Generals path lookup: {Success}, Path: {Path}", success, path);
-            return success;
+            // Log all registry values for diagnostic purposes
+            var valueNames = key.GetValueNames();
+            logger?.LogDebug("CD/ISO registry key found with {Count} values: {Values}", valueNames.Length, string.Join(", ", valueNames));
+
+            // Check multiple common registry value names in order of preference
+            foreach (var valueName in GameClientConstants.InstallationPathRegistryValues)
+            {
+                path = key.GetValue(valueName) as string;
+                if (!string.IsNullOrEmpty(path))
+                {
+                    logger?.LogInformation("CD/ISO Games Generals path found using registry value '{ValueName}': {Path}", valueName, path);
+                    return true;
+                }
+            }
+
+            logger?.LogWarning("CD/ISO registry key exists but none of the expected value names contain a valid path. Available values: {Values}", string.Join(", ", valueNames));
+            return false;
         }
         catch (Exception ex)
         {
@@ -224,7 +237,7 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : IGameInstal
     {
         try
         {
-            var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\EA Games\Command and Conquer Generals Zero Hour");
+            var key = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\WOW6432Node\{GameClientConstants.EaGamesParentDirectoryName}\{GameClientConstants.ZeroHourRetailDirectoryName}");
             if (key != null)
             {
                 logger?.LogDebug("Found CD/ISO Games Generals registry key");

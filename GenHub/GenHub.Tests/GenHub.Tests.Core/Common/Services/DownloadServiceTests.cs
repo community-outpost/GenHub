@@ -33,7 +33,7 @@ public class DownloadServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadFileAsync_SuccessfulDownload_WritesFileAndReturnsSuccess()
+    public async Task DownloadFileAsync_SuccessfulDownload_WritesFileAndReturnsSuccessAsync()
     {
         // Arrange
         var fileContent = new byte[] { 1, 2, 3, 4, 5 };
@@ -80,7 +80,7 @@ public class DownloadServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadFileAsync_HashVerification_FailsOnWrongHash()
+    public async Task DownloadFileAsync_HashVerification_FailsOnWrongHashAsync()
     {
         // Arrange
         var fileContent = new byte[] { 1, 2, 3 };
@@ -130,7 +130,7 @@ public class DownloadServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadFileAsync_RetriesOnFailure_AndReturnsFailedResult()
+    public async Task DownloadFileAsync_RetriesOnFailure_AndReturnsFailedResultAsync()
     {
         // Arrange
         var handler = new Mock<HttpMessageHandler>();
@@ -177,7 +177,7 @@ public class DownloadServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ComputeFileHashAsync_ReturnsCorrectHash()
+    public async Task ComputeFileHashAsync_ReturnsCorrectHashAsync()
     {
         // Arrange
         var bytes = new byte[] { 1, 2, 3, 4 };

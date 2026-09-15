@@ -11,6 +11,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
@@ -39,14 +40,13 @@ public class GitHubDiscoverer : IContentDiscoverer
         _logger = logger;
         _configurationProvider = configurationProvider;
 
-        _repositories = _configurationProvider.GetGitHubDiscoveryRepositories()
+        _repositories = [.. _configurationProvider.GetGitHubDiscoveryRepositories()
             .Select(r =>
             {
                 var parts = r.Split('/');
                 return parts.Length == ContentConstants.GitHubRepoPartsCount ? (Owner: parts[0], Repo: parts[1]) : (Owner: string.Empty, Repo: string.Empty);
             })
-            .Where(t => !string.IsNullOrEmpty(t.Owner) && !string.IsNullOrEmpty(t.Repo))
-            .ToList();
+            .Where(t => !string.IsNullOrEmpty(t.Owner) && !string.IsNullOrEmpty(t.Repo))];
     }
 
     /// <inheritdoc />
@@ -69,7 +69,7 @@ public class GitHubDiscoverer : IContentDiscoverer
     /// <param name="query">The search query.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result containing discovered content search results.</returns>
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         List<ContentSearchResult> discoveredItems = [];
@@ -126,7 +126,12 @@ public class GitHubDiscoverer : IContentDiscoverer
             }
         }
 
-        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(discoveredItems);
+        return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+        {
+            Items = discoveredItems,
+            TotalItems = discoveredItems.Count,
+            HasMoreItems = false,
+        });
     }
 
     private static bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)

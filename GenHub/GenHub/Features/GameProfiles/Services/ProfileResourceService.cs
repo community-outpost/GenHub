@@ -12,14 +12,14 @@ namespace GenHub.Features.GameProfiles.Services;
 /// </summary>
 public class ProfileResourceService(ILogger<ProfileResourceService> logger)
 {
-    private const string IconsPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Icons";
-    private const string CoversPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Covers";
-    private const string LogosPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Logos";
-    private const string ImagesPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Images";
+    private const string IconsPath = "/Assets/Icons";
+    private const string CoversPath = "/Assets/Covers";
+    private const string LogosPath = "/Assets/Logos";
+    private const string ImagesPath = "/Assets/Images";
 
     private readonly object _initLock = new();
-    private readonly List<ProfileResourceItem> _icons = new();
-    private readonly List<ProfileResourceItem> _covers = new();
+    private readonly List<ProfileResourceItem> _icons = [];
+    private readonly List<ProfileResourceItem> _covers = [];
     private bool _initialized = false;
 
     /// <summary>
@@ -181,20 +181,20 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
             });
         }
 
-        // Load faction posters as covers
-        var posterFiles = new (string, string, string?)[]
+        // Load faction covers
+        var factionCoverFiles = new (string, string, string?)[]
         {
-            ("china-poster.png", "China Poster", null),
-            ("gla-poster.png", "GLA Poster", null),
-            ("usa-poster.png", "USA Poster", null),
+            ("china-cover.png", "China Cover", null),
+            ("gla-cover.png", "GLA Cover", null),
+            ("usa-cover.png", "USA Cover", null),
         };
 
-        foreach (var (fileName, displayName, gameType) in posterFiles)
+        foreach (var (fileName, displayName, gameType) in factionCoverFiles)
         {
             _covers.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
-                Path = $"{ImagesPath}/{fileName}",
+                Path = $"{CoversPath}/{fileName}",
                 DisplayName = displayName,
                 IsBuiltIn = true,
                 GameType = gameType,

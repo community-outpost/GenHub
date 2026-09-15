@@ -1,0 +1,376 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="using:GenHub.Core.Models.GameInstallations"
+             xmlns:vm="using:GenHub.Windows.Features.ActionSets.UI"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="GenHub.Windows.Features.ActionSets.UI.GenPatcherToolView"
+             x:DataType="vm:GenPatcherViewModel">
+
+    <UserControl.Styles>
+        <!-- Standard Action Button (GenHub Translucent Theme Style) -->
+        <Style Selector="Button.ActionBtn">
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.ActionBtn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
+            <Setter Property="RenderTransform" Value="scale(1.03)"/>
+        </Style>
+        <Style Selector="Button.ActionBtn:pressed">
+            <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+        </Style>
+        <Style Selector="Button.ActionBtn:disabled">
+            <Setter Property="Opacity" Value="0.35"/>
+        </Style>
+
+        <!-- Fix Card Glassmorphic Style -->
+        <Style Selector="Border.FixCard">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,14"/>
+            <Setter Property="Width" Value="460"/>
+            <Setter Property="Margin" Value="7,4,7,14"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.FixCard:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="RenderTransform" Value="translateY(-2px)"/>
+        </Style>
+
+        <!-- Category Chip Buttons -->
+        <Style Selector="Button.CategoryChip">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.CategoryChip:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+
+        <!-- Details Toggle Button -->
+        <Style Selector="Button.DetailsToggleBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.DetailsToggleBtn:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
+        </Style>
+
+        <!-- GenPatcher Primary Red Accent Button -->
+        <Style Selector="Button.GenPatcherPrimaryBtn">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#C62828" Offset="0"/>
+                    <GradientStop Color="#8E0000" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#EF5350"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.GenPatcherPrimaryBtn:pointerover">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#E53935" Offset="0"/>
+                    <GradientStop Color="#B71C1C" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#FF8A80"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+        <Style Selector="Button.GenPatcherPrimaryBtn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+
+        <!-- GenPatcher Cancel Button -->
+        <Style Selector="Button.GenPatcherCancelBtn">
+            <Setter Property="Background" Value="#4A1525"/>
+            <Setter Property="BorderBrush" Value="#E57373"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Foreground" Value="#FFCDD2"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.GenPatcherCancelBtn:pointerover">
+            <Setter Property="Background" Value="#661C33"/>
+            <Setter Property="BorderBrush" Value="#FF8A80"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <!-- Glassmorphic Background with Dark Surface Tint -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="#08080C"
+                    TintOpacity="0.94"
+                    MaterialOpacity="0.80" />
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <!-- Red Gradient Header Glow -->
+        <Border Height="180" VerticalAlignment="Top" IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#40C62828" Offset="0"/>
+                    <GradientStop Color="#208E0000" Offset="0.5"/>
+                    <GradientStop Color="#00000000" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <!-- Background Image (Faint watermark) -->
+        <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png"
+               Opacity="0.04" Stretch="UniformToFill" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+        <!-- Main Content Area -->
+        <Grid RowDefinitions="Auto, Auto, *" Margin="24,14,24,6">
+
+            <!-- Red-tinted Glassmorphic Header Card -->
+            <Border Grid.Row="0" Margin="0,0,0,12" Padding="18,14" CornerRadius="10"
+                    Background="#1EC62828" BorderBrush="#35EF5350" BorderThickness="1">
+                <Grid ColumnDefinitions="*, Auto, Auto">
+                    <!-- Title & Logo -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                        <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png" Height="50" VerticalAlignment="Center"/>
+
+                        <StackPanel VerticalAlignment="Center" Spacing="3">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <TextBlock Text="GenPatcher" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                <!-- Progress Pill -->
+                                <Border Background="#2010B981" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="12" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ProgressSummaryText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Essential fixes and enhancements for Command &amp; Conquer" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Target Installation Selector -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0" Spacing="3">
+                        <TextBlock Text="Target Installation:" FontSize="11" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding AvailableInstallations}"
+                                  SelectedItem="{Binding SelectedInstallation}"
+                                  IsEnabled="{Binding CanChangeInstallation}"
+                                  MinWidth="220"
+                                  VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:GameInstallation">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding InstallationType}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                                        <TextBlock Text="{Binding InstallationPath}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Batch Action Button -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Classes="GenPatcherPrimaryBtn" 
+                                Command="{Binding ApplyAllFixesCommand}" 
+                                IsVisible="{Binding !IsBatchApplying}" 
+                                VerticalAlignment="Center">
+                            <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>
+                        </Button>
+                        <Button Classes="GenPatcherCancelBtn" 
+                                Command="{Binding CancelBatchApplyCommand}" 
+                                IsVisible="{Binding IsBatchApplying}" 
+                                VerticalAlignment="Center">
+                            <TextBlock Text="Cancel Batch" VerticalAlignment="Center" FontWeight="Bold"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Filter & Search Toolbar -->
+            <Grid Grid.Row="1" ColumnDefinitions="*, Auto" Margin="0,0,0,8">
+                <!-- Category Filter Tabs -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="All">
+                        <TextBlock Text="{Binding AllCategoryCount, StringFormat='All ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Core &amp; Stability">
+                        <TextBlock Text="{Binding CoreCategoryCount, StringFormat='Core &amp; Stability ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Compatibility">
+                        <TextBlock Text="{Binding CompatibilityCategoryCount, StringFormat='Compatibility ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Multiplayer">
+                        <TextBlock Text="{Binding MultiplayerCategoryCount, StringFormat='Multiplayer ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Quality of Life">
+                        <TextBlock Text="{Binding QolCategoryCount, StringFormat='Quality of Life ({0})'}"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Search Box -->
+                <Grid Grid.Column="1" VerticalAlignment="Center">
+                    <TextBox Text="{Binding SearchQuery, Mode=TwoWay}"
+                             Watermark="Search fixes..."
+                             Width="240"
+                             Padding="10,6"
+                             CornerRadius="8"
+                             Background="{DynamicResource SurfaceElevatedBrush}"
+                             BorderBrush="{DynamicResource BorderBrush}"
+                             BorderThickness="1"
+                             Foreground="{DynamicResource TextPrimary}"
+                             FontSize="12"/>
+                </Grid>
+            </Grid>
+
+            <!-- Content Area - Scrollable Card Grid -->
+            <ScrollViewer Grid.Row="2" Focusable="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,4,6,0">
+                <ItemsControl ItemsSource="{Binding FilteredActionSets}" HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ActionSetViewModel">
+                            <Border Classes="FixCard">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Force Re-Apply (Testing)" Command="{Binding ForceApplyCommand}" Foreground="{DynamicResource TextPrimary}"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+
+                                <Grid RowDefinitions="Auto, *, Auto, Auto">
+                                    <!-- Card Header: Title + Badges + Status -->
+                                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                                        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14.5" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                            <!-- Badges Row -->
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Border IsVisible="{Binding IsCore}" Background="#B71C1C" BorderBrush="#EF5350" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                                                    <TextBlock Text="CORE" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                                </Border>
+                                                <Border IsVisible="{Binding IsCrucial}" Background="#8E0000" BorderBrush="#E53935" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                                                    <TextBlock Text="CRUCIAL" FontSize="9" FontWeight="Bold" Foreground="#FFCDD2"/>
+                                                </Border>
+                                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,1">
+                                                    <TextBlock Text="{Binding Category}" FontSize="9.5" Foreground="{DynamicResource TextSecondary}"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Status Badge -->
+                                        <Border Grid.Column="1" VerticalAlignment="Top" CornerRadius="10" Padding="10,3"
+                                                Background="{Binding StatusBackground}"
+                                                BorderBrush="{Binding StatusBorder}"
+                                                BorderThickness="1">
+                                            <TextBlock Text="{Binding StatusDisplay}" FontWeight="Bold" FontSize="10.5" Foreground="{Binding StatusColor}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Card Body: Concise Description -->
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,8,0,8"/>
+
+                                    <!-- Expandable In-Depth Details Drawer -->
+                                    <Border Grid.Row="2" IsVisible="{Binding IsExpanded}"
+                                            Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                            CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="Why this fix is needed &amp; what it does:" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="{Binding DetailedDescription}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                            <!-- Last result log if executed -->
+                                            <StackPanel IsVisible="{Binding HasActionResultDetails}" Spacing="2" Margin="0,4,0,0">
+                                                <TextBlock Text="Last Execution Result:" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                                <TextBlock Text="{Binding LastActionResultDetails}" FontSize="10.5" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Card Footer: Details Toggle + Action Button -->
+                                    <Grid Grid.Row="3" ColumnDefinitions="*, Auto" Margin="0,4,0,0">
+                                        <!-- Show More / Less Toggle Button -->
+                                        <Button Grid.Column="0" Classes="DetailsToggleBtn" Command="{Binding ToggleExpandedCommand}" HorizontalAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="Details" FontSize="11"/>
+                                                <TextBlock Text="▾" FontSize="10" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Apply / Cancel Action Button -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <Button Classes="ActionBtn" Command="{Binding ApplyCommand}" IsVisible="{Binding !IsApplying}" IsEnabled="{Binding CanApply}" VerticalAlignment="Center">
+                                                <TextBlock Text="Apply"/>
+                                            </Button>
+                                            <Button Classes="GenPatcherCancelBtn" Command="{Binding CancelApplyCommand}" IsVisible="{Binding IsApplying}" VerticalAlignment="Center" Padding="12,5">
+                                                <TextBlock Text="Cancel" FontSize="11" FontWeight="Bold"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Panel>
+</UserControl>

@@ -29,7 +29,8 @@ public class ProfileSelectionConverter : IMultiValueConverter
             {
                 return new object[] { contentItem, profile };
             }
-            else if (values[0] is Core.Models.Manifest.ContentManifest manifest)
+
+            if (values[0] is Core.Models.Manifest.ContentManifest manifest)
             {
                 return new object[] { manifest, profile };
             }

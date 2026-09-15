@@ -1,5 +1,6 @@
-using System;
+using GenHub.Features.Tools.ReplayManager;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -24,10 +25,12 @@ public static class AppServices
 
         // Register core services in dependency order
         services.AddLoggingModule();
+        services.AddLocalizationServices();
         services.AddValidationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();
         services.AddCasServices();
+        services.AddStorageMigrationServices();
         services.AddContentPipelineServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();
@@ -42,6 +45,9 @@ public static class AppServices
 
         // Register Tools services
         services.AddToolsServices();
+        services.AddUploadThingServices(); // Shared cloud upload service
+        services.AddReplayManagerServices();
+        services.AddMapManager();
 
         // Register Notification services
         services.AddNotificationModule();
@@ -49,6 +55,7 @@ public static class AppServices
         // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();
         services.AddSharedViewModelModule();
+        InfoModule.Register(services);
 
         // Register platform-specific services using the factory if provided
         platformModuleFactory?.Invoke(services);

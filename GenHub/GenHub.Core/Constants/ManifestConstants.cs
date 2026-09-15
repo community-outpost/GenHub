@@ -6,6 +6,62 @@ namespace GenHub.Core.Constants;
 public static class ManifestConstants
 {
     /// <summary>
+    /// Notification title when game file verification/indexing begins.
+    /// </summary>
+    public const string IndexingNotificationTitle = "Indexing Game Files";
+
+    /// <summary>
+    /// Notification title when game file verification completes successfully.
+    /// </summary>
+    public const string IndexedNotificationTitle = "Game Files Indexed";
+
+    /// <summary>
+    /// Notification title when game installation is missing required files.
+    /// </summary>
+    public const string IncompleteInstallationNotificationTitle = "Incomplete Game Installation";
+
+    /// <summary>
+    /// Notification title when directory scan encounters an error.
+    /// </summary>
+    public const string DirectoryScanWarningNotificationTitle = "Directory Scan Warning";
+
+    /// <summary>
+    /// Default auto-dismiss timeout in milliseconds for standard info/success scan notifications.
+    /// </summary>
+    public const int DefaultNotificationAutoDismissMs = 4000;
+
+    /// <summary>
+    /// Auto-dismiss timeout in milliseconds for incomplete installation warning notifications.
+    /// </summary>
+    public const int WarningNotificationAutoDismissMs = 10000;
+
+    /// <summary>
+    /// Frequency interval (number of files processed) for progress log emission during manifest generation.
+    /// </summary>
+    public const int ProgressLoggingThrottleInterval = 25;
+
+    /// <summary>
+    /// Throttle interval in seconds for periodic progress logging during manifest generation.
+    /// </summary>
+    public const int ProgressLogThrottleSeconds = 5;
+
+    /// <summary>
+    /// File size threshold in bytes (5 MB) above which a file is considered large during verification,
+    /// triggering individual hashing progress status reports and notifications.
+    /// </summary>
+    public const long LargeFileProgressThresholdBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// Throttle interval in milliseconds for periodic notification updates during file verification.
+    /// </summary>
+    public const int NotificationUpdateThrottleMs = 500;
+
+    /// <summary>
+    /// Maximum number of missing required files to list in warning notifications before truncating.
+    /// </summary>
+    public const int MaxMissingFilesNotificationDisplayCount = 5;
+
+    /// <summary>
     /// Default manifest format version.
     /// </summary>
     public const int DefaultManifestFormatVersion = 1;
@@ -16,9 +72,25 @@ public static class ManifestConstants
     public const string DefaultManifestVersion = "1";
 
     /// <summary>
+    /// Manifest format version that introduces artifact variants.
+    /// </summary>
+    /// <remarks>
+    /// Bumped from <see cref="DefaultManifestFormatVersion"/> so that a manifest using
+    /// variants is identifiable as such rather than presenting as a version 1 manifest
+    /// with an unexpected field. Ingestion rejects this version for now — see
+    /// <see cref="Models.Manifest.ManifestIngestionGate"/>.
+    /// </remarks>
+    public const int VariantsManifestFormatVersion = 2;
+
+    /// <summary>
     /// Prefix for publisher content IDs.
     /// </summary>
     public const string PublisherContentIdPrefix = "publisher";
+
+    /// <summary>
+    /// Tag for content validation status.
+    /// </summary>
+    public const string ValidationStatusTag = "ValidationStatus";
 
     /// <summary>
     /// Prefix for game installation IDs.
@@ -85,6 +157,16 @@ public static class ManifestConstants
     public const string DefaultContentDependencyId = "1.0.genhub.content.defaultdependency";
 
     /// <summary>
+    /// Wildcard token representing any publisher in dependency declarations.
+    /// </summary>
+    public const string AnyPublisherToken = "any";
+
+    /// <summary>
+    /// Separator used to append variant identifiers to content names.
+    /// </summary>
+    public const string VariantSeparator = "-";
+
+    /// <summary>
     /// Version string for Generals game installation manifests.
     /// This represents the executable version 1.08.
     /// Note: When used in manifest IDs, dots are removed to create "108" for schema compliance.
@@ -97,4 +179,71 @@ public static class ManifestConstants
     /// Note: When used in manifest IDs, dots are removed to create "104" for schema compliance.
     /// </summary>
     public const string ZeroHourManifestVersion = "1.04";
+
+    /// <summary>
+    /// Manifest ID for the Zero Hour game installation dependency.
+    /// </summary>
+    public const string ZeroHourGameInstallationManifestId = "1.104.any.gameinstallation.zerohour";
+
+    /// <summary>
+    /// Manifest ID for the Generals game installation dependency.
+    /// </summary>
+    public const string GeneralsGameInstallationManifestId = "1.108.any.gameinstallation.generals";
+
+    /// <summary>
+    /// Display name for the Zero Hour installation dependency.
+    /// </summary>
+    public const string ZeroHourInstallationName = "Zero Hour Installation";
+
+    /// <summary>
+    /// Display name for the Generals installation dependency.
+    /// </summary>
+    public const string GeneralsInstallationName = "Generals Installation";
+
+    /// <summary>Tag for unknown authors.</summary>
+    public const string UnknownAuthor = "unknown";
+
+    /// <summary>Tag for unknown versions.</summary>
+    public const string UnknownVersion = "unknown";
+
+    // ===== Content Type Tags =====
+
+    /// <summary>Tag for Map content.</summary>
+    public const string MapTag = "Map";
+
+    /// <summary>Tag for Map Pack content.</summary>
+    public const string MapPackTag = "Map Pack";
+
+    /// <summary>Tag for Mission content.</summary>
+    public const string MissionTag = "Mission";
+
+    /// <summary>Tag for Mod content.</summary>
+    public const string ModTag = "Mod";
+
+    /// <summary>Tag for Patch content.</summary>
+    public const string PatchTag = "Patch";
+
+    /// <summary>Tag for Skin content.</summary>
+    public const string SkinTag = "Skin";
+
+    /// <summary>Tag for Video content.</summary>
+    public const string VideoTag = "Video";
+
+    /// <summary>Tag for Modding Tool content.</summary>
+    public const string ModdingToolTag = "Modding Tool";
+
+    /// <summary>Tag for Language Pack content.</summary>
+    public const string LanguagePackTag = "Language Pack";
+
+    /// <summary>Tag for Addon content.</summary>
+    public const string AddonTag = "Addon";
+
+    /// <summary>Tag for Screensaver content.</summary>
+    public const string ScreensaverTag = "Screensaver";
+
+    /// <summary>Tag for Replay content.</summary>
+    public const string ReplayTag = "Replay";
+
+    /// <summary>Tag for other content types.</summary>
+    public const string OtherTag = "Other";
 }

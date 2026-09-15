@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -25,7 +26,7 @@ public class ContentDisplayFormatterTests
     public ContentDisplayFormatterTests()
     {
         _hashRegistryMock = new Mock<IGameClientHashRegistry>();
-        _hashRegistryMock.Setup(x => x.GetGameInfoFromHash(It.IsAny<string>())).Returns((GameType.Unknown, "Unknown"));
+        _hashRegistryMock.Setup(x => x.GetGameInfoFromHash(It.IsAny<string>())).Returns((GameType.Unknown, GameClientConstants.UnknownVersion));
         _formatter = new ContentDisplayFormatter(_hashRegistryMock.Object);
     }
 
@@ -112,7 +113,7 @@ public class ContentDisplayFormatterTests
     [InlineData(GameInstallationType.EaApp, "EA App")]
     [InlineData(GameInstallationType.TheFirstDecade, "The First Decade")]
     [InlineData(GameInstallationType.Retail, "Retail Installation")]
-    [InlineData(GameInstallationType.Unknown, "Unknown")]
+    [InlineData(GameInstallationType.Unknown, GameClientConstants.UnknownVersion)]
     public void GetPublisherFromInstallationType_ReturnsCorrectPublisher(GameInstallationType installationType, string expected)
     {
         // Act
@@ -137,7 +138,7 @@ public class ContentDisplayFormatterTests
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
             Publisher = new PublisherInfo { Name = "Test Publisher" },
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -168,7 +169,7 @@ public class ContentDisplayFormatterTests
             Version = "1.0",
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -200,7 +201,7 @@ public class ContentDisplayFormatterTests
             Version = "1.0",
             ContentType = ContentType.GameInstallation,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -225,7 +226,7 @@ public class ContentDisplayFormatterTests
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
             Publisher = new PublisherInfo { Name = "Test Publisher" },
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -293,7 +294,7 @@ public class ContentDisplayFormatterTests
     [InlineData(GameType.ZeroHour, false, "Command & Conquer: Generals Zero Hour")]
     [InlineData(GameType.Generals, true, "Generals")]
     [InlineData(GameType.ZeroHour, true, "Zero Hour")]
-    [InlineData(GameType.Unknown, false, "Unknown")]
+    [InlineData(GameType.Unknown, false, GameClientConstants.UnknownVersion)]
     public void GetGameTypeDisplayName_ReturnsCorrectName(GameType gameType, bool useShortName, string expected)
     {
         // Act
@@ -310,9 +311,11 @@ public class ContentDisplayFormatterTests
     /// <param name="expected">The expected display name.</param>
     [Theory]
     [InlineData(ContentType.GameInstallation, "Game Installation")]
-    [InlineData(ContentType.GameClient, "Game Client")]
-    [InlineData(ContentType.Mod, "Modification")]
-    [InlineData(ContentType.MapPack, "Map Pack")]
+    [InlineData(ContentType.GameClient, "GameClient")]
+    [InlineData(ContentType.Executable, "Executable")]
+    [InlineData(ContentType.ModdingTool, "Tool")]
+    [InlineData(ContentType.Mod, "Mods")]
+    [InlineData(ContentType.MapPack, "Maps")]
     [InlineData(ContentType.Patch, "Patch")]
     public void GetContentTypeDisplayName_ReturnsCorrectName(ContentType contentType, string expected)
     {

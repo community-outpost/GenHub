@@ -5,23 +5,26 @@ This directory contains the VitePress documentation site for GenHub.
 ## Development
 
 1. Install dependencies (from the repository root):
+
    ```bash
    pnpm install
    ```
 
 2. Start development server:
+
    ```bash
    pnpm run dev
    ```
 
 3. Build for production:
+
    ```bash
    pnpm run build
    ```
 
 ## Deployment
 
-The documentation is automatically deployed to GitHub Pages when changes are pushed to the `architecture` branch.
+The documentation is automatically deployed to GitHub Pages when changes are pushed to the `main` branch. The `main` branch is our stable release branch with automatic deployment configured. Development work should be done on the `development` branch.
 
 ## Adding Content
 

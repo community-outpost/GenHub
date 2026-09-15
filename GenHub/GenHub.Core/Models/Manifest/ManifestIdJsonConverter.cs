@@ -9,7 +9,7 @@ namespace GenHub.Core.Models.Manifest;
 public sealed class ManifestIdJsonConverter : JsonConverter<ManifestId>
 {
     /// <inheritdoc/>
-    public override ManifestId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override ManifestId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) // skipcq: CS-R1138
     {
         var s = reader.GetString() ?? string.Empty;
         return ManifestId.Create(s);

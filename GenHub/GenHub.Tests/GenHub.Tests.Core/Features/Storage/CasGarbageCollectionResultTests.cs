@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Results.CAS;
 
 namespace GenHub.Tests.Core.Features.Storage;
@@ -142,5 +143,20 @@ public class CasGarbageCollectionResultTests
         Assert.Equal(50, result.ObjectsScanned);
         Assert.Equal(40, result.ObjectsReferenced);
         Assert.Equal(20.0, result.PercentageFreed);
+    }
+
+    /// <summary>
+    /// Verifies that the disabled factory returns a clear fail-closed result.
+    /// </summary>
+    [Fact]
+    public void CreateDisabled_ReturnsClearDisabledResult()
+    {
+        var result = CasGarbageCollectionResult.CreateDisabled();
+
+        Assert.False(result.Success);
+        Assert.True(result.Disabled);
+        Assert.Equal(CasDefaults.GarbageCollectionDisabledMessage, result.FirstError);
+        Assert.Equal(0, result.ObjectsDeleted);
+        Assert.Equal(0, result.BytesFreed);
     }
 }

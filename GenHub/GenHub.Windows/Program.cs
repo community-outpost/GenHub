@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Avalonia;
+using DotNetEnv;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Infrastructure.DependencyInjection;
@@ -32,6 +33,16 @@ public class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Load environment variables (locally)
+        try
+        {
+            Env.TraversePath().Load();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to load environment variables: {ex}");
+        }
+
         // Initialize Velopack - must be first to handle install/update hooks
         VelopackApp.Build().Run();
 
@@ -41,25 +52,57 @@ public class Program
         // Extract profile ID from args if present (for IPC forwarding)
         var profileId = CommandLineParser.ExtractProfileId(args);
 
-        // Initialize single-instance manager
-        _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+        // Extract genhub://subscribe?url=... target (catalog JSON today; definition URL later)
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
 
-        if (!_singleInstanceManager.IsFirstInstance)
+        // Check for multi-instance mode (useful for debugging with multiple instances)
+        bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable("GENHUB_MULTI_INSTANCE") == "1";
+
+        if (!multiInstance)
         {
-            // Forward launch command to primary instance if we have a profile ID
-            if (!string.IsNullOrEmpty(profileId))
+            // Initialize single-instance manager
+            _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+
+            if (!_singleInstanceManager.IsFirstInstance)
             {
-                bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-                SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+                // Forward launch command to primary instance if we have a profile ID
+                if (!string.IsNullOrEmpty(profileId))
+                {
+                    bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+                }
+
+                // Forward subscribe so the running UI can show the confirmation dialog
+                if (!string.IsNullOrEmpty(subscriptionUrl))
+                {
+                    bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
+                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
+                }
+
+                // Focus the existing instance
+                SingleInstanceManager.FocusPrimaryInstance();
+
+                // Exit this secondary instance
+                _singleInstanceManager.Dispose();
+                return;
             }
-
-            // Focus the existing instance
-            SingleInstanceManager.FocusPrimaryInstance();
-
-            // Exit this secondary instance
-            _singleInstanceManager.Dispose();
-            return;
         }
+        else
+        {
+            bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
+        }
+
+        // Check for duplicate installation collision: adopt custom configuration early and preserve registry entry
+        HandleEarlyInstallationConflict(bootstrapLogger);
+
+        // Record custom installation location in registry if running outside default root
+        Features.Storage.WindowsInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
+
+        // Register the genhub:// URI scheme with Windows so clicked links open this executable.
+        // Registered for primary instance only; idempotent and per-user (HKCU).
+        Features.Shortcuts.UriSchemeRegistrar.Register(bootstrapLogger);
 
         try
         {
@@ -110,4 +153,24 @@ public class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    private static void HandleEarlyInstallationConflict(ILogger logger)
+    {
+        // Initialize configured data-path resolver before checking conflict so AppDataPath is respected
+        ConfigurationModule.InitializeConfiguredDataPathResolver();
+
+        // Check for duplicate installation collision: if running from default %LOCALAPPDATA%
+        // but a custom installation was previously registered or recorded, adopt user configuration early
+        // before dependency injection initializes UserSettingsService.
+        var registeredCustom = Features.Storage.WindowsInstallationTracker.GetRegisteredCustomInstallPathStatic(logger);
+        Common.Services.StorageMigrationService.EarlyAdoptIfConflict(registeredCustom, logger);
+
+        // If a duplicate custom installation was discovered during conflict check or adoption,
+        // persist it in Windows registry before URI scheme re-registration overwrites the open command.
+        if (Common.Services.StorageMigrationService.HasDuplicateInstallationConflict(registeredCustom, out var detectedCustom) &&
+            !string.IsNullOrWhiteSpace(detectedCustom))
+        {
+            Features.Storage.WindowsInstallationTracker.RecordCustomInstallPathStatic(detectedCustom, logger);
+        }
+    }
 }

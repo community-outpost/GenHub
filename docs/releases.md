@@ -22,13 +22,15 @@ GenHub uses [Velopack](https://github.com/velopack/velopack) for automatic appli
 
 ### Automated vs Manual Releases
 
-**Automated (Recommended):** Push a version tag and let CI/CD handle everything:
+**Automated (Recommended):** The `main` branch has automatic release deployment configured. When the `development` branch is merged into `main`, a new release is automatically created and published. You can also manually trigger a release by pushing a version tag:
+
 ```powershell
 git tag -a v1.0.0 -m "Release v1.0.0"
 git push origin v1.0.0
 ```
 
 The CI/CD workflow (`.github/workflows/release.yml`) will automatically:
+
 - Build Windows and Linux releases
 - Create Velopack packages with all required files
 - Verify critical files are present (including `releases.win.json`)
@@ -42,11 +44,13 @@ The CI/CD workflow (`.github/workflows/release.yml`) will automatically:
 Before creating a release, ensure you have:
 
 1. **Velopack CLI installed**
+
    ```powershell
    dotnet tool install -g vpk
    ```
 
 2. **GitHub CLI installed and authenticated**
+
    ```powershell
    # Install GitHub CLI
    winget install GitHub.cli
@@ -60,6 +64,7 @@ Before creating a release, ensure you have:
    - Must have push access to the `community-outpost/genhub` repository
 
 4. **Clean working directory**
+
    ```powershell
    git status  # Should show no uncommitted changes
    ```
@@ -85,13 +90,14 @@ GenHub uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH[-PRER
 
 The easiest way to create a release is to push a version tag. The CI/CD workflow will handle everything automatically.
 
-#### Steps:
+#### Steps
 
 1. **Update Version in Directory.Build.props (Single Source of Truth):**
+
    ```xml
    <Version>1.0.0</Version>
    ```
-   
+
    This version is automatically used everywhere:
    - Application code at runtime
    - Assembly metadata
@@ -99,13 +105,15 @@ The easiest way to create a release is to push a version tag. The CI/CD workflow
    - GitHub release tags
 
 2. **Commit and Push:**
+
    ```powershell
    git add GenHub/Directory.Build.props
    git commit -m "chore: bump version to 1.0.0"
-   git push origin main  # or your branch name
+   git push origin development  # Push to development branch
    ```
 
 3. **Create and Push Tag:**
+
    ```powershell
    git tag -a v1.0.0 -m "Release v1.0.0"
    git push origin v1.0.0
@@ -118,11 +126,13 @@ The easiest way to create a release is to push a version tag. The CI/CD workflow
    - The release will be created with tag `v{version}` when complete
 
 5. **Verify Release:**
+
    ```powershell
    gh release view v1.0.0 --repo community-outpost/genhub
    ```
 
 **For Prereleases (alpha/beta/rc):**
+
 - Tag with prerelease suffix: `v1.0.0-alpha.1`, `v1.0.0-beta.2`, `v1.0.0-rc.1`
 - The workflow will automatically detect and mark as prerelease
 
@@ -139,6 +149,7 @@ Edit `GenHub/Directory.Build.props` and update the `<Version>` property (this is
 ```
 
 **Important:** This version will be automatically used by:
+
 - Application code (AppConstants.AppVersion)
 - .NET assembly metadata
 - Velopack package creation
@@ -187,6 +198,7 @@ cd ..
 ```
 
 This generates several files in `publish/Releases/`:
+
 - `GenHub-1.0.0-full.nupkg` - Full installer package
 - `GenHub-1.0.0-delta.nupkg` - Delta update (only if upgrading from previous version)
 - `GenHub-win-Setup.exe` - End-user installer
@@ -238,6 +250,7 @@ gh release create v1.0.0-alpha.1 `
 ### Step 7: Verify Release
 
 1. **Check GitHub release page:**
+
    ```powershell
    gh release view v1.0.0 --repo community-outpost/genhub
    ```
@@ -255,6 +268,7 @@ gh release create v1.0.0-alpha.1 `
 ### First-Time Installation Testing
 
 1. **Download the installer:**
+
    ```powershell
    gh release download v1.0.0 --repo community-outpost/genhub --pattern "GenHub-win-Setup.exe"
    ```
@@ -309,7 +323,9 @@ gh release upload v1.0.0 `
 **Problem:** Version mismatch or missing delta package.
 
 **Solution:**
+
 1. Check the version in `releases.win.json`:
+
    ```powershell
    Get-Content publish/Releases/releases.win.json | ConvertFrom-Json
    ```
@@ -317,6 +333,7 @@ gh release upload v1.0.0 `
 2. Verify the version matches the package filenames
 
 3. If version is wrong, rebuild with correct version:
+
    ```powershell
    cd publish
    vpk pack --packId GenHub --packVersion 1.0.1 --packDir win-x64 --mainExe GenHub.Windows.exe --packTitle "GenHub"
@@ -327,6 +344,7 @@ gh release upload v1.0.0 `
 **Problem:** Running GenHub from build directory instead of installed version.
 
 **Solution:**
+
 - Always test updates with the installed version from `%LOCALAPPDATA%\GenHub`
 - Install using `GenHub-win-Setup.exe` first
 - Do not test updates by running from `bin/Release/` directory
@@ -336,7 +354,9 @@ gh release upload v1.0.0 `
 **Problem:** Corrupted download or permission issues.
 
 **Solution:**
+
 1. Check Velopack logs:
+
    ```powershell
    Get-Content "$env:LOCALAPPDATA\GenHub\velopack.log" -Tail 50
    ```
@@ -344,6 +364,7 @@ gh release upload v1.0.0 `
 2. Verify file integrity on GitHub release
 
 3. Try clean installation:
+
    ```powershell
    # Uninstall current version
    & "$env:LOCALAPPDATA\GenHub\Update.exe" --uninstall
@@ -440,6 +461,7 @@ The automated release workflow (`.github/workflows/release.yml`) provides the fo
 ### Prerelease Detection
 
 The workflow automatically detects prereleases by checking the version string:
+
 - If version contains `alpha`, `beta`, or `rc`, it's marked as prerelease
 - Can be manually overridden with `prerelease: true` in workflow dispatch
 
@@ -456,16 +478,19 @@ Build artifacts are retained for 90 days, allowing developers to download and te
 ### Troubleshooting CI/CD
 
 **Build fails at "Verify Critical Files" step:**
+
 - Velopack may have failed to generate all files
 - Check the "Create Velopack Package" step logs
 - Ensure icon file exists at `GenHub/GenHub/Assets/Icons/generalshub.ico`
 
 **Release creation fails:**
+
 - Check GitHub token permissions (requires `contents: write`)
 - Verify tag format matches `v*` pattern
 - Ensure all build jobs completed successfully
 
 **Delta package not generated:**
+
 - This is normal for first releases (no previous version to compare)
 - Delta packages are only created when updating from a previous version
 - The workflow handles this gracefully

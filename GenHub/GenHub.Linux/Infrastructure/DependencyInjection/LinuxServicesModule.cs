@@ -1,10 +1,18 @@
-using System;
-using System.Runtime.Versioning;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Shortcuts;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Workspace;
+using GenHub.Features.GameSettings;
+using GenHub.Features.Workspace;
 using GenHub.Linux.Features.Shortcuts;
+using GenHub.Linux.Features.Storage;
 using GenHub.Linux.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Runtime.Versioning;
 
 namespace GenHub.Linux.Infrastructure.DependencyInjection;
 
@@ -22,7 +30,21 @@ public static class LinuxServicesModule
     public static IServiceCollection AddLinuxServices(this IServiceCollection services)
     {
         services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
+        services.AddSingleton<IGamePathProvider, LinuxGamePathProvider>();
+        services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, LinuxShortcutService>();
+        services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, LinuxInstallationTracker>());
+
+        // Real hard links via link(2). Without this the base implementation throws, which
+        // is deliberate: silently copying made a missing registration invisible while
+        // every workspace consumed a full copy of the game.
+        services.AddScoped<IFileOperationsService>(serviceProvider =>
+        {
+            var baseService = serviceProvider.GetRequiredService<FileOperationsService>();
+            var casService = serviceProvider.GetRequiredService<ICasService>();
+            var logger = serviceProvider.GetRequiredService<ILogger<UnixFileOperationsService>>();
+            return new UnixFileOperationsService(baseService, casService, logger);
+        });
 
         return services;
     }

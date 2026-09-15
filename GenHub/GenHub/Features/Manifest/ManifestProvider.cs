@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using System;
 using System.IO;
@@ -73,6 +74,8 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     // Validate security of parsed manifest
                     ValidateManifestSecurity(manifest);
 
+                    EnsureManifestAccepted(manifest, gameClient.Id);
+
                     // Ensure manifest ID matches the requested id
                     if (!string.Equals(manifest.Id.Value, gameClient.Id, StringComparison.OrdinalIgnoreCase))
                     {
@@ -93,7 +96,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                         embeddedSourceDir = null;
                     }
 
-                    var addResult = await manifestPool.AddManifestAsync(manifest, embeddedSourceDir ?? string.Empty, cancellationToken);
+                    var addResult = await manifestPool.AddManifestAsync(manifest, embeddedSourceDir ?? string.Empty, null, cancellationToken);
                     if (addResult?.Success == true)
                     {
                         return manifest;
@@ -118,7 +121,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
             var gameVersionInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
             var generated = manifestBuilder
-                .WithBasicInfo("EA Games", gameClient.Name ?? "Unknown", gameVersionInt)
+                .WithBasicInfo("EA Games", gameClient.Name ?? GameClientConstants.UnknownVersion, gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameClient.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
                 .WithMetadata($"Generated manifest for {gameClient.Name}")
@@ -130,11 +133,12 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     IsRequired = true,
                 })
                 .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink)
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy)
                 .Build();
 
             // Validate ID before adding to pool
             ManifestIdValidator.EnsureValid(generated.Id.Value);
+            EnsureManifestAccepted(generated, gameClient.Id);
 
             // Determine a sensible source directory for the generated manifest.
             // Prefer the working directory if present, otherwise fall back to the directory
@@ -151,7 +155,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 gameDir = null;
             }
 
-            var addRes = await manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, cancellationToken);
+            var addRes = await manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, null, cancellationToken);
             if (addRes?.Success != true)
             {
                 logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? []));
@@ -204,10 +208,15 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
                 if (manifest != null)
                 {
+                    ValidateCachedManifest(manifest, deterministicId);
+
                     // For embedded installation manifests, provide the installation path as source when available.
-                    var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, cancellationToken);
+                    var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, null, cancellationToken);
                     if (addRes?.Success != true)
+                    {
                         logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
+                    }
+
                     return manifest;
                 }
             }
@@ -237,7 +246,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 .WithPublisher(publisherName, string.Empty)
                 .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
                 .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly);
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
             // to dramatically improve scan performance. This is acceptable because:
@@ -261,7 +270,8 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
             // Validate ID before adding to pool
             ManifestIdValidator.EnsureValid(generated.Id.Value);
-            var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, cancellationToken);
+            EnsureManifestAccepted(generated, deterministicId);
+            var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, null, cancellationToken);
             if (addRes2?.Success != true)
             {
                 logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? []));
@@ -293,10 +303,19 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     {
         // Run the same security validations as for embedded manifests
         ValidateManifestSecurity(manifest);
+        EnsureManifestAccepted(manifest, expectedId);
 
         if (!string.Equals(manifest.Id.Value, expectedId, StringComparison.OrdinalIgnoreCase))
         {
             throw new ManifestValidationException(expectedId, $"Manifest ID mismatch: expected '{expectedId}' but manifest contains '{manifest.Id.Value}'");
+        }
+    }
+
+    private static void EnsureManifestAccepted(ContentManifest manifest, string requestedId)
+    {
+        if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+        {
+            throw new ManifestValidationException(requestedId, rejectionReason!);
         }
     }
 }

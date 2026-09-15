@@ -100,4 +100,19 @@ public class ApiConstantsTests
             Assert.IsType<string>(ApiConstants.GitHubUrlRegexPattern);
         });
     }
+
+    /// <summary>
+    /// Tests that workflow runs format constants target the ci.yml workflow.
+    /// </summary>
+    [Fact]
+    public void ApiConstants_WorkflowRunsFormats_ShouldTargetCiWorkflow()
+    {
+        // Assert
+        Assert.Multiple(() =>
+        {
+            Assert.Contains("/actions/workflows/ci.yml/runs", ApiConstants.GitHubApiWorkflowRunsFormat);
+            Assert.Contains("/actions/workflows/ci.yml/runs", ApiConstants.GitHubApiWorkflowRunsAllFormat);
+            Assert.Contains("/actions/workflows/ci.yml/runs", ApiConstants.GitHubApiLatestWorkflowRunsFormat);
+        });
+    }
 }

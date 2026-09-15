@@ -28,13 +28,8 @@ public class GameClientValidator(
     IManifestProvider manifestProvider,
     IContentValidator contentValidator,
     IFileHashProvider hashProvider)
-    : FileSystemValidator(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider))), IGameClientValidator, IValidator<GameClient>
+    : FileSystemValidator(logger, hashProvider), IGameClientValidator, IValidator<GameClient>
 {
-    private readonly ILogger<GameClientValidator> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IManifestProvider _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
-    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
-    private readonly IFileHashProvider _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
-
     /// <inheritdoc/>
     public async Task<ValidationResult> ValidateAsync(GameClient gameClient, CancellationToken cancellationToken = default)
     {
@@ -45,14 +40,14 @@ public class GameClientValidator(
     public async Task<ValidationResult> ValidateAsync(GameClient gameClient, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("Starting validation for client '{ClientName}' (ID: {ClientId}) at '{Path}'", gameClient.Name, gameClient.Id, gameClient.WorkingDirectory);
+        logger.LogInformation("Starting validation for client '{ClientName}' (ID: {ClientId}) at '{Path}'", gameClient.Name, gameClient.Id, gameClient.WorkingDirectory);
         var issues = new List<ValidationIssue>();
 
         // Early validation - check if working directory exists
         if (string.IsNullOrEmpty(gameClient.WorkingDirectory) || !Directory.Exists(gameClient.WorkingDirectory))
         {
             issues.Add(new ValidationIssue { IssueType = ValidationIssueType.DirectoryMissing, Path = gameClient.WorkingDirectory, Message = "Game client working directory is missing or not prepared." });
-            _logger.LogError("Validation failed: Working directory '{Path}' is invalid.", gameClient.WorkingDirectory);
+            logger.LogError("Validation failed: Working directory '{Path}' is invalid.", gameClient.WorkingDirectory);
             return new ValidationResult(gameClient.Id, issues);
         }
 
@@ -60,24 +55,24 @@ public class GameClientValidator(
 
         // Get manifest
         cancellationToken.ThrowIfCancellationRequested();
-        var manifest = await _manifestProvider.GetManifestAsync(gameClient, cancellationToken);
+        var manifest = await manifestProvider.GetManifestAsync(gameClient, cancellationToken);
         if (manifest == null)
         {
             issues.Add(new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "Manifest", Message = "Validation manifest could not be found for this game client." });
-            _logger.LogError("Validation failed: No manifest found for game client ID '{ClientId}'.", gameClient.Id);
+            logger.LogError("Validation failed: No manifest found for game client ID '{ClientId}'.", gameClient.Id);
             return new ValidationResult(gameClient.Id, issues);
         }
 
         progress?.Report(new ValidationProgress(2, 4, "Core manifest validation"));
 
         // Use ContentValidator for core validation
-        var manifestValidationResult = await _contentValidator.ValidateManifestAsync(manifest, cancellationToken);
+        var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
         issues.AddRange(manifestValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(3, 4, "Content integrity validation"));
 
         // Use ContentValidator for file integrity
-        var integrityValidationResult = await _contentValidator.ValidateContentIntegrityAsync(gameClient.WorkingDirectory, manifest, cancellationToken);
+        var integrityValidationResult = await contentValidator.ValidateContentIntegrityAsync(gameClient.WorkingDirectory, manifest, cancellationToken);
         issues.AddRange(integrityValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(4, 4, "Game client specific checks"));
@@ -85,7 +80,7 @@ public class GameClientValidator(
         // Game client specific validations
         issues.AddRange(await ValidateGameClientSpecificAsync(gameClient, manifest, cancellationToken));
 
-        _logger.LogInformation("Validation for '{ClientName}' completed with {IssueCount} issues.", gameClient.Name, issues.Count);
+        logger.LogInformation("Validation for '{ClientName}' completed with {IssueCount} issues.", gameClient.Name, issues.Count);
         return new ValidationResult(gameClient.Id, issues);
     }
 

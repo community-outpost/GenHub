@@ -20,7 +20,7 @@ public class UserDataIndex
     /// <summary>
     /// Gets or sets the list of all installation keys (manifestId_profileId).
     /// </summary>
-    public List<string> InstallationKeys { get; set; } = new();
+    public List<string> InstallationKeys { get; set; } = [];
 
     /// <summary>
     /// Gets or sets a dictionary mapping absolute file paths to their installation key.
@@ -32,11 +32,11 @@ public class UserDataIndex
     /// Gets or sets a dictionary mapping profile IDs to their installation keys.
     /// Enables quick lookup of all content installed for a profile.
     /// </summary>
-    public Dictionary<string, List<string>> ProfileInstallations { get; set; } = new();
+    public Dictionary<string, List<string>> ProfileInstallations { get; set; } = [];
 
     /// <summary>
     /// Gets or sets a dictionary mapping manifest IDs to their installation keys.
     /// Enables quick lookup of all profiles using a manifest.
     /// </summary>
-    public Dictionary<string, List<string>> ManifestInstallations { get; set; } = new();
+    public Dictionary<string, List<string>> ManifestInstallations { get; set; } = [];
 }

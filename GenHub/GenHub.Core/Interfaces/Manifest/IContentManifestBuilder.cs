@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 
@@ -86,6 +89,13 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithPublisher(string name, string website = "", string supportUrl = "", string contactEmail = "", string publisherType = "");
 
     /// <summary>
+    /// Sets publisher information from an existing <see cref="PublisherInfo"/> instance.
+    /// </summary>
+    /// <param name="publisher">The publisher information.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithPublisher(PublisherInfo publisher);
+
+    /// <summary>
     /// Sets content metadata.
     /// </summary>
     /// <param name="description">Content description.</param>
@@ -108,6 +118,7 @@ public interface IContentManifestBuilder
     /// <param name="compatibleVersions">List of compatible versions.</param>
     /// <param name="isExclusive">Whether the dependency is exclusive.</param>
     /// <param name="conflictsWith">List of conflicting dependency IDs.</param>
+    /// <param name="compatibleGameTypes">List of compatible game types.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddDependency(
         ManifestId id,
@@ -118,7 +129,8 @@ public interface IContentManifestBuilder
         string maxVersion = "",
         List<string>? compatibleVersions = null,
         bool isExclusive = false,
-        List<ManifestId>? conflictsWith = null);
+        List<ManifestId>? conflictsWith = null,
+        List<GameType>? compatibleGameTypes = null);
 
     /// <summary>
     /// Scans a directory and adds files with the specified source type.
@@ -159,8 +171,18 @@ public interface IContentManifestBuilder
     /// <param name="sourcePath">The source path of the file in the game installation.</param>
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
+    /// <param name="hash">Optional pre-computed SHA256 content hash.</param>
+    /// <param name="size">Optional file size in bytes.</param>
+    /// <param name="isRequired">Whether the file is required.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddGameInstallationFileAsync(string relativePath, string sourcePath, bool isExecutable = false, FilePermissions? permissions = null);
+    Task<IContentManifestBuilder> AddGameInstallationFileAsync(
+        string relativePath,
+        string sourcePath,
+        bool isExecutable = false,
+        FilePermissions? permissions = null,
+        string? hash = null,
+        long? size = null,
+        bool isRequired = true);
 
     /// <summary>
     /// Adds a content-addressable file from the CAS system.
@@ -203,29 +225,45 @@ public interface IContentManifestBuilder
     /// </summary>
     /// <param name="workspaceStrategy">The workspace preparation strategy.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridCopySymlink);
+    IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy);
 
     /// <summary>
-    /// Adds a pre-installation step.
+    /// Sets the complete installation instructions object for the manifest.
     /// </summary>
-    /// <param name="name">Step name.</param>
-    /// <param name="command">Command to execute.</param>
-    /// <param name="arguments">Command arguments.</param>
-    /// <param name="workingDirectory">Working directory for the command.</param>
-    /// <param name="requiresElevation">Whether elevation is required.</param>
+    /// <param name="installationInstructions">The installation instructions object.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPreInstallStep(string name, string command, List<string>? arguments = null, string workingDirectory = "", bool requiresElevation = false);
+    IContentManifestBuilder WithInstallationInstructions(InstallationInstructions installationInstructions);
 
     /// <summary>
     /// Adds a post-installation step.
     /// </summary>
     /// <param name="name">Step name.</param>
-    /// <param name="command">Command to execute.</param>
-    /// <param name="arguments">Command arguments.</param>
-    /// <param name="workingDirectory">Working directory for the command.</param>
+    /// <param name="kind">The kind of installation step to execute.</param>
+    /// <param name="targetRelativePath">Target relative path within workspace.</param>
+    /// <param name="arguments">Command arguments for executable steps.</param>
+    /// <param name="destinationRelativePath">Destination relative path for rename operations.</param>
     /// <param name="requiresElevation">Whether elevation is required.</param>
+    /// <param name="statusMessage">Optional user-facing status message.</param>
+    /// <param name="runOnce">Whether to execute only once and skip on future updates.</param>
+    /// <param name="stepKey">Optional unique step key for tracking execution.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPostInstallStep(string name, string command, List<string>? arguments = null, string workingDirectory = "", bool requiresElevation = false);
+    IContentManifestBuilder AddPostInstallStep(
+        string name,
+        InstallationStepKind kind,
+        string? targetRelativePath = null,
+        List<string>? arguments = null,
+        string? destinationRelativePath = null,
+        bool requiresElevation = false,
+        string? statusMessage = null,
+        bool runOnce = false,
+        string? stepKey = null);
+
+    /// <summary>
+    /// Adds a post-installation step using an existing <see cref="InstallationStep"/> instance.
+    /// </summary>
+    /// <param name="step">The installation step to add.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder AddPostInstallStep(InstallationStep step);
 
     /// <summary>
     /// Adds a content reference for cross-publisher linking.
@@ -244,12 +282,40 @@ public interface IContentManifestBuilder
         string maxVersion = "");
 
     /// <summary>
+    /// Sets content references for cross-publisher linking.
+    /// </summary>
+    /// <param name="contentReferences">The collection of content references.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithContentReferences(IEnumerable<ContentReference> contentReferences);
+
+    /// <summary>
     /// Adds a file patching operation to the manifest.
     /// </summary>
     /// <param name="targetRelativePath">The relative path of the file in the workspace to be patched.</param>
     /// <param name="patchSourceFile">The path to the patch file, relative to the mod's content root.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddPatchFile(string targetRelativePath, string patchSourceFile);
+
+    /// <summary>
+    /// Sets the declared entry point executable for this manifest.
+    /// </summary>
+    /// <param name="entryPoint">The relative path of the entry point file.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithEntryPoint(string? entryPoint);
+
+    /// <summary>
+    /// Explicitly sets the manifest ID, bypassing automatic generation.
+    /// </summary>
+    /// <param name="id">The manifest identifier.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithId(ManifestId id);
+
+    /// <summary>
+    /// Sets the human-readable display name for this manifest.
+    /// </summary>
+    /// <param name="name">The display name.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithName(string name);
 
     /// <summary>
     /// Builds the final ContentManifest.

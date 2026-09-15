@@ -119,26 +119,54 @@ These converters transform Avalonia `Color` values into brushes, opacity values,
 <Border Background="{Binding ColorValue, Converter={StaticResource ProfileColorToOpacityConverter}, ConverterParameter=0.6}" />
 ```
 
-### Real Usage in GameProfileSettingsWindow.axaml
+---
+
+## `ContentTypeToBrushConverter`
+
+- **Namespace**: `GenHub.Infrastructure.Converters`
+- **Purpose**: Converts a `ContentType` enum value into a solid accent brush for badges, card borders, and tags.
+- **Color Mapping** (from `UiConstants`):
+  - `ContentType.GameClient` → `ContentTypeGameClientColor` (#06B6D4 - Cyan)
+  - `ContentType.Mod` → `ContentTypeModColor` (#A855F7 - Purple)
+  - `ContentType.Patch` → `ContentTypePatchColor` (#F59E0B - Amber)
+  - `ContentType.Map` / `ContentType.MapPack` → `ContentTypeMapColor` (#10B981 - Green)
+  - `ContentType.Addon` → `ContentTypeAddonColor` (#EC4899 - Pink)
+  - `ContentType.ModdingTool` / `ContentType.Executable` → `ContentTypeToolColor` (#38BDF8 - Light Blue)
+  - `ContentType.ContentBundle` → `ContentTypeBundleColor` (#6366F1 - Indigo)
+  - `ContentType.Mission` → `ContentTypeMissionColor` (#F97316 - Orange)
+  - `ContentType.Skin` / `ContentType.LanguagePack` → `ContentTypeSkinColor` (#8B5CF6 - Violet)
+- **Singleton**: `ContentTypeToBrushConverter.Instance`
+- **Return Type**: `SolidColorBrush`
+
+### Badge Border & Text Example
 
 ```xml
-<!-- Profile settings contrast text -->
-<TextBlock Text="{Binding SettingName}" 
-           Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}" />
-
-<!-- Dimmed text with opacity -->
-<TextBlock Text="{Binding Description}" 
-           Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, ConverterParameter=0.7, Mode=OneWay}" />
-
-<!-- Fallback for invalid colors -->
-<TextBlock Text="{Binding Status}" 
-           Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, FallbackValue=White}" />
+<Border BorderBrush="{Binding SearchResult.ContentType, Converter={x:Static converters:ContentTypeToBrushConverter.Instance}}">
+    <TextBlock Text="{Binding SearchResult.ContentType}"
+               Foreground="{Binding SearchResult.ContentType, Converter={x:Static converters:ContentTypeToBrushConverter.Instance}}" />
+</Border>
 ```
 
-### Real Usage in GameProfileLauncherView.axaml
+---
+
+## `ContentTypeToBadgeBackgroundConverter`
+
+- **Namespace**: `GenHub.Infrastructure.Converters`
+- **Purpose**: Converts a `ContentType` enum value into a low-opacity, tinted background brush (alpha ~14.5% / 0x25) suitable for badge and tag pills.
+- **Color Source**: Inherits the color defined by `UiConstants` for that content type with alpha set to 37 (0x25).
+- **Singleton**: `ContentTypeToBadgeBackgroundConverter.Instance`
+- **Return Type**: `SolidColorBrush`
+
+### Badge Pill Example
 
 ```xml
-<!-- Status color for validation -->
-<TextBlock Text="Path Status" 
-           Foreground="{Binding IsShortcutPathValid, Converter={StaticResource BoolToStatusColorConverter}}" />
+<Border Background="{Binding SearchResult.ContentType, Converter={x:Static converters:ContentTypeToBadgeBackgroundConverter.Instance}}"
+        BorderBrush="{Binding SearchResult.ContentType, Converter={x:Static converters:ContentTypeToBrushConverter.Instance}}"
+        BorderThickness="1"
+        CornerRadius="4"
+        Padding="6,2">
+    <TextBlock Text="{Binding SearchResult.ContentType}"
+               Foreground="{Binding SearchResult.ContentType, Converter={x:Static converters:ContentTypeToBrushConverter.Instance}}"
+               FontSize="11" />
+</Border>
 ```

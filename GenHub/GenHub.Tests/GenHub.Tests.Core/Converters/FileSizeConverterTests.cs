@@ -116,7 +116,7 @@ public class FileSizeConverterTests
     [Fact]
     public void ConvertBack_ThrowsNotImplementedException()
     {
-        // Act & Assert
+        // Use the specific exception type to ensure the test is precise
         Assert.Throws<NotImplementedException>(() =>
             _converter.ConvertBack("1 KB", typeof(long), null, CultureInfo.InvariantCulture));
     }

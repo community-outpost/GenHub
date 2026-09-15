@@ -1,0 +1,779 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentAssertions;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.ContentResolvers;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
+
+namespace GenHub.Tests.Core.Features.Content;
+
+/// <summary>
+/// Unit tests for <see cref="CsvResolver"/>.
+/// </summary>
+public class CsvResolverTests
+{
+    private sealed class TempCsvFile : IDisposable
+    {
+        public TempCsvFile(string csvContent, bool writeUtf8Bom = false)
+        {
+            FilePath = Path.GetTempFileName();
+            if (writeUtf8Bom)
+            {
+                var contentBytes = Encoding.UTF8.GetBytes(csvContent);
+                var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+                File.WriteAllBytes(FilePath, bomBytes);
+            }
+            else
+            {
+                File.WriteAllText(FilePath, csvContent);
+            }
+        }
+
+        public string FilePath { get; }
+
+        public void Dispose()
+        {
+            if (File.Exists(FilePath))
+            {
+                File.Delete(FilePath);
+            }
+        }
+    }
+
+    private sealed class StubHttpMessageHandler(
+        string? expectedUrl = null,
+        string content = "",
+        HttpStatusCode statusCode = HttpStatusCode.NotFound,
+        string? responseUrl = null,
+        byte[]? rawBytes = null) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var code = expectedUrl == null || request.RequestUri?.AbsoluteUri == expectedUrl
+                ? statusCode
+                : HttpStatusCode.NotFound;
+            var response = new HttpResponseMessage(code)
+            {
+                RequestMessage = responseUrl == null ? request : new HttpRequestMessage(HttpMethod.Get, responseUrl),
+                Content = rawBytes != null
+                    ? new ByteArrayContent(rawBytes)
+                    : new StringContent(code == HttpStatusCode.OK ? content : string.Empty),
+            };
+
+            return Task.FromResult(response);
+        }
+    }
+
+    private const string SampleCsvHeader = "relativePath,size,md5,sha256,gameType,language,isRequired,metadata,downloadUrl";
+    private const string SampleCsvRowAll = "game.dat,123456,md5all,sha256all,Generals,All,True,\"{}\",https://example.com/game.dat";
+    private const string SampleCsvRowEn = "English.big,234567,md5en,sha256en,Generals,EN,False,\"{}\",https://example.com/English.big";
+    private const string SampleCsvRowDe = "German.big,345678,md5de,sha256de,Generals,DE,False,\"{}\",https://example.com/German.big";
+    private const string SampleCsvRowZh = "ZeroHour.exe,456789,md5zh,sha256zh,ZeroHour,All,True,\"{}\",https://example.com/ZeroHour.exe";
+
+    private static readonly string FullSampleCsv = string.Join(
+        Environment.NewLine,
+        SampleCsvHeader,
+        SampleCsvRowAll,
+        SampleCsvRowEn,
+        SampleCsvRowDe,
+        SampleCsvRowZh);
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> returns a failure when the item is null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithNullDiscoveredItem_ReturnsFailureAsync()
+    {
+        var resolver = CreateResolver();
+
+        var result = await resolver.ResolveAsync(null!);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> returns a failure when SourceUrl is empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithEmptySourceUrl_ReturnsFailureAsync()
+    {
+        var resolver = CreateResolver();
+        var item = new ContentSearchResult { SourceUrl = string.Empty };
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> successfully resolves a manifest from HTTP URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteCsvFetchedSuccessfully_ResolvesManifestAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: FullSampleCsv, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2); // game.dat (All) + English.big (EN)
+        result.Data.Files.Should().Contain(f => f.RelativePath == "game.dat" && f.SourceType == ContentSourceType.RemoteDownload);
+        result.Data.Files.Should().Contain(f => f.RelativePath == "English.big" && f.SourceType == ContentSourceType.RemoteDownload);
+    }
+
+    /// <summary>
+    /// Verifies that a downloaded remote CSV remains available to a new resolver while offline.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenOffline_UsesPersistedRemoteCsvAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string remoteUrl = "https://example.com/catalog.csv";
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            var onlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, FullSampleCsv, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+
+            var onlineResult = await onlineResolver.ResolveAsync(item);
+            onlineResult.Success.Should().BeTrue();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
+
+            var offlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineResolver.ResolveAsync(item);
+
+            offlineResult.Success.Should().BeTrue();
+            offlineResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a remote response with no usable records does not replace a stale valid CSV.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteCsvHasNoMatches_PreservesCachedCsvAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string remoteUrl = "https://example.com/catalog.csv";
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            var onlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, FullSampleCsv, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await onlineResolver.ResolveAsync(item)).Success.Should().BeTrue();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
+
+            var invalidResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, SampleCsvHeader, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await invalidResolver.ResolveAsync(item)).Success.Should().BeFalse();
+
+            var offlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineResolver.ResolveAsync(item);
+
+            offlineResult.Success.Should().BeTrue();
+            offlineResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that HTTP sources and HTTPS-to-HTTP redirects are rejected without being cached.
+    /// </summary>
+    /// <param name="sourceUrl">Configured CSV URL.</param>
+    /// <param name="responseUrl">Final response URL after redirects.</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData("http://example.com/catalog.csv", "http://example.com/catalog.csv")]
+    [InlineData("https://example.com/catalog.csv", "http://example.com/catalog.csv")]
+    public async Task ResolveAsync_WhenTransportIsInsecure_DoesNotCacheAsync(string sourceUrl, string responseUrl)
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var resolver = CreateResolver(
+                new StubHttpMessageHandler(sourceUrl, FullSampleCsv, HttpStatusCode.OK, responseUrl),
+                cacheDirectory.FullName);
+            var item = CreateDiscoveredItem(sourceUrl, GameType.Generals, CsvConstants.LanguageEn);
+
+            var result = await resolver.ResolveAsync(item);
+
+            result.Success.Should().BeFalse();
+            Directory
+                .EnumerateFiles(cacheDirectory.FullName, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories)
+                .Should().BeEmpty();
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> successfully resolves a manifest from a local file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalCsvFileExists_ResolvesManifestAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+        result.Data.Files.Should().AllSatisfy(f => f.SourceType.Should().Be(ContentSourceType.LocalFile));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> returns a failure when local file is missing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalCsvFileNotFound_ReturnsFailureAsync()
+    {
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem("C:\\nonexistent\\missing_catalog.csv", GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> returns a failure when network request fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenNetworkFails_ReturnsFailureAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.InternalServerError);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> filters files by specific language.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithSpecificLanguageQuery_FiltersFilesByLanguageAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageDe);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Files.Should().HaveCount(2); // game.dat (All) + German.big (DE)
+        result.Data.Files.Should().Contain(f => f.RelativePath == "German.big");
+        result.Data.Files.Should().NotContain(f => f.RelativePath == "English.big");
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> includes all language files when language is "All".
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithAllLanguageQuery_IncludesAllFilesAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.AllLanguagesFilter);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Files.Should().HaveCount(3); // game.dat, English.big, German.big
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> filters files by game type correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithTargetGame_FiltersFilesByGameTypeAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.ZeroHour, CsvConstants.AllLanguagesFilter);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Files.Should().HaveCount(1); // ZeroHour.exe
+        result.Data.Files.First().RelativePath.Should().Be("ZeroHour.exe");
+        result.Data.Files.First().IsExecutable.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> returns failure when no files match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenNoFilesMatch_ReturnsFailureAsync()
+    {
+        using var tempCsv = new TempCsvFile(SampleCsvHeader);
+        var resolver = CreateResolver();
+
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> propagates cancellation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem("https://example.com/test.csv", GameType.Generals, CsvConstants.LanguageEn);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            resolver.ResolveAsync(item, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> propagates cancellation when reading local files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalFileAndCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            resolver.ResolveAsync(item, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolverId"/> returns the expected constant.
+    /// </summary>
+    [Fact]
+    public void ResolverId_ReturnsExpectedConstant()
+    {
+        var resolver = CreateResolver();
+
+        resolver.ResolverId.Should().Be(CsvConstants.ResolverId);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> filters out traversal and rooted paths.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithTraversingRelativePaths_RejectsUnsafePathsAsync()
+    {
+        var maliciousCsv = string.Join(
+            Environment.NewLine,
+            SampleCsvHeader,
+            "../../escape.dll,100,md5,sha256,Generals,All,True,\"{}\",https://example.com/escape.dll",
+            "C:\\root.dll,100,md5,sha256,Generals,All,True,\"{}\",https://example.com/root.dll",
+            "valid.dll,100,md5,sha256,Generals,All,True,\"{}\",https://example.com/valid.dll");
+
+        using var tempCsv = new TempCsvFile(maliciousCsv);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.AllLanguagesFilter);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Files.Should().HaveCount(1);
+        result.Data.Files.Single().RelativePath.Should().Be("valid.dll");
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> sets SourceType to GameInstallation when remote entry has no valid URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteFileHasNoDownloadUrl_SetsSourceTypeToGameInstallationAsync()
+    {
+        var csvNoUrl = string.Join(
+            Environment.NewLine,
+            SampleCsvHeader,
+            "local_only.dat,100,md5,sha256,Generals,All,True,\"{}\",");
+
+        var remoteUrl = "https://example.com/nourl.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: csvNoUrl, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.AllLanguagesFilter);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Files.Single().SourceType.Should().Be(ContentSourceType.GameInstallation);
+        result.Data.Files.Single().DownloadUrl.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Verifies that the ProviderDefinition overload delegates to the main ResolveAsync method.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithProviderDefinitionOverload_DelegatesToResolveAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(null, item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> succeeds when SHA-256 matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithMatchingSha256_SucceedsAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: FullSampleCsv, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+
+        var expectedHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(FullSampleCsv))).ToLowerInvariant();
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> fails when SHA-256 does not match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithMismatchedSha256_FailsIntegrityCheckAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: FullSampleCsv, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = "0000000000000000000000000000000000000000000000000000000000000000";
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("integrity check failed"));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> hashes raw bytes including UTF-8 BOM.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithBomBytes_HashesRawBytesIncludingBomAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var contentBytes = Encoding.UTF8.GetBytes(FullSampleCsv);
+        var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: bomBytes);
+        var resolver = CreateResolver(httpHandler);
+
+        var expectedHash = Convert.ToHexString(SHA256.HashData(bomBytes)).ToLowerInvariant();
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> strictly rejects altered line endings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithAlteredLineEndings_FailsIntegrityCheckAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var lfCsv = FullSampleCsv.Replace("\r\n", "\n");
+        var crlfCsv = lfCsv.Replace("\n", "\r\n");
+
+        var crlfBytes = Encoding.UTF8.GetBytes(crlfCsv);
+        var lfHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(lfCsv))).ToLowerInvariant();
+
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: crlfBytes);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = lfHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("integrity check failed"));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> successfully resolves a local CSV file with UTF-8 BOM.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalCsvFileHasBom_ResolvesManifestAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv, writeUtf8Bom: true);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that a cache hit for a remote CSV served with UTF-8 BOM preserves raw bytes and passes integrity check.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenCachedWithBom_PassesIntegrityCheckOnSubsequentCallAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var remoteUrl = "https://example.com/catalog.csv";
+            var contentBytes = Encoding.UTF8.GetBytes(FullSampleCsv);
+            var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+            var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: bomBytes);
+            var resolver = CreateResolver(httpHandler, tempDir.FullName);
+
+            var expectedHash = Convert.ToHexString(SHA256.HashData(bomBytes)).ToLowerInvariant();
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+            var firstResult = await resolver.ResolveAsync(item);
+            firstResult.Success.Should().BeTrue();
+
+            var secondResult = await resolver.ResolveAsync(item);
+            secondResult.Success.Should().BeTrue();
+            secondResult.Data.Should().NotBeNull();
+            secondResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a remote catalog URL returns 404 Not Found, <see cref="CsvResolver"/> gracefully falls back
+    /// to the embedded assembly asset matching the registry filename without failing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteReturns404_FallsBackToEmbeddedResourceAsync()
+    {
+        var remote404Url = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remote404Url, statusCode: HttpStatusCode.NotFound);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remote404Url, GameType.ZeroHour, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = CsvConstants.ZeroHour104Sha256;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().NotBeEmpty();
+        result.Data.Files.Should().Contain(f => f.RelativePath == "generals.exe");
+    }
+
+    /// <summary>
+    /// Verifies that the embedded authoritative CSV registries match their pinned SHA-256 checksum constants.
+    /// </summary>
+    /// <param name="fileName">The embedded CSV catalog file name.</param>
+    /// <param name="expectedSha256">The expected pinned SHA-256 checksum.</param>
+    [Theory]
+    [InlineData(CsvConstants.GeneralsCsvFileName, CsvConstants.Generals108Sha256)]
+    [InlineData(CsvConstants.ZeroHourCsvFileName, CsvConstants.ZeroHour104Sha256)]
+    public void EmbeddedRegistries_MatchPinnedSha256Constants(string fileName, string expectedSha256)
+    {
+        var assembly = typeof(CsvConstants).Assembly;
+        var resourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{fileName}";
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        stream.Should().NotBeNull($"Resource '{resourceName}' must exist in {assembly.GetName().Name}");
+
+        using var memoryStream = new MemoryStream();
+        stream!.CopyTo(memoryStream);
+        var bytes = memoryStream.ToArray();
+
+        var text = Encoding.UTF8.GetString(bytes);
+        text.Should().NotContain("\r", "embedded CSV registries must use canonical LF line endings");
+
+        var actualHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+        actualHash.Should().Be(expectedSha256);
+    }
+
+    /// <summary>
+    /// Verifies that the embedded index.json is synchronized with docs/GameInstallationFilesRegistry/index.json.
+    /// </summary>
+    [Fact]
+    public void EmbeddedIndexJson_MatchesDocsIndexJson()
+    {
+        var assembly = typeof(CsvConstants).Assembly;
+        var resourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{CsvConstants.RegistryIndexFileName}";
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        stream.Should().NotBeNull($"Resource '{resourceName}' must exist in {assembly.GetName().Name}");
+
+        using var memoryStream = new MemoryStream();
+        stream!.CopyTo(memoryStream);
+        var embeddedText = Encoding.UTF8.GetString(memoryStream.ToArray()).Trim();
+
+        var currentDir = new DirectoryInfo(AppContext.BaseDirectory);
+        string? docsIndexJsonPath = null;
+        while (currentDir != null)
+        {
+            var candidate = Path.Combine(currentDir.FullName, "docs", CsvConstants.RegistryDocsFolder, CsvConstants.RegistryIndexFileName);
+            if (File.Exists(candidate))
+            {
+                docsIndexJsonPath = candidate;
+                break;
+            }
+
+            // Stop search at repo root boundary (.git file/directory) to prevent escaping outside the repository
+            if (Path.Exists(Path.Combine(currentDir.FullName, ".git")))
+            {
+                break;
+            }
+
+            currentDir = currentDir.Parent;
+        }
+
+        docsIndexJsonPath.Should().NotBeNull(
+            $"docs/{CsvConstants.RegistryDocsFolder}/{CsvConstants.RegistryIndexFileName} must exist in the repository tree above {AppContext.BaseDirectory}");
+        var docsText = File.ReadAllText(docsIndexJsonPath!).Trim();
+        embeddedText.Should().Be(docsText);
+    }
+
+    private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)
+    {
+        var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+        mockHttpClientFactory
+            .Setup(o => o.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler ?? new StubHttpMessageHandler()));
+
+        CsvCatalogCache? catalogCache = null;
+        if (applicationDataPath != null)
+        {
+            var configurationProvider = new Mock<IConfigurationProviderService>();
+            configurationProvider.Setup(provider => provider.GetApplicationDataPath()).Returns(applicationDataPath);
+            catalogCache = new CsvCatalogCache(configurationProvider.Object, Mock.Of<ILogger<CsvCatalogCache>>());
+        }
+
+        return new CsvResolver(mockHttpClientFactory.Object, Mock.Of<ILogger<CsvResolver>>(), catalogCache);
+    }
+
+    private static ContentSearchResult CreateDiscoveredItem(string sourceUrl, GameType gameType, string language)
+    {
+        var gameTypeStr = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourGameType : CsvConstants.GeneralsGameType;
+        var id = ManifestIdGenerator.GeneratePublisherContentId(
+            PublisherTypeConstants.CsvRegistry,
+            ContentType.GameInstallation,
+            $"{gameTypeStr}-1.0-{language}");
+
+        var item = new ContentSearchResult
+        {
+            Id = id,
+            Name = $"{gameTypeStr} 1.0 ({language})",
+            Description = $"Base game installation files for {gameTypeStr} 1.0",
+            Version = "1.0",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = gameType,
+            ProviderName = CsvConstants.SourceName,
+            ResolverId = CsvConstants.ResolverId,
+            SourceUrl = sourceUrl,
+            RequiresResolution = true,
+        };
+
+        item.ResolverMetadata[CsvConstants.CsvUrlMetadataKey] = sourceUrl;
+        item.ResolverMetadata[CsvConstants.GameTypeMetadataKey] = gameTypeStr;
+        item.ResolverMetadata[CsvConstants.LanguageMetadataKey] = language;
+        item.ResolverMetadata[CsvConstants.VersionMetadataKey] = "1.0";
+
+        return item;
+    }
+}

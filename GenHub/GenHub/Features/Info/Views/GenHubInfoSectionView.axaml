@@ -1,0 +1,979 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.Info;assembly=GenHub.Core"
+             xmlns:local="clr-namespace:GenHub.Features.GameProfiles.Views"
+             xmlns:update="clr-namespace:GenHub.Features.AppUpdate.Views"
+             xmlns:views="clr-namespace:GenHub.Features.Info.Views"
+             xmlns:toolsRep="clr-namespace:GenHub.Features.Tools.ReplayManager.Views"
+             xmlns:toolsMap="clr-namespace:GenHub.Features.Tools.MapManager.Views"
+             xmlns:infra="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
+             xmlns:conv="using:Avalonia.Data.Converters"
+             xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
+             x:Class="GenHub.Features.Info.Views.GenHubInfoSectionView"
+             x:DataType="vm:GenHubInfoSectionViewModel">
+
+  <UserControl.Styles>
+    <!-- Section Header Style -->
+    <Style Selector="TextBlock.section-header">
+      <Setter Property="FontSize" Value="36"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="white"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <!-- Info Card Styles - Modern Premium Glassmorphic Look -->
+    <Style Selector="Border.info-card">
+      <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="24"/>
+      <Setter Property="ClipToBounds" Value="False"/>
+      <Setter Property="BoxShadow" Value="0 4 16 0 #30000000"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+          <BrushTransition Property="Background" Duration="0:0:0.2"/>
+          <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2"/>
+        </Transitions>
+      </Setter>
+    </Style>
+
+    <Style Selector="Button.info-card-btn">
+       <Setter Property="FocusAdorner" Value="{x:Null}"/>
+       <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+       <Setter Property="ClipToBounds" Value="False"/>
+       <Setter Property="Margin" Value="0,0,0,24"/>
+       <Setter Property="Template">
+         <ControlTemplate>
+           <ContentPresenter Content="{TemplateBinding Content}"
+                             Padding="{TemplateBinding Padding}"
+                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+         </ControlTemplate>
+       </Setter>
+       <Setter Property="Transitions">
+          <Transitions>
+            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" Easing="CircularEaseOut" />
+          </Transitions>
+       </Setter>
+    </Style>
+
+    <Style Selector="Button.info-card-btn:pointerover">
+       <Setter Property="RenderTransform" Value="scale(1.015)" />
+       <Setter Property="ZIndex" Value="10"/>
+    </Style>
+
+    <Style Selector="Button.info-card-btn:pointerover Border.info-card">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+      <Setter Property="BoxShadow" Value="0 15 45 0 #80000000"/>
+    </Style>
+
+    <Style Selector="TextBlock.card-title">
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#F0F0F0"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <!-- Header for demos "Interactive Element" -->
+    <Style Selector="TextBlock.demo-title">
+       <Setter Property="FontSize" Value="24"/>
+       <Setter Property="FontWeight" Value="Bold"/>
+       <Setter Property="Foreground" Value="White"/>
+       <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+     <Style Selector="TextBlock.demo-subtitle">
+       <Setter Property="FontSize" Value="15"/>
+       <Setter Property="Foreground" Value="#AAAAAA"/>
+       <Setter Property="Margin" Value="0,6,0,0"/>
+       <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <Style Selector="Border.demo-container">
+        <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}"/>
+        <Setter Property="CornerRadius" Value="16"/>
+        <Setter Property="Padding" Value="20,16"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Margin" Value="0,16,0,0"/>
+        <Setter Property="BoxShadow" Value="0 10 40 0 #80000000"/>
+    </Style>
+
+    <!-- Shortcut Icon Mock Style -->
+     <Style Selector="Border.shortcut-mock">
+        <Setter Property="Width" Value="64"/>
+        <Setter Property="Height" Value="64"/>
+        <Setter Property="Background" Value="Transparent"/>
+     </Style>
+
+    <!-- Card Action Button Styles -->
+    <Style Selector="Button.action-btn">
+       <Setter Property="FocusAdorner" Value="{x:Null}"/>
+       <Setter Property="Template">
+         <ControlTemplate>
+           <ContentPresenter Content="{TemplateBinding Content}"
+                             Padding="{TemplateBinding Padding}"
+                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+         </ControlTemplate>
+       </Setter>
+       <Setter Property="Opacity" Value="0.8"/>
+       <Setter Property="Transitions">
+         <Transitions>
+           <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+         </Transitions>
+       </Setter>
+    </Style>
+
+    <Style Selector="Button.action-btn:pointerover">
+       <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="Button.action-btn.primary">
+       <Setter Property="Opacity" Value="1.0"/>
+       <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- Demo Preset Switcher Button Styles -->
+    <Style Selector="Button.preset-btn">
+       <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}"/>
+       <Setter Property="BorderThickness" Value="1"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+       <Setter Property="FontSize" Value="11.5"/>
+       <Setter Property="Padding" Value="12,7"/>
+       <Setter Property="CornerRadius" Value="6"/>
+       <Setter Property="Cursor" Value="Hand"/>
+       <Setter Property="Transitions">
+         <Transitions>
+           <BrushTransition Property="Background" Duration="0:0:0.15"/>
+           <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+           <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+         </Transitions>
+       </Setter>
+    </Style>
+
+    <Style Selector="Button.preset-btn:pointerover">
+       <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+    </Style>
+
+    <Style Selector="Button.preset-btn.preset-active">
+       <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+       <Setter Property="FontWeight" Value="SemiBold"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
+    </Style>
+
+    <!-- Markdown Card Content Style -->
+    <Style Selector="infra|MarkdownTextBlock.card-content">
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+    </Style>
+
+  </UserControl.Styles>
+
+  <ScrollViewer Padding="0,16,0,0" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="32,0,32,48" Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
+
+        <!-- Main Section Header -->
+        <StackPanel Margin="0,0,0,50">
+          <TextBlock Text="{Binding SelectedSection.Title}" Classes="section-header" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding SelectedSection.Description}"
+                     FontSize="18"
+                     Foreground="#999999"
+                     TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- ============================================== -->
+        <!-- DEMO: GAME PROFILES                            -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsGameProfilesSelected}" Margin="0,0,0,50">
+          <StackPanel>
+             <StackPanel HorizontalAlignment="Left">
+                <TextBlock Text="Demo: Profile Card" Classes="demo-title"/>
+                <TextBlock Text="Basic interaction reference." Classes="demo-subtitle"/>
+            </StackPanel>
+
+            <Border Classes="demo-container">
+              <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                <StackPanel HorizontalAlignment="Center" Spacing="20">
+                    <!-- Scaled down profile card for better fit -->
+                    <Viewbox Stretch="Uniform" MaxHeight="400">
+                        <local:GameProfileCardView DataContext="{Binding DemoProfileCard}" Width="300" Height="400"/>
+                    </Viewbox>
+
+                  <TextBlock Text="Try hovering or clicking the buttons above!"
+                             FontSize="13" Foreground="#666666" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Viewbox>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: SHORTCUTS                                -->
+        <!-- ============================================== -->
+        <Border Margin="0,0,0,50">
+             <Border.IsVisible>
+                <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="shortcuts"/>
+             </Border.IsVisible>
+             <StackPanel>
+                <StackPanel HorizontalAlignment="Left">
+                    <TextBlock Text="Demo: Desktop Shortcuts" Classes="demo-title"/>
+                    <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
+                </StackPanel>
+
+                <Border Classes="demo-container">
+                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="40" VerticalAlignment="Center">
+
+                         <!-- 1. The Source: Profile Card -->
+                         <StackPanel Spacing="10">
+                             <TextBlock Text="1. Right-Click Profile" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
+                             <Viewbox Stretch="Uniform" Width="240">
+                                <!-- Using actual component for fidelity -->
+                                <local:GameProfileCardView DataContext="{Binding DemoShortcutProfile}" Width="300" Height="400"/>
+                             </Viewbox>
+                             <TextBlock Text="Click the highlighted Pin icon" FontSize="11" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
+                         </StackPanel>
+
+                        <!-- Arrow -->
+                        <PathIcon Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" Width="32" Height="32" Foreground="#444" VerticalAlignment="Center" Margin="0,25,0,0"/>
+
+                        <!-- 2. The Result: Desktop Icon -->
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="2. Created on Desktop" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
+                            <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="8" Width="120" Margin="0,50,0,0">
+                                 <!-- Windows Desktop Icon Look-alike -->
+                                 <Border Background="Transparent" Padding="8">
+                                     <StackPanel Spacing="2">
+                                         <Grid Width="48" Height="48" HorizontalAlignment="Center">
+                                            <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png" Width="48" Height="48"/>
+                                            <!-- Shortcut Overlay Arrow -->
+                                            <Border Background="White" Width="16" Height="16" CornerRadius="2" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,0" BorderBrush="#888" BorderThickness="1">
+                                                <PathIcon Data="M10,2H19V11M19,2L6,15" Width="12" Height="12" Foreground="Black" RenderTransform="rotate(-45deg)" RenderTransformOrigin="50%,50%"/>
+                                            </Border>
+                                         </Grid>
+                                         <TextBlock Text="Zero Hour Demo" Foreground="White" TextAlignment="Center" TextWrapping="Wrap" FontSize="12"
+                                                    Effect="drop-shadow(1 1 2 black)"/>
+                                     </StackPanel>
+                                 </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                    </StackPanel>
+                  </Viewbox>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: STEAM INTEGRATION                        -->
+        <!-- ============================================== -->
+         <Border Margin="0,0,0,50">
+             <Border.IsVisible>
+                <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="steam-integration"/>
+             </Border.IsVisible>
+             <StackPanel>
+                <StackPanel HorizontalAlignment="Left">
+                    <TextBlock Text="Demo: Steam Status" Classes="demo-title"/>
+                    <TextBlock Text="Visual indicator state." Classes="demo-subtitle"/>
+                </StackPanel>
+
+                <Border Classes="demo-container">
+                    <StackPanel HorizontalAlignment="Center" Spacing="20">
+                        <TextBlock Text="Click the highlighted Steam icon to toggle integration."
+                                   FontSize="13" Foreground="#666666" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+
+                        <Viewbox Stretch="Uniform" MaxHeight="400">
+                             <local:GameProfileCardView DataContext="{Binding DemoSteamProfile}" Width="300" Height="400"/>
+                        </Viewbox>
+
+                         <TextBlock Text="(Icon turns Blue when Active)" Foreground="#00CCFF" FontSize="12" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: APP UPDATE                               -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsAppUpdatesSelected}" Margin="0,15,0,0">
+          <StackPanel Spacing="40">
+            <!-- 1. Standard Update Mechanism -->
+            <StackPanel Spacing="20">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <material:MaterialIcon Grid.Column="0" Kind="CloudDownload" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                        <TextBlock Grid.Column="1" Text="Automatic Updates" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="GenHub uses the Velopack engine for seamless background updates. Use this notification bar to manage official releases."
+                               Classes="demo-subtitle"/>
+                </StackPanel>
+
+                <Border Classes="demo-container">
+                  <StackPanel HorizontalAlignment="Center" Spacing="20">
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource CardBackground}" ClipToBounds="True" MaxWidth="600">
+                        <update:UpdateNotificationView DataContext="{Binding DemoUpdateNotification}"/>
+                    </Border>
+                    <TextBlock Text="Try clicking 'Browse Builds' to see experimental developer versions!"
+                               FontSize="12" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center"/>
+                  </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 2. GitHub PAT & CI Artifacts -->
+            <StackPanel Spacing="20">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <material:MaterialIcon Grid.Column="0" Kind="Github" Width="24" Height="24" Foreground="{DynamicResource SystemAccentColorBrush}"/>
+                        <TextBlock Grid.Column="1" Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="Subscribe to pull requests or specific branches to test new features before they are merged."
+                               Classes="demo-subtitle"/>
+
+                    <!-- Detailed explanations (PAT & CI) -->
+                    <StackPanel Margin="0,12,0,0" Spacing="15">
+                        <TextBlock Text="CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token."
+                                   FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="1000"/>
+
+                        <Border Classes="demo-container" Margin="0,10,0,0">
+                          <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                            <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
+                                <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
+                                     <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="🔑" FontSize="20" VerticalAlignment="Center" />
+                                        <TextBlock Text="GitHub Personal Access Token"
+                                                   FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                     </StackPanel>
+
+                                     <!-- PAT Status -->
+                                     <Border Background="{DynamicResource AccentTintBackgroundBrush}" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
+                                         <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor, Converter={StaticResource ColorToBrushConverter}}" />
+                                            <TextBlock Text="{Binding PatStatusMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="13" FontWeight="Medium" />
+                                         </StackPanel>
+                                     </Border>
+
+                                     <!-- PAT Input -->
+                                     <StackPanel Spacing="8">
+                                         <Grid ColumnDefinitions="*,Auto">
+                                            <TextBox Grid.Column="0"
+                                                     Text="{Binding GitHubPatInput}"
+                                                     PasswordChar=""
+                                                     Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
+                                                     IsEnabled="True"
+                                                     FontSize="14"
+                                                     Height="40"
+                                                     Margin="0,0,12,0"/>
+                                            <Button Grid.Column="1"
+                                                    Content="Save &amp; Test"
+                                                    Command="{Binding TestPatCommand}"
+                                                    Background="{DynamicResource SystemAccentColorBrush}"
+                                                    Foreground="White"
+                                                    Padding="20,0"
+                                                    Height="40"
+                                                    FontWeight="SemiBold"
+                                                    CornerRadius="4" />
+                                         </Grid>
+                                         <TextBlock Text="Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!"
+                                                   FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Left" Margin="2,0,0,0" />
+                                     </StackPanel>
+                                </StackPanel>
+                            </Border>
+                          </Viewbox>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: GAME SETTINGS                            -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsGameSettingsSelected}" Margin="0,0,0,50">
+          <StackPanel>
+             <StackPanel HorizontalAlignment="Left" Spacing="8">
+                <TextBlock Text="Demo: Options.ini Configuration" Classes="demo-title"/>
+                <TextBlock Text="Modifying profile-specific game settings." Classes="demo-subtitle"/>
+            </StackPanel>
+
+            <Border Classes="demo-container">
+               <StackPanel Spacing="20">
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
+                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
+                             TextWrapping="Wrap" TextAlignment="Center"/>
+
+                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                    <Grid HorizontalAlignment="Center">
+                      <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="800" MinWidth="400" />
+                          <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <Grid.RowDefinitions>
+                          <RowDefinition Height="600" MinHeight="300" />
+                          <RowDefinition Height="Auto"/>
+                      </Grid.RowDefinitions>
+
+                      <!-- The Mock Window Content -->
+                      <Border Grid.Row="0" Grid.Column="0"
+                              Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                          <local:DemoGameProfileSettingsWindowMock DataContext="{Binding DemoGameSettings_SettingsTab}"/>
+                      </Border>
+
+                      <!-- Horizontal Splitter (Width) -->
+                      <GridSplitter Grid.Row="0" Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns">
+                          <GridSplitter.Template>
+                              <ControlTemplate>
+                                  <Border Background="#1AFFFFFF" Width="4" HorizontalAlignment="Center" CornerRadius="2">
+                                      <Border.Styles>
+                                          <Style Selector="Border:pointerover">
+                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
+                                          </Style>
+                                      </Border.Styles>
+                                  </Border>
+                              </ControlTemplate>
+                          </GridSplitter.Template>
+                      </GridSplitter>
+
+                      <!-- Vertical Splitter (Height) -->
+                      <GridSplitter Grid.Row="1" Grid.Column="0" Height="8" Background="Transparent" ResizeDirection="Rows">
+                          <GridSplitter.Template>
+                              <ControlTemplate>
+                                  <Border Background="#1AFFFFFF" Height="4" VerticalAlignment="Center" CornerRadius="2">
+                                      <Border.Styles>
+                                          <Style Selector="Border:pointerover">
+                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
+                                          </Style>
+                                      </Border.Styles>
+                                  </Border>
+                              </ControlTemplate>
+                          </GridSplitter.Template>
+                      </GridSplitter>
+
+                      <!-- Corner Resize Handle (Visual Only) -->
+                      <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                    </Grid>
+                  </Viewbox>
+
+                  <TextBlock Text="Try toggling custom resolution or clicking the browse buttons!"
+                             FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
+               </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: CONTENT SELECTION                        -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsGameProfileContentSelected}" Margin="0,0,0,50">
+          <StackPanel Spacing="20">
+             <StackPanel HorizontalAlignment="Left" Spacing="8">
+                <TextBlock Text="Demo: Content Selection" Classes="demo-title"/>
+                <TextBlock Text="Assigning Mods and Maps to a profile." Classes="demo-subtitle"/>
+
+                <!-- Detailed explanations -->
+                <StackPanel Margin="0,12,0,0" Spacing="6">
+                    <TextBlock Text="The Content Editor is where you construct the 'Playlist' of content for a specific profile."
+                               FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="900"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Border Classes="demo-container">
+               <StackPanel Spacing="20">
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
+                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
+                             TextWrapping="Wrap" TextAlignment="Center"/>
+
+                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                    <Grid HorizontalAlignment="Center">
+                      <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="800" MinWidth="400" />
+                          <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <Grid.RowDefinitions>
+                          <RowDefinition Height="600" MinHeight="300" />
+                          <RowDefinition Height="Auto"/>
+                      </Grid.RowDefinitions>
+
+                      <!-- The Mock Window Content -->
+                      <Border Grid.Row="0" Grid.Column="0"
+                              Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                          <local:DemoGameProfileSettingsWindowMock DataContext="{Binding DemoGameSettings_ContentTab}"/>
+                      </Border>
+
+                      <!-- Horizontal Splitter (Width) -->
+                      <GridSplitter Grid.Row="0" Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns">
+                          <GridSplitter.Template>
+                              <ControlTemplate>
+                                  <Border Background="#1AFFFFFF" Width="4" HorizontalAlignment="Center" CornerRadius="2">
+                                      <Border.Styles>
+                                          <Style Selector="Border:pointerover">
+                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
+                                          </Style>
+                                      </Border.Styles>
+                                  </Border>
+                              </ControlTemplate>
+                          </GridSplitter.Template>
+                      </GridSplitter>
+
+                      <!-- Vertical Splitter (Height) -->
+                      <GridSplitter Grid.Row="1" Grid.Column="0" Height="8" Background="Transparent" ResizeDirection="Rows">
+                          <GridSplitter.Template>
+                              <ControlTemplate>
+                                  <Border Background="#1AFFFFFF" Height="4" VerticalAlignment="Center" CornerRadius="2">
+                                      <Border.Styles>
+                                          <Style Selector="Border:pointerover">
+                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
+                                          </Style>
+                                      </Border.Styles>
+                                  </Border>
+                              </ControlTemplate>
+                          </GridSplitter.Template>
+                      </GridSplitter>
+
+                      <!-- Corner Resize Handle (Visual Only) -->
+                      <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                    </Grid>
+                  </Viewbox>
+
+                  <TextBlock Text="Try toggling mods, reordering content, or clicking Add Local!"
+                             FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
+               </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: TOOLS                                    -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsToolsSelected}" Margin="0,0,0,50">
+            <StackPanel Spacing="60">
+
+                <!-- 1. REPLAY MANAGER -->
+                <StackPanel Spacing="40">
+                    <!-- Header -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <TextBlock Text="Replay Manager" Classes="demo-title"/>
+                        <TextBlock Text="Manage local replay files." Classes="demo-subtitle"/>
+                    </StackPanel>
+
+                    <!-- Interactive Demo -->
+                    <Border Classes="demo-container">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <Grid Width="800" Height="550" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
+                                </Border>
+                            </Grid>
+                        </Viewbox>
+                    </Border>
+                </StackPanel>
+
+                <!-- 2. MAP MANAGER -->
+                <StackPanel Spacing="40">
+                    <!-- Header -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <TextBlock Text="Map Manager" Classes="demo-title"/>
+                        <TextBlock Text="Manage map directories." Classes="demo-subtitle"/>
+                    </StackPanel>
+
+                    <!-- Interactive Demo -->
+                    <Border Classes="demo-container">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <Grid Width="800" Height="550" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
+                                </Border>
+                            </Grid>
+                        </Viewbox>
+                    </Border>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: SCAN FOR GAMES                           -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsScanForGamesSelected}" Margin="0,0,0,50">
+          <StackPanel>
+            <StackPanel HorizontalAlignment="Left">
+                <TextBlock Text="Scan Wizard" Classes="demo-title"/>
+                <TextBlock Text="Automatic detection and library management." Classes="demo-subtitle"/>
+            </StackPanel>
+
+            <Border Classes="demo-container">
+               <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="700">
+                  <views:ScanWizardDemoView DataContext="{Binding DemoScanWizard}" Width="700" Height="450"/>
+               </Viewbox>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: LOCAL CONTENT                            -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsLocalContentSelected}" Margin="0,0,0,50">
+             <StackPanel Spacing="18">
+                <StackPanel HorizontalAlignment="Left" Spacing="6">
+                    <TextBlock Text="Interactive Demo: Add Local Content" Classes="demo-title"/>
+                    <TextBlock Text="Explore real use cases: mods with .big archives and maps, custom engine builds, modding tools with executable selection, and standalone editors." Classes="demo-subtitle"/>
+                </StackPanel>
+
+                <!-- Demo Presets Switcher Bar -->
+                <Border Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="14,10">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,14,0">
+                            <material:MaterialIcon Kind="TuneVariant" Width="18" Height="18" Foreground="{DynamicResource AccentLightBrush}"/>
+                            <TextBlock Text="Real Use Cases:" FontWeight="SemiBold" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                        </StackPanel>
+                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal">
+                            <Button Content="Mod (.BIG Archives &amp; Assets)"
+                                    Command="{Binding DemoAddLocalContent.LoadModPresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsModPresetActive}"
+                                    Classes="preset-btn"
+                                    Margin="0,0,8,0"
+                                    ToolTip.Tip="ShockWave mod package with .big archives, INIs, and maps. No executable needed."/>
+                            <Button Content="Game Client (TheSuperHackers)"
+                                    Command="{Binding DemoAddLocalContent.LoadGameClientPresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsGameClientPresetActive}"
+                                    Classes="preset-btn"
+                                    Margin="0,0,8,0"
+                                    ToolTip.Tip="Custom engine client build with generals.exe marked as the game binary."/>
+                            <Button Content="Modding Tool (GenHotkeys)"
+                                    Command="{Binding DemoAddLocalContent.LoadModdingToolPresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsModdingToolPresetActive}"
+                                    Classes="preset-btn"
+                                    Margin="0,0,8,0"
+                                    ToolTip.Tip="Modding utility showing interactive executable selection in the preview tree."/>
+                            <Button Content="Executable (WorldBuilder)"
+                                    Command="{Binding DemoAddLocalContent.LoadExecutablePresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsExecutablePresetActive}"
+                                    Classes="preset-btn"
+                                    ToolTip.Tip="Standalone editor executable configured as a launch target."/>
+                        </WrapPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Interactive Window Frame Mockup with Pure Native Theme Colors -->
+                <Border Classes="demo-container" Padding="0">
+                   <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="840">
+                       <Border Width="820"
+                               Height="580"
+                               Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                               BorderBrush="{DynamicResource BorderSubtleBrush}"
+                               BorderThickness="1"
+                               CornerRadius="10"
+                               ClipToBounds="True">
+                            <Grid RowDefinitions="36,*">
+                                <!-- Simulated Title Bar with Native Palette -->
+                                <Border Grid.Row="0"
+                                        Background="{DynamicResource SurfaceBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="14,0">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <!-- Window control dots -->
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <Ellipse Width="10" Height="10" Fill="{DynamicResource ErrorBrush}" Opacity="0.85"/>
+                                            <Ellipse Width="10" Height="10" Fill="{DynamicResource WarningBrush}" Opacity="0.85"/>
+                                            <Ellipse Width="10" Height="10" Fill="{DynamicResource SuccessBrush}" Opacity="0.85"/>
+                                        </StackPanel>
+
+                                        <!-- Window Title -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <material:MaterialIcon Kind="PlusCircleOutline" Width="14" Height="14" Foreground="{DynamicResource TextSecondary}"/>
+                                            <TextBlock Text="Add Local Content"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"/>
+                                        </StackPanel>
+
+                                        <!-- Subtitle Hint -->
+                                        <TextBlock Grid.Column="2"
+                                                   Text="Interactive Preview"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="11"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Extracted Content View with pure native colors and padding -->
+                                <Border Grid.Row="1" Padding="16,14">
+                                    <local:AddLocalContentView DataContext="{Binding DemoAddLocalContent}"/>
+                                </Border>
+                            </Grid>
+                       </Border>
+                   </Viewbox>
+                </Border>
+             </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: CHANGELOGS                               -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsChangelogsSelected}" Margin="0,0,0,50">
+            <views:ChangelogsView DataContext="{Binding Changelogs}"/>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: GO CHANGELOG                             -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsGoChangelogSelected}" Margin="0,0,0,50">
+            <views:GeneralsOnlineChangelogView DataContext="{Binding GoChangelog}"/>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- DEMO: WORKSPACE (FILESYSTEM MAGIC)             -->
+        <!-- ============================================== -->
+        <Border IsVisible="{Binding IsWorkspaceSelected}" Margin="0,0,0,50">
+          <StackPanel>
+            <StackPanel HorizontalAlignment="Left">
+                <TextBlock Text="Workspace Simulator" Classes="demo-title"/>
+                <TextBlock Text="Visualizes virtual file system construction via symlinks." Classes="demo-subtitle"/>
+            </StackPanel>
+
+            <Border Classes="demo-container">
+               <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" Width="800" Height="500"/>
+               </Viewbox>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- INFO CARDS (Dynamic Content)                   -->
+        <!-- ============================================== -->
+
+        <!-- Standard Layout (Single Column) -->
+        <ItemsControl ItemsSource="{Binding SelectedSection.Cards}"
+                      IsVisible="{Binding !IsFaqSelected}"
+                      Margin="0,0,0,32"
+                      ClipToBounds="False">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="0" ClipToBounds="False"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:InfoCardViewModel">
+              <!-- Outermost Button to make entire card clickable -->
+              <Button Command="{Binding ToggleExpansionCommand}"
+                      Background="Transparent" BorderThickness="0" Padding="0"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                      Margin="0,0,0,24"
+                      ClipToBounds="False"
+                      Classes="info-card-btn">
+                <Border Classes="info-card">
+                  <Grid RowDefinitions="Auto, Auto">
+                    <Grid RowDefinitions="Auto, Auto, Auto" Grid.Row="0">
+                      <!-- Card Header -->
+                      <Grid ColumnDefinitions="*, Auto" Grid.Row="0" Margin="0,0,0,16">
+                        <!-- Title -->
+                        <TextBlock Text="{Binding Title}" Grid.Column="0" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
+
+                        <!-- Expand Icon -->
+                        <Border Grid.Column="1"
+                                Background="{DynamicResource SurfaceHoverBrush}"
+                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10,6"
+                                Margin="12,0,0,0"
+                                IsVisible="{Binding IsExpandable}">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
+                                         FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                              <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
+                                                     Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
+                          </StackPanel>
+                        </Border>
+                      </Grid>
+
+                      <!-- Main Content -->
+                      <infra:MarkdownTextBlock Grid.Row="1" Markdown="{Binding Content}" Classes="card-content" Margin="0,0,0,24" FontSize="15" Foreground="#CCC"/>
+
+                      <!-- Expanded Content -->
+                      <Border Grid.Row="2"
+                              IsVisible="{Binding IsExpanded}"
+                              Background="#CC111111"
+                              BorderBrush="#333"
+                              BorderThickness="1"
+                              CornerRadius="8"
+                              Padding="20"
+                              Margin="0,0,0,24">
+                        <StackPanel>
+                            <TextBlock Text="DETAILED GUIDE" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,12"/>
+                            <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}" Classes="card-content" FontSize="14" Foreground="#BBB"/>
+                        </StackPanel>
+                      </Border>
+                    </Grid>
+
+                    <!-- Actions Footer -->
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding Actions}" IsVisible="{Binding Actions.Count}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:InfoAction">
+                          <Button Classes="action-btn"
+                                  Margin="0,0,10,8"
+                                  Classes.primary="{Binding IsPrimary}"
+                                  Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
+                                  CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                              <TextBlock Text="{Binding Label}"/>
+                            </StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </Border>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- FAQ Layout (Independent Columns for Staggered/Masonry Look) -->
+        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,32" ClipToBounds="False">
+            <!-- Left Column -->
+            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}" ClipToBounds="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:InfoCardViewModel">
+                      <Button Command="{Binding ToggleExpansionCommand}"
+                              Background="Transparent" BorderThickness="0" Padding="0"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                              Classes="info-card-btn"
+                              Margin="0,0,8,24"
+                              ClipToBounds="False">
+                        <Border Classes="info-card">
+                            <StackPanel>
+                                <!-- Header (Unified structure) -->
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="{Binding Title}" Grid.Column="0"
+                                               FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                               TextWrapping="Wrap" VerticalAlignment="Center"/>
+
+                                    <!-- Expand Icon (Matches main layout) -->
+                                    <Border Grid.Column="1"
+                                            Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="10,6"
+                                            Margin="12,0,0,0"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding IsExpandable}">
+                                      <StackPanel Orientation="Horizontal" Spacing="8">
+                                          <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
+                                                     FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                          <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
+                                                                 Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
+                                      </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Expanded Content (Unified with standard cards) -->
+                                <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
+                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
+                                    <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
+                                                           IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                           FontSize="13" Foreground="#999"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                      </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Right Column -->
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}" ClipToBounds="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:InfoCardViewModel">
+                      <Button Command="{Binding ToggleExpansionCommand}"
+                              Background="Transparent" BorderThickness="0" Padding="0"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                              Classes="info-card-btn"
+                              Margin="8,0,0,24"
+                              ClipToBounds="False">
+                        <Border Classes="info-card">
+                            <StackPanel>
+                                <!-- Header (Unified structure) -->
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="{Binding Title}" Grid.Column="0"
+                                               FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                               TextWrapping="Wrap" VerticalAlignment="Center"/>
+
+                                    <!-- Expand Icon (Matches main layout) -->
+                                    <Border Grid.Column="1"
+                                            Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="10,6"
+                                            Margin="12,0,0,0"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding IsExpandable}">
+                                      <StackPanel Orientation="Horizontal" Spacing="8">
+                                          <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
+                                                     FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                          <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
+                                                                 Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
+                                      </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Content -->
+                                <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
+                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
+                                    <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
+                                                           IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                           FontSize="13" Foreground="#999"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                      </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <Border Height="120"/> <!-- Bottom padding to prevent clipping of card drop-shadows and hover scaling -->
+      </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,136 @@
+name: Deploy Landing Page to GitHub Pages
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'Landing-page/**'
+      - '.github/workflows/github-pages.yml'
+  workflow_run:
+    workflows: ["GenHub Release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/configure-pages@v5
+
+      - id: release_info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName // ""' 2>/dev/null); then
+            echo "::warning::gh release list failed; using fallback"
+            LATEST_TAG=""
+          fi
+          
+          if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "null" ]; then
+            BUILD_NUM=$(echo "$LATEST_TAG" | cut -d'.' -f3)
+            DISPLAY_NAME="Alpha ${BUILD_NUM}"
+            DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${LATEST_TAG}/GenHub-win-Setup.exe"
+          else
+            LATEST_TAG="latest"
+            DISPLAY_NAME="Alpha"
+            DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases"
+          fi
+          
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
+          echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+
+      - name: Build and prepare pages
+        env:
+          DISPLAY_NAME: ${{ steps.release_info.outputs.display_name }}
+          DOWNLOAD_URL: ${{ steps.release_info.outputs.download_url }}
+        run: |
+          mkdir -p ./public
+          cp Landing-page/index.html ./public/index.html
+          
+          if [ -d "Landing-page/assets" ]; then
+            cp -r Landing-page/assets ./public/assets
+          fi
+          
+          # Create client-side redirect for legacy /wiki/ path on generalshub.com
+          mkdir -p ./public/wiki
+          cat << 'EOF_WIKI' > ./public/wiki/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Redirecting to GeneralsHub Wiki...</title>
+            <link rel="canonical" href="https://wiki.generalshub.com/">
+            <meta http-equiv="refresh" content="0; url=https://wiki.generalshub.com/">
+            <script>window.location.replace("https://wiki.generalshub.com/" + window.location.search + window.location.hash);</script>
+          </head>
+          <body>
+            <p>Redirecting to <a href="https://wiki.generalshub.com/">https://wiki.generalshub.com/</a>...</p>
+          </body>
+          </html>
+          EOF_WIKI
+
+          # Create client-side 404 handler (redirects legacy /wiki/* or displays 404 page)
+          cat << 'EOF_404' > ./public/404.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>GeneralsHub</title>
+            <script>
+              if (window.location.pathname.startsWith('/wiki/')) {
+                var target = 'https://wiki.generalshub.com/' + window.location.pathname.replace(/^\/wiki\//, '') + window.location.search + window.location.hash;
+                window.location.replace(target);
+              }
+            </script>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; background: #0a0612; color: #f0f4ff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
+              .box { max-width: 480px; padding: 32px; }
+              h1 { font-size: 3rem; margin: 0 0 12px; color: #a78bfa; }
+              p { color: #c7d2fe; font-size: 1.1rem; line-height: 1.6; }
+              a { color: #a855f7; text-decoration: none; }
+              a:hover { text-decoration: underline; color: #c084fc; }
+            </style>
+          </head>
+          <body>
+            <div class="box" id="message">
+              <h1>404</h1>
+              <p>Page not found. Looking for the <a href="https://wiki.generalshub.com/">Wiki</a> or want to return <a href="/">Home</a>?</p>
+            </div>
+            <script>
+              if (window.location.pathname.startsWith('/wiki/')) {
+                document.getElementById('message').innerHTML = '<p>Redirecting to <a href="https://wiki.generalshub.com/">GeneralsHub Wiki</a>...</p>';
+              }
+            </script>
+          </body>
+          </html>
+          EOF_404
+          
+          HTML_DISPLAY_NAME=$(python3 -c 'import html, sys; print(html.escape(sys.argv[1]))' "$DISPLAY_NAME")
+          HTML_DOWNLOAD_URL=$(python3 -c 'import html, sys; print(html.escape(sys.argv[1], quote=True))' "$DOWNLOAD_URL")
+          SAFE_DISPLAY_NAME=$(printf '%s\n' "$HTML_DISPLAY_NAME" | sed -e 's/[\\&|]/\\&/g')
+          SAFE_DOWNLOAD_URL=$(printf '%s\n' "$HTML_DOWNLOAD_URL" | sed -e 's/[\\&|]/\\&/g')
+          sed -i "s|VERSION_PLACEHOLDER|${SAFE_DISPLAY_NAME}|g" ./public/index.html
+          sed -i "s|URL_PLACEHOLDER|${SAFE_DOWNLOAD_URL}|g" ./public/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - uses: actions/deploy-pages@v4

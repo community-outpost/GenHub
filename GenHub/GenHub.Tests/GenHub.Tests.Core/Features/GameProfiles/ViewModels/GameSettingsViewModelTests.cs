@@ -1,3 +1,5 @@
+using System.Text.Json;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
@@ -58,7 +60,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeForProfileAsync_Should_LoadFromIniOptions_WhenNoProfileSettings()
+    public async Task InitializeForProfileAsync_Should_LoadFromIniOptions_WhenNoProfileSettingsAsync()
     {
         // Arrange
         var profile = new GameProfile
@@ -119,7 +121,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeForProfileAsync_Should_LoadFromProfile_WhenProfileHasSettings()
+    public async Task InitializeForProfileAsync_Should_LoadFromProfile_WhenProfileHasSettingsAsync()
     {
         // Arrange
         var profile = new GameProfile
@@ -310,7 +312,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task OnSelectedGameTypeChanged_Should_LoadSettings_WhenNotInitializing()
+    public async Task OnSelectedGameTypeChanged_Should_LoadSettings_WhenNotInitializingAsync()
     {
         // Arrange
         var options = new IniOptions
@@ -333,17 +335,17 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
-    /// Should not load settings when game type is set before initialization.
+    /// Should not load settings for pre-initialization game type when game type is set before initialization.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task OnSelectedGameTypeChanged_Should_NotLoadSettings_WhenSetBeforeInitialization()
+    public async Task OnSelectedGameTypeChanged_Should_NotLoadSettings_WhenSetBeforeInitializationAsync()
     {
         // Arrange
         var profile = new GameProfile
         {
             GameClient = new GameClient { GameType = GameType.ZeroHour },
-            VideoResolutionWidth = 1920, // Add settings so initialization loads from profile, not Options.ini
+            VideoResolutionWidth = 1920,
         };
 
         _viewModel.SelectedGameType = GameType.Generals; // Set before initialization
@@ -351,8 +353,8 @@ public class GameSettingsViewModelTests
         // Act - Start initialization
         await _viewModel.InitializeForProfileAsync("test", profile);
 
-        // Assert - Should have loaded from profile during initialization, not from Options.ini
-        _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(It.IsAny<GameType>()), Times.Never);
+        // Assert - Should not have loaded settings for the pre-initialization game type
+        _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(GameType.Generals), Times.Never);
     }
 
     /// <summary>
@@ -360,7 +362,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadSettings_Should_HandleFailureGracefully()
+    public async Task LoadSettings_Should_HandleFailureGracefullyAsync()
     {
         // Arrange
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
@@ -382,7 +384,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SaveSettings_Should_HandleFailureGracefully()
+    public async Task SaveSettings_Should_HandleFailureGracefullyAsync()
     {
         // Arrange
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
@@ -396,17 +398,425 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
+    /// Should keep settings.json keys the view model does not model when saving over them.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_PreserveUnknownGeneralsOnlineKeysAsync()
+    {
+        // Arrange
+        var existing = new GeneralsOnlineSettings();
+        existing.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"preserve-me\"");
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await InitializeAndSaveProfileAsync(CreateGeneralsOnlineProfile());
+
+        // Assert
+        Assert.NotNull(saved);
+        Assert.True(saved.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
+        Assert.Equal("preserve-me", saved.AdditionalSettings["auth_token"].GetString());
+    }
+
+    /// <summary>
+    /// Should leave settings.json alone when it could not be read, because a missing file reads as
+    /// defaults and reports success: a failed read means the client's own file exists and is
+    /// unreadable, and rewriting it from defaults would discard everything the client owns.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotRewriteGeneralsOnlineSettings_WhenTheyCannotBeReadAsync()
+    {
+        // Arrange
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        // The file was readable when the editor opened and is not when the save reads it again
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
+
+        // Act
+        await InitializeAndSaveProfileAsync(profile);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+        Assert.Contains("settings.json is locked", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should save a settings.json that spells a nested section as an explicit null, which is
+    /// valid JSON and leaves the section null once deserialized.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_HandleNullGeneralsOnlineSectionsAsync()
+    {
+        // Arrange
+        var existing = new GeneralsOnlineSettings { Camera = null!, Chat = null!, Debug = null!, Render = null!, Social = null! };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoCameraMinHeight = 200.0f;
+
+        // Act
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
+
+        // Assert
+        Assert.NotNull(saved);
+        Assert.Equal(200.0f, saved.Camera.MinHeight);
+        Assert.Contains("saved successfully", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should read settings.json again immediately before rewriting it, rather than reusing what
+    /// initialization read.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ReadGeneralsOnlineSettings_BeforeRewritingAsync()
+    {
+        // Arrange
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await InitializeAndSaveProfileAsync(profile);
+
+        // Assert - once to seed the view model, once more as the baseline for the rewrite
+        _gameSettingsServiceMock.Verify(x => x.LoadGeneralsOnlineSettingsAsync(), Times.Exactly(2));
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps)),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Should build every save on what settings.json holds at that moment, so that changes the
+    /// GeneralsOnline client made while this editor was open are not reverted by the rewrite.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_RewriteWhatSettingsJsonHoldsNow_NotWhatItHeldAtInitializationAsync()
+    {
+        // Arrange
+        var atInitialization = new GeneralsOnlineSettings();
+        atInitialization.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"old-token\"");
+
+        var writtenByTheClientSince = new GeneralsOnlineSettings { ChatFontSize = 24 };
+        writtenByTheClientSince.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"new-token\"");
+
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(atInitialization))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(writtenByTheClientSince));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        // Act
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
+
+        // Assert
+        Assert.NotNull(saved);
+        Assert.True(saved.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
+        Assert.Equal("new-token", saved.AdditionalSettings["auth_token"].GetString());
+    }
+
+    /// <summary>
+    /// Should leave settings.json alone when the view model was never seeded from it, because the
+    /// view model has no unset state and would otherwise write its own defaults over every option
+    /// the user configured inside the GeneralsOnline client.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotRewriteGeneralsOnlineSettings_WhenSeedingFailedAsync()
+    {
+        // Arrange - the read fails while the view model is seeded, then recovers before the save
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        // Act
+        await InitializeAndSaveProfileAsync(profile);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+        Assert.Contains("Options.ini saved", _viewModel.StatusMessage);
+        Assert.Contains("GeneralsOnline settings not written", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should never report that nothing was saved once Options.ini has been written, because the
+    /// Options.ini write happens before the settings.json rewrite is gated and a user told the save
+    /// failed outright would redo work that is already on disk.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotReportTotalFailure_WhenOnlyTheGeneralsOnlineWriteIsSkippedAsync()
+    {
+        // Arrange - seeding fails, so the save may not rewrite settings.json
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await InitializeAndSaveProfileAsync(CreateGeneralsOnlineProfile());
+
+        // Assert
+        Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini saved", _viewModel.StatusMessage);
+        Assert.Contains("never read", _viewModel.StatusMessage);
+        Assert.True(_viewModel.OptionsFileExists);
+    }
+
+    /// <summary>
+    /// Should report Options.ini as written when the settings.json rewrite itself is refused, which
+    /// is the same split outcome as a refused read reached through a later step.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ReportOptionsIniSaved_WhenTheGeneralsOnlineWriteFailsAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("settings.json is read-only"));
+
+        // Act
+        await InitializeAndSaveProfileAsync(CreateGeneralsOnlineProfile());
+
+        // Assert
+        Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini saved", _viewModel.StatusMessage);
+        Assert.Contains("settings.json is read-only", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should report settings.json as written when it is the Options.ini write that fails, because
+    /// the rewrite is attempted regardless of how the Options.ini write went.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ReportGeneralsOnlineSaved_WhenTheOptionsIniWriteFailsAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Options.ini is read-only"));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("GeneralsOnline settings saved", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini is read-only", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should still report a plain failure when neither file was written, so the split reporting
+    /// does not soften an outcome where nothing landed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ReportTotalFailure_WhenNeitherFileIsWrittenAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Options.ini is read-only"));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("settings.json is read-only"));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Contains("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini is read-only", _viewModel.StatusMessage);
+        Assert.Contains("settings.json is read-only", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should not carry one profile's settings.json read into the next profile, because saving the
+    /// second profile would then rewrite the file from a reading taken for the first.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_NotReuseThePreviousProfilesSettingsAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var first = CreateGeneralsOnlineProfile();
+        first.GoShowFps = true;
+
+        var second = CreateGeneralsOnlineProfile();
+        second.Id = "go-profile-2";
+        second.GoShowFps = false;
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", first);
+        await _viewModel.InitializeForProfileAsync("go-profile-2", second);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Should keep the values a user configured inside the GeneralsOnline client when saving a
+    /// profile that declares only some GeneralsOnline options.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotOverwriteClientValues_TheProfileDoesNotDeclareAsync()
+    {
+        // Arrange - the client's values are all the opposite of the view model's defaults
+        var existing = new GeneralsOnlineSettings
+        {
+            ShowPing = false,
+            ShowPlayerRanks = false,
+            RememberUsername = false,
+            EnableNotifications = false,
+            EnableSoundNotifications = false,
+            ChatFontSize = 24,
+        };
+
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+
+        // Act
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
+
+        // Assert
+        Assert.NotNull(saved);
+        Assert.True(saved.ShowFps);
+        Assert.False(saved.ShowPing);
+        Assert.False(saved.ShowPlayerRanks);
+        Assert.False(saved.RememberUsername);
+        Assert.False(saved.EnableNotifications);
+        Assert.False(saved.EnableSoundNotifications);
+        Assert.Equal(24, saved.ChatFontSize);
+    }
+
+    /// <summary>
+    /// Should not turn the client's enabled toggles off when nothing has read them, which is what
+    /// a view model default of false would do to a model that defaults them to true.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotFlipEnabledTogglesOffAsync()
+    {
+        // Arrange - settings.json does not exist yet, which reads as defaults, so the defaults decide
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+
+        // Act
+        var saved = await InitializeAndSaveGoProfileWithCaptureAsync(profile);
+
+        // Assert
+        Assert.NotNull(saved);
+        var expected = new GeneralsOnlineSettings();
+        Assert.Equal(expected.ShowPing, saved.ShowPing);
+        Assert.Equal(expected.ShowPlayerRanks, saved.ShowPlayerRanks);
+        Assert.Equal(expected.RememberUsername, saved.RememberUsername);
+        Assert.Equal(expected.EnableNotifications, saved.EnableNotifications);
+        Assert.Equal(expected.EnableSoundNotifications, saved.EnableSoundNotifications);
+        Assert.Equal(expected.ChatFontSize, saved.ChatFontSize);
+    }
+
+    /// <summary>
+    /// Should leave the GeneralsOnline client's global settings.json alone when the profile being
+    /// edited runs some other client.
+    /// </summary>
+    /// <param name="publisherType">The publisher the profile's client belongs to.</param>
+    /// <param name="gameType">The game the profile targets.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(PublisherTypeConstants.TheSuperHackers, GameType.ZeroHour)]
+    [InlineData(CommunityOutpostConstants.PublisherType, GameType.ZeroHour)]
+    [InlineData(PublisherTypeConstants.TheSuperHackers, GameType.Generals)]
+    public async Task SaveSettings_Should_NotWriteGeneralsOnlineSettings_ForOtherPublishersAsync(string publisherType, GameType gameType)
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "other-profile",
+            Name = "Other Profile",
+            GameClient = new GameClient { GameType = gameType, PublisherType = publisherType },
+            VideoResolutionWidth = 1920,
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(gameType, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("other-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+        Assert.Contains("saved successfully", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
     /// Should update selected preset when resolution matches preset.
     /// </summary>
     [Fact]
     public void ApplyOptionsToViewModel_Should_UpdateSelectedPreset_WhenResolutionMatches()
     {
-        // Arrange
-        var options = new IniOptions
-        {
-            Video = new VideoSettings { ResolutionWidth = 1920, ResolutionHeight = 1080 },
-        };
-
         // Act - Simulate loading options
         _viewModel.ResolutionWidth = 1920;
         _viewModel.ResolutionHeight = 1080;
@@ -417,5 +827,378 @@ public class GameSettingsViewModelTests
 
         // Assert
         Assert.Equal("1920x1080", _viewModel.SelectedResolutionPreset);
+    }
+
+    /// <summary>
+    /// Should load GameWindowTransitionSpeedMultiplier from profile when initializing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_LoadGameWindowTransitionSpeedMultiplier_FromProfileAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            TshGameWindowTransitionSpeedMultiplier = 3.25f,
+        };
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+
+        // Assert
+        Assert.Equal(3.25f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should clamp GameWindowTransitionSpeedMultiplier when initializing with out-of-range value.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_ClampGameWindowTransitionSpeedMultiplier_WhenOutOfRangeAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            TshGameWindowTransitionSpeedMultiplier = 50.0f,
+        };
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+
+        // Assert
+        Assert.Equal(4.0f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should save GameWindowTransitionSpeedMultiplier to Options.ini and profile request.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_SaveGameWindowTransitionSpeedMultiplier_ToOptionsAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+        IniOptions? savedOptions = null;
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()))
+            .Callback<GameType, IniOptions>((_, opt) => savedOptions = opt)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+        _viewModel.TshGameWindowTransitionSpeedMultiplier = 3.55f;
+
+        // Act
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        var request = _viewModel.GetProfileSettings();
+
+        // Assert
+        Assert.NotNull(savedOptions);
+        Assert.True(savedOptions.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh));
+        Assert.True(tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speed));
+        Assert.Equal("3.55", speed);
+        Assert.Equal(3.55f, request.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should seed baseline values from Options.ini when profile has settings,
+    /// so that properties not declared on the profile retain their Options.ini values.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_SeedOptionsIniValues_WhenProfileHasSettingsAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "custom-profile",
+            Name = "Custom Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            VideoResolutionWidth = 2560,
+            VideoResolutionHeight = 1440,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = "1.5",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("custom-profile", profile);
+
+        // Assert
+        Assert.Equal(2560, _viewModel.ResolutionWidth);
+        Assert.Equal(1440, _viewModel.ResolutionHeight);
+        Assert.Equal(1.5f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should preserve Options.ini transition speed when saving a profile that does not override it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_PreserveOptionsIniTransitionSpeed_WhenProfileDoesNotOverrideItAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "custom-profile",
+            Name = "Custom Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            VideoResolutionWidth = 2560,
+            VideoResolutionHeight = 1440,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = "1.5",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        IniOptions? savedOptions = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .Callback<GameType, IniOptions>((_, opt) => savedOptions = opt)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("custom-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedOptions);
+        Assert.True(savedOptions.AdditionalSections.TryGetValue(GameSettingsTheSuperHackersConstants.SectionName, out var tsh));
+        Assert.True(tsh.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speed));
+        Assert.Equal("1.5", speed);
+    }
+
+    /// <summary>
+    /// Should override Options.ini transition speed with profile value when configured in profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_OverrideOptionsIni_WhenProfileConfiguresTransitionSpeedAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "custom-profile",
+            Name = "Custom Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            VideoResolutionWidth = 2560,
+            TshGameWindowTransitionSpeedMultiplier = 2.5f,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = "1.5",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("custom-profile", profile);
+
+        // Assert
+        Assert.Equal(2.5f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should clear loading flags even when game settings service is null.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_ClearLoadingFlag_WhenGameSettingsServiceIsNullAsync()
+    {
+        // Arrange
+        var vm = new GameSettingsViewModel(null!, _loggerMock.Object);
+
+        // Act
+        await vm.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(vm.IsLoading);
+        Assert.Equal("Game settings service not available", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should clear loading flags even when selected game type is unknown.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_ClearLoadingFlag_WhenGameTypeIsUnknownAsync()
+    {
+        // Arrange
+        _viewModel.SelectedGameType = GameType.Unknown;
+
+        // Act
+        await _viewModel.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(_viewModel.IsLoading);
+        Assert.Contains("Game type is Unknown", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should discard loaded Options.ini settings if the selected game type changed concurrently before load completed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_DiscardResult_WhenGameTypeChangedConcurrentlyAsync()
+    {
+        // Arrange
+        var tcs = new TaskCompletionSource<OperationResult<IniOptions>>();
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
+            .Returns(tcs.Task);
+
+        var generalsOptions = new IniOptions
+        {
+            Video = new VideoSettings { ResolutionWidth = 1024, ResolutionHeight = 768 },
+        };
+
+        _viewModel.SelectedGameType = GameType.Generals;
+        var loadTask = _viewModel.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Simulate game type switch to ZeroHour before Generals load completes
+        _viewModel.SelectedGameType = GameType.ZeroHour;
+        _viewModel.ResolutionWidth = 1920;
+        _viewModel.ResolutionHeight = 1080;
+
+        // Complete Generals load
+        tcs.SetResult(OperationResult<IniOptions>.CreateSuccess(generalsOptions));
+        await loadTask;
+
+        // Assert: ResolutionWidth/Height should NOT have been overwritten by Generals options (1024x768)
+        Assert.Equal(1920, _viewModel.ResolutionWidth);
+        Assert.Equal(1080, _viewModel.ResolutionHeight);
+    }
+
+    /// <summary>
+    /// Should load GameTimeFontSize from Options.ini when placed in Video.AdditionalProperties or in TheSuperHackers section,
+    /// preventing reset to default 10.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_LoadGameTimeFontSize_FromVideoOrTheSuperHackersSectionAsync()
+    {
+        // Arrange - test loading when categorized into TheSuperHackers section
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["GameTimeFontSize"] = "15",
+            ["DrawScrollAnchor"] = "yes",
+            ["MoveScrollAnchor"] = "no",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+
+        // Assert - should be 15, NOT the default 10!
+        Assert.Equal(15, _viewModel.GameTimeFontSize);
+        Assert.True(_viewModel.DrawScrollAnchor);
+        Assert.False(_viewModel.MoveScrollAnchor);
+    }
+
+    /// <summary>
+    /// Should synchronize GameTimeFontSize and related properties to TheSuperHackers section on save when section exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_SynchronizeGameTimeFontSize_ToTheSuperHackersSectionAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        var initialOptions = new IniOptions();
+        initialOptions.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["GameTimeFontSize"] = "10",
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(initialOptions));
+
+        IniOptions? savedOptions = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .Callback<GameType, IniOptions>((_, opt) => savedOptions = opt)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+        _viewModel.GameTimeFontSize = 18;
+
+        // Act
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedOptions);
+        Assert.Equal("18", savedOptions.Video.AdditionalProperties["GameTimeFontSize"]);
+        Assert.True(savedOptions.AdditionalSections.TryGetValue(GameSettingsTheSuperHackersConstants.SectionName, out var tsh));
+        Assert.True(tsh.TryGetValue("GameTimeFontSize", out var syncedFontSize));
+        Assert.Equal("18", syncedFontSize);
+    }
+
+    private static GameProfile CreateGeneralsOnlineProfile()
+    {
+        return new GameProfile
+        {
+            Id = "go-profile",
+            Name = "GeneralsOnline Profile",
+            GameClient = new GameClient
+            {
+                GameType = GameType.ZeroHour,
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
+        };
+    }
+
+    private async Task InitializeAndSaveProfileAsync(GameProfile profile)
+    {
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+    }
+
+    private async Task<GeneralsOnlineSettings?> InitializeAndSaveGoProfileWithCaptureAsync(GameProfile profile)
+    {
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        await InitializeAndSaveProfileAsync(profile);
+        return saved;
     }
 }

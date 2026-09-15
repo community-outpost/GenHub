@@ -1,41 +1,36 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Workspace;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Workspace;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Workspace;
 
 /// <summary>
 /// Analyzes workspace state and determines delta operations for intelligent reconciliation.
 /// </summary>
-public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
+public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOperationsService fileOperations)
 {
-    /// <summary>
-    /// Maximum file size for hash verification during reconciliation (100MB).
-    /// Files larger than this will only use size comparison for performance.
-    /// </summary>
-    private const long MaxHashVerificationFileSize = 100 * ConversionConstants.BytesPerMegabyte;
-
-    private readonly ILogger<WorkspaceReconciler> _logger = logger;
+    private static readonly long SmallFileThreshold = 5 * 1024 * 1024; // 5MB
 
     /// <summary>
     /// Analyzes workspace and determines what operations are needed to reconcile it with manifests.
     /// </summary>
     /// <param name="workspaceInfo">Existing workspace information (null if new workspace).</param>
     /// <param name="configuration">Target workspace configuration with manifests.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="forceFullVerification">If true, forces full verification of all files including hashes.</param>
     /// <returns>List of delta operations needed to reconcile the workspace.</returns>
     public async Task<List<WorkspaceDelta>> AnalyzeWorkspaceDeltaAsync(
         WorkspaceInfo? workspaceInfo,
         WorkspaceConfiguration configuration,
-        CancellationToken cancellationToken = default)
+        bool forceFullVerification = false)
     {
         var deltas = new List<WorkspaceDelta>();
         var workspacePath = Path.Combine(configuration.WorkspaceRootPath, configuration.Id);
@@ -46,16 +41,17 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
 
         foreach (var manifest in configuration.Manifests)
         {
-            foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
+            foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
             {
                 var relativePath = file.RelativePath.Replace('/', Path.DirectorySeparatorChar);
 
-                if (!fileOccurrences.ContainsKey(relativePath))
+                if (!fileOccurrences.TryGetValue(relativePath, out var list))
                 {
-                    fileOccurrences[relativePath] = new List<(ManifestFile, ContentType, string)>();
+                    list = [];
+                    fileOccurrences[relativePath] = list;
                 }
 
-                fileOccurrences[relativePath].Add((file, manifest.ContentType, manifest.Id.ToString()));
+                list.Add((file, manifest.ContentType, manifest.Id.ToString()));
             }
         }
 
@@ -84,7 +80,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
 
                 var loserInfo = string.Join(", ", losers.Select(l => $"{l.ContentType}({l.ManifestId})"));
 
-                _logger.LogWarning(
+                logger.LogWarning(
                     "File conflict for '{RelativePath}': using {WinnerType}({WinnerId}, priority {WinnerPriority}) over {Losers}",
                     relativePath,
                     winner.ContentType,
@@ -99,7 +95,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
         // If workspace doesn't exist, all expected files need to be added
         if (workspaceInfo == null || !Directory.Exists(workspacePath))
         {
-            _logger.LogInformation("New workspace detected, {FileCount} files will be added after conflict resolution", expectedFiles.Count);
+            logger.LogInformation("New workspace detected, {FileCount} files will be added after conflict resolution", expectedFiles.Count);
             foreach (var (relativePath, file) in expectedFiles)
             {
                 deltas.Add(new WorkspaceDelta
@@ -144,7 +140,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
             else
             {
                 // File exists - check if it needs updating
-                var needsUpdate = await FileNeedsUpdateAsync(fullPath, manifestFile, configuration, cancellationToken);
+                var needsUpdate = await FileNeedsUpdateAsync(fullPath, manifestFile, forceFullVerification);
                 if (needsUpdate)
                 {
                     deltas.Add(new WorkspaceDelta
@@ -188,7 +184,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
         var stats = deltas.GroupBy(d => d.Operation)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Workspace delta analysis: Add={Add}, Update={Update}, Remove={Remove}, Skip={Skip}",
             stats.GetValueOrDefault(WorkspaceDeltaOperation.Add, 0),
             stats.GetValueOrDefault(WorkspaceDeltaOperation.Update, 0),
@@ -201,16 +197,15 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
     /// <summary>
     /// Determines if a file needs to be updated based on hash or symlink validity.
     /// </summary>
-    private Task<bool> FileNeedsUpdateAsync(
+    private async Task<bool> FileNeedsUpdateAsync(
         string filePath,
         ManifestFile manifestFile,
-        WorkspaceConfiguration configuration,
-        CancellationToken cancellationToken)
+        bool forceFullVerification = false)
     {
         try
         {
             if (!File.Exists(filePath))
-                return Task.FromResult(true);
+                return true;
 
             var fileInfo = new FileInfo(filePath);
 
@@ -221,14 +216,14 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
                 var targetPath = fileInfo.LinkTarget;
                 if (!Path.IsPathRooted(targetPath))
                 {
-                    targetPath = Path.Combine(Path.GetDirectoryName(filePath) ?? string.Empty, targetPath);
+                    targetPath = Path.Combine(Path.GetDirectoryName(filePath) ?? Path.GetPathRoot(filePath) ?? string.Empty, targetPath);
                 }
 
                 // Broken symlink needs update
                 if (!File.Exists(targetPath))
                 {
-                    _logger.LogDebug("Broken symlink detected: {FilePath} -> {Target}", filePath, targetPath);
-                    return Task.FromResult(true);
+                    logger.LogDebug("Broken symlink detected: {FilePath} -> {Target}", filePath, targetPath);
+                    return true;
                 }
 
                 // For symlinks, trust that the target is correct if it exists and size matches
@@ -236,44 +231,59 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
                 var targetFileInfo = new FileInfo(targetPath);
                 if (manifestFile.Size > 0 && targetFileInfo.Length != manifestFile.Size)
                 {
-                    _logger.LogDebug(
+                    logger.LogDebug(
                         "Symlink target size mismatch for {FilePath}: expected {Expected}, got {Actual}",
                         filePath,
                         manifestFile.Size,
                         targetFileInfo.Length);
-                    return Task.FromResult(true);
+                    return true;
                 }
 
-                return Task.FromResult(false); // Valid symlink with size-matching target
+                if (forceFullVerification && !string.IsNullOrEmpty(manifestFile.Hash))
+                {
+                    var hashMatches = await fileOperations.VerifyFileHashAsync(targetPath, manifestFile.Hash, CancellationToken.None);
+                    if (!hashMatches)
+                    {
+                        logger.LogDebug("Symlink target hash mismatch for {FilePath}: expected {Expected}", filePath, manifestFile.Hash);
+                        return true;
+                    }
+                }
+
+                return false; // Valid symlink with size-matching target (and passing hash if forceFullVerification)
             }
 
             // Regular file - use size-based comparison for performance
             // File size mismatch check (fast and reliable for detecting changes)
             if (manifestFile.Size > 0 && fileInfo.Length != manifestFile.Size)
             {
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Size mismatch for {FilePath}: expected {Expected}, got {Actual}",
                     filePath,
                     manifestFile.Size,
                     fileInfo.Length);
-                return Task.FromResult(true);
+                return true;
             }
 
-            // OPTIMIZATION: Skip deep hash verification during workspace reconciliation
-            // to avoid 60-90+ second delays during game launch when processing 400+ files.
-            // Size-based comparison is 20-60x faster and sufficient for detecting real changes.
-            // Deep hash verification can be added as optional background operation if needed.
-            _logger.LogDebug(
-                "File size matches for {FilePath} ({Size} bytes), trusting size comparison for performance",
-                filePath,
-                fileInfo.Length);
+            if (!string.IsNullOrEmpty(manifestFile.Hash) && (forceFullVerification || fileInfo.Length < SmallFileThreshold))
+            {
+                var hashMatches = await fileOperations.VerifyFileHashAsync(filePath, manifestFile.Hash, CancellationToken.None);
 
-            return Task.FromResult(false); // File appears to be current (size matches)
+                if (!hashMatches)
+                {
+                    logger.LogDebug(
+                        "Hash mismatch for {FilePath}: expected {Expected}",
+                        filePath,
+                        manifestFile.Hash);
+                    return true;
+                }
+            }
+
+            return false; // File appears to be current (size matches and hash check passed/skipped)
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
-            return Task.FromResult(true); // Assume needs update if we can't verify
+            logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
+            return true; // Assume needs update if we can't verify
         }
     }
 }

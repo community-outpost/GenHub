@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
+             x:Class="GenHub.Features.Info.Views.DemoContainerView"
+             x:Name="DemoControl">
+
+  <UserControl.Styles>
+    <Style Selector="Border.demo-container">
+      <Setter Property="Background" Value="#15FFFFFF"/>
+      <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0,0,0,24"/>
+    </Style>
+
+    <Style Selector="Border.demo-header">
+      <Setter Property="Background" Value="#20FFFFFF"/>
+      <Setter Property="CornerRadius" Value="12,12,0,0"/>
+      <Setter Property="Padding" Value="20,16"/>
+    </Style>
+
+    <Style Selector="TextBlock.demo-badge">
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="Foreground" Value="#AAAAAA"/>
+      <Setter Property="Background" Value="#30FFFFFF"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Border Classes="demo-container">
+    <Grid RowDefinitions="Auto, *">
+      <!-- Header with title/description -->
+      <Border Grid.Row="0" Classes="demo-header">
+        <Grid ColumnDefinitions="*, Auto">
+          <StackPanel Grid.Column="0" Spacing="4">
+            <TextBlock Text="{Binding Title, ElementName=DemoControl}"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="White"/>
+            <TextBlock Text="{Binding Description, ElementName=DemoControl}"
+                       FontSize="13"
+                       Foreground="#AAAAAA"
+                       TextWrapping="Wrap"/>
+          </StackPanel>
+
+          <!-- Demo Badge -->
+          <Border Grid.Column="1"
+                  CornerRadius="4"
+                  Padding="8,4"
+                  Background="#30FFFFFF"
+                  VerticalAlignment="Top">
+            <TextBlock Text="INTERACTIVE DEMO"
+                       FontSize="10"
+                       FontWeight="Bold"
+                       Foreground="#888888"/>
+          </Border>
+        </Grid>
+      </Border>
+
+      <!-- Demo Content Area -->
+      <Border Grid.Row="1"
+              Padding="20"
+              Background="#10000000">
+        <ContentPresenter Content="{Binding DemoContent, ElementName=DemoControl}"/>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

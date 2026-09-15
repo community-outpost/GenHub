@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -30,7 +31,7 @@ public class SuperHackersManifestFactory(
     /// </summary>
     private static int ExtractVersionFromManifestId(string manifestId)
     {
-        var parts = manifestId.Split('.');
+        var parts = manifestId.Split(SuperHackersConstants.VersionDelimiter);
         if (parts.Length >= 2 && int.TryParse(parts[1], out int version))
         {
             return version;
@@ -55,7 +56,7 @@ public class SuperHackersManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -67,7 +68,7 @@ public class SuperHackersManifestFactory(
         if (detectedExecutables.Count == 0)
         {
             logger.LogWarning("No SuperHackers game executables detected in {Directory}", extractedDirectory);
-            return [];
+            return OperationResult<List<ContentManifest>>.CreateFailure($"No SuperHackers game executables detected in {extractedDirectory}");
         }
 
         logger.LogInformation("Detected {Count} game executables for SuperHackers release", detectedExecutables.Count);
@@ -93,7 +94,7 @@ public class SuperHackersManifestFactory(
                 manifest.Files.Count);
         }
 
-        return manifests;
+        return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
     }
 
     /// <inheritdoc />
@@ -145,17 +146,17 @@ public class SuperHackersManifestFactory(
         {
             Id = ManifestId.Create(Guid.NewGuid().ToString()), // Temporary ID
             ManifestVersion = ManifestConstants.DefaultManifestVersion,
-            Name = "SuperHackers (Local)",
-            Version = GameClientConstants.AutoDetectedVersion,
+            Name = SuperHackersConstants.LocalInstallDisplayName,
+            Version = GameClientConstants.UnknownVersion,
             ContentType = ContentType.GameClient,
             Publisher = new()
             {
-                Name = "The Super Hackers",
+                Name = SuperHackersConstants.PublisherDisplayName,
                 PublisherType = PublisherTypeConstants.TheSuperHackers,
             },
             Metadata = new()
             {
-                Description = "Auto-detected local installation",
+                Description = SuperHackersConstants.LocalInstallDescription,
                 ReleaseDate = DateTime.Now,
             },
         };
@@ -265,15 +266,36 @@ public class SuperHackersManifestFactory(
                     continue;
                 }
 
-                // For GameClient manifests, only include the main executable and its PDB
-                // Exclude all development tools and other executables
+                // For GameClient manifests, we need to include:
+                // 1. The main game executable (already checked)
+                // 2. Its PDB file (debug info)
+                // 3. Critical DLL dependencies (dbghlp.dll, d3d8.dll, etc.)
+                // 4. Game data files (.big) that might be part of the patch
+                // 5. Configuration files (.ini)
                 if (originalManifest.ContentType == ContentType.GameClient)
                 {
-                    // Only include the main game executable and its PDB file
-                    if (fileName != executableFileName && fileName != Path.ChangeExtension(executableFileName, ".pdb"))
+                    // Always include the main executable and its PDB
+                    if (fileName == executableFileName || fileName == Path.ChangeExtension(executableFileName, ".pdb"))
                     {
-                        logger.LogDebug("Excluding development tool {FileName} from GameClient manifest", fileName);
-                        continue;
+                        // Keep it
+                    }
+                    else
+                    {
+                        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+
+                        // Define allowed extensions for patch dependencies
+                        // .dll: required libraries (dbghlp.dll, etc.)
+                        // .big: game data archives (Comanche.big, etc.)
+                        // .bg:  background resources
+                        // .ini: configuration
+                        // .manifest: side-by-side manifests
+                        var allowedExtensions = new[] { ".dll", ".big", ".bg", ".ini", ".manifest" };
+
+                        if (!allowedExtensions.Contains(extension))
+                        {
+                            logger.LogDebug("Excluding irrelevant file {FileName} from GameClient manifest", fileName);
+                            continue;
+                        }
                     }
                 }
 
@@ -281,6 +303,7 @@ public class SuperHackersManifestFactory(
                 var fileInfo = new FileInfo(filePath);
 
                 // Check if this is the game executable by comparing normalized full paths
+                // For ModdingTools, we also need to ensure the executable is at the root or correctly located
                 var normalizedFilePath = Path.GetFullPath(filePath);
                 bool isExecutable = string.Equals(normalizedFilePath, normalizedExecutablePath, StringComparison.OrdinalIgnoreCase);
 
@@ -357,6 +380,7 @@ public class SuperHackersManifestFactory(
                 ReleaseDate = originalManifest.Metadata.ReleaseDate,
                 IconUrl = SuperHackersConstants.LogoSource,
                 CoverUrl = gameType == GameType.Generals ? SuperHackersConstants.GeneralsCoverSource : SuperHackersConstants.ZeroHourCoverSource,
+                ThemeColor = gameType == GameType.ZeroHour ? SuperHackersConstants.ZeroHourThemeColor : SuperHackersConstants.GeneralsThemeColor,
                 ScreenshotUrls = originalManifest.Metadata.ScreenshotUrls,
                 Tags = originalManifest.Metadata.Tags,
                 ChangelogUrl = originalManifest.Metadata.ChangelogUrl,
@@ -367,6 +391,10 @@ public class SuperHackersManifestFactory(
             Files = files,
             RequiredDirectories = originalManifest.RequiredDirectories,
             InstallationInstructions = originalManifest.InstallationInstructions,
+            OriginalContentId = !string.IsNullOrEmpty(originalManifest.OriginalContentId)
+                ? originalManifest.OriginalContentId
+                : originalManifest.Id.Value,
+            OriginalProviderName = PublisherTypeConstants.TheSuperHackers,
         };
 
         return await Task.FromResult(manifest);

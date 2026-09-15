@@ -18,7 +18,9 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class StorageLocationService(
     IUserSettingsService userSettingsService,
+    IConfigurationProviderService configurationProviderService,
     IGameInstallationService gameInstallationService,
+    IStorageWritabilityProbe writabilityProbe,
     ILogger<StorageLocationService> logger) : IStorageLocationService
 {
     /// <inheritdoc/>
@@ -27,21 +29,29 @@ public class StorageLocationService(
         ArgumentNullException.ThrowIfNull(installation);
 
         var settings = userSettingsService.Get();
-        if (!settings.UseInstallationAdjacentStorage)
+        var configuredInstallationPoolPath = settings.CasConfiguration.InstallationPoolRootPath;
+        if (!string.IsNullOrWhiteSpace(configuredInstallationPoolPath) &&
+            writabilityProbe.CanCreateStorageAt(configuredInstallationPoolPath))
         {
-            // Fall back to centralized AppData location
-            var appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                DirectoryNames.CasPool);
-            logger.LogDebug("Using centralized CAS pool path: {CasPoolPath} (installation-adjacent disabled)", appDataPath);
-            return appDataPath;
+            return Path.GetFullPath(configuredInstallationPoolPath);
         }
 
-        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
-        var casPoolPath = Path.Combine(installationRoot, DirectoryNames.GenHubCasPool);
-        logger.LogDebug("Resolved CAS pool path: {CasPoolPath} for installation {InstallationId}", casPoolPath, installation.Id);
-        return casPoolPath;
+        if (settings.UseInstallationAdjacentStorage)
+        {
+            var installationPath = installation.InstallationPath;
+            if (!string.IsNullOrWhiteSpace(installationPath) &&
+                TryResolveSameVolumeStorage(installationPath, DirectoryNames.GenHubCasPool, installation.Id, out var adjacentPath))
+            {
+                return adjacentPath;
+            }
+        }
+
+        var primaryPoolPath = configurationProviderService.GetCasConfiguration().CasRootPath;
+        logger.LogInformation(
+            "Using primary CAS pool path {CasPoolPath} for installation {InstallationId}",
+            primaryPoolPath,
+            installation.Id);
+        return primaryPoolPath;
     }
 
     /// <inheritdoc/>
@@ -50,20 +60,38 @@ public class StorageLocationService(
         ArgumentNullException.ThrowIfNull(installation);
 
         var settings = userSettingsService.Get();
-        if (!settings.UseInstallationAdjacentStorage)
+        if (settings.UseInstallationAdjacentStorage)
         {
-            // Fall back to centralized AppData location
-            var appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                "Workspaces");
-            logger.LogDebug("Using centralized workspace path: {WorkspacePath} (installation-adjacent disabled)", appDataPath);
-            return appDataPath;
+            var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
+            if (!string.IsNullOrWhiteSpace(installationRoot) &&
+                TryResolveSameVolumeStorage(installationRoot, DirectoryNames.GenHubWorkspace, installation.Id, out var adjacentPath))
+            {
+                logger.LogDebug(
+                    "Resolved installation-adjacent workspace path: {WorkspacePath} for installation {InstallationId}",
+                    adjacentPath,
+                    installation.Id);
+                return adjacentPath;
+            }
         }
 
-        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
-        var workspacePath = Path.Combine(installationRoot, DirectoryNames.GenHubWorkspace);
-        logger.LogDebug("Resolved workspace path: {WorkspacePath} for installation {InstallationId}", workspacePath, installation.Id);
+        var configuredWorkspacePath = settings.WorkspacePath;
+        var workspacePath = !string.IsNullOrWhiteSpace(configuredWorkspacePath) && writabilityProbe.CanCreateStorageAt(configuredWorkspacePath)
+            ? Path.GetFullPath(configuredWorkspacePath)
+            : Path.Combine(configurationProviderService.GetApplicationDataPath(), DirectoryNames.Workspaces);
+
+        if (!string.IsNullOrWhiteSpace(installation.InstallationPath) &&
+            !PathHelper.AreSameVolume(installation.InstallationPath, workspacePath))
+        {
+            logger.LogWarning(
+                "Workspace path {WorkspacePath} is on a different volume than installation {InstallationPath}. Hardlinks cannot cross volumes.",
+                workspacePath,
+                installation.InstallationPath);
+        }
+
+        logger.LogInformation(
+            "Using centralized workspace path {WorkspacePath} for installation {InstallationId}",
+            workspacePath,
+            installation.Id);
         return workspacePath;
     }
 
@@ -153,5 +181,36 @@ public class StorageLocationService(
             sameVolume);
 
         return sameVolume;
+    }
+
+    private bool TryResolveSameVolumeStorage(
+        string basePath,
+        string directoryName,
+        string installationId,
+        out string path)
+    {
+        var volumeRoot = Path.GetPathRoot(basePath);
+        foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(basePath))
+        {
+            if (!string.IsNullOrEmpty(volumeRoot) && PathHelper.AreSamePath(ancestor, volumeRoot))
+            {
+                // Do not materialize candidate directory directly at volume root (e.g. D:\.genhub-cas)
+                continue;
+            }
+
+            var candidate = Path.Combine(ancestor, directoryName);
+            if (writabilityProbe.CanCreateStorageAt(candidate))
+            {
+                path = Path.GetFullPath(candidate);
+                return true;
+            }
+        }
+
+        path = Path.Combine(basePath, directoryName);
+        logger.LogWarning(
+            "Installation-adjacent storage path {StoragePath} and its same-volume ancestors are not writable for installation {InstallationId}; falling back to user storage",
+            path,
+            installationId);
+        return false;
     }
 }

@@ -1,9 +1,14 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Tests.Core.Features.Tools.Mocks;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 
@@ -33,6 +38,145 @@ public class ToolsViewModelTests
     }
 
     /// <summary>
+    /// Tests that OnTabActivated restores the previously opened tool when SelectedTool is null.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_RestoresPreviouslyOpenedTool_WhenSelectedToolIsNull()
+    {
+        // Arrange
+        var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
+        var plugin2 = new MockToolPlugin("test.tool2", "Test Tool 2", "1.0.0", "Author 2");
+        _viewModel.InstalledTools.Add(plugin1);
+        _viewModel.InstalledTools.Add(plugin2);
+
+        _viewModel.SelectedTool = plugin2;
+        Assert.Equal(plugin2, _viewModel.SelectedTool);
+        Assert.Equal(plugin2, _viewModel.LastOpenedTool);
+
+        // Simulate tab switch reset
+        _viewModel.SelectedTool = null;
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Equal(plugin2, _viewModel.LastOpenedTool);
+
+        // Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.Equal(plugin2, _viewModel.SelectedTool);
+        Assert.NotNull(_viewModel.CurrentToolControl);
+    }
+
+    /// <summary>
+    /// Tests that OnTabActivated does not change selection when a tool is already selected.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_DoesNotChangeSelection_WhenSelectedToolIsAlreadySet()
+    {
+        // Arrange
+        var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
+        var plugin2 = new MockToolPlugin("test.tool2", "Test Tool 2", "1.0.0", "Author 2");
+        _viewModel.InstalledTools.Add(plugin1);
+        _viewModel.InstalledTools.Add(plugin2);
+        _viewModel.SelectedTool = plugin1;
+
+        // Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.Equal(plugin1, _viewModel.SelectedTool);
+    }
+
+    /// <summary>
+    /// Tests that OnTabActivated recreates CurrentToolControl if SelectedTool is set but control is null.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_RecreatesCurrentToolControl_WhenSelectedToolNotNullButControlNull()
+    {
+        // Arrange
+        var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Author");
+        _viewModel.InstalledTools.Add(plugin);
+        _viewModel.SelectedTool = plugin;
+        _viewModel.CurrentToolControl = null;
+
+        // Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.NotNull(_viewModel.CurrentToolControl);
+    }
+
+    /// <summary>
+    /// Tests that OnTabActivated selects the first tool when the remembered tool was removed from installed tools.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_SelectsFirstTool_WhenRememberedToolWasRemoved()
+    {
+        // Arrange
+        var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
+        var plugin2 = new MockToolPlugin("test.tool2", "Test Tool 2", "1.0.0", "Author 2");
+        _viewModel.InstalledTools.Add(plugin1);
+        _viewModel.InstalledTools.Add(plugin2);
+        _viewModel.SelectedTool = plugin2;
+        Assert.Equal(plugin2, _viewModel.SelectedTool);
+
+        _viewModel.SelectedTool = null;
+        _viewModel.InstalledTools.Remove(plugin2);
+
+        // Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.Equal(plugin1, _viewModel.SelectedTool);
+    }
+
+    /// <summary>
+    /// Tests that OnTabActivated does nothing when no tools are installed.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_DoesNothing_WhenNoToolsInstalled()
+    {
+        // Arrange & Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
+    }
+
+    /// <summary>
+    /// Tests that OnTabActivated shows error status and leaves CurrentToolControl null when tool activation throws.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_ShowsErrorStatus_WhenToolActivationThrows()
+    {
+        // Arrange
+        var pluginMock = new Mock<IToolPlugin>();
+        var metadata = new ToolMetadata
+        {
+            Id = "failing.tool",
+            Name = "Failing Tool",
+            Version = "1.0.0",
+            Author = "Author",
+            Description = "Failing tool description",
+        };
+        pluginMock.Setup(p => p.Metadata).Returns(metadata);
+        pluginMock.Setup(p => p.OnActivated(It.IsAny<IServiceProvider>()))
+            .Throws(new InvalidOperationException("Activation failed"));
+
+        _viewModel.InstalledTools.Add(pluginMock.Object);
+        _viewModel.SelectedTool = pluginMock.Object;
+        _viewModel.CurrentToolControl = null;
+
+        // Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.Null(_viewModel.CurrentToolControl);
+        Assert.True(_viewModel.IsStatusError);
+        Assert.Contains("Activation failed", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
     /// Tests that constructor initializes properties correctly.
     /// </summary>
     [Fact]
@@ -42,6 +186,7 @@ public class ToolsViewModelTests
         Assert.NotNull(_viewModel.InstalledTools);
         Assert.Empty(_viewModel.InstalledTools);
         Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
         Assert.Null(_viewModel.CurrentToolControl);
         Assert.False(_viewModel.IsLoading);
         Assert.False(_viewModel.HasTools);
@@ -56,7 +201,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_LoadsToolsSuccessfully()
+    public async Task InitializeAsync_LoadsToolsSuccessfullyAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -75,6 +220,7 @@ public class ToolsViewModelTests
         Assert.Contains(plugin2, _viewModel.InstalledTools);
         Assert.True(_viewModel.HasTools);
         Assert.Equal(plugin1, _viewModel.SelectedTool); // First tool selected by default
+        Assert.Equal(plugin1, _viewModel.LastOpenedTool);
         Assert.False(_viewModel.IsLoading);
     }
 
@@ -83,7 +229,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_SetsHasToolsToFalse_WhenNoToolsLoaded()
+    public async Task InitializeAsync_SetsHasToolsToFalse_WhenNoToolsLoadedAsync()
     {
         // Arrange
         var emptyTools = new List<IToolPlugin>();
@@ -107,7 +253,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_HandlesFailureFromService()
+    public async Task InitializeAsync_HandlesFailureFromServiceAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())
@@ -129,7 +275,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_HandlesExceptionsGracefully()
+    public async Task InitializeAsync_HandlesExceptionsGracefullyAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())
@@ -149,7 +295,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_SetsIsLoadingCorrectly()
+    public async Task InitializeAsync_SetsIsLoadingCorrectlyAsync()
     {
         // Arrange
         var tools = new List<IToolPlugin>();
@@ -180,7 +326,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_RemovesToolSuccessfully()
+    public async Task RemoveToolAsync_RemovesToolSuccessfullyAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -197,6 +343,7 @@ public class ToolsViewModelTests
         Assert.Empty(_viewModel.InstalledTools);
         Assert.False(_viewModel.HasTools);
         Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
         Assert.Contains("removed successfully", _viewModel.StatusMessage);
         Assert.True(_viewModel.IsStatusSuccess);
         Assert.True(plugin.IsDisposed);
@@ -208,7 +355,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_SelectsAnotherTool_WhenToolsRemain()
+    public async Task RemoveToolAsync_SelectsAnotherTool_WhenToolsRemainAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -227,6 +374,7 @@ public class ToolsViewModelTests
         Assert.Single(_viewModel.InstalledTools);
         Assert.True(_viewModel.HasTools);
         Assert.Equal(plugin2, _viewModel.SelectedTool);
+        Assert.Equal(plugin2, _viewModel.LastOpenedTool);
         Assert.True(plugin1.IsDisposed);
         Assert.False(plugin2.IsDisposed);
     }
@@ -236,7 +384,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_DoesNothing_WhenNoToolSelected()
+    public async Task RemoveToolAsync_DoesNothing_WhenNoToolSelectedAsync()
     {
         // Arrange
         _viewModel.SelectedTool = null;
@@ -253,7 +401,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_HandlesServiceFailure()
+    public async Task RemoveToolAsync_HandlesServiceFailureAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -277,7 +425,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_HandlesExceptionsGracefully()
+    public async Task RemoveToolAsync_HandlesExceptionsGracefullyAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -300,7 +448,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_ReloadsToolsSuccessfully()
+    public async Task RefreshToolsAsync_ReloadsToolsSuccessfullyAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -327,7 +475,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_DeactivatesCurrentTool_BeforeRefresh()
+    public async Task RefreshToolsAsync_DeactivatesCurrentTool_BeforeRefreshAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -351,7 +499,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_RestoresPreviouslySelectedTool()
+    public async Task RefreshToolsAsync_RestoresPreviouslySelectedToolAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -372,11 +520,36 @@ public class ToolsViewModelTests
     }
 
     /// <summary>
+    /// Tests that RefreshToolsAsync clears SelectedTool and LastOpenedTool when no tools remain after refresh.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshToolsAsync_ClearsSelectedTool_WhenNoToolsRemainAsync()
+    {
+        // Arrange
+        var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
+        _viewModel.InstalledTools.Add(plugin);
+        _viewModel.SelectedTool = plugin;
+
+        _mockToolService.Setup(x => x.LoadSavedToolsAsync())
+            .ReturnsAsync(OperationResult<List<IToolPlugin>>.CreateSuccess([]));
+
+        // Act
+        await _viewModel.RefreshToolsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Empty(_viewModel.InstalledTools);
+        Assert.False(_viewModel.HasTools);
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
+    }
+
+    /// <summary>
     /// Tests that RefreshToolsAsync handles service failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_HandlesServiceFailure()
+    public async Task RefreshToolsAsync_HandlesServiceFailureAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())
@@ -395,7 +568,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_HandlesExceptionsGracefully()
+    public async Task RefreshToolsAsync_HandlesExceptionsGracefullyAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())
@@ -425,6 +598,7 @@ public class ToolsViewModelTests
         // Assert - The actual activation happens via property changed event in the real UI
         // In unit tests, we verify the tool is set
         Assert.Equal(plugin, _viewModel.SelectedTool);
+        Assert.Equal(plugin, _viewModel.LastOpenedTool);
     }
 
     /// <summary>

@@ -1,8 +1,9 @@
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Manifest;
-using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -27,14 +28,30 @@ public class PublisherManifestFactoryResolver(IEnumerable<IPublisherManifestFact
                 "Resolved {FactoryType} for manifest {ManifestId} (Publisher: {Publisher})",
                 factory.GetType().Name,
                 manifest.Id,
-                manifest.Publisher?.PublisherType ?? "Unknown");
+                manifest.Publisher?.PublisherType ?? "unknown");
             return factory;
+        }
+
+        // Fallback to generic GitHub manifest factory for non-GameClient publisher content (e.g., patches, mods)
+        if (manifest.ContentType != ContentType.GameClient)
+        {
+            var fallbackFactory = factories.OfType<GitHubManifestFactory>().FirstOrDefault();
+            if (fallbackFactory != null)
+            {
+                logger.LogInformation(
+                    "Resolved fallback {FactoryType} for manifest {ManifestId} (Publisher: {Publisher}, ContentType: {ContentType})",
+                    fallbackFactory.GetType().Name,
+                    manifest.Id,
+                    manifest.Publisher?.PublisherType ?? "unknown",
+                    manifest.ContentType);
+                return fallbackFactory;
+            }
         }
 
         logger.LogWarning(
             "No factory found for manifest {ManifestId} (Publisher: {Publisher}, ContentType: {ContentType})",
             manifest.Id,
-            manifest.Publisher?.PublisherType ?? "Unknown",
+            manifest.Publisher?.PublisherType ?? "unknown",
             manifest.ContentType);
 
         return null;

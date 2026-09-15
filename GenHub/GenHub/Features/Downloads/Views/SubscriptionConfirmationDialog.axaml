@@ -1,0 +1,550 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.Content.ViewModels.Catalog"
+        xmlns:models="clr-namespace:GenHub.Core.Models.Providers;assembly=GenHub.Core"
+        xmlns:infraControls="clr-namespace:GenHub.Infrastructure.Controls"
+        mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="760"
+        x:Class="GenHub.Features.Downloads.Views.SubscriptionConfirmationDialog"
+        x:DataType="vm:SubscriptionConfirmationViewModel"
+        Title="Subscribe to Publisher Catalog"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
+        Width="780" Height="760"
+        MinWidth="660" MinHeight="580"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        SystemDecorations="Full">
+
+    <Window.Styles>
+        <!-- Link button style for header badges -->
+        <Style Selector="Button.header-link-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="9,4"/>
+            <Setter Property="Margin" Value="0,0,6,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style Selector="Button.header-link-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+
+        <!-- Category filter chip button styles -->
+        <Style Selector="Button.filter-chip">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="0,0,6,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.filter-chip:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.filter-chip-selected">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="0,0,6,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Button.filter-chip-selected:pointerover">
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+    </Window.Styles>
+
+    <!-- Main Window Root with Acrylic Backdrop and Seamless Edge -->
+    <Border Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="16"
+            ClipToBounds="True">
+        <Panel>
+            <!-- Background Overlay for Glassmorphism -->
+            <ExperimentalAcrylicBorder IsHitTestVisible="False" CornerRadius="16">
+                <ExperimentalAcrylicBorder.Material>
+                    <ExperimentalAcrylicMaterial
+                        BackgroundSource="Digger"
+                        TintColor="#08080C"
+                        TintOpacity="0.94"
+                        MaterialOpacity="0.88" />
+                </ExperimentalAcrylicBorder.Material>
+            </ExperimentalAcrylicBorder>
+
+            <!-- Main Layout Grid -->
+            <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="22,16,22,18">
+                <!-- Row 0: Header Bar -->
+                <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12"
+                      Background="Transparent"
+                      PointerPressed="OnTitleBarPointerPressed">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png" Width="22" Height="22" VerticalAlignment="Center" />
+                            <TextBlock Text="Subscribe to Publisher Catalog"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       VerticalAlignment="Center" />
+
+                            <!-- Status Badge: Already in Library vs New Source -->
+                            <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                    BorderBrush="{DynamicResource AccentBadgeForegroundBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="8,2"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding IsAlreadySubscribed}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="✓" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="Bold" />
+                                    <TextBlock Text="Already in Library" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource SuccessBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="8,2"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding !IsAlreadySubscribed}">
+                                <TextBlock Text="+ New Catalog" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Review publisher identity and offered content before adding to your library"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondary}" />
+                    </StackPanel>
+
+                    <!-- Close Button -->
+                    <Button Grid.Column="1"
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Right"
+                            Background="Transparent"
+                            Foreground="{DynamicResource TextSecondary}"
+                            BorderThickness="0"
+                            Padding="0"
+                            Width="32" Height="32"
+                            Click="CloseButton_Click">
+                        <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                              Fill="{Binding $parent[Button].Foreground}"
+                              Width="12" Height="12"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              HorizontalAlignment="Center" />
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </Grid>
+
+                <!-- Row 1: Content Area (Expands to fill all available height) -->
+                <Panel Grid.Row="1">
+                    <!-- State A: Loading -->
+                    <StackPanel IsVisible="{Binding IsLoading}" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+                        <ProgressBar IsIndeterminate="True"
+                                     Foreground="{DynamicResource AccentBrush}"
+                                     Background="{DynamicResource SurfaceElevatedBrush}"
+                                     Width="280"
+                                     Height="6"
+                                     CornerRadius="3" />
+                        <TextBlock Text="Fetching publisher catalog &amp; verifying content..."
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="14"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- State B: Initial Catalog Fetch/Parse Error -->
+                    <Border IsVisible="{Binding ShowInitialError}"
+                            Background="{DynamicResource CardBackground}"
+                            BorderBrush="{DynamicResource ErrorBrush}"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Padding="24"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center"
+                            MaxWidth="540">
+                        <StackPanel Spacing="14" HorizontalAlignment="Center">
+                            <TextBlock Text="⚠" Foreground="{DynamicResource ErrorBrush}" FontSize="36" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding ErrorTitle}"
+                                       Foreground="{DynamicResource ErrorBrush}"
+                                       FontWeight="Bold"
+                                       FontSize="18"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding ErrorMessage}"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       FontSize="13"
+                                       LineHeight="18" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="0,8,0,0">
+                                <Button Content="Retry"
+                                        Command="{Binding InitializeCommand}"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Foreground="White"
+                                        FontWeight="Bold"
+                                        Padding="20,8"
+                                        CornerRadius="8" />
+                                <Button Content="Close"
+                                        Command="{Binding CancelCommand}"
+                                        Background="{DynamicResource SurfaceElevatedBrush}"
+                                        Foreground="{DynamicResource TextPrimary}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        Padding="20,8"
+                                        CornerRadius="8" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- State C: Catalog Loaded Successfully (Grid expands dynamically) -->
+                    <Grid IsVisible="{Binding ShowDetails}" RowDefinitions="Auto, Auto, *, Auto">
+                        <!-- Section 0: Publisher Profile Card -->
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="14,12"
+                                Margin="0,0,0,10">
+                            <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto">
+                                <!-- Publisher Avatar (Column 0) -->
+                                <Border Grid.Column="0" Grid.RowSpan="2"
+                                        Width="64" Height="64"
+                                        CornerRadius="32"
+                                        BorderBrush="{DynamicResource AccentBrush}"
+                                        BorderThickness="2"
+                                        ClipToBounds="True"
+                                        Margin="0,0,14,0"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource CardBackground}">
+                                    <Panel>
+                                        <!-- Fallback Initial Text -->
+                                        <TextBlock Text="{Binding PublisherInitial}"
+                                                   FontSize="26"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+
+                                        <!-- Loaded Avatar Image -->
+                                        <Image infraControls:ImageLoader.Source="{Binding PublisherAvatarUrl}"
+                                               Stretch="UniformToFill" />
+                                    </Panel>
+                                </Border>
+
+                                <!-- Publisher Name & Action Badges (Column 1, Row 0) -->
+                                <StackPanel Grid.Column="1" Grid.Row="0" Spacing="3">
+                                    <TextBlock Text="{Binding PublisherName}"
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimary}" />
+
+                                    <!-- Interactive Link Badges -->
+                                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <!-- Website Link Button -->
+                                        <Button Classes="header-link-btn"
+                                                Command="{Binding OpenUrlCommand}"
+                                                CommandParameter="{Binding PublisherWebsite}"
+                                                ToolTip.Tip="{Binding PublisherWebsite}"
+                                                IsVisible="{Binding PublisherWebsite, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="🌐" FontSize="11" />
+                                                <TextBlock Text="Website" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Support & Issues Link Button -->
+                                        <Button Classes="header-link-btn"
+                                                Command="{Binding OpenUrlCommand}"
+                                                CommandParameter="{Binding PublisherSupportUrl}"
+                                                ToolTip.Tip="{Binding PublisherSupportUrl}"
+                                                IsVisible="{Binding PublisherSupportUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="💬" FontSize="11" />
+                                                <TextBlock Text="Support &amp; Issues" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Contact Email Button -->
+                                        <Button Classes="header-link-btn"
+                                                Command="{Binding OpenUrlCommand}"
+                                                CommandParameter="{Binding PublisherContactEmail}"
+                                                ToolTip.Tip="{Binding PublisherContactEmail}"
+                                                IsVisible="{Binding PublisherContactEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="✉" FontSize="11" />
+                                                <TextBlock Text="Contact" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </Button>
+                                    </WrapPanel>
+                                </StackPanel>
+
+                                <!-- Publisher Stats Pills (Column 1, Row 1) -->
+                                <WrapPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                            BorderBrush="{DynamicResource AccentBadgeForegroundBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,3" Margin="0,0,6,4">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="📦" FontSize="10" />
+                                            <TextBlock Text="{Binding ContentCount, StringFormat='{}{0} Offered Items'}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextPrimary}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,3" Margin="0,0,6,4"
+                                            IsVisible="{Binding ContentSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <TextBlock Text="{Binding ContentSummary}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondary}" />
+                                    </Border>
+
+                                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,3" Margin="0,0,6,4"
+                                            IsVisible="{Binding LastUpdated, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <TextBlock Text="{Binding LastUpdated, StringFormat='Updated {0:yyyy-MM-dd}'}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextMuted}" />
+                                    </Border>
+                                </WrapPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Section 1: Filter Chips Header -->
+                        <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="Offered Content"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               VerticalAlignment="Center" />
+                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                            BorderBrush="{DynamicResource AccentBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding FilteredContentItems.Count, StringFormat='Showing {0} items'}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimary}" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Category Filter Chips -->
+                            <ItemsControl ItemsSource="{Binding CategoryFilters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:CatalogCategoryFilter">
+                                        <Button Command="{Binding $parent[Window].((vm:SubscriptionConfirmationViewModel)DataContext).SelectCategoryCommand}"
+                                                CommandParameter="{Binding Key}"
+                                                Classes.filter-chip-selected="{Binding IsSelected}"
+                                                Classes.filter-chip="{Binding !IsSelected}">
+                                            <TextBlock Text="{Binding DisplayText}" />
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Section 2: Offered Content List (Fills available space!) -->
+                        <Border Grid.Row="2"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="8">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding FilteredContentItems}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="models:CatalogContentItem">
+                                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10"
+                                                    Padding="12,10"
+                                                    Margin="0,0,0,8">
+                                                <Grid RowDefinitions="Auto, Auto, Auto">
+                                                    <!-- Row 0: Title & Badges -->
+                                                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Name}"
+                                                                   FontSize="13.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource TextPrimary}"
+                                                                   VerticalAlignment="Center" />
+
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                                            <!-- ContentType Badge -->
+                                                            <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                    BorderBrush="{DynamicResource AccentBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="8" Padding="8,3">
+                                                                <TextBlock Text="{Binding ContentType}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{DynamicResource AccentBrush}" />
+                                                            </Border>
+
+                                                            <!-- TargetGame Badge -->
+                                                            <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                                                    BorderBrush="{DynamicResource BorderHighlightBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="8" Padding="8,3">
+                                                                <TextBlock Text="{Binding TargetGame}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{DynamicResource TextSecondary}" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- Row 1: Description -->
+                                                    <TextBlock Grid.Row="1"
+                                                               Text="{Binding Description}"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondary}"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,5,0,0"
+                                                               LineHeight="17"
+                                                               IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                                                    <!-- Row 2: Id & Meta -->
+                                                    <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,6,0,0">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Id, StringFormat='ID: {0}'}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextMuted}"
+                                                                   VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+
+                        <!-- Section 3: Compact Security & Source Footer (Consolidates Trust Notice + Source URL) -->
+                        <Border Grid.Row="3"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="{DynamicResource WarningBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="10,6"
+                                Margin="0,8,0,0">
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="⚠" Foreground="{DynamicResource WarningBrush}" FontSize="13" VerticalAlignment="Center" />
+                                    <TextBlock Text="Community Source: Only subscribe to publishers you trust."
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding CatalogUrlDisplay, StringFormat='• {0}'}"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="10.5"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,0,0"
+                                           ToolTip.Tip="{Binding CatalogUrlDisplay}" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Panel>
+
+                <!-- Row 2: Inline Action Error Alert Banner (When catalog is loaded but an action/confirmation fails) -->
+                <Border Grid.Row="2"
+                        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource ErrorBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Margin="0,10,0,0">
+                    <Grid ColumnDefinitions="Auto, *, Auto">
+                        <TextBlock Grid.Column="0" Text="⚠" Foreground="{DynamicResource ErrorBrush}" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ErrorTitle}" Foreground="{DynamicResource ErrorBrush}" FontWeight="Bold" FontSize="12" />
+                            <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                Command="{Binding DismissErrorCommand}"
+                                Background="Transparent"
+                                Foreground="{DynamicResource TextSecondary}"
+                                BorderThickness="0"
+                                Padding="6,2"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Top"
+                                Cursor="Hand">
+                            <TextBlock Text="✕" FontSize="12" FontWeight="Bold" />
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Row 3: Footer Action Buttons -->
+                <Grid Grid.Row="3" ColumnDefinitions="*, Auto" Margin="0,14,0,0">
+                    <Button Grid.Column="0"
+                            Content="Cancel"
+                            Command="{Binding CancelCommand}"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            Foreground="{DynamicResource TextPrimary}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            HorizontalAlignment="Left"
+                            Padding="24,9"
+                            CornerRadius="8" />
+
+                    <Button Grid.Column="1"
+                            Content="{Binding ConfirmButtonText}"
+                            Command="{Binding ConfirmCommand}"
+                            IsEnabled="{Binding CanConfirm}"
+                            Background="{DynamicResource AccentBrush}"
+                            Foreground="White"
+                            FontWeight="Bold"
+                            Padding="28,9"
+                            CornerRadius="8" />
+                </Grid>
+            </Grid>
+        </Panel>
+    </Border>
+</Window>

@@ -21,7 +21,7 @@ public interface IGameProfile
     /// <summary>
     /// Gets the game client associated with this profile.
     /// </summary>
-    GameClient GameClient { get; }
+    GameClient? GameClient { get; }
 
     /// <summary>
     /// Gets the version string of the game.
@@ -39,9 +39,10 @@ public interface IGameProfile
     List<string> EnabledContentIds { get; }
 
     /// <summary>
-    /// Gets the preferred workspace strategy for this profile.
+    /// Gets the workspace strategy setting for this profile.
+    /// If null, the global default strategy should be used.
     /// </summary>
-    WorkspaceStrategy PreferredStrategy { get; }
+    WorkspaceStrategy? WorkspaceStrategy { get; }
 
     /// <summary>
     /// Gets or sets the build information for the profile.

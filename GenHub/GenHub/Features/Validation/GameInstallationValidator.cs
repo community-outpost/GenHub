@@ -1,45 +1,59 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
+using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Validation;
 
 /// <summary>
 /// Validates the integrity of a game installation directory (e.g., from Steam, EA App).
-/// Focuses on installation-specific validation concerns.
+/// Integrates with the CSV content pipeline for manifest-driven multi-language validation.
 /// </summary>
 public class GameInstallationValidator(
     ILogger<GameInstallationValidator> logger,
-    IManifestProvider manifestProvider,
+    IManifestProvider? manifestProvider,
     IContentValidator contentValidator,
-    IFileHashProvider hashProvider)
-    : FileSystemValidator(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider))),
+    IFileHashProvider hashProvider,
+    ILanguageDetector? languageDetector = null,
+    CsvContentProvider? csvContentProvider = null,
+    IEnumerable<IContentProvider>? contentProviders = null)
+    : FileSystemValidator(logger, hashProvider),
       IGameInstallationValidator, IValidator<GameInstallation>
 {
-    private readonly ILogger<GameInstallationValidator> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IManifestProvider _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
-    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
-    private readonly IFileHashProvider _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+    private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
+    private readonly IContentProvider? _resolvedCsvProvider = csvContentProvider ??
+        contentProviders?.OfType<CsvContentProvider>().FirstOrDefault() ??
+        contentProviders?.FirstOrDefault(p => string.Equals(p.SourceName, PublisherTypeConstants.CsvRegistry, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Validates the specified game installation.
+    /// Validates the specified game installation against expected files and checksums.
     /// </summary>
     /// <param name="installation">The game installation to validate.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the validation outcome.</returns>
-    public async Task<ValidationResult> ValidateAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    public Task<ValidationResult> ValidateAsync(GameInstallation installation, CancellationToken cancellationToken = default)
     {
-        return await ValidateAsync(installation, null, cancellationToken);
+        return ValidateInternalAsync(installation, null, null, cancellationToken);
     }
 
     /// <summary>
@@ -49,77 +63,348 @@ public class GameInstallationValidator(
     /// <param name="progress">Progress reporter for MVVM integration.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the validation outcome.</returns>
-    public async Task<ValidationResult> ValidateAsync(GameInstallation installation, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task<ValidationResult> ValidateAsync(GameInstallation installation, IProgress<ValidationProgress>? progress, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("Starting validation for installation '{Path}'", installation.InstallationPath);
-        var issues = new List<ValidationIssue>();
+        return ValidateInternalAsync(installation, null, progress, cancellationToken);
+    }
 
-        // Calculate total steps dynamically based on installation
-        int totalSteps = 4; // Base steps: manifest fetch, manifest validation, integrity, extraneous files
-        if (installation.HasGenerals) totalSteps++;
-        if (installation.HasZeroHour) totalSteps++;
+    /// <summary>
+    /// Validates the specified game installation with explicit language and optional progress reporting.
+    /// </summary>
+    /// <param name="installation">The game installation to validate.</param>
+    /// <param name="language">The explicit language code (e.g. "EN", "DE").</param>
+    /// <param name="progress">Progress reporter for MVVM integration.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="ValidationResult"/> representing the validation outcome.</returns>
+    public Task<ValidationResult> ValidateAsync(
+        GameInstallation installation,
+        string language,
+        IProgress<ValidationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ValidateInternalAsync(installation, language, progress, cancellationToken);
+    }
 
-        int currentStep = 0;
-
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Fetching manifest"));
-
-        // Fetch manifest for this installation type
-        var manifest = await _manifestProvider.GetManifestAsync(installation, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        if (manifest == null)
+    /// <summary>
+    /// Validates a specific game installation directory by path, game type, and optional language.
+    /// </summary>
+    /// <param name="installationPath">The path to the game directory.</param>
+    /// <param name="gameType">The target game type (Generals or ZeroHour).</param>
+    /// <param name="language">Optional explicit language code. If null, language is auto-detected.</param>
+    /// <param name="progress">Progress reporter for MVVM integration.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="ValidationResult"/> representing the outcome of the validation.</returns>
+    public Task<ValidationResult> ValidateInstallationAsync(
+        string installationPath,
+        GameType gameType,
+        string? language = null,
+        IProgress<ValidationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(installationPath))
         {
-            issues.Add(new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = installation.InstallationPath, Message = "Manifest not found for installation." });
-            progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
-            return new ValidationResult(installation.InstallationPath, issues);
+            throw new ArgumentException("Installation path cannot be null or empty.", nameof(installationPath));
         }
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Core manifest validation"));
+        return ValidateInstallationCoreAsync(
+            installationPath,
+            gameType,
+            language,
+            installation: null,
+            progress: progress,
+            cancellationToken: cancellationToken);
+    }
 
-        // Use ContentValidator for core validation
-        var manifestValidationResult = await _contentValidator.ValidateManifestAsync(manifest, cancellationToken);
+    private async Task<ValidationResult> ValidateInternalAsync(
+        GameInstallation installation,
+        string? language,
+        IProgress<ValidationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(installation);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        logger.LogInformation("Starting validation for installation '{Path}'", installation.InstallationPath);
+        var stopwatch = Stopwatch.StartNew();
+        var issues = new List<ValidationIssue>();
+        int totalFiles = 0;
+
+        var targets = new List<(string Path, GameType GameType)>();
+
+        if (installation.HasGenerals && !string.IsNullOrWhiteSpace(installation.GeneralsPath))
+        {
+            targets.Add((installation.GeneralsPath, GameType.Generals));
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrWhiteSpace(installation.ZeroHourPath))
+        {
+            targets.Add((installation.ZeroHourPath, GameType.ZeroHour));
+        }
+
+        if (targets.Count == 0)
+        {
+            var fallbackGameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+            targets.Add((installation.InstallationPath, fallbackGameType));
+        }
+
+        int targetIndex = 0;
+        foreach (var (targetPath, targetGame) in targets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            targetIndex++;
+
+            logger.LogDebug("Validating target {Index}/{Total}: {GameType} at '{Path}'", targetIndex, targets.Count, targetGame, targetPath);
+
+            var result = await ValidateInstallationCoreAsync(
+                targetPath,
+                targetGame,
+                language,
+                installation,
+                progress,
+                cancellationToken);
+
+            issues.AddRange(result.Issues);
+            totalFiles += result.TotalFilesValidated;
+        }
+
+        stopwatch.Stop();
+        logger.LogInformation(
+            "Installation validation for '{Path}' completed with {IssueCount} issues ({CriticalCount} critical, {TotalFiles} files validated).",
+            installation.InstallationPath,
+            issues.Count,
+            issues.Count(i => i.Severity == ValidationSeverity.Error || i.Severity == ValidationSeverity.Critical),
+            totalFiles);
+
+        return new ValidationResult(installation.InstallationPath, issues, stopwatch.Elapsed, totalFiles);
+    }
+
+    private async Task<ValidationResult> ValidateInstallationCoreAsync(
+        string installationPath,
+        GameType gameType,
+        string? language,
+        GameInstallation? installation,
+        IProgress<ValidationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var stopwatch = Stopwatch.StartNew();
+        var issues = new List<ValidationIssue>();
+
+        var detectedLanguage = string.IsNullOrWhiteSpace(language)
+            ? await _languageDetector.DetectAsync(installationPath, cancellationToken)
+            : language;
+
+        var normalizedLanguage = ContentSearchQuery.NormalizeLanguage(detectedLanguage);
+        logger.LogInformation(
+            "Validating installation at '{Path}' for game {GameType} in language {Language}",
+            installationPath,
+            gameType,
+            normalizedLanguage);
+
+        progress?.Report(new ValidationProgress(1, 4, "Resolving manifest"));
+
+        ContentManifest? manifest = null;
+        var csvIssues = new List<ValidationIssue>();
+        if (_resolvedCsvProvider != null)
+        {
+            manifest = await ResolveManifestFromCsvProviderAsync(
+                installationPath,
+                gameType,
+                normalizedLanguage,
+                csvIssues,
+                cancellationToken);
+        }
+
+        if (manifest == null && manifestProvider != null)
+        {
+            logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
+            var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
+            if (gameType == GameType.ZeroHour)
+            {
+                targetInstall.SetPaths(generalsPath: null, zeroHourPath: installationPath);
+            }
+            else
+            {
+                targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
+            }
+
+            manifest = await manifestProvider.GetManifestAsync(targetInstall, cancellationToken);
+        }
+
+        if (manifest == null)
+        {
+            if (csvIssues.Count > 0)
+            {
+                issues.AddRange(csvIssues);
+            }
+            else
+            {
+                issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.MissingFile,
+                    Path = installationPath,
+                    Message = $"Manifest not found for {gameType} ({normalizedLanguage}) installation at '{installationPath}'.",
+                    Severity = ValidationSeverity.Error,
+                });
+            }
+
+            progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
+            stopwatch.Stop();
+            return new ValidationResult(installationPath, issues, stopwatch.Elapsed, 0);
+        }
+
+        progress?.Report(new ValidationProgress(2, 4, "Core manifest validation"));
+        var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
         issues.AddRange(manifestValidationResult.Issues);
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
-
-        // Use ContentValidator for full content validation (integrity + extraneous files)
+        progress?.Report(new ValidationProgress(3, 4, "Validating content files"));
+        int totalFiles = 0;
         try
         {
-            var fullValidation = await _contentValidator.ValidateAllAsync(installation.InstallationPath, manifest, progress, cancellationToken);
+            var fullValidation = await contentValidator.ValidateAllAsync(
+                installationPath,
+                manifest,
+                progress,
+                cancellationToken);
             issues.AddRange(fullValidation.Issues);
+            totalFiles = fullValidation.TotalFilesValidated > 0
+                ? fullValidation.TotalFilesValidated
+                : manifest.Files?.Count ?? 0;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Content validation failed for installation '{Path}'", installation.InstallationPath);
+            logger.LogError(ex, "Content validation failed for installation '{Path}' ({GameType}, {Language})", installationPath, gameType, normalizedLanguage);
             issues.Add(new ValidationIssue
             {
                 IssueType = ValidationIssueType.CorruptedFile,
-                Path = installation.InstallationPath,
-                Message = $"Content validation failed: {ex.Message}",
+                Path = installationPath,
+                Message = $"Content validation failed for {gameType} ({normalizedLanguage}): {ex.Message}",
                 Severity = ValidationSeverity.Error,
             });
+            totalFiles = 0;
         }
 
-        // Installation-specific validations (directories, etc.)
         var requiredDirs = manifest.RequiredDirectories ?? Enumerable.Empty<string>();
         if (requiredDirs.Any())
         {
-            if (installation.HasGenerals)
-            {
-                progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating Generals directories"));
-                issues.AddRange(await ValidateDirectoriesAsync(installation.GeneralsPath, requiredDirs, cancellationToken));
-            }
-
-            if (installation.HasZeroHour)
-            {
-                progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating Zero Hour directories"));
-                issues.AddRange(await ValidateDirectoriesAsync(installation.ZeroHourPath, requiredDirs, cancellationToken));
-            }
+            var dirIssues = await ValidateDirectoriesAsync(installationPath, requiredDirs, cancellationToken);
+            issues.AddRange(dirIssues);
         }
 
-        progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
+        progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
 
-        _logger.LogInformation("Installation validation for '{Path}' completed with {Count} issues.", installation.InstallationPath, issues.Count);
-        return new ValidationResult(installation.InstallationPath, issues);
+        stopwatch.Stop();
+        return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
+    }
+
+    private void AddValidationUnavailableIssue(
+        ICollection<ValidationIssue> issues,
+        string installationPath,
+        string message)
+    {
+        issues.Add(new ValidationIssue
+        {
+            IssueType = ValidationIssueType.ValidationUnavailable,
+            Path = installationPath,
+            Message = message,
+            Severity = ValidationSeverity.Error,
+        });
+    }
+
+    private async Task<ContentManifest?> ResolveManifestFromCsvProviderAsync(
+        string installationPath,
+        GameType gameType,
+        string language,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        if (_resolvedCsvProvider == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var query = new ContentSearchQuery
+            {
+                TargetGame = gameType,
+                Language = language,
+                ContentType = ContentType.GameInstallation,
+            };
+
+            var searchResult = await _resolvedCsvProvider.SearchAsync(query, cancellationToken);
+            if (!searchResult.Success)
+            {
+                logger.LogWarning(
+                    "CSV validation catalog is unavailable for {GameType} ({Language}): {Error}",
+                    gameType,
+                    language,
+                    searchResult.FirstError ?? "Unknown catalog error");
+
+                AddValidationUnavailableIssue(
+                    issues,
+                    installationPath,
+                    $"Validation catalog unavailable for {gameType} ({language}): {searchResult.FirstError ?? "Unknown catalog error"}");
+                return null;
+            }
+
+            if (searchResult.Data == null || !searchResult.Data.Any())
+            {
+                logger.LogWarning(
+                    "CSV validation catalog contains no matching manifest for {GameType} ({Language})",
+                    gameType,
+                    language);
+
+                AddValidationUnavailableIssue(
+                    issues,
+                    installationPath,
+                    $"No validation manifest is available for {gameType} ({language}).");
+                return null;
+            }
+
+            var matchingItem = searchResult.Data.FirstOrDefault();
+            var manifest = matchingItem?.GetData<ContentManifest>();
+            if (manifest == null)
+            {
+                logger.LogWarning(
+                    "CSV provider search result did not contain valid manifest data for {GameType} ({Language})",
+                    gameType,
+                    language);
+
+                AddValidationUnavailableIssue(
+                    issues,
+                    installationPath,
+                    $"The validation manifest for {gameType} ({language}) could not be read.");
+                return null;
+            }
+
+            return manifest;
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "CSV validation catalog request timed out for {GameType} ({Language})", gameType, language);
+            AddValidationUnavailableIssue(
+                issues,
+                installationPath,
+                $"Validation catalog unavailable for {gameType} ({language}): the request timed out.");
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException)
+        {
+            logger.LogError(ex, "Failed to resolve CSV manifest for {GameType} ({Language})", gameType, language);
+            AddValidationUnavailableIssue(
+                issues,
+                installationPath,
+                $"Validation catalog unavailable for {gameType} ({language}): {ex.Message}");
+            return null;
+        }
     }
 }

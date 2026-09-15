@@ -142,23 +142,20 @@ public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : IGameInstal
                     GameClientConstants.SuperHackersZeroHourExecutable,
                 };
 
-                // First, check if the base path itself is Zero Hour (registry path might already be the ZH folder)
-                if (HasAnyExecutable(generalsPath!, zeroHourExecutables))
+                // Otherwise, check for Zero Hour as a subdirectory
+                var gamePath = Path.Combine(generalsPath!, GameClientConstants.ZeroHourDirectoryName);
+                if (Directory.Exists(gamePath) && HasAnyExecutable(gamePath, zeroHourExecutables))
                 {
+                    HasZeroHour = true;
+                    ZeroHourPath = gamePath;
+                    logger?.LogInformation("Found EA App Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
+                }
+                else if (HasAnyExecutable(generalsPath!, zeroHourExecutables))
+                {
+                    // Check if the base path itself is Zero Hour (registry path might already be the ZH folder)
                     HasZeroHour = true;
                     ZeroHourPath = generalsPath!;
                     logger?.LogInformation("Found EA App Zero Hour installation at base path: {ZeroHourPath}", ZeroHourPath);
-                }
-                else
-                {
-                    // Otherwise, check for Zero Hour as a subdirectory
-                    var gamePath = Path.Combine(generalsPath!, GameClientConstants.ZeroHourDirectoryName);
-                    if (Directory.Exists(gamePath) && HasAnyExecutable(gamePath, zeroHourExecutables))
-                    {
-                        HasZeroHour = true;
-                        ZeroHourPath = gamePath;
-                        logger?.LogInformation("Found EA App Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
-                    }
                 }
             }
 

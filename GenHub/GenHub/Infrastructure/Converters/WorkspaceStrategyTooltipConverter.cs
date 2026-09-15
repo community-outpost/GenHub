@@ -29,10 +29,10 @@ public class WorkspaceStrategyTooltipConverter : IValueConverter
         {
             return strategy switch
             {
-                WorkspaceStrategy.SymlinkOnly => "Creates symbolic links to all files. Minimal disk usage, requires admin rights. (Default)",
+                WorkspaceStrategy.SymlinkOnly => "Creates symbolic links to all files. Minimal disk usage, requires admin rights. (Legacy)",
                 WorkspaceStrategy.FullCopy => "Copies all files to workspace. Maximum compatibility and isolation, highest disk usage.",
-                WorkspaceStrategy.HybridCopySymlink => "Copies essential files, symlinks others. Balanced disk usage and compatibility.",
-                WorkspaceStrategy.HardLink => "Creates hard links where possible, copies otherwise. Space-efficient, requires same volume.",
+                WorkspaceStrategy.HybridCopySymlink => "Copies essential files, symlinks others. Balanced disk usage and compatibility. (Legacy)",
+                WorkspaceStrategy.HardLink => "Creates hard links or symbolic links to game files. Space-efficient zero-copy workspace (may require elevation for cross-volume links). (Default)",
                 _ => strategy.ToString(),
             };
         }
