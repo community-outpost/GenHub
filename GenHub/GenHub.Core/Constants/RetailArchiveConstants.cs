@@ -99,6 +99,7 @@ public static class RetailArchiveConstants
         "gensec.big",
         "ini.big",
         "maps.big",
+        GameClientConstants.GeneralsPatchBig,
         "music.big",
         "shaders.big",
         "speech.big",
