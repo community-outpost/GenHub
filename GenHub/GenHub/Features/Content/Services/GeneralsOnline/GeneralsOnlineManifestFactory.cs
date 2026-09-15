@@ -2,10 +2,10 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Services.Providers.VersionSchemes;
 using Microsoft.Extensions.Logging;
 using System;
@@ -238,7 +238,16 @@ public class GeneralsOnlineManifestFactory(
 
         // Update with file hashes from the installation
         var updateResult = await UpdateManifestsWithExtractedFiles(manifests, installationPath, cancellationToken);
-        return updateResult.Success ? (updateResult.Data ?? []) : [];
+        if (!updateResult.Success)
+        {
+            logger.LogWarning(
+                "Failed to create GeneralsOnline manifests from local install at {Path}: {Error}",
+                installationPath,
+                updateResult.FirstError);
+            return [];
+        }
+
+        return updateResult.Data ?? [];
     }
 
     private static int ParseVersionForManifestId(string version)

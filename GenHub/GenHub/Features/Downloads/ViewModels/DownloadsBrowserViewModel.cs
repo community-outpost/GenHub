@@ -2297,11 +2297,7 @@ public sealed partial class DownloadsBrowserViewModel(
         item.CurrentState = ContentState.Downloaded;
         item.IsDownloaded = true;
 
-        string? moddbId = null;
-        if (item.SearchResult.ResolverMetadata?.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var mid) == true)
-        {
-            moddbId = mid;
-        }
+        var moddbId = item.SearchResult.GetModDbId();
 
         // Notify ContentStateService that state has changed (catalog ID + manifest ID)
         contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value, moddbId);
@@ -2388,11 +2384,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 component.MarkDownloaded(originalContentId, result.Data.Id.Value);
             }
 
-            string? moddbId = null;
-            if (target.ResolverMetadata?.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var mid) == true)
-            {
-                moddbId = mid;
-            }
+            var moddbId = target.GetModDbId();
 
             contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, result.Data.Id.Value, moddbId);
             completed++;

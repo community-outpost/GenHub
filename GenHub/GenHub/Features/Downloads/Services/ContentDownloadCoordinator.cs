@@ -449,11 +449,7 @@ public sealed class ContentDownloadCoordinator(
                 var originalContentId = searchResult.Id ?? string.Empty;
                 searchResult.UpdateId(manifest.Id.Value);
 
-                string? moddbId = null;
-                if (searchResult.ResolverMetadata?.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var mid) == true)
-                {
-                    moddbId = mid;
-                }
+                var moddbId = searchResult.GetModDbId();
 
                 // Update state. The event carries both the original catalog ID and the manifest ID
                 // so every subscriber can match regardless of which ID it currently holds.

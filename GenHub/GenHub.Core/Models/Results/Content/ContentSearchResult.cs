@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Parsers;
 
@@ -80,7 +81,7 @@ public class ContentSearchResult
 
     /// <summary>
     /// Gets or sets the direct URL selected from a content-details file list.
-    /// The resolver retains <see cref="SourceUrl"/> as the detail page and uses this value to
+    /// The resolver retains <see cref=\"SourceUrl\"/> as the detail page and uses this value to
     /// select the requested artifact without parsing the page again.
     /// </summary>
     public string? SelectedDownloadUrl { get; set; }
@@ -115,6 +116,18 @@ public class ContentSearchResult
     }
 
     /// <summary>
+    /// Gets the ModDB content identifier from the resolver metadata, if present.
+    /// </summary>
+    /// <returns>The ModDB content identifier, or <see langword="null"/> if not present.</returns>
+    public string? GetModDbId()
+    {
+        return ResolverMetadata != null &&
+               ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId)
+            ? modDbId
+            : null;
+    }
+
+    /// <summary>
     /// Gets or sets the stable group key shared by every card that is a variant of the same
     /// release. When two or more results share a non-null/non-empty <see cref="VariantGroupId"/>,
     /// the downloads browser collapses them into a single card with a variant picker. Null/empty
@@ -123,7 +136,7 @@ public class ContentSearchResult
     public string? VariantGroupId { get; set; }
 
     /// <summary>
-    /// Gets or sets the display name of the variant family (e.g. "Control Bar Pro (Xezon)"),
+    /// Gets or sets the display name of the variant family (e.g. \"Control Bar Pro (Xezon)\"),
     /// shown as the collapsed card's title when <see cref="VariantGroupId"/> groups siblings.
     /// </summary>
     public string? VariantFamilyName { get; set; }

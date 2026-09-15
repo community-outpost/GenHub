@@ -1,5 +1,5 @@
-using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Content;
 
