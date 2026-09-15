@@ -35,7 +35,7 @@ namespace GenHub.Features.Tools.MapManager.ViewModels;
 /// <summary>
 /// ViewModel for Map Manager tool.
 /// </summary>
-public partial class MapManagerViewModel : ObservableObject
+public partial class MapManagerViewModel : ObservableObject, IDisposable
 {
     private readonly IMapDirectoryService _directoryService;
     private readonly IMapImportService _importService;
@@ -46,6 +46,7 @@ public partial class MapManagerViewModel : ObservableObject
     private readonly TgaImageParser _tgaImageParser;
     private readonly ILogger<MapManagerViewModel> _logger;
     private readonly DispatcherTimer _searchTimer;
+    private readonly ILocalizationService? _localizationService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MapManagerViewModel"/> class.
@@ -58,6 +59,7 @@ public partial class MapManagerViewModel : ObservableObject
     /// <param name="notificationService">The notification service.</param>
     /// <param name="tgaImageParser">The TGA image parser.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="localizationService">The optional localization service.</param>
     public MapManagerViewModel(
         IMapDirectoryService directoryService,
         IMapImportService importService,
@@ -66,7 +68,8 @@ public partial class MapManagerViewModel : ObservableObject
         IUploadHistoryService uploadHistoryService,
         INotificationService notificationService,
         TgaImageParser tgaImageParser,
-        ILogger<MapManagerViewModel> logger)
+        ILogger<MapManagerViewModel> logger,
+        ILocalizationService? localizationService = null)
     {
         _directoryService = directoryService;
         _importService = importService;
@@ -76,6 +79,11 @@ public partial class MapManagerViewModel : ObservableObject
         _notificationService = notificationService;
         _tgaImageParser = tgaImageParser;
         _logger = logger;
+        _localizationService = localizationService;
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
 
         _searchTimer = new DispatcherTimer
         {
@@ -1235,6 +1243,43 @@ public partial class MapManagerViewModel : ObservableObject
         {
             IsMapPackPanelOpen = true;
             _notificationService.ShowInfo("Create MapPack", "Enter a name and description in the panel, then click Create.");
+        }
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ILocalizationService.CurrentCulture) && e.PropertyName != LocalizationConstants.IndexerPropertyName)
+        {
+            return;
+        }
+
+        if (MapPacks.Count > 0)
+        {
+            var packs = MapPacks.ToList();
+            MapPacks.Clear();
+            foreach (var pack in packs)
+            {
+                MapPacks.Add(pack);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && _localizationService != null)
+        {
+            _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
         }
     }
 }

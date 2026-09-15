@@ -1311,6 +1311,33 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that TestPatAsync clears authentication token and marks PAT invalid when rollback fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenValidationFailsAndRestoreThrows_ClearsTokenAndSetsInvalidAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockApiClient = new Mock<IGitHubApiClient>();
+        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ThrowsAsync(new System.IO.IOException("Disk error"));
+
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubUser?)null);
+
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
+        viewModel.GitHubPatInput = "ghp_invalidToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        mockApiClient.Verify(x => x.ClearAuthenticationToken(), Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that available languages are loaded from localization service and selected language matches settings.
     /// </summary>
     [Fact]

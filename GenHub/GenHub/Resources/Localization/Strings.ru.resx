@@ -4094,7 +4094,7 @@
     <value>от {0}</value>
   </data>
   <data name="Updates.Label.UpdatedDateFormat" xml:space="preserve">
-    <value>Обновлено: {0}</value>
+    <value>Обновлено: {0:g}</value>
   </data>
   <data name="Info.Demo.AppUpdates.PatSaveTest" xml:space="preserve">
     <value>Сохранить и проверить</value>
@@ -4281,5 +4281,161 @@
   </data>
   <data name="Maps.MapPack.MapsCountFormat" xml:space="preserve">
     <value>{0} карт</value>
+  </data>
+  <data name="Tools.Status.FailedToLoad" xml:space="preserve">
+    <value>⚠ Не удалось загрузить инструменты: {0}</value>
+  </data>
+  <data name="Tools.Status.ErrorLoading" xml:space="preserve">
+    <value>⚠ Произошла ошибка при загрузке инструментов: {0}</value>
+  </data>
+  <data name="Tools.Status.ToolInstallFailed" xml:space="preserve">
+    <value>✗ Не удалось установить инструмент: {0}</value>
+  </data>
+  <data name="Tools.Status.AddToolError" xml:space="preserve">
+    <value>✗ Произошла ошибка при добавлении инструмента: {0}</value>
+  </data>
+  <data name="Tools.Status.BundledCannotRemove" xml:space="preserve">
+    <value>✗ Инструмент '{0}' является встроенным и не может быть удален.</value>
+  </data>
+  <data name="Tools.Status.ToolRemoveFailed" xml:space="preserve">
+    <value>✗ Не удалось удалить инструмент: {0}</value>
+  </data>
+  <data name="Tools.Status.RemoveToolError" xml:space="preserve">
+    <value>✗ Произошла ошибка при удалении инструмента: {0}</value>
+  </data>
+  <data name="Tools.Status.RefreshedCountSuccess" xml:space="preserve">
+    <value>✓ Успешно обновлено {0} инструментов.</value>
+  </data>
+  <data name="Tools.Status.RefreshFailed" xml:space="preserve">
+    <value>⚠ Не удалось обновить инструменты: {0}</value>
+  </data>
+  <data name="Tools.Status.RefreshError" xml:space="preserve">
+    <value>⚠ Произошла ошибка при обновлении инструментов: {0}</value>
+  </data>
+  <data name="Tools.Status.ErrorActivatingTool" xml:space="preserve">
+    <value>✗ Ошибка загрузки инструмента '{0}': {1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllTitle" xml:space="preserve">
+    <value>Применить рекомендуемые исправления</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите применить все рекомендуемые исправления для {0}?
+
+Это изменит файлы игры и настройки конфигурации в:
+{1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllConfirm" xml:space="preserve">
+    <value>Применить исправления</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllCancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixAppliedTitle" xml:space="preserve">
+    <value>Исправление применено: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixForceAppliedTitle" xml:space="preserve">
+    <value>Исправление принудительно применено: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixAppliedDesc" xml:space="preserve">
+    <value>{0} успешно применено.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixForceAppliedDesc" xml:space="preserve">
+    <value>{0} успешно применено принудительно.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixFailedTitle" xml:space="preserve">
+    <value>Не удалось применить исправление: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Error.Unknown" xml:space="preserve">
+    <value>Произошла неизвестная ошибка.</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.Core" xml:space="preserve">
+    <value>Ядро и стабильность</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.Compatibility" xml:space="preserve">
+    <value>Совместимость</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.Multiplayer" xml:space="preserve">
+    <value>Сетевая игра</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.QualityOfLife" xml:space="preserve">
+    <value>Удобство игры</value>
+  </data>
+  <data name="Info.Changelog.GeneralsOnlinePatchNotes" xml:space="preserve">
+    <value>Примечания к патчам Generals Online</value>
+  </data>
+  <data name="Info.Changelog.LatestUpdatesAndChanges" xml:space="preserve">
+    <value>Последние обновления и изменения</value>
+  </data>
+  <data name="Info.Changelog.Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Info.Changelog.FetchingDetails" xml:space="preserve">
+    <value>Получение подробностей...</value>
+  </data>
+  <data name="Info.Changelog.ViewSource" xml:space="preserve">
+    <value>Просмотреть источник</value>
+  </data>
+  <data name="Info.Changelog.ReleaseHistory" xml:space="preserve">
+    <value>История версий</value>
+  </data>
+  <data name="Info.Changelog.LatestUpdatesFromGitHub" xml:space="preserve">
+    <value>Последние обновления с GitHub</value>
+  </data>
+  <data name="Info.Changelog.PreRelease" xml:space="preserve">
+    <value>ПРЕДВАРИТЕЛЬНАЯ ВЕРСИЯ</value>
+  </data>
+  <data name="Info.Changelog.ViewOnGitHub" xml:space="preserve">
+    <value>Просмотреть на GitHub</value>
+  </data>
+  <data name="Info.WorkspaceDemo.RunSimulator" xml:space="preserve">
+    <value>Запустить симулятор</value>
+  </data>
+  <data name="Info.WorkspaceDemo.Source" xml:space="preserve">
+    <value>ИСТОЧНИК</value>
+  </data>
+  <data name="Info.WorkspaceDemo.Workspace" xml:space="preserve">
+    <value>РАБОЧЕЕ ПРОСТРАНСТВО</value>
+  </data>
+  <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
+    <value>Этот процесс создает полную «виртуальную» установку игры за миллисекунды, используя минимум дискового пространства.</value>
+  </data>
+  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
+    <value>Персональный токен доступа:</value>
+  </data>
+  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
+    <value>Нет персонального токена доступа?</value>
+  </data>
+  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
+    <value>Создать персональный токен доступа GitHub →</value>
+  </data>
+  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
+    <value>Нажмите, чтобы открыть страницу создания PAT на GitHub</value>
+  </data>
+  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
+    <value>Проверка токена...</value>
+  </data>
+  <data name="Downloads.Browser.Publishers" xml:space="preserve">
+    <value>Издатели</value>
+  </data>
+  <data name="Downloads.Browser.OpenManifestsFolder" xml:space="preserve">
+    <value>Открыть папку манифестов в проводнике</value>
+  </data>
+  <data name="Downloads.Browser.SearchWatermark" xml:space="preserve">
+    <value>Поиск контента...</value>
+  </data>
+  <data name="Downloads.Browser.Search" xml:space="preserve">
+    <value>Поиск</value>
+  </data>
+  <data name="Downloads.Card.Includes" xml:space="preserve">
+    <value>Включает</value>
+  </data>
+  <data name="Downloads.Card.Download" xml:space="preserve">
+    <value>Скачать</value>
+  </data>
+  <data name="Downloads.Card.UpdateAvailable" xml:space="preserve">
+    <value>Доступно обновление</value>
+  </data>
+  <data name="Downloads.Card.AddToProfile" xml:space="preserve">
+    <value>Добавить в профиль</value>
   </data>
 </root>

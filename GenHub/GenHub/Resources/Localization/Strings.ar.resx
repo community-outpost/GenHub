@@ -4094,7 +4094,7 @@
     <value>بواسطة {0}</value>
   </data>
   <data name="Updates.Label.UpdatedDateFormat" xml:space="preserve">
-    <value>تم التحديث: {0}</value>
+    <value>تم التحديث: {0:g}</value>
   </data>
   <data name="Info.Demo.AppUpdates.PatSaveTest" xml:space="preserve">
     <value>حفظ واختبار</value>
@@ -4281,5 +4281,161 @@
   </data>
   <data name="Maps.MapPack.MapsCountFormat" xml:space="preserve">
     <value>{0} من الخرائط</value>
+  </data>
+  <data name="Tools.Status.FailedToLoad" xml:space="preserve">
+    <value>⚠ فشل تحميل الأدوات: {0}</value>
+  </data>
+  <data name="Tools.Status.ErrorLoading" xml:space="preserve">
+    <value>⚠ حدث خطأ أثناء تحميل الأدوات: {0}</value>
+  </data>
+  <data name="Tools.Status.ToolInstallFailed" xml:space="preserve">
+    <value>✗ فشل تثبيت الأداة: {0}</value>
+  </data>
+  <data name="Tools.Status.AddToolError" xml:space="preserve">
+    <value>✗ حدث خطأ أثناء إضافة الأداة: {0}</value>
+  </data>
+  <data name="Tools.Status.BundledCannotRemove" xml:space="preserve">
+    <value>✗ الأداة '{0}' مضمنة ولا يمكن إزالتها.</value>
+  </data>
+  <data name="Tools.Status.ToolRemoveFailed" xml:space="preserve">
+    <value>✗ فشل حذف الأداة: {0}</value>
+  </data>
+  <data name="Tools.Status.RemoveToolError" xml:space="preserve">
+    <value>✗ حدث خطأ أثناء حذف الأداة: {0}</value>
+  </data>
+  <data name="Tools.Status.RefreshedCountSuccess" xml:space="preserve">
+    <value>✓ تم تحديث {0} من الأدوات بنجاح.</value>
+  </data>
+  <data name="Tools.Status.RefreshFailed" xml:space="preserve">
+    <value>⚠ فشل تحديث الأدوات: {0}</value>
+  </data>
+  <data name="Tools.Status.RefreshError" xml:space="preserve">
+    <value>⚠ حدث خطأ أثناء تحديث الأدوات: {0}</value>
+  </data>
+  <data name="Tools.Status.ErrorActivatingTool" xml:space="preserve">
+    <value>✗ خطأ أثناء تحميل الأداة '{0}': {1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllTitle" xml:space="preserve">
+    <value>تطبيق الإصلاحات الموصى بها</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllMessage" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد تطبيق جميع الإصلاحات الموصى بها لـ {0}؟
+
+سيؤدي هذا إلى تعديل ملفات اللعبة وإعدادات التكوين في:
+{1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllConfirm" xml:space="preserve">
+    <value>تطبيق الإصلاحات</value>
+  </data>
+  <data name="Tools.GenPatcher.Dialog.ApplyAllCancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixAppliedTitle" xml:space="preserve">
+    <value>تم تطبيق الإصلاح: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixForceAppliedTitle" xml:space="preserve">
+    <value>تم فرض تطبيق الإصلاح: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixAppliedDesc" xml:space="preserve">
+    <value>تم تطبيق {0} بنجاح.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixForceAppliedDesc" xml:space="preserve">
+    <value>تم فرض تطبيق {0} بنجاح.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notify.FixFailedTitle" xml:space="preserve">
+    <value>فشل تطبيق الإصلاح: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Error.Unknown" xml:space="preserve">
+    <value>حدث خطأ غير معروف.</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.Core" xml:space="preserve">
+    <value>الأساس والاستقرار</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.Compatibility" xml:space="preserve">
+    <value>التوافق</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.Multiplayer" xml:space="preserve">
+    <value>الوضع الجماعي</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.QualityOfLife" xml:space="preserve">
+    <value>تحسين تجربة اللعب</value>
+  </data>
+  <data name="Info.Changelog.GeneralsOnlinePatchNotes" xml:space="preserve">
+    <value>ملاحظات تصحيح Generals Online</value>
+  </data>
+  <data name="Info.Changelog.LatestUpdatesAndChanges" xml:space="preserve">
+    <value>أحدث التحديثات والتغييرات</value>
+  </data>
+  <data name="Info.Changelog.Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Info.Changelog.FetchingDetails" xml:space="preserve">
+    <value>جارٍ جلب التفاصيل...</value>
+  </data>
+  <data name="Info.Changelog.ViewSource" xml:space="preserve">
+    <value>عرض المصدر</value>
+  </data>
+  <data name="Info.Changelog.ReleaseHistory" xml:space="preserve">
+    <value>سجل الإصدارات</value>
+  </data>
+  <data name="Info.Changelog.LatestUpdatesFromGitHub" xml:space="preserve">
+    <value>أحدث التحديثات من GitHub</value>
+  </data>
+  <data name="Info.Changelog.PreRelease" xml:space="preserve">
+    <value>إصدار تجريبي</value>
+  </data>
+  <data name="Info.Changelog.ViewOnGitHub" xml:space="preserve">
+    <value>عرض على GitHub</value>
+  </data>
+  <data name="Info.WorkspaceDemo.RunSimulator" xml:space="preserve">
+    <value>تشغيل المحاكي</value>
+  </data>
+  <data name="Info.WorkspaceDemo.Source" xml:space="preserve">
+    <value>المصدر</value>
+  </data>
+  <data name="Info.WorkspaceDemo.Workspace" xml:space="preserve">
+    <value>مساحة العمل</value>
+  </data>
+  <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
+    <value>تنشئ هذه العملية تثبيت لعبة 'افتراضي' بالكامل في أجزاء من الثانية باستخدام مساحة قرص شبه معدومة.</value>
+  </data>
+  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
+    <value>رمز الوصول الشخصي:</value>
+  </data>
+  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
+    <value>ليس لديك رمز وصول شخصي؟</value>
+  </data>
+  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
+    <value>إنشاء رمز وصول شخصي على GitHub ←</value>
+  </data>
+  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
+    <value>انقر لفتح صفحة إنشاء رمز PAT على GitHub</value>
+  </data>
+  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
+    <value>جارٍ التحقق من الرمز...</value>
+  </data>
+  <data name="Downloads.Browser.Publishers" xml:space="preserve">
+    <value>الناشرون</value>
+  </data>
+  <data name="Downloads.Browser.OpenManifestsFolder" xml:space="preserve">
+    <value>فتح مجلد البيانات في مستكشف الملفات</value>
+  </data>
+  <data name="Downloads.Browser.SearchWatermark" xml:space="preserve">
+    <value>البحث في المحتوى...</value>
+  </data>
+  <data name="Downloads.Browser.Search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="Downloads.Card.Includes" xml:space="preserve">
+    <value>يتضمن</value>
+  </data>
+  <data name="Downloads.Card.Download" xml:space="preserve">
+    <value>تنزيل</value>
+  </data>
+  <data name="Downloads.Card.UpdateAvailable" xml:space="preserve">
+    <value>تحديث متاح</value>
+  </data>
+  <data name="Downloads.Card.AddToProfile" xml:space="preserve">
+    <value>إضافة إلى الملف الشخصي</value>
   </data>
 </root>

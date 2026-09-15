@@ -28,9 +28,9 @@ public class LocalizedUpdateSortOptionConverter : IValueConverter
 
             return option switch
             {
-                "Last Updated" => localizationService.GetString("Updates.Sort.LastUpdated") ?? option,
-                "PR Number (Desc)" => localizationService.GetString("Updates.Sort.PrNumberDesc") ?? option,
-                "PR Number (Asc)" => localizationService.GetString("Updates.Sort.PrNumberAsc") ?? option,
+                "Last Updated" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.LastUpdated", option),
+                "PR Number (Desc)" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.PrNumberDesc", option),
+                "PR Number (Asc)" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.PrNumberAsc", option),
                 _ => option,
             };
         }

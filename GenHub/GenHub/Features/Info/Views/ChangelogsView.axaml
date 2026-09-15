@@ -6,6 +6,7 @@
              xmlns:models="clr-namespace:GenHub.Core.Models.GitHub;assembly=GenHub.Core"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="GenHub.Features.Info.Views.ChangelogsView"
              x:DataType="vm:ChangelogsViewModel"
@@ -15,15 +16,15 @@
     <!-- Header / Refresh -->
     <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,20">
        <StackPanel>
-         <TextBlock Text="Release History" FontSize="20" FontWeight="Bold" Foreground="White"/>
-         <TextBlock Text="Latest updates from GitHub" FontSize="14" Foreground="#888888"/>
+         <TextBlock Text="{localization:Localize Info.Changelog.ReleaseHistory}" FontSize="20" FontWeight="Bold" Foreground="White"/>
+         <TextBlock Text="{localization:Localize Info.Changelog.LatestUpdatesFromGitHub}" FontSize="14" Foreground="#888888"/>
        </StackPanel>
        <Button Grid.Column="1" Command="{Binding LoadChangelogsCommand}"
                IsEnabled="{Binding !IsLoading}"
                Padding="8,4" Background="#33FFFFFF" CornerRadius="4">
            <StackPanel Orientation="Horizontal" Spacing="6">
                <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
-               <TextBlock Text="Refresh"/>
+               <TextBlock Text="{localization:Localize Info.Changelog.Refresh}"/>
            </StackPanel>
        </Button>
     </Grid>
@@ -59,7 +60,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <TextBlock Text="{Binding TagName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
                             <Border Background="#33FFD700" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsPrerelease}">
-                                <TextBlock Text="PRE-RELEASE" FontSize="10" FontWeight="Bold" Foreground="#FFD700"/>
+                                <TextBlock Text="{localization:Localize Info.Changelog.PreRelease}" FontSize="10" FontWeight="Bold" Foreground="#FFD700"/>
                             </Border>
                              <TextBlock Text="{Binding PublishedAt, StringFormat='{}{0:yyyy-MM-dd}'}"
                                        FontSize="13" Foreground="#888888" VerticalAlignment="Center"/>
@@ -67,7 +68,7 @@
 
                         <Button Command="{Binding ((vm:ChangelogsViewModel)DataContext).OpenReleaseUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding HtmlUrl}"
-                                Background="Transparent" Padding="4" ToolTip.Tip="View on GitHub">
+                                Background="Transparent" Padding="4" ToolTip.Tip="{localization:Localize Info.Changelog.ViewOnGitHub}">
                             <material:MaterialIcon Kind="OpenInNew" Width="16" Height="16" Foreground="#888888"/>
                         </Button>
                     </Grid>

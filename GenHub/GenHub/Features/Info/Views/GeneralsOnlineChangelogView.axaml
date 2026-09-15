@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Info.Views.GeneralsOnlineChangelogView"
              x:DataType="vm:GeneralsOnlineChangelogViewModel">
@@ -13,18 +14,15 @@
     <!-- Header / Refresh -->
     <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,20">
        <StackPanel>
-         <!-- TODO: Localize -->
-         <TextBlock Text="Generals Online Patch Notes" FontSize="20" FontWeight="Bold" Foreground="White"/>
-         <!-- TODO: Localize -->
-         <TextBlock Text="Latest updates and changes" FontSize="14" Foreground="#888888"/>
+         <TextBlock Text="{localization:Localize Info.Changelog.GeneralsOnlinePatchNotes}" FontSize="20" FontWeight="Bold" Foreground="White"/>
+         <TextBlock Text="{localization:Localize Info.Changelog.LatestUpdatesAndChanges}" FontSize="14" Foreground="#888888"/>
        </StackPanel>
        <Button Grid.Column="1" Command="{Binding LoadPatchNotesCommand}"
                IsEnabled="{Binding !IsLoading}"
                Padding="8,4" Background="#33FFFFFF" CornerRadius="4">
            <StackPanel Orientation="Horizontal" Spacing="6">
                <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
-               <!-- TODO: Localize -->
-               <TextBlock Text="Refresh"/>
+               <TextBlock Text="{localization:Localize Info.Changelog.Refresh}"/>
            </StackPanel>
        </Button>
     </Grid>
@@ -85,8 +83,7 @@
                             <!-- Loading State for Details -->
                             <StackPanel IsVisible="{Binding IsLoadingDetails}" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,10">
                                 <ProgressBar IsIndeterminate="True" Width="100" VerticalAlignment="Center"/>
-                                <!-- TODO: Localize -->
-                                <TextBlock Text="Fetching details..." FontSize="12" Foreground="#888"/>
+                                <TextBlock Text="{localization:Localize Info.Changelog.FetchingDetails}" FontSize="12" Foreground="#888"/>
                             </StackPanel>
 
                             <!-- Changes List -->
@@ -108,8 +105,7 @@
                                     IsVisible="{Binding IsDetailsLoaded}"
                                     Background="Transparent" Padding="4">
                                  <StackPanel Orientation="Horizontal" Spacing="4">
-                                     <!-- TODO: Localize -->
-                                     <TextBlock Text="View source" FontSize="11" Foreground="#666"/>
+                                     <TextBlock Text="{localization:Localize Info.Changelog.ViewSource}" FontSize="11" Foreground="#666"/>
                                      <material:MaterialIcon Kind="OpenInNew" Width="14" Height="14" Foreground="#666"/>
                                  </StackPanel>
                             </Button>

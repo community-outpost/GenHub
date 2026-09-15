@@ -8,6 +8,7 @@
              xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
              xmlns:controls="clr-namespace:GenHub.Common.Controls"
              xmlns:infraControls="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="GenHub.Features.Downloads.Views.DownloadsBrowserView"
              x:DataType="vm:DownloadsBrowserViewModel"
@@ -162,7 +163,7 @@
         </DataTemplate>
     </UserControl.DataTemplates>
 
-    <controls:SidebarLayout PaneTitle="Publishers"
+    <controls:SidebarLayout PaneTitle="{localization:Localize Downloads.Browser.Publishers}"
                             ItemsSource="{Binding Publishers}"
                             SelectedItem="{Binding SelectedPublisher, Mode=TwoWay}"
                             IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
@@ -231,7 +232,7 @@
                     Classes="pane-footer-btn"
                     HorizontalAlignment="Stretch"
                     Margin="8,0,8,12"
-                    ToolTip.Tip="Open Manifests Folder in File Explorer">
+                    ToolTip.Tip="{localization:Localize Downloads.Browser.OpenManifestsFolder}">
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                     <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
                               Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
@@ -256,7 +257,7 @@
                     <TextBox Grid.Column="0"
                              Classes="search-box"
                              Text="{Binding SearchTerm}"
-                             Watermark="Search content..."
+                             Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
                              VerticalAlignment="Center"
                              IsVisible="{Binding CanSearch}">
                         <TextBox.KeyBindings>
@@ -267,7 +268,7 @@
 
                     <Button Grid.Column="1"
                             Classes="toolbar-btn"
-                            Content="Search"
+                            Content="{localization:Localize Downloads.Browser.Search}"
                             Command="{Binding SearchCommand}"
                             Margin="8,0,0,0"
                             VerticalAlignment="Center"

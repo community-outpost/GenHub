@@ -549,11 +549,23 @@ public partial class GenPatcherViewModel(
             return;
         }
 
+        var title = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllTitle")
+            ?? ActionSetConstants.Dialogs.ApplyAllConfirmationTitle;
+        var message = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllMessage", targetInstallation.InstallationType, targetInstallation.InstallationPath)
+            ?? $"Are you sure you want to apply all recommended fixes for {targetInstallation.InstallationType}?
+
+This will modify game files and configuration settings at:
+{targetInstallation.InstallationPath}";
+        var confirmText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllConfirm")
+            ?? ActionSetConstants.Dialogs.ApplyAllConfirmButtonText;
+        var cancelText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllCancel")
+            ?? ActionSetConstants.Dialogs.ApplyAllCancelButtonText;
+
         var confirmed = await dialogService.ShowConfirmationAsync(
-            ActionSetConstants.Dialogs.ApplyAllConfirmationTitle,
-            $"Are you sure you want to apply all recommended fixes for {targetInstallation.InstallationType}?\n\nThis will modify game files and configuration settings at:\n{targetInstallation.InstallationPath}",
-            confirmText: ActionSetConstants.Dialogs.ApplyAllConfirmButtonText,
-            cancelText: ActionSetConstants.Dialogs.ApplyAllCancelButtonText);
+            title,
+            message,
+            confirmText: confirmText,
+            cancelText: cancelText);
 
         if (!confirmed)
         {

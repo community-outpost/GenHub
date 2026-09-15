@@ -1589,7 +1589,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
             try
             {
@@ -1598,9 +1598,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             catch (Exception rollbackEx)
             {
                 _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after cancellation");
+                _gitHubApiClient?.ClearAuthenticationToken();
+                IsPatValid = false;
             }
 
-            _logger.LogInformation("PAT validation was cancelled");
+            _logger.LogInformation(ex, "PAT validation was cancelled");
             PatStatusMessage = string.Empty;
         }
         catch (Exception ex)
@@ -1612,6 +1614,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             catch (Exception rollbackEx)
             {
                 _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after validation failure");
+                _gitHubApiClient?.ClearAuthenticationToken();
+                IsPatValid = false;
             }
 
             _logger.LogError(ex, "PAT validation failed");

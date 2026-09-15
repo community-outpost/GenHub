@@ -28,9 +28,9 @@ public class LocalizedInfoModuleNameConverter : IValueConverter
 
             return moduleName switch
             {
-                "GenHub Guide" => localizationService.GetString("Info.Module.GenHubGuide") ?? moduleName,
-                "Zero Hour" => localizationService.GetString("Info.Module.ZeroHour") ?? moduleName,
-                "GeneralsOnline" => localizationService.GetString("Info.Module.GeneralsOnline") ?? moduleName,
+                "GenHub Guide" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.GenHubGuide", moduleName),
+                "Zero Hour" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.ZeroHour", moduleName),
+                "GeneralsOnline" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.GeneralsOnline", moduleName),
                 _ => moduleName,
             };
         }

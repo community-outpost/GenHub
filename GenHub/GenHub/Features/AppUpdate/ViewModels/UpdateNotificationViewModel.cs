@@ -1,5 +1,5 @@
-using System.ComponentModel;
 using System;
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -1652,8 +1652,26 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName != nameof(ILocalizationService.CurrentCulture) && e.PropertyName != LocalizationConstants.IndexerPropertyName)
+        {
+            return;
+        }
+
         OnPropertyChanged(nameof(InstallButtonText));
         OnPropertyChanged(nameof(VersionPlaceholderText));
+        OnPropertyChanged(nameof(DisplayLatestVersion));
+        OnPropertyChanged(nameof(InstalledVersionDisplay));
+
+        if (AvailablePullRequests.Count > 0)
+        {
+            var prs = AvailablePullRequests.ToList();
+            AvailablePullRequests.Clear();
+            foreach (var pr in prs)
+            {
+                AvailablePullRequests.Add(pr);
+            }
+        }
+
         AvailableSortOptions =
         [
             AppUpdateConstants.SortOptionLastUpdated,
