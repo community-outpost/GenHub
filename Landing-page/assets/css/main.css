@@ -1,3 +1,17 @@
+:root, html, body {
+    background-color: #0b0b14;
+    color: #f8fafc;
+}
+
+dialog.gh-modal-backdrop {
+    border: none;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    color: inherit;
+}
 /* Main Content Layout */
 main {
     flex: 1;
@@ -410,7 +424,7 @@ main {
 }
 
 .genhub-pill-btn.active {
-    background: var(--gh-accent, #8b5cf6);
+    background: var(--gh-accent, #7c3aed);
     color: #ffffff;
     box-shadow: 0 2px 8px var(--gh-accent-glow, rgba(139, 92, 246, 0.4));
 }
@@ -445,13 +459,13 @@ main {
 }
 
 .genhub-tb-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: #232332;
     color: #ffffff;
 }
 
 .genhub-tb-btn.active {
     background: var(--gh-accent-light, rgba(139, 92, 246, 0.2));
-    color: var(--gh-accent, #8b5cf6);
+    color: var(--gh-accent, #7c3aed);
     border: 1px solid var(--gh-accent-border, rgba(139, 92, 246, 0.4));
 }
 
@@ -461,7 +475,7 @@ main {
     right: 2px;
     width: 14px;
     height: 14px;
-    background: #ef4444;
+    background: #dc2626;
     color: #ffffff;
     border-radius: 50%;
     font-size: 9px;
@@ -600,9 +614,9 @@ main {
     flex-shrink: 0;
 }
 
-.gh-notif-icon-wrap.update { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-.gh-notif-icon-wrap.hardlink { background: rgba(52, 211, 153, 0.15); color: #34d399; }
-.gh-notif-icon-wrap.replay { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.gh-notif-icon-wrap.update { background: #0c2333; color: #38bdf8; }
+.gh-notif-icon-wrap.hardlink { background: #0c271e; color: #34d399; }
+.gh-notif-icon-wrap.replay { background: #231638; color: #c084fc; }
 
 .gh-notif-content {
     flex: 1;
@@ -706,9 +720,9 @@ main {
     margin-top: 2px;
 }
 
-.genhub-toast.success .genhub-toast-icon { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.genhub-toast.info .genhub-toast-icon { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-.genhub-toast.warning .genhub-toast-icon { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.genhub-toast.success .genhub-toast-icon { background: #0c271e; color: #34d399; }
+.genhub-toast.info .genhub-toast-icon { background: #0c2333; color: #38bdf8; }
+.genhub-toast.warning .genhub-toast-icon { background: #2f2008; color: #fbbf24; }
 
 .genhub-toast-body {
     flex: 1;
@@ -784,7 +798,7 @@ main {
 }
 
 .gh-modal-close-btn:hover {
-    background: #ef4444;
+    background: #dc2626;
     color: #ffffff;
 }
 
@@ -874,7 +888,7 @@ main {
     position: absolute;
     top: 12px;
     right: 12px;
-    background: #10b981;
+    background: #059669;
     color: #ffffff;
     font-size: 11px;
     font-weight: 700;
@@ -923,7 +937,7 @@ main {
 .gh-wizard-chk {
     width: 18px;
     height: 18px;
-    accent-color: var(--gh-accent, #8b5cf6);
+    accent-color: var(--gh-accent, #7c3aed);
     cursor: pointer;
 }
 
@@ -979,7 +993,7 @@ main {
 }
 
 .gh-btn-primary {
-    background: var(--gh-accent, #8b5cf6);
+    background: var(--gh-accent, #7c3aed);
     border: 1px solid var(--gh-accent-hover, #7c3aed);
     color: #ffffff;
     border-radius: 6px;
@@ -994,7 +1008,7 @@ main {
 
 .gh-btn-primary:hover {
     background: var(--gh-accent-hover, #7c3aed);
-    border-color: var(--gh-accent, #8b5cf6);
+    border-color: var(--gh-accent, #7c3aed);
     box-shadow: 0 0 12px var(--gh-accent-glow, rgba(168, 85, 247, 0.4));
 }
 
@@ -1162,7 +1176,7 @@ main {
 }
 
 .gh-card-act-btn:hover {
-    background: #8b5cf6;
+    background: #7c3aed;
     border-color: #a855f7;
     color: #ffffff;
     transform: scale(1.12);
@@ -1317,7 +1331,7 @@ main {
 }
 
 .gh-profile-card.active-profile .gh-launch-btn {
-    background: #ef4444;
+    background: #dc2626;
     color: #ffffff;
 }
 
@@ -1370,7 +1384,7 @@ main {
 }
 
 .gh-profile-card.add-card:hover .gh-add-icon-circle {
-    border-color: #8b5cf6;
+    border-color: #7c3aed;
     background: rgba(139, 92, 246, 0.2);
     color: #c084fc;
     transform: scale(1.08);
@@ -1512,7 +1526,7 @@ main {
 }
 
 .gh-manifest-folder-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: #232332;
     color: #ffffff;
     border-color: rgba(255, 255, 255, 0.2);
 }
@@ -1577,7 +1591,7 @@ main {
 }
 
 .gh-downloads-search {
-    background: rgba(255, 255, 255, 0.05);
+    background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
     padding: 6px 10px 6px 28px;
@@ -1589,12 +1603,12 @@ main {
 }
 
 .gh-downloads-search:focus {
-    border-color: #8b5cf6;
+    border-color: #7c3aed;
     width: 200px;
 }
 
 .gh-downloads-filter {
-    background: rgba(255, 255, 255, 0.05);
+    background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
     padding: 6px 10px;
@@ -1686,7 +1700,7 @@ main {
 .gh-chip {
     font-size: 10px;
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.06);
+    background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #e2e8f0;
     border-radius: 4px;
@@ -1694,9 +1708,9 @@ main {
 }
 
 .gh-chip.badge-tag {
-    background: rgba(139, 92, 246, 0.15);
+    background: #25173e;
     border-color: rgba(139, 92, 246, 0.35);
-    color: #c084fc;
+    color: #d8b4fe;
 }
 
 .gh-content-desc {
@@ -1745,8 +1759,8 @@ main {
 
 
 .gh-action-btn.add-profile {
-    background: #10b981;
-    border: 1px solid #34d399;
+    background: #059669;
+    border: 1px solid #10b981;
     color: #ffffff;
 }
 
@@ -1797,7 +1811,7 @@ main {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: var(--gh-accent, #8b5cf6);
+    background: var(--gh-accent, #7c3aed);
     border: none;
     color: #ffffff;
     border-radius: 4px;
@@ -1823,7 +1837,7 @@ main {
 }
 
 .gh-sidebar-action-btn.secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #232332;
     color: #ffffff;
 }
 
@@ -1853,12 +1867,12 @@ main {
 }
 
 .gh-tool-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: #232332;
     color: #ffffff;
 }
 
 .gh-tool-item.active {
-    background: var(--gh-accent-light, rgba(139, 92, 246, 0.18)) !important;
+    background: #281742 !important;
     border-color: var(--gh-accent-border, rgba(139, 92, 246, 0.45)) !important;
     color: #ffffff !important;
     font-weight: 600;
@@ -1930,7 +1944,7 @@ main {
 }
 
 .gh-subtab.active {
-    background: #8b5cf6;
+    background: #7c3aed;
     color: #ffffff;
 }
 
@@ -1944,7 +1958,7 @@ main {
 
 .gh-import-input {
     flex: 1;
-    background: rgba(255, 255, 255, 0.05);
+    background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
     padding: 6px 10px;
@@ -1955,7 +1969,7 @@ main {
 }
 
 .gh-import-btn {
-    background: #10b981;
+    background: #059669;
     border: none;
     color: #ffffff;
     border-radius: 6px;
@@ -1970,7 +1984,7 @@ main {
 }
 
 .gh-browse-btn {
-    background: rgba(255, 255, 255, 0.08);
+    background: #232332;
     border: 1px solid rgba(255, 255, 255, 0.14);
     color: #e2e8f0;
     border-radius: 6px;
@@ -1994,7 +2008,7 @@ main {
 }
 
 .gh-search-input {
-    background: rgba(255, 255, 255, 0.05);
+    background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
     padding: 6px 10px 6px 28px;
@@ -2025,7 +2039,7 @@ main {
 }
 
 .gh-replay-action-icon:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: #232332;
     color: #ffffff;
 }
 
@@ -2084,7 +2098,7 @@ main {
     display: flex;
     justify-content: space-between;
     font-size: 11px;
-    color: #64748b;
+    color: #94a3b8;
 }
 
 
@@ -2113,8 +2127,8 @@ main {
 }
 
 .gh-mb-tree-item.active {
-    background: rgba(139, 92, 246, 0.2);
-    color: #c084fc;
+    background: #25173e;
+    color: #d8b4fe;
 }
 
 .gh-mb-main {
@@ -2205,7 +2219,7 @@ main {
     justify-content: space-between;
     padding: 0 14px;
     font-size: 11px;
-    color: #64748b;
+    color: #94a3b8;
 }
 
 .genhub-sb-left {
@@ -2259,7 +2273,7 @@ main {
 
 .gh-win-accent-edge {
     height: 2.5px;
-    background: linear-gradient(90deg, var(--gh-accent, #8b5cf6), #ec4899, #3b82f6);
+    background: linear-gradient(90deg, var(--gh-accent, #7c3aed), #ec4899, #3b82f6);
     width: 100%;
 }
 
@@ -2338,12 +2352,12 @@ main {
 }
 
 .gh-win-tool-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: #232332;
     color: #ffffff;
 }
 
 .gh-win-tool-btn.close-btn:hover {
-    background: #ef4444;
+    background: #dc2626;
     color: #ffffff;
     border-color: #ef4444;
 }
@@ -2376,12 +2390,12 @@ main {
 }
 
 .gh-win-nav-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: #232332;
     color: #ffffff;
 }
 
 .gh-win-nav-btn.active {
-    background: rgba(139, 92, 246, 0.22);
+    background: #281742;
     border-color: rgba(139, 92, 246, 0.6);
     color: #ffffff;
     box-shadow: 0 0 16px rgba(139, 92, 246, 0.3);
@@ -2429,7 +2443,7 @@ main {
     height: 46px;
     padding: 0 28px;
     border-radius: 23px;
-    background: linear-gradient(135deg, var(--gh-accent, #8b5cf6), var(--gh-accent-hover, #7c3aed)) !important;
+    background: linear-gradient(135deg, var(--gh-accent, #7c3aed), var(--gh-accent-hover, #7c3aed)) !important;
     border: 1px solid rgba(255, 255, 255, 0.25);
     color: #ffffff;
     font-size: 12.5px;
@@ -2589,12 +2603,12 @@ main {
 }
 
 .gh-sub-nav-btn:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: #232332;
     color: #ffffff;
 }
 
 .gh-sub-nav-btn.active {
-    background: rgba(139, 92, 246, 0.15);
+    background: #281742;
     border-color: rgba(139, 92, 246, 0.35);
     color: #ffffff;
 }
@@ -2637,7 +2651,7 @@ main {
 }
 
 .gh-icon-pick-btn.active {
-    border-color: #8b5cf6;
+    border-color: #7c3aed;
     box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
@@ -2692,7 +2706,7 @@ main {
 }
 
 .gh-back-to-browse-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: #232332;
     color: #ffffff;
 }
 
@@ -3088,7 +3102,7 @@ main {
 
 .gh-theme-swatch.active {
     border-color: var(--swatch-c);
-    background: rgba(255, 255, 255, 0.08);
+    background: #232332;
     color: #ffffff;
 }
 
@@ -3205,7 +3219,7 @@ main {
 
 .step-card:hover {
     transform: translateY(-5px);
-    border-color: var(--gh-accent, #8b5cf6);
+    border-color: var(--gh-accent, #7c3aed);
     box-shadow: 0 12px 32px var(--gh-accent-glow, rgba(124, 58, 237, 0.2));
 }
 
@@ -3224,14 +3238,14 @@ main {
     width: 56px;
     height: 56px;
     border-radius: 14px;
-    background: radial-gradient(circle at 35% 35%, rgba(139, 92, 246, 0.24), rgba(124, 58, 237, 0.05));
+    background: #1e1333;
     border: 1px solid rgba(139, 92, 246, 0.35);
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 16px rgba(124, 58, 237, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 1.5rem;
-    color: #c4b5fd;
+    color: #d8b4fe;
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 
@@ -3358,7 +3372,7 @@ main {
 }
 
 .faq-item.open {
-    border-color: var(--gh-accent, #8b5cf6);
+    border-color: var(--gh-accent, #7c3aed);
     box-shadow: 0 4px 24px var(--gh-accent-glow, rgba(139, 92, 246, 0.2));
 }
 
@@ -3394,7 +3408,7 @@ main {
 
 .faq-item.open .faq-chevron {
     transform: rotate(180deg);
-    color: var(--gh-accent, #8b5cf6);
+    color: var(--gh-accent, #7c3aed);
 }
 
 .faq-answer {
@@ -3586,7 +3600,7 @@ main {
 .gh-map-url-input:focus-visible,
 .gh-downloads-search:focus-visible {
     outline: none;
-    border-color: var(--gh-accent, #8b5cf6);
+    border-color: var(--gh-accent, #7c3aed);
     box-shadow: 0 0 0 2px var(--gh-accent-glow, rgba(139, 92, 246, 0.3));
 }
 

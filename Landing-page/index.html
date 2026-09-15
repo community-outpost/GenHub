@@ -428,7 +428,7 @@
                     </div>
 
                     <!-- Notification Feed Flyout (NotificationFeedView.axaml) -->
-                    <div class="gh-notification-flyout" id="ghNotificationFlyout" role="dialog" aria-label="Notifications">
+                    <div class="gh-notification-flyout" id="ghNotificationFlyout" aria-label="Notifications">
                         <div class="gh-notif-header">
                             <div class="gh-notif-title-row">
                                 <span class="gh-notif-title">Notifications</span>
@@ -482,7 +482,7 @@
                         <div class="genhub-toast-container" id="ghToastContainer" aria-live="polite"></div>
 
                         <!-- 1. Add to Profile Modal (ProfileSelectionView.axaml - Image 2) -->
-                        <div class="gh-modal-backdrop" id="ghAddToProfileModal" role="dialog" aria-modal="true" aria-labelledby="ghAddModalTitle">
+                        <dialog class="gh-modal-backdrop" id="ghAddToProfileModal" aria-modal="true" aria-labelledby="ghAddModalTitle">
                             <div class="gh-modal-window profile-selection">
                                 <div class="gh-sel-header">
                                     <div class="gh-sel-title-wrap">
@@ -590,7 +590,7 @@
 
                         
                         <!-- Profile Settings Window Modal (GameProfileSettingsWindow.axaml & GameProfileNavigationView.axaml) -->
-                        <div class="gh-modal-backdrop" id="ghGameProfileSettingsWindow" role="dialog" aria-modal="true" aria-labelledby="ghWinProfileTitle">
+                        <dialog class="gh-modal-backdrop" id="ghGameProfileSettingsWindow" aria-modal="true" aria-labelledby="ghWinProfileTitle">
                             <div class="gh-profile-settings-window">
                                 <!-- Edge Accent Glow -->
                                 <div class="gh-win-accent-edge"></div>
@@ -661,7 +661,7 @@
                                                 <div class="gh-att-details">
                                                     <div class="gh-att-title-row">
                                                         <span class="gh-att-title">Zero Hour Base Game</span>
-                                                        <span class="gh-chip" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">Core Base</span>
+                                                        <span class="gh-chip" style="background: #064e3b; color: #a7f3d0;">Core Base</span>
                                                     </div>
                                                     <div class="gh-att-desc">Clean reference files linked via NTFS hardlinks (0 B extra disk storage used).</div>
                                                 </div>
@@ -778,7 +778,7 @@
                                                 <div class="gh-sub-panel" id="ghSubAppearance">
                                                     <h4 class="gh-section-title">Profile Appearance</h4>
                                                     <div class="gh-form-group">
-                                                        <label class="gh-form-label">Profile Icon</label>
+                                                        <span class="gh-form-label">Profile Icon</span>
                                                         <div class="gh-icon-picker-grid">
                                                             <button class="gh-icon-pick-btn active" data-icon="./assets/icons/generalshub-icon.png">
                                                                 <img src="./assets/icons/generalshub-icon.png" alt="GenHub">
@@ -795,7 +795,7 @@
                                                         </div>
                                                     </div>
                                                     <div class="gh-form-group" style="margin-top: 14px;">
-                                                        <label class="gh-form-label">Cover Artwork</label>
+                                                        <span class="gh-form-label">Cover Artwork</span>
                                                         <div class="gh-cover-preview-card">
                                                             <img src="./assets/images/zerohour-cover.png" alt="Cover Preview" id="ghWinCoverPreview">
                                                             <button class="gh-btn-secondary" style="position: absolute; bottom: 12px; right: 12px; font-size: 11px;">Change Artwork...</button>
@@ -2373,7 +2373,7 @@ End
 
                                             <div class="gh-form-group" style="margin-top: 16px;">
                                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                                    <label class="gh-form-label" style="margin: 0;">Custom Game Installations</label>
+                                                    <span class="gh-form-label" style="margin: 0;">Custom Game Installations</span>
                                                     <button class="gh-btn-secondary" id="ghAddCustomInstallBtn" style="font-size: 11px; padding: 4px 8px;">+ Add Custom Installation...</button>
                                                 </div>
                                                 <div class="gh-install-row">
@@ -3218,6 +3218,8 @@ End
                         breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Historical releases recorded on GitHub.</div>';
                     }
                 } catch (e) {
+                    // Fallback to static summary when GitHub API rate-limit or network failure occurs
+                    console.info('GitHub release metrics fallback active:', e);
                     if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Metrics aggregated from latest GitHub releases.</div>';
                 }
             }
