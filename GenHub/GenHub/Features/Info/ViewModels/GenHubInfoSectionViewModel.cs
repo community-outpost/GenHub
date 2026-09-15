@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -27,12 +29,14 @@ namespace GenHub.Features.Info.ViewModels;
 /// <param name="changelogsViewModel">The changelogs view model.</param>
 /// <param name="goChangelogViewModel">The Generals Online changelog view model.</param>
 /// <param name="notificationService">Optional notification service for demo actions.</param>
+/// <param name="localizationService">Optional localization service for dynamic string translation.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
 public partial class GenHubInfoSectionViewModel(
     IInfoContentProvider contentProvider,
     ChangelogsViewModel changelogsViewModel,
     GeneralsOnlineChangelogViewModel goChangelogViewModel,
-    INotificationService? notificationService = null) : ObservableObject, IInfoSectionViewModel
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
     /// <summary>
     /// Gets the icon key.
@@ -42,8 +46,8 @@ public partial class GenHubInfoSectionViewModel(
     /// <inheritdoc/>
     public string Title => _currentModule switch
     {
-        GeneralsHubModule.GeneralsOnline => "Generals Online",
-        _ => "GenHub Guide",
+        GeneralsHubModule.GeneralsOnline => localizationService?.GetString("Info.Module.GeneralsOnline") ?? "Generals Online",
+        _ => localizationService?.GetString("Info.Module.GenHubGuide") ?? "GenHub Guide",
     };
 
     /// <summary>
@@ -181,10 +185,19 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
-    private static InfoSectionViewModel MapToViewModel(InfoSection section)
+    private InfoSectionViewModel MapToViewModel(InfoSection section)
     {
-        var vm = new InfoSectionViewModel(section);
+        var vm = new InfoSectionViewModel(section, localizationService);
         return vm;
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Title));
+        foreach (var sec in _allSections)
+        {
+            sec.NotifyLocalizationChanged();
+        }
     }
 
     /// <inheritdoc/>
@@ -418,7 +431,7 @@ public partial class GenHubInfoSectionViewModel(
     public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
 
     /// <summary>
-    /// Gets a value indicating whether the Local Content section is selected.
+    /// Gets a value indicating whether the Add Local Content section is selected.
     /// </summary>
     public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
 
@@ -455,6 +468,12 @@ public partial class GenHubInfoSectionViewModel(
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+            localizationService.PropertyChanged += OnLocalizationChanged;
+        }
+
         // Load sections if not already loaded
         if (!Sections.Any())
         {
@@ -580,5 +599,16 @@ public partial class GenHubInfoSectionViewModel(
         {
             _ = GoChangelog.LoadPatchNotesCommand.ExecuteAsync(null);
         }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+        }
+
+        GC.SuppressFinalize(this);
     }
 }

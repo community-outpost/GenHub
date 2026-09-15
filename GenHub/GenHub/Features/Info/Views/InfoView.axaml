@@ -6,6 +6,7 @@
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:infoViews="clr-namespace:GenHub.Features.Info.Views"
              xmlns:controls="clr-namespace:GenHub.Common.Controls"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Features.Info.Views.InfoView"
              x:DataType="vm:InfoViewModel">
@@ -37,7 +38,7 @@
     </Style>
   </UserControl.Styles>
 
-  <controls:SidebarLayout PaneTitle="Info"
+  <controls:SidebarLayout PaneTitle="{localization:Localize Info.Sidebar.Title}"
                           ItemsSource="{Binding SidebarItems}"
                           SelectedItem="{Binding SelectedSidebarItem, Mode=TwoWay}"
                           IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
@@ -49,7 +50,7 @@
                   HorizontalAlignment="Stretch">
               <ComboBox.ItemTemplate>
                   <DataTemplate>
-                      <TextBlock Text="{Binding}" Foreground="{DynamicResource TextPrimary}" />
+                      <TextBlock Text="{Binding Converter={StaticResource LocalizedInfoModuleNameConverter}}" Foreground="{DynamicResource TextPrimary}" />
                   </DataTemplate>
               </ComboBox.ItemTemplate>
         </ComboBox>
@@ -61,26 +62,27 @@
                 <ContentControl.DataTemplates>
                     <!-- Guide Section Item -->
                     <DataTemplate DataType="vm:InfoSectionViewModel">
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Grid ColumnDefinitions="*" Margin="4,2">
                             <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14" FontWeight="Medium" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
-                        </StackPanel>
+                        </Grid>
                     </DataTemplate>
                     <!-- Zero Hour FAQ Category -->
                     <DataTemplate DataType="vm:FaqCategoryViewModel">
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Grid ColumnDefinitions="Auto,*" Margin="4,2">
                              <material:MaterialIcon Kind="HelpCircleOutline"
                                                     Width="20"
                                                     Height="20"
                                                     Foreground="{DynamicResource AccentBrush}"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"/>
-                             <TextBlock Text="{Binding Title}"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,12,0"/>
+                             <TextBlock Grid.Column="1"
+                                        Text="{Binding Title}"
                                         VerticalAlignment="Center"
                                         FontSize="14"
                                         FontWeight="Medium"
                                         TextWrapping="Wrap"
                                         Foreground="{DynamicResource TextPrimary}"/>
-                        </StackPanel>
+                        </Grid>
                     </DataTemplate>
                 </ContentControl.DataTemplates>
             </ContentControl>

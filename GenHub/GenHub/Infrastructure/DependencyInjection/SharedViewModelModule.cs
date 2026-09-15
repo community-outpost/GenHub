@@ -59,7 +59,8 @@ public static class SharedViewModelModule
             sp.GetService<IThemeService>(),
             /* Optional dependencies that can be null if GitHub integration is not configured */
             sp.GetService<IGitHubTokenStorage>(),
-            sp.GetService<IGitHubApiClient>()));
+            sp.GetService<IGitHubApiClient>(),
+            sp.GetService<ILocalizationService>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register ProfileSelectionViewModel as transient for profile selection scenarios

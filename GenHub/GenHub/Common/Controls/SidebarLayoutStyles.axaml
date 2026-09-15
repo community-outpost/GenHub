@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:GenHub.Common.Controls">
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup">
   <Design.PreviewWith>
     <controls:SidebarLayout />
   </Design.PreviewWith>
@@ -66,7 +67,7 @@
                           HorizontalContentAlignment="Center"
                           VerticalContentAlignment="Center"
                           Cursor="Hand"
-                          ToolTip.Tip="Close Sidebar">
+                          ToolTip.Tip="{localization:Localize Common.Tooltip.CloseSidebar}">
                     <Button.Styles>
                       <Style Selector="Button:pointerover /template/ ContentPresenter">
                         <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
@@ -185,7 +186,7 @@
                   Width="24"
                   Background="Transparent"
                   Cursor="Hand"
-                  ToolTip.Tip="Expand Sidebar"
+                  ToolTip.Tip="{localization:Localize Common.Tooltip.ExpandSidebar}"
                   ZIndex="50">
             <Border.Styles>
               <Style Selector="Border#PART_TriggerZone > Border.expand-tab">

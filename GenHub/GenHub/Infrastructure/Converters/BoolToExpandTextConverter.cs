@@ -19,12 +19,16 @@ public class BoolToExpandTextConverter : IValueConverter
     /// <returns>The text string.</returns>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
+        var localizationService = LocalizationConverterHelper.ResolveLocalizationService();
+        var showLess = localizationService?.GetString("Common.ShowLess") ?? "Show Less";
+        var readMore = localizationService?.GetString("Common.ReadMore") ?? "Read More";
+
         if (value is bool isExpanded)
         {
-            return isExpanded ? "Show Less" : "Read More";
+            return isExpanded ? showLess : readMore;
         }
 
-        return "Read More";
+        return readMore;
     }
 
     /// <summary>

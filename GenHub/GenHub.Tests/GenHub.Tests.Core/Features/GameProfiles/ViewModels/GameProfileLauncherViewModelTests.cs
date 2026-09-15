@@ -1,3 +1,4 @@
+using System.Resources;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -66,7 +67,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<INotificationService>().Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         Assert.NotNull(vm);
         Assert.Empty(vm.Profiles);
@@ -112,7 +114,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<INotificationService>().Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.InitializeAsync();
 
@@ -162,7 +165,8 @@ public class GameProfileLauncherViewModelTests
             notificationService.Object,
             setupWizardService.Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
@@ -201,7 +205,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<INotificationService>().Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
@@ -237,7 +242,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<INotificationService>().Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
@@ -275,7 +281,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<INotificationService>().Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
@@ -320,7 +327,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<INotificationService>().Object,
             setupWizardService.Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
@@ -411,7 +419,8 @@ public class GameProfileLauncherViewModelTests
             notificationService.Object,
             setupWizardService.Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
@@ -486,7 +495,8 @@ public class GameProfileLauncherViewModelTests
             notificationService.Object,
             setupWizardService.Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
@@ -591,6 +601,22 @@ public class GameProfileLauncherViewModelTests
             new Mock<INotificationService>().Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
+    }
+
+    private static ILocalizationService CreateLocalizationService()
+    {
+        var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
+        var mock = new Mock<ILocalizationService>();
+        mock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, args) =>
+            {
+                var val = resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key;
+                return args != null && args.Length > 0 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
+            });
+        mock.Setup(m => m[It.IsAny<string>()])
+            .Returns<string>(key => resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key);
+        return mock.Object;
     }
 }

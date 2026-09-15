@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:GenHub.Common.ViewModels.Dialogs"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
         xmlns:core="clr-namespace:GenHub.Core.Models.Dialogs;assembly=GenHub.Core"
         xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
         xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
@@ -179,7 +180,7 @@
                     <CheckBox Grid.Column="0"
                               IsVisible="{Binding ShowDoNotAskAgain}"
                               IsChecked="{Binding DoNotAskAgain}"
-                              Content="Don't show this again"
+                              Content="{localization:Localize Common.Checkbox.DontShowAgain}"
                               Foreground="#64748B"
                               FontSize="13"
                               VerticalAlignment="Center"/>

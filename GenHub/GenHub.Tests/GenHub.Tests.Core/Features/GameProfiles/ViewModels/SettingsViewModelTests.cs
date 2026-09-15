@@ -1,3 +1,4 @@
+using System.Globalization;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -1256,6 +1257,27 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that TestPatAsync sets error state and does not save token when API client is null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenApiClientIsNull_SetsErrorStateAndDoesNotSaveTokenAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: null);
+        viewModel.GitHubPatInput = "ghp_validToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        Assert.Contains("GitHub API client not available", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that TestPatAsync restores existing token when token storage SaveTokenAsync throws.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -1288,6 +1310,115 @@ public class SettingsViewModelTests
         mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that TestPatAsync clears authentication token and marks PAT invalid when rollback fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenValidationFailsAndRestoreThrows_ClearsTokenAndSetsInvalidAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockApiClient = new Mock<IGitHubApiClient>();
+        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ThrowsAsync(new System.IO.IOException("Disk error"));
+
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubUser?)null);
+
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
+        viewModel.GitHubPatInput = "ghp_invalidToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        mockApiClient.Verify(x => x.ClearAuthenticationToken(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that available languages are loaded from localization service and selected language matches settings.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithLocalizationService_PopulatesAvailableLanguagesAndSelectedLanguage()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var settings = new UserSettings { Language = "ar-SA" };
+        _mockConfigService.Setup(x => x.Get()).Returns(settings);
+
+        // Act
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+
+        // Assert
+        Assert.Equal(2, viewModel.AvailableLanguages.Count);
+        Assert.Equal("ar-SA", viewModel.SelectedLanguage?.Culture.Name);
+    }
+
+    /// <summary>
+    /// Verifies that changing SelectedLanguage updates the culture on the localization service.
+    /// </summary>
+    [Fact]
+    public void SelectedLanguage_Change_CallsSetCultureOnLocalizationService()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+        var targetOption = viewModel.AvailableLanguages.First(l => l.Culture.Name == "ar-SA");
+
+        // Act
+        viewModel.SelectedLanguage = targetOption;
+
+        // Assert
+        mockLocService.Verify(x => x.SetCulture(arabicCulture), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that SaveSettingsCommand persists the selected language to UserSettings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SaveSettingsCommand_PersistsSelectedLanguageAsync()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+        var targetOption = viewModel.AvailableLanguages.First(l => l.Culture.Name == "ar-SA");
+        viewModel.SelectedLanguage = targetOption;
+
+        UserSettings? capturedSettings = null;
+        _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action =>
+            {
+                var s = new UserSettings();
+                action(s);
+                capturedSettings = s;
+            });
+
+        // Act
+        await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
+
+        // Assert
+        Assert.NotNull(capturedSettings);
+        Assert.Equal("ar-SA", capturedSettings.Language);
+    }
+
     private void SetupDeletableData()
     {
         _mockProfileManager
@@ -1304,7 +1435,8 @@ public class SettingsViewModelTests
     private SettingsViewModel CreateViewModel(
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
-        IGitHubApiClient? gitHubApiClient = null) => new(
+        IGitHubApiClient? gitHubApiClient = null,
+        ILocalizationService? localizationService = null) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
@@ -1321,5 +1453,6 @@ public class SettingsViewModelTests
         _mockStorageMigrationService.Object,
         themeService,
         gitHubTokenStorage,
-        gitHubApiClient);
+        gitHubApiClient,
+        localizationService: localizationService);
 }

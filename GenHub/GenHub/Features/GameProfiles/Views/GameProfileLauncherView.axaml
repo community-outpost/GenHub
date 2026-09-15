@@ -4,6 +4,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
     xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
+    xmlns:localization="clr-namespace:GenHub.Common.Markup"
     xmlns:local="clr-namespace:GenHub.Features.GameProfiles.Views"
     xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
@@ -101,7 +102,7 @@
             <Setter Property="Height" Value="34" />
             <Setter Property="Padding" Value="5" />
             <Setter Property="CornerRadius" Value="17" />
-            <Setter Property="ToolTip.Tip" Value="Edit profile" />
+            <Setter Property="ToolTip.Tip" Value="{localization:Localize Tooltips.Profile.Edit}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="#30FFFFFF" />
             <!-- Use Button Template with Border supporting BoxShadow -->
@@ -233,9 +234,9 @@
                     <!-- Title and Info -->
                     <Grid ColumnDefinitions="*,Auto" Margin="20,16,20,8">
                         <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
-                            <TextBlock Text="Game Profiles" FontSize="20" FontWeight="SemiBold"
+                            <TextBlock Text="{localization:Localize GameProfiles.Title.GameProfiles}" FontSize="20" FontWeight="SemiBold"
                                 Foreground="White" Margin="0 0 0 4" />
-                            <TextBlock Text="Select a profile to launch or create a new one"
+                            <TextBlock Text="{localization:Localize GameProfiles.Subtitle.GameProfiles}"
                                Foreground="#AAAAAA" FontSize="13" />
                             <TextBlock Text="{Binding StatusMessage}"
                                        Foreground="#BF40BF" FontSize="12"
@@ -248,14 +249,14 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <!-- Scan Button -->
                                     <Button Command="{Binding ScanForGamesCommand}"
-                                            Content="SCAN"
+                                            Content="{localization:Localize GameProfiles.Button.Scan}"
                                             Classes="outline"
                                             IsVisible="{Binding !IsScanning}" />
                                 </StackPanel>
 
                                 <!-- Loading UI -->
                                 <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsScanning}">
-                                    <TextBlock Text="Scanning..."
+                                    <TextBlock Text="{localization:Localize GameProfiles.Status.Scanning}"
                                                VerticalAlignment="Center"
                                                Foreground="#DDDDDD"
                                                FontWeight="SemiBold"
@@ -299,7 +300,7 @@
                                             Width="24"
                                             Height="24" />
                                     </Border>
-                                    <TextBlock Text="Add New Profile"
+                                    <TextBlock Text="{localization:Localize GameProfiles.Button.AddNewProfile}"
                                         Foreground="White"
                                         Opacity="0.7"
                                         FontWeight="SemiBold"

@@ -7,11 +7,21 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.Logging;
 
 #pragma warning disable S2325 // Methods/properties bound by Avalonia XAML or Command patterns must be instance members
+
+/// <summary>
+/// Callbacks and external state accessors for an <see cref="ActionSetViewModel"/>.
+/// </summary>
+public sealed record ActionSetCallbacks(
+    Action? OnStatusChanged = null,
+    Action? OnBusyChanged = null,
+    Func<bool>? IsParentBusy = null);
 
 /// <summary>
 /// View model for an individual action set.
@@ -21,9 +31,8 @@ public partial class ActionSetViewModel(
     GameInstallation installation,
     INotificationService notificationService,
     ILogger logger,
-    Action? onStatusChanged = null,
-    Action? onBusyChanged = null,
-    Func<bool>? isParentBusy = null) : ObservableObject
+    ActionSetCallbacks? callbacks = null,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     /// <summary>
     /// Gets the underlying action set.
@@ -33,22 +42,49 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets the title of the action set.
     /// </summary>
-    public string Title => ActionSet.Title;
+    public string Title => LocalizationConverterHelper.GetLocalizedOrDefault(
+        localizationService,
+        $"Tools.GenPatcher.Fix.{ActionSet.Id}.Title",
+        ActionSet.Title);
 
     /// <summary>
     /// Gets the concise description of the action set.
     /// </summary>
-    public string Description => ActionSet.Description;
+    public string Description => LocalizationConverterHelper.GetLocalizedOrDefault(
+        localizationService,
+        $"Tools.GenPatcher.Fix.{ActionSet.Id}.Description",
+        ActionSet.Description);
 
     /// <summary>
     /// Gets the detailed description of what the action set does.
     /// </summary>
-    public string DetailedDescription => ActionSet.DetailedDescription;
+    public string DetailedDescription => LocalizationConverterHelper.GetLocalizedOrDefault(
+        localizationService,
+        $"Tools.GenPatcher.Fix.{ActionSet.Id}.DetailedDescription",
+        ActionSet.DetailedDescription);
 
     /// <summary>
     /// Gets the category of the action set.
     /// </summary>
-    public string Category => ActionSet.Category;
+    public string Category
+    {
+        get
+        {
+            if (localizationService == null)
+            {
+                return ActionSet.Category;
+            }
+
+            return ActionSet.Category switch
+            {
+                ActionSetConstants.Categories.CoreAndStability => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.GenPatcher.Category.Core", ActionSet.Category),
+                ActionSetConstants.Categories.Compatibility => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.GenPatcher.Category.Compatibility", ActionSet.Category),
+                ActionSetConstants.Categories.Multiplayer => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.GenPatcher.Category.Multiplayer", ActionSet.Category),
+                ActionSetConstants.Categories.QualityOfLife => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.GenPatcher.Category.QualityOfLife", ActionSet.Category),
+                _ => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, $"Tools.GenPatcher.Category.{ActionSet.Category}", ActionSet.Category),
+            };
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether this is a core fix.
@@ -117,9 +153,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusDisplay => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "APPLIED",
-        (false, true) => "NOT APPLIED",
-        (false, false) => "NOT APPLICABLE",
+        (true, _) => localizationService?.GetString("Tools.GenPatcher.Status.Applied") ?? "APPLIED",
+        (false, true) => localizationService?.GetString("Tools.GenPatcher.Status.NotApplied") ?? "NOT APPLIED",
+        (false, false) => localizationService?.GetString("Tools.GenPatcher.Status.NotApplicable") ?? "NOT APPLICABLE",
     };
 
     /// <summary>
@@ -152,7 +188,7 @@ public partial class ActionSetViewModel(
         (false, false) => ActionSetConstants.StatusColors.NotApplicableBorder,
     };
 
-    private bool IsParentBusy => isParentBusy?.Invoke() == true;
+    private bool IsParentBusy => callbacks?.IsParentBusy?.Invoke() == true;
 
     /// <summary>
     /// Checks the status of the action set (applicable and applied).
@@ -209,9 +245,21 @@ public partial class ActionSetViewModel(
         ForceApplyCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Notifies the UI that the culture/localization has changed.
+    /// </summary>
+    public void NotifyLocalizationChanged()
+    {
+        OnPropertyChanged(nameof(StatusDisplay));
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(DetailedDescription));
+        OnPropertyChanged(nameof(Category));
+    }
+
     partial void OnIsApplyingChanged(bool value)
     {
-        onBusyChanged?.Invoke();
+        callbacks?.OnBusyChanged?.Invoke();
     }
 
     private bool CanExecuteApply() => CanApply;
@@ -239,7 +287,9 @@ public partial class ActionSetViewModel(
         {
             logger.LogInformation("User cancelled application of {Title} (ID={Id})", ActionSet.Title, ActionSet.Id);
             await _applyCts.CancelAsync();
-            notificationService.ShowWarning("Cancelling", $"Cancelling application of {ActionSet.Title}...");
+            notificationService.ShowWarning(
+                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingTitle") ?? "Cancelling",
+                localizationService?.GetString("Tools.GenPatcher.Notify.CancellingFixDesc", ActionSet.Title) ?? $"Cancelling application of {ActionSet.Title}...");
         }
     }
 
@@ -286,7 +336,9 @@ public partial class ActionSetViewModel(
         catch (OperationCanceledException ex) when (ct.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Application of {Title} was cancelled by user", ActionSet.Title);
-            notificationService.ShowWarning("Apply Cancelled", $"Application of {ActionSet.Title} was cancelled.");
+            notificationService.ShowWarning(
+                localizationService?.GetString("Tools.GenPatcher.Notify.FixCancelledTitle") ?? "Fix Cancelled",
+                localizationService?.GetString("Tools.GenPatcher.Notify.FixCancelledDesc", ActionSet.Title) ?? $"Application of {ActionSet.Title} was cancelled.");
         }
         catch (Exception ex)
         {
@@ -295,16 +347,18 @@ public partial class ActionSetViewModel(
                 isForce ? "[GENPATCHER_FIX_015] Exception force applying {Title} (ID={Id})" : "[GENPATCHER_FIX_011] Exception applying {Title} (ID={Id})",
                 ActionSet.Title,
                 ActionSet.Id);
-            notificationService.ShowError(
-                isForce ? "Failed to Force Apply Fix" : "Failed to Apply Fix",
-                $"Could not apply {ActionSet.Title}: {ex.Message}");
+            var title = isForce
+                ? (localizationService?.GetString("Tools.GenPatcher.Notify.FixForceApplyFailedTitle") ?? "Failed to Force Apply Fix")
+                : (localizationService?.GetString("Tools.GenPatcher.Notify.FixApplyFailedTitle") ?? "Failed to Apply Fix");
+            var desc = localizationService?.GetString("Tools.GenPatcher.Notify.FixApplyFailedDesc", ActionSet.Title, ex.Message) ?? $"Could not apply {ActionSet.Title}: {ex.Message}";
+            notificationService.ShowError(title, desc);
         }
         finally
         {
             try
             {
                 await CheckStatusAsync(CancellationToken.None);
-                onStatusChanged?.Invoke();
+                callbacks?.OnStatusChanged?.Invoke();
             }
             catch (Exception statusEx)
             {
@@ -327,11 +381,13 @@ public partial class ActionSetViewModel(
         }
         else if (isForce)
         {
-            detailsText = $"{ActionSet.Title} has been force applied successfully.";
+            detailsText = localizationService?.GetString("Tools.GenPatcher.Notify.FixForceAppliedDesc", Title)
+                ?? $"{Title} has been force applied successfully.";
         }
         else
         {
-            detailsText = $"{ActionSet.Title} has been successfully applied.";
+            detailsText = localizationService?.GetString("Tools.GenPatcher.Notify.FixAppliedDesc", Title)
+                ?? $"{Title} has been successfully applied.";
         }
 
         LastActionResultDetails = detailsText;
@@ -343,16 +399,19 @@ public partial class ActionSetViewModel(
             (int)duration,
             result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details provided");
 
-        notificationService.ShowSuccess(
-            isForce ? $"Fix Force Applied: {ActionSet.Title}" : $"Fix Applied: {ActionSet.Title}",
-            detailsText);
+        var notifyTitle = isForce
+            ? (localizationService?.GetString("Tools.GenPatcher.Notify.FixForceAppliedTitle", Title) ?? $"Fix Force Applied: {Title}")
+            : (localizationService?.GetString("Tools.GenPatcher.Notify.FixAppliedTitle", Title) ?? $"Fix Applied: {Title}");
+
+        notificationService.ShowSuccess(notifyTitle, detailsText);
     }
 
     private void HandleApplyFailure(ActionSetResult result, bool isForce, double duration)
     {
+        var unknownError = localizationService?.GetString("Tools.GenPatcher.Error.Unknown") ?? "Unknown error occurred.";
         var detailsText = result.Details.Count > 0
             ? result.FormatDetails()
-            : result.ErrorMessage ?? "Unknown error occurred.";
+            : result.ErrorMessage ?? unknownError;
 
         LastActionResultDetails = detailsText;
         HasActionResultDetails = true;
@@ -364,8 +423,9 @@ public partial class ActionSetViewModel(
             result.ErrorMessage ?? "Unknown error",
             result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details");
 
-        notificationService.ShowError(
-            $"Fix Failed: {ActionSet.Title}",
-            detailsText);
+        var notifyTitle = localizationService?.GetString("Tools.GenPatcher.Notify.FixFailedTitle", Title)
+            ?? $"Fix Failed: {Title}";
+
+        notificationService.ShowError(notifyTitle, detailsText);
     }
 }
