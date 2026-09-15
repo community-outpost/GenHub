@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using FluentAssertions;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Github;
 using GenHub.Core.Interfaces.Info;
+using GenHub.Features.Info.Services;
 using GenHub.Features.Info.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
