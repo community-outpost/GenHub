@@ -455,16 +455,16 @@
                             <img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img">
                         </button>
                         <button class="gh-card-act-btn edit-btn" title="Edit Profile Settings">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/></svg>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-edit"></use></svg>
                         </button>
                         <button class="gh-card-act-btn clone-btn" title="Duplicate Profile">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-clone"></use></svg>
                         </button>
                         <button class="gh-card-act-btn shortcut-btn" title="Create Desktop Shortcut">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"/></svg>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-shortcut"></use></svg>
                         </button>
                         <button class="gh-card-act-btn delete-btn" title="Delete Profile">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-delete"></use></svg>
                         </button>
                     </div>
                     <div class="gh-card-hover">
@@ -1816,9 +1816,9 @@
                             <div class="gh-card-gradient"></div>
                             <div class="gh-card-actions-bar">
                                 <button class="gh-card-act-btn steam-btn" title="Steam"><img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img"></button>
-                                <button class="gh-card-act-btn edit-btn" title="Settings"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/></svg></button>
-                                <button class="gh-card-act-btn clone-btn" title="Clone"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg></button>
-                                <button class="gh-card-act-btn shortcut-btn" title="Pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"/></svg></button>
+                                <button class="gh-card-act-btn edit-btn" title="Settings"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-edit"></use></svg></button>
+                                <button class="gh-card-act-btn clone-btn" title="Clone"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-clone"></use></svg></button>
+                                <button class="gh-card-act-btn shortcut-btn" title="Pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-shortcut"></use></svg></button>
                             </div>
                             <div class="gh-card-hover">
                                 <button class="gh-launch-btn">

@@ -1,68 +1,83 @@
 /* ==========================================================================
    Responsive Breakpoints & Layout Adaptations
-   Strictly Ordered Descending: 1024px -> 900px -> 880px -> 768px -> 620px -> 480px
+   Strictly Ordered Descending: 1024px -> 900px -> 880px -> 768px -> 640px -> 480px
    ========================================================================== */
 
 /* Large Tablets and Medium Screens (<= 1024px) */
 @media (max-width: 1024px) {
-    .bento-grid {
-        grid-template-columns: repeat(6, 1fr);
-    }
-    
-    .col-span-8 { grid-column: span 6; }
-    .col-span-6 { grid-column: span 6; }
-    .col-span-4 { grid-column: span 3; }
-    .col-span-12 { grid-column: span 6; }
-
-    .comparison-grid {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-
     .footer-top {
         grid-template-columns: 1fr 1fr;
         gap: 2.5rem;
     }
 
-    .tools-grid-layout {
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
+    .showcase-container {
+        padding: 0 1.25rem;
+    }
+
+    .genhub-app-window {
+        max-width: 100%;
+    }
+
+    .gh-catalog-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+
+    .gh-profiles-row {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    .gh-detail-grid {
+        grid-template-columns: 1fr 280px;
+        gap: 16px;
     }
 }
 
-/* App Titlebar & Pill Navigation Adaptation (<= 900px) */
+/* Medium Tablets & Below (<= 900px) */
 @media (max-width: 900px) {
-    .app-titlebar {
-        padding: 0.65rem 0.85rem;
-        gap: 0.65rem;
-        flex-wrap: wrap;
+    .showcase-container {
+        padding: 0 1rem;
+        margin: 1.5rem auto 3rem;
     }
-    .window-meta-right {
-        display: none;
+
+    .genhub-app-window {
+        height: 700px;
+        max-height: 88vh;
+        border-radius: 10px;
     }
-    .pill-container {
-        order: 3;
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        box-sizing: border-box;
-        justify-content: stretch;
-        display: flex;
-        padding: 3px;
-        gap: 3px;
-        border-radius: 0.75rem;
+
+    /* Hide desktop-only window minimize/maximize/close buttons */
+    .genhub-window-controls {
+        display: none !important;
     }
-    .pill-tab {
-        flex: 1 1 0;
-        min-width: 0;
-        padding: 0.45rem 0.4rem;
-        font-size: 0.78rem;
+
+    .genhub-titlebar-left {
+        width: auto;
+    }
+
+    .genhub-titlebar-right {
+        width: auto;
+        gap: 6px;
+    }
+
+    .genhub-titlebar-center {
+        flex: 1;
         justify-content: center;
-        text-align: center;
     }
-    .profile-grid-realistic {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
+
+    .genhub-pill-btn {
+        padding: 4px 12px;
+        font-size: 11.5px;
+    }
+
+    .gh-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gh-profile-settings-window {
+        width: 96% !important;
+        max-width: 96% !important;
+        height: 92% !important;
+        max-height: 92% !important;
     }
 }
 
@@ -71,7 +86,7 @@
     header {
         padding: 0.75rem 1rem;
     }
-    
+
     nav {
         flex-wrap: wrap;
         gap: 0.75rem;
@@ -95,7 +110,7 @@
     }
 }
 
-/* Tablets (<= 768px) */
+/* Tablets and Mobile Landscape (<= 768px) */
 @media (max-width: 768px) {
     main {
         padding: 5.5rem 0 3rem;
@@ -130,68 +145,10 @@
         text-align: center;
     }
 
-    .bento-grid {
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
-    }
-
-    .col-span-8,
-    .col-span-6,
-    .col-span-4,
-    .col-span-12 {
-        grid-column: span 1;
-    }
-
-    .bento-card {
-        padding: 1.5rem;
-    }
-
     .hero-logo-backdrop {
         width: 96vw;
         top: -10px;
         opacity: 0.2;
-    }
-
-    .profiles-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.75rem;
-    }
-    .toolbar-left {
-        width: 100%;
-        display: flex;
-        gap: 0.5rem;
-    }
-    .toolbar-search {
-        flex: 1;
-        width: auto;
-    }
-    .toolbar-right-badge {
-        justify-content: flex-start;
-        font-size: 0.72rem;
-    }
-
-
-    .app-body {
-        padding: 1rem;
-    }
-
-    .profile-deck {
-        grid-template-columns: 1fr;
-    }
-
-    .genpatcher-fixes-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .genpatcher-panel-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .btn-apply-all {
-        width: 100%;
-        justify-content: center;
     }
 
     .ecosystem-logos {
@@ -207,47 +164,443 @@
         flex-direction: column;
         text-align: center;
     }
+
+    .genhub-app-window {
+        height: 660px;
+        max-height: 90vh;
+        border-radius: 10px;
+    }
+
+    .gh-table-container,
+    .gh-map-datagrid-wrap {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Downloads: horizontal chip carousel for publishers on tablet/mobile */
+    .gh-downloads-view {
+        flex-direction: column !important;
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+
+    .gh-publishers-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        padding: 8px 12px !important;
+    }
+
+    .gh-publishers-header {
+        display: none !important;
+    }
+
+    .gh-publishers-list {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 6px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        padding-bottom: 2px !important;
+    }
+
+    .gh-publishers-list::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .gh-pub-btn {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        padding: 5px 12px !important;
+        border-radius: 20px !important;
+        background: #181826 !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .gh-pub-btn img {
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        max-width: 18px !important;
+    }
+
+    .gh-pub-btn span {
+        font-size: 11.5px !important;
+    }
+
+    .gh-manifest-folder-btn {
+        display: none !important;
+    }
+
+    .gh-downloads-main {
+        flex: 1 !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .gh-downloads-topbar {
+        padding: 10px 14px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .gh-downloads-pub-info h3 {
+        font-size: 14px !important;
+    }
+
+    .gh-downloads-pub-info p {
+        font-size: 11px !important;
+    }
+
+    .gh-downloads-controls {
+        width: 100% !important;
+        display: flex !important;
+        gap: 6px !important;
+    }
+
+    .gh-downloads-search-wrap {
+        flex: 1 !important;
+    }
+
+    .gh-downloads-search-wrap .gh-downloads-search {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .gh-catalog-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+        padding: 12px 14px 60px !important;
+        gap: 12px !important;
+    }
+
+    /* Tools: horizontal carousel on tablet/mobile */
+    .gh-tools-view {
+        flex-direction: column !important;
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+
+    .gh-tools-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        padding: 8px 12px !important;
+    }
+
+    .gh-tools-sidebar-top,
+    .gh-tools-sidebar-bottom {
+        display: none !important;
+    }
+
+    .gh-tools-list {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 6px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        padding-bottom: 2px !important;
+    }
+
+    .gh-tools-list::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .gh-tool-item {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        padding: 5px 12px !important;
+        border-radius: 20px !important;
+        background: #181826 !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        font-size: 11.5px !important;
+    }
+
+    .gh-tools-main {
+        flex: 1 !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        padding: 12px !important;
+    }
+
+    .gh-replay-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .gh-replay-import-bar {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .gh-replay-actions {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    /* Content Detail View */
+    .gh-detail-view {
+        padding: 12px !important;
+        gap: 12px !important;
+    }
+
+    .gh-detail-banner-card {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+
+    /* Settings & Info Views */
+    .gh-settings-view,
+    .gh-info-view {
+        flex-direction: column !important;
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+
+    .gh-settings-sidebar,
+    .gh-info-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        flex: 0 0 auto !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        padding: 8px 12px !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+    }
+
+    .gh-settings-sidebar::-webkit-scrollbar,
+    .gh-info-sidebar::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .gh-settings-title,
+    .gh-info-title {
+        display: none !important;
+    }
+
+    .gh-settings-nav-list,
+    .gh-info-nav-list {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 6px !important;
+    }
+
+    .gh-setting-nav-btn,
+    .gh-info-nav-btn {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        padding: 5px 12px !important;
+        border-radius: 20px !important;
+        font-size: 11.5px !important;
+    }
+
+    .gh-settings-content,
+    .gh-info-content {
+        padding: 12px 14px 60px !important;
+    }
 }
 
-/* Mockup Layout & Row Wraps (<= 620px) */
-@media (max-width: 620px) {
-    .profile-grid-realistic {
-        grid-template-columns: 1fr;
+/* Mobile Phones (<= 640px) */
+@media (max-width: 640px) {
+    .showcase-container {
+        padding: 0 0.5rem;
     }
-    .map-grid-mini {
-        grid-template-columns: 1fr;
+
+    .genhub-app-window {
+        height: 640px;
+        max-height: 92vh;
+        border-radius: 8px;
     }
-    .catalog-grid {
-        grid-template-columns: 1fr;
-    }
-    .pill-tab-badge {
-        display: none;
-    }
-    .profile-action-row {
+
+    .genhub-titlebar {
+        height: auto;
+        min-height: 42px;
         flex-wrap: wrap;
+        padding: 8px 10px;
+        row-gap: 8px;
     }
-    .btn-launch-primary {
+
+    .genhub-titlebar-left {
+        order: 1;
+        flex: 1;
+    }
+
+    .genhub-titlebar-right {
+        order: 2;
+    }
+
+    .genhub-titlebar-center {
+        order: 3;
         width: 100%;
-        justify-content: center;
+        display: flex;
     }
-    .replay-row-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-    .replay-action-col {
+
+    .genhub-pill-nav {
         width: 100%;
         display: flex;
         justify-content: space-between;
-        align-items: center;
     }
-    .replay-import-bar {
+
+    .genhub-pill-btn {
+        flex: 1;
+        text-align: center;
+        padding: 6px 4px;
+        font-size: 11px;
+    }
+
+    .genhub-statusbar {
+        padding: 0 10px;
+        font-size: 10px;
+    }
+
+    .genhub-sb-right {
+        font-size: 9.5px;
+    }
+
+    /* Game Profiles */
+    .gh-profiles-view {
+        padding: 12px 10px;
+    }
+
+    .gh-profiles-header {
         flex-direction: column;
-        align-items: stretch;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 12px;
     }
-    .btn-replay-import {
+
+    .gh-profiles-titles h2 {
+        font-size: 16px;
+    }
+
+    .gh-profiles-titles p {
+        font-size: 11px;
+    }
+
+    .gh-scan-btn {
         width: 100%;
         justify-content: center;
+        padding: 8px;
+    }
+
+    .gh-profiles-row {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+        padding: 0 0 40px;
+    }
+
+    .gh-profile-card {
+        height: 200px;
+    }
+
+    /* On touch screens, show action buttons directly without requiring hover */
+    .gh-card-actions-bar {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+        pointer-events: auto !important;
+    }
+
+    /* Downloads catalog 1 column on phone */
+    .gh-catalog-grid {
+        grid-template-columns: 1fr !important;
+        padding: 10px 10px 60px !important;
+    }
+
+    /* Modals */
+    .gh-modal-backdrop {
+        padding: 8px;
+    }
+
+    .gh-modal-window {
+        max-height: 96%;
+        border-radius: 8px;
+    }
+
+    .gh-sel-header,
+    .gh-wizard-header,
+    .gh-edit-header {
+        padding: 12px 14px;
+    }
+
+    .gh-sel-body,
+    .gh-wizard-body,
+    .gh-edit-body {
+        padding: 12px 14px;
+    }
+
+    .gh-sel-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+    }
+
+    .gh-sel-card {
+        height: 170px;
+    }
+
+    .gh-profile-settings-window {
+        width: 100% !important;
+        height: 98% !important;
+        max-width: 100% !important;
+        max-height: 98% !important;
+        border-radius: 8px;
+    }
+
+    .gh-win-nav-bar {
+        height: auto;
+        padding: 8px;
+        gap: 6px;
+        overflow-x: auto;
+        justify-content: flex-start;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .gh-win-nav-btn {
+        width: 50px;
+        height: 46px;
+        flex-shrink: 0;
+    }
+
+    .gh-win-header {
+        padding: 0 12px;
+    }
+
+    .gh-notification-flyout {
+        top: 48px;
+        left: 8px;
+        right: 8px;
+        width: auto;
+        max-width: none;
+    }
+
+    .gh-general-settings-grid {
+        flex-direction: column !important;
+    }
+
+    .gh-sub-sidebar {
+        width: 100% !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        padding-bottom: 8px !important;
+    }
+
+    .gh-card-hover {
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
 }
 
@@ -275,520 +628,36 @@
         padding: 0.25rem 0.6rem;
     }
 
-    .app-titlebar {
-        padding: 0.5rem 0.75rem;
-    }
-
-    .window-title {
-        font-size: 0.75rem;
-    }
-
-    .app-tab-btn {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.775rem;
-    }
-
-    .comparison-card {
-        padding: 1.5rem 1.25rem;
-    }
-
-
-    .pill-tab {
-        font-size: 0.72rem;
-        padding: 0.4rem 0.2rem;
-        gap: 0.25rem;
-    }
-    .pill-tab svg,
-    .pill-tab i {
-        width: 13px;
-        height: 13px;
-    }
-    .tool-box {
-        padding: 0.85rem;
-    }
-    .tool-box-header {
-        flex-wrap: wrap;
-        gap: 0.4rem;
-    }
     .stats-tooltip {
         width: min(340px, calc(100vw - 32px)) !important;
     }
-}
 
-/* ==========================================================================
-   GENHUB AVALONIA CLIENT SIMULATION RESPONSIVE ADAPTATIONS
-   ========================================================================== */
-
-/* Large Tablets / Small Laptops (<= 1024px) */
-@media (max-width: 1024px) {
-    .showcase-container {
-        padding: 0 1.25rem;
-    }
-    .genhub-app-window {
-        max-width: 100%;
-    }
-    .gh-catalog-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    }
-    .gh-profiles-row {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    }
-    .gh-detail-grid {
-        grid-template-columns: 1fr 280px;
-        gap: 16px;
-    }
-}
-
-/* Medium Tablets & Below (<= 900px) */
-@media (max-width: 900px) {
-    .showcase-container {
-        padding: 0 1rem;
-        margin: 1.5rem auto 3rem;
-    }
-    .genhub-app-window {
-        height: 700px;
-        max-height: 88vh;
-        border-radius: 10px;
-    }
-    /* Hide desktop-only window minimize/maximize/close buttons */
-    .genhub-window-controls {
-        display: none !important;
-    }
-    .genhub-titlebar-left {
-        width: auto;
-    }
-    .genhub-titlebar-right {
-        width: auto;
-        gap: 6px;
-    }
-    .genhub-titlebar-center {
-        flex: 1;
-        justify-content: center;
-    }
-    .genhub-pill-btn {
-        padding: 4px 12px;
-        font-size: 11.5px;
-    }
-    .gh-detail-grid {
-        grid-template-columns: 1fr;
-    }
-    .gh-profile-settings-window {
-        width: 96% !important;
-        max-width: 96% !important;
-        height: 92% !important;
-        max-height: 92% !important;
-    }
-}
-
-/* Small Tablets & Mobile Landscape (<= 768px) */
-@media (max-width: 768px) {
-    .genhub-app-window {
-        height: 660px;
-        max-height: 90vh;
-        border-radius: 10px;
-    }
-
-    /* Downloads: horizontal chip carousel for publishers on tablet/mobile */
-    .gh-downloads-view {
-        flex-direction: column !important;
-        height: 100% !important;
-        overflow: hidden !important;
-    }
-    .gh-publishers-sidebar {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        flex: 0 0 auto !important;
-        height: auto !important;
-        border-right: none !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-        padding: 8px 12px !important;
-    }
-    .gh-publishers-header {
-        display: none !important;
-    }
-    .gh-publishers-list {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 6px !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        scrollbar-width: none !important;
-        padding-bottom: 2px !important;
-    }
-    .gh-publishers-list::-webkit-scrollbar {
-        display: none !important;
-    }
-    .gh-pub-btn {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        padding: 5px 12px !important;
-        border-radius: 20px !important;
-        background: #181826 !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    }
-    .gh-pub-btn img {
-        width: 18px !important;
-        height: 18px !important;
-        min-width: 18px !important;
-        max-width: 18px !important;
-    }
-    .gh-pub-btn span {
-        font-size: 11.5px !important;
-    }
-    .gh-manifest-folder-btn {
-        display: none !important;
-    }
-    .gh-downloads-main {
-        flex: 1 !important;
-        min-height: 0 !important;
-        overflow: hidden !important;
-    }
-    .gh-downloads-topbar {
-        padding: 10px 14px !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 8px !important;
-    }
-    .gh-downloads-pub-info h3 {
-        font-size: 14px !important;
-    }
-    .gh-downloads-pub-info p {
-        font-size: 11px !important;
-    }
-    .gh-downloads-controls {
-        width: 100% !important;
-        display: flex !important;
-        gap: 6px !important;
-    }
-    .gh-downloads-search-wrap {
-        flex: 1 !important;
-    }
-    .gh-downloads-search-wrap .gh-downloads-search {
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-    .gh-catalog-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
-        padding: 12px 14px 60px !important;
-        gap: 12px !important;
-    }
-
-    /* Tools: horizontal carousel on tablet/mobile */
-    .gh-tools-view {
-        flex-direction: column !important;
-        height: 100% !important;
-        overflow: hidden !important;
-    }
-    .gh-tools-sidebar {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        flex: 0 0 auto !important;
-        height: auto !important;
-        border-right: none !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-        padding: 8px 12px !important;
-    }
-    .gh-tools-sidebar-top,
-    .gh-tools-sidebar-bottom {
-        display: none !important;
-    }
-    .gh-tools-list {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 6px !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        scrollbar-width: none !important;
-        padding-bottom: 2px !important;
-    }
-    .gh-tools-list::-webkit-scrollbar {
-        display: none !important;
-    }
-    .gh-tool-item {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        padding: 5px 12px !important;
-        border-radius: 20px !important;
-        background: #181826 !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        font-size: 11.5px !important;
-    }
-    .gh-tools-main {
-        flex: 1 !important;
-        min-height: 0 !important;
-        overflow-y: auto !important;
-        padding: 12px !important;
-    }
-    .gh-replay-header {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 8px !important;
-    }
-    .gh-replay-import-bar {
-        width: 100% !important;
-        min-width: 0 !important;
-    }
-    .gh-replay-actions {
-        width: 100% !important;
-        justify-content: space-between !important;
-    }
-
-    /* Content Detail View */
-    .gh-detail-view {
-        padding: 12px !important;
-        gap: 12px !important;
-    }
-    .gh-detail-banner-card {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-    }
-
-    /* Settings & Info Views */
-    .gh-settings-view,
-    .gh-info-view {
-        flex-direction: column !important;
-        height: 100% !important;
-        overflow: hidden !important;
-    }
-    .gh-settings-sidebar,
-    .gh-info-sidebar {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        flex: 0 0 auto !important;
-        border-right: none !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-        padding: 8px 12px !important;
-        flex-direction: row !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        scrollbar-width: none !important;
-    }
-    .gh-settings-sidebar::-webkit-scrollbar,
-    .gh-info-sidebar::-webkit-scrollbar {
-        display: none !important;
-    }
-    .gh-settings-title,
-    .gh-info-title {
-        display: none !important;
-    }
-    .gh-settings-nav-list,
-    .gh-info-nav-list {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 6px !important;
-    }
-    .gh-setting-nav-btn,
-    .gh-info-nav-btn {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        padding: 5px 12px !important;
-        border-radius: 20px !important;
-        font-size: 11.5px !important;
-    }
-    .gh-settings-content,
-    .gh-info-content {
-        padding: 12px 14px 60px !important;
-    }
-}
-
-/* Mobile Phones (<= 640px) */
-@media (max-width: 640px) {
-    .showcase-container {
-        padding: 0 0.5rem;
-    }
-    .genhub-app-window {
-        height: 640px;
-        max-height: 92vh;
-        border-radius: 8px;
-    }
-    .genhub-titlebar {
-        height: auto;
-        min-height: 42px;
-        flex-wrap: wrap;
-        padding: 8px 10px;
-        row-gap: 8px;
-    }
-    .genhub-titlebar-left {
-        order: 1;
-        flex: 1;
-    }
-    .genhub-titlebar-right {
-        order: 2;
-    }
-    .genhub-titlebar-center {
-        order: 3;
-        width: 100%;
-        display: flex;
-    }
-    .genhub-pill-nav {
-        width: 100%;
-        display: flex;
-        justify-content: space-between;
-    }
-    .genhub-pill-btn {
-        flex: 1;
-        text-align: center;
-        padding: 6px 4px;
-        font-size: 11px;
-    }
-    .genhub-statusbar {
-        padding: 0 10px;
-        font-size: 10px;
-    }
-    .genhub-sb-right {
-        font-size: 9.5px;
-    }
-
-    /* Game Profiles */
-    .gh-profiles-view {
-        padding: 12px 10px;
-    }
-    .gh-profiles-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-    .gh-profiles-titles h2 {
-        font-size: 16px;
-    }
-    .gh-profiles-titles p {
-        font-size: 11px;
-    }
-    .gh-scan-btn {
-        width: 100%;
-        justify-content: center;
-        padding: 8px;
-    }
-    .gh-profiles-row {
-        grid-template-columns: 1fr !important;
-        gap: 12px;
-        padding: 0 0 40px;
-    }
-    .gh-profile-card {
-        height: 200px;
-    }
-    /* On touch screens, show action buttons directly without requiring hover */
-    .gh-card-actions-bar {
-        opacity: 1 !important;
-        transform: translateY(0) !important;
-        pointer-events: auto !important;
-    }
-
-    /* Downloads catalog 1 column on phone */
-    .gh-catalog-grid {
-        grid-template-columns: 1fr !important;
-        padding: 10px 10px 60px !important;
-    }
-
-    /* Modals */
-    .gh-modal-backdrop {
-        padding: 8px;
-    }
-    .gh-modal-window {
-        max-height: 96%;
-        border-radius: 8px;
-    }
-    .gh-sel-header,
-    .gh-wizard-header,
-    .gh-edit-header {
-        padding: 12px 14px;
-    }
-    .gh-sel-body,
-    .gh-wizard-body,
-    .gh-edit-body {
-        padding: 12px 14px;
-    }
-    .gh-sel-grid {
-        grid-template-columns: 1fr !important;
-        gap: 10px;
-    }
-    .gh-sel-card {
-        height: 170px;
-    }
-    .gh-profile-settings-window {
-        width: 100% !important;
-        height: 98% !important;
-        max-width: 100% !important;
-        max-height: 98% !important;
-        border-radius: 8px;
-    }
-    .gh-win-nav-bar {
-        height: auto;
-        padding: 8px;
-        gap: 6px;
-        overflow-x: auto;
-        justify-content: flex-start;
-        -webkit-overflow-scrolling: touch;
-    }
-    .gh-win-nav-btn {
-        width: 50px;
-        height: 46px;
-        flex-shrink: 0;
-    }
-    .gh-win-header {
-        padding: 0 12px;
-    }
-    .gh-notification-flyout {
-        top: 48px;
-        left: 8px;
-        right: 8px;
-        width: auto;
-        max-width: none;
-    }
-}
-
-/* Very Small Mobile Phones (<= 480px) */
-@media (max-width: 480px) {
     .genhub-app-window {
         height: 600px;
         max-height: 94vh;
     }
+
     .gh-content-card {
         min-height: 290px;
     }
+
     .gh-content-banner {
         height: 80px;
     }
+
     .gh-action-btn,
     .gh-btn-secondary {
         font-size: 11.5px;
     }
+
     .gh-content-title {
         font-size: 13px;
     }
+
     .gh-content-desc {
         font-size: 11px;
     }
-}
 
-@media (max-width: 768px) {
-    .gh-table-container,
-    .gh-map-datagrid-wrap {
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch;
-    }
-}
-
-@media (max-width: 640px) {
-    .gh-general-settings-grid {
-        flex-direction: column !important;
-    }
-    .gh-sub-sidebar {
-        width: 100% !important;
-        flex-direction: row !important;
-        overflow-x: auto !important;
-        padding-bottom: 8px !important;
-    }
-    .gh-card-hover {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-    }
-}
-@media (max-width: 480px) {
     .gh-content-editor-toolbar {
         flex-wrap: wrap !important;
         gap: 8px !important;

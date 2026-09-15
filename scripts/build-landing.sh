@@ -12,8 +12,20 @@ if [[ -z "${LATEST_TAG}" || "${LATEST_TAG}" = "null" ]]; then
     DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases"
 else
     BUILD_NUM=$(echo "${LATEST_TAG}" | cut -d'.' -f3)
-    DISPLAY_NAME="Alpha ${BUILD_NUM}"
-    DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${LATEST_TAG}/GenHub-win-Setup.exe"
+    if [[ -n "${BUILD_NUM}" && "${BUILD_NUM}" != "${LATEST_TAG}" ]]; then
+        DISPLAY_NAME="Alpha ${BUILD_NUM}"
+    else
+        CLEAN_TAG="${LATEST_TAG#v}"
+        DISPLAY_NAME="Alpha ${CLEAN_TAG:-Preview}"
+    fi
+
+    # Check if Windows installer asset exists in the release, fallback to release page if absent
+    HAS_EXE=$(gh release view "${LATEST_TAG}" --json assets -q '.assets[] | select(.name == "GenHub-win-Setup.exe") | .name' 2>/dev/null || true)
+    if [[ -n "${HAS_EXE}" ]]; then
+        DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${LATEST_TAG}/GenHub-win-Setup.exe"
+    else
+        DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/tag/${LATEST_TAG}"
+    fi
 fi
 
 echo "Building Landing Page..."
