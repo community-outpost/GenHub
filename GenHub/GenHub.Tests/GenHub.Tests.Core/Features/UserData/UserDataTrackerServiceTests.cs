@@ -1379,11 +1379,6 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             },
         };
 
-        _fileOperationsMock.Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), "hash-desert-original", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _fileOperationsMock.Setup(f => f.LinkFromCasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
         // 1. Primary profile installs map
         var firstResult = await _trackerService.InstallUserDataAsync(
             manifestId,
@@ -1395,6 +1390,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             CancellationToken.None);
 
         Assert.True(firstResult.Success);
+        Assert.True(File.Exists(mapPath));
 
         // 2. Corrupt owner manifest by clearing its InstalledFiles list on disk while keeping file index entry
         var ownerKey = $"{manifestId}_{oldProfileId}";
@@ -1449,11 +1445,6 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 InstallTarget = ContentInstallTarget.UserMapsDirectory,
             },
         };
-
-        _fileOperationsMock.Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), "hash-desert-new", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _fileOperationsMock.Setup(f => f.LinkFromCasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
 
         // Act
         var result = await _trackerService.InstallUserDataAsync(

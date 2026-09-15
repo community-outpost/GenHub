@@ -1575,12 +1575,12 @@ public partial class GenHotkeysViewModel(
         return matchingCount;
     }
 
-    private async Task ApplyCustomPresetAsync(HotkeyProfile targetProfile, string presetName, CancellationToken cancellationToken)
+    private async Task SavePresetAndNotifyAsync(
+        HotkeyProfile targetProfile,
+        string presetName,
+        string successMessage,
+        CancellationToken cancellationToken)
     {
-        targetProfile.BasePreset = presetName;
-        targetProfile.KeyMappings.Clear();
-        targetProfile.ClearedKeys.Clear();
-
         HotkeyProfile? savedProfile = null;
         try
         {
@@ -1601,9 +1601,9 @@ public partial class GenHotkeysViewModel(
             ValidateConflicts();
         }
 
-        var message = savedProfile == null
-            ? $"Failed to save profile after applying preset '{presetName}'."
-            : $"Applied '{presetName}' preset hotkeys.";
+        var message = savedProfile != null
+            ? successMessage
+            : $"Failed to save profile after applying {presetName} preset.";
         StatusMessage = message;
         if (savedProfile != null)
         {
@@ -1615,6 +1615,15 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    private async Task ApplyCustomPresetAsync(HotkeyProfile targetProfile, string presetName, CancellationToken cancellationToken)
+    {
+        targetProfile.BasePreset = presetName;
+        targetProfile.KeyMappings.Clear();
+        targetProfile.ClearedKeys.Clear();
+
+        await SavePresetAndNotifyAsync(targetProfile, presetName, $"Applied '{presetName}' preset hotkeys.", cancellationToken);
+    }
+
     private async Task ApplyVanillaPresetAsync(HotkeyProfile targetProfile, CancellationToken cancellationToken)
     {
         try
@@ -1623,38 +1632,7 @@ public partial class GenHotkeysViewModel(
             targetProfile.KeyMappings.Clear();
             targetProfile.ClearedKeys.Clear();
 
-            HotkeyProfile? savedProfile = null;
-            try
-            {
-                savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                logger.LogError(ex, "Failed to save profile after applying Vanilla preset");
-            }
-
-            if (ReferenceEquals(SelectedProfile, targetProfile))
-            {
-                ApplyProfileMappingsToViewModels();
-                ValidateConflicts();
-            }
-
-            var message = savedProfile != null
-                ? "Applied default vanilla retail hotkeys."
-                : "Failed to save profile after applying Vanilla preset.";
-            StatusMessage = message;
-            if (savedProfile != null)
-            {
-                notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
-            }
-            else
-            {
-                notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
-            }
+            await SavePresetAndNotifyAsync(targetProfile, "Vanilla", "Applied default vanilla retail hotkeys.", cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -1697,39 +1675,7 @@ public partial class GenHotkeysViewModel(
             }
 
             PopulateProfileMappings(targetProfile, presetName, extractedMappings);
-
-            HotkeyProfile? savedProfile = null;
-            try
-            {
-                savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                logger.LogError(ex, "Failed to save profile after applying {Preset} preset", presetName);
-            }
-
-            if (ReferenceEquals(SelectedProfile, targetProfile))
-            {
-                ApplyProfileMappingsToViewModels();
-                ValidateConflicts();
-            }
-
-            var message = savedProfile != null
-                ? $"Applied {presetName} preset hotkeys."
-                : $"Failed to save profile after applying {presetName} preset.";
-            StatusMessage = message;
-            if (savedProfile != null)
-            {
-                notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
-            }
-            else
-            {
-                notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
-            }
+            await SavePresetAndNotifyAsync(targetProfile, presetName, $"Applied {presetName} preset hotkeys.", cancellationToken);
         }
         catch (OperationCanceledException)
         {

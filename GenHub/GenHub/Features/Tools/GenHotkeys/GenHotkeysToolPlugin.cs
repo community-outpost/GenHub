@@ -47,13 +47,14 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin, IDisposable
                 DataContext = viewModel,
             };
 
+            var serviceProvider = _serviceProvider;
             // Trigger activation load on first view creation
             _ = viewModel.InitializeAsync().ContinueWith(
                 t =>
                 {
                     if (t.IsFaulted && t.Exception != null)
                     {
-                        var logger = _serviceProvider?.GetService<ILogger<GenHotkeysToolPlugin>>();
+                        var logger = serviceProvider?.GetService<ILogger<GenHotkeysToolPlugin>>();
                         logger?.LogError(t.Exception, "Unhandled exception during GenHotkeys initialization");
                     }
                 },
