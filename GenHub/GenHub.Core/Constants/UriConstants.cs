@@ -53,6 +53,11 @@ public static class UriConstants
     /// </summary>
     public const string MapManagerIconUri = "avares://GenHub/Assets/Icons/mapmanager-icon.png";
 
+    /// <summary>
+    /// Icon URI for ModBuilder tool.
+    /// </summary>
+    public const string ModBuilderIconUri = "avares://GenHub/Assets/Icons/modbuilder-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -109,6 +114,11 @@ public static class UriConstants
     /// Filename for Map Manager icon.
     /// </summary>
     public const string MapManagerIconFilename = "mapmanager-icon.png";
+
+    /// <summary>
+    /// Filename for ModBuilder icon.
+    /// </summary>
+    public const string ModBuilderIconFilename = "modbuilder-icon.png";
 
     // Cover Path Constants
 

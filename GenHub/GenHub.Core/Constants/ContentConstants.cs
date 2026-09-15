@@ -160,6 +160,11 @@ public static class ContentConstants
     public const string FileContentIdPrefix = "file:";
 
     /// <summary>
+    /// Prefix used for sample project asset download content keys.
+    /// </summary>
+    public const string SampleContentKeyPrefix = "sample::";
+
+    /// <summary>
     /// Suffix/marker in manifest IDs identifying a GameInstallation manifest.
     /// </summary>
     public const string InstallationManifestIdMarker = "-installation";

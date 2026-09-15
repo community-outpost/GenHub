@@ -121,7 +121,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
         // Writes far more than a pipe buffer holds, then keeps running.
         await File.WriteAllTextAsync(
             binary,
-            "#!/bin/sh\ni=0\nwhile [ $i -lt 2000 ]; do echo \"log line $i padding padding padding\" >&2; i=$((i+1)); done\nsleep 30\n");
+            "#!/bin/sh\ni=0\nwhile [ $i -lt 2000 ]; do echo \"log line $i padding padding padding\" >&2; i=$((i+1)); done\nsleep 2\n");
         if (!OperatingSystem.IsWindows())
         {
             File.SetUnixFileMode(

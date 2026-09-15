@@ -127,6 +127,11 @@ public static class ProcessConstants
     public const int LauncherExitGracePeriodMs = 1_000;
 
     /// <summary>
+    /// How long to wait in milliseconds for redirected standard error handlers to complete after process exit.
+    /// </summary>
+    public const int StderrDrainTimeoutMs = 3000;
+
+    /// <summary>
     /// Timeout in milliseconds when waiting for helper or utility process commands (e.g., junction creation).
     /// </summary>
     public const int HelperProcessTimeoutMs = 5_000;

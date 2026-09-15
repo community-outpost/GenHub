@@ -1,0 +1,60 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "LemonControlBar_720p",
+      "Items": [
+        "LemonControlBarArt",
+        "LemonControlBarData",
+        "LemonControlBarWindows_720p"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEdition720ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEdition720ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 720p (1280x720) widescreen control bar BIG archive"
+    },
+    {
+      "Name": "LemonControlBar_1080p",
+      "Items": [
+        "LemonControlBarArt",
+        "LemonControlBarData",
+        "LemonControlBarWindows_1080p"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEdition1080ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEdition1080ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 1080p (1920x1080) widescreen control bar BIG archive"
+    },
+    {
+      "Name": "LemonControlBar_1440p",
+      "Items": [
+        "LemonControlBarArt",
+        "LemonControlBarData",
+        "LemonControlBarWindows_1440p"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEdition1440ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEdition1440ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 1440p (2560x1440) widescreen control bar BIG archive"
+    },
+    {
+      "Name": "LemonControlBar_4K",
+      "Items": [
+        "LemonControlBarArt",
+        "LemonControlBarData",
+        "LemonControlBarWindows_4K"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEdition2160ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEdition2160ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 4K (3840x2160) widescreen control bar BIG archive"
+    }
+  ]
+}

@@ -154,7 +154,7 @@ public class VelopackUpdateManagerTests
     public void VelopackUpdateManager_ShouldUseCorrectRepositoryUrl()
     {
         // Arrange & Act
-        var manager = CreateManager();
+        _ = CreateManager();
 
         // Assert - verify that the logger was called during construction
         // In a development/test environment, the UpdateManager won't be available
@@ -210,6 +210,41 @@ public class VelopackUpdateManagerTests
         // Assert
         Assert.NotNull(manager);
         Assert.False(manager.IsUpdatePendingRestart);
+    }
+
+    [Fact]
+    public void CleanStrayAppDirectoryArtifacts_CleansBuildAndReleaseDirsInSampleProjects()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var sampleDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects", "TestClean_" + Guid.NewGuid().ToString("N"));
+        var buildDir = Path.Combine(sampleDir, ".Build");
+        var releaseDir = Path.Combine(sampleDir, ".Release");
+        var cacheDir = Path.Combine(sampleDir, ".modbuilder_cache");
+
+        try
+        {
+            Directory.CreateDirectory(sampleDir);
+            File.WriteAllText(Path.Combine(sampleDir, "test.mbproj"), "{}");
+            Directory.CreateDirectory(buildDir);
+            Directory.CreateDirectory(releaseDir);
+            Directory.CreateDirectory(cacheDir);
+
+            // Act
+            manager.CleanStrayAppDirectoryArtifacts();
+
+            // Assert
+            Assert.False(Directory.Exists(buildDir));
+            Assert.False(Directory.Exists(releaseDir));
+            Assert.False(Directory.Exists(cacheDir));
+        }
+        finally
+        {
+            if (Directory.Exists(sampleDir))
+            {
+                try { Directory.Delete(sampleDir, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+        }
     }
 
     /// <summary>

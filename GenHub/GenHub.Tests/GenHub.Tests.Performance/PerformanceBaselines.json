@@ -1,0 +1,37 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-08-16",
+  "baselines": {
+    "MD5Hashing_100Files": {
+      "baselineMs": 5000,
+      "description": "MD5 hashing for 100 files with mtime optimization",
+      "testDataSize": "100 files, ~1MB each"
+    },
+    "ImageConversion_2048x2048_RGBA": {
+      "baselineMs": 60000,
+      "description": "Image conversion from TGA to DDS (2048x2048 RGBA) via software BCn encoder",
+      "testDataSize": "2048x2048 RGBA image"
+    },
+    "CacheSerialization_LargeCache": {
+      "baselineMs": 500,
+      "description": "Cache serialization/deserialization for large project",
+      "testDataSize": "1000 file entries with metadata"
+    },
+    "ParallelMD5Hashing_100Files": {
+      "baselineMs": 2500,
+      "description": "Parallel MD5 hashing for 100 files",
+      "testDataSize": "100 files, ~1MB each"
+    },
+    "BuildCacheComparison_1000Files": {
+      "baselineMs": 500,
+      "description": "Build cache comparison for 1000 files",
+      "testDataSize": "1000 file entries"
+    }
+  },
+  "maxRegressionPercent": 50.0,
+  "notes": [
+    "Baselines established for cross-platform CI and local environments",
+    "Update baselines when intentional performance improvements are made",
+    "Tests fail if performance degrades beyond allowed baseline regression"
+  ]
+}

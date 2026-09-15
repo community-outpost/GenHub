@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 #
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenHub", "GenHub\GenHub.csproj", "{9A2382CD-1FAC-4D61-B94D-8984FD6BBD8E}"
@@ -29,6 +29,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenHub.Tools", "GenHub.Tools\GenHub.Tools.csproj", "{192E8A0F-43C0-4E10-B26E-FC219590611D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenHub.Tests.MacOS", "GenHub.Tests\GenHub.Tests.MacOS\GenHub.Tests.MacOS.csproj", "{E57F8718-98EB-4F18-ADC9-D6A72DF27B79}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenHub.Tests.Performance", "GenHub.Tests\GenHub.Tests.Performance\GenHub.Tests.Performance.csproj", "{E8D2F78B-36E4-403B-94DD-670DE732F650}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -172,6 +174,18 @@ Global
 		{E57F8718-98EB-4F18-ADC9-D6A72DF27B79}.Release|x64.Build.0 = Release|Any CPU
 		{E57F8718-98EB-4F18-ADC9-D6A72DF27B79}.Release|x86.ActiveCfg = Release|Any CPU
 		{E57F8718-98EB-4F18-ADC9-D6A72DF27B79}.Release|x86.Build.0 = Release|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Debug|x64.Build.0 = Debug|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Debug|x86.Build.0 = Debug|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Release|x64.ActiveCfg = Release|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Release|x64.Build.0 = Release|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Release|x86.ActiveCfg = Release|Any CPU
+		{E8D2F78B-36E4-403B-94DD-670DE732F650}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -181,5 +195,6 @@ Global
 		{2E6317F0-2CA0-47CB-BC69-82E216613FB1} = {BD194B17-634D-23A8-26F1-C490775258C0}
 		{904D2AD7-8DBF-4E7C-8FFF-8BFA0EF0E801} = {BD194B17-634D-23A8-26F1-C490775258C0}
 		{E57F8718-98EB-4F18-ADC9-D6A72DF27B79} = {BD194B17-634D-23A8-26F1-C490775258C0}
+		{E8D2F78B-36E4-403B-94DD-670DE732F650} = {BD194B17-634D-23A8-26F1-C490775258C0}
 	EndGlobalSection
 EndGlobal
