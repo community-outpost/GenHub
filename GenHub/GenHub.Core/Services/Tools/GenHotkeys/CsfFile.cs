@@ -11,6 +11,8 @@ namespace GenHub.Core.Services.Tools.GenHotkeys;
 /// </summary>
 public class CsfFile
 {
+    private const long MaxBytesAllowed = 10 * 1024 * 1024; // 10 MB per record sanity limit
+
     private static readonly byte[] MagicCsf = [(byte)' ', (byte)'F', (byte)'S', (byte)'C'];
     private static readonly byte[] MagicLbl = [(byte)' ', (byte)'L', (byte)'B', (byte)'L'];
     private static readonly byte[] MagicRts = [(byte)' ', (byte)'R', (byte)'T', (byte)'S'];
@@ -82,10 +84,7 @@ public class CsfFile
 
         for (uint i = 0; i < numLabels; i++)
         {
-            if (!ReadLabel(reader, stream, csf))
-            {
-                break;
-            }
+            ReadLabel(reader, stream, csf);
         }
 
         return csf;
@@ -278,12 +277,12 @@ public class CsfFile
         }
     }
 
-    private static bool ReadLabel(BinaryReader reader, Stream stream, CsfFile csf)
+    private static void ReadLabel(BinaryReader reader, Stream stream, CsfFile csf)
     {
         var lblMagic = reader.ReadBytes(4);
         if (lblMagic.Length < 4 || !lblMagic.AsSpan().SequenceEqual(MagicLbl))
         {
-            return false;
+            throw new InvalidDataException("Invalid CSF label magic bytes.");
         }
 
         var numStringPairs = reader.ReadUInt32();
@@ -296,8 +295,6 @@ public class CsfFile
         {
             ReadStringPair(reader, stream, csf, labelName, isPrimary: s == 0);
         }
-
-        return true;
     }
 
     private static void ReadStringPair(BinaryReader reader, Stream stream, CsfFile csf, string labelName, bool isPrimary)
@@ -305,7 +302,7 @@ public class CsfFile
         var rtsMagic = reader.ReadBytes(4);
         if (rtsMagic.Length < 4)
         {
-            return;
+            throw new InvalidDataException("Unexpected end of stream while reading CSF string header.");
         }
 
         var numChars = reader.ReadUInt32();
@@ -344,7 +341,7 @@ public class CsfFile
 
     private static void ValidateStreamRemaining(Stream stream, long requiredBytes, string fieldName)
     {
-        if (requiredBytes < 0 || requiredBytes > int.MaxValue)
+        if (requiredBytes < 0 || requiredBytes > MaxBytesAllowed)
         {
             throw new InvalidDataException($"Invalid CSF {fieldName} size: {requiredBytes}");
         }

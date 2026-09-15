@@ -1221,6 +1221,12 @@ public class UserDataTrackerService(
 
                 adoptedEntry = ownerManifest.InstalledFiles?.FirstOrDefault(f =>
                     string.Equals(f.AbsolutePath, targetPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+
+                if (adoptedEntry == null)
+                {
+                    logger.LogError("[UserData] Adoption target {Path} was indexed under installation {Key} but missing from its manifest; aborting installation", targetPath, conflictResult.Data);
+                    return OperationResult<UserDataFileEntry>.CreateFailure($"File '{targetPath}' is indexed under installation '{conflictResult.Data}' but missing from its manifest. Installation aborted.");
+                }
             }
             }
             else
@@ -1256,6 +1262,8 @@ public class UserDataTrackerService(
                             BackupPath = backupPath,
                             WasOverwritten = wasOverwritten,
                             IsHardLink = adoptedEntry.IsHardLink,
+                            InstalledAt = DateTime.UtcNow,
+                            CasHash = !string.IsNullOrEmpty(adoptedEntry.CasHash) ? adoptedEntry.CasHash : file.Hash,
                         });
                     }
                 }
@@ -1272,7 +1280,12 @@ public class UserDataTrackerService(
                 wasOverwritten = true;
                 logger.LogInformation("[UserData] Backed up modified adopted user file: {Path} -> {Backup}", targetPath, modifiedBackup);
             }
-            else if (string.IsNullOrEmpty(conflictResult.Data))
+            else if (conflictResult.Data == installationKey && priorEntry != null)
+            {
+                wasOverwritten = priorEntry.WasOverwritten;
+                backupPath = priorEntry.BackupPath;
+            }
+            else
             {
                 backupPath = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
                 if (string.IsNullOrEmpty(backupPath))
@@ -1283,11 +1296,6 @@ public class UserDataTrackerService(
 
                 wasOverwritten = true;
                 logger.LogInformation("[UserData] Backed up existing user file: {Path} -> {Backup}", targetPath, backupPath);
-            }
-            else if (conflictResult.Data == installationKey && priorEntry != null)
-            {
-                wasOverwritten = priorEntry.WasOverwritten;
-                backupPath = priorEntry.BackupPath;
             }
 
             FileOperationsService.DeleteFileIfExists(targetPath);

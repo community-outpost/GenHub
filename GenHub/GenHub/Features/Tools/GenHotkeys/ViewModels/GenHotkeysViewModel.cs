@@ -150,11 +150,13 @@ public partial class GenHotkeysViewModel(
     [ObservableProperty]
     private string _renameProfileText = string.Empty;
 
+#pragma warning disable CS0414 // Field is assigned but its value is never used directly in C#
     [ObservableProperty]
     private bool _hasExistingAddon;
 
     [ObservableProperty]
     private ContentManifest? _existingAddonManifest;
+#pragma warning restore CS0414
 
     [ObservableProperty]
     private string _addonButtonText = CreateAddonText;
@@ -684,7 +686,7 @@ public partial class GenHotkeysViewModel(
 
             if (manifestsResult is not { Success: true, Data: not null })
             {
-                UpdateAddonMatchState(this, null);
+                UpdateAddonMatchState(this, null, currentProfileId);
                 return;
             }
 
@@ -696,7 +698,7 @@ public partial class GenHotkeysViewModel(
                 return;
             }
 
-            UpdateAddonMatchState(this, match);
+            UpdateAddonMatchState(this, match, currentProfileId);
         }
         catch (OperationCanceledException)
         {
@@ -713,8 +715,7 @@ public partial class GenHotkeysViewModel(
     }
 
     /// <summary>
-    /// Handles the primary addon button click. If an addon already exists, opens the profile selection dialog.
-    /// Otherwise, creates the addon.
+    /// Handles the primary addon button click to export or update the hotkey addon for the selected profile.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous action.</returns>
@@ -980,27 +981,6 @@ public partial class GenHotkeysViewModel(
         return count;
     }
 
-    private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
-    {
-        if (notificationService is null)
-        {
-            return;
-        }
-
-        var title = isUpdate ? "Hotkey Addon Updated" : "Hotkey Addon Created";
-        var message = isUpdate
-            ? $"Updated '{bigFileName}' successfully."
-            : $"Created '{bigFileName}' successfully and stored in CAS.";
-        var notification = new NotificationMessage(
-            NotificationType.Success,
-            title,
-            message,
-            autoDismissMilliseconds: NotificationDurations.Long,
-            actionText: AddToProfileText,
-            action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(manifest)));
-
-        notificationService.Show(notification);
-    }
 
     private static bool IsPermittedEngineOverlap(
         List<HotkeyActionViewModel> actions,
@@ -1206,7 +1186,6 @@ public partial class GenHotkeysViewModel(
                actions.Any(a => string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.ConstructAmericaSupplyCenter, StringComparison.OrdinalIgnoreCase));
     }
 
-
     private static char? ResolveCurrentActionHotkey(HotkeyAction action, HotkeyProfile? profile)
     {
         if (profile == null || string.IsNullOrEmpty(action.HotkeyString))
@@ -1405,7 +1384,9 @@ public partial class GenHotkeysViewModel(
             return index;
         }
 
-        var currentActionKey = selectedAction.HotkeyString ?? selectedAction.IconName ?? selectedAction.DisplayName;
+        var currentActionKey = !string.IsNullOrWhiteSpace(selectedAction.HotkeyString)
+            ? selectedAction.HotkeyString
+            : (!string.IsNullOrWhiteSpace(selectedAction.IconName) ? selectedAction.IconName : selectedAction.DisplayName);
         var currentObjName = selectedGameObject?.Name ?? selectedGameObject?.DisplayName;
 
         return allConflicts.FindIndex(c =>
@@ -1445,6 +1426,100 @@ public partial class GenHotkeysViewModel(
         {
             profile.KeyMappings[key] = value;
         }
+    }
+
+    private static void UpdateAddonMatchState(GenHotkeysViewModel vm, ContentManifest? match, string? expectedProfileId = null)
+    {
+        void ApplyState()
+        {
+            if (expectedProfileId != null && vm.SelectedProfile?.Id != expectedProfileId)
+            {
+                return;
+            }
+
+            vm.ExistingAddonManifest = match;
+            vm.HasExistingAddon = match is not null;
+            if (match is not null)
+            {
+                if (vm.SelectedProfile != null)
+                {
+                    vm.SelectedProfile.AddonManifestId = match.Id.Value;
+                }
+
+                vm.AddonButtonText = UpdateAddonText;
+                vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+            }
+            else
+            {
+                vm.AddonButtonText = CreateAddonText;
+                vm.AddonButtonToolTip = CreateAddonToolTip;
+            }
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            ApplyState();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(ApplyState);
+        }
+    }
+
+    private static bool IsAddonMatch(
+        ContentManifest m,
+        string? profileAddonManifestId,
+        GameType selectedGame,
+        string expectedManifestName,
+        string expectedBigFileName,
+        string legacyBigFileName)
+    {
+        if (m.ContentType != ContentType.Addon)
+        {
+            return false;
+        }
+
+        if (m.TargetGame != selectedGame && m.TargetGame != GameType.Unknown)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(profileAddonManifestId) &&
+            string.Equals(m.Id.Value, profileAddonManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return m.Files?.Any(f =>
+            f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true ||
+            f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true;
+    }
+
+    private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
+    {
+        if (notificationService is null)
+        {
+            return;
+        }
+
+        var title = isUpdate ? "Hotkey Addon Updated" : "Hotkey Addon Created";
+        var message = isUpdate
+            ? $"Updated '{bigFileName}' successfully."
+            : $"Created '{bigFileName}' successfully and stored in CAS.";
+        var notification = new NotificationMessage(
+            NotificationType.Success,
+            title,
+            message,
+            autoDismissMilliseconds: NotificationDurations.Long,
+            actionText: AddToProfileText,
+            action: () => Dispatcher.UIThread.Post(() => _ = OpenProfileSelectionAsync(manifest)));
+
+        notificationService.Show(notification);
     }
 
     private int ApplyKeyToMatchingActionsInFactions(
@@ -1646,7 +1721,19 @@ public partial class GenHotkeysViewModel(
         {
             var oldCts = _reloadCts;
             _reloadCts = new CancellationTokenSource();
-            oldCts?.Cancel();
+            if (oldCts != null)
+            {
+                try
+                {
+                    oldCts.Cancel();
+                }
+                catch (ObjectDisposedException ex)
+                {
+                    logger.LogDebug(ex, "Previous reload CTS was disposed before cancellation");
+                }
+
+                oldCts.Dispose();
+            }
 
             SelectedAction = null;
             SelectedGameObject = null;
@@ -1700,72 +1787,6 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private static void UpdateAddonMatchState(GenHotkeysViewModel vm, ContentManifest? match)
-    {
-        void ApplyState()
-        {
-            vm.ExistingAddonManifest = match;
-            vm.HasExistingAddon = match is not null;
-            if (match is not null)
-            {
-                if (vm.SelectedProfile != null)
-                {
-                    vm.SelectedProfile.AddonManifestId = match.Id.Value;
-                }
-
-                vm.AddonButtonText = UpdateAddonText;
-                vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
-            }
-            else
-            {
-                vm.AddonButtonText = CreateAddonText;
-                vm.AddonButtonToolTip = CreateAddonToolTip;
-            }
-        }
-
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            ApplyState();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(ApplyState);
-        }
-    }
-
-    private static bool IsAddonMatch(
-        ContentManifest m,
-        string? profileAddonManifestId,
-        GameType selectedGame,
-        string expectedManifestName,
-        string expectedBigFileName,
-        string legacyBigFileName)
-    {
-        if (m.ContentType != ContentType.Addon)
-        {
-            return false;
-        }
-
-        if (m.TargetGame != selectedGame && m.TargetGame != GameType.Unknown)
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(profileAddonManifestId) &&
-            string.Equals(m.Id.Value, profileAddonManifestId, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (string.Equals(m.Name, expectedManifestName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return m.Files?.Any(f =>
-            f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true ||
-            f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true;
-    }
 
     private async Task SafeCheckExistingAddonAsync(CancellationToken cancellationToken)
     {
@@ -2167,10 +2188,14 @@ public partial class GenHotkeysViewModel(
                 {
                     if (act.IsConflict)
                     {
+                        var actionKey = !string.IsNullOrWhiteSpace(act.HotkeyString)
+                            ? act.HotkeyString
+                            : (!string.IsNullOrWhiteSpace(act.IconName) ? act.IconName : act.DisplayName);
+
                         targets.Add(new HotkeyConflictTarget(
                             defaultFaction,
                             obj.Name ?? obj.DisplayName,
-                            act.HotkeyString ?? act.IconName ?? act.DisplayName,
+                            actionKey,
                             act.Hotkey,
                             act));
                     }

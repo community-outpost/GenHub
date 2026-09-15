@@ -400,9 +400,17 @@ public static class GenHotkeysConstants
             sanitizedName = "Hotkeys";
         }
 
-        var idSuffix = !string.IsNullOrWhiteSpace(profileId)
-            ? $"_{profileId[..Math.Min(8, profileId.Length)]}"
-            : string.Empty;
+        string idSuffix;
+        if (!string.IsNullOrWhiteSpace(profileId))
+        {
+            var sanitizedId = Regex.Replace(profileId, @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
+            var prefix = sanitizedId[..Math.Min(8, sanitizedId.Length)];
+            idSuffix = !string.IsNullOrWhiteSpace(prefix.Trim('_')) ? $"_{prefix}" : string.Empty;
+        }
+        else
+        {
+            idSuffix = string.Empty;
+        }
 
         var gameTag = GetGameTag(targetGame);
         return string.Format(CultureInfo.InvariantCulture, BigFileNamePattern, sanitizedName, idSuffix, gameTag);

@@ -18,11 +18,8 @@
         <ResourceInclude Source="/Features/Tools/Views/ToolIcons.axaml" />
       </ResourceDictionary.MergedDictionaries>
 
-      <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
-      <converters:EqualityConverter x:Key="EqualsToConverter" />
       <converters:NotNullConverter x:Key="NotNullConverter" />
       <converters:BoolToBorderConverter x:Key="BoolToBorderConverter" />
-      <converters:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
       <hotkeyConverters:CornerToHorizontalAlignmentConverter x:Key="CornerToHorizontalAlignmentConverter" />
       <hotkeyConverters:CornerToVerticalAlignmentConverter x:Key="CornerToVerticalAlignmentConverter" />
       <hotkeyConverters:FactionToImageConverter x:Key="FactionToImageConverter" />
@@ -31,6 +28,44 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
+    <!-- Button styles -->
+    <Style Selector="Button.Primary, ToggleButton.Primary">
+      <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.Primary:pointerover, ToggleButton.Primary:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+
+    <Style Selector="Button.Secondary">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.Secondary:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+    </Style>
+
     <Style Selector="Button.KeyButton">
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="FontWeight" Value="Bold" />
@@ -43,7 +78,7 @@
     </Style>
     <Style Selector="Button.KeyButton:pointerover">
       <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
 
     <!-- Action card button styling and hover retention -->
@@ -58,7 +93,7 @@
     </Style>
     <Style Selector="Button.action-card:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
     <Style Selector="Button.action-card.selected">
       <Setter Property="BorderBrush" Value="{DynamicResource GeneralsAccentBrush}" />
@@ -678,10 +713,9 @@
 
     <!-- STATUS BAR -->
     <Border Grid.Row="2" Background="{DynamicResource CardBackground}" CornerRadius="6" Padding="10,6" Margin="0,4,0,0">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Center" FontSize="11" Opacity="0.8"/>
-        <TextBlock Grid.Column="1" Text="Changes auto-saved to profile" VerticalAlignment="Center" FontSize="10" Opacity="0.5"/>
-      </Grid>
+      <DockPanel LastChildFill="False">
+        <TextBlock DockPanel.Dock="Right" Text="Changes auto-saved to profile" VerticalAlignment="Center" FontSize="10" Opacity="0.5"/>
+      </DockPanel>
     </Border>
   </Grid>
 </UserControl>
