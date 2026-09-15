@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using FluentAssertions;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Common;
@@ -8,6 +7,7 @@ using GenHub.Windows.Features.ActionSets.Infrastructure;
 using GenHub.Windows.Features.ActionSets.UI;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.ComponentModel;
 using Xunit;
 
 namespace GenHub.Tests.Windows.Features.ActionSets;
@@ -25,21 +25,10 @@ public class GenPatcherViewModelTests
     private readonly Mock<ILogger<GenPatcherViewModel>> _loggerMock = new();
     private readonly Mock<ILocalizationService> _localizationServiceMock = new();
 
-    private GenPatcherViewModel CreateViewModel()
-    {
-        return new GenPatcherViewModel(
-            _orchestratorMock.Object,
-            _installationDetectorMock.Object,
-            _registryServiceMock.Object,
-            _notificationServiceMock.Object,
-            _dialogServiceMock.Object,
-            _loggerMock.Object,
-            _localizationServiceMock.Object);
-    }
-
     /// <summary>
     /// Tests that Dispose unsubscribes from ILocalizationService PropertyChanged.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task Dispose_UnsubscribesFromLocalizationServiceAsync()
     {
@@ -71,5 +60,17 @@ public class GenPatcherViewModelTests
             new PropertyChangedEventArgs(nameof(ILocalizationService.CurrentCulture)));
 
         propertyChangedRaised.Should().BeFalse();
+    }
+
+    private GenPatcherViewModel CreateViewModel()
+    {
+        return new GenPatcherViewModel(
+            _orchestratorMock.Object,
+            _installationDetectorMock.Object,
+            _registryServiceMock.Object,
+            _notificationServiceMock.Object,
+            _dialogServiceMock.Object,
+            _loggerMock.Object,
+            _localizationServiceMock.Object);
     }
 }
