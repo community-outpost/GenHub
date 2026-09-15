@@ -942,7 +942,8 @@
             e.preventDefault();
             const expander = header.closest('.gh-settings-expander');
             if (expander) {
-                expander.classList.toggle('open');
+                const isOpen = expander.classList.toggle('open');
+                header.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             }
         });
     });
@@ -953,13 +954,21 @@
     if (expandAllBtn) {
         expandAllBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            document.querySelectorAll('.gh-settings-expander').forEach(el => el.classList.add('open'));
+            document.querySelectorAll('.gh-settings-expander').forEach(el => {
+                el.classList.add('open');
+                const btn = el.querySelector('.gh-expander-header');
+                if (btn) btn.setAttribute('aria-expanded', 'true');
+            });
         });
     }
     if (collapseAllBtn) {
         collapseAllBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            document.querySelectorAll('.gh-settings-expander').forEach(el => el.classList.remove('open'));
+            document.querySelectorAll('.gh-settings-expander').forEach(el => {
+                el.classList.remove('open');
+                const btn = el.querySelector('.gh-expander-header');
+                if (btn) btn.setAttribute('aria-expanded', 'false');
+            });
         });
     }
 
@@ -2043,8 +2052,6 @@
     // Initial render of Quickstart Guide
     renderInfoSection('quickstart');
 
-})();
-
     // Delegated listener for dynamically rendered demo buttons & expanders
     document.addEventListener('click', (e) => {
         const steamBtn = e.target.closest('#ghDemoSteamToggleBtn');
@@ -2064,12 +2071,4 @@
         }
     });
 
-    // Keyboard navigation (Enter / Space) for expander headers
-    document.querySelectorAll('.gh-expander-header').forEach(header => {
-        header.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                header.click();
-            }
-        });
-    });
+})();

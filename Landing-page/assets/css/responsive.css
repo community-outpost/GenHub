@@ -592,9 +592,7 @@
         gap: 6px !important;
     }
     .gh-setting-nav-btn,
-    .gh-info-nav-btn,
-    .gh-settings-sidebar button,
-    .gh-info-sidebar button {
+    .gh-info-nav-btn {
         flex: 0 0 auto !important;
         width: auto !important;
         padding: 5px 12px !important;
