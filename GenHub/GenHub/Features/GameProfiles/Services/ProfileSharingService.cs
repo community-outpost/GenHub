@@ -2456,7 +2456,7 @@ public class ProfileSharingService(
             ContentType = dependency.ContentType,
             TargetGame = dependency.TargetGame != GameType.Unknown ? dependency.TargetGame : null,
             ProviderName = targetProvider,
-            Take = 10,
+            Take = ProfileSharingConstants.FallbackSearchLimit,
         };
 
         var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
@@ -2541,6 +2541,27 @@ public class ProfileSharingService(
                     return acquireResult;
                 }
             }
+            else if (!string.IsNullOrEmpty(targetProvider))
+            {
+                logger?.LogInformation(
+                    "Targeted search for '{DisplayName}' on provider '{Provider}' returned no matching candidates. Retrying with broad search.",
+                    dependency.DisplayName,
+                    targetProvider);
+
+                var broadSearchResult = await ExecuteFallbackSearchAsync(dependency, null, cancellationToken);
+                if (broadSearchResult.Success && broadSearchResult.Data != null)
+                {
+                    var broadMatch = FindMatchingResult(broadSearchResult.Data, dependency);
+                    if (broadMatch != null)
+                    {
+                        var acquireResult = await TryAcquireMatchedFallbackAsync(broadMatch, dependency, progress, cancellationToken);
+                        if (acquireResult != null)
+                        {
+                            return acquireResult;
+                        }
+                    }
+                }
+            }
         }
 
         logger?.LogWarning(
@@ -2565,21 +2586,38 @@ public class ProfileSharingService(
             return match;
         }
 
-        // 2. Exact Display Name match
-        match = resultList.FirstOrDefault(r =>
-            string.Equals(r.Name, dependency.DisplayName, StringComparison.OrdinalIgnoreCase));
-        if (match != null)
+        if (!string.IsNullOrWhiteSpace(dependency.DisplayName))
         {
-            return match;
-        }
+            // 2. Exact Display Name match
+            match = resultList.FirstOrDefault(r =>
+                !string.IsNullOrWhiteSpace(r.Name) &&
+                string.Equals(r.Name, dependency.DisplayName, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                return match;
+            }
 
-        // 3. Normalized Display Name match
-        var normalizedDepName = NormalizeContentName(dependency.DisplayName);
-        match = resultList.FirstOrDefault(r =>
-            string.Equals(NormalizeContentName(r.Name), normalizedDepName, StringComparison.OrdinalIgnoreCase));
-        if (match != null)
-        {
-            return match;
+            // 3. Normalized Display Name match
+            var normalizedDepName = NormalizeContentName(dependency.DisplayName);
+            if (!string.IsNullOrEmpty(normalizedDepName))
+            {
+                match = resultList.FirstOrDefault(r =>
+                {
+                    if (string.IsNullOrWhiteSpace(r.Name))
+                    {
+                        return false;
+                    }
+
+                    var normalizedResultName = NormalizeContentName(r.Name);
+                    return !string.IsNullOrEmpty(normalizedResultName) &&
+                           string.Equals(normalizedResultName, normalizedDepName, StringComparison.OrdinalIgnoreCase);
+                });
+
+                if (match != null)
+                {
+                    return match;
+                }
+            }
         }
 
         // 4. Manifest ID segment match (publisher + contentType + contentName/slug)
@@ -2606,7 +2644,7 @@ public class ProfileSharingService(
 
                 return string.Equals(rSegments[^1], depSlug, StringComparison.OrdinalIgnoreCase) &&
                        string.Equals(rSegments[3], depType, StringComparison.OrdinalIgnoreCase) &&
-                       rSegments[2].StartsWith(depPub, StringComparison.OrdinalIgnoreCase);
+                       string.Equals(rSegments[2], depPub, StringComparison.OrdinalIgnoreCase);
             });
 
             if (match != null)
@@ -2683,7 +2721,7 @@ public class ProfileSharingService(
         }
 
         if (publisher.Contains(CNCLabsConstants.AuthorName, StringComparison.OrdinalIgnoreCase) ||
-            publisher.Contains("cnclabs", StringComparison.OrdinalIgnoreCase))
+            publisher.Contains(PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
         {
             return CNCLabsConstants.SourceName;
         }

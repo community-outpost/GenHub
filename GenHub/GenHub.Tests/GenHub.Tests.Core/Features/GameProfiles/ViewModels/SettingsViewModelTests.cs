@@ -1392,18 +1392,45 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
 
+    /// <summary>
+    /// Verifies that TestPatAsync saves token and reports pending validation when no validation provider ran.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenNoValidationProviderAvailable_SavesTokenAndReportsPendingValidationAsync()
+    {
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var viewModel = CreateViewModel(
+            gitHubTokenStorage: mockTokenStorage.Object,
+            gitHubApiClient: null,
+            includeUpdateManager: false);
+        viewModel.GitHubPatInput = "ghp_unvalidatedToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(viewModel.IsPatValid);
+        Assert.True(viewModel.HasGitHubPat);
+        Assert.Empty(viewModel.GitHubPatInput);
+        Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
+        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
+    }
+
     private SettingsViewModel CreateViewModel(
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
         IGitHubApiClient? gitHubApiClient = null,
-        IUploadHistoryService? uploadHistoryService = null) => new(
+        IUploadHistoryService? uploadHistoryService = null,
+        bool includeUpdateManager = true) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
         _mockProfileManager.Object,
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,
-        _mockUpdateManager.Object,
+        includeUpdateManager ? _mockUpdateManager.Object : null,
         _mockNotificationService.Object,
         _mockConfigurationProvider.Object,
         _mockInstallationService.Object,

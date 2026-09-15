@@ -291,4 +291,55 @@ public class ImportProfileInspectionViewModelTests
         item.ToggleExpandCommand.Execute(null);
         Assert.True(item.IsExpanded);
     }
+
+    /// <summary>
+    /// Verifies that ConfirmImportCommand does not execute when the view model is disposed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConfirmImportCommand_WhenDisposed_DoesNotImportAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata { Name = "Disposed Test", GameType = GameType.ZeroHour },
+            RequiredManifests = [],
+        };
+
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [],
+            HasValidGameInstallation = true,
+            MatchedGameInstallationId = "inst-1",
+            CompatibleInstallations = [new GameInstallation("/games/zh", GameInstallationType.Steam) { Id = "inst-1", HasZeroHour = true }],
+            TotalDownloadBytesRequired = 0,
+            CachedManifestCount = 0,
+            MissingManifestCount = 0,
+            HasNameConflict = false,
+            SuggestedProfileName = "Disposed Test",
+            SecurityWarnings = [],
+            Package = package,
+        };
+
+        var vm = new ImportProfileInspectionViewModel(
+            inspection,
+            _sharingServiceMock.Object,
+            _notificationServiceMock.Object,
+            NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        vm.Dispose();
+
+        // Act
+        await vm.ConfirmImportCommand.ExecuteAsync(null);
+
+        // Assert
+        _sharingServiceMock.Verify(
+            s => s.ImportSharedProfileAsync(
+                It.IsAny<SharedProfileImportRequest>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 }

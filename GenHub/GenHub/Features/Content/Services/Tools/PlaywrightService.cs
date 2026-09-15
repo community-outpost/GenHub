@@ -520,13 +520,10 @@ public sealed class PlaywrightService(
     }
 
     private static bool IsModDbVerificationPage(string? title) =>
-        !string.IsNullOrWhiteSpace(title) &&
-        ModDBConstants.BotProtectionTitleMarkers.Any(marker => title.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        ModDBConstants.IsChallengePageTitle(title);
 
     private static bool IsModDbHost(Uri uri) =>
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
-        (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-         uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase));
+        ModDBConstants.IsModDbOrDbolicalUri(uri);
 
     private static bool IsModDbHost(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) && IsModDbHost(uri);

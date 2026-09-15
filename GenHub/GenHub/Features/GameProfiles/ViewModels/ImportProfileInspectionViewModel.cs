@@ -258,6 +258,11 @@ public sealed partial class ImportProfileInspectionViewModel(
     [RelayCommand]
     private async Task ConfirmImportAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(ProfileName))
         {
             SetError("Profile name cannot be empty.");

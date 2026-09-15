@@ -165,8 +165,6 @@ public partial class ShareProfileDialogViewModel(
         return true;
     }
 
-
-
     /// <summary>
     /// Event raised when the dialog should be closed.
     /// </summary>

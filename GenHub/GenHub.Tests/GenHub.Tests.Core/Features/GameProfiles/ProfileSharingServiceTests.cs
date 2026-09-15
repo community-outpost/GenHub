@@ -2084,4 +2084,173 @@ public class ProfileSharingServiceTests
             },
         };
     }
+
+    /// <summary>
+    /// Verifies that when targeted search returns non-matching results, fallback search retries with broad search.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_RetryWithBroadSearch_WhenTargetedSearchYieldsNoMatchesAsync()
+    {
+        // Arrange
+        const string depId = "1.0.moddb.mod.shockwave";
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Broad Fallback Profile",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = depId,
+                    DisplayName = "ShockWave Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    Publisher = "ModDB",
+                    PublisherType = PublisherTypeConstants.ModDB,
+                    Files = [],
+                },
+            ],
+        };
+
+        var nonMatchingTargetedResult = new ContentSearchResult
+        {
+            Id = "1.0.moddb.mod.unrelatedmod",
+            Name = "Unrelated Mod",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+        };
+
+        var matchingBroadResult = new ContentSearchResult
+        {
+            Id = depId,
+            Name = "ShockWave Mod",
+            ProviderName = "CommunityOutpost",
+            ContentType = ContentType.Mod,
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients = [new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+            }));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(depId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var searchCallCount = 0;
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentSearchQuery q, CancellationToken _) =>
+            {
+                searchCallCount++;
+                if (q.ProviderName != null)
+                {
+                    // Targeted search returns non-matching result
+                    return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([nonMatchingTargetedResult]);
+                }
+
+                // Broad search returns matching result
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([matchingBroadResult]);
+            });
+
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(matchingBroadResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(depId),
+                Name = "ShockWave Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+            }));
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "Broad Fallback Profile",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(2, searchCallCount);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(matchingBroadResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that empty or whitespace display name does not erroneously match arbitrary search results in tier 2 or 3.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_NotMatchArbitraryResult_WhenDependencyDisplayNameIsWhitespaceAsync()
+    {
+        // Arrange
+        const string depId = "1.0.unknown.mod.blankname";
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Blank Name Profile",
+                GameType = GameType.ZeroHour,
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = depId,
+                    DisplayName = "   ",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    Files = [],
+                },
+            ],
+        };
+
+        var unrelatedResult = new ContentSearchResult
+        {
+            Id = "1.0.other.mod.random",
+            Name = "Random Mod",
+            ContentType = ContentType.Mod,
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients = [new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+            }));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(depId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([unrelatedResult]));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "Blank Name Profile",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.False(result.Success);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

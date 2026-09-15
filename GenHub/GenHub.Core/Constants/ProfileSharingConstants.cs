@@ -40,6 +40,11 @@ public static class ProfileSharingConstants
     public const int MaxProfileNameLength = 100;
 
     /// <summary>
+    /// Maximum number of search results to request during fallback dependency resolution.
+    /// </summary>
+    public const int FallbackSearchLimit = 10;
+
+    /// <summary>
     /// Maximum allowed decompressed payload size in bytes (2 MB).
     /// </summary>
     public const int MaxDecompressedPayloadBytes = 2 * 1024 * 1024;

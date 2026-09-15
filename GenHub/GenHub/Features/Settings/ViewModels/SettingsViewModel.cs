@@ -58,7 +58,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IGameProfileManager _profileManager;
     private readonly IWorkspaceManager _workspaceManager;
     private readonly IContentManifestPool _manifestPool;
-    private readonly IVelopackUpdateManager _updateManager;
+    private readonly IVelopackUpdateManager? _updateManager;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
@@ -274,7 +274,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IGameProfileManager profileManager,
         IWorkspaceManager workspaceManager,
         IContentManifestPool manifestPool,
-        IVelopackUpdateManager updateManager,
+        IVelopackUpdateManager? updateManager,
         INotificationService notificationService,
         IConfigurationProviderService configurationProvider,
         IGameInstallationService installationService,
@@ -293,7 +293,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
         _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
         _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-        _updateManager = updateManager ?? throw new ArgumentNullException(nameof(updateManager));
+        _updateManager = updateManager;
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
@@ -374,13 +374,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     ];
 
     /// <summary>
-    /// Gets the status color for the PAT indicator.
-    /// </summary>
-    /// <summary>
     /// Gets the list of active upload records across all tools and shared profiles.
     /// </summary>
     public ReadOnlyObservableCollection<UploadHistoryItem> ActiveUploads { get; }
 
+    /// <summary>
+    /// Gets the status color for the PAT indicator.
+    /// </summary>
     public string PatStatusColor => _isPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
@@ -1479,6 +1479,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             _gitHubApiClient?.SetAuthenticationToken(secureString);
 
+            var validated = false;
             if (_gitHubApiClient != null)
             {
                 var user = await _gitHubApiClient.GetAuthenticatedUserAsync(cancellationToken);
@@ -1489,15 +1490,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     IsPatValid = false;
                     return;
                 }
+
+                validated = true;
             }
             else if (_updateManager != null)
             {
                 _ = await _updateManager.CheckForArtifactUpdatesAsync(cancellationToken);
+                validated = true;
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
-            PatStatusMessage = "PAT validated successfully ✓";
+            PatStatusMessage = validated ? "PAT validated successfully ✓" : "PAT saved (validation pending)";
             IsPatValid = true;
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
@@ -1680,7 +1684,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await Task.Run(() => _updateManager.Uninstall());
+            if (_updateManager != null)
+            {
+                await Task.Run(() => _updateManager.Uninstall());
+            }
         }
         catch (Exception ex)
         {
