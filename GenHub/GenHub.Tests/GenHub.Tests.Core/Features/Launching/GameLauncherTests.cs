@@ -1382,7 +1382,7 @@ public class GameLauncherTests : IDisposable
         {
             Directory.Delete(_retailRoot, recursive: true);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort; a leftover temp directory is not worth failing the run over.
         }

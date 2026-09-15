@@ -911,12 +911,7 @@ public class GameLauncher(
             var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
 
             var receiptContext = BuildLaunchReceiptContext(profile, gameClient, workspaceInfo, launchConfig, manifests, launchId);
-            if (previousReceipt is not null)
-            {
-                var configurationDrift = launchReceiptService.CompareUpcomingLaunch(previousReceipt, receiptContext);
-                LogReceiptDrift(profile.Id, configurationDrift);
-                receiptDriftWarnings.AddRange(configurationDrift.DriftedFields);
-            }
+            AppendConfigurationDrift(profile.Id, previousReceipt, receiptContext, receiptDriftWarnings);
 
             var processResult = await LaunchProcessAsync(
                 isSteamLaunch,
@@ -1693,6 +1688,23 @@ public class GameLauncher(
         LogReceiptDrift(profileId, driftReport);
         driftWarnings.AddRange(driftReport.DriftedFields);
         return driftReport.Receipt;
+    }
+
+    /// <summary>Appends configuration changes when a previous receipt is available.</summary>
+    /// <param name="profileId">The profile being launched.</param>
+    /// <param name="previousReceipt">The previous receipt, if any.</param>
+    /// <param name="context">The upcoming launch configuration.</param>
+    /// <param name="warnings">The accumulated drift warnings.</param>
+    private void AppendConfigurationDrift(string profileId, LaunchReceipt? previousReceipt, LaunchReceiptContext context, List<string> warnings)
+    {
+        if (previousReceipt is null)
+        {
+            return;
+        }
+
+        var drift = launchReceiptService.CompareUpcomingLaunch(previousReceipt, context);
+        LogReceiptDrift(profileId, drift);
+        warnings.AddRange(drift.DriftedFields);
     }
 
     /// <summary>

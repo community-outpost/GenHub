@@ -682,6 +682,35 @@ public class GameProfileLauncherViewModelTests
             Times.Never);
     }
 
+    /// <summary>Long drift reports show five details and an accurate remainder.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_WithManyReceiptChanges_CapsNoticeAsync()
+    {
+        var notifications = new Mock<INotificationService>();
+        var facade = new Mock<IProfileLauncherFacade>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "profile-1",
+            WorkspaceId = "profile-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+            ReceiptDriftWarnings = Enumerable.Range(1, 8).Select(i => $"Change {i}").ToList(),
+        };
+        facade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+        var vm = CreateLauncherViewModel(facade, notifications);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(CreateProfileItem("profile-1", "Test Profile"));
+
+        notifications.Verify(x => x.ShowInfo(
+            "Launch Configuration Changed",
+            It.Is<string>(m => Enumerable.Range(1, 5).All(i => m.Contains($"Change {i}"))
+                && !m.Contains("Change 6") && !m.Contains("Change 7") && !m.Contains("Change 8")
+                && m.Contains("...and 3 more; see the logs for full detail.")),
+            It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
     /// <summary>
     /// Verifies that a successful launch without receipt drift shows no notice.
     /// </summary>

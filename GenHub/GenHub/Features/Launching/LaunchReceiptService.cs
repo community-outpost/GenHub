@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -65,12 +63,7 @@ public class LaunchReceiptService(
                 receipt.ManifestVersions[manifestId] = version;
             }
 
-            receipt.EnvironmentHashSalt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
-            foreach (var (variableName, value) in context.EnvironmentVariables)
-            {
-                receipt.EnvironmentVariableHashes[variableName] =
-                    HashEnvironmentValue(value, receipt.EnvironmentHashSalt);
-            }
+            receipt.EnvironmentVariableNames = context.EnvironmentVariables.Keys.Order(StringComparer.Ordinal).ToList();
 
             foreach (var variableName in RetailArchiveConstants.InstallPathVariables)
             {
@@ -264,20 +257,14 @@ public class LaunchReceiptService(
         var recordedIds = new HashSet<string>(recordedManifestIds, StringComparer.Ordinal);
         var upcomingIds = new HashSet<string>(upcoming.ManifestIds, StringComparer.Ordinal);
 
-        foreach (var manifestId in recordedManifestIds)
+        foreach (var manifestId in recordedManifestIds.Where(id => !upcomingIds.Contains(id)))
         {
-            if (!upcomingIds.Contains(manifestId))
-            {
-                report.DriftedFields.Add($"Manifest no longer part of the launch: {manifestId}");
-            }
+            report.DriftedFields.Add($"Manifest no longer part of the launch: {manifestId}");
         }
 
-        foreach (var manifestId in upcoming.ManifestIds)
+        foreach (var manifestId in upcoming.ManifestIds.Where(id => !recordedIds.Contains(id)))
         {
-            if (!recordedIds.Contains(manifestId))
-            {
-                report.DriftedFields.Add($"Manifest added since the last launch: {manifestId}");
-            }
+            report.DriftedFields.Add($"Manifest added since the last launch: {manifestId}");
         }
 
         foreach (var (manifestId, recordedVersion) in receipt.ManifestVersions ?? [])
@@ -344,53 +331,19 @@ public class LaunchReceiptService(
     /// <param name="report">The report drifted fields are added to.</param>
     private static void CompareEnvironment(LaunchReceipt receipt, LaunchReceiptContext upcoming, LaunchReceiptDriftReport report)
     {
-        // Names, never values. These lines reach the log and the post-launch notice, both of
-        // which travel further than the machine that produced them, and a profile-defined
-        // variable can carry a credential. Which variable changed is the actionable part.
-        var recordedHashes = receipt.EnvironmentVariableHashes ?? [];
-        foreach (var (variableName, recordedHash) in recordedHashes)
+        // Arbitrary values can contain credentials. Even salted hashes permit offline
+        // guesses, so only names are persisted and compared. Root paths are separate.
+        var recordedNames = new HashSet<string>(receipt.EnvironmentVariableNames ?? [], StringComparer.Ordinal);
+        foreach (var variableName in recordedNames.Where(name => !IsArchiveRootVariable(name) && !upcoming.EnvironmentVariables.ContainsKey(name)))
         {
-            if (IsArchiveRootVariable(variableName))
-            {
-                continue;
-            }
-
-            if (!upcoming.EnvironmentVariables.TryGetValue(variableName, out var upcomingValue))
-            {
-                report.DriftedFields.Add($"Environment variable {variableName} is no longer set");
-            }
-            else if (!string.Equals(
-                recordedHash,
-                HashEnvironmentValue(upcomingValue, receipt.EnvironmentHashSalt),
-                StringComparison.Ordinal))
-            {
-                report.DriftedFields.Add($"Environment variable {variableName} changed value");
-            }
+            report.DriftedFields.Add($"Environment variable {variableName} is no longer set");
         }
 
-        foreach (var (variableName, _) in upcoming.EnvironmentVariables)
+        foreach (var variableName in upcoming.EnvironmentVariables.Keys.Where(name => !IsArchiveRootVariable(name) && !recordedNames.Contains(name)))
         {
-            if (!IsArchiveRootVariable(variableName) &&
-                !recordedHashes.ContainsKey(variableName))
-            {
-                report.DriftedFields.Add($"Environment variable {variableName} is newly set");
-            }
+            report.DriftedFields.Add($"Environment variable {variableName} is newly set");
         }
     }
-
-    /// <summary>
-    /// Hashes an environment variable value so drift can be detected without the receipt, the
-    /// log or the post-launch notice ever carrying the value itself.
-    /// </summary>
-    /// <param name="value">The value to hash.</param>
-    /// <param name="salt">The receipt's salt, keying the hash so it is unique to that receipt.</param>
-    /// <returns>The lowercase hexadecimal keyed hash of the value.</returns>
-    private static string HashEnvironmentValue(string value, string salt) =>
-        Convert.ToHexString(
-            HMACSHA256.HashData(
-                Encoding.UTF8.GetBytes(salt ?? string.Empty),
-                Encoding.UTF8.GetBytes(value ?? string.Empty)))
-            .ToLowerInvariant();
 
     /// <summary>
     /// Determines whether a variable is one of the retail archive root variables.
@@ -399,15 +352,7 @@ public class LaunchReceiptService(
     /// <returns>Whether it carries an archive root.</returns>
     private static bool IsArchiveRootVariable(string variableName)
     {
-        foreach (var rootVariable in RetailArchiveConstants.InstallPathVariables)
-        {
-            if (string.Equals(variableName, rootVariable, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return RetailArchiveConstants.InstallPathVariables.Contains(variableName, StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -426,14 +371,14 @@ public class LaunchReceiptService(
         if (recorded is null)
         {
             report.DriftedFields.Add(
-                $"Variant identity newly resolvable; entry point is {upcoming!.EntryPointRelativePath ?? "(unresolved)"}");
+                $"Variant identity newly resolvable; entry point is {upcoming!.EntryPointRelativePath ?? LaunchReceiptConstants.UnresolvedEntryPoint}");
             return;
         }
 
         if (upcoming is null)
         {
             report.DriftedFields.Add(
-                $"Variant identity no longer resolvable; entry point was {recorded.EntryPointRelativePath ?? "(unresolved)"}");
+                $"Variant identity no longer resolvable; entry point was {recorded.EntryPointRelativePath ?? LaunchReceiptConstants.UnresolvedEntryPoint}");
             return;
         }
 
@@ -452,7 +397,7 @@ public class LaunchReceiptService(
         if (!string.Equals(recorded.EntryPointRelativePath, upcoming.EntryPointRelativePath, StringComparison.Ordinal))
         {
             report.DriftedFields.Add(
-                $"Entry point changed from {recorded.EntryPointRelativePath ?? "(unresolved)"} to {upcoming.EntryPointRelativePath ?? "(unresolved)"}");
+                $"Entry point changed from {recorded.EntryPointRelativePath ?? LaunchReceiptConstants.UnresolvedEntryPoint} to {upcoming.EntryPointRelativePath ?? LaunchReceiptConstants.UnresolvedEntryPoint}");
         }
     }
 
