@@ -25,6 +25,29 @@ public static class RetailArchiveConstants
     public const string GeneralsInstallPathVariable = "CNC_GENERALS_INSTALLPATH";
 
     /// <summary>
+    /// Stderr line prefix the engine writes when an archive's identifier does not match.
+    /// The rest of the line is the archive path.
+    /// </summary>
+    /// <remarks>
+    /// Fork-only, like <see cref="ArchiveMountFailedStderrPrefix"/>: emitted by
+    /// <c>StdBIGFileSystem</c> on the bgfx fork and absent upstream on every platform,
+    /// including <c>Win32BIGFileSystem</c>. Both sentinels are therefore strictly
+    /// advisory — their absence means "this build does not emit one", never that the
+    /// launch was healthy.
+    /// </remarks>
+    public const string ArchiveIdentifierMismatchStderrPrefix = "[ggc] archive identifier mismatch: ";
+
+    /// <summary>
+    /// Stderr line prefix the engine writes when an archive cannot be mounted at all.
+    /// The rest of the line is the archive path.
+    /// </summary>
+    /// <remarks>
+    /// See <see cref="ArchiveIdentifierMismatchStderrPrefix"/> for why matching this is
+    /// advisory only.
+    /// </remarks>
+    public const string ArchiveMountFailedStderrPrefix = "[ggc] ARCHIVE MOUNT FAILED, contents unavailable this run: ";
+
+    /// <summary>
     /// Search pattern for the archives the engine mounts from a retail root.
     /// </summary>
     /// <remarks>

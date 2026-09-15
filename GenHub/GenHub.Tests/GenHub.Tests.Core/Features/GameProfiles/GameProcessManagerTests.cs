@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
 using Microsoft.Extensions.Logging;
@@ -21,6 +22,82 @@ public class GameProcessManagerTests
     public GameProcessManagerTests()
     {
         _processManager = new GameProcessManager(_loggerMock.Object);
+    }
+
+    /// <summary>A throwing exit subscriber cannot suppress later subscribers or block subsequent stops.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TerminateProcessAsync_WithThrowingExitSubscriber_CompletesAsync()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+        var observed = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processManager.ProcessExited += (_, _) => throw new InvalidOperationException("Broken subscriber");
+        _processManager.ProcessExited += (_, args) => observed.TrySetResult(args);
+        var started = await _processManager.StartProcessAsync(new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        });
+        Assert.True(started.Success);
+
+        var stopped = await _processManager.TerminateProcessAsync(started.Data!.ProcessId).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(stopped.Success);
+        Assert.True((await observed.Task.WaitAsync(TimeSpan.FromSeconds(1))).TerminationRequested);
+        Assert.True((await _processManager.TerminateProcessAsync(99999).WaitAsync(TimeSpan.FromSeconds(1))).Success);
+    }
+
+    /// <summary>A missing notification completes within the configured limit instead of waiting forever.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task WaitForExitNotificationAsync_MissingNotification_ReturnsAfterTimeoutAsync()
+    {
+        var missing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await _processManager.WaitForExitNotificationAsync(missing.Task, 12345)
+            .WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs + 5000));
+        Assert.False(missing.Task.IsCompleted);
+    }
+
+    /// <summary>A cancelled stop keeps monitoring and does not mask a later unexpected exit.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TerminateProcessAsync_CancelledBeforeKill_KeepsMonitoringAsync()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+        using var cancellation = new CancellationTokenSource();
+        var started = await _processManager.StartProcessAsync(new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        });
+        Assert.True(started.Success);
+        var processId = started.Data!.ProcessId;
+        var exited = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processManager.ProcessExited += (_, args) => exited.TrySetResult(args);
+        _loggerMock.Setup(x => x.Log(
+                It.IsAny<LogLevel>(), It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(invocation =>
+            {
+                if (invocation.Arguments[2].ToString()!.Contains("[Terminate] Force killing"))
+                {
+                    cancellation.Cancel();
+                }
+            }));
+        try
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => _processManager.TerminateProcessAsync(processId, cancellation.Token));
+            Assert.True((await _processManager.GetProcessInfoAsync(processId)).Data!.IsRunning);
+            using var process = System.Diagnostics.Process.GetProcessById(processId);
+            process.Kill(entireProcessTree: true);
+            var observed = await exited.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(processId, observed.ProcessId);
+            Assert.False(observed.TerminationRequested);
+        }
+        finally
+        {
+            await _processManager.TerminateProcessAsync(processId);
+        }
     }
 
     /// <summary>

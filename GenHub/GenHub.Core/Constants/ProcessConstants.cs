@@ -69,9 +69,29 @@ public static class ProcessConstants
     // Process discovery and timing constants
 
     /// <summary>
-    /// Delay in milliseconds to wait before checking if a process has exited (launcher detection).
+    /// Historical launcher delay in milliseconds, retained as a cancellation-test baseline.
     /// </summary>
+    /// <remarks>
+    /// Production launch timing uses <see cref="PostSpawnExitDetectionWindowMs"/>,
+    /// <see cref="SpawnedChildDiscoveryTimeoutMs"/>, and <see cref="SpawnedChildPollIntervalMs"/>.
+    /// This constant no longer imposes a minimum wait before child discovery.
+    /// </remarks>
     public const int LauncherDetectionDelayMs = 500;
+
+    /// <summary>
+    /// Bounded window in milliseconds during which a just-started game process is watched
+    /// for an early exit before the launch is reported successful.
+    /// </summary>
+    /// <remarks>
+    /// Sized from measurement rather than guessed. The native Zero Hour client aborting
+    /// initialisation in an empty workspace exits 1 after roughly 0.8–0.9 s once warm
+    /// (macOS, Apple Silicon), so three seconds is ~3x the observed abort, absorbing slow
+    /// disks and emulation. The very first run of a freshly copied binary can take 3–5 s
+    /// because macOS validates the new inode before execution; an abort that slow falls
+    /// outside the window and is reported through the process-exited event instead of the
+    /// launch result.
+    /// </remarks>
+    public const int PostSpawnExitDetectionWindowMs = 3000;
 
     /// <summary>
     /// Interval in milliseconds for process cleanup / reconciliation background task.
@@ -130,4 +150,8 @@ public static class ProcessConstants
     /// Timeout in milliseconds when waiting for helper or utility process commands (e.g., junction creation).
     /// </summary>
     public const int HelperProcessTimeoutMs = 5_000;
+
+    /// <summary>Maximum time to await a managed process exit notification after it has exited.</summary>
+    public const int TerminationExitNotificationTimeoutMs = 5_000;
+
 }

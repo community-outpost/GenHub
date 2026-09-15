@@ -26,6 +26,31 @@ public class GameProcessManager(
 {
     private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
+
+    /// <summary>
+    /// Stderr captures for processes this manager started itself, keyed by PID.
+    /// </summary>
+    /// <remarks>
+    /// The late-failure channel: an initialisation abort slow enough to outlive the
+    /// post-spawn detection window exits after the launch was reported as started, and
+    /// its stderr — the only explanation of the failure — would otherwise be dropped with
+    /// the start operation's locals. Kept per PID so <see cref="OnProcessExited"/> can
+    /// attach it to the exit event.
+    /// </remarks>
+    private readonly ConcurrentDictionary<int, BoundedErrorBuffer> _stderrBuffers = new();
+
+    /// <summary>
+    /// PIDs whose termination was requested through <see cref="TerminateProcessAsync"/>,
+    /// marked before the kill is attempted.
+    /// </summary>
+    /// <remarks>
+    /// A deliberate stop kills the process, and a killed process exits non-zero — which
+    /// is exactly the signature the late-failure channel treats as a crash. Every stop
+    /// path in the application funnels through <see cref="TerminateProcessAsync"/>, so
+    /// marking here lets the exit event distinguish "the user stopped it" from "it
+    /// died", and downstream consumers suppress the failure classification.
+    /// </remarks>
+    private readonly ConcurrentDictionary<int, byte> _requestedTerminations = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     /// <summary>
@@ -97,17 +122,14 @@ public class GameProcessManager(
                 return await AdoptExpectedChildProcessAsync(process, configuration, workingDirectory, launcherStartTime, capturedErrors, cancellationToken);
             }
 
-            if (!isBatchFile)
+            // Observe initialization failures before reporting a running process.
+            if (!isBatchFile && await WaitForExitWithinWindowAsync(process, cancellationToken))
             {
-                await Task.Delay(ProcessConstants.LauncherDetectionDelayMs, cancellationToken);
-
-                if (process.HasExited)
-                {
-                    return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
-                }
+                return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
             }
 
             _managedProcesses[process.Id] = process;
+            _stderrBuffers[process.Id] = capturedErrors;
 
             if (configuration.WaitForExit)
             {
@@ -159,73 +181,62 @@ public class GameProcessManager(
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default)
     {
-        // Use semaphore to prevent concurrent termination attempts on the same or different processes
-        // This prevents race conditions and ensures clean process state management
         await _terminationSemaphore.WaitAsync(cancellationToken);
+        Process? process = null;
+        var ownsProcess = false;
+        var terminated = false;
+        var exitObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void ObserveExit(object? sender, GameProcessExitedEventArgs args)
+        {
+            if (args.ProcessId == processId)
+            {
+                exitObserved.TrySetResult();
+            }
+        }
+
+        // Subscribe before looking up the process: an exit before the lookup removes
+        // it from managed state, while a later managed exit is observed by this handler.
+        ProcessExited += ObserveExit;
         try
         {
-            logger.LogInformation("[Terminate] Starting termination of process {ProcessId}", processId);
-
-            // Try to get from managed processes first
-            if (!_managedProcesses.TryRemove(processId, out Process? process))
+            // Keep a managed process tracked until its exit is observed. A failed or
+            // cancelled Stop must leave it available for later monitoring and retries.
+            if (!_managedProcesses.TryGetValue(processId, out process))
             {
-                logger.LogDebug("[Terminate] Process {ProcessId} not in managed processes, trying system lookup", processId);
-
-                // Try to get from system processes
                 try
                 {
                     process = Process.GetProcessById(processId);
-                    logger.LogDebug("[Terminate] Found process {ProcessId} via system lookup", processId);
+                    ownsProcess = true;
                 }
                 catch (ArgumentException)
                 {
-                    // Process not found - it may have already exited
-                    logger.LogInformation("[Terminate] Process {ProcessId} not found - already exited", processId);
                     return OperationResult<bool>.CreateSuccess(true);
                 }
-                catch (InvalidOperationException)
+            }
+
+            logger.LogInformation("[Terminate] Force killing process {ProcessId} and its process tree", processId);
+            await Task.Run(
+                () =>
                 {
-                    // Process access denied or already exited
-                    logger.LogInformation("[Terminate] Process {ProcessId} is no longer accessible - access denied or already exited", processId);
-                    return OperationResult<bool>.CreateSuccess(true);
-                }
-            }
-            else
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!ownsProcess)
+                    {
+                        _requestedTerminations[processId] = 1;
+                    }
+
+                    process.Kill(entireProcessTree: true);
+                },
+                cancellationToken);
+
+            // Once Kill has been issued, finish observing the exit even if the caller
+            // cancels. Disposal before the exit callback can suppress its notification.
+            await process.WaitForExitAsync(CancellationToken.None);
+            if (!ownsProcess)
             {
-                logger.LogDebug("[Terminate] Found process {ProcessId} in managed processes", processId);
+                await WaitForExitNotificationAsync(exitObserved.Task, processId);
             }
 
-            if (process == null)
-            {
-                logger.LogInformation("[Terminate] Process {ProcessId} is null - already exited", processId);
-                return OperationResult<bool>.CreateSuccess(true);
-            }
-
-            // Force kill immediately - run on background thread to avoid blocking UI
-            // process.Kill(entireProcessTree: true) is a synchronous blocking operation
-            // that can take several seconds when terminating a process tree
-            try
-            {
-                logger.LogInformation("[Terminate] Force killing process {ProcessId} and its process tree", processId);
-
-                // Run Kill() on a background thread to prevent UI freeze
-                await Task.Run(() => process.Kill(entireProcessTree: true), cancellationToken);
-
-                logger.LogInformation("[Terminate] Process {ProcessId} terminated successfully", processId);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Process already exited
-                logger.LogInformation(ex, "[Terminate] Process {ProcessId} already exited", processId);
-            }
-            catch (System.ComponentModel.Win32Exception ex)
-            {
-                logger.LogError(ex, "[Terminate] Win32 error killing process {ProcessId}: {ErrorCode}", processId, ex.NativeErrorCode);
-                process.Dispose();
-                return OperationResult<bool>.CreateFailure($"Failed to terminate process: {ex.Message}");
-            }
-
-            process.Dispose();
+            terminated = true;
             logger.LogInformation("Terminated process {ProcessId}", processId);
             return OperationResult<bool>.CreateSuccess(true);
         }
@@ -234,6 +245,11 @@ public class GameProcessManager(
             logger.LogInformation("Process {ProcessId} termination was cancelled", processId);
             throw;
         }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogInformation(ex, "Process {ProcessId} already exited", processId);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to terminate process {ProcessId}", processId);
@@ -241,6 +257,17 @@ public class GameProcessManager(
         }
         finally
         {
+            ProcessExited -= ObserveExit;
+            if (!terminated || ownsProcess)
+            {
+                _requestedTerminations.TryRemove(processId, out _);
+            }
+
+            if (ownsProcess || terminated)
+            {
+                process?.Dispose();
+            }
+
             _terminationSemaphore.Release();
         }
     }
@@ -365,8 +392,8 @@ public class GameProcessManager(
 
         try
         {
-            process.EnableRaisingEvents = true;
             process.Exited += OnProcessExited;
+            process.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
@@ -401,8 +428,8 @@ public class GameProcessManager(
 
                 try
                 {
-                    process.EnableRaisingEvents = true;
                     process.Exited += OnProcessExited;
+                    process.EnableRaisingEvents = true;
                 }
                 catch (Exception ex)
                 {
@@ -457,6 +484,8 @@ public class GameProcessManager(
         foreach (var processId in deadProcessIds)
         {
             _managedProcesses.TryRemove(processId, out _);
+            _stderrBuffers.TryRemove(processId, out _);
+            _requestedTerminations.TryRemove(processId, out _);
             logger.LogTrace("Cleaned up dead process {ProcessId} from managed processes", processId);
         }
 
@@ -495,12 +524,30 @@ public class GameProcessManager(
         }
 
         _managedProcesses.Clear();
+        _stderrBuffers.Clear();
+        _requestedTerminations.Clear();
         _terminationSemaphore.Dispose();
         _disposed = true;
 
         GC.SuppressFinalize(this);
 
         logger.LogInformation("GameProcessManager disposed");
+    }
+
+    /// <summary>Bounds notification delivery so a missing callback cannot block future stops.</summary>
+    /// <param name="notification">Completion of the managed exit notification.</param>
+    /// <param name="processId">The process that has exited.</param>
+    /// <returns>A task completing after notification delivery or its timeout.</returns>
+    internal async Task WaitForExitNotificationAsync(Task notification, int processId)
+    {
+        try
+        {
+            await notification.WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs));
+        }
+        catch (TimeoutException)
+        {
+            logger.LogWarning("Timed out waiting for exit notification for process {ProcessId}; continuing termination cleanup", processId);
+        }
     }
 
     /// <summary>
@@ -676,8 +723,8 @@ public class GameProcessManager(
     {
         try
         {
-            process.EnableRaisingEvents = true;
             process.Exited += OnProcessExited;
+            process.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
@@ -895,8 +942,8 @@ public class GameProcessManager(
 
         try
         {
-            spawnedProcess.EnableRaisingEvents = true;
             spawnedProcess.Exited += OnProcessExited;
+            spawnedProcess.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
@@ -921,6 +968,18 @@ public class GameProcessManager(
         var stderrTail = capturedErrors.ToString();
         if (exitCode != 0)
         {
+            var unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+            if (unmountableArchives.Count > 0)
+            {
+                var archiveNames = string.Join(", ", unmountableArchives);
+                logger.LogError(
+                    "[Process] Process exited during startup with code {ExitCode} after failing to mount archive(s): {Archives}",
+                    exitCode,
+                    archiveNames);
+                return OperationResult<GameProcessInfo>.CreateFailure(
+                    $"The game could not mount required archive(s): {archiveNames}. Process exited during startup with code {exitCode}.");
+            }
+
             var detail = string.IsNullOrWhiteSpace(stderrTail)
                 ? "No output was captured."
                 : stderrTail;
@@ -943,6 +1002,84 @@ public class GameProcessManager(
             $"Process exited immediately after launch.{suffix}");
     }
 
+    /// <summary>
+    /// Waits for the process to exit, up to the post-spawn detection window.
+    /// </summary>
+    /// <remarks>
+    /// The window bounds how long a launch report can be delayed, not how long a failure
+    /// can be detected: a process that outlives it is treated as launched, and any later
+    /// abort surfaces through <see cref="ProcessExited"/>. Cancellation requested by the
+    /// caller propagates; the window elapsing does not.
+    /// </remarks>
+    /// <param name="process">The just-started process.</param>
+    /// <param name="cancellationToken">The caller's cancellation token.</param>
+    /// <returns><c>true</c> when the process exited within the window.</returns>
+    private static async Task<bool> WaitForExitWithinWindowAsync(Process process, CancellationToken cancellationToken)
+    {
+        using var windowCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        windowCts.CancelAfter(ProcessConstants.PostSpawnExitDetectionWindowMs);
+
+        try
+        {
+            await process.WaitForExitAsync(windowCts.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Only the detection window elapsed; the launch itself is not cancelled.
+        }
+        finally
+        {
+            // WaitForExitAsync enables exit events internally. Disable them before the
+            // final check so an exit after this check is delivered when the long-lived
+            // handler is attached and events are re-enabled with tracking state ready.
+            process.EnableRaisingEvents = false;
+        }
+
+        return process.HasExited;
+    }
+
+    /// <summary>
+    /// Extracts the archive paths named by the engine's mount-failure stderr sentinels.
+    /// </summary>
+    /// <remarks>
+    /// Strictly advisory. The sentinels are an external contract with the fork engine
+    /// (see <see cref="RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix"/>)
+    /// and no other build emits them, so an empty result must never influence whether the
+    /// launch is judged to have failed — it only leaves the generic stderr tail in place.
+    /// </remarks>
+    /// <param name="stderrLines">The captured stderr lines.</param>
+    /// <returns>The distinct archives named, in order of first appearance.</returns>
+    private static IReadOnlyList<string> ExtractUnmountableArchives(IReadOnlyList<string> stderrLines)
+    {
+        string[] sentinelPrefixes =
+        [
+            RetailArchiveConstants.ArchiveMountFailedStderrPrefix,
+            RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix,
+        ];
+
+        var archives = new List<string>();
+        foreach (var line in stderrLines)
+        {
+            foreach (var prefix in sentinelPrefixes)
+            {
+                var index = line.IndexOf(prefix, StringComparison.Ordinal);
+                if (index < 0)
+                {
+                    continue;
+                }
+
+                var archive = line[(index + prefix.Length)..].Trim();
+                if (archive.Length > 0 && !archives.Contains(archive))
+                {
+                    archives.Add(archive);
+                }
+            }
+        }
+
+        return archives;
+    }
+
     private void OnProcessExited(object? sender, EventArgs e)
     {
         if (sender is not Process process)
@@ -962,15 +1099,56 @@ public class GameProcessManager(
         // Remove from managed processes
         _managedProcesses.TryRemove(processId, out _);
 
+        var terminationRequested = _requestedTerminations.TryRemove(processId, out _);
+
+        // Attach the stderr capture, when this manager started the process itself. This
+        // is what makes an abort that outlived the detection window explicable: the exit
+        // is already after "launched", so the event is the only place the evidence fits.
+        string? stderrTail = null;
+        IReadOnlyList<string> unmountableArchives = [];
+        if (_stderrBuffers.TryRemove(processId, out var capturedErrors))
+        {
+            DrainStandardError(process, capturedErrors);
+
+            var tail = capturedErrors.ToString();
+            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
+            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+        }
+
+        if (!terminationRequested && exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
+        {
+            logger.LogWarning(
+                "Process {ProcessId} exited with non-zero code {ExitCode} after the launch was reported as started. Archives: {Archives}. Output: {Output}",
+                processId,
+                code,
+                unmountableArchives.Count > 0 ? string.Join(", ", unmountableArchives) : "none named",
+                stderrTail ?? "No output was captured.");
+        }
+
         // Raise the event
         var args = new GameProcessExitedEventArgs
         {
             ProcessId = processId,
             ExitCode = exitCode,
             ExitTime = DateTime.UtcNow,
+            StandardErrorTail = stderrTail,
+            UnmountableArchives = unmountableArchives,
+            TerminationRequested = terminationRequested,
         };
 
-        ProcessExited?.Invoke(this, args);
+        // This is a process-event boundary: one subscriber must not prevent the
+        // remaining subscribers (including termination completion) from observing exit.
+        foreach (EventHandler<GameProcessExitedEventArgs> subscriber in ProcessExited?.GetInvocationList() ?? [])
+        {
+            try
+            {
+                subscriber(this, args);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Process-exit subscriber failed for process {ProcessId}", processId);
+            }
+        }
 
         logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
     }
@@ -1047,8 +1225,8 @@ public class GameProcessManager(
 
                     try
                     {
-                        child.EnableRaisingEvents = true;
                         child.Exited += OnProcessExited;
+                        child.EnableRaisingEvents = true;
                     }
                     catch (Exception ex)
                     {
@@ -1511,6 +1689,23 @@ public class GameProcessManager(
                 {
                     return _endOfStream;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Returns the retained lines, head first, for line-oriented matching.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ToString"/> joins lines for display; matching against that joined
+        /// form would let one line's content bleed into the next. Lines dropped by the
+        /// bounds are gone from here too, which is acceptable for an advisory match.
+        /// </remarks>
+        /// <returns>A snapshot of the retained lines.</returns>
+        internal IReadOnlyList<string> Snapshot()
+        {
+            lock (_gate)
+            {
+                return [.. _head, .. _tail];
             }
         }
 

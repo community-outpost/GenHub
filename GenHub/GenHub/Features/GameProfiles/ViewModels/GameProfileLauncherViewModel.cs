@@ -1670,6 +1670,12 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private void OnProcessExited(object? sender, Core.Models.Events.GameProcessExitedEventArgs e)
     {
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnProcessExited(sender, e));
+            return;
+        }
+
         try
         {
             logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
@@ -1681,6 +1687,14 @@ public partial class GameProfileLauncherViewModel(
                 profile.IsProcessRunning = false;
                 profile.ProcessId = 0;
                 logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+
+                var failureReason = e.DescribeFailure();
+                if (failureReason != null)
+                {
+                    StatusMessage = $"{profile.Name} exited unexpectedly";
+                    ErrorMessage = failureReason;
+                    notificationService.ShowError("Game Exited Unexpectedly", $"{profile.Name}: {failureReason}");
+                }
             }
         }
         catch (Exception ex)
