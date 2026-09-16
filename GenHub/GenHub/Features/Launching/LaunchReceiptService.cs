@@ -295,13 +295,16 @@ public class LaunchReceiptService(
             report.DriftedFields.Add($"Manifest added since the last launch: {manifestId}");
         }
 
-        foreach (var (manifestId, recordedVersion) in receipt.ManifestVersions ?? [])
+        var recordedVersions = receipt.ManifestVersions ?? [];
+        foreach (var manifestId in recordedIds.Where(upcomingIds.Contains))
         {
-            if (upcoming.ManifestVersions.TryGetValue(manifestId, out var upcomingVersion) &&
-                !string.Equals(recordedVersion, upcomingVersion, StringComparison.Ordinal))
+            var hadVersion = recordedVersions.TryGetValue(manifestId, out var recordedVersion);
+            var hasVersion = upcoming.ManifestVersions.TryGetValue(manifestId, out var upcomingVersion);
+            if (hadVersion != hasVersion ||
+                (hadVersion && !string.Equals(recordedVersion, upcomingVersion, StringComparison.Ordinal)))
             {
                 report.DriftedFields.Add(
-                    $"Manifest {manifestId} version changed from {recordedVersion} to {upcomingVersion}");
+                    $"Manifest {manifestId} version changed from {(hadVersion ? recordedVersion : LaunchReceiptConstants.MissingValue)} to {(hasVersion ? upcomingVersion : LaunchReceiptConstants.MissingValue)}");
             }
         }
     }
