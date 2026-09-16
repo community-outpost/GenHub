@@ -117,7 +117,9 @@ public class LaunchRegistry : ILaunchRegistry
             var processId = launchInfo.ProcessInfo.ProcessId;
             if (processId > 0
                 && _pendingExits.TryRemove(processId, out var pendingExit)
-                && DateTime.UtcNow - pendingExit.ExitTime <= PendingExitRetention)
+                && DateTime.UtcNow - pendingExit.ExitTime <= PendingExitRetention
+                && (pendingExit.ProcessInstanceId == Guid.Empty
+                    || pendingExit.ProcessInstanceId == launchInfo.ProcessInfo.ProcessInstanceId))
             {
                 _logger.LogInformation(
                     "[LaunchRegistry] Applying buffered exit event for PID {ProcessId} to newly registered launch {LaunchId}",
@@ -186,6 +188,26 @@ public class LaunchRegistry : ILaunchRegistry
         return Task.FromResult(_activeLaunches.Values.Where(l => !l.TerminatedAt.HasValue).AsEnumerable());
     }
 
+    /// <summary>Applies a polling result once; exit diagnostics may subsequently enrich the same process instance.</summary>
+    /// <param name="launch">The launch captured by polling.</param>
+    /// <param name="exitTime">The observed termination time.</param>
+    internal void MarkPollingTerminated(GameLaunchInfo launch, DateTime exitTime)
+    {
+        lock (_exitSync)
+        {
+            if (launch.TerminatedAt.HasValue
+                || !_activeLaunches.TryGetValue(launch.LaunchId, out var registered)
+                || !ReferenceEquals(registered, launch))
+            {
+                return;
+            }
+
+            launch.TerminatedAt = exitTime;
+            launch.ProcessInfo.IsRunning = false;
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, launch.ProcessInfo.ProcessId));
+        }
+    }
+
     /// <summary>
     /// Handles the ProcessExited event from the game process manager.
     /// </summary>
@@ -204,18 +226,20 @@ public class LaunchRegistry : ILaunchRegistry
             // different exit time/code belongs to a new launch awaiting registration.
             // Redelivery must preserve the original ExitTime even when cloning the args;
             // stamping a new time describes a new exit and cannot be safely deduplicated.
-            if (_activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId
+            if (e.ProcessInstanceId == Guid.Empty && _activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId
                 && l.TerminatedAt == e.ExitTime && l.ExitCode == e.ExitCode))
             {
                 return;
             }
 
-            // Find the live launch holding this PID. Terminated launches keep their PID in
-            // the registry, so a recycled PID would otherwise match the dead launch first
-            // and lose the event to the idempotency guard rather than applying it to the
-            // live launch the PID now belongs to.
+            // A manager-assigned identity can enrich a launch already stopped by polling.
+            // Legacy events without an identity may match only live launches; a PID alone
+            // cannot prove which terminated process produced a delayed event.
             var launch = _activeLaunches.Values.FirstOrDefault(
-                l => l.ProcessInfo.ProcessId == e.ProcessId && !l.TerminatedAt.HasValue);
+                l => l.ProcessInfo.ProcessId == e.ProcessId
+                    && (e.ProcessInstanceId != Guid.Empty
+                        ? l.ProcessInfo.ProcessInstanceId == e.ProcessInstanceId
+                        : !l.TerminatedAt.HasValue));
             if (launch != null)
             {
                 ApplyProcessExit(launch, e);
@@ -257,6 +281,7 @@ public class LaunchRegistry : ILaunchRegistry
             return;
         }
 
+        var alreadyStopped = launch.TerminatedAt.HasValue;
         _inspectionFailureCounts.TryRemove(launch.LaunchId, out _);
         _logger.LogInformation("[LaunchRegistry] Updating launch {LaunchId} as terminated", launch.LaunchId);
 
@@ -283,7 +308,10 @@ public class LaunchRegistry : ILaunchRegistry
                 failureReason);
         }
 
-        WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, e.ProcessId));
+        if (!alreadyStopped)
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, e.ProcessId));
+        }
     }
 
     /// <summary>
@@ -308,6 +336,17 @@ public class LaunchRegistry : ILaunchRegistry
     /// <param name="launchInfo">The launch information to update.</param>
     /// <param name="launchId">The launch ID.</param>
     private void TryUpdateProcessStatus(GameLaunchInfo launchInfo, string launchId)
+    {
+        lock (_exitSync)
+        {
+            if (!launchInfo.TerminatedAt.HasValue)
+            {
+                InspectProcessStatus(launchInfo, launchId);
+            }
+        }
+    }
+
+    private void InspectProcessStatus(GameLaunchInfo launchInfo, string launchId)
     {
         // The launcher has registered its intent but has not started a process yet.
         if (launchInfo.ProcessInfo.ProcessId <= 0)
@@ -345,18 +384,14 @@ public class LaunchRegistry : ILaunchRegistry
     {
         _logger.LogDebug("Process {ProcessId} for launch {LaunchId} no longer exists", launchInfo.ProcessInfo.ProcessId, launchId);
         _inspectionFailureCounts.TryRemove(launchId, out _);
-        launchInfo.TerminatedAt = DateTime.UtcNow;
-        launchInfo.ProcessInfo.IsRunning = false;
-        WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
+        MarkPollingTerminated(launchInfo, DateTime.UtcNow);
     }
 
     private void HandleExitedProcess(GameLaunchInfo launchInfo, string launchId, Process runningProcess)
     {
         _logger.LogDebug("Process {ProcessId} for launch {LaunchId} has exited", launchInfo.ProcessInfo.ProcessId, launchId);
-        launchInfo.TerminatedAt = GetProcessExitTimeSafely(runningProcess);
         _inspectionFailureCounts.TryRemove(launchId, out _);
-        launchInfo.ProcessInfo.IsRunning = false;
-        WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
+        MarkPollingTerminated(launchInfo, GetProcessExitTimeSafely(runningProcess));
     }
 
     private DateTime GetProcessExitTimeSafely(Process process)
@@ -388,10 +423,8 @@ public class LaunchRegistry : ILaunchRegistry
         if (failures >= MaxInspectionFailures)
         {
             _logger.LogWarning(ex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
-            launchInfo.TerminatedAt = DateTime.UtcNow;
-            launchInfo.ProcessInfo.IsRunning = false;
             _inspectionFailureCounts.TryRemove(new KeyValuePair<string, int>(launchId, failures));
-            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
+            MarkPollingTerminated(launchInfo, DateTime.UtcNow);
         }
         else
         {

@@ -35,9 +35,10 @@ public class GameProcessManager(
     private sealed class ExitFinalizationState
     {
         public int Finalized;
+
+        public Guid InstanceId { get; } = Guid.NewGuid();
     }
 
-    private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
     private readonly ConcurrentDictionary<int, BoundedErrorBuffer> _capturedProcessErrors = new();
@@ -69,21 +70,20 @@ public class GameProcessManager(
     private readonly ConcurrentDictionary<Process, byte> _requestedTerminations = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
-    /// <summary>
-    /// Periodic timer to clean up dead processes and prevent memory leaks.
-    /// </summary>
-    private readonly Timer _cleanupTimer = new(
-        _ => { /* Cleanup will be called through CleanupDeadProcesses */ },
-        null,
-        TimeSpan.FromMilliseconds(CleanupIntervalMs),
-        TimeSpan.FromMilliseconds(CleanupIntervalMs));
-
     private bool _disposed;
+
+    /// <summary>Gets or sets the process lookup used by termination; tests can supply a lookup that never accesses the OS.</summary>
+    internal Func<int, Process> TerminationProcessLookup { get; set; } = Process.GetProcessById;
 
     /// <summary>
     /// Occurs when a managed game process has exited.
     /// Subscribers can use this event to react to process termination and perform cleanup.
     /// </summary>
+    /// <remarks>
+    /// Handlers run synchronously and must not block waiting for another termination.
+    /// A termination may hold the manager's semaphore while publishing this event;
+    /// schedule follow-up asynchronous work and return promptly.
+    /// </remarks>
     public event EventHandler<GameProcessExitedEventArgs>? ProcessExited;
 
     /// <inheritdoc/>
@@ -261,7 +261,7 @@ public class GameProcessManager(
             {
                 try
                 {
-                    process = Process.GetProcessById(processId);
+                    process = TerminationProcessLookup(processId);
                     ownsProcess = true;
                 }
                 catch (ArgumentException)
@@ -345,6 +345,7 @@ public class GameProcessManager(
                 var processInfo = new GameProcessInfo
                 {
                     ProcessId = process.Id,
+                    ProcessInstanceId = _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).InstanceId,
                     ProcessName = process.ProcessName,
                     StartTime = process.StartTime.ToUniversalTime(),
                     ExecutablePath = GetProcessExecutablePath(process),
@@ -513,7 +514,8 @@ public class GameProcessManager(
     /// <summary>
     /// Cleans up dead processes from the managed processes dictionary.
     /// This prevents memory leaks from processes that exited without triggering the Exited event.
-    /// Can be called periodically or on-demand.
+    /// Explicit maintenance hook only; no production timer currently invokes it.
+    /// Normal cleanup is performed by the exit callback and termination fallback.
     /// </summary>
     public void CleanupDeadProcesses()
     {
@@ -562,9 +564,6 @@ public class GameProcessManager(
 
         logger.LogDebug("Disposing GameProcessManager with {Count} managed processes", _managedProcesses.Count);
 
-        // Dispose cleanup timer first
-        _cleanupTimer?.Dispose();
-
         // Clean up all managed processes
         foreach (var kvp in _managedProcesses)
         {
@@ -605,6 +604,113 @@ public class GameProcessManager(
         {
             logger.LogWarning("Timed out waiting for exit notification for process {ProcessId}; continuing termination cleanup", processId);
         }
+    }
+
+    /// <summary>Handles a process exit, including a callback delayed past disposal.</summary>
+    /// <param name="sender">The process instance.</param>
+    /// <param name="e">The event arguments.</param>
+    internal void OnProcessExited(object? sender, EventArgs e)
+    {
+        if (sender is not Process process)
+            return;
+
+        var processId = 0;
+        try
+        {
+            processId = process.Id;
+        }
+        catch (InvalidOperationException)
+        {
+            // A delayed callback can arrive after termination disposed the process.
+            processId = _managedProcesses.FirstOrDefault(entry => ReferenceEquals(entry.Value, process)).Key;
+            if (processId == 0)
+            {
+                return;
+            }
+        }
+
+        FinalizeProcessExit(process, processId);
+    }
+
+    /// <summary>Publishes one exit and clears only state belonging to this process instance.</summary>
+    /// <param name="process">The exited process; no signal is sent by this method.</param>
+    /// <param name="processId">Its positive process ID, captured before disposal.</param>
+    internal void FinalizeProcessExit(Process process, int processId)
+    {
+        if (processId <= 0 || Interlocked.Exchange(ref _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).Finalized, 1) != 0)
+        {
+            return;
+        }
+
+        var exitTime = DateTime.UtcNow;
+        int? exitCode = null;
+        try
+        {
+            exitTime = process.ExitTime.ToUniversalTime();
+            exitCode = process.ExitCode;
+        }
+        catch
+        {
+            // Process may have already been disposed
+        }
+
+        // A delayed callback must not remove a new process that reused the same PID.
+        _managedProcesses.TryRemove(new KeyValuePair<int, Process>(processId, process));
+
+        var terminationRequested = _requestedTerminations.TryRemove(process, out _);
+
+        // Attach the stderr capture, when this manager started the process itself. This
+        // is what makes an abort that outlived the detection window explicable: the exit
+        // is already after "launched", so the event is the only place the evidence fits.
+        string? stderrTail = null;
+        IReadOnlyList<string> unmountableArchives = [];
+        if (_stderrBuffers.TryRemove(process, out var capturedErrors))
+        {
+            DrainStandardError(process, capturedErrors);
+
+            var tail = capturedErrors.ToString();
+            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
+            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+        }
+
+        if (!terminationRequested && exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
+        {
+            logger.LogWarning(
+                "Process {ProcessId} exited with non-zero code {ExitCode} after the launch was reported as started. Archives: {Archives}. Output: {Output}",
+                processId,
+                code,
+                unmountableArchives.Count > 0 ? string.Join(", ", unmountableArchives) : "none named",
+                stderrTail ?? "No output was captured.");
+        }
+
+        // Raise the event
+        var args = new GameProcessExitedEventArgs
+        {
+            ProcessId = processId,
+            ProcessInstanceId = _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).InstanceId,
+            ExitCode = exitCode,
+            ExitTime = exitTime,
+            StandardErrorTail = stderrTail,
+            UnmountableArchives = unmountableArchives,
+            TerminationRequested = terminationRequested,
+        };
+
+        // This is a process-event boundary: one subscriber must not prevent the
+        // remaining subscribers (including termination completion) from observing exit.
+        foreach (EventHandler<GameProcessExitedEventArgs> subscriber in ProcessExited?.GetInvocationList() ?? [])
+        {
+            try
+            {
+                subscriber(this, args);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Process-exit subscriber failed for process {ProcessId}", processId);
+            }
+        }
+
+        logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
+        SafeDisposeProcess(process, processId);
     }
 
     /// <summary>
@@ -1436,123 +1542,6 @@ public class GameProcessManager(
         return archives;
     }
 
-    internal void OnProcessExited(object? sender, EventArgs e)
-    {
-        if (sender is not Process process)
-            return;
-
-        var processId = 0;
-        try
-        {
-            processId = process.Id;
-        }
-        catch (InvalidOperationException)
-        {
-            // A delayed callback can arrive after termination disposed the process.
-            processId = _managedProcesses.FirstOrDefault(entry => ReferenceEquals(entry.Value, process)).Key;
-            if (processId == 0)
-            {
-                return;
-            }
-        }
-
-        FinalizeProcessExit(process, processId);
-    }
-
-    /// <summary>Publishes one exit and clears only state belonging to this process instance.</summary>
-    /// <param name="process">The exited process; no signal is sent by this method.</param>
-    /// <param name="processId">Its positive process ID, captured before disposal.</param>
-    internal void FinalizeProcessExit(Process process, int processId)
-    {
-        if (processId <= 0 || Interlocked.Exchange(ref _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).Finalized, 1) != 0)
-        {
-            return;
-        }
-
-        int? exitCode = null;
-        try
-        {
-            exitCode = process.ExitCode;
-        }
-        catch
-        {
-            // Process may have already been disposed
-        }
-
-        // A delayed callback must not remove a new process that reused the same PID.
-        _managedProcesses.TryRemove(new KeyValuePair<int, Process>(processId, process));
-
-        var terminationRequested = _requestedTerminations.TryRemove(process, out _);
-
-        // Attach the stderr capture, when this manager started the process itself. This
-        // is what makes an abort that outlived the detection window explicable: the exit
-        // is already after "launched", so the event is the only place the evidence fits.
-        string? stderrTail = null;
-        IReadOnlyList<string> unmountableArchives = [];
-        if (_stderrBuffers.TryRemove(process, out var capturedErrors))
-        {
-            DrainStandardError(process, capturedErrors);
-
-            var tail = capturedErrors.ToString();
-            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
-            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
-        }
-
-        if (!terminationRequested && exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
-        {
-            logger.LogWarning(
-                "Process {ProcessId} exited with non-zero code {ExitCode} after the launch was reported as started. Archives: {Archives}. Output: {Output}",
-                processId,
-                code,
-                unmountableArchives.Count > 0 ? string.Join(", ", unmountableArchives) : "none named",
-                stderrTail ?? "No output was captured.");
-        }
-
-        // Raise the event
-        var args = new GameProcessExitedEventArgs
-        {
-            ProcessId = processId,
-            ExitCode = exitCode,
-            ExitTime = DateTime.UtcNow,
-            StandardErrorTail = stderrTail,
-            UnmountableArchives = unmountableArchives,
-            TerminationRequested = terminationRequested,
-        };
-
-        // This is a process-event boundary: one subscriber must not prevent the
-        // remaining subscribers (including termination completion) from observing exit.
-        foreach (EventHandler<GameProcessExitedEventArgs> subscriber in ProcessExited?.GetInvocationList() ?? [])
-        {
-            try
-            {
-                subscriber(this, args);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Process-exit subscriber failed for process {ProcessId}", processId);
-            }
-        }
-
-        try
-        {
-            if (exitCode != ProcessConstants.ExitCodeSuccess && capturedErrors is not null)
-            {
-                var stderr = capturedErrors.ToString();
-                if (!string.IsNullOrWhiteSpace(stderr))
-                {
-                    logger.LogWarning("Process {ProcessId} exited with code {ExitCode}. Captured stderr: {Stderr}", processId, exitCode, stderr);
-                    return;
-                }
-            }
-
-            logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
-        }
-        finally
-        {
-            SafeDisposeProcess(process, processId);
-        }
-    }
-
     private void SafeDisposeProcess(Process process, int processId)
     {
         try
@@ -1787,6 +1776,7 @@ public class GameProcessManager(
     /// <returns>The process information.</returns>
     private GameProcessInfo BuildProcessInfo(Process process, string fallbackExecutablePath)
     {
+        var instanceId = _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).InstanceId;
         var processId = 0;
         try
         {
@@ -1795,6 +1785,7 @@ public class GameProcessManager(
             return new GameProcessInfo
             {
                 ProcessId = processId,
+                ProcessInstanceId = instanceId,
                 ProcessName = process.ProcessName,
                 StartTime = process.StartTime.ToUniversalTime(),
                 ExecutablePath = string.IsNullOrEmpty(inspectedPath) ? fallbackExecutablePath : inspectedPath,
@@ -1807,6 +1798,7 @@ public class GameProcessManager(
             return new GameProcessInfo
             {
                 ProcessId = processId,
+                ProcessInstanceId = instanceId,
                 ProcessName = GameClientConstants.UnknownVersion,
                 StartTime = DateTime.UtcNow,
                 ExecutablePath = fallbackExecutablePath,

@@ -25,6 +25,73 @@ public class LaunchRegistryTests
         _registry = new LaunchRegistry(loggerMock.Object);
     }
 
+    /// <summary>Polling and events share a single stop while retaining diagnostics for the exact process instance.</summary>
+    /// <param name="pollFirst">Whether polling observes exit before the event.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PollingAndExit_EitherOrder_StopsOnceAndPreservesDiagnosticsAsync(bool pollFirst)
+    {
+        var manager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        var launch = new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = Guid.NewGuid().ToString(),
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = 12345, ProcessInstanceId = Guid.NewGuid(), IsRunning = true },
+        };
+        var recipient = new object();
+        var stops = 0;
+        WeakReferenceMessenger.Default.Register<ProfileStoppedMessage>(recipient, (_, message) =>
+        {
+            if (message.ProfileId == launch.ProfileId)
+            {
+                stops++;
+            }
+        });
+        try
+        {
+            await registry.RegisterLaunchAsync(launch);
+            var exit = new GameProcessExitedEventArgs
+            {
+                ProcessId = launch.ProcessInfo.ProcessId,
+                ProcessInstanceId = launch.ProcessInfo.ProcessInstanceId,
+                ExitCode = 1,
+                StandardErrorTail = "startup failed",
+            };
+            if (pollFirst)
+            {
+                registry.MarkPollingTerminated(launch, DateTime.UtcNow);
+            }
+
+            manager.Raise(m => m.ProcessExited += null, exit);
+            registry.MarkPollingTerminated(launch, DateTime.UtcNow);
+            manager.Raise(m => m.ProcessExited += null, exit);
+            Assert.Equal(1, stops);
+            Assert.Equal(1, launch.ExitCode);
+            Assert.Contains("startup failed", launch.FailureReason);
+
+            // A new launch reuses the PID. A delayed old event must not stop it.
+            var replacement = new GameLaunchInfo
+            {
+                LaunchId = Guid.NewGuid().ToString(),
+                ProfileId = launch.ProfileId,
+                WorkspaceId = string.Empty,
+                ProcessInfo = new GameProcessInfo { ProcessId = 12345, ProcessInstanceId = Guid.NewGuid(), IsRunning = true },
+            };
+            await registry.RegisterLaunchAsync(replacement);
+            manager.Raise(m => m.ProcessExited += null, exit);
+            Assert.Null(replacement.TerminatedAt);
+            Assert.Equal(1, stops);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
+    }
+
     /// <summary>Polling a placeholder does not emit a stop before the real process exits.</summary>
     /// <returns>The asynchronous operation.</returns>
     [Fact]
