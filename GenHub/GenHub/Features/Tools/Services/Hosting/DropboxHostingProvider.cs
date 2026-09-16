@@ -26,11 +26,10 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// - Want simple, reliable hosting with direct download links.
 /// - Need more storage than GitHub gists allow.
 /// </remarks>
-[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Standard Dropbox API and content endpoints.")]
 public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHttpClientFactory httpClientFactory) : IHostingProvider, IDisposable
 {
-    private const string DropboxApiUrl = "https://api.dropboxapi.com/2";
-    private const string DropboxContentUrl = "https://content.dropboxapi.com/2";
+    private const string DropboxApiUrl = HostingConstants.DropboxApiUrl;
+    private const string DropboxContentUrl = HostingConstants.DropboxContentUrl;
     private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
 
     private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);

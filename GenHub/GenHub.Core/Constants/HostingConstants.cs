@@ -80,9 +80,36 @@ public static class HostingConstants
     public const string DropboxCreateAppUrl = "https://www.dropbox.com/developers/apps/create";
 
     /// <summary>
+    /// Base URL for Dropbox v2 RPC API.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Standard Dropbox API endpoint")]
+    public const string DropboxApiUrl = "https://api.dropboxapi.com/2";
+
+    /// <summary>
+    /// Base URL for Dropbox v2 content upload/download API.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Standard Dropbox content API endpoint")]
+    public const string DropboxContentUrl = "https://content.dropboxapi.com/2";
+
+    /// <summary>
     /// Default publisher folder path on Dropbox.
     /// </summary>
     public const string DropboxDefaultPublisherFolder = "/GenHub_Publisher";
+
+    /// <summary>
+    /// Default publisher folder name on Google Drive.
+    /// </summary>
+    public const string GoogleDriveDefaultPublisherFolder = "GenHub_Publisher";
+
+    /// <summary>
+    /// Default folder/destination display label for GitHub Gists.
+    /// </summary>
+    public const string GitHubGistsDestinationLabel = "Public Gists";
+
+    /// <summary>
+    /// Fallback destination display label for remote cloud storage.
+    /// </summary>
+    public const string RemoteCloudDestinationLabel = "Remote Cloud";
 
     /// <summary>
     /// URL to Dropbox web folder for publisher assets.

@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels;
@@ -333,5 +334,83 @@ public class PublisherStudioMixedCdnAndCredentialTests
         // PublishAllCatalogsCommand should block publish and show notification
         await vm.PublishAllCatalogsCommand.ExecuteAsync(null);
         _mockNotificationService.Verify(n => n.ShowError("Incompatible Provider", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that RenameCatalogInHostingStateAsync updates catalog ID, catalog name, and file name
+    /// in the hosting state and persists the changes.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PublishShareViewModel_RenameCatalogInHostingStateAsync_UpdatesCatalogEntriesAndSavesAsync()
+    {
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var hostingState = new HostingState
+        {
+            Catalogs =
+            [
+                new()
+                {
+                    CatalogId = "old-cat-id",
+                    CatalogName = "Old Name",
+                    FileName = "catalog-old.json",
+                    Url = "https://example.com/catalog-old.json",
+                },
+                new()
+                {
+                    CatalogId = "other-cat-id",
+                    CatalogName = "Other Name",
+                    FileName = "catalog-other.json",
+                },
+            ],
+        };
+
+        _mockHostingStateManager.Setup(m => m.LoadStateAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(OperationResult<HostingState?>.CreateSuccess(hostingState));
+        _mockHostingStateManager.Setup(m => m.SaveStateAsync("/test/path/project.json", It.IsAny<HostingState>(), It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        await vm.RenameCatalogInHostingStateAsync("old-cat-id", "new-cat-id", "New Name", "catalog-new.json");
+
+        var renamed = hostingState.Catalogs.Find(c => c.CatalogId == "new-cat-id");
+        Assert.NotNull(renamed);
+        Assert.Equal("New Name", renamed.CatalogName);
+        Assert.Equal("catalog-new.json", renamed.FileName);
+
+        var unaffected = hostingState.Catalogs.Find(c => c.CatalogId == "other-cat-id");
+        Assert.NotNull(unaffected);
+        Assert.Equal("Other Name", unaffected.CatalogName);
+
+        _mockHostingStateManager.Verify(m => m.SaveStateAsync("/test/path/project.json", It.IsAny<HostingState>(), It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that CancelUploadCommand executes safely without throwing when no upload is currently active.
+    /// </summary>
+    [Fact]
+    public void PublishShareViewModel_CancelUploadCommand_WhenNotUploading_ExecutesSafely()
+    {
+        var project = new PublisherStudioProject();
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        Assert.False(vm.IsUploading);
+
+        var ex = Record.Exception(() => vm.CancelUploadCommand.Execute(null));
+        Assert.Null(ex);
+        Assert.False(vm.IsUploading);
     }
 }

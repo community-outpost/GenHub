@@ -29,7 +29,7 @@ public class GoogleDriveHostingProvider(
     IConfigurationProviderService? configurationProvider = null) : IHostingProvider
 {
     private const string ApplicationName = "GenHub Publisher Studio";
-    private const string PublisherFolderName = "GenHub_Publisher";
+    private const string PublisherFolderName = HostingConstants.GoogleDriveDefaultPublisherFolder;
     private static readonly string[] Scopes = [DriveService.Scope.DriveFile];
 
     private static readonly Regex GoogleDriveIdRegex = new(

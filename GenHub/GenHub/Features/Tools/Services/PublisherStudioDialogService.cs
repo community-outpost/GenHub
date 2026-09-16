@@ -212,7 +212,6 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
     /// <summary>
     /// Gets a list of known/static publishers for quick selection in referrals.
     /// </summary>
-    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known default publisher catalog URIs for discovery.")]
     private static List<PublisherReferralOption> GetKnownPublishers()
     {
         return
@@ -221,19 +220,19 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
             {
                 PublisherId = "generals-online",
                 PublisherName = "GeneralsOnline",
-                CatalogUrl = "https://cdn.playgenerals.online/catalog.json",
+                CatalogUrl = CatalogConstants.GeneralsOnlineCatalogUrl,
             },
             new()
             {
                 PublisherId = "cnc-labs",
                 PublisherName = "CNC Labs",
-                CatalogUrl = "https://www.cnclabs.com/downloads/catalog.json",
+                CatalogUrl = CatalogConstants.CncLabsDownloadsCatalogUrl,
             },
             new()
             {
                 PublisherId = "community-outpost",
                 PublisherName = "Community Outpost",
-                CatalogUrl = "https://raw.githubusercontent.com/community-outpost/genhub-catalog/main/catalog.json",
+                CatalogUrl = CatalogConstants.CommunityOutpostCatalogUrl,
             },
         ];
     }
