@@ -104,6 +104,7 @@
         'settings': document.getElementById('gh-pane-settings'),
         'info': document.getElementById('gh-pane-info')
     };
+    let activeToolKey = 'replay';
 
     function switchViewPane(paneKey) {
         pillButtons.forEach(btn => {
@@ -133,7 +134,15 @@
         if (statusText) {
             if (paneKey === 'profiles') statusText.textContent = 'Ready • Workspaces Synced (NTFS Hardlinks Active)';
             else if (paneKey === 'downloads') statusText.textContent = 'Downloads Browser • Connected to Community Catalog';
-            else if (paneKey === 'tools') statusText.textContent = 'Diagnostics & Replay Analyzer Initialized';
+            else if (paneKey === 'tools') {
+                statusText.textContent = 'Tools Suite • Replay Analyzer, Map Manager & Hotkeys Editor Active';
+                document.querySelectorAll('.gh-tool-item').forEach(b => {
+                    b.classList.toggle('active', b.getAttribute('data-tool') === activeToolKey);
+                });
+                document.querySelectorAll('.gh-tool-subpane').forEach(pane => {
+                    pane.classList.toggle('active', pane.id === 'tool-pane-' + activeToolKey);
+                });
+            }
             else if (paneKey === 'settings') statusText.textContent = 'Configuration Loaded (~/.config/GenHub/settings.json)';
             else if (paneKey === 'info') {
                 statusText.textContent = 'Documentation & Frequently Asked Questions';
@@ -539,8 +548,9 @@
         'online': { title: 'Generals Online', desc: 'Competitive multiplayer client, rank ladders, and NAT-traversal matchmaking services.' },
         'outpost': { title: 'CommunityOutpost', desc: 'Curated mod packages, balance tournaments, and high-fidelity texture upscales.' },
         'cnclabs': { title: 'CNC Labs', desc: 'Classic community map packs, mission campaigns, and level designer SDKs.' },
+        'aodmaps': { title: 'AODMaps', desc: 'Curated Art of Defense tower defense maps, survival scenarios, and cooperative challenges.' },
         'github': { title: 'GitHub Releases', desc: 'Open source builds, experimental test branches, and engine source code.' },
-        'moddb': { title: 'ModDB Mirror', desc: 'Archived community legacy mods and total-conversion standalone releases.' }
+        'moddb': { title: 'ModDB Mirror', desc: 'Community mods, total conversions, maps, addons, and direct URL search.' }
     };
 
     let activePublisherKey = 'hackers';
@@ -732,13 +742,14 @@
     const toolPanes = {
         'replay': document.getElementById('tool-pane-replay'),
         'map': document.getElementById('tool-pane-map'),
-        'modbuilder': document.getElementById('tool-pane-modbuilder'),
+        'hotkeys': document.getElementById('tool-pane-hotkeys'),
         'genpatcher': document.getElementById('tool-pane-genpatcher')
     };
 
     toolBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const key = btn.getAttribute('data-tool');
+            activeToolKey = key;
             toolBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
@@ -966,18 +977,128 @@
         });
     }
 
-    // ModBuilder Compile
-    const mbCompileBtn = document.getElementById('ghMbCompileBtn');
-    if (mbCompileBtn) {
-        mbCompileBtn.addEventListener('click', () => {
-            const term = document.getElementById('ghMbTerminal');
-            if (term) {
-                term.innerHTML = '[INFO] Compiling ModSolution INI & Art into ZeroHourMod.big...';
-                setTimeout(() => {
-                    term.innerHTML += '<br><span style="color:#34d399;">✓ Build Succeeded: ZeroHourMod.big (0 errors, 0 warnings).</span>';
-                    window.showGenHubToast('Success', 'Mod Compiled', 'ZeroHourMod.big built successfully in 1.2s.');
-                }, 500);
+    // GenHotkeys Interactivity (PR #451)
+    const factionTabs = document.querySelectorAll('#ghHotkeyFactionTabs .gh-faction-btn');
+    const generalSelect = document.getElementById('ghHotkeyGeneralSelect');
+    const catPills = document.querySelectorAll('#ghHotkeyCategoryPills .gh-cat-pill');
+    const hotkeyCards = document.querySelectorAll('#ghHotkeyGrid .gh-action-card');
+    const presetSelect = document.getElementById('ghHotkeyPresetSelect');
+    const createAddonBtn = document.getElementById('ghHotkeyCreateAddonBtn');
+    let activeFaction = 'usa';
+    let activeCat = 'all';
+
+    const factionGenerals = {
+        'usa': [
+            { val: 'all', label: 'All USA Generals' },
+            { val: 'laser', label: 'Laser General (Townes)' },
+            { val: 'airforce', label: 'Air Force General (Granger)' },
+            { val: 'superweapon', label: 'Superweapon (Alexander)' }
+        ],
+        'china': [
+            { val: 'all', label: 'All China Generals' },
+            { val: 'tank', label: 'Tank General (Kwai)' },
+            { val: 'infantry', label: 'Infantry General (Fai)' },
+            { val: 'nuke', label: 'Nuke General (Tao)' }
+        ],
+        'gla': [
+            { val: 'all', label: 'All GLA Generals' },
+            { val: 'toxin', label: 'Toxin General (Thrax)' },
+            { val: 'demo', label: 'Demolition General (Juhziz)' },
+            { val: 'stealth', label: 'Stealth General (Kassad)' }
+        ]
+    };
+
+    function filterHotkeyCards() {
+        hotkeyCards.forEach(card => {
+            const cFaction = card.getAttribute('data-faction');
+            const cCat = card.getAttribute('data-cat');
+            const matchFaction = cFaction === activeFaction;
+            const matchCat = activeCat === 'all' || cCat === activeCat;
+            card.style.display = (matchFaction && matchCat) ? 'flex' : 'none';
+        });
+    }
+
+    factionTabs.forEach(btn => {
+        btn.addEventListener('click', () => {
+            factionTabs.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFaction = btn.getAttribute('data-faction') || 'usa';
+
+            if (generalSelect && factionGenerals[activeFaction]) {
+                generalSelect.innerHTML = '';
+                factionGenerals[activeFaction].forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.val;
+                    opt.textContent = g.label;
+                    generalSelect.appendChild(opt);
+                });
             }
+
+            filterHotkeyCards();
+        });
+    });
+
+    catPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            catPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            activeCat = pill.getAttribute('data-cat') || 'all';
+            filterHotkeyCards();
+        });
+    });
+
+    const hotkeyPresets = {
+        'grid': {
+            'USADozer': 'Q', 'USAColdFusionReactor': 'W', 'USABarracks': 'E', 'USAWarFactory': 'R',
+            'USAPatriot': 'A', 'USAAirfield': 'S', 'USARanger': 'R', 'USAHumvee': 'H',
+            'USACrusaderTank': 'C', 'USAComanche': 'C', 'USARaptor': 'P', 'USAParticleCannon': 'U'
+        },
+        'retail': {
+            'USADozer': 'D', 'USAColdFusionReactor': 'R', 'USABarracks': 'B', 'USAWarFactory': 'W',
+            'USAPatriot': 'P', 'USAAirfield': 'A', 'USARanger': 'R', 'USAHumvee': 'H',
+            'USACrusaderTank': 'C', 'USAComanche': 'C', 'USARaptor': 'R', 'USAParticleCannon': 'P'
+        }
+    };
+
+    if (presetSelect) {
+        presetSelect.addEventListener('change', () => {
+            const p = presetSelect.value;
+            const presetMap = hotkeyPresets[p];
+            if (presetMap) {
+                hotkeyCards.forEach(card => {
+                    const id = card.getAttribute('data-id');
+                    if (id && presetMap[id]) {
+                        const stamp = card.querySelector('.gh-hotkey-stamp');
+                        const badge = card.querySelector('.gh-key-badge');
+                        if (stamp) stamp.textContent = presetMap[id];
+                        if (badge) badge.textContent = presetMap[id];
+                    }
+                });
+                const label = presetSelect.options[presetSelect.selectedIndex]?.text || p;
+                window.showGenHubToast('GenHotkeys', 'Preset Applied', 'Loaded ' + label + ' key mapping preset.');
+            }
+        });
+    }
+
+    hotkeyCards.forEach(card => {
+        card.addEventListener('click', () => {
+            hotkeyCards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            const title = card.querySelector('.gh-action-title')?.textContent || 'Action';
+            const stamp = card.querySelector('.gh-hotkey-stamp')?.textContent || '';
+            window.showGenHubToast('Hotkeys Editor', 'Command Selected', title + ' [' + stamp + '] ready for binding.');
+        });
+    });
+
+    if (createAddonBtn) {
+        createAddonBtn.addEventListener('click', () => {
+            createAddonBtn.disabled = true;
+            createAddonBtn.innerHTML = '<span>Compiling...</span>';
+            setTimeout(() => {
+                createAddonBtn.disabled = false;
+                createAddonBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19,9H15V3H9V9H5L12,16L19,9M5,18V20H19V18H5Z"/></svg> <span>Create Addon</span>';
+                window.showGenHubToast('GenHotkeys', 'Addon Archive Compiled', 'Generated !Hotkeys_Pro_ZH.big with stamped cameos. Registered into CAS.');
+            }, 600);
         });
     }
 
@@ -1478,6 +1599,18 @@
                 "content": "Organize maps into reusable collections.",
                 "type": "Feature",
                 "detailed": "**What is a Map Pack?**\n                    A Map Pack bundles multiple maps together (such as a tournament map pool or 4-player FFA collection).\n\n                    **Creating a Map Pack:**\n                    1.  Select multiple maps with `Ctrl+Click` or `Shift+Click`.\n                    2.  Click **Pack** in the top-right toolbar.\n                    3.  Enter a name and click **Create MapPack**.\n\n                    Once created, you can toggle the entire map collection on or off for any profile in one click."
+            },
+            {
+                "title": "Hotkeys Editor: Visual Keymapping & Overlays",
+                "content": "Port of GenHotkeys with visual command button rebinding and cameo icon overlays.",
+                "type": "Feature",
+                "detailed": "**Visual Hotkeys Customization (PR #451):**\n                    *   **Faction Support:** Configure commands across USA, China, and GLA including all Zero Hour specialized generals.\n                    *   **Category Filtering:** Filter across Buildings, Units, Upgrades, and Tactical Abilities.\n                    *   **Cameo Icon Overlays:** Renders stamped hotkey letter badges directly onto command button textures (`.tga`), placing key indicators in any corner of the icon.\n                    *   **Preset Layouts:** Choose from competitive Grid layouts (`QWER` / `ASDF`), classic retail keybindings, or create customized profiles."
+            },
+            {
+                "title": "Hotkeys Editor: Conflict Detection & Addon Export",
+                "content": "Real-time key conflict detection and 1-click BIG archive packaging into CAS.",
+                "type": "Feature",
+                "detailed": "**Conflict Engine & CAS Export (PR #451):**\n                    *   **Real-time Conflict Detection:** Automatically detects conflicting key assignments within shared command sets and provides a Next Conflict navigation shortcut.\n                    *   **1-Click Addon Generation:** Compiles customized CommandSet overrides, String table updates, and generated TGA button overlays into an isolated `!Hotkeys_<Profile>_<Game>.big` archive.\n                    *   **CAS Registration:** Automatically registers the generated archive into GenHub's Content Addressable Storage and mounts it with high load priority over base game data."
             }
         ]
     },
