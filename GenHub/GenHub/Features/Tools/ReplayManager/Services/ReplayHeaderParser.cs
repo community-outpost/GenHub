@@ -21,6 +21,14 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 {
     private static readonly byte[] ExpectedMagic = Encoding.ASCII.GetBytes(ReplayManagerConstants.ReplayHeaderMagic);
 
+    private readonly record struct ReplayTimingContext(
+        uint StartTime,
+        uint EndTime,
+        uint HeaderFrameCount,
+        string? VersionString,
+        string? BuildTimeString,
+        string? TitleString);
+
     /// <inheritdoc />
     public async Task<OperationResult<ReplayMetadata>> ParseHeaderAsync(string filePath, CancellationToken cancellationToken = default)
     {
@@ -43,7 +51,14 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
         try
         {
-            await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+            await using var stream = new FileStream(
+                filePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 4096,
+                useAsync: true);
+
             return await ParseHeaderAsync(stream, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -58,6 +73,11 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
     {
         ArgumentNullException.ThrowIfNull(stream);
 
+        if (!stream.CanRead)
+        {
+            return OperationResult<ReplayMetadata>.CreateFailure("Stream does not support reading.");
+        }
+
         if (stream.CanSeek && stream.Length > ReplayManagerConstants.MaxReplaySizeBytes)
         {
             return OperationResult<ReplayMetadata>.CreateFailure(
@@ -66,14 +86,16 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
         try
         {
-            var buffer = new byte[ReplayManagerConstants.ReplayHeaderBufferSize];
+            // Read up to MaxHeaderReadBytes to cover title, strings, CRCs, and match setup
+            var buffer = new byte[ReplayManagerConstants.MaxHeaderReadBytes];
             var bytesRead = await ReadHeaderBufferAsync(stream, buffer, cancellationToken);
 
-            if (bytesRead < ReplayManagerConstants.MinReplayHeaderSizeBytes)
+            if (bytesRead < ReplayManagerConstants.MinHeaderReadBytes)
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Replay file is too small to contain a valid header.");
             }
 
+            // Verify "GENREP" magic bytes
             if (!IsValidMagic(buffer))
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Invalid replay file magic header (expected GENREP).");
@@ -120,6 +142,16 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
     private static OperationResult<ReplayMetadata> ParseHeaderBuffer(byte[] buffer, int bytesRead)
     {
+        var startTime = bytesRead >= ReplayManagerConstants.StartTimeOffsetBytes + sizeof(uint)
+            ? BitConverter.ToUInt32(buffer, ReplayManagerConstants.StartTimeOffsetBytes)
+            : 0u;
+        var endTime = bytesRead >= ReplayManagerConstants.EndTimeOffsetBytes + sizeof(uint)
+            ? BitConverter.ToUInt32(buffer, ReplayManagerConstants.EndTimeOffsetBytes)
+            : 0u;
+        var headerFrameCount = bytesRead >= ReplayManagerConstants.HeaderFrameCountOffsetBytes + sizeof(uint)
+            ? BitConverter.ToUInt32(buffer, ReplayManagerConstants.HeaderFrameCountOffsetBytes)
+            : 0u;
+
         var offset = ReplayManagerConstants.ReplayHeaderInitialOffsetBytes;
 
         // 2. Read Replay Title / Name (null-terminated UTF-16LE, written first by engine)
@@ -134,37 +166,17 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before version string.");
         }
 
-        DateTime? gameDate = null;
-        try
-        {
-            var year = BitConverter.ToUInt16(buffer, offset);
-            var month = BitConverter.ToUInt16(buffer, offset + 2);
-            var day = BitConverter.ToUInt16(buffer, offset + 6);
-            var hour = BitConverter.ToUInt16(buffer, offset + 8);
-            var minute = BitConverter.ToUInt16(buffer, offset + 10);
-            var second = BitConverter.ToUInt16(buffer, offset + 12);
-            var millisecond = BitConverter.ToUInt16(buffer, offset + 14);
-
-            if (year >= 1990 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= DateTime.DaysInMonth(year, month) &&
-                hour <= 23 && minute <= 59 && second <= 59 && millisecond <= 999)
-            {
-                gameDate = new DateTime(year, month, day, hour, minute, second, millisecond, DateTimeKind.Unspecified);
-            }
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            // Ignored - invalid timestamp in replay header
-        }
+        var gameDate = TryParseSystemTime(buffer, offset);
 
         offset += ReplayManagerConstants.ReplayHeaderSystemTimeSizeBytes;
 
-        // 4. Read VersionString (null-terminated UTF-16LE, e.g. "Version 1.04")
+        // 4. Read Version String (null-terminated UTF-16LE, e.g. "1.04" or "1.08")
         if (!TryReadNullTerminatedUtf16String(buffer, ref offset, bytesRead, out var versionString))
         {
             return OperationResult<ReplayMetadata>.CreateFailure("Unterminated UTF-16 version string in replay header.");
         }
 
-        // 5. Read VersionTimeString / BuildTimeString (null-terminated UTF-16LE, e.g. "Sep 16 2003")
+        // 5. Read Build Time String (null-terminated UTF-16LE)
         if (!TryReadNullTerminatedUtf16String(buffer, ref offset, bytesRead, out var buildTimeString))
         {
             return OperationResult<ReplayMetadata>.CreateFailure("Unterminated UTF-16 build time string in replay header.");
@@ -191,8 +203,23 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure("Unterminated ASCII game options string in replay header.");
         }
 
-        // 8. Extract map name and players from init string if present
-        var (mapName, players) = ParseMatchMetadata(initString);
+        // 8. Extract map name, players, and structured slots from init string if present
+        var (mapName, players, slots) = ParseMatchMetadata(initString);
+
+        // 9. Determine tick rate (FPS), total frames, duration, and match date
+        var timingContext = new ReplayTimingContext(
+            startTime,
+            endTime,
+            headerFrameCount,
+            versionString,
+            buildTimeString,
+            titleString);
+
+        var (totalFrames, fps, duration, timingGameDate) = ResolveTimingAndDuration(
+            buffer,
+            offset,
+            bytesRead,
+            timingContext);
 
         var metadata = new ReplayMetadata
         {
@@ -202,13 +229,174 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             VersionNumber = versionNumber,
             ExeCrc = exeCrc,
             IniCrc = iniCrc,
-            GameDate = gameDate,
+            GameDate = gameDate ?? timingGameDate,
             MapName = mapName,
             Players = players,
+            Slots = slots,
+            TotalFrames = totalFrames,
+            FramesPerSecond = fps,
+            Duration = duration,
         };
 
         return OperationResult<ReplayMetadata>.CreateSuccess(metadata);
     }
+
+    private static DateTime? TryParseSystemTime(byte[] buffer, int offset)
+    {
+        try
+        {
+            var year = BitConverter.ToUInt16(buffer, offset);
+            var month = BitConverter.ToUInt16(buffer, offset + 2);
+            var day = BitConverter.ToUInt16(buffer, offset + 6);
+            var hour = BitConverter.ToUInt16(buffer, offset + 8);
+            var minute = BitConverter.ToUInt16(buffer, offset + 10);
+            var second = BitConverter.ToUInt16(buffer, offset + 12);
+            var millisecond = BitConverter.ToUInt16(buffer, offset + 14);
+
+            if (year >= 1990 && year <= 2100 && month is >= 1 and <= 12 && day >= 1 && day <= DateTime.DaysInMonth(year, month) &&
+                hour <= 23 && minute <= 59 && second <= 59 && millisecond <= 999)
+            {
+                return new DateTime(year, month, day, hour, minute, second, millisecond, DateTimeKind.Unspecified);
+            }
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Keep null if values form an invalid date
+        }
+
+        return null;
+    }
+
+    private static (uint? TotalFrames, int? Fps, TimeSpan? Duration, DateTime? GameDate) ResolveTimingAndDuration(
+        byte[] buffer,
+        int offsetAfterInitString,
+        int bytesRead,
+        in ReplayTimingContext ctx)
+    {
+        var is60Hz = (ctx.VersionString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.VersionString?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.BuildTimeString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.TitleString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true);
+        var baseFps = is60Hz ? 60 : 30;
+
+        uint? totalFrames = ctx.HeaderFrameCount > 0 ? ctx.HeaderFrameCount : null;
+        if (!totalFrames.HasValue)
+        {
+            var scanOffset = offsetAfterInitString;
+            if (TryReadNullTerminatedAsciiString(buffer, ref scanOffset, bytesRead, out _))
+            {
+                // Engine writes null-terminated local player index string (e.g. "0\0" or "-1\0"),
+                // followed by a 16-byte fixed trailer before the chunk stream.
+                scanOffset += 16;
+            }
+            else
+            {
+                scanOffset = offsetAfterInitString + ReplayManagerConstants.ReplayPostHeaderTrailerSizeBytes;
+            }
+
+            if (scanOffset < bytesRead)
+            {
+                totalFrames = TryScanMaxChunkTimecode(buffer, scanOffset, bytesRead);
+            }
+        }
+
+        TimeSpan? duration = null;
+        int? fps = null;
+
+        if (totalFrames.HasValue && totalFrames.Value > 0)
+        {
+            fps = baseFps;
+            duration = TimeSpan.FromSeconds((double)totalFrames.Value / baseFps);
+        }
+        else if (ctx.EndTime > ctx.StartTime && ctx.StartTime > 0)
+        {
+            var seconds = ctx.EndTime - ctx.StartTime;
+            duration = TimeSpan.FromSeconds(seconds);
+            fps = baseFps;
+            totalFrames = (uint)Math.Round(seconds * (double)baseFps);
+        }
+
+        DateTime? gameDate = null;
+        if (ctx.StartTime >= ReplayManagerConstants.MinSanityTimestampEpoch)
+        {
+            gameDate = DateTimeOffset.FromUnixTimeSeconds(ctx.StartTime).UtcDateTime;
+        }
+
+        return (totalFrames, fps, duration, gameDate);
+    }
+
+    private static uint? TryScanMaxChunkTimecode(byte[] buffer, int offset, int bytesRead)
+    {
+        uint maxTimecode = 0;
+        var cur = offset;
+
+        // Each chunk header contains timecode (4), command (4), number (4), ncomms (1) = 13 bytes
+        while (cur + ReplayManagerConstants.MaxChunkTimecodeStrideBytes <= bytesRead)
+        {
+            var timecode = BitConverter.ToUInt32(buffer, cur);
+            if (timecode is 0xFFFFFFFF or 0x7FFFFFFF)
+            {
+                break;
+            }
+
+            if (timecode > maxTimecode)
+            {
+                maxTimecode = timecode;
+            }
+
+            cur = SkipChunkPayload(buffer, cur, bytesRead) ?? -1;
+            if (cur < 0)
+            {
+                break;
+            }
+        }
+
+        return maxTimecode > 0 ? maxTimecode : null;
+    }
+
+    private static int? SkipChunkPayload(byte[] buffer, int cur, int bytesRead)
+    {
+        var ncomms = buffer[cur + ReplayManagerConstants.MaxChunkTimecodeStrideBytes - 1];
+        cur += ReplayManagerConstants.MaxChunkTimecodeStrideBytes;
+
+        var descriptorBytes = ncomms * 2;
+        if (cur + descriptorBytes > bytesRead)
+        {
+            return null;
+        }
+
+        var payloadBytes = 0;
+        for (var i = 0; i < ncomms; i++)
+        {
+            var type = buffer[cur + (i * 2)];
+            var nargs = buffer[cur + (i * 2) + 1];
+            var argSize = GetCommandArgSize(type);
+            if (argSize < 0)
+            {
+                return null;
+            }
+
+            payloadBytes += nargs * argSize;
+        }
+
+        return cur + descriptorBytes + payloadBytes;
+    }
+
+    private static int GetCommandArgSize(byte cmdType) => cmdType switch
+    {
+        0x0 => 4,  // INTEGER
+        0x1 => 4,  // REAL
+        0x2 => 1,  // BOOLEAN
+        0x3 => 4,  // OBJECTID
+        0x4 => 4,  // DRAWABLEID
+        0x5 => 4,  // TEAMID
+        0x6 => 12, // LOCATION
+        0x7 => 8,  // PIXEL
+        0x8 => 16, // PIXELREGION
+        0x9 => 4,  // TIMESTAMP
+        0xA => 2,  // WIDECHAR
+        _ => -1,
+    };
 
     private static bool TryReadNullTerminatedUtf16String(byte[] buffer, ref int offset, int maxBytes, out string? value)
     {
@@ -218,8 +406,8 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             if (buffer[offset] == 0 && buffer[offset + 1] == 0)
             {
                 var length = offset - start;
+                value = length > 0 ? Encoding.Unicode.GetString(buffer, start, length) : string.Empty;
                 offset += 2;
-                value = length == 0 ? null : Encoding.Unicode.GetString(buffer, start, length);
                 return true;
             }
 
@@ -238,8 +426,8 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             if (buffer[offset] == 0)
             {
                 var length = offset - start;
+                value = length > 0 ? Encoding.Latin1.GetString(buffer, start, length) : string.Empty;
                 offset += 1;
-                value = length == 0 ? null : Encoding.Latin1.GetString(buffer, start, length);
                 return true;
             }
 
@@ -250,15 +438,16 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         return false;
     }
 
-    private static (string? MapName, IReadOnlyList<string>? Players) ParseMatchMetadata(string? initString)
+    private static (string? MapName, IReadOnlyList<string>? Players, IReadOnlyList<ReplaySlotInfo>? Slots) ParseMatchMetadata(string? initString)
     {
         if (string.IsNullOrWhiteSpace(initString))
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         string? mapName = null;
         var players = new List<string>();
+        var slots = new List<ReplaySlotInfo>();
 
         var tokens = initString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var token in tokens)
@@ -269,34 +458,98 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             }
             else if (token.StartsWith("S=", StringComparison.OrdinalIgnoreCase))
             {
-                ExtractSlotPlayers(token[2..], players, isSlotDefinition: true);
+                ExtractSlotPlayers(token[2..], players, slots, isSlotDefinition: true);
             }
             else if (token.StartsWith("H=", StringComparison.OrdinalIgnoreCase))
             {
-                ExtractSlotPlayers(token[2..], players, isSlotDefinition: false);
+                ExtractSlotPlayers(token[2..], players, slots, isSlotDefinition: false);
             }
         }
 
-        return (mapName, players.Count > 0 ? players.AsReadOnly() : null);
+        return (
+            mapName,
+            players.Count > 0 ? players.AsReadOnly() : null,
+            slots.Count > 0 ? slots.AsReadOnly() : null);
     }
 
-    private static void ExtractSlotPlayers(string slotData, List<string> players, bool isSlotDefinition)
+    private static void ExtractSlotPlayers(
+        string slotData,
+        List<string> players,
+        List<ReplaySlotInfo> structuredSlots,
+        bool isSlotDefinition)
     {
-        var slots = slotData.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var slot in slots)
+        var slots = slotData.Split(':', StringSplitOptions.TrimEntries);
+        for (var i = 0; i < slots.Length; i++)
         {
-            var parts = slot.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length == 0)
+            if (string.IsNullOrWhiteSpace(slots[i]))
             {
                 continue;
             }
 
-            var playerName = CleanPlayerName(parts[0], isSlotDefinition);
-            if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
+            if (TryParseSlot(i, slots[i], isSlotDefinition, out var playerName, out var slotInfo))
             {
-                players.Add(playerName);
+                if (playerName != null && !players.Contains(playerName, StringComparer.OrdinalIgnoreCase))
+                {
+                    players.Add(playerName);
+                }
+
+                if (slotInfo != null)
+                {
+                    structuredSlots.Add(slotInfo);
+                }
             }
         }
+    }
+
+    private static bool TryParseSlot(
+        int slotIndex,
+        string slot,
+        bool isSlotDefinition,
+        out string? playerName,
+        out ReplaySlotInfo? slotInfo)
+    {
+        playerName = null;
+        slotInfo = null;
+
+        var parts = slot.Split(',', StringSplitOptions.TrimEntries);
+        var rawMarkerAndName = parts[0];
+        var cleaned = CleanPlayerName(rawMarkerAndName, isSlotDefinition);
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            return false;
+        }
+
+        playerName = cleaned;
+        if (isSlotDefinition)
+        {
+            var isAi = rawMarkerAndName.Length > 0 && rawMarkerAndName[0] == 'C';
+            var isHuman = !isAi;
+            var (colorIndex, factionIndex) = ParseSlotIndices(parts, isHuman);
+
+            slotInfo = new ReplaySlotInfo(
+                slotIndex,
+                playerName,
+                isHuman,
+                factionIndex,
+                colorIndex);
+        }
+
+        return true;
+    }
+
+    private static (int? Color, int? Faction) ParseSlotIndices(string[] parts, bool isHuman)
+    {
+        // Wire format per GameInfo.cpp (GameInfoToAsciiString):
+        // Human: H<name>,IP,port,flags,color,template,...
+        // AI:    C<difficulty>,color,template,startPos,team
+        return isHuman
+            ? (ParseSlotPart(parts, 4), ParseSlotPart(parts, 5))
+            : (ParseSlotPart(parts, 1), ParseSlotPart(parts, 2));
+    }
+
+    private static int? ParseSlotPart(string[] parts, int index)
+    {
+        return parts.Length > index && int.TryParse(parts[index], out var val) ? val : null;
     }
 
     /// <summary>
@@ -324,14 +577,25 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         if (trimmed.Length == 1)
         {
             // Standalone slot status markers with no player name: 'H' (Human), 'C' (Computer), 'X' (Closed), 'O' (Open)
-            return trimmed[0] is 'H' or 'C' or 'h' or 'c' or 'X' or 'O' or 'x' or 'o' ? string.Empty : trimmed;
+            return trimmed[0] is 'H' or 'C' or 'X' or 'O' ? string.Empty : trimmed;
         }
 
         // In C&C Generals wire format, slot entries in S= prepend uppercase 'H' (Human) or 'C' (Computer) to the player name.
-        // We only strip the slot marker when it is uppercase 'H' or 'C', preserving genuine names starting with lowercase letters (e.g. 'captain').
-        if (trimmed[0] is 'H' or 'C')
+        if (trimmed[0] == 'H')
         {
             return trimmed[1..].Trim();
+        }
+
+        if (trimmed[0] == 'C')
+        {
+            var diff = trimmed[1..].Trim();
+            return diff switch
+            {
+                "E" => "AI (Easy)",
+                "M" => "AI (Medium)",
+                "H" => "AI (Hard)",
+                _ => diff,
+            };
         }
 
         return trimmed;

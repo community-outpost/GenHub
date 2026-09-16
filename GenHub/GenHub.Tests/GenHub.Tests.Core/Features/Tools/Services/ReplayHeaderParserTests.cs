@@ -56,7 +56,7 @@ public sealed class ReplayHeaderParserTests
         writer.Write(0x76B251A3u);
 
         // 8. InitString ASCII null terminated with colon-separated slots
-        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;S=HPlayerOne,0,0,1:HPlayerTwo,0,0,2:CAI_Easy,0,0,3:X:X;" + char.MinValue));
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;S=HPlayerOne,127.0.0.1,8086,0,1,2:HPlayerTwo,127.0.0.1,8087,0,3,4:CE,5,6,0,1:X:X;" + char.MinValue));
 
         writer.Flush();
         stream.Position = 0;
@@ -74,11 +74,27 @@ public sealed class ReplayHeaderParserTests
         Assert.Equal("0x27533BB0", result.Data.FormattedExeCrc);
         Assert.Equal("0x76B251A3", result.Data.FormattedIniCrc);
         Assert.Equal("defcon6", result.Data.MapName);
+        Assert.Equal(300u, result.Data.TotalFrames);
+        Assert.Equal(30, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(10), result.Data.Duration.Value);
         Assert.NotNull(result.Data.Players);
         Assert.Equal(3, result.Data.Players.Count);
         Assert.Contains("PlayerOne", result.Data.Players);
         Assert.Contains("PlayerTwo", result.Data.Players);
-        Assert.Contains("AI_Easy", result.Data.Players);
+        Assert.Contains("AI (Easy)", result.Data.Players);
+
+        Assert.NotNull(result.Data.Slots);
+        Assert.Equal(3, result.Data.Slots.Count);
+        Assert.Equal("PlayerOne", result.Data.Slots[0].PlayerName);
+        Assert.True(result.Data.Slots[0].IsHuman);
+        Assert.Equal(1, result.Data.Slots[0].ColorIndex);
+        Assert.Equal(2, result.Data.Slots[0].FactionIndex);
+
+        Assert.Equal("AI (Easy)", result.Data.Slots[2].PlayerName);
+        Assert.False(result.Data.Slots[2].IsHuman);
+        Assert.Equal(5, result.Data.Slots[2].ColorIndex);
+        Assert.Equal(6, result.Data.Slots[2].FactionIndex);
     }
 
     /// <summary>
@@ -250,6 +266,46 @@ public sealed class ReplayHeaderParserTests
     }
 
     /// <summary>
+    /// Verifies that a GeneralsOnline 60Hz replay stream correctly detects 60 FPS tick rate and computes duration accordingly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_GeneralsOnline60HzReplayStream_Extracts60FpsAndDurationAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(1000u);
+        writer.Write(1100u);
+        writer.Write(6000u);
+        writer.Write((byte)1);
+        writer.Write((byte)2);
+        writer.Write(new byte[8]);
+
+        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline Match" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline 1.04 (60Hz)" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;H=PlayerOne;" + char.MinValue));
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Equal(6000u, result.Data.TotalFrames);
+        Assert.Equal(60, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(100), result.Data.Duration.Value);
+    }
+
+    /// <summary>
     /// Verifies that unterminated UTF-16 strings fail gracefully without throwing.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -333,6 +389,88 @@ public sealed class ReplayHeaderParserTests
         Assert.NotNull(result.Data.GameDate);
         Assert.Equal(DateTimeKind.Unspecified, result.Data.GameDate.Value.Kind);
         Assert.Equal(new DateTime(2026, 9, 14, 14, 30, 45, 123, DateTimeKind.Unspecified), result.Data.GameDate.Value);
+    }
+
+    /// <summary>
+    /// Verifies that when HeaderFrameCount is 0, fallback chunk scanning parses commands
+    /// using table-driven argument sizes (including TEAMID 0x5 and WIDECHAR 0xA) and accurately resolves max timecode.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_FallbackChunkArgSizeTeamIdAndWidechar_PinsArgSizeAndParsesMaxTimecodeAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        // Header
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(1000u); // startTime
+        writer.Write(1100u); // endTime
+        writer.Write(0u);    // HeaderFrameCount = 0 to trigger chunk scan fallback
+        writer.Write((byte)1);
+        writer.Write((byte)2);
+        writer.Write(new byte[8]);
+
+        // Title
+        writer.Write(Encoding.Unicode.GetBytes("Chunk Fallback Test" + char.MinValue));
+
+        // SYSTEMTIME
+        writer.Write(new byte[16]);
+
+        // Version & Build time
+        writer.Write(Encoding.Unicode.GetBytes("1.04" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+
+        // Initial setup string
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/test/test.map;H=Hank;" + char.MinValue));
+
+        // Trailer: null-terminated local player index string + 16 bytes fixed trailer
+        writer.Write(Encoding.ASCII.GetBytes("0" + char.MinValue));
+        writer.Write(new byte[16]);
+
+        // Chunk 1:
+        // Header (13 bytes): timecode (4), command (4), number (4), ncomms (1)
+        writer.Write(120u); // timecode = 120
+        writer.Write(1u);   // command
+        writer.Write(1u);   // number
+        writer.Write((byte)2); // ncomms = 2
+
+        // Command 0: 0x5 (TEAMID, 4 bytes), nargs = 1 -> payload 4 bytes
+        writer.Write((byte)0x5); // cmdType TEAMID
+        writer.Write((byte)1);   // nargs = 1
+
+        // Command 1: 0xA (WIDECHAR, 2 bytes), nargs = 2 -> payload 4 bytes
+        writer.Write((byte)0xA); // cmdType WIDECHAR
+        writer.Write((byte)2);   // nargs = 2
+
+        // Payload for Command 0 (TEAMID): 4 bytes
+        writer.Write(12345u);
+
+        // Payload for Command 1 (WIDECHAR): 2 * 2 = 4 bytes
+        writer.Write((ushort)'A');
+        writer.Write((ushort)'B');
+
+        // Chunk 2:
+        // Header (13 bytes)
+        writer.Write(240u); // timecode = 240
+        writer.Write(1u);
+        writer.Write(2u);
+        writer.Write((byte)0); // ncomms = 0
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Equal(240u, result.Data.TotalFrames);
+        Assert.Equal(30, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(8), result.Data.Duration.Value);
     }
 
     private sealed class OversizedStream : MemoryStream
