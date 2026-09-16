@@ -68,4 +68,10 @@ public class ReleaseArtifact
     /// </summary>
     [JsonPropertyName("isDefaultVariant")]
     public bool IsDefaultVariant { get; set; }
+
+    /// <summary>
+    /// Gets or sets the local file path for upload (not serialized).
+    /// </summary>
+    [JsonIgnore]
+    public string? LocalFilePath { get; set; }
 }

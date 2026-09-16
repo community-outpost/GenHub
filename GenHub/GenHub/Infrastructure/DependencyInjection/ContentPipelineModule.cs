@@ -6,11 +6,13 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
+using GenHub.Core.Services.Publishers;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.Common;
@@ -52,6 +54,8 @@ namespace GenHub.Infrastructure.DependencyInjection;
 /// </summary>
 public static class ContentPipelineModule
 {
+    private const string UserAgentHeader = "User-Agent";
+
     /// <summary>
     /// Registers content pipeline services for dependency injection.
     /// </summary>
@@ -211,6 +215,19 @@ public static class ContentPipelineModule
         // User-followed GenHub catalogs (catalog-direct now; definition URLs via Publisher Studio later)
         services.AddSingleton<IPublisherSubscriptionStore, PublisherSubscriptionStore>();
 
+        // Register publisher definition service and named HTTP clients
+        services.AddHttpClient("PublisherDefinition", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
+        });
+        services.AddHttpClient("PublisherCatalog", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
+        });
+        services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();
+
         // Register catalog parser and version selector
         services.AddSingleton<IPublisherCatalogParser, JsonPublisherCatalogParser>();
         services.AddSingleton<IVersionSelector, VersionSelector>();
@@ -220,6 +237,9 @@ public static class ContentPipelineModule
         services.AddTransient<GenericCatalogDiscoverer>();
         services.AddTransient<GenericCatalogResolver>();
         services.AddTransient<IContentResolver>(sp => sp.GetRequiredService<GenericCatalogResolver>());
+
+        // Register cross-publisher dependency resolver
+        services.AddScoped<ICrossPublisherDependencyResolver, CrossPublisherDependencyResolver>();
 
         // Register generic catalog manifest factory
         services.AddTransient<GenericCatalogManifestFactory>();
@@ -404,7 +424,7 @@ public static class ContentPipelineModule
         services.AddHttpClient(AODMapsConstants.PublisherType, httpClient =>
         {
             httpClient.Timeout = TimeSpan.FromSeconds(30);
-            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+            httpClient.DefaultRequestHeaders.Add(UserAgentHeader, ApiConstants.DefaultUserAgent);
         });
 
         // Register AODMaps content provider
@@ -438,7 +458,7 @@ public static class ContentPipelineModule
         services.AddHttpClient(ModDBConstants.PublisherPrefix, httpClient =>
         {
             httpClient.Timeout = TimeSpan.FromSeconds(45); // ModDB can be slower
-            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+            httpClient.DefaultRequestHeaders.Add(UserAgentHeader, ApiConstants.DefaultUserAgent);
         });
 
         // Register Playwright service for web page parsing (singleton for shared browser instance)
