@@ -70,6 +70,11 @@ public class GenLauncherResolver : IContentResolver
             var gameToken = discoveredItem.TargetGame == GameType.ZeroHour ? "zerohour" : "generals";
             var publisherToken = $"{GenLauncherConstants.PublisherId}-{gameToken}";
 
+            discoveredItem.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentContentId);
+            var effectiveOriginalContentId = !string.IsNullOrWhiteSpace(parentContentId)
+                ? parentContentId
+                : discoveredItem.Id;
+
             var manifest = new ContentManifest
             {
                 Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
@@ -82,7 +87,7 @@ public class GenLauncherResolver : IContentResolver
                 ContentType = discoveredItem.ContentType,
                 TargetGame = discoveredItem.TargetGame,
                 OriginalProviderName = PublisherTypeConstants.GenLauncher,
-                OriginalContentId = discoveredItem.Id,
+                OriginalContentId = effectiveOriginalContentId,
                 Publisher = new PublisherInfo
                 {
                     Name = PublisherInfoConstants.GenLauncher.Name,
@@ -119,18 +124,13 @@ public class GenLauncherResolver : IContentResolver
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken)
     {
-        var versionManifest = discoveredItem.GetData<GenLauncherVersionManifest>();
-        if (versionManifest != null)
+        if (discoveredItem.Data is GenLauncherVersionManifest manifest)
         {
-            return versionManifest;
+            return manifest;
         }
 
-        var yamlUrl = discoveredItem.ResolverMetadata.TryGetValue("yamlUrl", out var metaYamlUrl)
-            ? metaYamlUrl
-            : discoveredItem.SourceUrl;
-
-        if (string.IsNullOrWhiteSpace(yamlUrl) ||
-            (!yamlUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) && !yamlUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)))
+        var yamlUrl = GetMetadata(discoveredItem.ResolverMetadata, "yamlUrl");
+        if (string.IsNullOrWhiteSpace(yamlUrl))
         {
             return null;
         }
@@ -146,7 +146,7 @@ public class GenLauncherResolver : IContentResolver
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not fetch or parse version manifest YAML from {Url}", yamlUrl);
+            _logger.LogWarning(ex, "Failed to fetch/parse version manifest from {Url}", yamlUrl);
             return null;
         }
     }

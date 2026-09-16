@@ -21,6 +21,7 @@ using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentDiscoverers;
+using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.Views;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
@@ -86,6 +87,7 @@ public partial class ContentDetailViewModel(
     private const string UnknownValue = "Unknown";
 
     // ===== Instance Fields (Synchronization & Lifecycle) =====
+    private static readonly HttpClient SharedProbeHttpClient = new() { Timeout = TimeSpan.FromSeconds(5) };
     private readonly object _basicContentLoadLock = new();
     private readonly object _preloadLock = new();
     private readonly object _contentTypePersistLock = new();
@@ -1716,15 +1718,18 @@ public partial class ContentDetailViewModel(
 
     partial void OnIsDownloadingChanged(bool value)
     {
-        foreach (var release in Releases)
+        RunOnUiThread(() =>
         {
-            (release.SelectCommand as IRelayCommand)?.NotifyCanExecuteChanged();
-        }
+            foreach (var release in Releases)
+            {
+                (release.SelectCommand as IRelayCommand)?.NotifyCanExecuteChanged();
+            }
 
-        foreach (var addon in Addons)
-        {
-            (addon.SelectCommand as IRelayCommand)?.NotifyCanExecuteChanged();
-        }
+            foreach (var addon in Addons)
+            {
+                (addon.SelectCommand as IRelayCommand)?.NotifyCanExecuteChanged();
+            }
+        });
     }
 
     private void TrackRowStateResolution(Task task)
@@ -2017,6 +2022,15 @@ public partial class ContentDetailViewModel(
         if (msg.Matches(searchResult))
         {
             return true;
+        }
+
+        if (!string.IsNullOrEmpty(parentContentId))
+        {
+            if (string.Equals(parentContentId, searchResult.Id, StringComparison.OrdinalIgnoreCase) ||
+                (SelectedVariant != null && string.Equals(parentContentId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
         }
 
         if (SelectedVariant != null && !string.IsNullOrEmpty(SelectedVariant.ManifestId))
@@ -3379,9 +3393,42 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(ContentType));
     }
 
+    private static bool IsSameReleaseLineage(ReleaseItemViewModel rel1, ReleaseItemViewModel rel2)
+    {
+        if (ReferenceEquals(rel1, rel2))
+        {
+            return true;
+        }
+
+        var name1 = ContentStateService.NormalizeSegment(ContentStateService.StripVariantSuffix(rel1.Name));
+        var name2 = ContentStateService.NormalizeSegment(ContentStateService.StripVariantSuffix(rel2.Name));
+
+        if (string.Equals(name1, name2, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(name1) && !string.IsNullOrEmpty(name2))
+        {
+            if (name1.StartsWith(name2, StringComparison.OrdinalIgnoreCase) &&
+                (name1.Length == name2.Length || char.IsDigit(name1[name2.Length]) || name1[name2.Length] == 'v'))
+            {
+                return true;
+            }
+
+            if (name2.StartsWith(name1, StringComparison.OrdinalIgnoreCase) &&
+                (name2.Length == name1.Length || char.IsDigit(name2[name1.Length]) || name2[name1.Length] == 'v'))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Reconciles release states so older downloaded releases show update available
-    /// when a newer release is not downloaded.
+    /// when a newer release of the same lineage is not downloaded.
     /// </summary>
     private void ReconcileReleases()
     {
@@ -3395,19 +3442,22 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        var newestRelease = Releases[0];
-        bool newestNeedsDownload = !newestRelease.IsDownloaded;
-
         foreach (var rel in Releases)
         {
-            if (rel.IsDownloaded && newestNeedsDownload && rel != newestRelease)
-            {
-                rel.IsUpdateAvailable = true;
-            }
-            else if (!newestNeedsDownload || rel == newestRelease)
+            if (!rel.IsDownloaded)
             {
                 rel.IsUpdateAvailable = false;
+                continue;
             }
+
+            var candidateUpdate = Releases.FirstOrDefault(other =>
+                !other.IsDownloaded &&
+                !ReferenceEquals(other, rel) &&
+                IsSameReleaseLineage(rel, other) &&
+                (ContentStateService.IsNewerVersion(other.Version, rel.Version) ||
+                 (Releases.IndexOf(other) < Releases.IndexOf(rel) && !string.Equals(other.Version, rel.Version, StringComparison.OrdinalIgnoreCase))));
+
+            rel.IsUpdateAvailable = candidateUpdate != null;
         }
 
         if (SelectedDownloadableItem is ReleaseItemViewModel selectedRel)
@@ -3649,7 +3699,12 @@ public partial class ContentDetailViewModel(
         {
             if (!_disposed)
             {
-                IsDownloading = false;
+                RunOnUiThread(() =>
+                {
+                    IsDownloading = false;
+                    DownloadProgress = 0;
+                    DownloadStatusMessage = null;
+                });
             }
         }
     }
@@ -3784,6 +3839,9 @@ public partial class ContentDetailViewModel(
                 if (targetContent == searchResult || (_updateTargetSearchResult != null && targetContent == _updateTargetSearchResult))
                 {
                     IsDownloaded = true;
+                    IsUpdateAvailable = false;
+                    _initialIsUpdateAvailable = false;
+                    _updateTargetSearchResult = null;
 
                     if (SelectedVariant != null)
                     {
@@ -3802,10 +3860,12 @@ public partial class ContentDetailViewModel(
                             string.Equals(release.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase))
                         {
                             release.IsDownloaded = true;
+                            release.IsUpdateAvailable = false;
                             release.DownloadedManifestId = manifest.Id.Value;
                         }
                     }
 
+                    ReconcileReleases();
                     // Note: searchResult ID update and state change notification are handled by the coordinator
                 }
 
@@ -4003,6 +4063,11 @@ public partial class ContentDetailViewModel(
 
                     releaseItem.DownloadedManifestId = manifest.Id.Value;
                     releaseItem.IsDownloaded = true;
+                    releaseItem.IsUpdateAvailable = false;
+                    IsUpdateAvailable = false;
+                    _initialIsUpdateAvailable = false;
+                    _updateTargetSearchResult = null;
+                    ReconcileReleases();
                     if (ReferenceEquals(SelectedDownloadableItem, releaseItem))
                     {
                         RefreshSelectedTargetProperties();
@@ -4070,6 +4135,44 @@ public partial class ContentDetailViewModel(
     /// pool, content in CAS) is marked downloaded and bound to its on-disk manifest ID so the row
     /// shows "Add to Profile" instead of "Download" and Add to Profile works without re-acquiring.
     /// </summary>
+    private async Task TryProbeRowFileSizeAsync(IDownloadableRowViewModel row, string downloadUrl, CancellationToken ct)
+    {
+        if (row.FileSize > 0 || string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return;
+        }
+
+        try
+        {
+            using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            probeCts.CancelAfter(TimeSpan.FromSeconds(3));
+            using var req = new HttpRequestMessage(HttpMethod.Head, uri);
+            using var resp = await SharedProbeHttpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, probeCts.Token);
+            if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
+            {
+                var size = resp.Content.Headers.ContentLength.Value;
+                await RunOnUiThreadAsync(() =>
+                {
+                    row.FileSize = size;
+                    if (ReferenceEquals(SelectedDownloadableItem, row))
+                    {
+                        RefreshSelectedTargetProperties();
+                    }
+                });
+            }
+        }
+        catch
+        {
+            // Best effort probing
+        }
+    }
+
     private async Task ResolveRowStateAsync(IDownloadableRowViewModel row, DownloadableFile file)
     {
         if (string.IsNullOrEmpty(file.DownloadUrl))
@@ -4079,6 +4182,11 @@ public partial class ContentDetailViewModel(
 
         try
         {
+            if (row.FileSize <= 0)
+            {
+                await TryProbeRowFileSizeAsync(row, file.DownloadUrl, _cts.Token);
+            }
+
             var rowSearchResult = CreateFileSearchResult(file, row.ContentType);
             var state = await contentStateService.GetStateAsync(rowSearchResult, _cts.Token);
             if (state == ContentState.NotDownloaded)

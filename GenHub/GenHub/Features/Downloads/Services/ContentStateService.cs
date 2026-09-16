@@ -1331,7 +1331,7 @@ public sealed partial class ContentStateService(
     /// ensuring that hyphenated content names without recognized variant tokens (e.g. generals-gameplay vs generals-tools)
     /// are not truncated and do not false-match.
     /// </summary>
-    private static string StripVariantSuffix(string segment)
+    internal static string StripVariantSuffix(string segment)
     {
         var variantToken = ExtractVariantToken(segment);
         if (string.IsNullOrEmpty(variantToken))

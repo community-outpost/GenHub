@@ -1712,14 +1712,35 @@ public sealed partial class DownloadsBrowserViewModel(
             SelectDefaultVariant(variantVm, groupItems, primaryItem, defaultVariant);
 
             await variantVm.RefreshVariantStatesAsync();
-            variantVm.CurrentState = await contentStateService.GetStateAsync(defaultVariant, ct);
-            variantVm.IsDownloaded = variantVm.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
-            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(defaultVariant.Id) || !ManifestIdValidator.IsValid(defaultVariant.Id, out _)))
+            var targetState = variantVm.SelectedVariant?.CurrentState ?? await contentStateService.GetStateAsync(defaultVariant, ct);
+            if (targetState == ContentState.NotDownloaded && variantVm.Variants.Any(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable))
             {
-                var manifestId = await contentStateService.GetLocalManifestIdAsync(defaultVariant, ct);
+                var downloadedVariant = variantVm.Variants.FirstOrDefault(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+                if (downloadedVariant != null)
+                {
+                    variantVm.SelectedVariant = downloadedVariant;
+                    targetState = downloadedVariant.CurrentState;
+                }
+            }
+
+            variantVm.CurrentState = targetState;
+            variantVm.IsDownloaded = targetState is ContentState.Downloaded or ContentState.UpdateAvailable ||
+                                     variantVm.Variants.Any(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
+            var targetItem = defaultVariant;
+            if (variantVm.SelectedVariant != null &&
+                !string.IsNullOrEmpty(variantVm.SelectedVariant.ManifestId) &&
+                variantVm.VariantSearchResults.TryGetValue(variantVm.SelectedVariant.ManifestId, out var variantSr))
+            {
+                targetItem = variantSr;
+            }
+
+            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(targetItem.Id) || !ManifestIdValidator.IsValid(targetItem.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(targetItem, ct);
                 if (!string.IsNullOrEmpty(manifestId))
                 {
-                    defaultVariant.UpdateId(manifestId);
+                    targetItem.UpdateId(manifestId);
                 }
             }
 

@@ -36,6 +36,10 @@ public class GenLauncherDiscoverer : IContentDiscoverer
     /// <summary>
     /// Initializes a new instance of the <see cref="GenLauncherDiscoverer"/> class.
     /// </summary>
+    /// <param name="httpClientFactory">Factory for creating HTTP clients.</param>
+    /// <param name="providerLoader">Loader for provider definitions.</param>
+    /// <param name="catalogParser">Parser for GenLauncher catalog YAML documents.</param>
+    /// <param name="logger">Logger instance.</param>
     public GenLauncherDiscoverer(
         IHttpClientFactory httpClientFactory,
         IProviderDefinitionLoader providerLoader,
@@ -329,9 +333,16 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         var filesSections = new List<ContentSection>();
         if (mainManifest != null)
         {
+            var mainSizeBytes = await TryCalculateDownloadSizeAsync(client, mainManifest, cancellationToken);
+            if (mainSizeBytes.HasValue && mainSizeBytes.Value > 0)
+            {
+                mainResult.DownloadSize = mainSizeBytes.Value;
+            }
+
             filesSections.Add(new DownloadableFile(
                 Name: $"{modEntry.ModName} {mainManifest.Version}".Trim(),
                 Version: mainManifest.Version,
+                SizeBytes: mainSizeBytes,
                 DownloadUrl: mainManifest.SimpleDownloadLink,
                 FileSectionType: FileSectionType.Downloads,
                 Description: BuildDescription(mainManifest),
@@ -405,6 +416,16 @@ public class GenLauncherDiscoverer : IContentDiscoverer
                 continue;
             }
 
+            long? sizeBytes = null;
+            if (item.Data is GenLauncherVersionManifest childManifest)
+            {
+                sizeBytes = await TryCalculateDownloadSizeAsync(context.Client, childManifest, cancellationToken);
+                if (sizeBytes.HasValue && sizeBytes.Value > 0)
+                {
+                    item.DownloadSize = sizeBytes.Value;
+                }
+            }
+
             context.Results.Add(item);
             var slug = GenLauncherCatalogParser.Slugify(item.Name);
             context.Variants.Add(new ContentVariantInfo
@@ -418,6 +439,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
             context.FilesSections.Add(new DownloadableFile(
                 Name: item.Name,
                 Version: item.Version,
+                SizeBytes: sizeBytes,
                 DownloadUrl: item.SourceUrl,
                 FileSectionType: sectionType,
                 Description: item.Description,
@@ -711,6 +733,66 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         }
 
         return true;
+    }
+
+    private async Task<long?> TryCalculateDownloadSizeAsync(
+        HttpClient client,
+        GenLauncherVersionManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(manifest.S3HostLink) && !string.IsNullOrWhiteSpace(manifest.S3BucketName))
+            {
+                var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                    manifest.S3HostLink,
+                    manifest.S3BucketName,
+                    manifest.S3FolderName);
+
+                var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(xml))
+                {
+                    var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+                        xml,
+                        manifest.S3FolderName ?? string.Empty,
+                        manifest.S3HostLink,
+                        manifest.S3BucketName);
+
+                    if (entries.Count > 0)
+                    {
+                        var totalSize = entries.Sum(e => e.Size);
+                        if (totalSize > 0)
+                        {
+                            return totalSize;
+                        }
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(manifest.SimpleDownloadLink) &&
+                Uri.TryCreate(manifest.SimpleDownloadLink, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(3));
+                using var req = new HttpRequestMessage(HttpMethod.Head, uri);
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
+                {
+                    return resp.Content.Headers.ContentLength.Value;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to probe download size for {Name}", manifest.Name);
+        }
+
+        return null;
     }
 
     private async Task<string?> FetchStringWithCacheAsync(HttpClient client, string url, CancellationToken cancellationToken)
