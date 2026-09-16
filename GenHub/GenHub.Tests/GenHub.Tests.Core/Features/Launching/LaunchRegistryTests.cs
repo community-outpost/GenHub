@@ -54,7 +54,11 @@ public class LaunchRegistryTests
             },
         };
         await _registry.RegisterLaunchAsync(launch);
-        DateTime? observedTime = observed ? (different ? startTime.AddSeconds(1) : startTime.ToLocalTime()) : null;
+        DateTime? observedTime = null;
+        if (observed)
+        {
+            observedTime = different ? startTime.AddSeconds(1) : startTime.ToLocalTime();
+        }
 
         // Supply timestamp observations directly; never inspect or signal a real process.
         Assert.Equal(reused, _registry.TryHandleReusedProcess(launch, observedTime));
