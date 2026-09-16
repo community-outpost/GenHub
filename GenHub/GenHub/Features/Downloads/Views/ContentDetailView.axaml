@@ -11,6 +11,7 @@
              xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
              xmlns:markdown="clr-namespace:GenHub.Infrastructure.Markdown;assembly=GenHub"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="GenHub.Features.Downloads.Views.ContentDetailView"
              x:DataType="vm:ContentDetailViewModel"
@@ -371,10 +372,16 @@
                                                         <!-- Thumbnail -->
                                                         <Border Grid.Column="1" Width="44" Height="44" CornerRadius="6"
                                                                 ClipToBounds="True" Background="{DynamicResource CardBackground}" Margin="0,0,12,0"
-                                                                IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                                 VerticalAlignment="Center">
-                                                            <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
-                                                                   Stretch="UniformToFill" />
+                                                            <Panel>
+                                                                <material:MaterialIcon Kind="PackageVariantClosed"
+                                                                                       Width="24" Height="24"
+                                                                                       Foreground="{DynamicResource TextTertiary}"
+                                                                                       HorizontalAlignment="Center"
+                                                                                       VerticalAlignment="Center" />
+                                                                <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
+                                                                       Stretch="UniformToFill" />
+                                                            </Panel>
                                                         </Border>
 
                                                         <!-- Basic Info -->
@@ -743,10 +750,16 @@
                                                         <!-- Thumbnail -->
                                                         <Border Grid.Column="1" Width="44" Height="44" CornerRadius="6"
                                                                 ClipToBounds="True" Background="{DynamicResource CardBackground}" Margin="0,0,12,0"
-                                                                IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                                 VerticalAlignment="Center">
-                                                            <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
-                                                                   Stretch="UniformToFill" />
+                                                            <Panel>
+                                                                <material:MaterialIcon Kind="PuzzleOutline"
+                                                                                       Width="24" Height="24"
+                                                                                       Foreground="{DynamicResource TextTertiary}"
+                                                                                       HorizontalAlignment="Center"
+                                                                                       VerticalAlignment="Center" />
+                                                                <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
+                                                                       Stretch="UniformToFill" />
+                                                            </Panel>
                                                         </Border>
 
                                                         <!-- Basic Info -->

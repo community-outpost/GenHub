@@ -1051,6 +1051,10 @@ public partial class ContentDetailViewModel(
             var itemCategory = itemContentType.GetDisplayName();
             var itemFilename = GetFileNameFromUrl(url) ?? displayName;
 
+            var itemThumbnail = ResolveItemThumbnailUrl(
+                sibling?.IconUrl ?? (sibling != null ? ContentCardBadgeHelper.GetThumbnailUrl(sibling) : null),
+                searchResult.IconUrl ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult));
+
             var file = new DownloadableFile(
                 Name: displayName,
                 DownloadUrl: url,
@@ -1061,6 +1065,7 @@ public partial class ContentDetailViewModel(
                 Uploader: itemAuthor,
                 Filename: itemFilename,
                 Description: itemDescription,
+                ThumbnailUrl: itemThumbnail,
                 FileSectionType: FileSectionType.Downloads);
 
             ReleaseItemViewModel releaseItem = new()
@@ -1077,6 +1082,7 @@ public partial class ContentDetailViewModel(
                 Category = itemCategory,
                 Uploader = itemAuthor,
                 Filename = itemFilename,
+                ThumbnailUrl = itemThumbnail,
                 FullDescription = itemDescription,
                 TargetGame = ResolveTargetGameString(sibling, searchResult),
                 IsDetailsLoaded = true,
@@ -1672,7 +1678,11 @@ public partial class ContentDetailViewModel(
 
         if (!string.IsNullOrEmpty(detailedFile.ThumbnailUrl))
         {
-            item.ThumbnailUrl = detailedFile.ThumbnailUrl;
+            var resolvedThumb = ResolveItemThumbnailUrl(detailedFile.ThumbnailUrl, item.ThumbnailUrl);
+            if (!string.IsNullOrEmpty(resolvedThumb))
+            {
+                item.ThumbnailUrl = resolvedThumb;
+            }
         }
     }
 
@@ -4578,6 +4588,23 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    private static string? ResolveItemThumbnailUrl(string? rawUrl, string? parentFallbackUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(rawUrl) &&
+            !rawUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
+        {
+            return rawUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(parentFallbackUrl) &&
+            !parentFallbackUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
+        {
+            return parentFallbackUrl;
+        }
+
+        return null;
+    }
+
     private ReleaseItemViewModel CreateReleaseItemViewModel(DownloadableFile file)
     {
         var isDetailsAlreadyLoaded = IsFileDetailsAlreadyLoaded(file);
@@ -4619,7 +4646,7 @@ public partial class ContentDetailViewModel(
             SizeDisplay = file.SizeDisplay,
             DownloadUrl = file.DownloadUrl,
             DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
-            ThumbnailUrl = file.ThumbnailUrl,
+            ThumbnailUrl = ResolveItemThumbnailUrl(file.ThumbnailUrl, searchResult.IconUrl ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)),
             Category = file.Category,
             ContentType = mappedType,
             File = file,
@@ -4690,7 +4717,7 @@ public partial class ContentDetailViewModel(
             SizeDisplay = file.SizeDisplay,
             DownloadUrl = file.DownloadUrl,
             DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
-            ThumbnailUrl = file.ThumbnailUrl,
+            ThumbnailUrl = ResolveItemThumbnailUrl(file.ThumbnailUrl, searchResult.IconUrl ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)),
             Category = file.Category,
             ContentType = mappedType,
             File = file,

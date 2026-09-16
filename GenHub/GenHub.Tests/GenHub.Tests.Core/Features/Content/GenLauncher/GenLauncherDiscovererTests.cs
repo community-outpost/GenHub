@@ -165,17 +165,21 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/camera.zip?dl=0'
         Assert.NotNull(mainMod.Variants);
         Assert.Equal(2, mainMod.Variants.Count); // Main mod + patch
 
+        var patchItem = items.Find(i => i.Name == "Shockwave 1.2 Patch 1");
+        Assert.NotNull(patchItem);
+        Assert.Equal("https://test.com/img.png", patchItem.IconUrl);
+
         var globalAddon = items.Find(i => i.Name == "Camera Height Addon");
         Assert.NotNull(globalAddon);
         Assert.Equal(ContentType.Addon, globalAddon.ContentType);
     }
 
     /// <summary>
-    /// Tests that DiscoverAsync correctly respects Skip and Take pagination.
+    /// Tests that DiscoverAsync returns all catalog items without server-side truncation.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithPagination_AppliesSkipTakeAndHasMoreItems()
+    public async Task DiscoverAsync_ReturnsAllCatalogItemsWithoutTruncation()
     {
         var mockHttp = new Mock<HttpMessageHandler>();
 
@@ -260,8 +264,111 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/camera.zip?dl=0'
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(3, result.Data.TotalItems);
-        Assert.Single(result.Data.Items);
-        Assert.True(result.Data.HasMoreItems);
+        Assert.Equal(3, result.Data.Items.Count());
+        Assert.False(result.Data.HasMoreItems);
+    }
+
+    /// <summary>
+    /// Tests that child manifests with dead Discord links inherit the parent mod icon.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_ChildManifestWithDiscordIcon_InheritsParentIcon()
+    {
+        const string childWithDiscordIconYaml = @"
+Name: 'Shockwave 1.2 Patch 1'
+Version: '1.2.1'
+ModificationType: 2
+UIImageSourceLink: 'https://cdn.discordapp.com/attachments/123/456/broken.png'
+DependenceName: 'Shockwave'
+SimpleDownloadLink: 'https://dropbox.com/s/test/patch.zip?dl=0'
+";
+
+        var mockHttp = new Mock<HttpMessageHandler>();
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("Generals")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("LauncherVersion: '1.0'\nmodDatas: []"),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("ZH")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SampleRootManifest),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("shockwave.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SampleShockwaveYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("shockwave-patch1.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(childWithDiscordIconYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("global-addon.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SampleGlobalAddonYaml),
+            });
+
+        var client = new HttpClient(mockHttp.Object);
+        var mockFactory = new Mock<IHttpClientFactory>();
+        mockFactory.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(client);
+
+        var mockLoader = new Mock<IProviderDefinitionLoader>();
+        mockLoader.Setup(l => l.GetProvider(It.IsAny<string>())).Returns(new ProviderDefinition
+        {
+            ProviderId = GenLauncherConstants.PublisherId,
+            DisplayName = PublisherTypeConstants.GenLauncher,
+            PublisherType = PublisherTypeConstants.GenLauncher,
+        });
+
+        var parser = new GenLauncherCatalogParser(NullLogger<GenLauncherCatalogParser>.Instance);
+        var discoverer = new GenLauncherDiscoverer(
+            mockFactory.Object,
+            mockLoader.Object,
+            parser,
+            NullLogger<GenLauncherDiscoverer>.Instance);
+
+        var query = new ContentSearchQuery
+        {
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var result = await discoverer.DiscoverAsync(query, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var items = new List<ContentSearchResult>(result.Data.Items);
+        var patchItem = items.Find(i => i.Name == "Shockwave 1.2 Patch 1");
+        Assert.NotNull(patchItem);
+        Assert.Equal("https://test.com/img.png", patchItem.IconUrl);
     }
 
     /// <summary>

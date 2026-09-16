@@ -100,26 +100,11 @@ public class GenLauncherDiscoverer : IContentDiscoverer
             }
 
             var resultList = FilterDiscoveredItems(allItems, query);
-            var totalItems = resultList.Count;
-
-            var pagedItems = resultList;
-            if (query.Skip > 0)
-            {
-                pagedItems = pagedItems.Skip(query.Skip).ToList();
-            }
-
-            if (query.Take > 0)
-            {
-                pagedItems = pagedItems.Take(query.Take).ToList();
-            }
-
-            var hasMoreItems = (query.Skip + pagedItems.Count) < totalItems;
-
             var discoveryResult = new ContentDiscoveryResult
             {
-                Items = pagedItems,
-                TotalItems = totalItems,
-                HasMoreItems = hasMoreItems,
+                Items = resultList,
+                TotalItems = resultList.Count,
+                HasMoreItems = false,
             };
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(discoveryResult);
         }
@@ -147,6 +132,27 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         }
 
         return [GameType.ZeroHour, GameType.Generals];
+    }
+
+    private static string? CleanImageUrl(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+        {
+            return null;
+        }
+
+        if (rawUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return rawUrl;
+    }
+
+    private static string? ResolveIconUrl(string? rawUrl, string? fallbackUrl)
+    {
+        var cleaned = CleanImageUrl(rawUrl);
+        return !string.IsNullOrWhiteSpace(cleaned) ? cleaned : CleanImageUrl(fallbackUrl);
     }
 
     private async Task<List<ContentSearchResult>> DiscoverGameCatalogAsync(
@@ -329,7 +335,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
                 DownloadUrl: mainManifest.SimpleDownloadLink,
                 FileSectionType: FileSectionType.Downloads,
                 Description: BuildDescription(mainManifest),
-                ThumbnailUrl: mainManifest.UIImageSourceLink));
+                ThumbnailUrl: ResolveIconUrl(mainManifest.UIImageSourceLink, mainResult.IconUrl)));
         }
 
         var modContext = new ModProcessingContext(
@@ -337,6 +343,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
             game,
             modEntry.ModName,
             modSlug,
+            mainResult.IconUrl,
             results,
             variants,
             filesSections);
@@ -384,7 +391,15 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         foreach (var url in urls)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var item = await ProcessChildManifestAsync(context.Client, url, context.Game, contentType, context.ModName, context.ModSlug, cancellationToken);
+            var item = await ProcessChildManifestAsync(
+                context.Client,
+                url,
+                context.Game,
+                contentType,
+                context.ModName,
+                context.ModSlug,
+                context.ParentIconUrl,
+                cancellationToken);
             if (item == null)
             {
                 continue;
@@ -406,7 +421,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
                 DownloadUrl: item.SourceUrl,
                 FileSectionType: sectionType,
                 Description: item.Description,
-                ThumbnailUrl: item.IconUrl));
+                ThumbnailUrl: item.IconUrl ?? context.ParentIconUrl));
         }
     }
 
@@ -415,6 +430,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         GameType Game,
         string ModName,
         string ModSlug,
+        string? ParentIconUrl,
         List<ContentSearchResult> Results,
         List<ContentVariantInfo> Variants,
         List<ContentSection> FilesSections);
@@ -426,6 +442,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         ContentType defaultType,
         string parentModName,
         string parentModSlug,
+        string? parentIconUrl,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(manifestUrl))
@@ -471,7 +488,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
             ProviderName = PublisherTypeConstants.GenLauncher,
             ResolverId = GenLauncherConstants.PublisherId,
             SourceUrl = versionManifest.SimpleDownloadLink ?? manifestUrl,
-            IconUrl = versionManifest.UIImageSourceLink,
+            IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, parentIconUrl),
             RequiresResolution = true,
             VariantGroupId = parentModSlug,
             VariantFamilyName = parentModName,
@@ -481,7 +498,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         result.Tags.Add(actualType.ToString().ToLowerInvariant());
         result.Tags.Add(game.ToString().ToLowerInvariant());
 
-        EnrichSearchResult(result, versionManifest, manifestUrl);
+        EnrichSearchResult(result, versionManifest, manifestUrl, parentIconUrl);
         return result;
     }
 
@@ -507,7 +524,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
             await semaphore.WaitAsync(cancellationToken);
             try
             {
-                return await ProcessChildManifestAsync(client, url, game, contentType, familyName, familySlug, cancellationToken);
+                return await ProcessChildManifestAsync(client, url, game, contentType, familyName, familySlug, null, cancellationToken);
             }
             finally
             {
@@ -524,7 +541,8 @@ public class GenLauncherDiscoverer : IContentDiscoverer
     private static void EnrichSearchResult(
         ContentSearchResult result,
         GenLauncherVersionManifest manifest,
-        string manifestUrl)
+        string manifestUrl,
+        string? fallbackIconUrl = null)
     {
         result.SetData(manifest);
 
@@ -533,9 +551,10 @@ public class GenLauncherDiscoverer : IContentDiscoverer
             result.Version = manifest.Version;
         }
 
-        if (!string.IsNullOrWhiteSpace(manifest.UIImageSourceLink))
+        var resolvedIcon = ResolveIconUrl(manifest.UIImageSourceLink, fallbackIconUrl ?? result.IconUrl);
+        if (!string.IsNullOrWhiteSpace(resolvedIcon))
         {
-            result.IconUrl = manifest.UIImageSourceLink;
+            result.IconUrl = resolvedIcon;
         }
 
         if (!string.IsNullOrWhiteSpace(manifest.SimpleDownloadLink) && IsValidHttpUrl(manifest.SimpleDownloadLink, out _))
