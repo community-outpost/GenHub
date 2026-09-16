@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
@@ -145,5 +146,45 @@ public class CommunityOutpostDiscovererTests
         Assert.Equal("communityoutpost", idParts[2]);
         Assert.Equal("gameclient", idParts[3]);
         Assert.Equal("community-patch", idParts[4]);
+    }
+
+    /// <summary>
+    /// Verifies that GetTagsForCategory returns the centralized tags from CommunityOutpostConstants for all categories.
+    /// </summary>
+    /// <param name="category">The content category under test.</param>
+    [Theory]
+    [InlineData(GenPatcherContentCategory.CommunityPatch)]
+    [InlineData(GenPatcherContentCategory.OfficialPatch)]
+    [InlineData(GenPatcherContentCategory.BaseGame)]
+    [InlineData(GenPatcherContentCategory.ControlBar)]
+    [InlineData(GenPatcherContentCategory.Hotkeys)]
+    [InlineData(GenPatcherContentCategory.Camera)]
+    [InlineData(GenPatcherContentCategory.Tools)]
+    [InlineData(GenPatcherContentCategory.Maps)]
+    [InlineData(GenPatcherContentCategory.Visuals)]
+    [InlineData(GenPatcherContentCategory.Prerequisites)]
+    [InlineData(GenPatcherContentCategory.Other)]
+    public void GetTagsForCategory_ReturnsExpectedConstantsTags(GenPatcherContentCategory category)
+    {
+        // Act
+        var tags = CommunityOutpostDiscoverer.GetTagsForCategory(category);
+
+        // Assert
+        var expected = category switch
+        {
+            GenPatcherContentCategory.CommunityPatch => CommunityOutpostConstants.CommunityPatchTags,
+            GenPatcherContentCategory.OfficialPatch => CommunityOutpostConstants.OfficialPatchTags,
+            GenPatcherContentCategory.BaseGame => CommunityOutpostConstants.BaseGameTags,
+            GenPatcherContentCategory.ControlBar => CommunityOutpostConstants.ControlBarTags,
+            GenPatcherContentCategory.Hotkeys => CommunityOutpostConstants.HotkeysTags,
+            GenPatcherContentCategory.Camera => CommunityOutpostConstants.CameraTags,
+            GenPatcherContentCategory.Tools => CommunityOutpostConstants.ToolsTags,
+            GenPatcherContentCategory.Maps => CommunityOutpostConstants.MapsTags,
+            GenPatcherContentCategory.Visuals => CommunityOutpostConstants.VisualsTags,
+            GenPatcherContentCategory.Prerequisites => CommunityOutpostConstants.PrerequisitesTags,
+            _ => CommunityOutpostConstants.AddonTags,
+        };
+
+        Assert.Same(expected, tags);
     }
 }

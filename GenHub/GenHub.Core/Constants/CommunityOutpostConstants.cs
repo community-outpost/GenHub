@@ -132,17 +132,57 @@ public static class CommunityOutpostConstants
     public static readonly string[] PatchTags = ["patch", "community", "weekly", "legionnaire"];
 
     /// <summary>
+    /// Tags associated with community patch content.
+    /// </summary>
+    public static readonly string[] CommunityPatchTags = ["community-patch", "thesuperhackers", "weekly", "game-client"];
+
+    /// <summary>
     /// Tags associated with official patches.
     /// </summary>
     public static readonly string[] OfficialPatchTags = ["patch", "official", "ea"];
 
     /// <summary>
-    /// Tags associated with addons.
+    /// Tags associated with base game content.
     /// </summary>
-    public static readonly string[] AddonTags = ["addon", "community", "genpatcher"];
+    public static readonly string[] BaseGameTags = ["base-game", "vanilla"];
+
+    /// <summary>
+    /// Tags associated with control bar addons.
+    /// </summary>
+    public static readonly string[] ControlBarTags = ["addon", "control-bar", "ui"];
+
+    /// <summary>
+    /// Tags associated with hotkey addons.
+    /// </summary>
+    public static readonly string[] HotkeysTags = ["addon", "hotkeys", "keyboard"];
+
+    /// <summary>
+    /// Tags associated with camera modifications.
+    /// </summary>
+    public static readonly string[] CameraTags = ["addon", "camera"];
 
     /// <summary>
     /// Tags associated with tools.
     /// </summary>
     public static readonly string[] ToolsTags = ["tool", "utility", "genpatcher"];
+
+    /// <summary>
+    /// Tags associated with maps and missions.
+    /// </summary>
+    public static readonly string[] MapsTags = ["maps", "missions"];
+
+    /// <summary>
+    /// Tags associated with visual enhancements.
+    /// </summary>
+    public static readonly string[] VisualsTags = ["addon", "visuals", "graphics"];
+
+    /// <summary>
+    /// Tags associated with system prerequisites.
+    /// </summary>
+    public static readonly string[] PrerequisitesTags = ["prerequisite", "system"];
+
+    /// <summary>
+    /// Tags associated with addons.
+    /// </summary>
+    public static readonly string[] AddonTags = ["addon", "community", "genpatcher"];
 }
