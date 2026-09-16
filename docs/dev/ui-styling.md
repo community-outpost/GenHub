@@ -130,11 +130,11 @@ Item templates inside sidebars must use inset rounded rows:
 
 All selection dropdowns automatically inherit the global style from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml` via `App.axaml`:
 
-- **Container:** Rounded 8px corners (`CornerRadius="8"`), `MinHeight="36"`, background bound to `{DynamicResource SurfaceElevatedBrush}` with subtle 1px border `{DynamicResource BorderBrush}`.
-- **Hover & Focus:** Background transitions to `{DynamicResource SurfaceHoverBrush}`, border highlights to `{DynamicResource BorderHighlightBrush}` on hover and `{DynamicResource AccentBrush}` on focus/open.
-- **Glyph:** Vector chevron (`Data="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"`) that rotates 180 degrees smoothly when the dropdown opens.
+- **Container:** Rounded 8px corners (`CornerRadius="8"`), `MinHeight="36"`, background bound to `{DynamicResource CardBackground}` with subtle 1px border `{DynamicResource BorderBrush}`.
+- **Hover & Focus:** Background transitions to `{DynamicResource SurfaceElevatedBrush}`, border highlights to `{DynamicResource BorderHighlightBrush}` on hover and `{DynamicResource AccentBrush}` on focus/open.
+- **Glyph:** Vector chevron (`Data="M7 10l5 5 5-5z"`) that rotates 180 degrees smoothly when the dropdown opens.
 - **Popup menu:** Elevated surface with rounded 8px corners, internal 4px padding, and drop shadow (`BoxShadow="0 10 28 0 #99000000"`).
-- **Items:** Inset rounded items (`Margin="2,1"`, `CornerRadius="6"`, `Padding="12,8"`) with accent pill selection highlights.
+- **Items:** Inset rounded items (`Margin="0,1"`, `CornerRadius="6"`, `Padding="12,8"`) with accent pill selection highlights.
 
 > [!IMPORTANT]
 > Never write inline `ComboBox` control templates or duplicate `ComboBox` styles inside individual feature views. Always rely on the global `ComboBoxStyles.axaml` resource.
@@ -196,10 +196,10 @@ GenHub supports live hot-swappable accent color palettes managed by `IThemeServi
 
 All dropdowns inherit styles from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml`:
 
-- **Item Template:** `ComboBoxItem` uses a custom `ControlTemplate` with `x:Name="PART_ContentPresenter"` and 6px rounded corners.
-- **Hover on Unselected:** Highlights with `{DynamicResource SurfaceHoverBrush}`.
+- **Item Template:** `ComboBoxItem` uses a custom `ControlTemplate` with `Border#ItemBorder` and inner `ContentPresenter x:Name="PART_ContentPresenter"` with 6px rounded corners.
+- **Hover on Unselected:** Highlights row with `{DynamicResource AccentTintBackgroundBrush}`.
 - **Selected State:** Outlined with `{DynamicResource AccentBrush}` and filled with soft `{DynamicResource AccentBadgeBackgroundBrush}`.
-- **Hover on Selected:** Filled with vibrant `{DynamicResource AccentBrush}` and high-contrast white text.
+- **Hover on Selected:** Highlights row with `{DynamicResource AccentTintBackgroundBrush}` and outlined with `{DynamicResource AccentBrush}`.
 
 ## Tab and pill buttons (RadioButton.TabButton & Button.pill-tab)
 
