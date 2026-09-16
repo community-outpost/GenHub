@@ -1444,6 +1444,12 @@ public partial class ContentDetailViewModel(
             return (PublisherInfoConstants.CommunityOutpost.Name, PublisherInfoConstants.CommunityOutpost.Website, PublisherInfoConstants.CommunityOutpost.SupportUrl);
         }
 
+        if (providerName.Equals(PublisherInfoConstants.GenLauncher.Name, StringComparison.OrdinalIgnoreCase) ||
+            providerName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
+        {
+            return (PublisherInfoConstants.GenLauncher.Name, PublisherInfoConstants.GenLauncher.Website, PublisherInfoConstants.GenLauncher.SupportUrl);
+        }
+
         if (providerName.Equals(PublisherInfoConstants.ModDB.Name, StringComparison.OrdinalIgnoreCase))
         {
             return (PublisherInfoConstants.ModDB.Name, PublisherInfoConstants.ModDB.Website, PublisherInfoConstants.ModDB.SupportUrl);

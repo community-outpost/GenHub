@@ -20,6 +20,7 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.ContentProviders;
 using GenHub.Features.Content.Services.ContentResolvers;
 using GenHub.Features.Content.Services.GeneralsOnline;
+using GenHub.Features.Content.Services.GenLauncher;
 using GenHub.Features.Content.Services.GitHub;
 using GenHub.Features.Content.Services.LocalContent;
 using GenHub.Features.Content.Services.Parsers;
@@ -65,6 +66,7 @@ public static class ContentPipelineModule
         AddGitHubPipeline(services);
         AddGeneralsOnlinePipeline(services);
         AddCommunityOutpostPipeline(services);
+        AddGenLauncherPipeline(services);
         AddCNCLabsPipeline(services);
         AddAODMapsPipeline(services);
         AddModDBPipeline(services);
@@ -327,6 +329,42 @@ public static class ContentPipelineModule
         services.AddScoped<CommunityOutpostProfileReconciler>();
         services.AddScoped<ICommunityOutpostProfileReconciler>(sp => sp.GetRequiredService<CommunityOutpostProfileReconciler>());
         services.AddScoped<IPublisherReconciler>(sp => sp.GetRequiredService<CommunityOutpostProfileReconciler>());
+    }
+
+    /// <summary>
+    /// Registers GenLauncher content pipeline services.
+    /// </summary>
+    private static void AddGenLauncherPipeline(IServiceCollection services)
+    {
+        // Register named HTTP client for GenLauncher
+        services.AddHttpClient(PublisherTypeConstants.GenLauncher, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GenHub/1.0");
+        });
+
+        // Register GenLauncher catalog parser
+        services.AddSingleton<GenLauncherCatalogParser>();
+        services.AddSingleton<ICatalogParser>(sp => sp.GetRequiredService<GenLauncherCatalogParser>());
+
+        // Register GenLauncher provider
+        services.AddSingleton<GenLauncherProvider>();
+        services.AddSingleton<IContentProvider>(sp => sp.GetRequiredService<GenLauncherProvider>());
+
+        // Register GenLauncher discoverer
+        services.AddSingleton<GenLauncherDiscoverer>();
+        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<GenLauncherDiscoverer>());
+
+        // Register GenLauncher resolver
+        services.AddTransient<GenLauncherResolver>();
+        services.AddTransient<IContentResolver, GenLauncherResolver>();
+
+        // Register GenLauncher deliverer
+        services.AddTransient<IContentDeliverer, GenLauncherDeliverer>();
+
+        // Register GenLauncher manifest factory
+        services.AddTransient<GenLauncherManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, GenLauncherManifestFactory>();
     }
 
     /// <summary>

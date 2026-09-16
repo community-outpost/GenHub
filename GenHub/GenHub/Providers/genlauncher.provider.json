@@ -1,0 +1,26 @@
+{
+  "providerId": "genlauncher",
+  "publisherType": "genlauncher",
+  "displayName": "GenLauncher",
+  "description": "Community mods, patches, and addons from the GenLauncher repository",
+  "iconColor": "#FF9800",
+  "providerType": "Static",
+  "catalogFormat": "genlauncher-yaml",
+  "versionScheme": "semver",
+  "endpoints": {
+    "catalogUrl": "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH3.yaml",
+    "websiteUrl": "https://github.com/p0ls3r/GenLauncher",
+    "supportUrl": "https://github.com/p0ls3r/GenLauncher/issues",
+    "custom": {
+      "generalsCatalogUrl": "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataGenerals3.yaml",
+      "zeroHourCatalogUrl": "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH3.yaml"
+    }
+  },
+  "targetGame": "ZeroHour",
+  "defaultTags": ["genlauncher", "mod", "community"],
+  "timeouts": {
+    "catalogTimeoutSeconds": 30,
+    "contentTimeoutSeconds": 300
+  },
+  "enabled": true
+}

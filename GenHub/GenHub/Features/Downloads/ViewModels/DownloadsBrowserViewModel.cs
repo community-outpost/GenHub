@@ -224,7 +224,8 @@ public sealed partial class DownloadsBrowserViewModel(
         CommunityOutpostConstants.PublisherType and not
         PublisherTypeConstants.TheSuperHackers and not
         AODMapsConstants.PublisherType and not
-        CNCLabsConstants.PublisherType;
+        CNCLabsConstants.PublisherType and not
+        PublisherTypeConstants.GenLauncher;
 
     /// <summary>
     /// Gets a value indicating whether search or filter UI controls are available for the current publisher.
@@ -852,6 +853,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 CommunityOutpostConstants.PublisherType,
                 PublisherInfoConstants.CommunityOutpost.Name,
                 PublisherInfoConstants.CommunityOutpost.LogoSource,
+                ContentConstants.CategoryStatic),
+            new PublisherItemViewModel(
+                PublisherTypeConstants.GenLauncher,
+                PublisherInfoConstants.GenLauncher.Name,
+                PublisherInfoConstants.GenLauncher.LogoSource,
                 ContentConstants.CategoryStatic),
             new PublisherItemViewModel(
                 GitHubTopicsConstants.PublisherType,
@@ -1901,6 +1907,7 @@ public sealed partial class DownloadsBrowserViewModel(
             PublisherTypeConstants.GeneralsOnline => contentDiscoverers.OfType<GeneralsOnlineDiscoverer>().FirstOrDefault(),
             PublisherTypeConstants.TheSuperHackers => contentDiscoverers.OfType<GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer>().FirstOrDefault(),
             CommunityOutpostConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer>().FirstOrDefault(),
+            PublisherTypeConstants.GenLauncher => contentDiscoverers.OfType<GenHub.Features.Content.Services.GenLauncher.GenLauncherDiscoverer>().FirstOrDefault(),
             GitHubTopicsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer>().FirstOrDefault(),
             CNCLabsConstants.PublisherType => contentDiscoverers.OfType<CNCLabsMapDiscoverer>().FirstOrDefault(),
             AODMapsConstants.PublisherType => contentDiscoverers.OfType<AODMapsDiscoverer>().FirstOrDefault(),
@@ -2191,6 +2198,7 @@ public sealed partial class DownloadsBrowserViewModel(
         _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
         _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
         _filterViewModels[ModDBConstants.PublisherType] = new ModDBFilterViewModel();
+        _filterViewModels[PublisherTypeConstants.GenLauncher] = new StaticPublisherFilterViewModel(PublisherTypeConstants.GenLauncher);
     }
 
     [RelayCommand]

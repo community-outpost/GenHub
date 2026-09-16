@@ -290,6 +290,11 @@ public sealed partial class ContentStateService(
             return true;
         }
 
+        if (IsGenLauncherPublisher(p1) && IsGenLauncherPublisher(p2))
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -352,6 +357,22 @@ public sealed partial class ContentStateService(
         var p = NormalizeSegment(publisher);
         return p.StartsWith("aodmap", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(p, "aod", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether the given publisher string corresponds to GenLauncher.
+    /// </summary>
+    /// <param name="publisher">The publisher string to inspect.</param>
+    /// <returns><see langword="true"/> if the publisher represents GenLauncher; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsGenLauncherPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return false;
+        }
+
+        var p = NormalizeSegment(publisher);
+        return p.StartsWith("genlauncher", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
