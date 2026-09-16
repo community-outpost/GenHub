@@ -163,4 +163,45 @@ public sealed class GenLauncherResolverTests
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             resolver.ResolveAsync(null!, CancellationToken.None));
     }
+
+    /// <summary>
+    /// Tests that ResolveAsync rejects loopback S3 host to prevent SSRF.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithLoopbackS3Host_RejectsS3Resolution()
+    {
+        var factoryMock = new Mock<IHttpClientFactory>();
+        var handlerMock = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(handlerMock.Object);
+
+        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher))
+            .Returns(httpClient);
+
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
+
+        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "shockwave-ssrf",
+            Name = "Shockwave SSRF",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverMetadata =
+            {
+                ["s3Host"] = "127.0.0.1:9000",
+                ["s3Bucket"] = "internal-bucket",
+                ["s3Folder"] = "Mods/Test",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data.Files);
+    }
 }

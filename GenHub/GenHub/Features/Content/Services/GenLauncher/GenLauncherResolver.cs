@@ -7,6 +7,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Services.Dependencies;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -19,31 +20,19 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services.GenLauncher;
 
 /// <summary>
+/// Initializes a new instance of the <see cref="GenLauncherResolver"/> class.
 /// Resolves discovered GenLauncher content items into full ContentManifest instances.
 /// Handles S3 bucket listing and direct cloud mirror downloads.
 /// </summary>
-public class GenLauncherResolver : IContentResolver
+/// <param name="httpClientFactory">The HTTP client factory.</param>
+/// <param name="catalogParser">The GenLauncher catalog parser.</param>
+/// <param name="logger">The logger instance.</param>
+public class GenLauncherResolver(
+    IHttpClientFactory httpClientFactory,
+    GenLauncherCatalogParser catalogParser,
+    ILogger<GenLauncherResolver> logger)
+    : IContentResolver
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly GenLauncherCatalogParser _catalogParser;
-    private readonly ILogger<GenLauncherResolver> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenLauncherResolver"/> class.
-    /// </summary>
-    /// <param name="httpClientFactory">The HTTP client factory.</param>
-    /// <param name="catalogParser">The GenLauncher catalog parser.</param>
-    /// <param name="logger">The logger instance.</param>
-    public GenLauncherResolver(
-        IHttpClientFactory httpClientFactory,
-        GenLauncherCatalogParser catalogParser,
-        ILogger<GenLauncherResolver> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _catalogParser = catalogParser;
-        _logger = logger;
-    }
-
     /// <inheritdoc/>
     public string ResolverId => GenLauncherConstants.PublisherId;
 
@@ -65,7 +54,7 @@ public class GenLauncherResolver : IContentResolver
 
         try
         {
-            var client = _httpClientFactory.CreateClient(PublisherTypeConstants.GenLauncher);
+            var client = httpClientFactory.CreateClient(PublisherTypeConstants.GenLauncher);
             var slug = GenLauncherCatalogParser.Slugify(discoveredItem.Name);
             var gameToken = discoveredItem.TargetGame == GameType.ZeroHour ? "zerohour" : "generals";
             var publisherToken = $"{GenLauncherConstants.PublisherId}-{gameToken}";
@@ -114,7 +103,7 @@ public class GenLauncherResolver : IContentResolver
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resolving GenLauncher content for {Name}", discoveredItem.Name);
+            logger.LogError(ex, "Error resolving GenLauncher content for {Name}", discoveredItem.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to resolve GenLauncher content: {ex.Message}");
         }
     }
@@ -235,10 +224,16 @@ public class GenLauncherResolver : IContentResolver
             return null;
         }
 
+        if (!ImageCacheService.IsSafeRemoteUrl(yamlUrl, out _))
+        {
+            logger.LogWarning("Rejecting unsafe or non-HTTP YAML manifest URL: {Url}", yamlUrl);
+            return null;
+        }
+
         try
         {
             var yaml = await client.GetStringAsync(yamlUrl, cancellationToken);
-            return _catalogParser.ParseVersionManifest(yaml);
+            return catalogParser.ParseVersionManifest(yaml);
         }
         catch (OperationCanceledException)
         {
@@ -246,7 +241,7 @@ public class GenLauncherResolver : IContentResolver
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to fetch/parse version manifest from {Url}", yamlUrl);
+            logger.LogWarning(ex, "Failed to fetch/parse version manifest from {Url}", yamlUrl);
             return null;
         }
     }
@@ -278,7 +273,13 @@ public class GenLauncherResolver : IContentResolver
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(s3Host, s3Bucket, s3Folder, nextMarker);
-                _logger.LogInformation("Querying GenLauncher S3 bucket at {Url}", queryUrl);
+                if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
+                {
+                    logger.LogWarning("Rejecting unsafe S3 query URL: {Url}", queryUrl);
+                    return false;
+                }
+
+                logger.LogInformation("Querying GenLauncher S3 bucket at {Url}", queryUrl);
 
                 var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
                 var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
@@ -319,7 +320,7 @@ public class GenLauncherResolver : IContentResolver
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to resolve S3 files for {Name}, falling back to download link", discoveredItem.Name);
+            logger.LogWarning(ex, "Failed to resolve S3 files for {Name}, falling back to download link", discoveredItem.Name);
             return false;
         }
     }

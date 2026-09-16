@@ -15,27 +15,17 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services.GenLauncher;
 
 /// <summary>
+/// Initializes a new instance of the <see cref="GenLauncherManifestFactory"/> class.
 /// Factory for post-extraction manifest processing of GenLauncher content.
 /// Computes SHA256 CAS hashes and verifies engine file MD5 checksums against S3 ETags.
 /// </summary>
-public class GenLauncherManifestFactory : IPublisherManifestFactory
+/// <param name="archivePayloadProcessor">The archive payload processor.</param>
+/// <param name="logger">The logger instance.</param>
+public class GenLauncherManifestFactory(
+    IArchivePayloadProcessor archivePayloadProcessor,
+    ILogger<GenLauncherManifestFactory> logger)
+    : IPublisherManifestFactory
 {
-    private readonly IArchivePayloadProcessor _archivePayloadProcessor;
-    private readonly ILogger<GenLauncherManifestFactory> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenLauncherManifestFactory"/> class.
-    /// </summary>
-    /// <param name="archivePayloadProcessor">The archive payload processor.</param>
-    /// <param name="logger">The logger instance.</param>
-    public GenLauncherManifestFactory(
-        IArchivePayloadProcessor archivePayloadProcessor,
-        ILogger<GenLauncherManifestFactory> logger)
-    {
-        _archivePayloadProcessor = archivePayloadProcessor;
-        _logger = logger;
-    }
-
     /// <inheritdoc/>
     public string PublisherId => GenLauncherConstants.PublisherId;
 
@@ -63,11 +53,11 @@ public class GenLauncherManifestFactory : IPublisherManifestFactory
 
         try
         {
-            _logger.LogInformation("Processing extracted GenLauncher content for {Name} in {Directory}", originalManifest.Name, extractedDirectory);
+            logger.LogInformation("Processing extracted GenLauncher content for {Name} in {Directory}", originalManifest.Name, extractedDirectory);
 
             // Safely extract archives if any
-            await _archivePayloadProcessor.ExtractArchivesSafelyAsync(extractedDirectory, originalManifest.ContentType, cancellationToken);
-            await _archivePayloadProcessor.NormalizeDirectoryStructureAsync(extractedDirectory, originalManifest.ContentType, originalManifest.TargetGame, cancellationToken);
+            await archivePayloadProcessor.ExtractArchivesSafelyAsync(extractedDirectory, originalManifest.ContentType, cancellationToken);
+            await archivePayloadProcessor.NormalizeDirectoryStructureAsync(extractedDirectory, originalManifest.ContentType, originalManifest.TargetGame, cancellationToken);
 
             var manifest = new ContentManifest
             {
@@ -100,7 +90,7 @@ public class GenLauncherManifestFactory : IPublisherManifestFactory
                     expectedEtags.TryGetValue(relativePath, out var expectedEtag) &&
                     !GenLauncherChecksumValidator.ValidateFile(filePath, expectedEtag))
                 {
-                    _logger.LogWarning("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
+                    logger.LogWarning("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
                 }
 
                 // Compute SHA256 for CAS
@@ -130,7 +120,7 @@ public class GenLauncherManifestFactory : IPublisherManifestFactory
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating GenLauncher manifest from extracted content for {Name}", originalManifest.Name);
+            logger.LogError(ex, "Error creating GenLauncher manifest from extracted content for {Name}", originalManifest.Name);
             return OperationResult<List<ContentManifest>>.CreateFailure($"Failed to create GenLauncher manifest: {ex.Message}");
         }
     }

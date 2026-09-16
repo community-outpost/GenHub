@@ -18,25 +18,16 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace GenHub.Features.Content.Services.GenLauncher;
 
 /// <summary>
+/// Initializes a new instance of the <see cref="GenLauncherCatalogParser"/> class.
 /// Parses GenLauncher YAML catalogs and modification manifests into ContentSearchResult objects.
 /// </summary>
-public partial class GenLauncherCatalogParser : ICatalogParser
+/// <param name="logger">The logger instance.</param>
+public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> logger) : ICatalogParser
 {
-    private readonly IDeserializer _deserializer;
-    private readonly ILogger<GenLauncherCatalogParser> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenLauncherCatalogParser"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    public GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> logger)
-    {
-        _logger = logger;
-        _deserializer = new DeserializerBuilder()
-            .WithNamingConvention(NullNamingConvention.Instance)
-            .IgnoreUnmatchedProperties()
-            .Build();
-    }
+    private readonly IDeserializer _deserializer = new DeserializerBuilder()
+        .WithNamingConvention(NullNamingConvention.Instance)
+        .IgnoreUnmatchedProperties()
+        .Build();
 
     /// <inheritdoc/>
     public string CatalogFormat => GenLauncherConstants.CatalogFormat;
@@ -168,7 +159,7 @@ public partial class GenLauncherCatalogParser : ICatalogParser
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error parsing GenLauncher catalog");
+            logger.LogError(ex, "Error parsing GenLauncher catalog");
             return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Failed to parse GenLauncher catalog: {ex.Message}"));
         }
     }

@@ -18,54 +18,41 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services.GenLauncher;
 
 /// <summary>
+/// Initializes a new instance of the <see cref="GenLauncherProvider"/> class.
 /// Content provider for GenLauncher community mods, patches, and addons.
 /// </summary>
-public class GenLauncherProvider : BaseContentProvider
+/// <param name="providerDefinitionLoader">The provider definition loader.</param>
+/// <param name="discoverers">The collection of content discoverers.</param>
+/// <param name="resolvers">The collection of content resolvers.</param>
+/// <param name="deliverers">The collection of content deliverers.</param>
+/// <param name="manifestFactory">The GenLauncher manifest factory.</param>
+/// <param name="contentValidator">The content validator.</param>
+/// <param name="installationInstructionsService">The installation instructions service.</param>
+/// <param name="logger">The logger instance.</param>
+public class GenLauncherProvider(
+    IProviderDefinitionLoader providerDefinitionLoader,
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    GenLauncherManifestFactory manifestFactory,
+    IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
+    ILogger<GenLauncherProvider> logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IProviderDefinitionLoader _providerDefinitionLoader;
-    private readonly IContentDiscoverer _discoverer;
-    private readonly IContentResolver _resolver;
-    private readonly IContentDeliverer _deliverer;
-    private readonly GenLauncherManifestFactory _manifestFactory;
+    private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
+        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException("No GenLauncher discoverer found");
+
+    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
+        r.ResolverId.Equals(GenLauncherConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"No GenLauncher resolver found with ResolverId '{GenLauncherConstants.PublisherId}'");
+
+    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
+        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException("No GenLauncher deliverer found");
+
     private ProviderDefinition? _cachedProviderDefinition;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenLauncherProvider"/> class.
-    /// </summary>
-    /// <param name="providerDefinitionLoader">The provider definition loader.</param>
-    /// <param name="discoverers">The collection of content discoverers.</param>
-    /// <param name="resolvers">The collection of content resolvers.</param>
-    /// <param name="deliverers">The collection of content deliverers.</param>
-    /// <param name="manifestFactory">The GenLauncher manifest factory.</param>
-    /// <param name="contentValidator">The content validator.</param>
-    /// <param name="installationInstructionsService">The installation instructions service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public GenLauncherProvider(
-        IProviderDefinitionLoader providerDefinitionLoader,
-        IEnumerable<IContentDiscoverer> discoverers,
-        IEnumerable<IContentResolver> resolvers,
-        IEnumerable<IContentDeliverer> deliverers,
-        GenLauncherManifestFactory manifestFactory,
-        IContentValidator contentValidator,
-        IInstallationInstructionsService installationInstructionsService,
-        ILogger<GenLauncherProvider> logger)
-        : base(contentValidator, installationInstructionsService, logger)
-    {
-        _providerDefinitionLoader = providerDefinitionLoader;
-        _manifestFactory = manifestFactory;
-
-        _discoverer = discoverers.FirstOrDefault(d =>
-            d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("No GenLauncher discoverer found");
-
-        _resolver = resolvers.FirstOrDefault(r =>
-            r.ResolverId.Equals(GenLauncherConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException($"No GenLauncher resolver found with ResolverId '{GenLauncherConstants.PublisherId}'");
-
-        _deliverer = deliverers.FirstOrDefault(d =>
-            d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("No GenLauncher deliverer found");
-    }
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.GenLauncher;
@@ -144,7 +131,7 @@ public class GenLauncherProvider : BaseContentProvider
             return _cachedProviderDefinition;
         }
 
-        _cachedProviderDefinition = _providerDefinitionLoader.GetProvider(GenLauncherConstants.PublisherId);
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(GenLauncherConstants.PublisherId);
         return _cachedProviderDefinition;
     }
 
@@ -158,7 +145,7 @@ public class GenLauncherProvider : BaseContentProvider
         Logger.LogInformation("Preparing GenLauncher content: {Version}", manifest.Version);
         return DeliverAndEnrichContentAsync(
             Deliverer,
-            _manifestFactory,
+            manifestFactory,
             manifest,
             workingDirectory,
             progress,

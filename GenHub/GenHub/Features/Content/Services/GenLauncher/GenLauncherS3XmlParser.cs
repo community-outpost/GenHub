@@ -72,46 +72,11 @@ public static class GenLauncherS3XmlParser
 
         foreach (var contents in doc.Descendants().Where(e => e.Name.LocalName == "Contents"))
         {
-            var key = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "Key")?.Value;
-            if (string.IsNullOrWhiteSpace(key) || key.EndsWith('/'))
+            var entry = TryParseContentEntry(contents, folderPrefix, normalizedFolder, scheme, host, bucketName);
+            if (entry != null)
             {
-                continue;
+                entries.Add(entry);
             }
-
-            var etag = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "ETag")?.Value;
-            var cleanedEtag = etag?.Trim('\"', ' ', '&', 'q', 'u', 'o', 't', ';') ?? string.Empty;
-
-            // Clean any remaining quotes
-            cleanedEtag = cleanedEtag.Replace("\"", string.Empty).Trim();
-
-            var sizeStr = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "Size")?.Value;
-            long.TryParse(sizeStr, out var size);
-
-            var relativePath = key;
-            if (!string.IsNullOrEmpty(folderPrefix))
-            {
-                if (key.StartsWith(normalizedFolder, StringComparison.OrdinalIgnoreCase))
-                {
-                    relativePath = key[normalizedFolder.Length..];
-                }
-                else if (key.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    relativePath = key[folderPrefix.Length..].TrimStart('/');
-                }
-            }
-
-            // Direct download URL with URI-escaped key segments
-            var encodedKey = string.Join("/", key.TrimStart('/').Split('/').Select(Uri.EscapeDataString));
-            var downloadUrl = $"{scheme}://{host}/{bucketName}/{encodedKey}";
-
-            entries.Add(new GenLauncherS3FileEntry
-            {
-                Key = key,
-                RelativePath = relativePath,
-                ETag = cleanedEtag,
-                Size = size,
-                DownloadUrl = downloadUrl,
-            });
         }
 
         // If truncated but NextMarker was not provided, use the last Key as next marker (standard S3 ListObjects v1 behavior)
@@ -181,5 +146,55 @@ public static class GenLauncherS3XmlParser
         }
 
         return url;
+    }
+
+    private static GenLauncherS3FileEntry? TryParseContentEntry(
+        XElement contents,
+        string? folderPrefix,
+        string normalizedFolder,
+        string scheme,
+        string host,
+        string bucketName)
+    {
+        var key = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "Key")?.Value;
+        if (string.IsNullOrWhiteSpace(key) || key.EndsWith('/'))
+        {
+            return null;
+        }
+
+        var etag = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "ETag")?.Value;
+        var cleanedEtag = etag?.Trim('\"', ' ', '&', 'q', 'u', 'o', 't', ';') ?? string.Empty;
+
+        // Clean any remaining quotes
+        cleanedEtag = cleanedEtag.Replace("\"", string.Empty).Trim();
+
+        var sizeStr = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "Size")?.Value;
+        long.TryParse(sizeStr, out var size);
+
+        var relativePath = key;
+        if (!string.IsNullOrEmpty(folderPrefix))
+        {
+            if (key.StartsWith(normalizedFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                relativePath = key[normalizedFolder.Length..];
+            }
+            else if (key.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                relativePath = key[folderPrefix.Length..].TrimStart('/');
+            }
+        }
+
+        // Direct download URL with URI-escaped key segments
+        var encodedKey = string.Join("/", key.TrimStart('/').Split('/').Select(Uri.EscapeDataString));
+        var downloadUrl = $"{scheme}://{host}/{bucketName}/{encodedKey}";
+
+        return new GenLauncherS3FileEntry
+        {
+            Key = key,
+            RelativePath = relativePath,
+            ETag = cleanedEtag,
+            Size = size,
+            DownloadUrl = downloadUrl,
+        };
     }
 }

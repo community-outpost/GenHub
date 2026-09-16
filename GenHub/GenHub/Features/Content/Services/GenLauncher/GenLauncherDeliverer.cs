@@ -10,6 +10,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -18,34 +19,20 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services.GenLauncher;
 
 /// <summary>
+/// Initializes a new instance of the <see cref="GenLauncherDeliverer"/> class.
 /// Delivers GenLauncher content files, downloads S3 or cloud archive mirrors, validates engine MD5s, and stores acquired content.
 /// </summary>
-public class GenLauncherDeliverer : IContentDeliverer
+/// <param name="downloadService">The download service.</param>
+/// <param name="manifestPool">The content manifest pool.</param>
+/// <param name="manifestFactory">The GenLauncher manifest factory.</param>
+/// <param name="logger">The logger instance.</param>
+public class GenLauncherDeliverer(
+    IDownloadService downloadService,
+    IContentManifestPool manifestPool,
+    GenLauncherManifestFactory manifestFactory,
+    ILogger<GenLauncherDeliverer> logger)
+    : IContentDeliverer
 {
-    private readonly IDownloadService _downloadService;
-    private readonly IContentManifestPool _manifestPool;
-    private readonly GenLauncherManifestFactory _manifestFactory;
-    private readonly ILogger<GenLauncherDeliverer> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenLauncherDeliverer"/> class.
-    /// </summary>
-    /// <param name="downloadService">The download service.</param>
-    /// <param name="manifestPool">The content manifest pool.</param>
-    /// <param name="manifestFactory">The GenLauncher manifest factory.</param>
-    /// <param name="logger">The logger instance.</param>
-    public GenLauncherDeliverer(
-        IDownloadService downloadService,
-        IContentManifestPool manifestPool,
-        GenLauncherManifestFactory manifestFactory,
-        ILogger<GenLauncherDeliverer> logger)
-    {
-        _downloadService = downloadService;
-        _manifestPool = manifestPool;
-        _manifestFactory = manifestFactory;
-        _logger = logger;
-    }
-
     /// <inheritdoc/>
     public string SourceName => PublisherTypeConstants.GenLauncher;
 
@@ -95,7 +82,7 @@ public class GenLauncherDeliverer : IContentDeliverer
 
         try
         {
-            _logger.LogInformation("Delivering GenLauncher package {Name} v{Version} to {Dir}", packageManifest.Name, packageManifest.Version, targetDirectory);
+            logger.LogInformation("Delivering GenLauncher package {Name} v{Version} to {Dir}", packageManifest.Name, packageManifest.Version, targetDirectory);
             Directory.CreateDirectory(targetDirectory);
 
             var filesToDownload = packageManifest.Files.Where(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)).ToList();
@@ -104,44 +91,10 @@ public class GenLauncherDeliverer : IContentDeliverer
                 return OperationResult<ContentManifest>.CreateFailure("Manifest does not contain any downloadable files");
             }
 
-            var totalFiles = filesToDownload.Count;
-            for (var i = 0; i < totalFiles; i++)
+            var downloadResult = await DownloadAllFilesAsync(filesToDownload, targetDirectory, progress, cancellationToken);
+            if (!downloadResult.Success)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var file = filesToDownload[i];
-                var destinationPath = Path.Combine(targetDirectory, file.RelativePath);
-
-                if (!ContentPathPolicy.IsContained(targetDirectory, destinationPath))
-                {
-                    _logger.LogError("File {File} relative path traverses outside target directory {Dir}", file.RelativePath, targetDirectory);
-                    return OperationResult<ContentManifest>.CreateFailure($"File '{file.RelativePath}' traverses outside target directory.");
-                }
-
-                var dir = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = (int)((i / (double)totalFiles) * 80),
-                    CurrentOperation = $"Downloading {file.RelativePath} ({i + 1}/{totalFiles})",
-                });
-
-                if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var downloadUri))
-                {
-                    _logger.LogError("Invalid download URL for file {File}: {Url}", file.RelativePath, file.DownloadUrl);
-                    return OperationResult<ContentManifest>.CreateFailure($"Invalid download URL for file {file.RelativePath}: {file.DownloadUrl}");
-                }
-
-                var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, cancellationToken);
-                if (!downloadResult.Success)
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(downloadResult.FirstError ?? $"Failed to download {file.RelativePath}");
-                }
+                return OperationResult<ContentManifest>.CreateFailure(downloadResult.FirstError ?? "Failed to download files");
             }
 
             // Extract archives and compute CAS hashes via ManifestFactory
@@ -152,7 +105,7 @@ public class GenLauncherDeliverer : IContentDeliverer
                 CurrentOperation = "Extracting archives and calculating content-addressable hashes",
             });
 
-            var factoryResult = await _manifestFactory.CreateManifestsFromExtractedContentAsync(
+            var factoryResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 packageManifest,
                 targetDirectory,
                 cancellationToken);
@@ -172,7 +125,7 @@ public class GenLauncherDeliverer : IContentDeliverer
                 CurrentOperation = "Storing content manifest in storage pool",
             });
 
-            var addResult = await _manifestPool.AddManifestAsync(finalManifest, targetDirectory, null, cancellationToken);
+            var addResult = await manifestPool.AddManifestAsync(finalManifest, targetDirectory, null, cancellationToken);
             if (!addResult.Success)
             {
                 return OperationResult<ContentManifest>.CreateFailure(addResult.FirstError ?? "Failed to store content manifest in storage pool");
@@ -193,9 +146,58 @@ public class GenLauncherDeliverer : IContentDeliverer
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error delivering GenLauncher content for {Name}", packageManifest.Name);
+            logger.LogError(ex, "Error delivering GenLauncher content for {Name}", packageManifest.Name);
             return OperationResult<ContentManifest>.CreateFailure($"GenLauncher content delivery failed: {ex.Message}");
         }
+    }
+
+    private async Task<OperationResult<bool>> DownloadAllFilesAsync(
+        IReadOnlyList<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var totalFiles = filesToDownload.Count;
+        for (var i = 0; i < totalFiles; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var file = filesToDownload[i];
+            var destinationPath = Path.Combine(targetDirectory, file.RelativePath);
+
+            if (!ContentPathPolicy.IsContained(targetDirectory, destinationPath))
+            {
+                logger.LogError("File {File} relative path traverses outside target directory {Dir}", file.RelativePath, targetDirectory);
+                return OperationResult<bool>.CreateFailure($"File '{file.RelativePath}' traverses outside target directory.");
+            }
+
+            var dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = (int)((i / (double)totalFiles) * 80),
+                CurrentOperation = $"Downloading {file.RelativePath} ({i + 1}/{totalFiles})",
+            });
+
+            if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var downloadUri))
+            {
+                logger.LogError("Invalid download URL for file {File}: {Url}", file.RelativePath, file.DownloadUrl);
+                return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: {file.DownloadUrl}");
+            }
+
+            var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, cancellationToken);
+            if (!downloadResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure(downloadResult.FirstError ?? $"Failed to download {file.RelativePath}");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task<OperationResult<bool>> DownloadAndValidateFileAsync(
@@ -211,7 +213,7 @@ public class GenLauncherDeliverer : IContentDeliverer
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var downloadResult = await _downloadService.DownloadFileAsync(
+            var downloadResult = await downloadService.DownloadFileAsync(
                 downloadUri,
                 destinationPath,
                 expectedHash: null,
@@ -221,7 +223,7 @@ public class GenLauncherDeliverer : IContentDeliverer
             if (!downloadResult.Success)
             {
                 lastError = downloadResult.FirstError;
-                _logger.LogWarning("Attempt {Attempt}/{Max} failed downloading {File}: {Error}", attempt, maxAttempts, file.RelativePath, lastError);
+                logger.LogWarning("Attempt {Attempt}/{Max} failed downloading {File}: {Error}", attempt, maxAttempts, file.RelativePath, lastError);
                 continue;
             }
 
@@ -231,7 +233,7 @@ public class GenLauncherDeliverer : IContentDeliverer
                 !GenLauncherChecksumValidator.ValidateFile(destinationPath, file.Hash))
             {
                 lastError = $"Checksum mismatch for {file.RelativePath}! Expected ETag: {file.Hash}";
-                _logger.LogWarning("Attempt {Attempt}/{Max}: {Error}", attempt, maxAttempts, lastError);
+                logger.LogWarning("Attempt {Attempt}/{Max}: {Error}", attempt, maxAttempts, lastError);
                 CleanupCorruptedFile(destinationPath);
                 continue;
             }
@@ -239,7 +241,7 @@ public class GenLauncherDeliverer : IContentDeliverer
             return OperationResult<bool>.CreateSuccess(true);
         }
 
-        _logger.LogError("Failed to download {File} from {Url} after {Max} attempts: {Error}", file.RelativePath, file.DownloadUrl, maxAttempts, lastError);
+        logger.LogError("Failed to download {File} from {Url} after {Max} attempts: {Error}", file.RelativePath, file.DownloadUrl, maxAttempts, lastError);
         return OperationResult<bool>.CreateFailure($"Failed to download {file.RelativePath}: {lastError}");
     }
 
@@ -254,7 +256,7 @@ public class GenLauncherDeliverer : IContentDeliverer
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            _logger.LogWarning(ex, "Failed to delete corrupted file {Path}", destinationPath);
+            logger.LogWarning(ex, "Failed to delete corrupted file {Path}", destinationPath);
         }
     }
 }

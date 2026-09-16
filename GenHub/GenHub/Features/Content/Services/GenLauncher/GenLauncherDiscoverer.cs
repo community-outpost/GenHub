@@ -8,12 +8,13 @@ using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,36 +22,41 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services.GenLauncher;
 
 /// <summary>
+/// Initializes a new instance of the <see cref="GenLauncherDiscoverer"/> class.
 /// Discovers GenLauncher content by querying the root YAML catalogs for Zero Hour and Generals,
 /// traversing child manifests, and mapping to ContentSearchResult objects.
 /// </summary>
-public class GenLauncherDiscoverer : IContentDiscoverer
+/// <param name="httpClientFactory">Factory for creating HTTP clients.</param>
+/// <param name="providerLoader">Loader for provider definitions.</param>
+/// <param name="catalogParser">Parser for GenLauncher catalog YAML documents.</param>
+/// <param name="logger">Logger instance.</param>
+public class GenLauncherDiscoverer(
+    IHttpClientFactory httpClientFactory,
+    IProviderDefinitionLoader providerLoader,
+    GenLauncherCatalogParser catalogParser,
+    ILogger<GenLauncherDiscoverer> logger)
+    : IContentDiscoverer
 {
+    private const int MaxCacheEntries = 200;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IProviderDefinitionLoader _providerLoader;
-    private readonly GenLauncherCatalogParser _catalogParser;
-    private readonly ILogger<GenLauncherDiscoverer> _logger;
     private readonly ConcurrentDictionary<string, (DateTime CachedAt, string Content)> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenLauncherDiscoverer"/> class.
-    /// </summary>
-    /// <param name="httpClientFactory">Factory for creating HTTP clients.</param>
-    /// <param name="providerLoader">Loader for provider definitions.</param>
-    /// <param name="catalogParser">Parser for GenLauncher catalog YAML documents.</param>
-    /// <param name="logger">Logger instance.</param>
-    public GenLauncherDiscoverer(
-        IHttpClientFactory httpClientFactory,
-        IProviderDefinitionLoader providerLoader,
-        GenLauncherCatalogParser catalogParser,
-        ILogger<GenLauncherDiscoverer> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _providerLoader = providerLoader;
-        _catalogParser = catalogParser;
-        _logger = logger;
-    }
+    private sealed record ModProcessingContext(
+        HttpClient Client,
+        GameType Game,
+        string ModName,
+        string ModSlug,
+        string? ParentIconUrl,
+        List<ContentSearchResult> Results,
+        List<ContentVariantInfo> Variants,
+        List<ContentSection> FilesSections);
+
+    private sealed record ChildManifestContext(
+        HttpClient Client,
+        GameType Game,
+        string ParentModName,
+        string ParentModSlug,
+        string? ParentIconUrl);
 
     /// <summary>
     /// Gets the unique discoverer identifier.
@@ -89,8 +95,8 @@ public class GenLauncherDiscoverer : IContentDiscoverer
 
         try
         {
-            provider ??= _providerLoader.GetProvider(GenLauncherConstants.PublisherId);
-            var client = _httpClientFactory.CreateClient(PublisherTypeConstants.GenLauncher);
+            provider ??= providerLoader.GetProvider(GenLauncherConstants.PublisherId);
+            var client = httpClientFactory.CreateClient(PublisherTypeConstants.GenLauncher);
             var targetGames = DetermineTargetGames(query.TargetGame);
 
             var allItems = new List<ContentSearchResult>();
@@ -118,7 +124,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during GenLauncher content discovery");
+            logger.LogError(ex, "Error during GenLauncher content discovery");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"GenLauncher discovery failed: {ex.Message}");
         }
     }
@@ -243,101 +249,29 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         return string.Join("\n\n", parts);
     }
 
-    private static bool IsValidHttpUrl(string url, out Uri? uri)
+    private static bool IsValidHttpUrl(string url, [NotNullWhen(true)] out Uri? uri) =>
+        ImageCacheService.IsSafeRemoteUrl(url, out uri);
+
+    private static async Task<long?> TryCalculateHeadSizeAsync(
+        HttpClient client,
+        string? downloadUrl,
+        CancellationToken cancellationToken)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out uri))
+        if (string.IsNullOrWhiteSpace(downloadUrl) || !IsValidHttpUrl(downloadUrl, out var uri))
         {
-            return false;
+            return null;
         }
 
-        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(3));
+        using var req = new HttpRequestMessage(HttpMethod.Head, uri);
+        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+        if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
         {
-            return false;
+            return resp.Content.Headers.ContentLength.Value;
         }
 
-        if (uri.IsLoopback ||
-            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip))
-        {
-            return IsSafeIpAddress(ip);
-        }
-
-        return true;
-    }
-
-    private static bool IsSafeIpAddress(IPAddress ip)
-    {
-        if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None))
-        {
-            return false;
-        }
-
-        var bytes = ip.GetAddressBytes();
-        return ip.AddressFamily switch
-        {
-            System.Net.Sockets.AddressFamily.InterNetwork => IsSafeIPv4(bytes),
-            System.Net.Sockets.AddressFamily.InterNetworkV6 => IsSafeIPv6(bytes),
-            _ => false,
-        };
-    }
-
-    private static bool IsSafeIPv4(byte[] b)
-    {
-        return (b[0], b[1], b[2]) switch
-        {
-            (0 or 10 or 127, _, _) => false,
-            (>= 224, _, _) => false,
-            (100, >= 64 and <= 127, _) => false,
-            (169, 254, _) => false,
-            (172, >= 16 and <= 31, _) => false,
-            (192, 0, 0 or 2) => false,
-            (192, 168, _) => false,
-            (198, 18 or 19, _) => false,
-            (198, 51, 100) => false,
-            (203, 0, 113) => false,
-            _ => true,
-        };
-    }
-
-    private static bool IsSafeIPv6(byte[] b)
-    {
-        if (b.Take(15).All(x => x == 0) && b[15] == 1)
-        {
-            return false;
-        }
-
-        if (b.All(x => x == 0))
-        {
-            return false;
-        }
-
-        if ((b[0] & 0xfe) == 0xfc)
-        {
-            return false;
-        }
-
-        if (b[0] == 0xfe && (b[1] & 0xc0) == 0x80)
-        {
-            return false;
-        }
-
-        if (b[0] == 0xff)
-        {
-            return false;
-        }
-
-        if (b.Take(10).All(x => x == 0) && b[10] == 0xff && b[11] == 0xff)
-        {
-            return IsSafeIPv4([b[12], b[13], b[14], b[15]]);
-        }
-
-        return true;
+        return null;
     }
 
     private async Task<List<ContentSearchResult>> DiscoverGameCatalogAsync(
@@ -355,18 +289,18 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         var rootYaml = await FetchStringWithCacheAsync(client, catalogUrl, cancellationToken);
         if (string.IsNullOrWhiteSpace(rootYaml))
         {
-            _logger.LogWarning("Could not fetch root catalog from {Url}", catalogUrl);
+            logger.LogWarning("Could not fetch root catalog from {Url}", catalogUrl);
             return items;
         }
 
         GenLauncherRootManifest rootManifest;
         try
         {
-            rootManifest = _catalogParser.ParseRootCatalog(rootYaml);
+            rootManifest = catalogParser.ParseRootCatalog(rootYaml);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse root catalog YAML for {Game}", game);
+            logger.LogError(ex, "Failed to parse root catalog YAML for {Game}", game);
             return items;
         }
 
@@ -436,7 +370,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
 
         if (!string.IsNullOrWhiteSpace(modEntry.ModLink) && !IsValidHttpUrl(modEntry.ModLink, out _))
         {
-            _logger.LogWarning("Rejecting mod {ModName} with unsafe ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
+            logger.LogWarning("Rejecting mod {ModName} with unsafe ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
             return results;
         }
 
@@ -554,13 +488,13 @@ public class GenLauncherDiscoverer : IContentDiscoverer
 
         try
         {
-            var mainManifest = _catalogParser.ParseVersionManifest(manifestYaml);
+            var mainManifest = catalogParser.ParseVersionManifest(manifestYaml);
             EnrichSearchResult(mainResult, mainManifest, modLink);
             return mainManifest;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to parse version manifest for mod {ModName}", modName);
+            logger.LogWarning(ex, "Failed to parse version manifest for mod {ModName}", modName);
             return null;
         }
     }
@@ -645,23 +579,6 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         }
     }
 
-    private sealed record ModProcessingContext(
-        HttpClient Client,
-        GameType Game,
-        string ModName,
-        string ModSlug,
-        string? ParentIconUrl,
-        List<ContentSearchResult> Results,
-        List<ContentVariantInfo> Variants,
-        List<ContentSection> FilesSections);
-
-    private sealed record ChildManifestContext(
-        HttpClient Client,
-        GameType Game,
-        string ParentModName,
-        string ParentModSlug,
-        string? ParentIconUrl);
-
     private async Task<ContentSearchResult?> ProcessChildManifestAsync(
         ChildManifestContext context,
         string manifestUrl,
@@ -682,17 +599,17 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         GenLauncherVersionManifest versionManifest;
         try
         {
-            versionManifest = _catalogParser.ParseVersionManifest(yaml);
+            versionManifest = catalogParser.ParseVersionManifest(yaml);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to parse child version manifest from {Url}", manifestUrl);
+            logger.LogWarning(ex, "Failed to parse child version manifest from {Url}", manifestUrl);
             return null;
         }
 
         if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
         {
-            _logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
+            logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
             return null;
         }
 
@@ -775,7 +692,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
                 return s3Size.Value;
             }
 
-            return await TryCalculateHeadSizeAsync(client, manifest.SimpleDownloadLink, manifest.Name, cancellationToken);
+            return await TryCalculateHeadSizeAsync(client, manifest.SimpleDownloadLink, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -787,7 +704,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to probe download size for {Name}", manifest.Name);
+            logger.LogDebug(ex, "Failed to probe download size for {Name}", manifest.Name);
             return null;
         }
     }
@@ -831,29 +748,6 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         return null;
     }
 
-    private async Task<long?> TryCalculateHeadSizeAsync(
-        HttpClient client,
-        string? downloadUrl,
-        string name,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(downloadUrl) || !IsValidHttpUrl(downloadUrl, out var uri))
-        {
-            return null;
-        }
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(3));
-        using var req = new HttpRequestMessage(HttpMethod.Head, uri);
-        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
-        if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
-        {
-            return resp.Content.Headers.ContentLength.Value;
-        }
-
-        return null;
-    }
-
     private async Task<string?> FetchStringWithCacheAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -863,7 +757,7 @@ public class GenLauncherDiscoverer : IContentDiscoverer
 
         if (!IsValidHttpUrl(url, out _))
         {
-            _logger.LogWarning("Rejecting unsafe or non-HTTP URL: {Url}", url);
+            logger.LogWarning("Rejecting unsafe or non-HTTP URL: {Url}", url);
             return null;
         }
 
@@ -877,12 +771,12 @@ public class GenLauncherDiscoverer : IContentDiscoverer
             using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("HTTP GET failed with {StatusCode} for {Url}", response.StatusCode, url);
+                logger.LogWarning("HTTP GET failed with {StatusCode} for {Url}", response.StatusCode, url);
                 return null;
             }
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            _cache[url] = (DateTime.UtcNow, content);
+            StoreInCache(url, content);
             return content;
         }
         catch (OperationCanceledException)
@@ -891,8 +785,39 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Exception fetching URL {Url}", url);
+            logger.LogWarning(ex, "Exception fetching URL {Url}", url);
             return null;
         }
+    }
+
+    private void StoreInCache(string url, string content)
+    {
+        if (_cache.Count >= MaxCacheEntries)
+        {
+            var now = DateTime.UtcNow;
+            foreach (var key in _cache.Keys)
+            {
+                if (_cache.TryGetValue(key, out var entry) && now - entry.CachedAt >= CacheTtl)
+                {
+                    _cache.TryRemove(key, out _);
+                }
+            }
+
+            if (_cache.Count >= MaxCacheEntries)
+            {
+                var oldestKeys = _cache
+                    .OrderBy(p => p.Value.CachedAt)
+                    .Take(_cache.Count - MaxCacheEntries + 1)
+                    .Select(p => p.Key)
+                    .ToList();
+
+                foreach (var key in oldestKeys)
+                {
+                    _cache.TryRemove(key, out _);
+                }
+            }
+        }
+
+        _cache[url] = (DateTime.UtcNow, content);
     }
 }

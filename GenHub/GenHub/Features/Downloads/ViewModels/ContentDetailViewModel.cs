@@ -87,8 +87,10 @@ public partial class ContentDetailViewModel(
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
 
-    // ===== Instance Fields (Synchronization & Lifecycle) =====
+    // ===== Static Fields =====
     private static readonly HttpClient SharedProbeHttpClient = new() { Timeout = TimeSpan.FromSeconds(5) };
+
+    // ===== Instance Fields (Synchronization & Lifecycle) =====
     private readonly object _basicContentLoadLock = new();
     private readonly object _preloadLock = new();
     private readonly object _contentTypePersistLock = new();
@@ -4209,9 +4211,9 @@ public partial class ContentDetailViewModel(
         {
             throw;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogDebug("Probe file size timed out for URL: {Url}", downloadUrl);
+            logger.LogDebug(ex, "Probe file size timed out for URL: {Url}", downloadUrl);
         }
         catch (HttpRequestException ex)
         {
