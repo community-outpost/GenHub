@@ -18,6 +18,9 @@ public class GameProcessInfo
     /// <summary>Gets or sets the start time.</summary>
     public DateTime StartTime { get; set; } = DateTime.UtcNow;
 
+    /// <summary>Gets or sets whether StartTime was read from the OS rather than supplied as a fallback.</summary>
+    public bool HasVerifiedStartTime { get; set; }
+
     /// <summary>Gets or sets a value indicating whether the process is running.</summary>
     public bool IsRunning { get; set; }
 

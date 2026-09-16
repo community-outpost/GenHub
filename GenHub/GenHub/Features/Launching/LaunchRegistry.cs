@@ -95,6 +95,19 @@ public class LaunchRegistry : ILaunchRegistry
     /// </remarks>
     internal Action? PendingExitBufferingHook { get; set; }
 
+    private static DateTime? ReadObservedStartTime(Process process)
+    {
+        try
+        {
+            return process.StartTime.ToUniversalTime();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            // An unavailable timestamp cannot establish identity; preserve normal polling.
+            return null;
+        }
+    }
+
     /// <summary>
     /// Registers a new game launch in the registry.
     /// </summary>
@@ -211,6 +224,24 @@ public class LaunchRegistry : ILaunchRegistry
             launch.ProcessInfo.IsRunning = false;
             WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, launch.ProcessInfo.ProcessId));
         }
+    }
+
+    /// <summary>
+    /// Stops a stale launch only when observed start times prove its PID was reused.
+    /// </summary>
+    /// <param name="launch">The registered launch.</param>
+    /// <param name="observedStartTime">The OS start time, or null if unavailable.</param>
+    /// <returns>Whether the observation identifies a different process.</returns>
+    internal bool TryHandleReusedProcess(GameLaunchInfo launch, DateTime? observedStartTime)
+    {
+        if (!launch.ProcessInfo.HasVerifiedStartTime || !observedStartTime.HasValue
+            || launch.ProcessInfo.StartTime.ToUniversalTime() == observedStartTime.Value.ToUniversalTime())
+        {
+            return false;
+        }
+
+        HandleMissingProcess(launch, launch.LaunchId);
+        return true;
     }
 
     /// <summary>
@@ -363,6 +394,12 @@ public class LaunchRegistry : ILaunchRegistry
         {
             // Inspect only this positive PID and release the inspection handle promptly.
             using var runningProcess = Process.GetProcessById(launchInfo.ProcessInfo.ProcessId);
+
+            if (launchInfo.ProcessInfo.HasVerifiedStartTime
+                && TryHandleReusedProcess(launchInfo, ReadObservedStartTime(runningProcess)))
+            {
+                return;
+            }
 
             if (runningProcess.HasExited)
             {

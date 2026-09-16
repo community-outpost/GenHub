@@ -306,6 +306,7 @@ public class GameProcessManager(
                     ProcessInstanceId = _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).InstanceId,
                     ProcessName = process.ProcessName,
                     StartTime = process.StartTime.ToUniversalTime(),
+                    HasVerifiedStartTime = true,
                     ExecutablePath = GetProcessExecutablePath(process),
                     IsRunning = IsStillRunning(process),
                 };
@@ -327,6 +328,7 @@ public class GameProcessManager(
                     ProcessId = process.Id,
                     ProcessName = process.ProcessName,
                     StartTime = process.StartTime.ToUniversalTime(),
+                    HasVerifiedStartTime = true,
                     ExecutablePath = GetProcessExecutablePath(process),
                     IsRunning = IsStillRunning(process),
                 };
@@ -365,6 +367,7 @@ public class GameProcessManager(
                             ProcessInstanceId = _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).InstanceId,
                             ProcessName = process.ProcessName,
                             StartTime = process.StartTime.ToUniversalTime(),
+                            HasVerifiedStartTime = true,
                             ExecutablePath = GetProcessExecutablePath(process),
                             IsRunning = IsStillRunning(process),
                         };
@@ -1430,6 +1433,7 @@ public class GameProcessManager(
                 ProcessInstanceId = instanceId,
                 ProcessName = process.ProcessName,
                 StartTime = process.StartTime.ToUniversalTime(),
+                HasVerifiedStartTime = true,
                 ExecutablePath = string.IsNullOrEmpty(inspectedPath) ? fallbackExecutablePath : inspectedPath,
                 IsRunning = IsStillRunning(process),
             };

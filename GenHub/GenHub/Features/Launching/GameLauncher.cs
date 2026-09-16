@@ -174,7 +174,8 @@ public class GameLauncher(
                     {
                         ProcessId = process.Id,
                         ProcessName = process.ProcessName,
-                        StartTime = process.StartTime,
+                        StartTime = process.StartTime.ToUniversalTime(),
+                        HasVerifiedStartTime = true,
                         WorkingDirectory = workingDirectory,
                         CommandLine = commandLine,
                         IsResponding = process.Responding,
