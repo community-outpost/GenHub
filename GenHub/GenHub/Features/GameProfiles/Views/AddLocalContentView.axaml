@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
              x:Class="GenHub.Features.GameProfiles.Views.AddLocalContentView"
              x:DataType="vm:AddLocalContentViewModel"
@@ -112,8 +113,8 @@
 
             <!-- Header Area -->
             <StackPanel Grid.Row="0" Margin="0,0,0,20" Spacing="4">
-                <TextBlock Text="Import Content" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                <TextBlock Text="Drag and drop archives or folders, or browse below." FontSize="13" Foreground="{DynamicResource TextSecondary}" />
+                <TextBlock Text="{localization:Localize Profiles.AddLocalContent.Title}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                <TextBlock Text="{localization:Localize Profiles.AddLocalContent.Subtitle}" FontSize="13" Foreground="{DynamicResource TextSecondary}" />
             </StackPanel>
 
             <!-- Main Content Area -->
@@ -124,13 +125,13 @@
 
                     <!-- Content Name -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="NAME" Classes="label"/>
-                        <TextBox Text="{Binding ContentName}" Watermark="e.g. My Awesome Mod" Classes="glass"/>
+                        <TextBlock Text="{localization:Localize Profiles.AddLocalContent.NameLabel}" Classes="label"/>
+                        <TextBox Text="{Binding ContentName}" Watermark="{localization:Localize Profiles.AddLocalContent.NameWatermark}" Classes="glass"/>
                     </StackPanel>
 
                     <!-- Content Type -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="TYPE" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Profiles.AddLocalContent.TypeLabel}" Classes="label"/>
                         <ComboBox ItemsSource="{Binding AllowedContentTypes}"
                                   SelectedItem="{Binding SelectedContentType}"
                                   HorizontalAlignment="Stretch"
@@ -145,7 +146,7 @@
 
                      <!-- Target Game -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="TARGET GAME" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Profiles.AddLocalContent.TargetGameLabel}" Classes="label"/>
                         <ComboBox ItemsSource="{Binding AvailableGameTypes}"
                                   SelectedItem="{Binding SelectedGameType}"
                                   HorizontalAlignment="Stretch"
@@ -154,14 +155,14 @@
 
                     <!-- Source -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="SOURCE" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Profiles.AddLocalContent.SourceLabel}" Classes="label"/>
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Text="{Binding SourcePath}" IsReadOnly="True" Watermark="No content selected" Classes="glass" Margin="0,0,6,0"/>
+                            <TextBox Text="{Binding SourcePath}" IsReadOnly="True" Watermark="{localization:Localize Profiles.AddLocalContent.NoContentSelected}" Classes="glass" Margin="0,0,6,0"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                <Button Command="{Binding BrowseFolderCommand}" ToolTip.Tip="Browse Folder" Classes="icon-btn">
+                                <Button Command="{Binding BrowseFolderCommand}" ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.BrowseFolder}" Classes="icon-btn">
                                     <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
                                 </Button>
-                                <Button Command="{Binding BrowseFileCommand}" ToolTip.Tip="Browse Files" Classes="icon-btn">
+                                <Button Command="{Binding BrowseFileCommand}" ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.BrowseFiles}" Classes="icon-btn">
                                     <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
                                 </Button>
                             </StackPanel>
@@ -182,7 +183,7 @@
                 <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="10" BorderBrush="#20FFFFFF" BorderThickness="1" ClipToBounds="True">
                     <Grid RowDefinitions="Auto,*">
                         <Border Background="#08FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="16,10">
-                            <TextBlock Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8"/>
+                            <TextBlock Text="{localization:Localize Profiles.AddLocalContent.ContentPreview}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8"/>
                         </Border>
 
                         <TreeView Grid.Row="1" ItemsSource="{Binding FileTree}" Background="Transparent" Foreground="{DynamicResource TextPrimary}" Margin="8" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -218,8 +219,8 @@
                                                 Classes="icon-btn"
                                                 Padding="6,3"
                                                 Margin="6,0,0,0"
-                                                AutomationProperties.Name="Select as main executable"
-                                                ToolTip.Tip="Select as main executable">
+                                                AutomationProperties.Name="{localization:Localize Profiles.AddLocalContent.SelectExecutableTip}"
+                                                ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.SelectExecutableTip}">
                                             <Button.IsVisible>
                                                 <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">
                                                     <Binding Path="IsExecutable"/>
@@ -239,7 +240,7 @@
                                                 Classes="icon-btn"
                                                 Padding="6,3"
                                                 Margin="6,0,0,0"
-                                                ToolTip.Tip="Remove Item">
+                                                ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.RemoveItemTip}">
                                             <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
                                         </Button>
                                     </Grid>
@@ -250,7 +251,7 @@
                         <!-- Empty State Overlay -->
                         <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" IsVisible="{Binding !FileTree.Count}" IsHitTestVisible="False">
                             <material:MaterialIcon Kind="FolderEyeOutline" Width="48" Height="48" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="No Content Loaded" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Profiles.AddLocalContent.NoContentLoaded}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                             <TextBlock Text="{Binding PreviewIdleText}" Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
@@ -259,12 +260,12 @@
 
             <!-- Footer Actions -->
             <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
-                <Button Grid.Column="0" Content="Cancel" Command="{Binding CancelCommand}" Classes="ghost" IsVisible="{Binding !IsDemoMode}"/>
+                <Button Grid.Column="0" Content="{localization:Localize Common.Cancel}" Command="{Binding CancelCommand}" Classes="ghost" IsVisible="{Binding !IsDemoMode}"/>
 
                 <Button Grid.Column="2" Command="{Binding AddContentCommand}" Classes="accent" IsEnabled="{Binding CanAdd}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <material:MaterialIcon Kind="Check" Width="16" Height="16" VerticalAlignment="Center"/>
-                        <TextBlock Text="ADD CONTENT" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Profiles.AddLocalContent.AddContentButton}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Grid>
@@ -275,7 +276,7 @@
         <Grid Background="#CC000000" IsVisible="{Binding ShowLoadingOverlay}">
              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15">
                  <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource SurfaceHoverBrush}"/>
-                 <TextBlock Text="Processing..." Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" FontSize="14" FontWeight="Light"/>
+                 <TextBlock Text="{localization:Localize Profiles.AddLocalContent.Processing}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" FontSize="14" FontWeight="Light"/>
              </StackPanel>
         </Grid>
 

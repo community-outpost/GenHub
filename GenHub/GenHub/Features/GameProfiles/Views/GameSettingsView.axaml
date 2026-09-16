@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="2800"
              x:Class="GenHub.Features.GameProfiles.Views.GameSettingsView"
              x:DataType="vm:GameSettingsViewModel">
@@ -36,7 +37,7 @@
                             CommandParameter="{x:Static vm:SettingsCategory.Video}">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16C1,17.11 1.89,18 3,18H10V20H8V22H16V20H14V18H21C22.11,18 23,17.11 23,16V4C23,2.89 22.11,2 21,2Z" />
-                            <TextBlock Text="Video" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Category.Video}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -46,7 +47,7 @@
                             CommandParameter="{x:Static vm:SettingsCategory.Audio}">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.03C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z" />
-                            <TextBlock Text="Audio" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Category.Audio}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -56,7 +57,7 @@
                             CommandParameter="{x:Static vm:SettingsCategory.Controls}">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M19,10H5A2,2 0 0,0 3,12V16A2,2 0 0,0 5,18H19A2,2 0 0,0 21,16V12C21,10.89 20.1,10 19,10M5,12H7V14H5V12M5,16V15H7V16H5M9,16V15H11V16H9M9,14V12H11V14H9M19,16H13V15H19V16M19,14H13V12H19V14Z" />
-                            <TextBlock Text="Controls" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Category.Controls}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -66,7 +67,7 @@
                             CommandParameter="{x:Static vm:SettingsCategory.TheSuperHackers}">
                         <StackPanel Orientation="Horizontal">
                             <Image Source="avares://GenHub/Assets/Logos/thesuperhackers-logo.png" Width="18" Height="18" />
-                            <TextBlock Text="TheSuperHackers" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Category.TheSuperHackers}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -76,7 +77,7 @@
                             CommandParameter="{x:Static vm:SettingsCategory.GeneralsOnline}">
                         <StackPanel Orientation="Horizontal">
                             <Image Source="avares://GenHub/Assets/Logos/generalsonline-logo.png" Width="18" Height="18" />
-                            <TextBlock Text="GeneralsOnline" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Category.GeneralsOnline}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -104,26 +105,26 @@
                 <Control x:Name="VideoSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
                     <StackPanel Spacing="16">
-                        <TextBlock Classes="section-header" Text="Video Settings" />
+                        <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Video.Title}" />
 
                         <Grid ColumnDefinitions="1* ,24 ,1*" Margin="0,0,0,12">
                             <StackPanel Grid.Column="0">
-                                <TextBlock Classes="form-label" Text="Resolution" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.Resolution}" />
                                 <ComboBox ItemsSource="{Binding ResolutionPresets}" SelectedItem="{Binding SelectedResolutionPreset}" HorizontalAlignment="Stretch" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Classes="form-label" Text="Detail Level (LOD)" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.DetailLevel}" />
                                 <ComboBox ItemsSource="{Binding LodOptions}" SelectedItem="{Binding StaticGameLOD}" HorizontalAlignment="Stretch" />
                             </StackPanel>
                         </Grid>
 
                         <Grid ColumnDefinitions="1* ,24 ,1*" Margin="0,0,0,12" >
                             <StackPanel Grid.Column="0">
-                                <TextBlock Classes="form-label" Text="Texture Quality" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.TextureQuality}" />
                                 <ComboBox ItemsSource="{x:Static vm:GameSettingsViewModel.TextureQualityValues}" SelectedItem="{Binding TextureQuality}" HorizontalAlignment="Stretch" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Classes="form-label" Text="Brightness" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.Brightness}" />
                                 <Grid ColumnDefinitions="*,Auto">
                                     <Slider Value="{Binding Gamma}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,8,0" />
                                     <NumericUpDown Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100" Classes="slider-input" />
@@ -133,11 +134,11 @@
 
                         <Grid ColumnDefinitions="1* ,24 ,1*" Margin="0,0,0,12">
                             <StackPanel Grid.Column="0">
-                                <TextBlock Classes="form-label" Text="Anti-Aliasing" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.AntiAliasing}" />
                                 <ComboBox ItemsSource="{Binding AaOptions}" SelectedItem="{Binding AntiAliasing}" HorizontalAlignment="Stretch" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Classes="form-label" Text="Max Particle Count" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.MaxParticleCount}" />
                                 <Grid ColumnDefinitions="*,Auto">
                                     <Slider Value="{Binding MaxParticleCount}" Minimum="100" Maximum="10000" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <NumericUpDown Grid.Column="1" Value="{Binding MaxParticleCount}" Minimum="100" Maximum="10000" Increment="100" Classes="slider-input" />
@@ -146,27 +147,27 @@
                         </Grid>
 
                         <Grid ColumnDefinitions="1* ,24 ,1*" Margin="0,8,0,0">
-                            <CheckBox Content="Windowed Mode" IsChecked="{Binding Windowed}" />
-                            <CheckBox Grid.Column="2" Content="Dynamic LOD" IsChecked="{Binding DynamicLOD}" />
+                            <CheckBox Content="{localization:Localize GameSettings.Video.WindowedMode}" IsChecked="{Binding Windowed}" />
+                            <CheckBox Grid.Column="2" Content="{localization:Localize GameSettings.Video.DynamicLod}" IsChecked="{Binding DynamicLOD}" />
                         </Grid>
 
                         <!-- Section: Advanced Display Options (Conditional) -->
                         <StackPanel Spacing="0" IsVisible="{Binding IsCustomLodSelected}">
                             <Separator Background="#20FFFFFF" Height="1" Margin="0,8" />
-                            <TextBlock Text="Advanced Display Options" FontWeight="SemiBold" FontSize="13" Opacity="0.8" Margin="0,0,0,12" />
+                            <TextBlock Text="{localization:Localize GameSettings.Video.AdvancedDisplayOptions}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" Margin="0,0,0,12" />
                             <WrapPanel Orientation="Horizontal">
-                                <CheckBox Content="3D Shadows" IsChecked="{Binding Shadows}" Margin="0,0,24,8" />
-                                <CheckBox Content="2D Shadows" IsChecked="{Binding UseShadowDecals}" Margin="0,0,24,8" />
-                                <CheckBox Content="Cloud Shadows" IsChecked="{Binding UseCloudMap}" Margin="0,0,24,8" />
-                                <CheckBox Content="Extra Ground Lighting" IsChecked="{Binding UseLightMap}" Margin="0,0,24,8" />
-                                <CheckBox Content="Smooth Water Borders" IsChecked="{Binding ShowSoftWaterEdge}" Margin="0,0,24,8" />
-                                <CheckBox Content="Behind Buildings" IsChecked="{Binding BuildingOcclusion}" Margin="0,0,24,8" />
-                                <CheckBox Content="Heat Effects" IsChecked="{Binding HeatEffects}" Margin="0,0,24,8" />
-                                <CheckBox Content="Building Animations" IsChecked="{Binding BuildingAnimations}" Margin="0,0,24,8" />
-                                <CheckBox Content="Extra Animations" IsChecked="{Binding ExtraAnimations}" Margin="0,0,24,8" />
-                                <CheckBox Content="Particle Effects" IsChecked="{Binding ParticleEffects}" Margin="0,0,24,8" />
-                                <CheckBox Content="Show Props" IsChecked="{Binding ShowProps}" Margin="0,0,24,8" />
-                                <CheckBox Content="Show Trees" IsChecked="{Binding ShowTrees}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.3DShadows}" IsChecked="{Binding Shadows}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.2DShadows}" IsChecked="{Binding UseShadowDecals}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.CloudShadows}" IsChecked="{Binding UseCloudMap}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.ExtraGroundLighting}" IsChecked="{Binding UseLightMap}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.SmoothWaterBorders}" IsChecked="{Binding ShowSoftWaterEdge}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.BehindBuildings}" IsChecked="{Binding BuildingOcclusion}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.HeatEffects}" IsChecked="{Binding HeatEffects}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.BuildingAnimations}" IsChecked="{Binding BuildingAnimations}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.ExtraAnimations}" IsChecked="{Binding ExtraAnimations}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.ParticleEffects}" IsChecked="{Binding ParticleEffects}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.ShowProps}" IsChecked="{Binding ShowProps}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Video.ShowTrees}" IsChecked="{Binding ShowTrees}" Margin="0,0,24,8" />
                             </WrapPanel>
                         </StackPanel>
                     </StackPanel>
@@ -178,27 +179,27 @@
                 <Control x:Name="AudioSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
                     <StackPanel Spacing="16">
-                        <TextBlock Classes="section-header" Text="Audio Settings" />
-                        <CheckBox Content="Audio Enabled" IsChecked="{Binding AudioEnabled}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Audio.Title}" />
+                        <CheckBox Content="{localization:Localize GameSettings.Audio.AudioEnabled}" IsChecked="{Binding AudioEnabled}" FontWeight="SemiBold" Margin="0,0,0,8" />
 
                         <StackPanel IsEnabled="{Binding AudioEnabled}" Spacing="16">
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="Sound Volume" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.SoundVolume}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding SoundVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding SoundVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="3D Sound Volume" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.ThreeDSoundVolume}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="Music Volume" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.MusicVolume}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding MusicVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding MusicVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="Speech Volume" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.SpeechVolume}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
@@ -206,7 +207,7 @@
                             <Separator Background="#20FFFFFF" Height="1" />
 
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="Audio Channels" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.AudioChannels}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding NumSounds}" Minimum="16" Maximum="64" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding NumSounds}" Minimum="16" Maximum="64" Classes="slider-input" />
                             </Grid>
@@ -220,7 +221,7 @@
                 <Control x:Name="ControlsSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
                     <StackPanel Spacing="16">
-                        <TextBlock Classes="section-header" Text="Controls" />
+                        <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Controls.Title}" />
 
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
@@ -228,25 +229,25 @@
                                 <ColumnDefinition Width="*" MinWidth="0" />
                                 <ColumnDefinition Width="Auto" MinWidth="0" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Scroll Speed" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Controls.ScrollSpeed}" VerticalAlignment="Center" />
                             <Slider Grid.Column="1" Value="{Binding ScrollFactor}" Minimum="0" Maximum="200" VerticalAlignment="Center" Margin="0,0,12,0" />
                             <NumericUpDown Grid.Column="2" Value="{Binding ScrollFactor}" Minimum="0" Maximum="200" Classes="slider-input" />
                         </Grid>
 
                         <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                            <CheckBox Content="Alternate Mouse Setup" IsChecked="{Binding AlternateMouseSetup}" Margin="0,0,24,8" />
-                            <CheckBox Content="Double-Click Attack" IsChecked="{Binding UseDoubleClickAttackMove}" Margin="0,0,24,8" />
-                            <CheckBox Content="Auto Retaliation" IsChecked="{Binding Retaliation}" Margin="0,0,24,8" />
-                            <CheckBox Content="Fast Send Delay" IsChecked="{Binding SendDelay}" Margin="0,0,24,8" />
-                            <CheckBox Content="Draw Scroll Anchor" IsChecked="{Binding DrawScrollAnchor}" Margin="0,0,24,8" />
-                            <CheckBox Content="Move Scroll Anchor" IsChecked="{Binding MoveScrollAnchor}" Margin="0,0,24,8" />
-                            <CheckBox Content="Language Filter" IsChecked="{Binding LanguageFilter}" Margin="0,0,24,8" />
+                            <CheckBox Content="{localization:Localize GameSettings.Controls.AlternateMouseSetup}" IsChecked="{Binding AlternateMouseSetup}" Margin="0,0,24,8" />
+                            <CheckBox Content="{localization:Localize GameSettings.Controls.DoubleClickAttack}" IsChecked="{Binding UseDoubleClickAttackMove}" Margin="0,0,24,8" />
+                            <CheckBox Content="{localization:Localize GameSettings.Controls.AutoRetaliation}" IsChecked="{Binding Retaliation}" Margin="0,0,24,8" />
+                            <CheckBox Content="{localization:Localize GameSettings.Controls.FastSendDelay}" IsChecked="{Binding SendDelay}" Margin="0,0,24,8" />
+                            <CheckBox Content="{localization:Localize GameSettings.Controls.DrawScrollAnchor}" IsChecked="{Binding DrawScrollAnchor}" Margin="0,0,24,8" />
+                            <CheckBox Content="{localization:Localize GameSettings.Controls.MoveScrollAnchor}" IsChecked="{Binding MoveScrollAnchor}" Margin="0,0,24,8" />
+                            <CheckBox Content="{localization:Localize GameSettings.Controls.LanguageFilter}" IsChecked="{Binding LanguageFilter}" Margin="0,0,24,8" />
                         </WrapPanel>
 
                         <Separator Background="#20FFFFFF" Height="1" />
 
                         <Grid ColumnDefinitions="140,*,Auto">
-                            <TextBlock Text="Game Time Font Size" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Controls.GameTimeFontSize}" VerticalAlignment="Center" />
                             <Slider Grid.Column="1" Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" VerticalAlignment="Center" Margin="10,0,12,0" />
                             <NumericUpDown Grid.Column="2" Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" Classes="slider-input" />
                         </Grid>
@@ -259,55 +260,55 @@
                 <Control x:Name="TheSuperHackersSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
                     <StackPanel Spacing="20">
-                        <TextBlock Classes="section-header" Text="TheSuperHackers Client" />
+                        <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Tsh.Title}" />
 
                         <StackPanel Spacing="12">
-                            <TextBlock Text="General Features" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
+                            <TextBlock Text="{localization:Localize GameSettings.Tsh.GeneralFeatures}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <WrapPanel HorizontalAlignment="Left">
-                                <CheckBox Content="Archive Replays" IsChecked="{Binding TshArchiveReplays}" Margin="0,0,24,8" />
-                                <CheckBox Content="Show Money/Min" IsChecked="{Binding TshShowMoneyPerMinute}" Margin="0,0,24,8" />
-                                <CheckBox Content="Observer Mode" IsChecked="{Binding TshPlayerObserverEnabled}" Margin="0,0,24,8" />
-                                <CheckBox Content="Skip Intro" IsChecked="{Binding SkipEALogo}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.ArchiveReplays}" IsChecked="{Binding TshArchiveReplays}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.ShowMoneyPerMin}" IsChecked="{Binding TshShowMoneyPerMinute}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.ObserverMode}" IsChecked="{Binding TshPlayerObserverEnabled}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.SkipIntro}" IsChecked="{Binding SkipEALogo}" Margin="0,0,24,8" />
                             </WrapPanel>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="Cursor Capture" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                            <TextBlock Text="{localization:Localize GameSettings.Tsh.CursorCapture}" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
                             <WrapPanel HorizontalAlignment="Left">
-                                <CheckBox Content="Fullscreen Game" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenGame}" Margin="0,0,20,4" />
-                                <CheckBox Content="Fullscreen Menu" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenMenu}" Margin="0,0,20,4" />
-                                <CheckBox Content="Windowed Game" IsChecked="{Binding TshCursorCaptureEnabledInWindowedGame}" Margin="0,0,20,4" />
-                                <CheckBox Content="Windowed Menu" IsChecked="{Binding TshCursorCaptureEnabledInWindowedMenu}" Margin="0,0,20,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.FullscreenGame}" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenGame}" Margin="0,0,20,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.FullscreenMenu}" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenMenu}" Margin="0,0,20,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.WindowedGame}" IsChecked="{Binding TshCursorCaptureEnabledInWindowedGame}" Margin="0,0,20,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.WindowedMenu}" IsChecked="{Binding TshCursorCaptureEnabledInWindowedMenu}" Margin="0,0,20,4" />
                             </WrapPanel>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="Screen Edge Scroll" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                            <TextBlock Text="{localization:Localize GameSettings.Tsh.ScreenEdgeScroll}" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
                             <WrapPanel HorizontalAlignment="Left">
-                                <CheckBox Content="In Fullscreen" IsChecked="{Binding TshScreenEdgeScrollEnabledInFullscreenApp}" Margin="0,0,24,4" />
-                                <CheckBox Content="In Windowed" IsChecked="{Binding TshScreenEdgeScrollEnabledInWindowedApp}" Margin="0,0,24,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.InFullscreen}" IsChecked="{Binding TshScreenEdgeScrollEnabledInFullscreenApp}" Margin="0,0,24,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Tsh.InWindowed}" IsChecked="{Binding TshScreenEdgeScrollEnabledInWindowedApp}" Margin="0,0,24,4" />
                             </WrapPanel>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="Interface Font Sizes" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                            <TextBlock Text="{localization:Localize GameSettings.Tsh.InterfaceFontSizes}" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
                             <Grid ColumnDefinitions="*,24,*" Margin="0,0,0,8">
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Classes="form-label" Text="System Time" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Tsh.SystemTime}" />
                                     <NumericUpDown Value="{Binding TshSystemTimeFontSize}" Minimum="8" Maximum="32" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Classes="form-label" Text="Ping Display" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Tsh.PingDisplay}" />
                                     <NumericUpDown Value="{Binding TshNetworkLatencyFontSize}" Minimum="8" Maximum="32" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                             </Grid>
                             <Grid ColumnDefinitions="*,24,*">
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Classes="form-label" Text="FPS Display" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Tsh.FpsDisplay}" />
                                     <NumericUpDown Value="{Binding TshRenderFpsFontSize}" Minimum="8" Maximum="32" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Classes="form-label" Text="Resolution Font Offset" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Tsh.ResolutionFontOffset}" />
                                     <NumericUpDown Value="{Binding TshResolutionFontAdjustment}" Minimum="-500" Maximum="500" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                             </Grid>
@@ -315,12 +316,12 @@
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="Transaction Volume" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransactionVolume}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="Transition Speed" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransitionSpeed}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.5" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" Increment="0.05" FormatString="F2" Classes="slider-input" />
                             </Grid>
@@ -334,92 +335,92 @@
                 <Control x:Name="GeneralsOnlineSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
                     <StackPanel Spacing="20">
-                        <TextBlock Classes="section-header" Text="GeneralsOnline Engine" />
+                        <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Go.Title}" />
 
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Identity &amp; Login" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
+                            <TextBlock Text="{localization:Localize GameSettings.Go.IdentityAndLogin}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <WrapPanel HorizontalAlignment="Left">
-                                <CheckBox Content="Auto-Login" IsChecked="{Binding GoAutoLogin}" Margin="0,0,24,8" />
-                                <CheckBox Content="Remember Me" IsChecked="{Binding GoRememberUsername}" Margin="0,0,24,8" />
-                                <CheckBox Content="Show Ranks" IsChecked="{Binding GoShowPlayerRanks}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.AutoLogin}" IsChecked="{Binding GoAutoLogin}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.RememberMe}" IsChecked="{Binding GoRememberUsername}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.ShowRanks}" IsChecked="{Binding GoShowPlayerRanks}" Margin="0,0,24,8" />
                             </WrapPanel>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="Performance &amp; Visuals" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
+                            <TextBlock Text="{localization:Localize GameSettings.Go.PerformanceAndVisuals}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <WrapPanel HorizontalAlignment="Left">
-                                <CheckBox Content="FPS Cap" IsChecked="{Binding GoRenderLimitFramerate}" Margin="0,0,24,8" />
-                                <CheckBox Content="Stats Overlay" IsChecked="{Binding GoRenderStatsOverlay}" Margin="0,0,24,8" />
-                                <CheckBox Content="Show Ping" IsChecked="{Binding GoShowPing}" Margin="0,0,24,8" />
-                                <CheckBox Content="Show FPS" IsChecked="{Binding GoShowFps}" Margin="0,0,24,8" />
-                                <CheckBox Content="Verbose Logging" IsChecked="{Binding GoDebugVerboseLogging}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.FpsCap}" IsChecked="{Binding GoRenderLimitFramerate}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.StatsOverlay}" IsChecked="{Binding GoRenderStatsOverlay}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.ShowPing}" IsChecked="{Binding GoShowPing}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.ShowFps}" IsChecked="{Binding GoShowFps}" Margin="0,0,24,8" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.VerboseLogging}" IsChecked="{Binding GoDebugVerboseLogging}" Margin="0,0,24,8" />
                             </WrapPanel>
 
                             <Grid ColumnDefinitions="140,*,Auto" IsEnabled="{Binding GoRenderLimitFramerate}">
-                                <TextBlock Text="Engine FPS Limit" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Go.EngineFpsLimit}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="500" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="500" Classes="slider-input" />
                             </Grid>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="Camera Settings" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
+                            <TextBlock Text="{localization:Localize GameSettings.Go.CameraSettings}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <Grid ColumnDefinitions="140,*,Auto" Margin="0,0,0,8">
-                                <TextBlock Text="Min Camera Height" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Go.MinCameraHeight}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto" Margin="0,0,0,8">
-                                <TextBlock Text="Max Camera Height" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Go.MaxCameraHeight}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="Camera Move Speed" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize GameSettings.Go.CameraMoveSpeed}" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" VerticalAlignment="Center" Margin="10,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" Increment="0.1" Classes="slider-input" />
                             </Grid>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="Social &amp; Notifications" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
+                            <TextBlock Text="{localization:Localize GameSettings.Go.SocialAndNotifications}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <WrapPanel HorizontalAlignment="Left" Margin="0,0,0,8">
-                                <CheckBox Content="Global Notifications" IsChecked="{Binding GoEnableNotifications}" Margin="0,0,24,4" />
-                                <CheckBox Content="Sound Notifications" IsChecked="{Binding GoEnableSoundNotifications}" Margin="0,0,24,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.GlobalNotifications}" IsChecked="{Binding GoEnableNotifications}" Margin="0,0,24,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.SoundNotifications}" IsChecked="{Binding GoEnableSoundNotifications}" Margin="0,0,24,4" />
                             </WrapPanel>
 
                             <Grid ColumnDefinitions="*,24,*">
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Classes="form-label" Text="Chat Font Size" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFontSize}" />
                                     <NumericUpDown Value="{Binding GoChatFontSize}" Minimum="8" Maximum="32" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Classes="form-label" Text="Chat Fadeout (s)" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFadeout}" />
                                     <NumericUpDown Value="{Binding GoChatDurationSecondsUntilFadeOut}" Minimum="5" Maximum="300" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Detailed Notifications" FontSize="12" Opacity="0.6" Margin="0,8,0,4" />
+                            <TextBlock Text="{localization:Localize GameSettings.Go.DetailedNotifications}" FontSize="12" Opacity="0.6" Margin="0,8,0,4" />
                             <Grid ColumnDefinitions="*,*">
                                 <StackPanel Grid.Column="0" Spacing="4">
-                                    <CheckBox Content="Friend Online (In-Game)" IsChecked="{Binding GoSocialNotificationFriendComesOnlineGameplay}" />
-                                    <CheckBox Content="Friend Offline (In-Game)" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineGameplay}" />
-                                    <CheckBox Content="Accept (In-Game)" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestGameplay}" />
-                                    <CheckBox Content="Request (In-Game)" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestGameplay}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.FriendOnlineInGame}" IsChecked="{Binding GoSocialNotificationFriendComesOnlineGameplay}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.FriendOfflineInGame}" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineGameplay}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.AcceptInGame}" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestGameplay}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.RequestInGame}" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestGameplay}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4">
-                                    <CheckBox Content="Friend Online (Menu)" IsChecked="{Binding GoSocialNotificationFriendComesOnlineMenus}" />
-                                    <CheckBox Content="Friend Offline (Menu)" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineMenus}" />
-                                    <CheckBox Content="Accept (Menu)" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestMenus}" />
-                                    <CheckBox Content="Request (Menu)" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestMenus}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.FriendOnlineMenu}" IsChecked="{Binding GoSocialNotificationFriendComesOnlineMenus}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.FriendOfflineMenu}" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineMenus}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.AcceptMenu}" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestMenus}" />
+                                    <CheckBox Content="{localization:Localize GameSettings.Go.RequestMenu}" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestMenus}" />
                                 </StackPanel>
                             </Grid>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
                             <StackPanel Spacing="8">
-                                <TextBlock Classes="form-label" Text="GameSpy IP Override" />
-                                <TextBox Text="{Binding GameSpyIPAddress}" Watermark="e.g. 127.0.0.1" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.GameSpyIpOverride}" />
+                                <TextBox Text="{Binding GameSpyIPAddress}" Watermark="{localization:Localize GameSettings.Go.GameSpyIpWatermark}" />
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

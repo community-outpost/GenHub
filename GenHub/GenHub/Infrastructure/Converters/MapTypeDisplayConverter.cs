@@ -27,29 +27,36 @@ public class MapTypeDisplayConverter : IValueConverter
             return string.Empty;
         }
 
+        var localizationService = LocalizationConverterHelper.ResolveLocalizationService();
+        var archiveLabel = localizationService?.GetString("Tools.MapManager.Type.Archive") ?? "Archive";
+        var mapLabel = localizationService?.GetString("Tools.MapManager.Type.Map") ?? "Map";
+        var iniLabel = localizationService?.GetString("Tools.MapManager.Type.Ini") ?? "Ini";
+        var tgaLabel = localizationService?.GetString("Tools.MapManager.Type.Tga") ?? "TGA";
+        var txtLabel = localizationService?.GetString("Tools.MapManager.Type.Txt") ?? "Txt";
+
         // If it's identified as a raw ZIP archive (not a directory bundle), just say "Archive"
         if (!mapFile.IsDirectory && mapFile.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
-            return "Archive";
+            return archiveLabel;
         }
 
-        var parts = new List<string> { "Map" };
+        var parts = new List<string> { mapLabel };
 
         if (mapFile.AssetFiles != null)
         {
             if (mapFile.AssetFiles.Any(f => f.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)))
             {
-                parts.Add("Ini");
+                parts.Add(iniLabel);
             }
 
             if (mapFile.AssetFiles.Any(f => f.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
             {
-                parts.Add("TGA");
+                parts.Add(tgaLabel);
             }
 
             if (mapFile.AssetFiles.Any(f => f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)))
             {
-                parts.Add("Txt");
+                parts.Add(txtLabel);
             }
         }
 
@@ -63,9 +70,7 @@ public class MapTypeDisplayConverter : IValueConverter
     /// <param name="targetType">The target type.</param>
     /// <param name="parameter">The converter parameter.</param>
     /// <param name="culture">The culture info.</param>
-    /// <returns>Throws NotImplementedException.</returns>
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
+    /// <returns>Throws NotSupportedException.</returns>
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
-    }
 }

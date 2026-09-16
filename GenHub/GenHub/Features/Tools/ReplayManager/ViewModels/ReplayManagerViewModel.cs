@@ -27,6 +27,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -48,6 +49,8 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
 /// <param name="serviceProvider">Optional service provider for resolving dialog viewmodels dynamically.</param>
+/// <param name="localizationService">Optional localization service for dynamic string translation.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ReplayManagerViewModel requires services for replay directories, imports, exports, upload history, notifications, logging, and localization.")]
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
     IReplayImportService importService,
@@ -55,7 +58,8 @@ public partial class ReplayManagerViewModel(
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
     ILogger<ReplayManagerViewModel> logger,
-    IServiceProvider? serviceProvider = null) : ObservableObject,
+    IServiceProvider? serviceProvider = null,
+    ILocalizationService? localizationService = null) : ObservableObject,
     IRecipient<ProfileLaunchedMessage>,
     IRecipient<ProfileStoppedMessage>,
     IRecipient<ProfileDeletedMessage>,
@@ -66,8 +70,19 @@ public partial class ReplayManagerViewModel(
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
+    private int _lastLoadedCount = -1;
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (LocalizationService != null && _lastLoadedCount >= 0)
+        {
+            StatusMessage = string.Format(LocalizationService.GetString("Tools.ReplayManager.Status.Loaded") ?? "Loaded {0} replays.", _lastLoadedCount);
+        }
+    }
 
     private IDialogService? DialogService => serviceProvider?.GetService<IDialogService>();
+
+    private ILocalizationService? LocalizationService => localizationService ?? serviceProvider?.GetService<ILocalizationService>();
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -169,6 +184,12 @@ public partial class ReplayManagerViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
+        if (LocalizationService != null)
+        {
+            LocalizationService.PropertyChanged -= OnLocalizationChanged;
+            LocalizationService.PropertyChanged += OnLocalizationChanged;
+        }
+
         await LoadReplaysAsync();
     }
 
@@ -333,8 +354,20 @@ public partial class ReplayManagerViewModel(
     {
         if (disposing)
         {
+            if (LocalizationService != null)
+            {
+                LocalizationService.PropertyChanged -= OnLocalizationChanged;
+            }
+
             WeakReferenceMessenger.Default.UnregisterAll(this);
             _reloadLock.Dispose();
+
+            foreach (var item in UploadHistory)
+            {
+                item.Dispose();
+            }
+
+            UploadHistory.Clear();
         }
     }
 
@@ -400,7 +433,12 @@ public partial class ReplayManagerViewModel(
         try
         {
             var history = await uploadHistoryService.GetUploadHistoryAsync(ReplayManagerConstants.UploadCategory);
-            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item)).ToList();
+            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item, localizationService)).ToList();
+
+            foreach (var item in UploadHistory)
+            {
+                item.Dispose();
+            }
 
             UploadHistory.Clear();
             foreach (var vm in viewModels)
@@ -1473,7 +1511,10 @@ public partial class ReplayManagerViewModel(
                 ApplyFilter();
             });
 
-            StatusMessage = $"Loaded {replays.Count} replays.";
+            _lastLoadedCount = replays.Count;
+            StatusMessage = LocalizationService != null
+                ? string.Format(LocalizationService.GetString("Tools.ReplayManager.Status.Loaded") ?? "Loaded {0} replays.", replays.Count)
+                : $"Loaded {replays.Count} replays.";
         }
         catch (Exception ex)
         {

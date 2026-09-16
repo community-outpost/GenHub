@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="700"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              x:Class="GenHub.Features.Info.Views.FaqSectionView"
              x:DataType="vm:FaqSectionViewModel">
 
@@ -117,7 +118,7 @@
                        IsVisible="{Binding IsLoading}"
                        Spacing="10"
                        Margin="20,0,0,0">
-              <TextBlock Text="Loading..." VerticalAlignment="Center" Foreground="#AAAAAA"/>
+              <TextBlock Text="{localization:Localize Common.Status.Loading}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}"/>
            </StackPanel>
 
            <TextBlock Text="{Binding StatusMessage}"

@@ -1944,7 +1944,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 updateTargetSearchResult: item.UpdateTargetVm?.SearchResult,
                 updateAction: ct => UpdateContentAsync(item, ct),
                 isUpdateAvailable: item.CurrentState == ContentState.UpdateAvailable,
-                initialVariantManifestId: selectedVariantId);
+                initialVariantManifestId: selectedVariantId,
+                localizationService: serviceProvider.GetService(typeof(ILocalizationService)) as ILocalizationService);
 
             if (item.HasBundleComponents)
             {

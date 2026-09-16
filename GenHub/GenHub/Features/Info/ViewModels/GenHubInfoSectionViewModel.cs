@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -15,6 +16,7 @@ using GenHub.Features.Tools.ReplayManager.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -27,12 +29,14 @@ namespace GenHub.Features.Info.ViewModels;
 /// <param name="changelogsViewModel">The changelogs view model.</param>
 /// <param name="goChangelogViewModel">The Generals Online changelog view model.</param>
 /// <param name="notificationService">Optional notification service for demo actions.</param>
+/// <param name="localizationService">Optional localization service for dynamic string translation.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
 public partial class GenHubInfoSectionViewModel(
     IInfoContentProvider contentProvider,
     ChangelogsViewModel changelogsViewModel,
     GeneralsOnlineChangelogViewModel goChangelogViewModel,
-    INotificationService? notificationService = null) : ObservableObject, IInfoSectionViewModel
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
     /// <summary>
     /// Gets the icon key.
@@ -42,8 +46,8 @@ public partial class GenHubInfoSectionViewModel(
     /// <inheritdoc/>
     public string Title => _currentModule switch
     {
-        GeneralsHubModule.GeneralsOnline => "Generals Online",
-        _ => "GenHub Guide",
+        GeneralsHubModule.GeneralsOnline => localizationService?.GetString("Info.Module.GeneralsOnline") ?? "Generals Online",
+        _ => localizationService?.GetString("Info.Module.GenHubGuide") ?? "GenHub Guide",
     };
 
     /// <summary>
@@ -57,6 +61,7 @@ public partial class GenHubInfoSectionViewModel(
     public GeneralsOnlineChangelogViewModel GoChangelog => goChangelogViewModel;
 
     private readonly List<InfoSectionViewModel> _allSections = [];
+    private bool _disposed;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
@@ -128,65 +133,6 @@ public partial class GenHubInfoSectionViewModel(
 
     private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
 
-    /// <summary>
-    /// Toggles the expanded state of a card.
-    /// </summary>
-    /// <param name="card">The card to toggle.</param>
-    [RelayCommand]
-    private static void ToggleCardExpansion(InfoCardViewModel card)
-    {
-        if (card.IsExpandable)
-        {
-            card.IsExpanded = !card.IsExpanded;
-        }
-    }
-
-    /// <summary>
-    /// Handles an action from an info card.
-    /// </summary>
-    /// <param name="action">The action to handle.</param>
-    [RelayCommand]
-    private static void HandleAction(InfoAction action)
-    {
-        if (string.IsNullOrEmpty(action.ActionId))
-        {
-            return;
-        }
-
-        if (action.ActionId.StartsWith("NAV_INFO_", StringComparison.OrdinalIgnoreCase))
-        {
-            var sectionId = action.ActionId["NAV_INFO_".Length..];
-            WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(sectionId));
-        }
-        else if (action.ActionId.StartsWith("NAV_", StringComparison.OrdinalIgnoreCase))
-        {
-            var tabName = action.ActionId[4..];
-            if (Enum.TryParse<NavigationTab>(tabName, true, out var tab))
-            {
-                WeakReferenceMessenger.Default.Send(new NavigationMessage(tab));
-            }
-        }
-        else if (action.ActionId.StartsWith("URL_", StringComparison.OrdinalIgnoreCase))
-        {
-            var url = action.ActionId[4..];
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = url,
-                    UseShellExecute = true,
-                });
-            }
-        }
-    }
-
-    private static InfoSectionViewModel MapToViewModel(InfoSection section)
-    {
-        var vm = new InfoSectionViewModel(section);
-        return vm;
-    }
-
     /// <inheritdoc/>
     public string Id => "guide";
 
@@ -209,26 +155,6 @@ public partial class GenHubInfoSectionViewModel(
         _currentModule = module;
         OnPropertyChanged(nameof(Title));
         FilterSections();
-    }
-
-    private void FilterSections()
-    {
-        Sections.Clear();
-
-        var filtered = _currentModule == GeneralsHubModule.GeneralsOnline
-            ? _allSections.Where(s => s.Id == InfoConstants.SectionFaq || s.Id == InfoConstants.SectionGoChangelog)
-            : _allSections.Where(s => s.Id != InfoConstants.SectionFaq && s.Id != InfoConstants.SectionGoChangelog);
-
-        foreach (var section in filtered)
-        {
-            Sections.Add(section);
-        }
-
-        // Auto-select first if current selection is invalid
-        if (SelectedSection == null || !Sections.Contains(SelectedSection))
-        {
-            SelectedSection = Sections.FirstOrDefault();
-        }
     }
 
     /// <summary>
@@ -418,7 +344,7 @@ public partial class GenHubInfoSectionViewModel(
     public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
 
     /// <summary>
-    /// Gets a value indicating whether the Local Content section is selected.
+    /// Gets a value indicating whether the Add Local Content section is selected.
     /// </summary>
     public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
 
@@ -455,6 +381,12 @@ public partial class GenHubInfoSectionViewModel(
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+            localizationService.PropertyChanged += OnLocalizationChanged;
+        }
+
         // Load sections if not already loaded
         if (!Sections.Any())
         {
@@ -526,13 +458,13 @@ public partial class GenHubInfoSectionViewModel(
 
         if (DemoReplayManager == null)
         {
-            DemoReplayManager = DemoViewModelFactory.CreateDemoReplayManager(notificationService);
+            DemoReplayManager = DemoViewModelFactory.CreateDemoReplayManager(notificationService, localizationService);
             OnPropertyChanged(nameof(DemoReplayManager));
         }
 
         if (DemoMapManager == null)
         {
-            DemoMapManager = DemoViewModelFactory.CreateDemoMapManager(notificationService);
+            DemoMapManager = DemoViewModelFactory.CreateDemoMapManager(notificationService, localizationService);
             OnPropertyChanged(nameof(DemoMapManager));
         }
 
@@ -552,6 +484,120 @@ public partial class GenHubInfoSectionViewModel(
         {
             DemoScanWizard = DemoViewModelFactory.CreateDemoScanWizard(notificationService);
             OnPropertyChanged(nameof(DemoScanWizard));
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing && localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+        }
+
+        _disposed = true;
+    }
+
+    /// <summary>
+    /// Toggles the expanded state of a card.
+    /// </summary>
+    /// <param name="card">The card to toggle.</param>
+    [RelayCommand]
+    private static void ToggleCardExpansion(InfoCardViewModel card)
+    {
+        if (card.IsExpandable)
+        {
+            card.IsExpanded = !card.IsExpanded;
+        }
+    }
+
+    /// <summary>
+    /// Handles an action from an info card.
+    /// </summary>
+    /// <param name="action">The action to handle.</param>
+    [RelayCommand]
+    private static void HandleAction(InfoAction action)
+    {
+        if (string.IsNullOrEmpty(action.ActionId))
+        {
+            return;
+        }
+
+        if (action.ActionId.StartsWith("NAV_INFO_", StringComparison.OrdinalIgnoreCase))
+        {
+            var sectionId = action.ActionId["NAV_INFO_".Length..];
+            WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(sectionId));
+        }
+        else if (action.ActionId.StartsWith("NAV_", StringComparison.OrdinalIgnoreCase))
+        {
+            var tabName = action.ActionId[4..];
+            if (Enum.TryParse<NavigationTab>(tabName, true, out var tab))
+            {
+                WeakReferenceMessenger.Default.Send(new NavigationMessage(tab));
+            }
+        }
+        else if (action.ActionId.StartsWith("URL_", StringComparison.OrdinalIgnoreCase))
+        {
+            var url = action.ActionId[4..];
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
+            }
+        }
+    }
+
+    private InfoSectionViewModel MapToViewModel(InfoSection section)
+    {
+        var vm = new InfoSectionViewModel(section, localizationService);
+        return vm;
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Title));
+        foreach (var sec in _allSections)
+        {
+            sec.NotifyLocalizationChanged();
+        }
+    }
+
+    private void FilterSections()
+    {
+        Sections.Clear();
+
+        var filtered = _currentModule == GeneralsHubModule.GeneralsOnline
+            ? _allSections.Where(s => s.Id == InfoConstants.SectionFaq || s.Id == InfoConstants.SectionGoChangelog)
+            : _allSections.Where(s => s.Id != InfoConstants.SectionFaq && s.Id != InfoConstants.SectionGoChangelog);
+
+        foreach (var section in filtered)
+        {
+            Sections.Add(section);
+        }
+
+        // Auto-select first if current selection is invalid
+        if (SelectedSection == null || !Sections.Contains(SelectedSection))
+        {
+            SelectedSection = Sections.FirstOrDefault();
         }
     }
 

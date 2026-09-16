@@ -3,9 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Messages;
-using GenHub.Features.Info.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -21,6 +21,9 @@ namespace GenHub.Features.Info.ViewModels;
 [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
 public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<OpenInfoSectionMessage>
 {
+    private readonly ILocalizationService? _localizationService;
+    private readonly System.ComponentModel.PropertyChangedEventHandler? _localizationHandler;
+
     private bool _disposed;
 
     [ObservableProperty]
@@ -41,12 +44,24 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     [ObservableProperty]
     private object? _selectedSidebarItem;
 
+    [ObservableProperty]
+    private ObservableCollection<string> _modules =
+    [
+        InfoConstants.ModuleGuide,
+        InfoConstants.ModuleZeroHour,
+        InfoConstants.ModuleGeneralsOnline,
+    ];
+
     /// <summary>
     /// Initializes a new instance of the <see cref="InfoViewModel"/> class.
     /// </summary>
     /// <param name="sectionViewModels">The available info section view models.</param>
-    public InfoViewModel(IEnumerable<IInfoSectionViewModel> sectionViewModels)
+    /// <param name="localizationService">The optional localization service.</param>
+    public InfoViewModel(
+        IEnumerable<IInfoSectionViewModel> sectionViewModels,
+        ILocalizationService? localizationService = null)
     {
+        _localizationService = localizationService;
         Sections = new ObservableCollection<IInfoSectionViewModel>(sectionViewModels.OrderBy(s => s.Order));
 
         // Default to GenHub Guide
@@ -56,19 +71,15 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         // Initialize sidebar items
         UpdateSidebarItems();
 
+        if (_localizationService != null)
+        {
+            _localizationHandler = OnLocalizationPropertyChanged;
+            _localizationService.PropertyChanged += _localizationHandler;
+        }
+
         // Register for navigation messages
         WeakReferenceMessenger.Default.Register<OpenInfoSectionMessage>(this);
     }
-
-    /// <summary>
-    /// Gets the list of available modules.
-    /// </summary>
-    public ObservableCollection<string> Modules { get; } =
-    [
-        InfoConstants.ModuleGuide,
-        InfoConstants.ModuleZeroHour,
-        InfoConstants.ModuleGeneralsOnline,
-    ];
 
     /// <summary>
     /// Gets the available info sections.
@@ -140,12 +151,24 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
             return;
         }
 
+        if (_localizationService != null && _localizationHandler != null)
+        {
+            _localizationService.PropertyChanged -= _localizationHandler;
+        }
+
         WeakReferenceMessenger.Default.UnregisterAll(this);
         var faqSection = Sections.OfType<FaqSectionViewModel>().FirstOrDefault();
         if (faqSection != null)
         {
             faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
         }
+
+        foreach (var disposableSection in Sections.OfType<IDisposable>())
+        {
+            disposableSection.Dispose();
+        }
+
+        Sections.Clear();
 
         _disposed = true;
         GC.SuppressFinalize(this);
@@ -274,6 +297,23 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
                     _ = faqSection.InitializeAsync();
                 }
             }
+        }
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName) ||
+            e.PropertyName == nameof(ILocalizationService.CurrentCulture) ||
+            e.PropertyName == LocalizationConstants.IndexerPropertyName)
+        {
+            var selected = SelectedModule;
+            Modules =
+            [
+                InfoConstants.ModuleGuide,
+                InfoConstants.ModuleZeroHour,
+                InfoConstants.ModuleGeneralsOnline,
+            ];
+            SelectedModule = selected;
         }
     }
 

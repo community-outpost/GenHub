@@ -115,6 +115,7 @@ public class SharedViewModelModuleTests
         // Register required modules in correct order
         services.AddLoggingModule();
         services.AddValidationServices();
+        services.AddLocalizationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();
         services.AddCasServices();

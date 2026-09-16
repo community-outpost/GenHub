@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.GameProfiles.ViewModels.Wizard"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
         x:Class="GenHub.Features.GameProfiles.Views.Wizard.SetupWizardView"
         x:DataType="vm:SetupWizardViewModel"
@@ -111,7 +112,7 @@
             <Border Grid.Row="0" Padding="30,24,30,16">
                 <StackPanel>
                     <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,4"/>
-                    <TextBlock Text="Select the components you wish to configure." FontSize="13" Foreground="#888888"/>
+                    <TextBlock Text="{localization:Localize Profiles.Wizard.SelectComponentsSubtitle}" FontSize="13" Foreground="#888888"/>
                 </StackPanel>
             </Border>
 
