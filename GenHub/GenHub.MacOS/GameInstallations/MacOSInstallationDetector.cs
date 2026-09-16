@@ -192,9 +192,10 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             // would tell the user they own no games when we were simply not allowed to look.
             return (null, true);
         }
-        catch (Exception)
+        catch (DirectoryNotFoundException)
         {
-            // A vanished directory is not a detection failure.
+            // A vanished directory is not a detection failure. Other errors reach the
+            // detection boundary, which logs them and returns a retryable failure.
             return (null, false);
         }
 
