@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -251,13 +252,47 @@ public sealed class ImageCacheService : IImageCacheService
         return true;
     }
 
-    private static HttpClient CreateDefaultHttpClient()
+    /// <summary>
+    /// Validates and sanitizes a remote avatar or image URL, requiring HTTPS and a safe remote host.
+    /// </summary>
+    /// <param name="url">The URL string to evaluate.</param>
+    /// <returns>The validated HTTPS URL string, or null if invalid or unsafe.</returns>
+    internal static string? SanitizeRemoteImageUrl(string? url)
     {
-        var handler = new SocketsHttpHandler
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        if (!IsSafeRemoteUrl(url, out var uri))
+        {
+            return null;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return null;
+        }
+
+        return uri.AbsoluteUri;
+    }
+
+    /// <summary>
+    /// Creates a sockets HTTP handler configured to mitigate SSRF vulnerabilities.
+    /// </summary>
+    /// <param name="connectTimeout">Optional connection timeout.</param>
+    /// <param name="pooledConnectionLifetime">Optional pooled connection lifetime.</param>
+    /// <returns>A configured <see cref="SocketsHttpHandler"/> instance.</returns>
+    internal static SocketsHttpHandler CreateSsrfSafeSocketsHttpHandler(
+        TimeSpan? connectTimeout = null,
+        TimeSpan? pooledConnectionLifetime = null)
+    {
+        return new SocketsHttpHandler
         {
             AllowAutoRedirect = false,
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectTimeout = TimeSpan.FromSeconds(10),
+            UseCookies = false,
+            PooledConnectionLifetime = pooledConnectionLifetime ?? TimeSpan.FromMinutes(5),
+            ConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(10),
             ConnectCallback = async (context, cancellationToken) =>
             {
                 if (Uri.CheckHostName(context.DnsEndPoint.Host) == UriHostNameType.Unknown)
@@ -271,12 +306,11 @@ public sealed class ImageCacheService : IImageCacheService
                     throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or invalid IP address.");
                 }
 
-                var safeIp = addresses[0];
-                var socket = new System.Net.Sockets.Socket(safeIp.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
                 try
                 {
-                    await socket.ConnectAsync(new IPEndPoint(safeIp, context.DnsEndPoint.Port), cancellationToken).ConfigureAwait(false);
-                    return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+                    await socket.ConnectAsync(addresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
                 }
                 catch
                 {
@@ -285,7 +319,27 @@ public sealed class ImageCacheService : IImageCacheService
                 }
             },
         };
+    }
 
+    /// <summary>
+    /// Determines whether an IP address is considered safe from SSRF attack vectors.
+    /// </summary>
+    /// <param name="address">The IP address to validate.</param>
+    /// <returns><c>true</c> if the IP address is safe; otherwise, <c>false</c>.</returns>
+    internal static bool IsSafeIpAddress(IPAddress address)
+    {
+        var bytes = address.GetAddressBytes();
+        return bytes.Length switch
+        {
+            4 => IsSafeIPv4(bytes),
+            16 => IsSafeIPv6(bytes),
+            _ => false,
+        };
+    }
+
+    private static HttpClient CreateDefaultHttpClient()
+    {
+        var handler = CreateSsrfSafeSocketsHttpHandler();
         var client = new HttpClient(handler)
         {
             Timeout = TimeSpan.FromSeconds(ImageCacheConstants.DefaultTimeoutSeconds),
@@ -355,6 +409,24 @@ public sealed class ImageCacheService : IImageCacheService
             return false;
         }
 
+        // 64:ff9b::/96 Well-Known Prefix for NAT64 (RFC 6052) and 64:ff9b:1::/48 Local-Use Prefix (RFC 8215)
+        if (b[0] == 0 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b)
+        {
+            return false;
+        }
+
+        // 2002::/16 6to4 relay prefix (RFC 3056 / RFC 7526)
+        if (b[0] == 0x20 && b[1] == 0x02)
+        {
+            return false;
+        }
+
+        // 2001:0::/32 Teredo prefix (RFC 4380)
+        if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0 && b[3] == 0)
+        {
+            return false;
+        }
+
         // ::ffff:0:0/96 IPv4-mapped IPv6
         if (b.Take(10).All(x => x == 0) && b[10] == 0xff && b[11] == 0xff)
         {
@@ -362,17 +434,6 @@ public sealed class ImageCacheService : IImageCacheService
         }
 
         return true;
-    }
-
-    private static bool IsSafeIpAddress(IPAddress address)
-    {
-        var bytes = address.GetAddressBytes();
-        return bytes.Length switch
-        {
-            4 => IsSafeIPv4(bytes),
-            16 => IsSafeIPv6(bytes),
-            _ => false,
-        };
     }
 
     private static List<FileInfo> DeleteExpiredCacheFiles(FileInfo[] files)

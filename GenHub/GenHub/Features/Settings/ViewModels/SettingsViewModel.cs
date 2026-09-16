@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -19,6 +20,7 @@ using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
@@ -62,6 +64,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
     private readonly IGitHubApiClient? _gitHubApiClient;
+    private readonly IPublisherSubscriptionStore? _subscriptionStore;
+    private readonly IPublisherCatalogRefreshService? _catalogRefreshService;
     private readonly Timer _memoryUpdateTimer;
     private readonly Timer _dangerZoneUpdateTimer;
     private readonly IConfigurationProviderService _configurationProvider;
@@ -231,6 +235,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private double _migrationProgressPercentage;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
+    private ObservableCollection<PublisherSubscription> _subscriptions = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
+    private bool _isLoadingSubscriptions;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -251,6 +263,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     /// <param name="gitHubApiClient">GitHub API client.</param>
+    /// <param name="subscriptionStore">The publisher subscription store.</param>
+    /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -268,7 +282,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
-        IGitHubApiClient? gitHubApiClient = null)
+        IGitHubApiClient? gitHubApiClient = null,
+        IPublisherSubscriptionStore? subscriptionStore = null,
+        IPublisherCatalogRefreshService? catalogRefreshService = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -287,6 +303,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
         _gitHubApiClient = gitHubApiClient;
+        _subscriptionStore = subscriptionStore;
+        _catalogRefreshService = catalogRefreshService;
+
+        _subscriptions.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
 
         LoadSettings();
         _ = LoadPatStatusAsync();
@@ -356,6 +376,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         "S2325:Methods and properties that don't access instance data should be static",
         Justification = "Instance property bound to Avalonia UI data binding and notified by ObservableProperty.")]
     public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+
+    /// <summary>
+    /// Gets a value indicating whether to display the empty subscriptions state message.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "csharpsquid",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Instance property bound to Avalonia UI data binding and notified by ObservableProperty.")]
+    public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
 
     /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.
@@ -2545,5 +2574,200 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var skippedText = lockedCount > 0 ? $", {lockedCount} file(s) skipped (in use)" : string.Empty;
         _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", 3000);
         _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
+    }
+
+    partial void OnSubscriptionsChanged(ObservableCollection<PublisherSubscription> value)
+    {
+        value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with subscription commands for cohesion.")]
+    private static bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
+    {
+        return subscription is { TrustLevel: not TrustLevel.Verified };
+    }
+
+    /// <summary>
+    /// Loads all active publisher subscriptions.
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadSubscriptionsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_subscriptionStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoadingSubscriptions = true;
+            await LoadSubscriptionsCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
+        }
+    }
+
+    private async Task LoadSubscriptionsCoreAsync(CancellationToken cancellationToken = default)
+    {
+        if (_subscriptionStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await _subscriptionStore.GetSubscriptionsAsync(cancellationToken);
+            if (result.Success && result.Data != null)
+            {
+                Subscriptions.Clear();
+                foreach (var sub in result.Data.OrderBy(s => s.PublisherName))
+                {
+                    Subscriptions.Add(sub);
+                }
+            }
+            else if (!result.Success)
+            {
+                _notificationService.ShowError(ErrorTitle, $"Failed to load subscriptions: {result.FirstError}");
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Loading subscriptions was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load subscriptions");
+            _notificationService.ShowError(ErrorTitle, CatalogConstants.LoadSubscriptionsFailedTitle);
+        }
+    }
+
+    /// <summary>
+    /// Removes a publisher subscription.
+    /// </summary>
+    [RelayCommand]
+    private async Task RemoveSubscriptionAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
+    {
+        if (subscription == null || _subscriptionStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Remove Subscription",
+                $"Are you sure you want to unsubscribe from '{subscription.PublisherName}'? Content from this publisher will no longer appear in downloads.",
+                "Remove",
+                "Cancel");
+
+            if (!confirmed)
+            {
+                return;
+            }
+
+            var result = await _subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId, cancellationToken);
+            if (result.Success)
+            {
+                Subscriptions.Remove(subscription);
+                _notificationService.ShowSuccess(CatalogConstants.SubscriptionRemovedNotificationTitle, $"Unsubscribed from {subscription.PublisherName}");
+            }
+            else
+            {
+                _notificationService.ShowError(ErrorTitle, $"Failed to remove subscription: {result.FirstError}");
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Removing subscription was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove subscription");
+            _notificationService.ShowError(ErrorTitle, "Failed to remove subscription");
+        }
+    }
+
+    /// <summary>
+    /// Toggles the trust level for a publisher subscription.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanToggleSubscriptionTrust))]
+    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
+    {
+        if (subscription == null || _subscriptionStore == null || subscription.TrustLevel == TrustLevel.Verified)
+        {
+            return;
+        }
+
+        try
+        {
+            var newTrust = subscription.TrustLevel == TrustLevel.Trusted
+                ? TrustLevel.Untrusted
+                : TrustLevel.Trusted;
+
+            var result = await _subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust, cancellationToken);
+            if (result.Success)
+            {
+                subscription.TrustLevel = newTrust;
+                ToggleSubscriptionTrustCommand.NotifyCanExecuteChanged();
+            }
+            else
+            {
+                _notificationService.ShowError(ErrorTitle, $"Failed to update trust level: {result.FirstError}");
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Toggling trust level was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update trust level");
+            _notificationService.ShowError(ErrorTitle, "Failed to update trust level");
+        }
+    }
+
+    /// <summary>
+    /// Refreshes all subscribed catalogs.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshAllCatalogsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_catalogRefreshService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoadingSubscriptions = true;
+            var result = await _catalogRefreshService.RefreshAllAsync(cancellationToken);
+            await LoadSubscriptionsCoreAsync(cancellationToken);
+            if (result.Success)
+            {
+                _notificationService.ShowSuccess(CatalogConstants.CatalogsRefreshedNotificationTitle, "Successfully updated all subscribed catalogs.");
+            }
+            else
+            {
+                _notificationService.ShowError(ErrorTitle, result.FirstError ?? "Unknown error");
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Refreshing catalogs was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh catalogs");
+            _notificationService.ShowError(ErrorTitle, "An unexpected error occurred during refresh.");
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
+        }
     }
 }

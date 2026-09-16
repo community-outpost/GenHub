@@ -29,11 +29,17 @@ public partial class SubscriptionConfirmationDialog : Window
     }
 
     /// <summary>
-    /// closes the dialog with the specified result.
+    /// Gets a value indicating whether the dialog was accepted.
     /// </summary>
-    /// <param name="result">the result to return from the dialog.</param>
+    public bool DialogResult { get; private set; }
+
+    /// <summary>
+    /// Closes the dialog with the specified result.
+    /// </summary>
+    /// <param name="result">The result to return from the dialog.</param>
     public void CloseDialog(bool result)
     {
+        DialogResult = result;
         Close(result);
     }
 
@@ -48,7 +54,11 @@ public partial class SubscriptionConfirmationDialog : Window
         if (DataContext is SubscriptionConfirmationViewModel vm)
         {
             // set up a way to close the window from the view model
-            vm.RequestClose = (result) => Close(result);
+            vm.RequestClose = (result) =>
+            {
+                DialogResult = result;
+                Close(result);
+            };
 
             // start initialization
             try
@@ -72,6 +82,7 @@ public partial class SubscriptionConfirmationDialog : Window
 
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
+        DialogResult = false;
         Close(false);
     }
 }

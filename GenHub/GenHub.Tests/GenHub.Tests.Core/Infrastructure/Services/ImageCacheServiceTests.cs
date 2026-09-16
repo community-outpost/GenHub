@@ -69,6 +69,11 @@ public class ImageCacheServiceTests
     [InlineData("::ffff:127.0.0.1")]
     [InlineData("::ffff:10.0.0.1")]
     [InlineData("::ffff:192.168.0.1")]
+    [InlineData("64:ff9b::192.0.2.1")]
+    [InlineData("64:ff9b:1::192.0.2.1")]
+    [InlineData("64:ff9b:1:ffff::1")]
+    [InlineData("2002:c000:0201::")]
+    [InlineData("2001:0:4136:e378:8000:63bf:3fff:fdd2")]
     public void IsSafeRemoteUrl_UnsafeIPv6_ReturnsFalse(string ipString)
     {
         var url = $"http://[{ipString}]/image.png";
@@ -581,5 +586,15 @@ public class ImageCacheServiceTests
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that SSRF-safe sockets handler disables cookie handling.
+    /// </summary>
+    [Fact]
+    public void CreateSsrfSafeSocketsHttpHandler_DisablesCookies()
+    {
+        using var handler = ImageCacheService.CreateSsrfSafeSocketsHttpHandler();
+        Assert.False(handler.UseCookies);
     }
 }
