@@ -556,8 +556,17 @@
     let activePublisherKey = 'hackers';
 
     function filterDownloadsCatalog() {
-        const q = (document.getElementById('ghCatalogSearch')?.value || '').toLowerCase().trim();
+        let q = (document.getElementById('ghCatalogSearch')?.value || '').toLowerCase().trim();
         const cat = document.getElementById('ghCatalogFilter')?.value || 'all';
+
+        // ModDB direct URL search parsing (PR #481)
+        if (q.includes('moddb.com/')) {
+            const cleanUrl = q.split('?')[0].replace(/\/+$/, '');
+            const slug = cleanUrl.split('/').pop();
+            if (slug) {
+                q = slug.replace(/[-_]/g, ' ');
+            }
+        }
 
         document.querySelectorAll('#ghCatalogGrid .gh-content-card').forEach(card => {
             const cardPub = card.getAttribute('data-pub') || '';
@@ -586,6 +595,27 @@
                 const dEl = document.getElementById('ghActivePubDesc');
                 if (tEl) tEl.textContent = pubMeta[key].title;
                 if (dEl) dEl.textContent = pubMeta[key].desc;
+            }
+
+            // Update category/section filter options dynamically (PR #481 ModDB sections)
+            const cFilter = document.getElementById('ghCatalogFilter');
+            if (cFilter) {
+                if (key === 'moddb') {
+                    cFilter.innerHTML = `
+                        <option value="all">All Sections</option>
+                        <option value="mod">Mods (Total Conversions)</option>
+                        <option value="addon">Addons &amp; Sub-Mods</option>
+                        <option value="patch">Downloads &amp; Patches</option>
+                    `;
+                } else {
+                    cFilter.innerHTML = `
+                        <option value="all">All Categories</option>
+                        <option value="patch">Engine Patches</option>
+                        <option value="mod">Mods</option>
+                        <option value="addon">Addons &amp; HUD</option>
+                        <option value="map">Maps</option>
+                    `;
+                }
             }
 
             // Return to browse view if inside detail view
@@ -825,6 +855,21 @@
     if (mapRefreshBtn) {
         mapRefreshBtn.addEventListener('click', () => {
             window.showGenHubToast('Info', 'Maps Refreshed', 'Rescanned ~/.local/share/GenHub/Maps/ directory (6 maps loaded).');
+        });
+    }
+
+    // Tools Sidebar Action Buttons
+    const addToolBtn = document.getElementById('ghAddToolBtn');
+    if (addToolBtn) {
+        addToolBtn.addEventListener('click', () => {
+            window.showGenHubToast('Tools', 'Tool Catalog', 'Scanning extension manifests... All 4 official tools are installed and ready.');
+        });
+    }
+
+    const refreshToolsBtn = document.getElementById('ghRefreshToolsBtn');
+    if (refreshToolsBtn) {
+        refreshToolsBtn.addEventListener('click', () => {
+            window.showGenHubToast('Tools', 'Tools Synchronized', 'Validated plugins: Replay Manager, Map Manager, Hotkeys Editor, and GenPatcher.');
         });
     }
 
@@ -1229,6 +1274,34 @@
                 const btn = el.querySelector('.gh-expander-header');
                 if (btn) btn.setAttribute('aria-expanded', 'false');
             });
+        });
+    }
+
+    // Manual Game Installation Registration (PR #452)
+    const addCustomInstallBtn = document.getElementById('ghAddCustomInstallBtn');
+    if (addCustomInstallBtn) {
+        addCustomInstallBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const existing = document.getElementById('ghCustomInstallCustomRow');
+            if (existing) {
+                window.showGenHubToast('Settings', 'Installation Exists', 'Custom installation path is already registered and linked.');
+                return;
+            }
+            const container = addCustomInstallBtn.closest('.gh-form-group');
+            if (container) {
+                const newRow = document.createElement('div');
+                newRow.className = 'gh-install-row';
+                newRow.id = 'ghCustomInstallCustomRow';
+                newRow.innerHTML = `
+                    <div>
+                        <strong>D:\\Games\\Command &amp; Conquer Generals - Custom</strong>
+                        <div style="font-size: 11px; color: #64748b;">Generals v1.08 • Custom Manual Installation</div>
+                    </div>
+                    <span class="gh-chip" style="color: #34d399;">Linked</span>
+                `;
+                container.appendChild(newRow);
+                window.showGenHubToast('Success', 'Game Installation Registered', 'Discovered generals.exe v1.08 in D:\\Games\\Command & Conquer Generals - Custom');
+            }
         });
     }
 
