@@ -195,6 +195,11 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     /// <returns>The manifest if found or generated; otherwise null.</returns>
     public async Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, GameType gameType, CancellationToken cancellationToken = default)
     {
+        if (gameType is not (GameType.Generals or GameType.ZeroHour))
+        {
+            throw new ArgumentOutOfRangeException(nameof(gameType), gameType, "A supported game is required.");
+        }
+
         // Prefer a deterministic manifest id for installations so tests and embedded resources can
         // reference stable ids instead of runtime GUIDs. Generate using ManifestIdGenerator.
         var tempInstallForId = new GameInstallation(gameInstallation.InstallationPath, gameInstallation.InstallationType, null);

@@ -7,9 +7,8 @@ namespace GenHub.Tests.Core.Helpers;
 /// Tests for <see cref="RetailArchiveClassifier"/>.
 /// </summary>
 /// <remarks>
-/// Fixtures use the retail archive filenames a real installation holds: an archive from the
-/// canonical Zero Hour set marks Zero Hour data, any archive from the canonical Generals set
-/// marks Generals data. An arbitrary <c>.big</c> proves neither.
+/// A root-level *zh.big archive marks Zero Hour data; any archive from the canonical
+/// Generals set marks Generals data. Other arbitrary .big files prove neither.
 /// </remarks>
 public class RetailArchiveClassifierTests : IDisposable
 {
@@ -84,20 +83,33 @@ public class RetailArchiveClassifierTests : IDisposable
     }
 
     /// <summary>
-    /// Archives outside the canonical retail sets —
-    /// mod content, hotkey packs, control bars — must not make a directory read as a game.
+    /// Archives outside the Generals set and Zero Hour suffix must not identify a game.
     /// An arbitrary <c>.big</c> proves nothing about retail data, which is why the
     /// launch-side any-archive sentinel cannot be reused for classification.
     /// </summary>
     [Fact]
     public void ClassifyArchives_ModArchivesOnly_IsNeitherGame()
     {
-        var dir = CreateDirectoryWithArchives("mods-only", "somemod.big", "hotkeypack.big", "controlbarpro.big", "ControlBarProZH.big", "HotkeysZH.big");
+        var dir = CreateDirectoryWithArchives("mods-only", "somemod.big", "hotkeypack.big", "controlbarpro.big");
 
         var classification = RetailArchiveClassifier.ClassifyArchives(dir);
 
         Assert.False(classification.HasGeneralsArchives);
         Assert.False(classification.HasZeroHourArchives);
+    }
+
+    /// <summary>Zero Hour discovery accepts the full suffix pattern from issue 330.</summary>
+    /// <param name="archive">The archive filename.</param>
+    [Theory]
+    [InlineData("ControlBarProZH.big")]
+    [InlineData("HotkeysZH.big")]
+    [InlineData("UnlistedLanguagezH.BIG")]
+    public void ClassifyArchives_ZeroHourSuffix_IsZeroHourOnly(string archive)
+    {
+        var dir = CreateDirectoryWithArchives("suffix", archive);
+        var classification = RetailArchiveClassifier.ClassifyArchives(dir);
+        Assert.True(classification.HasZeroHourArchives);
+        Assert.False(classification.HasGeneralsArchives);
     }
 
     /// <summary>

@@ -1093,7 +1093,11 @@ public class GameInstallationValidatorTests
                 .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manifest);
 
-            var result = await _validator.ValidateAsync(installation, null, default);
+            var progress = new SynchronousProgress<ValidationProgress>();
+            var result = await _validator.ValidateAsync(installation, progress, default);
+            var reports = progress.GetReports();
+            Assert.All(reports, report => Assert.Equal(8, report.Total));
+            Assert.Equal(new[] { 1, 3, 4, 5, 7, 8 }, reports.Select(report => report.Processed));
 
             Assert.True(result.IsValid);
             _manifestProviderMock.Verify(

@@ -10,6 +10,23 @@ namespace GenHub.Tests.Core.Models.GameInstallations;
 /// </summary>
 public class GameInstallationTests
 {
+    /// <summary>Combined directories follow platform path case rules.</summary>
+    [Fact]
+    public void IsCombinedDirectory_UsesPlatformPathCasePolicy()
+    {
+        var root = Path.GetTempPath();
+        var installation = new GameInstallation(root, GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+            HasZeroHour = true,
+            GeneralsPath = Path.Combine(root, "CaseTest"),
+            ZeroHourPath = Path.Combine(root, "casetest"),
+        };
+        Assert.Equal(OperatingSystem.IsWindows(), installation.IsCombinedDirectory);
+        installation.ZeroHourPath = installation.GeneralsPath + Path.DirectorySeparatorChar;
+        Assert.True(installation.IsCombinedDirectory);
+    }
+
     /// <summary>
     /// Verifies that default values are set correctly.
     /// </summary>

@@ -54,6 +54,21 @@ public class ManifestProviderTests
         _manifestProvider = new ManifestProvider(_loggerMock.Object, _poolMock.Object, _manifestIdServiceMock.Object, _manifestBuilderMock.Object);
     }
 
+    /// <summary>Invalid game types are rejected before accessing the manifest pool.</summary>
+    /// <param name="gameType">The unsupported game type.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)999)]
+    public async Task GetManifestAsync_UnsupportedGame_RejectsBeforeLookupAsync(GameType gameType)
+    {
+        var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail);
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => _manifestProvider.GetManifestAsync(installation, gameType));
+        Assert.Equal("gameType", exception.ParamName);
+        _poolMock.VerifyNoOtherCalls();
+    }
+
     /// <summary>
     /// Tests that GetManifestAsync returns manifest from cache when available for GameClient.
     /// </summary>
