@@ -25,6 +25,44 @@ public class LaunchRegistryTests
         _registry = new LaunchRegistry(loggerMock.Object);
     }
 
+    /// <summary>Only two verified, different start times prove that a PID was reused.</summary>
+    /// <param name="verified">Whether the recorded start time came from the OS.</param>
+    /// <param name="observed">Whether the current process start time is available.</param>
+    /// <param name="different">Whether the timestamps differ.</param>
+    /// <param name="reused">Whether polling should mark the old launch stopped.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(true, true, true, true)]
+    [InlineData(true, true, false, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(false, false, true, false)]
+    public async Task PollingIdentity_RequiresVerifiedStartTimesAsync(bool verified, bool observed, bool different, bool reused)
+    {
+        var startTime = DateTime.UtcNow.AddMinutes(-1);
+        var launch = new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = Guid.NewGuid().ToString(),
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                StartTime = startTime,
+                HasVerifiedStartTime = verified,
+                IsRunning = true,
+            },
+        };
+        await _registry.RegisterLaunchAsync(launch);
+        DateTime? observedTime = observed ? (different ? startTime.AddSeconds(1) : startTime.ToLocalTime()) : null;
+
+        // Supply timestamp observations directly; never inspect or signal a real process.
+        Assert.Equal(reused, _registry.TryHandleReusedProcess(launch, observedTime));
+        Assert.Equal(reused, launch.TerminatedAt.HasValue);
+        Assert.Equal(!reused, launch.ProcessInfo.IsRunning);
+        Assert.Null(launch.FailureReason);
+    }
+
     /// <summary>Unregistration cannot emit a second stop while an exit transition is being recorded.</summary>
     /// <returns>The asynchronous operation.</returns>
     [Fact]
