@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
@@ -30,8 +31,9 @@ public class GitHubManifestFactory(
     /// <inheritdoc />
     public bool CanHandle(ContentManifest manifest)
     {
-        // Handle standard "github" publisher
-        return manifest.Publisher?.PublisherType?.Equals("github", StringComparison.OrdinalIgnoreCase) == true;
+        // Handle standard "github" publisher and prefixed variants
+        return manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) == true
+            || manifest.Publisher?.PublisherType?.StartsWith(GitHubConstants.PublisherIdPrefix, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <inheritdoc />

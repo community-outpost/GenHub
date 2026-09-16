@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -59,7 +60,10 @@ public partial class GameProfileLauncherViewModel(
     IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger,
     ILocalizationService localizationService,
-    ILaunchRegistry? launchRegistry = null) : ViewModelBase,
+    ILaunchRegistry? launchRegistry = null,
+    ILoggerFactory? loggerFactory = null,
+    IUploadHistoryService? uploadHistoryService = null,
+    Func<IProfileSharingService>? profileSharingServiceFactory = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -68,6 +72,8 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileDeletedMessage>
 {
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
+
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
     private bool _isHovering;
@@ -191,6 +197,7 @@ public partial class GameProfileLauncherViewModel(
                         StopProfileAction = StopProfile,
                         ToggleSteamLaunchAction = ToggleSteamLaunch,
                         CopyProfileAction = CopyProfile,
+                        ShareProfileAction = ShareProfileFromCardAsync,
                     };
 
                     // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -455,6 +462,86 @@ public partial class GameProfileLauncherViewModel(
         if (!_isHovering && !IsScanning)
         {
             _headerCollapseTimer.Start();
+        }
+    }
+
+    /// <summary>
+    /// Imports a profile from a file path or sharing URI.
+    /// </summary>
+    /// <param name="shareUriOrPath">The .ghprofile path, JSON string, or genhub:// URI.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler prevents unhandled exceptions from crashing the application.")]
+    public async Task ImportProfileFromFileOrUriAsync(string shareUriOrPath, CancellationToken cancellationToken = default)
+    {
+        var service = GetSharingService();
+        if (service == null)
+        {
+            notificationService.ShowError("Import Failed", "Profile sharing service is not available.");
+            return;
+        }
+
+        if (!await _importDialogSemaphore.WaitAsync(0, cancellationToken))
+        {
+            logger.LogWarning("Profile import dialog is already active. Ignoring concurrent request.");
+            notificationService.ShowWarning("Import In Progress", "A profile import dialog is already open.");
+            return;
+        }
+
+        var safeSource = shareUriOrPath.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase)
+            ? $"{CommandLineConstants.UriScheme} URI"
+            : Path.GetFileName(shareUriOrPath);
+
+        try
+        {
+            logger.LogInformation("Inspecting shared profile for import from source: {Source}", safeSource);
+            var inspectResult = await service.InspectSharedProfileAsync(shareUriOrPath, cancellationToken);
+
+            if (!inspectResult.Success || inspectResult.Data == null)
+            {
+                logger.LogWarning("Failed to inspect shared profile: {Error}", inspectResult.FirstError);
+                notificationService.ShowError("Profile Import Error", inspectResult.FirstError ?? "Failed to inspect profile package.");
+                return;
+            }
+
+            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var parent = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+
+            var inspectionViewModel = new ImportProfileInspectionViewModel(
+                inspectResult.Data,
+                service,
+                notificationService,
+                loggerFactory?.CreateLogger<ImportProfileInspectionViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+            var dialog = new Views.ImportProfileInspectionWindow
+            {
+                DataContext = inspectionViewModel,
+            };
+
+            if (parent != null)
+            {
+                await dialog.ShowDialog(parent);
+            }
+            else
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                dialog.Closed += (s, e) => tcs.TrySetResult(true);
+                dialog.Show();
+                await tcs.Task;
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "Profile import cancelled from source: {Source}", safeSource);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error importing profile from {Source}", safeSource);
+            notificationService.ShowError("Import Error", $"An error occurred during profile import: {ex.Message}");
+        }
+        finally
+        {
+            _importDialogSemaphore.Release();
         }
     }
 
@@ -1157,6 +1244,7 @@ public partial class GameProfileLauncherViewModel(
                 StopProfileAction = StopProfile,
                 ToggleSteamLaunchAction = ToggleSteamLaunch,
                 CopyProfileAction = CopyProfile,
+                ShareProfileAction = ShareProfileFromCardAsync,
             };
 
             // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -1873,6 +1961,74 @@ public partial class GameProfileLauncherViewModel(
                 localizationService["GameProfiles.Notification.Error.Title"],
                 localizationService.GetString("GameProfiles.Notification.ProcessDirectoryError.Message", ex.Message));
             return null;
+        }
+    }
+
+    private IProfileSharingService? GetSharingService() => profileSharingServiceFactory?.Invoke();
+
+    private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item)
+    {
+        var service = GetSharingService();
+        if (service == null || string.IsNullOrEmpty(item.ProfileId))
+        {
+            return;
+        }
+
+        await Helpers.ProfileSharingDialogHelper.OpenShareDialogAsync(
+            item.ProfileId,
+            gameProfileManager,
+            service,
+            notificationService,
+            loggerFactory,
+            uploadHistoryService,
+            logger);
+    }
+
+    /// <summary>
+    /// Prompts the user to select a profile file and opens the import inspection dialog.
+    /// </summary>
+    [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI command handler catches file picker and import exceptions to notify user.")]
+    private async Task ImportProfileAsync()
+    {
+        try
+        {
+            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = desktop?.MainWindow;
+            if (mainWindow == null)
+            {
+                return;
+            }
+
+            var topLevel = Avalonia.Controls.TopLevel.GetTopLevel(mainWindow);
+            if (topLevel?.StorageProvider == null)
+            {
+                return;
+            }
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = "Select Game Profile Package to Import",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new Avalonia.Platform.Storage.FilePickerFileType(ProfileSharingConstants.ProfileFileTypeDisplayName)
+                    {
+                        Patterns = [ProfileSharingConstants.ProfileFilePattern, FileTypes.JsonFilePattern],
+                    },
+                    Avalonia.Platform.Storage.FilePickerFileTypes.All,
+                ],
+            });
+
+            if (files.Count > 0 && files[0]?.Path?.LocalPath is { } filePath)
+            {
+                await ImportProfileFromFileOrUriAsync(filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to select profile file for import");
+            notificationService.ShowError("Import Failed", $"Failed to select profile file: {ex.Message}");
         }
     }
 }

@@ -19,8 +19,8 @@ namespace GenHub.Tests.Windows.Features.Shortcuts;
 public sealed class UriSchemeRegistrarTests(ITestOutputHelper testOutputHelper) : IDisposable
 {
     private const string TargetKeyPath = @"Software\Classes\genhub";
-    private readonly RegistryKeySnapshot? _snapshot = CaptureInitialSnapshot();
-    private readonly bool _existedPrior = KeyExists();
+    private readonly RegistryKeySnapshot? _snapshot = OperatingSystem.IsWindows() ? CaptureInitialSnapshot() : null;
+    private readonly bool _existedPrior = OperatingSystem.IsWindows() && KeyExists();
 
     /// <summary>
     /// Verifies that Register creates or updates the genhub registry keys in HKCU.
@@ -28,6 +28,11 @@ public sealed class UriSchemeRegistrarTests(ITestOutputHelper testOutputHelper) 
     [Fact]
     public void Register_CreatesOrUpdatesGenhubRegistryKey()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         // Act
         UriSchemeRegistrar.Register();
 
@@ -56,6 +61,11 @@ public sealed class UriSchemeRegistrarTests(ITestOutputHelper testOutputHelper) 
     [Fact]
     public void Register_IsIdempotent()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         // Act - Call twice in succession to ensure no exceptions or unintended side effects occur
         UriSchemeRegistrar.Register();
         var ex = Record.Exception(() => UriSchemeRegistrar.Register());
@@ -67,6 +77,11 @@ public sealed class UriSchemeRegistrarTests(ITestOutputHelper testOutputHelper) 
     /// <inheritdoc/>
     public void Dispose()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         try
         {
             if (_existedPrior && _snapshot != null)

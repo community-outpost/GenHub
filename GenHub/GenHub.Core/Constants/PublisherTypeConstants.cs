@@ -46,7 +46,12 @@ public static class PublisherTypeConstants
     /// <summary>Retail publisher.</summary>
     public const string Retail = "retail";
 
-    /// <summary>GenHub local custom game installation publisher.</summary>
+    /// <summary>
+    /// GenHub local custom game installation publisher (used for detected and managed game installations).
+    /// </summary>
+    /// <remarks>
+    /// Contrast with <see cref="Local"/>, which represents generic local custom content files.
+    /// </remarks>
     public const string GenHubLocal = "genhublocal";
 
     /// <summary>Generals Online community client publisher.</summary>
@@ -72,6 +77,14 @@ public static class PublisherTypeConstants
 
     /// <summary>GenLauncher platform publisher.</summary>
     public const string GenLauncher = "genlauncher";
+
+    /// <summary>
+    /// Local custom content publisher for user-supplied mods, maps, and custom content.
+    /// </summary>
+    /// <remarks>
+    /// Contrast with <see cref="GenHubLocal"/>, which is scoped to game installation manifests.
+    /// </remarks>
+    public const string Local = "local";
 
     /// <summary>GenHub internal system content publisher.</summary>
     public const string GenHubInternal = "genhub";

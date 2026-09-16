@@ -10,6 +10,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -58,37 +59,24 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     protected virtual async Task LoadAvailableContentAsync()
     {
+        var version = Interlocked.Increment(ref _loadContentVersion);
+
+        await _loadContentSemaphore.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (version != Volatile.Read(ref _loadContentVersion))
+            {
+                return;
+            }
+
             IsLoadingContent = true;
             StatusMessage = "Loading content...";
 
             await RefreshHotswapStateAsync();
 
-            AvailableContent.Clear();
-
             var enabledContentIds = EnabledContent.Select(e => e.ManifestId.Value).ToList();
 
-            var coreAvailableInstallations = new List<Core.Models.Content.ContentDisplayItem>();
-            foreach (var vmItem in AvailableGameInstallations)
-            {
-                coreAvailableInstallations.Add(new Core.Models.Content.ContentDisplayItem
-                {
-                    Id = vmItem.ManifestId.Value,
-                    ManifestId = vmItem.ManifestId.Value,
-                    DisplayName = vmItem.DisplayName,
-                    ContentType = vmItem.ContentType,
-                    GameType = vmItem.GameType,
-                    InstallationType = vmItem.InstallationType,
-                    Publisher = vmItem.Publisher ?? string.Empty,
-                    Version = vmItem.Version ?? string.Empty,
-                    SourceId = vmItem.SourceId ?? string.Empty,
-                    GameClientId = vmItem.GameClientId ?? string.Empty,
-                    GameClient = vmItem.GameClient?.Clone(),
-                    Manifest = vmItem.Manifest,
-                    IsEnabled = vmItem.IsEnabled,
-                });
-            }
+            var coreAvailableInstallations = AvailableGameInstallations.Select(ToCoreContentDisplayItem).ToList();
 
             if (_profileContentLoader == null)
             {
@@ -101,31 +89,22 @@ public partial class GameProfileSettingsViewModel
                 new ObservableCollection<Core.Models.Content.ContentDisplayItem>(coreAvailableInstallations),
                 enabledContentIds);
 
-            foreach (var coreItem in coreItems)
+            if (version != Volatile.Read(ref _loadContentVersion))
             {
-                try
-                {
-                    if (enabledContentIds.Contains(coreItem.ManifestId))
-                    {
-                        continue;
-                    }
+                return;
+            }
 
-                    if (coreItem.GameType != GameTypeFilter)
-                    {
-                        continue;
-                    }
+            var newItems = FilterAndConvertContentItems(coreItems, enabledContentIds, GameTypeFilter);
 
-                    var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
-                    AvailableContent.Add(viewModelItem);
-                }
-                catch (ArgumentException argEx)
-                {
-                    _logger?.LogWarning("Skipping invalid content item {DisplayName} (ID: {Id}): {Message}", coreItem.DisplayName, coreItem.ManifestId, argEx.Message);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Error converting content item {DisplayName}", coreItem.DisplayName);
-                }
+            if (version != Volatile.Read(ref _loadContentVersion))
+            {
+                return;
+            }
+
+            AvailableContent.Clear();
+            foreach (var item in newItems)
+            {
+                AvailableContent.Add(item);
             }
 
             StatusMessage = $"Loaded {AvailableContent.Count} {SelectedContentType} items";
@@ -138,8 +117,62 @@ public partial class GameProfileSettingsViewModel
         }
         finally
         {
-            IsLoadingContent = false;
+            if (version == Volatile.Read(ref _loadContentVersion))
+            {
+                IsLoadingContent = false;
+            }
+
+            _loadContentSemaphore.Release();
         }
+    }
+
+    private static Core.Models.Content.ContentDisplayItem ToCoreContentDisplayItem(ContentDisplayItem vmItem) =>
+        new()
+        {
+            Id = vmItem.ManifestId.Value,
+            ManifestId = vmItem.ManifestId.Value,
+            DisplayName = vmItem.DisplayName,
+            ContentType = vmItem.ContentType,
+            GameType = vmItem.GameType,
+            InstallationType = vmItem.InstallationType,
+            Publisher = vmItem.Publisher ?? string.Empty,
+            Version = vmItem.Version ?? string.Empty,
+            SourceId = vmItem.SourceId ?? string.Empty,
+            GameClientId = vmItem.GameClientId ?? string.Empty,
+            GameClient = vmItem.GameClient?.Clone(),
+            Manifest = vmItem.Manifest,
+            IsEnabled = vmItem.IsEnabled,
+        };
+
+    private List<ContentDisplayItem> FilterAndConvertContentItems(
+        IEnumerable<Core.Models.Content.ContentDisplayItem> coreItems,
+        ICollection<string> enabledContentIds,
+        GameType targetFilter)
+    {
+        var newItems = new List<ContentDisplayItem>();
+
+        foreach (var coreItem in coreItems)
+        {
+            if (enabledContentIds.Contains(coreItem.ManifestId) || coreItem.GameType != targetFilter)
+            {
+                continue;
+            }
+
+            try
+            {
+                newItems.Add(ConvertToViewModelContentDisplayItem(coreItem));
+            }
+            catch (ArgumentException argEx)
+            {
+                _logger?.LogWarning(argEx, "Skipping invalid content item {DisplayName} (ID: {Id})", coreItem.DisplayName, coreItem.ManifestId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error converting content item {DisplayName}", coreItem.DisplayName);
+            }
+        }
+
+        return newItems;
     }
 
     [RelayCommand]
@@ -1390,5 +1423,31 @@ public partial class GameProfileSettingsViewModel
         {
             IsSaving = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task ShareProfileAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentProfileId))
+        {
+            _localNotificationService.ShowWarning("Cannot Share", "Please save the profile first before sharing.");
+            return;
+        }
+
+        var sharingService = ProfileSharingService;
+        if (sharingService == null || _gameProfileManager == null)
+        {
+            _localNotificationService.ShowError("Error", "Profile sharing service is not available.");
+            return;
+        }
+
+        await Helpers.ProfileSharingDialogHelper.OpenShareDialogAsync(
+            CurrentProfileId,
+            _gameProfileManager,
+            sharingService,
+            _localNotificationService,
+            _loggerFactory,
+            _uploadHistoryService,
+            _logger);
     }
 }
