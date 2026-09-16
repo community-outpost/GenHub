@@ -362,6 +362,7 @@ public class GameProcessManager(
                         var processInfo = new GameProcessInfo
                         {
                             ProcessId = process.Id,
+                            ProcessInstanceId = _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).InstanceId,
                             ProcessName = process.ProcessName,
                             StartTime = process.StartTime.ToUniversalTime(),
                             ExecutablePath = GetProcessExecutablePath(process),

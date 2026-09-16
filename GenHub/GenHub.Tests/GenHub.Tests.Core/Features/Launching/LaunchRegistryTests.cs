@@ -25,6 +25,75 @@ public class LaunchRegistryTests
         _registry = new LaunchRegistry(loggerMock.Object);
     }
 
+    /// <summary>Unregistration cannot emit a second stop while an exit transition is being recorded.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task UnregisterDuringExit_EmitsOneStopAsync()
+    {
+        using var exitRecording = new ManualResetEventSlim();
+        using var releaseExit = new ManualResetEventSlim();
+        using var unregisterStarted = new ManualResetEventSlim();
+        var logger = new Mock<ILogger<LaunchRegistry>>();
+        logger.Setup(l => l.Log(
+            It.IsAny<LogLevel>(),
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((value, _) => value.ToString()!.Contains("Updating launch")),
+            It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(_ =>
+            {
+                exitRecording.Set();
+                Assert.True(releaseExit.Wait(TimeSpan.FromSeconds(5)));
+            }));
+        var manager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(logger.Object, manager.Object);
+        var launch = new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = Guid.NewGuid().ToString(),
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = 12345, ProcessInstanceId = Guid.NewGuid(), IsRunning = true },
+        };
+        var recipient = new object();
+        var stops = 0;
+        WeakReferenceMessenger.Default.Register<ProfileStoppedMessage>(recipient, (_, message) =>
+        {
+            if (message.ProfileId == launch.ProfileId)
+            {
+                Interlocked.Increment(ref stops);
+            }
+        });
+        try
+        {
+            await registry.RegisterLaunchAsync(launch);
+            var exit = Task.Run(() => manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+            {
+                ProcessId = 12345,
+                ProcessInstanceId = launch.ProcessInfo.ProcessInstanceId,
+                ExitCode = 1,
+            }));
+            Assert.True(exitRecording.Wait(TimeSpan.FromSeconds(5)));
+            var unregister = Task.Run(async () =>
+            {
+                unregisterStarted.Set();
+                await registry.UnregisterLaunchAsync(launch.LaunchId);
+            });
+            Assert.True(unregisterStarted.Wait(TimeSpan.FromSeconds(5)));
+            // Without the shared lock, unregistration completes in this window and
+            // the exit transition subsequently sends another stop.
+            await Task.WhenAny(unregister, Task.Delay(100));
+            releaseExit.Set();
+            await Task.WhenAll(exit, unregister).WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(1, stops);
+            Assert.Null(await registry.GetLaunchInfoAsync(launch.LaunchId));
+        }
+        finally
+        {
+            releaseExit.Set();
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
+    }
+
     /// <summary>Polling and events share a single stop while retaining diagnostics for the exact process instance.</summary>
     /// <param name="pollFirst">Whether polling observes exit before the event.</param>
     /// <returns>The asynchronous operation.</returns>

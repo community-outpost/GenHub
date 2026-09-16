@@ -141,21 +141,24 @@ public class LaunchRegistry : ILaunchRegistry
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(launchId);
 
-        if (_activeLaunches.TryRemove(launchId, out var launchInfo))
+        lock (_exitSync)
         {
-            _inspectionFailureCounts.TryRemove(launchId, out _);
-            launchInfo.TerminatedAt = System.DateTime.UtcNow;
-            if (launchInfo.ProcessInfo.IsRunning)
+            if (_activeLaunches.TryRemove(launchId, out var launchInfo))
             {
-                launchInfo.ProcessInfo.IsRunning = false;
-                WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
-            }
+                _inspectionFailureCounts.TryRemove(launchId, out _);
+                launchInfo.TerminatedAt = System.DateTime.UtcNow;
+                if (launchInfo.ProcessInfo.IsRunning)
+                {
+                    launchInfo.ProcessInfo.IsRunning = false;
+                    WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
+                }
 
-            _logger.LogInformation("Unregistered launch {LaunchId} for profile {ProfileId}", launchId, launchInfo.ProfileId);
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to unregister non-existent launch {LaunchId}", launchId);
+                _logger.LogInformation("Unregistered launch {LaunchId} for profile {ProfileId}", launchId, launchInfo.ProfileId);
+            }
+            else
+            {
+                _logger.LogWarning("Attempted to unregister non-existent launch {LaunchId}", launchId);
+            }
         }
 
         return Task.CompletedTask;
