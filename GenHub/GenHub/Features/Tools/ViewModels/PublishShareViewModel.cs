@@ -108,7 +108,18 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void CancelUpload()
     {
-        _uploadCts?.Cancel();
+        if (IsUploading)
+        {
+            var cts = _uploadCts;
+            try
+            {
+                cts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Upload already completed or was disposed concurrently
+            }
+        }
     }
 
     /// <summary>
@@ -226,7 +237,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
             return SelectedHostingProvider.ProviderId switch
             {
-                HostingConstants.GoogleDrive => "Your Google Drive (inside 'GenHub_Publisher' folder)",
+                HostingConstants.GoogleDrive => $"Your Google Drive (inside '{HostingConstants.GoogleDriveDefaultPublisherFolder}' folder)",
                 HostingConstants.Dropbox => "Your Dropbox account (inside '/Apps/GenHub/' app folder)",
                 HostingConstants.GitHub => "Your GitHub Gists (manifests & definitions only; binaries require CDN URLs)",
                 _ => SelectedHostingProvider.DisplayName,
@@ -275,6 +286,50 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         SelectedHostingProvider != null &&
         !SelectedHostingProvider.SupportsArtifactHosting &&
         ActiveCatalogPendingArtifactsCount > 0;
+
+    /// <summary>
+    /// Updates the catalog ID, name, and file name in the hosting state if present and persists the change.
+    /// </summary>
+    /// <param name="oldCatalogId">The former catalog ID.</param>
+    /// <param name="newCatalogId">The new catalog ID.</param>
+    /// <param name="newCatalogName">The new catalog display name.</param>
+    /// <param name="newFileName">The new catalog file name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task RenameCatalogInHostingStateAsync(
+        string oldCatalogId,
+        string newCatalogId,
+        string newCatalogName,
+        string newFileName,
+        CancellationToken cancellationToken = default)
+    {
+        if (_currentHostingState == null && !string.IsNullOrEmpty(_project.ProjectPath))
+        {
+            var loadResult = await _hostingStateManager.LoadStateAsync(_project.ProjectPath, cancellationToken).ConfigureAwait(false);
+            if (loadResult.Success && loadResult.Data != null)
+            {
+                _currentHostingState = loadResult.Data;
+            }
+        }
+
+        if (_currentHostingState == null)
+        {
+            return;
+        }
+
+        var entry = _currentHostingState.Catalogs.FirstOrDefault(c => c.CatalogId == oldCatalogId);
+        if (entry != null)
+        {
+            entry.CatalogId = newCatalogId;
+            entry.CatalogName = newCatalogName;
+            entry.FileName = newFileName;
+
+            if (!string.IsNullOrEmpty(_project.ProjectPath))
+            {
+                await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, cancellationToken);
+            }
+        }
+    }
 
     /// <summary>
     /// Synchronizes available catalogs and refreshes state when catalogs are added, removed, or renamed.
@@ -541,7 +596,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             Name = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = "Publisher Definition",
-            Location = isDefHosted ? $"{providerName} (/GenHub_Publisher)" : "Local only",
+            Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
             FileSize = defSize,
             Url = defUrl ?? string.Empty,
             Status = isDefHosted ? StatusLiveOnline : StatusPendingUpload,
@@ -571,7 +626,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             {
                 Name = catalog.FileName,
                 Category = $"Catalog Manifest ({catalog.Name})",
-                Location = isCatHosted ? $"{providerName} (/GenHub_Publisher)" : "Local only",
+                Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
                 FileSize = catSize,
                 Url = catUrl,
                 Status = isCatHosted ? StatusLiveOnline : StatusPendingUpload,
@@ -615,7 +670,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             artCount++;
             totalBytes += artSize;
-            location = $"{providerName} (/GenHub_Publisher)";
+            location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})";
             status = StatusLiveOnline;
         }
         else if (isExternal)
@@ -663,7 +718,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             {
                 Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
                 Category = $"Cloud Catalog ({cloudCat.CatalogId})",
-                Location = $"{providerName} (/GenHub_Publisher)",
+                Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
                 FileSize = cloudCat.FileSize,
                 Url = cloudCat.Url,
                 Status = StatusLiveOnline,
@@ -684,7 +739,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             {
                 Name = cloudArt.FileName,
                 Category = "Cloud Artifact",
-                Location = $"{providerName} (/GenHub_Publisher)",
+                Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
                 FileSize = cloudArt.FileSize,
                 Url = cloudArt.Url,
                 Status = StatusLiveOnline,
@@ -725,9 +780,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         HostingFolderPath = value?.ProviderId switch
         {
             HostingConstants.Dropbox => HostingConstants.DropboxDefaultPublisherFolder,
-            HostingConstants.GoogleDrive => "GenHub_Publisher",
-            HostingConstants.GitHub => "Public Gists",
-            _ => "Remote Cloud",
+            HostingConstants.GoogleDrive => HostingConstants.GoogleDriveDefaultPublisherFolder,
+            HostingConstants.GitHub => HostingConstants.GitHubGistsDestinationLabel,
+            _ => HostingConstants.RemoteCloudDestinationLabel,
         };
         RefreshHostedAssets();
 

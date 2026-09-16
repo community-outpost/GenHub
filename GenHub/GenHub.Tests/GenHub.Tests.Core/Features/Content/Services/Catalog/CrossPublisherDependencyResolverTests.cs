@@ -457,6 +457,52 @@ public class CrossPublisherDependencyResolverTests
     }
 
     /// <summary>
+    /// Verifies that FetchExternalCatalogAsync blocks localhost and loopback IP addresses for SSRF protection.
+    /// </summary>
+    /// <param name="url">The loopback URL to test.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("http://localhost/catalog.json")]
+    [InlineData("http://127.0.0.1/catalog.json")]
+    [InlineData("http://[::1]/catalog.json")]
+    public async Task FetchExternalCatalogAsync_LoopbackAddress_ReturnsFailureAsync(string url)
+    {
+        // Arrange
+        var resolver = CreateResolver();
+
+        // Act
+        var result = await resolver.FetchExternalCatalogAsync(url);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("not allowed", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that FetchExternalCatalogAsync blocks private network and cloud metadata addresses for SSRF protection.
+    /// </summary>
+    /// <param name="url">The private or metadata URL to test.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("http://10.0.0.1/catalog.json")]
+    [InlineData("http://192.168.1.1/catalog.json")]
+    [InlineData("http://172.16.0.1/catalog.json")]
+    [InlineData("http://169.254.169.254/latest/meta-data/")]
+    [InlineData("http://metadata.google.internal/computeMetadata/v1/")]
+    public async Task FetchExternalCatalogAsync_PrivateAndMetadataAddresses_ReturnsFailureAsync(string url)
+    {
+        // Arrange
+        var resolver = CreateResolver();
+
+        // Act
+        var result = await resolver.FetchExternalCatalogAsync(url);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("not allowed", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Helper method to create a resolver instance.
     /// </summary>
     /// <returns>A new <see cref="CrossPublisherDependencyResolver"/> instance.</returns>

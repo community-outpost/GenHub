@@ -583,6 +583,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             return;
         }
 
+        var oldId = target.Id;
         target.Name = newName.Trim();
         target.Id = newId;
         target.FileName = target.Id.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase)
@@ -597,7 +598,12 @@ public partial class PublisherStudioViewModel : ObservableObject
         }
 
         MarkDirty();
-        PublishShareViewModel?.SyncAvailableCatalogs();
+        if (PublishShareViewModel != null)
+        {
+            await PublishShareViewModel.RenameCatalogInHostingStateAsync(oldId, target.Id, target.Name, target.FileName);
+            PublishShareViewModel.SyncAvailableCatalogs();
+        }
+
         await SaveProjectAsync();
         StatusMessage = $"Renamed catalog to '{target.Name}'";
         _logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);

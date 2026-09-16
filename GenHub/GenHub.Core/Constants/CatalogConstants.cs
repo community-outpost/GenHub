@@ -239,4 +239,22 @@ public static class CatalogConstants
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
     public const string CncLabsCatalogUrl = "https://github.com/CnC-Labs/mods-catalog/raw/main/catalog.json";
+
+    /// <summary>
+    /// Known direct downloads catalog URL for CNC Labs.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string CncLabsDownloadsCatalogUrl = "https://www.cnclabs.com/downloads/catalog.json";
+
+    /// <summary>
+    /// Known catalog URL for GeneralsOnline.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string GeneralsOnlineCatalogUrl = "https://cdn.playgenerals.online/catalog.json";
+
+    /// <summary>
+    /// Known catalog URL for Community Outpost.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string CommunityOutpostCatalogUrl = "https://raw.githubusercontent.com/community-outpost/genhub-catalog/main/catalog.json";
 }
