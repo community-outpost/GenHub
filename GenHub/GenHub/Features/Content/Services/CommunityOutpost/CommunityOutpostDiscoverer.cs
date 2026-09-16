@@ -170,7 +170,7 @@ public partial class CommunityOutpostDiscoverer(
     /// </summary>
     /// <param name="category">The content category.</param>
     /// <returns>The tags associated with the category.</returns>
-    internal static string[] GetTagsForCategory(GenPatcherContentCategory category)
+    internal static IReadOnlyList<string> GetTagsForCategory(GenPatcherContentCategory category)
     {
         return category switch
         {

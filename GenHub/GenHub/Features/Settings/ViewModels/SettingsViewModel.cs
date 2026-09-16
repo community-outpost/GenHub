@@ -348,20 +348,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         new(SettingsConstants.SectionDangerZone, "Danger Zone", "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"),
     ];
 
-#pragma warning disable S2325 // SonarCloud false positive on MVVM Toolkit generated property
     /// <summary>
     /// Gets the status color for the PAT indicator.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Minor Code Smell",
-        "S2325:Methods and properties that don't access instance data should be static",
-        Justification = "Instance property bound to Avalonia UI data binding and notified by ObservableProperty.")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Major Code Smell",
+        "csharpsquid",
         "S2325:Methods and properties that don't access instance data should be static",
         Justification = "Instance property bound to Avalonia UI data binding and notified by ObservableProperty.")]
     public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
-#pragma warning restore S2325
 
     /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.
