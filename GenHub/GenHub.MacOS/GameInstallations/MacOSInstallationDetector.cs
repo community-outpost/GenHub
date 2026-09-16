@@ -165,12 +165,9 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     /// was denied.
     /// </returns>
     /// <remarks>
-    /// The candidate directory is tested by archive classification before its children
-    /// are, because retail data can be the directory itself: the native engine's deploy
-    /// is one flat tree whose name matches nothing. Child matching by name remains for
-    /// copied retail trees that do keep their Windows directory names. In both cases
-    /// <see cref="GameInstallation.SetPaths"/> makes the final call from the archives
-    /// present, so a directory that merely has the right name is discarded here.
+    /// Named child installations take precedence over loose archives at a scan root.
+    /// When no valid child is found, archive classification also supports flat native
+    /// deployments whose directory names do not match a retail layout.
     /// </remarks>
     internal static (GameInstallation? Installation, bool AccessDenied) InspectRoot(string root)
     {
@@ -179,16 +176,13 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
 
         try
         {
-            var rootClassification = RetailArchiveClassifier.ClassifyArchives(root);
-            if (rootClassification.HasAnyGame)
+            (generalsPath, zeroHourPath) = FindGameDirectories(root);
+            if (generalsPath is null && zeroHourPath is null)
             {
+                var rootClassification = RetailArchiveClassifier.ClassifyArchives(root);
                 // A combined flat directory sets both paths to the same root.
                 generalsPath = rootClassification.HasGeneralsArchives ? root : null;
                 zeroHourPath = rootClassification.HasZeroHourArchives ? root : null;
-            }
-            else
-            {
-                (generalsPath, zeroHourPath) = FindGameDirectories(root);
             }
         }
         catch (UnauthorizedAccessException)
@@ -338,13 +332,15 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
         {
             var directoryName = Path.GetFileName(directory);
             if (generalsPath is null &&
-                GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase))
+                GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
+                && RetailArchiveClassifier.ClassifyArchives(directory).HasGeneralsArchives)
             {
                 generalsPath = directory;
             }
 
             if (zeroHourPath is null &&
-                ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase))
+                ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
+                && RetailArchiveClassifier.ClassifyArchives(directory).HasZeroHourArchives)
             {
                 zeroHourPath = directory;
             }

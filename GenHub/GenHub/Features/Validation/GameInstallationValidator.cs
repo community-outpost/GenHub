@@ -124,7 +124,7 @@ public class GameInstallationValidator(
     /// <returns>True when the issue refers to the other game's known root archive.</returns>
     /// <remarks>
     /// Recognition uses the same retail vocabulary that classified the directory in the
-    /// first place: in the Generals pass any root-level <c>*zh.big</c> belongs to Zero
+    /// first place: in the Generals pass a canonical retail Zero Hour archive belongs to Zero
     /// Hour, and in the Zero Hour pass any canonical Generals archive name belongs to
     /// Generals. Only the directory root is tolerated — deeper files are outside the
     /// vocabulary and stay reported.
@@ -283,8 +283,6 @@ public class GameInstallationValidator(
             stopwatch.Stop();
             return new ValidationResult(installationPath, issues, stopwatch.Elapsed, 0);
         }
-
-        progress?.Report(new ValidationProgress(2, 4, "Core manifest validation"));
 
         progress?.Report(new ValidationProgress(3, 4, "Validating content files"));
         int totalFiles = 0;

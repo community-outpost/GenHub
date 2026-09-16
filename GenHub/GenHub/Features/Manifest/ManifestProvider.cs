@@ -312,6 +312,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             throw new ManifestValidationException(requestedId, rejectionReason!);
         }
     }
+
     /// <summary>Loads and caches an embedded installation manifest when available.</summary>
     /// <param name="gameInstallation">The installation used as the content source.</param>
     /// <param name="deterministicId">The expected manifest identifier.</param>
@@ -350,5 +351,4 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
         return null;
     }
-
 }

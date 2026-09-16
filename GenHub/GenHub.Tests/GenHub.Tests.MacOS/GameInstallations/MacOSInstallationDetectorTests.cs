@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.MacOS.GameInstallations;
@@ -9,6 +10,27 @@ namespace GenHub.Tests.MacOS.GameInstallations;
 /// </summary>
 public class MacOSInstallationDetectorTests
 {
+    /// <summary>A loose archive cannot hide a real installation in a named child.</summary>
+    [Fact]
+    public void InspectRoot_LooseArchiveWithValidChild_PrefersChild()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, GameClientConstants.GeneralsIniBig), "archive");
+            var child = Directory.CreateDirectory(Path.Combine(root, GameClientConstants.GeneralsDirectoryName)).FullName;
+            File.WriteAllText(Path.Combine(child, GameClientConstants.GeneralsIniBig), "archive");
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.False(accessDenied);
+            Assert.NotNull(installation);
+            Assert.Equal(child, installation.GeneralsPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     /// <summary>
     /// Verifies that finding an installation does not turn an incomplete scan into
     /// a cacheable success.

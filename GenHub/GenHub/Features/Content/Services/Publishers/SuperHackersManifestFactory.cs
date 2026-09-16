@@ -41,31 +41,6 @@ public class SuperHackersManifestFactory(
         return 0;
     }
 
-    /// <summary>
-    /// Determines whether a file carries a known executable name, with or without its
-    /// <c>.exe</c> extension.
-    /// </summary>
-    /// <param name="filePath">The candidate file path.</param>
-    /// <param name="windowsExecutableName">The Windows name of the executable, ending in <c>.exe</c>.</param>
-    /// <returns>True when the file is that executable in Windows or native form.</returns>
-    private static bool MatchesExecutableName(string filePath, string windowsExecutableName)
-    {
-        var fileName = Path.GetFileName(filePath);
-
-        if (string.Equals(fileName, windowsExecutableName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // A native build of the same client drops the extension: generalszh.exe on
-        // Windows is GeneralsZH as a Mach-O or ELF binary.
-        return !Path.HasExtension(fileName)
-            && string.Equals(
-                fileName,
-                Path.GetFileNameWithoutExtension(windowsExecutableName),
-                StringComparison.OrdinalIgnoreCase);
-    }
-
     /// <inheritdoc />
     public string PublisherId => PublisherTypeConstants.TheSuperHackers;
 
@@ -90,7 +65,7 @@ public class SuperHackersManifestFactory(
     {
         logger.LogInformation("Creating SuperHackers manifests from extracted content in: {Directory}", extractedDirectory);
 
-        var detectedExecutables = DetectGameExecutables(extractedDirectory);
+        var detectedExecutables = DetectGameExecutables(extractedDirectory, cancellationToken);
 
         if (detectedExecutables.Count == 0)
         {
@@ -155,7 +130,7 @@ public class SuperHackersManifestFactory(
         // Detect executables in installation path
         // For SuperHackers, the "extracted directory" logic works on installation path too
         // since the executables are direct children usually
-        var detectedExecutables = DetectGameExecutables(installationPath);
+        var detectedExecutables = DetectGameExecutables(installationPath, cancellationToken);
 
         if (detectedExecutables.Count == 0)
         {
@@ -220,27 +195,42 @@ public class SuperHackersManifestFactory(
     /// either the Windows executable name or its extensionless form. The classifier
     /// verifies native executable signatures for extensionless candidates.
     /// </remarks>
-    private Dictionary<GameType, string> DetectGameExecutables(string directory)
+    internal Dictionary<GameType, string> DetectGameExecutables(string directory, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = new Dictionary<GameType, string>();
 
         if (!Directory.Exists(directory))
             return result;
 
-        var allFiles = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
-            .Where(path => ExecutableFileClassifier.IsLegacyLaunchCandidate(path, path));
+        var allFiles = Directory.EnumerateFiles(directory, "*", new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        }).Select(path =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return path;
+        }).OrderBy(path => OperatingSystem.IsWindows() == Path.HasExtension(path) ? 0 : 1)
+          .ThenBy(path => path, StringComparer.Ordinal);
 
         foreach (var filePath in allFiles)
         {
-            // Check for SuperHackers executables
-            if (MatchesExecutableName(filePath, GameClientConstants.SuperHackersGeneralsExecutable))
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!ExecutableFileClassifier.IsLegacyLaunchCandidate(filePath, filePath))
             {
-                result[GameType.Generals] = filePath;
+                continue;
+            }
+
+            // Prefer the platform's executable form, with stable path ordering for ties.
+            if (SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersGeneralsExecutable)
+                && result.TryAdd(GameType.Generals, filePath))
+            {
                 logger.LogInformation("Detected SuperHackers Generals executable: {Path}", filePath);
             }
-            else if (MatchesExecutableName(filePath, GameClientConstants.SuperHackersZeroHourExecutable))
+            else if (SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersZeroHourExecutable)
+                && result.TryAdd(GameType.ZeroHour, filePath))
             {
-                result[GameType.ZeroHour] = filePath;
                 logger.LogInformation("Detected SuperHackers Zero Hour executable: {Path}", filePath);
             }
         }
