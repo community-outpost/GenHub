@@ -34,46 +34,27 @@ public static class GameClientCapabilitiesHelper
     /// <returns>The inferred <see cref="GameClientCapabilities"/> flags.</returns>
     public static GameClientCapabilities InferCapabilities(string? publisher, string? id, string? name)
     {
-        var isSuperHackers = IsSuperHackersPublisher(publisher) ||
-            (!string.IsNullOrEmpty(id) && (id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                           id.Contains(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase))) ||
-            (!string.IsNullOrEmpty(name) && (name.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                             name.Contains(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase)));
-
-        if (isSuperHackers)
-        {
-            return GameClientCapabilities.AllRecoveryFeatures;
-        }
-
-        var hasRecoveryKeyword =
-            (!string.IsNullOrEmpty(id) && id.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(name) && name.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase));
-
-        if (hasRecoveryKeyword)
+        if (ContainsKeyword(id, name, ReplayManagerConstants.CapabilityRecoveryKeyword))
         {
             return GameClientCapabilities.AllRecoveryFeatures;
         }
 
         var capabilities = GameClientCapabilities.None;
 
-        var hasCheckpointKeyword =
-            (!string.IsNullOrEmpty(id) && id.Contains(ReplayManagerConstants.CapabilityCheckpointKeyword, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(name) && name.Contains(ReplayManagerConstants.CapabilityCheckpointKeyword, StringComparison.OrdinalIgnoreCase));
-
-        if (hasCheckpointKeyword)
+        if (ContainsKeyword(id, name, ReplayManagerConstants.CapabilityCheckpointKeyword))
         {
             capabilities |= GameClientCapabilities.CheckpointSaves;
         }
 
-        var hasTakeoverKeyword =
-            (!string.IsNullOrEmpty(id) && id.Contains(ReplayManagerConstants.CapabilityTakeoverKeyword, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(name) && name.Contains(ReplayManagerConstants.CapabilityTakeoverKeyword, StringComparison.OrdinalIgnoreCase));
-
-        if (hasTakeoverKeyword)
+        if (ContainsKeyword(id, name, ReplayManagerConstants.CapabilityTakeoverKeyword))
         {
             capabilities |= GameClientCapabilities.PlayerTakeover;
         }
 
         return capabilities;
     }
+
+    private static bool ContainsKeyword(string? id, string? name, string keyword) =>
+        (!string.IsNullOrEmpty(id) && id.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
+        (!string.IsNullOrEmpty(name) && name.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 }

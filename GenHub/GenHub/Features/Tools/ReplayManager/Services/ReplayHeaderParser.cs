@@ -287,7 +287,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             {
                 // Engine writes null-terminated local player index string (e.g. "0\0" or "-1\0"),
                 // followed by a 16-byte fixed trailer before the chunk stream.
-                scanOffset += 16;
+                scanOffset += ReplayManagerConstants.ReplayPlayerIndexFixedTrailerSizeBytes;
             }
             else
             {
@@ -387,17 +387,17 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
     private static int GetCommandArgSize(byte cmdType) => cmdType switch
     {
-        0x0 => 4,  // INTEGER
-        0x1 => 4,  // REAL
-        0x2 => 1,  // BOOLEAN
-        0x3 => 4,  // OBJECTID
-        0x4 => 4,  // DRAWABLEID
-        0x5 => 4,  // TEAMID
-        0x6 => 12, // LOCATION
-        0x7 => 8,  // PIXEL
-        0x8 => 16, // PIXELREGION
-        0x9 => 4,  // TIMESTAMP
-        0xA => 2,  // WIDECHAR
+        0x0 => ReplayManagerConstants.CommandArgSizes.Integer,
+        0x1 => ReplayManagerConstants.CommandArgSizes.Real,
+        0x2 => ReplayManagerConstants.CommandArgSizes.Boolean,
+        0x3 => ReplayManagerConstants.CommandArgSizes.ObjectId,
+        0x4 => ReplayManagerConstants.CommandArgSizes.DrawableId,
+        0x5 => ReplayManagerConstants.CommandArgSizes.TeamId,
+        0x6 => ReplayManagerConstants.CommandArgSizes.Location,
+        0x7 => ReplayManagerConstants.CommandArgSizes.Pixel,
+        0x8 => ReplayManagerConstants.CommandArgSizes.PixelRegion,
+        0x9 => ReplayManagerConstants.CommandArgSizes.Timestamp,
+        0xA => ReplayManagerConstants.CommandArgSizes.WideChar,
         _ => -1,
     };
 

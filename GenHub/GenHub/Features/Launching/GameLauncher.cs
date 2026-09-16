@@ -56,7 +56,7 @@ public class GameLauncher(
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
         new(InstallationPathLockKey.Comparer);
 
-    private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r`$%");
+    private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r\t`$%");
 
     /// <inheritdoc/>
     public async Task<IDisposable> AcquireProfileLockAsync(string profileId, CancellationToken cancellationToken = default)
@@ -529,6 +529,7 @@ public class GameLauncher(
         {
             if (string.IsNullOrWhiteSpace(kvp.Key) ||
                 kvp.Key.Contains(' ') ||
+                kvp.Key.Contains('\t') ||
                 kvp.Key.Contains('"') ||
                 kvp.Key.StartsWith("_pos", StringComparison.OrdinalIgnoreCase) ||
                 !IsValidCommandArgument(kvp.Key))
@@ -537,7 +538,7 @@ public class GameLauncher(
             }
 
             if (!string.IsNullOrEmpty(kvp.Value) &&
-                (kvp.Value.Contains('"') || !IsValidCommandArgument(kvp.Value)))
+                (kvp.Value.Contains('"') || kvp.Value.Contains('\t') || !IsValidCommandArgument(kvp.Value)))
             {
                 return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
             }
@@ -1533,7 +1534,7 @@ public class GameLauncher(
                 : SteamConstants.ZeroHourAppId;
         }
 
-        var targetArguments = arguments.Select(kvp => string.IsNullOrEmpty(kvp.Value) ? kvp.Key : $"{kvp.Key} {kvp.Value}").ToArray();
+        var targetArguments = arguments.Select(kvp => string.IsNullOrEmpty(kvp.Value) ? kvp.Key : $"{kvp.Key} {(kvp.Value.Contains(' ') || kvp.Value.Contains('\t') ? $"\"{kvp.Value}\"" : kvp.Value)}").ToArray();
 
         var steamLaunchResult = await steamLauncher.PrepareForProfileAsync(
             actualInstallationPath,

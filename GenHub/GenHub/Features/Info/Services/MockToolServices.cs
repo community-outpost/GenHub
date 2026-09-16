@@ -201,6 +201,9 @@ public class MockReplayDirectoryService : IReplayDirectoryService
                 SizeInBytes = 1024 * 500,
                 LastModified = DateTime.UtcNow.AddDays(-1),
                 GameVersion = version, // Use requested type so it appears valid
+                SupportsCheckpoints = true,
+                RecoveryProfileId = "demo-recovery-profile",
+                RecoveryProfileName = "Zero Hour 1.04 (Recovery)",
             },
             new()
             {

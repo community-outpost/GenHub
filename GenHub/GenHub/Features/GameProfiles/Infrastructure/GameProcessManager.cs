@@ -754,7 +754,7 @@ public class GameProcessManager(
                     argList.Add(arg.Key);
                     if (!string.IsNullOrEmpty(arg.Value))
                     {
-                        var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                        var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
                         argList.Add(quotedValue);
                     }
 
@@ -762,13 +762,13 @@ public class GameProcessManager(
                 }
                 else if (arg.Key.StartsWith("_pos") || string.IsNullOrEmpty(arg.Key))
                 {
-                    var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                    var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
                     argList.Add(quotedValue);
                     logger.LogDebug("Added positional argument: {Value}", quotedValue);
                 }
                 else
                 {
-                    var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                    var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
                     argList.Add($"{arg.Key}={quotedValue}");
                     logger.LogDebug("Added key-value argument: {Key}={Value}", arg.Key, quotedValue);
                 }

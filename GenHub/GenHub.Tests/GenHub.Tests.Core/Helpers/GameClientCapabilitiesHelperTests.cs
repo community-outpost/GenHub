@@ -30,7 +30,22 @@ public class GameClientCapabilitiesHelperTests
     }
 
     /// <summary>
-    /// Verifies that InferCapabilities maps SuperHackers or recovery keywords to AllRecoveryFeatures.
+    /// Verifies that InferCapabilities maps recovery keywords to AllRecoveryFeatures.
+    /// </summary>
+    /// <param name="publisher">The publisher name or identifier.</param>
+    /// <param name="id">The client identifier.</param>
+    /// <param name="name">The client display name.</param>
+    [Theory]
+    [InlineData(null, null, "Zero Hour Recovery Client")]
+    [InlineData(null, "client-recovery", null)]
+    public void InferCapabilities_WhenRecoveryKeyword_ReturnsAllRecoveryFeatures(string? publisher, string? id, string? name)
+    {
+        var capabilities = GameClientCapabilitiesHelper.InferCapabilities(publisher, id, name);
+        Assert.Equal(GameClientCapabilities.AllRecoveryFeatures, capabilities);
+    }
+
+    /// <summary>
+    /// Verifies that InferCapabilities does not grant recovery features to SuperHackers clients without recovery keywords.
     /// </summary>
     /// <param name="publisher">The publisher name or identifier.</param>
     /// <param name="id">The client identifier.</param>
@@ -38,12 +53,11 @@ public class GameClientCapabilitiesHelperTests
     [Theory]
     [InlineData("thesuperhackers", null, null)]
     [InlineData(null, "1.0.local.gameclient.superhackers", null)]
-    [InlineData(null, null, "Zero Hour Recovery Client")]
-    [InlineData(null, "client-recovery", null)]
-    public void InferCapabilities_WhenRecoveryOrSuperHackers_ReturnsAllRecoveryFeatures(string? publisher, string? id, string? name)
+    [InlineData(null, null, "Zero Hour SuperHackers Client")]
+    public void InferCapabilities_WhenSuperHackersWithoutRecoveryKeyword_ReturnsNone(string? publisher, string? id, string? name)
     {
         var capabilities = GameClientCapabilitiesHelper.InferCapabilities(publisher, id, name);
-        Assert.Equal(GameClientCapabilities.AllRecoveryFeatures, capabilities);
+        Assert.Equal(GameClientCapabilities.None, capabilities);
     }
 
     /// <summary>

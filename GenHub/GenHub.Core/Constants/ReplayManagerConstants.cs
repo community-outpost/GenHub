@@ -249,6 +249,11 @@ public static class ReplayManagerConstants
     public const int ReplayPostHeaderTrailerSizeBytes = 18;
 
     /// <summary>
+    /// Fixed size in bytes of the trailer following the null-terminated player index string before the chunk stream (16 bytes).
+    /// </summary>
+    public const int ReplayPlayerIndexFixedTrailerSizeBytes = 16;
+
+    /// <summary>
     /// Size in bytes of the SYSTEMTIME timestamp structure embedded in the replay header (16 bytes).
     /// </summary>
     public const int ReplayHeaderSystemTimeSizeBytes = 16;
@@ -262,6 +267,45 @@ public static class ReplayManagerConstants
     /// Size in bytes of a 32-bit unsigned integer field in the replay header (4 bytes).
     /// </summary>
     public const int ReplayHeaderUInt32SizeBytes = 4;
+
+    /// <summary>
+    /// Protocol argument sizes in bytes for replay chunk command parameter types.
+    /// </summary>
+    public static class CommandArgSizes
+    {
+        /// <summary>Size of 32-bit integer argument (4 bytes).</summary>
+        public const int Integer = 4;
+
+        /// <summary>Size of 32-bit floating-point real argument (4 bytes).</summary>
+        public const int Real = 4;
+
+        /// <summary>Size of boolean argument (1 byte).</summary>
+        public const int Boolean = 1;
+
+        /// <summary>Size of object identifier argument (4 bytes).</summary>
+        public const int ObjectId = 4;
+
+        /// <summary>Size of drawable identifier argument (4 bytes).</summary>
+        public const int DrawableId = 4;
+
+        /// <summary>Size of team identifier argument (4 bytes).</summary>
+        public const int TeamId = 4;
+
+        /// <summary>Size of location coordinates argument (12 bytes: 3 * 4-byte floats).</summary>
+        public const int Location = 12;
+
+        /// <summary>Size of pixel coordinate argument (8 bytes: 2 * 4-byte integers).</summary>
+        public const int Pixel = 8;
+
+        /// <summary>Size of pixel region argument (16 bytes: 4 * 4-byte integers).</summary>
+        public const int PixelRegion = 16;
+
+        /// <summary>Size of timestamp argument (4 bytes).</summary>
+        public const int Timestamp = 4;
+
+        /// <summary>Size of wide character argument (2 bytes).</summary>
+        public const int WideChar = 2;
+    }
 
     /// <summary>
     /// The expected schema version of the CRC mapping catalog.

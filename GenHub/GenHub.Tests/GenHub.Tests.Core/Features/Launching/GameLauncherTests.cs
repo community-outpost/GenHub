@@ -1114,6 +1114,7 @@ public class GameLauncherTests : IDisposable
     [Theory]
     [InlineData("malicious;payload")]
     [InlineData("malicious\"quote")]
+    [InlineData("tab\tinjection")]
     public async Task LaunchProfileAsync_WithInvalidAdditionalArguments_ShouldFailLaunchAsync(string invalidValue)
     {
         // Arrange
@@ -1149,6 +1150,7 @@ public class GameLauncherTests : IDisposable
     [Theory]
     [InlineData("bad key")]
     [InlineData("bad;key")]
+    [InlineData("bad\tkey")]
     [InlineData("_pos0")]
     public async Task LaunchProfileAsync_WithInvalidAdditionalArgumentKey_ShouldFailLaunchAsync(string invalidKey)
     {

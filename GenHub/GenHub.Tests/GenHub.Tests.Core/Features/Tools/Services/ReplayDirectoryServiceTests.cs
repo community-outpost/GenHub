@@ -4274,6 +4274,51 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that FindRecoveryProfiles excludes profiles that possess only CheckpointSaves rather than the full AllRecoveryFeatures mask.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenClientHasCheckpointSavesOnly_ExcludesProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "ZH_Game.rep",
+            FullPath = "/replays/ZH_Game.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var partialCapabilityProfile = new GameProfile
+        {
+            Id = "partial-profile",
+            Name = "Zero Hour Checkpoint Only",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-checkpoint-only",
+                Name = "Zero Hour Checkpoint Client",
+                GameType = GameType.ZeroHour,
+                PublisherType = "custom",
+                Capabilities = GameClientCapabilities.CheckpointSaves,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [partialCapabilityProfile]);
+
+        Assert.Empty(matches);
+    }
+
+    /// <summary>
     /// Verifies that ResolveCompatibility sets SupportsCheckpoints and RecoveryProfile properties on retail 1.04 replay.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

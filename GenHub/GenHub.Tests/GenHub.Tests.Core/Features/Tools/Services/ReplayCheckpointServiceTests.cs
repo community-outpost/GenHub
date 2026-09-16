@@ -900,10 +900,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         // Acquire the semaphore so the next call waits
         await sem.WaitAsync();
 
-        var mintTask = Task.Run(async () => await localService.MintCheckpointAsync(replay, profile, 100));
-
-        // Wait briefly for mintTask to start waiting on semaphore
-        await Task.Delay(50);
+        var mintTask = localService.MintCheckpointAsync(replay, profile, 100);
 
         // Dispose while mintTask is waiting
         localService.Dispose();

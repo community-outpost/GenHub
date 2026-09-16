@@ -233,19 +233,7 @@ public static class DemoViewModelFactory
             var mockLogger = new MockLogger<ReplayManagerViewModel>();
 
             var mockCheckpoint = new MockReplayCheckpointService();
-            var demoRecoveryProfile = new GameProfile
-            {
-                Id = "demo-recovery-profile",
-                Name = "Zero Hour 1.04 (Recovery)",
-                GameClient = new GameClient
-                {
-                    Id = "1.0.local.gameclient.generalszh-recovery",
-                    Name = "Zero Hour Recovery Client",
-                    GameType = GameType.ZeroHour,
-                    PublisherType = PublisherTypeConstants.TheSuperHackers,
-                    Capabilities = GameClientCapabilities.AllRecoveryFeatures,
-                },
-            };
+            var demoRecoveryProfile = CreateDemoRecoveryProfile();
             var mockProfileManager = new MockGameProfileManager([demoRecoveryProfile]);
 
             var vm = new ReplayManagerViewModel(
@@ -267,19 +255,7 @@ public static class DemoViewModelFactory
             System.Diagnostics.Debug.WriteLine($"Failed to create full demo replay manager: {ex}");
 
             // Fail safe with minimal mocks
-            var demoRecoveryProfile = new GameProfile
-            {
-                Id = "demo-recovery-profile",
-                Name = "Zero Hour 1.04 (Recovery)",
-                GameClient = new GameClient
-                {
-                    Id = "1.0.local.gameclient.generalszh-recovery",
-                    Name = "Zero Hour Recovery Client",
-                    GameType = GameType.ZeroHour,
-                    PublisherType = PublisherTypeConstants.TheSuperHackers,
-                    Capabilities = GameClientCapabilities.AllRecoveryFeatures,
-                },
-            };
+            var demoRecoveryProfile = CreateDemoRecoveryProfile();
 
             return new ReplayManagerViewModel(
                 new MockReplayDirectoryService(),
@@ -481,4 +457,18 @@ public static class DemoViewModelFactory
             IsAddLocalContentDialogOpen = false,
         };
     }
+
+    private static GameProfile CreateDemoRecoveryProfile() => new()
+    {
+        Id = "demo-recovery-profile",
+        Name = "Zero Hour 1.04 (Recovery)",
+        GameClient = new GameClient
+        {
+            Id = "1.0.local.gameclient.generalszh-recovery",
+            Name = "Zero Hour Recovery Client",
+            GameType = GameType.ZeroHour,
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+            Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+        },
+    };
 }

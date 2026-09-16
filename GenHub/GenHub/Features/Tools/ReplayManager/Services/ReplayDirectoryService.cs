@@ -1253,12 +1253,7 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
-        if ((client.Capabilities & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures)
-        {
-            return true;
-        }
-
-        return (GameClientCapabilitiesHelper.InferCapabilities(client.PublisherType, client.Id, client.Name) & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures;
+        return (client.Capabilities & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures;
     }
 
     private static bool HasEnabledContentCheckpointCapability(IEnumerable<string>? contentIds)
