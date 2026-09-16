@@ -309,6 +309,12 @@ public class LaunchRegistry : ILaunchRegistry
     /// <param name="launchId">The launch ID.</param>
     private void TryUpdateProcessStatus(GameLaunchInfo launchInfo, string launchId)
     {
+        // The launcher has registered its intent but has not started a process yet.
+        if (launchInfo.ProcessInfo.ProcessId <= 0)
+        {
+            return;
+        }
+
         try
         {
             // Use ProcessInfo to check if process is still running
