@@ -121,8 +121,6 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         return Task.FromResult(result);
     }
 
-
-
     private List<GameInstallation> DetectRetailInstallations()
     {
         var retailInstalls = new List<GameInstallation>();
@@ -297,6 +295,4 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
         return deduplicated;
     }
-
-
 }

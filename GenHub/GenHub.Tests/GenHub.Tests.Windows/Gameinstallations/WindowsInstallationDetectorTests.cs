@@ -43,6 +43,7 @@ public class WindowsInstallationDetectorTests
         Assert.NotNull(result);
         Assert.True(result.Success || !result.Success); // Always true, just checks method runs
     }
+
     /// <summary>A partial higher-priority detection cannot hide the other game in a combined root.</summary>
     [Theory]
     [InlineData(true)]
