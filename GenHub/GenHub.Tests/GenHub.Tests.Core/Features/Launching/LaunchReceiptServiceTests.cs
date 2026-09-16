@@ -370,6 +370,7 @@ public class LaunchReceiptServiceTests : IDisposable
         context.WorkspacePath = Path.Combine(_workspacePath, "invalid\0path");
         var result = await _service.RecordLaunchAsync(context);
         Assert.False(result.Success);
+        Assert.Contains("Failed to record launch receipt", result.FirstError);
     }
 
     /// <summary>Null versions from malformed receipts render the missing-value label.</summary>
