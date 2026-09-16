@@ -240,7 +240,9 @@ public class LaunchRegistry : ILaunchRegistry
             return false;
         }
 
-        HandleMissingProcess(launch, launch.LaunchId);
+        _logger.LogDebug("PID {ProcessId} was reused; marking launch {LaunchId} stopped", launch.ProcessInfo.ProcessId, launch.LaunchId);
+        _inspectionFailureCounts.TryRemove(launch.LaunchId, out _);
+        MarkPollingTerminated(launch, DateTime.UtcNow);
         return true;
     }
 
