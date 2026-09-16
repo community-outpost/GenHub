@@ -1930,17 +1930,20 @@ public partial class GenHotkeysViewModel(
             source = source.Where(o => o.Category == SelectedCategory);
         }
 
+        var selectedProfile = SelectedProfile;
         foreach (var obj in source)
         {
-            FilteredGameObjects.Add(CreateGameObjectViewModel(obj, cancellationToken));
+            FilteredGameObjects.Add(CreateGameObjectViewModel(obj, selectedProfile, LoadBitmapForIcon, cancellationToken));
         }
 
         SelectedGameObject = FilteredGameObjects.FirstOrDefault();
         ValidateConflicts();
     }
 
-    private HotkeyGameObjectViewModel CreateGameObjectViewModel(
+    private static HotkeyGameObjectViewModel CreateGameObjectViewModel(
         HotkeyGameObject obj,
+        HotkeyProfile? selectedProfile,
+        Action<Action<Bitmap?>, string, CancellationToken> loadBitmapForIcon,
         CancellationToken cancellationToken)
     {
         var vm = new HotkeyGameObjectViewModel
@@ -1951,15 +1954,14 @@ public partial class GenHotkeysViewModel(
             IconName = obj.IconName,
         };
 
-        LoadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, cancellationToken);
+        loadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, cancellationToken);
 
-        var selectedProfile = SelectedProfile;
         foreach (var layout in obj.KeyboardLayouts)
         {
             var layoutVm = new ObservableCollection<HotkeyActionViewModel>();
             foreach (var action in layout)
             {
-                layoutVm.Add(CreateActionViewModel(action, selectedProfile, LoadBitmapForIcon, cancellationToken));
+                layoutVm.Add(CreateActionViewModel(action, selectedProfile, loadBitmapForIcon, cancellationToken));
             }
 
             vm.Layouts.Add(layoutVm);
