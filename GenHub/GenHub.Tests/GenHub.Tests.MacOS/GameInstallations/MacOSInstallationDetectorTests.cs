@@ -10,6 +10,13 @@ namespace GenHub.Tests.MacOS.GameInstallations;
 /// </summary>
 public class MacOSInstallationDetectorTests
 {
+    /// <summary>Unexpected path errors propagate to the logging detection boundary.</summary>
+    [Fact]
+    public void InspectRoot_InvalidPath_DoesNotHideFailure()
+    {
+        Assert.Throws<ArgumentException>(() => MacOSInstallationDetector.InspectRoot("invalid\0root"));
+    }
+
     /// <summary>A loose archive cannot hide a real installation in a named child.</summary>
     [Fact]
     public void InspectRoot_LooseArchiveWithValidChild_PrefersChild()
