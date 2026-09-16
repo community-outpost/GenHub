@@ -380,6 +380,10 @@ public class LaunchRegistryTests
                 ProcessInfo = new GameProcessInfo { ProcessId = pid },
             };
             await registry.RegisterLaunchAsync(unrelated);
+            manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+            {
+                ProcessId = oldExit.ProcessId, ExitCode = oldExit.ExitCode, ExitTime = oldExit.ExitTime,
+            });
             Assert.Null(unrelated.TerminatedAt);
             await registry.UnregisterLaunchAsync("unrelated");
         }
