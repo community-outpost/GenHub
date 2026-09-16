@@ -1,10 +1,10 @@
-using System;
-using System.Runtime.Versioning;
 using Avalonia;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.MacOS.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Runtime.Versioning;
 using Velopack;
 
 namespace GenHub.MacOS;

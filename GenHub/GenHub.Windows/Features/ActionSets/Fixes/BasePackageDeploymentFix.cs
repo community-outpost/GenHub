@@ -1,5 +1,10 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Constants;
+using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Utilities;
+using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,13 +13,8 @@ using System.Net.Http;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Features.ActionSets;
-using GenHub.Core.Helpers;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Utilities;
-using Microsoft.Extensions.Logging;
-using SharpCompress.Archives;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Abstract base class for downloadable package deployment fixes (e.g., HD Icons, Expanded LAN Lobby).

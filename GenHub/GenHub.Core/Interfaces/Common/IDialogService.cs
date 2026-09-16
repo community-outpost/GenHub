@@ -1,5 +1,5 @@
-using System.Threading.Tasks;
 using GenHub.Core.Models.Dialogs;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Common;
 

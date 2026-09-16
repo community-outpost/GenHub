@@ -1,5 +1,5 @@
-using System.Windows.Input;
 using GenHub.Core.Models.Enums;
+using System.Windows.Input;
 
 namespace GenHub.Features.Downloads.ViewModels;
 

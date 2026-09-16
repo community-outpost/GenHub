@@ -1,3 +1,7 @@
+using GenHub.Core.Constants;
+using GenHub.Features.AppUpdate.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
@@ -7,10 +11,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Features.AppUpdate.Services;
-using Microsoft.Extensions.Logging;
-using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;

@@ -1,5 +1,5 @@
-using System;
 using GenHub.Core.Helpers;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;

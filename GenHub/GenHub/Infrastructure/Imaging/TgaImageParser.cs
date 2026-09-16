@@ -1,7 +1,7 @@
-using System;
-using System.IO;
 using Avalonia.Media.Imaging;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
 
 namespace GenHub.Infrastructure.Imaging;
 

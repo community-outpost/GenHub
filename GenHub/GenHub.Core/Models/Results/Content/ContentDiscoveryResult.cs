@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Core.Models.Content;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Results.Content;
 

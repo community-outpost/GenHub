@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reactive.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -40,6 +34,12 @@ using GenHub.Tests.Core.Features.Tools.Mocks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reactive.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;

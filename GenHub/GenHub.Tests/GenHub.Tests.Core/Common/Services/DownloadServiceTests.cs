@@ -1,10 +1,10 @@
-using System.Net;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
+using System.Net;
 
 namespace GenHub.Tests.Core.Common.Services;
 

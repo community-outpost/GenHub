@@ -1,6 +1,3 @@
-using System;
-using System.Net;
-using System.Net.Http;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Tools.Checksum;
@@ -11,6 +8,9 @@ using GenHub.Features.Tools.ReplayManager.Services;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System;
+using System.Net;
+using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

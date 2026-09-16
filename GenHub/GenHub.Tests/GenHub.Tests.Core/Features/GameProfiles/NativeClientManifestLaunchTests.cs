@@ -1,14 +1,14 @@
+using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
+using GenHub.Features.GameProfiles.Infrastructure;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Launching;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Utilities;
-using GenHub.Features.GameProfiles.Infrastructure;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;

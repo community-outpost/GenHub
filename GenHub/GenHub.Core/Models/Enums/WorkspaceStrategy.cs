@@ -1,5 +1,5 @@
-using System.Text.Json.Serialization;
 using GenHub.Core.Serialization;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Enums;
 

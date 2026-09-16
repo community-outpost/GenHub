@@ -1,6 +1,6 @@
+using GenHub.Infrastructure.Converters;
 using System;
 using System.Globalization;
-using GenHub.Infrastructure.Converters;
 using Xunit;
 
 namespace GenHub.Tests.Core.Converters;

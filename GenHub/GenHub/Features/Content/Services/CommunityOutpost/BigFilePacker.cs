@@ -65,7 +65,7 @@ public static class BigFilePacker
             // Validate components are ASCII-only
             if (relativePath.Any(c => c > 127))
             {
-                 throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {relativePath}");
+                throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {relativePath}");
             }
 
             var encoding = Encoding.ASCII;

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -7,6 +5,8 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using GenHub.Features.GameProfiles.ViewModels;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Features.GameProfiles.Views;
 

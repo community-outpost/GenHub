@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -13,6 +6,13 @@ using GenHub.Core.Models.Storage;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 
@@ -52,9 +52,9 @@ public class CasReferenceTracker(
             var safeManifestId = Path.GetFileName(manifestId);
             if (string.IsNullOrWhiteSpace(safeManifestId) || !string.Equals(safeManifestId, manifestId, StringComparison.OrdinalIgnoreCase))
             {
-                 // If getting filename changes the ID (other than maybe case if filesys is insensitive, but here IDs are usually strict),
-                 // or if it's empty, we reject it. The ID should be a simple name, not a path.
-                 throw new ArgumentException($"Invalid Manifest ID '{manifestId}' - must be a valid filename without path characters", nameof(manifestId));
+                // If getting filename changes the ID (other than maybe case if filesys is insensitive, but here IDs are usually strict),
+                // or if it's empty, we reject it. The ID should be a simple name, not a path.
+                throw new ArgumentException($"Invalid Manifest ID '{manifestId}' - must be a valid filename without path characters", nameof(manifestId));
             }
 
             var manifestRefsPath = Path.Combine(_refsDirectory, "manifests", $"{safeManifestId}.refs");
@@ -133,7 +133,7 @@ public class CasReferenceTracker(
             var safeWorkspaceId = Path.GetFileName(workspaceId);
             if (string.IsNullOrWhiteSpace(safeWorkspaceId) || !string.Equals(safeWorkspaceId, workspaceId, StringComparison.OrdinalIgnoreCase))
             {
-                 throw new ArgumentException($"Invalid Workspace ID '{workspaceId}' - must be a valid filename without path characters", nameof(workspaceId));
+                throw new ArgumentException($"Invalid Workspace ID '{workspaceId}' - must be a valid filename without path characters", nameof(workspaceId));
             }
 
             var workspaceRefsPath = Path.Combine(_refsDirectory, "workspaces", $"{safeWorkspaceId}.refs");
@@ -199,7 +199,7 @@ public class CasReferenceTracker(
             var safeManifestId = Path.GetFileName(manifestId);
             if (string.IsNullOrWhiteSpace(safeManifestId) || !string.Equals(safeManifestId, manifestId, StringComparison.OrdinalIgnoreCase))
             {
-                 return OperationResult.CreateFailure($"Invalid Manifest ID '{manifestId}' - must be a valid filename without path characters");
+                return OperationResult.CreateFailure($"Invalid Manifest ID '{manifestId}' - must be a valid filename without path characters");
             }
 
             var manifestRefsPath = Path.Combine(_refsDirectory, "manifests", $"{safeManifestId}.refs");
@@ -247,7 +247,7 @@ public class CasReferenceTracker(
             var safeWorkspaceId = Path.GetFileName(workspaceId);
             if (string.IsNullOrWhiteSpace(safeWorkspaceId) || !string.Equals(safeWorkspaceId, workspaceId, StringComparison.OrdinalIgnoreCase))
             {
-                 return OperationResult.CreateFailure($"Invalid Workspace ID '{workspaceId}' - must be a valid filename without path characters");
+                return OperationResult.CreateFailure($"Invalid Workspace ID '{workspaceId}' - must be a valid filename without path characters");
             }
 
             var workspaceRefsPath = Path.Combine(_refsDirectory, "workspaces", $"{safeWorkspaceId}.refs");

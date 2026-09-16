@@ -1,8 +1,8 @@
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Interfaces.Content;
 

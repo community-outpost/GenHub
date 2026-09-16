@@ -1,7 +1,7 @@
+using GenHub.Core.Models.Results;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
-using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Common;
 

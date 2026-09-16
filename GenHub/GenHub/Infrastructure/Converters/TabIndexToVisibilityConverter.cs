@@ -1,8 +1,8 @@
-namespace GenHub.Infrastructure.Converters;
-
+using Avalonia.Data.Converters;
 using System;
 using System.Globalization;
-using Avalonia.Data.Converters;
+
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts a tab index to a boolean for IsVisible binding.

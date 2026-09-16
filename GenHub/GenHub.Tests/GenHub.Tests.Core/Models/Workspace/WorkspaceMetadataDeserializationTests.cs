@@ -1,8 +1,8 @@
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Workspace;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Workspace;
 using Xunit;
 
 namespace GenHub.Tests.Core.Models.Workspace;

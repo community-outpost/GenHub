@@ -1,5 +1,3 @@
-using System.IO.Compression;
-using System.Text;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
@@ -9,6 +7,8 @@ using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.IO.Compression;
+using System.Text;
 
 namespace GenHub.Tests.Core.Features.Tools.Services;
 

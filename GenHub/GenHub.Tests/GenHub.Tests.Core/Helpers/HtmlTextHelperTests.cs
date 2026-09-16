@@ -1,6 +1,6 @@
+using GenHub.Core.Helpers;
 using System;
 using System.Diagnostics;
-using GenHub.Core.Helpers;
 using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;

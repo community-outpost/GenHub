@@ -1,7 +1,7 @@
-namespace GenHub.Core.Constants;
-
 using System.Collections.Generic;
 using System.IO;
+
+namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Centralized constants for ActionSet fixes, registry keys, and file operations.

@@ -1,5 +1,5 @@
-using System.Reflection;
 using GenHub.Features.GameProfiles.Infrastructure;
+using System.Reflection;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;

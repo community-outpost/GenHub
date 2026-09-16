@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -10,6 +9,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Collections.ObjectModel;
 using Xunit;
 using CoreContentDisplayItem = GenHub.Core.Models.Content.ContentDisplayItem;
 

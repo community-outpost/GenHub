@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Core.Extensions;
+using System.Collections.Generic;
 
 namespace GenHub.Tests.Core.Extensions;
 

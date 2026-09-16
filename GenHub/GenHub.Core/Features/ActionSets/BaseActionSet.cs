@@ -1,5 +1,3 @@
-namespace GenHub.Core.Features.ActionSets;
-
 using GenHub.Core.Constants;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -9,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
+namespace GenHub.Core.Features.ActionSets;
 
 /// <summary>
 /// Abstract base class for action sets, providing common functionality.

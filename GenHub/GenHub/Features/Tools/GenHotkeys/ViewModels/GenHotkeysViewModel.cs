@@ -1545,6 +1545,36 @@ public partial class GenHotkeysViewModel(
         return actionVm;
     }
 
+    private static HotkeyGameObjectViewModel CreateGameObjectViewModel(
+        HotkeyGameObject obj,
+        HotkeyProfile? selectedProfile,
+        Action<Action<Bitmap?>, string, CancellationToken> loadBitmapForIcon,
+        CancellationToken cancellationToken)
+    {
+        var vm = new HotkeyGameObjectViewModel
+        {
+            Name = obj.Name,
+            DisplayName = obj.DisplayName,
+            Category = obj.Category,
+            IconName = obj.IconName,
+        };
+
+        loadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, cancellationToken);
+
+        foreach (var layout in obj.KeyboardLayouts)
+        {
+            var layoutVm = new ObservableCollection<HotkeyActionViewModel>();
+            foreach (var action in layout)
+            {
+                layoutVm.Add(CreateActionViewModel(action, selectedProfile, loadBitmapForIcon, cancellationToken));
+            }
+
+            vm.Layouts.Add(layoutVm);
+        }
+
+        return vm;
+    }
+
     private static void CollectObjectConflicts(HotkeyGameObjectViewModel obj, HotkeyFaction defaultFaction, List<HotkeyConflictTarget> targets)
     {
         var objName = obj.Name ?? obj.DisplayName;
@@ -1938,36 +1968,6 @@ public partial class GenHotkeysViewModel(
 
         SelectedGameObject = FilteredGameObjects.FirstOrDefault();
         ValidateConflicts();
-    }
-
-    private static HotkeyGameObjectViewModel CreateGameObjectViewModel(
-        HotkeyGameObject obj,
-        HotkeyProfile? selectedProfile,
-        Action<Action<Bitmap?>, string, CancellationToken> loadBitmapForIcon,
-        CancellationToken cancellationToken)
-    {
-        var vm = new HotkeyGameObjectViewModel
-        {
-            Name = obj.Name,
-            DisplayName = obj.DisplayName,
-            Category = obj.Category,
-            IconName = obj.IconName,
-        };
-
-        loadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, cancellationToken);
-
-        foreach (var layout in obj.KeyboardLayouts)
-        {
-            var layoutVm = new ObservableCollection<HotkeyActionViewModel>();
-            foreach (var action in layout)
-            {
-                layoutVm.Add(CreateActionViewModel(action, selectedProfile, loadBitmapForIcon, cancellationToken));
-            }
-
-            vm.Layouts.Add(layoutVm);
-        }
-
-        return vm;
     }
 
     private void LoadBitmapForIcon(

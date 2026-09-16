@@ -1,7 +1,7 @@
+using GenHub.Core.Constants;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using GenHub.Core.Constants;
 
 namespace GenHub.Core.Models.GameSettings;
 

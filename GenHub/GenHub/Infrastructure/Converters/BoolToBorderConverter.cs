@@ -1,8 +1,8 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 using GenHub.Core.Constants;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 

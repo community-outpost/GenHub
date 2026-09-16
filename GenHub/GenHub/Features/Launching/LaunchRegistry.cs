@@ -1,3 +1,8 @@
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Models.GameProfile;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -5,11 +10,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.Messaging;
-using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.Launching;
-using GenHub.Core.Models.GameProfile;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Launching;
 

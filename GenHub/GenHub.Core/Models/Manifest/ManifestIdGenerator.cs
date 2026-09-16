@@ -1,9 +1,9 @@
-using System.Text.RegularExpressions;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Models.Manifest;
 

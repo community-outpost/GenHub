@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Principal;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
@@ -32,6 +23,15 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -716,8 +716,8 @@ public class ProfileLauncherFacade(
 
             if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
             {
-                 // Log warning but proceed - ResolveOrRebindInstallationAsync might affect recovery or strict binding might be skipped for some flows.
-                 logger.LogWarning("[Launch] Game Installation ID is missing for profile {ProfileId}. Attempting to resolve...", profile.Id);
+                // Log warning but proceed - ResolveOrRebindInstallationAsync might affect recovery or strict binding might be skipped for some flows.
+                logger.LogWarning("[Launch] Game Installation ID is missing for profile {ProfileId}. Attempting to resolve...", profile.Id);
             }
 
             var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);

@@ -1,14 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -35,6 +24,17 @@ using GenHub.Features.Tools.ReplayManager.Views;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 
@@ -1165,7 +1165,7 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(replay.FullPath))
         {
             notificationService.ShowInfo(
-                "Create Profile for Replay",                "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.");
+                "Create Profile for Replay", "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.");
             return;
         }
 
@@ -1179,7 +1179,7 @@ public partial class ReplayManagerViewModel(
             if (result.Success && result.Data != null)
             {
                 notificationService.ShowSuccess(
-                    "Profile Created",                    $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
+                    "Profile Created", $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
                 StatusMessage = $"Created profile '{result.Data.Name}'.";
                 await LoadReplaysAsync();
             }
@@ -1361,7 +1361,7 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(replay.FullPath))
         {
             notificationService.ShowInfo(
-                "Launch Replay Profile",                "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
+                "Launch Replay Profile", "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
             return;
         }
 
@@ -1396,7 +1396,7 @@ public partial class ReplayManagerViewModel(
                     ? replay.MatchingProfileName
                     : (replay.MatchedClient?.Description ?? "Matching Profile");
                 notificationService.ShowSuccess(
-                    "Game Launched",                    $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
+                    "Game Launched", $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
                 StatusMessage = $"Launched profile '{profileName}'.";
             }
             else

@@ -1,6 +1,3 @@
-using System.IO.Compression;
-using System.Reflection;
-using System.Text;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -15,6 +12,9 @@ using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.IO.Compression;
+using System.Reflection;
+using System.Text;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.Services.CommunityOutpost;

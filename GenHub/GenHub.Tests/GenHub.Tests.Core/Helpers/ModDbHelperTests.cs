@@ -1,7 +1,7 @@
+using GenHub.Core.Helpers;
 using System;
 using System.Security.Cryptography;
 using System.Text;
-using GenHub.Core.Helpers;
 using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;

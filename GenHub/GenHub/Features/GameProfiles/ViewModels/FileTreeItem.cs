@@ -1,8 +1,8 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Utilities;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
-using CommunityToolkit.Mvvm.ComponentModel;
-using GenHub.Core.Utilities;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 

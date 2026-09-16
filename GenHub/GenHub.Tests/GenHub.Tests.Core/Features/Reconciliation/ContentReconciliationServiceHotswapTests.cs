@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using CommunityToolkit.Mvvm.Messaging;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
@@ -15,6 +11,10 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Reconciliation;

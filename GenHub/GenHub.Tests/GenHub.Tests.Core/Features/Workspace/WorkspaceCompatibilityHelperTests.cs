@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using Xunit;
 using ContentInstallTarget = GenHub.Core.Models.Enums.ContentInstallTarget;
 using ContentType = GenHub.Core.Models.Enums.ContentType;

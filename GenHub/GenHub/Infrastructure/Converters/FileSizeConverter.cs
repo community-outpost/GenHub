@@ -1,5 +1,5 @@
-using System;
 using Avalonia.Data.Converters;
+using System;
 using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;

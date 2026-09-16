@@ -1,7 +1,7 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -50,10 +50,10 @@ public class ColorToShadowConverter : IValueConverter
             // Double check - if still too dark (e.g. black input), force a fallback low-saturation color
             if (ToLuminance(color) < 0.3)
             {
-                 color = Color.FromRgb(
-                    (byte)Math.Max(color.R, (byte)100),
-                    (byte)Math.Max(color.G, (byte)100),
-                    (byte)Math.Max(color.B, (byte)100));
+                color = Color.FromRgb(
+                   (byte)Math.Max(color.R, (byte)100),
+                   (byte)Math.Max(color.G, (byte)100),
+                   (byte)Math.Max(color.B, (byte)100));
             }
         }
 

@@ -1,12 +1,3 @@
-namespace GenHub.Tests.Windows.Features.ActionSets;
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Exceptions;
 using GenHub.Core.Features.ActionSets;
@@ -16,7 +7,16 @@ using GenHub.Windows.Features.ActionSets.Fixes;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SharpCompress.Archives;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
+
+namespace GenHub.Tests.Windows.Features.ActionSets;
 
 /// <summary>
 /// Unit tests for transactional safety, rollback retention, and undo behavior in <see cref="BasePackageDeploymentFix"/>.

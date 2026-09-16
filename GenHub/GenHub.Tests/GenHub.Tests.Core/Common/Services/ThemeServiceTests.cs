@@ -1,4 +1,3 @@
-using System.Linq;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -6,6 +5,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Theming;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Services;

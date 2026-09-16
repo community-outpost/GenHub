@@ -1,5 +1,5 @@
-using System;
 using GenHub.Infrastructure.Markdown;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Markdown;

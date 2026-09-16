@@ -1,6 +1,6 @@
-using System;
 using GenHub.Core.Constants;
 using Microsoft.Extensions.Logging;
+using System;
 
 namespace GenHub.Features.GitHub.Services;
 

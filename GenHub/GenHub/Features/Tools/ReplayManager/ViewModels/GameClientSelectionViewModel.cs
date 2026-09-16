@@ -199,6 +199,42 @@ public sealed partial class GameClientSelectionViewModel(
         return false;
     }
 
+    /// <summary>
+    /// Resolves the executable path for a game client within an installation.
+    /// </summary>
+    /// <param name="installation">The game installation.</param>
+    /// <param name="client">The game client.</param>
+    /// <returns>The resolved executable path, or empty if not found.</returns>
+    internal static string ResolveInstallationExePath(GameInstallation installation, GameClient client)
+    {
+        var exePath = client.ExecutablePath ?? string.Empty;
+        var fullExePath = exePath;
+        if (!Path.IsPathRooted(fullExePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
+        {
+            fullExePath = Path.Combine(client.WorkingDirectory, fullExePath);
+        }
+
+        if (string.IsNullOrEmpty(exePath) || Directory.Exists(fullExePath))
+        {
+            var basePath = ResolveInstallationCandidatePath(installation, client, fullExePath);
+            if (!string.IsNullOrEmpty(basePath) && Directory.Exists(basePath))
+            {
+                var candidate = FindExistingExecutable(basePath, client.GameType);
+                if (candidate == null && client.GameType == GameType.Unknown)
+                {
+                    candidate = FindExistingExecutable(basePath, GameType.ZeroHour);
+                }
+
+                if (candidate != null)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return fullExePath;
+    }
+
     private static string GetPublisherDisplayName(PublisherInfo? publisher)
     {
         if (!string.IsNullOrWhiteSpace(publisher?.Name))
@@ -287,36 +323,6 @@ public sealed partial class GameClientSelectionViewModel(
         }
 
         return null;
-    }
-
-    internal static string ResolveInstallationExePath(GameInstallation installation, GameClient client)
-    {
-        var exePath = client.ExecutablePath ?? string.Empty;
-        var fullExePath = exePath;
-        if (!Path.IsPathRooted(fullExePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
-        {
-            fullExePath = Path.Combine(client.WorkingDirectory, fullExePath);
-        }
-
-        if (string.IsNullOrEmpty(exePath) || Directory.Exists(fullExePath))
-        {
-            var basePath = ResolveInstallationCandidatePath(installation, client, fullExePath);
-            if (!string.IsNullOrEmpty(basePath) && Directory.Exists(basePath))
-            {
-                var candidate = FindExistingExecutable(basePath, client.GameType);
-                if (candidate == null && client.GameType == GameType.Unknown)
-                {
-                    candidate = FindExistingExecutable(basePath, GameType.ZeroHour);
-                }
-
-                if (candidate != null)
-                {
-                    return candidate;
-                }
-            }
-        }
-
-        return fullExePath;
     }
 
     private static bool IsRetailBaseInstallation(GameInstallationType installationType)

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -8,6 +6,8 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 

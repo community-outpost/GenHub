@@ -1,5 +1,5 @@
-using System;
 using GenHub.Core.Models.GameClients;
+using System;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 

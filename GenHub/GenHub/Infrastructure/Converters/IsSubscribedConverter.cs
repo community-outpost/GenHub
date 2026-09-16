@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Features.AppUpdate.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 

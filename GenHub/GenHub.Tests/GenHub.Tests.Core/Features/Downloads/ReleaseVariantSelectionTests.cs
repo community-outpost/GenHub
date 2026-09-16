@@ -1,4 +1,3 @@
-using System.Net.Http;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -6,6 +5,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net.Http;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 

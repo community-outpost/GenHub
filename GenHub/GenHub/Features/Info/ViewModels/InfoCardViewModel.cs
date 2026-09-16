@@ -1,7 +1,7 @@
-using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Info;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Info.ViewModels;
 

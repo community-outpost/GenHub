@@ -1,3 +1,7 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GitHub;
+using GenHub.Features.Workspace;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -5,10 +9,6 @@ using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GitHub;
-using GenHub.Features.Workspace;
 
 namespace GenHub.Windows.Features.GitHub.Services;
 

@@ -1,10 +1,10 @@
+using GenHub.Core.Constants;
+using GenHub.Features.Tools.ReplayManager.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Features.Tools.ReplayManager.Services;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.Services;

@@ -1,6 +1,5 @@
-using Xunit;
-
 using System.Runtime.InteropServices;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
 

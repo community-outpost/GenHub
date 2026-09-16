@@ -1,4 +1,3 @@
-using System.Net;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
@@ -9,6 +8,7 @@ using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Net;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;

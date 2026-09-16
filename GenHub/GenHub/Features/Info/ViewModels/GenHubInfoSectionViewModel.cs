@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -17,6 +12,11 @@ using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
 using GenHub.Features.Tools.MapManager.ViewModels;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Info.ViewModels;
 
@@ -476,7 +476,7 @@ public partial class GenHubInfoSectionViewModel(
             // Already initialized, but load changelogs if not loaded
             if (Changelogs.Releases.Count == 0)
             {
-                 await Changelogs.LoadChangelogsAsync();
+                await Changelogs.LoadChangelogsAsync();
             }
         }
 

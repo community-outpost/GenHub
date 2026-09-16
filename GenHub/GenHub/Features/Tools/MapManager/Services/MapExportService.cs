@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Tools.MapManager;
@@ -12,6 +5,13 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.MapManager.Services;
 

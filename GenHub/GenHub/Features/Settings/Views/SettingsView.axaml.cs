@@ -1,5 +1,3 @@
-using System;
-using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -8,6 +6,8 @@ using Avalonia.Threading;
 using GenHub.Core.Constants;
 using GenHub.Features.Settings.Models;
 using GenHub.Features.Settings.ViewModels;
+using System;
+using System.ComponentModel;
 
 namespace GenHub.Features.Settings.Views;
 

@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -6,6 +5,7 @@ using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Common.Views.Dialogs;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Dialogs;
+using System.Threading.Tasks;
 
 namespace GenHub.Common.Services;
 

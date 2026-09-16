@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -15,6 +9,11 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -133,8 +132,8 @@ public class ProfileEditorFacade(
                         return ProfileOperationResult<GameProfile>.CreateFailure(string.Join(", ", resolutionResult.Errors));
                     }
 
-                    workspaceConfig.Manifests = [..resolutionResult.ResolvedManifests];
-                    profile.EnabledContentIds = [..resolutionResult.ResolvedContentIds];
+                    workspaceConfig.Manifests = [.. resolutionResult.ResolvedManifests];
+                    profile.EnabledContentIds = [.. resolutionResult.ResolvedContentIds];
 
                     // Resolve source paths for all manifests
                     var manifestSourcePaths = new Dictionary<string, string>();

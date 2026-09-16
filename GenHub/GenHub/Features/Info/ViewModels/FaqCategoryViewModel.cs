@@ -1,6 +1,6 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Info;
+using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Info.ViewModels;
 

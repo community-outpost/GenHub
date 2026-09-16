@@ -1,4 +1,3 @@
-using System.Text.Json;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameSettings;
@@ -10,6 +9,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text.Json;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 

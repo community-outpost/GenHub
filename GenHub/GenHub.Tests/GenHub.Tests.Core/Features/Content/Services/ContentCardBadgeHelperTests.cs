@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.Content;
+using System;
+using System.Collections.Generic;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 

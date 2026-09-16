@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -11,6 +10,7 @@ using GenHub.Linux.GameInstallations;
 using GenHub.Linux.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using System.Runtime.Versioning;
 
 namespace GenHub.Tests.Linux.Infrastructure.DependencyInjection;
 

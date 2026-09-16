@@ -1,9 +1,9 @@
-namespace GenHub.Windows.Features.ActionSets.Infrastructure;
-
-using System;
-using System.Security.Principal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using System;
+using System.Security.Principal;
+
+namespace GenHub.Windows.Features.ActionSets.Infrastructure;
 
 /// <summary>
 /// Service for interacting with the Windows Registry.

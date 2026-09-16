@@ -1,6 +1,6 @@
-namespace GenHub.Core.Models.Results.Content;
-
 using GenHub.Core.Models.Enums;
+
+namespace GenHub.Core.Models.Results.Content;
 
 /// <summary>
 /// Event arguments for content state changes.

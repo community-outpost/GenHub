@@ -1,5 +1,7 @@
-namespace GenHub.Core.Services.Providers;
-
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,10 +12,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
+
+namespace GenHub.Core.Services.Providers;
 
 /// <summary>
 /// Service for loading provider definitions from JSON configuration files.

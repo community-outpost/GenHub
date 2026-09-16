@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using System.IO.Compression;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
@@ -23,8 +17,13 @@ using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.Publishers;

@@ -1,10 +1,10 @@
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.AppUpdate.Views;
 

@@ -1,11 +1,11 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
 using GenHub.Infrastructure.Services;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Infrastructure.Controls;
 

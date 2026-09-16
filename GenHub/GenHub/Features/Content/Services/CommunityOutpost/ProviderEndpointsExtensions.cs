@@ -1,7 +1,7 @@
-using System;
-using System.Linq;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Providers;
+using System;
+using System.Linq;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 

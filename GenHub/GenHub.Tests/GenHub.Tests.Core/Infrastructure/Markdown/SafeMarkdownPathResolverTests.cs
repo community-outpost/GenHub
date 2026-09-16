@@ -1,6 +1,6 @@
+using GenHub.Infrastructure.Markdown;
 using System.IO;
 using System.Threading.Tasks;
-using GenHub.Infrastructure.Markdown;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Markdown;

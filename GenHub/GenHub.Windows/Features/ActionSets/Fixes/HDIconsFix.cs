@@ -1,5 +1,9 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Constants;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Validation;
+using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,12 +11,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Validation;
-using Microsoft.Extensions.Logging;
-using SharpCompress.Archives;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix that downloads and installs high-definition icons for Generals and Zero Hour.

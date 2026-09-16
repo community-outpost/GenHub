@@ -1,5 +1,5 @@
-using System;
 using GenHub.Core.Constants;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Constants;

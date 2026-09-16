@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
@@ -16,6 +12,10 @@ using GenHub.Features.GameClients;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.GameClients;
 

@@ -1,11 +1,11 @@
+using GenHub.Features.Content.Services.CommunityOutpost;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using GenHub.Features.Content.Services.CommunityOutpost;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;

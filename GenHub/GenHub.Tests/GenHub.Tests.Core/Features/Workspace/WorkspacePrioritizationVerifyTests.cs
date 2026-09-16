@@ -1,9 +1,9 @@
-using System.Collections.Generic;
-using System.Linq;
 using GenHub.Core.Extensions;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Workspace;

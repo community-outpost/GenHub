@@ -1,7 +1,7 @@
-namespace GenHub.Core.Models.Results.CAS;
-
-using System.Linq;
 using GenHub.Core.Models.Storage;
+using System.Linq;
+
+namespace GenHub.Core.Models.Results.CAS;
 
 /// <summary>Result of CAS integrity validation operations.</summary>
 public class CasValidationResult : ResultBase

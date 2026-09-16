@@ -1,8 +1,8 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Models.Info;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using CommunityToolkit.Mvvm.ComponentModel;
-using GenHub.Core.Models.Info;
 
 namespace GenHub.Features.Info.ViewModels;
 

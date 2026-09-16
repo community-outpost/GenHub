@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -21,7 +22,6 @@ using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Avalonia.Headless.XUnit;
 using Moq;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;

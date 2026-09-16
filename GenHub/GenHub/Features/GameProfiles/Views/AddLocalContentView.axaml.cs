@@ -1,11 +1,11 @@
 using Avalonia;
-using System;
-using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using GenHub.Features.GameProfiles.ViewModels;
+using System;
+using System.Linq;
 
 namespace GenHub.Features.GameProfiles.Views;
 

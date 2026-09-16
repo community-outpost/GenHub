@@ -1,10 +1,10 @@
-namespace GenHub.Windows.Features.ActionSets.UI;
-
-using System;
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using System;
+using System.Diagnostics;
+
+namespace GenHub.Windows.Features.ActionSets.UI;
 
 /// <summary>
 /// View for the GenPatcher tool.

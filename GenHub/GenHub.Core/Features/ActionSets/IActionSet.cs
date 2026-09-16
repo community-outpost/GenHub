@@ -1,9 +1,9 @@
-namespace GenHub.Core.Features.ActionSets;
-
 using GenHub.Core.Models.GameInstallations;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+
+namespace GenHub.Core.Features.ActionSets;
 
 /// <summary>
 /// Defines a set of actions to fix or enhance a game installation.

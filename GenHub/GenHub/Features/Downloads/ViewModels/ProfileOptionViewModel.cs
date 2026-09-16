@@ -1,11 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.GameProfiles.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Features.Downloads.ViewModels;
 

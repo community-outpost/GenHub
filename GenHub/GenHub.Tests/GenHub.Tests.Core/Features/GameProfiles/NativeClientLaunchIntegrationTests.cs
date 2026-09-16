@@ -1,12 +1,12 @@
+using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Manifest;
+using GenHub.Features.GameProfiles.Infrastructure;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Launching;
-using GenHub.Core.Models.Manifest;
-using GenHub.Features.GameProfiles.Infrastructure;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
@@ -17,7 +17,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// <para>
 /// Everything else in the native-client work is verified against synthetic binaries.
 /// This is the one test that answers the actual question: can GenHub start the real
-    /// engine, against real retail data, and have it remain running.
+/// engine, against real retail data, and have it remain running.
 /// </para>
 /// <para>
 /// Skipped unless a native install is present, so CI and other machines stay green.
