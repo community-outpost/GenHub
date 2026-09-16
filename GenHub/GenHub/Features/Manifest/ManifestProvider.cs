@@ -1,12 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
-using System;
-using System.IO;
-using System.Reflection;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -15,6 +9,12 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.IO;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
 

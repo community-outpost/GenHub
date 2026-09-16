@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Launching;
 

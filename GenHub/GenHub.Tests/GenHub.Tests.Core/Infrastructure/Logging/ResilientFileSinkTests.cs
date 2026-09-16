@@ -1,8 +1,8 @@
-using System;
-using System.IO;
 using GenHub.Infrastructure.Logging;
 using Serilog.Events;
 using Serilog.Parsing;
+using System;
+using System.IO;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Logging;

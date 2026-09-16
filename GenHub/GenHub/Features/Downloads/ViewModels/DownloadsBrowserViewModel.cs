@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -34,6 +25,15 @@ using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
@@ -141,6 +141,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private int _activeRequestId;
     private string? _lastPopulatedPublisherId;
     private bool _hasCustomQuery;
+    private bool _suppressPublisherChangedRefresh;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
 
@@ -867,6 +868,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 PublisherInfoConstants.AODMaps.Name,
                 PublisherInfoConstants.AODMaps.LogoSource,
                 ContentConstants.CategoryDynamic),
+            new PublisherItemViewModel(
+                ModDBConstants.PublisherType,
+                PublisherInfoConstants.ModDB.Name,
+                PublisherInfoConstants.ModDB.LogoSource,
+                ContentConstants.CategoryDynamic),
         ];
     }
 
@@ -919,6 +925,13 @@ public sealed partial class DownloadsBrowserViewModel(
 
         // Switch filter panel
         SwitchFilterPanel(value.PublisherId);
+
+        if (_suppressPublisherChangedRefresh)
+        {
+            _lastPopulatedPublisherId = value.PublisherId;
+            SelectedContent = null;
+            return;
+        }
 
         // Detach UI collection and detail view immediately so previous publisher's cards vanish from UI without disposing cached objects
         ContentItems = [];
@@ -1075,6 +1088,46 @@ public sealed partial class DownloadsBrowserViewModel(
     [RelayCommand]
     private async Task SearchAsync()
     {
+        if (ModDBDiscoverer.TryNormalizeModDBUrl(SearchTerm, out _) &&
+            SelectedPublisher?.PublisherId != ModDBConstants.PublisherType)
+        {
+            var savedSearchTerm = SearchTerm;
+            var moddbPublisher = Publishers.FirstOrDefault(p => p.PublisherId == ModDBConstants.PublisherType);
+            if (moddbPublisher != null)
+            {
+                // Restore outgoing publisher's original search term before triggering SelectedPublisher change,
+                // so the outgoing publisher's cached browse state is not polluted with the pasted ModDB URL.
+                string? restoredSearchTerm = null;
+                lock (_cacheLock)
+                {
+                    if (!string.IsNullOrEmpty(_lastPopulatedPublisherId) &&
+                        _browseCache.TryGetValue(_lastPopulatedPublisherId, out var state))
+                    {
+                        restoredSearchTerm = state.SearchTerm;
+                    }
+                }
+
+                SearchTerm = restoredSearchTerm ?? string.Empty;
+
+                try
+                {
+                    _suppressPublisherChangedRefresh = true;
+                    SelectedPublisher = moddbPublisher;
+                }
+                finally
+                {
+                    _suppressPublisherChangedRefresh = false;
+                }
+
+                SearchTerm = savedSearchTerm;
+                _hasCustomQuery = true;
+                CurrentPage = 1;
+                Interlocked.Increment(ref _activeRequestId);
+                await RefreshContentAsync();
+                return;
+            }
+        }
+
         _hasCustomQuery = !string.IsNullOrWhiteSpace(SearchTerm) || (CurrentFilterViewModel != null && CurrentFilterViewModel.HasActiveFilters);
         CurrentPage = 1;
         Interlocked.Increment(ref _activeRequestId);
@@ -1851,6 +1904,7 @@ public sealed partial class DownloadsBrowserViewModel(
             GitHubTopicsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer>().FirstOrDefault(),
             CNCLabsConstants.PublisherType => contentDiscoverers.OfType<CNCLabsMapDiscoverer>().FirstOrDefault(),
             AODMapsConstants.PublisherType => contentDiscoverers.OfType<AODMapsDiscoverer>().FirstOrDefault(),
+            ModDBConstants.PublisherType => contentDiscoverers.OfType<ModDBDiscoverer>().FirstOrDefault(),
 
             // User-subscribed GenHub catalogs (and later definition-resolved endpoints)
             _ => _subscribedDiscoverers.TryGetValue(publisherId, out var subscribed) ? subscribed : null,
@@ -2135,6 +2189,7 @@ public sealed partial class DownloadsBrowserViewModel(
         _filterViewModels[GitHubTopicsConstants.PublisherType] = new GitHubFilterViewModel();
         _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
         _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
+        _filterViewModels[ModDBConstants.PublisherType] = new ModDBFilterViewModel();
     }
 
     [RelayCommand]
@@ -2242,8 +2297,10 @@ public sealed partial class DownloadsBrowserViewModel(
         item.CurrentState = ContentState.Downloaded;
         item.IsDownloaded = true;
 
+        var moddbId = item.SearchResult.GetModDbId();
+
         // Notify ContentStateService that state has changed (catalog ID + manifest ID)
-        contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value);
+        contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value, moddbId);
 
         // Re-read every sibling so checkmarks stay accurate if acquisition produced
         // a different on-disk identity than the catalog key (e.g. SuperHackers).
@@ -2327,7 +2384,9 @@ public sealed partial class DownloadsBrowserViewModel(
                 component.MarkDownloaded(originalContentId, result.Data.Id.Value);
             }
 
-            contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, result.Data.Id.Value);
+            var moddbId = target.GetModDbId();
+
+            contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, result.Data.Id.Value, moddbId);
             completed++;
         }
 

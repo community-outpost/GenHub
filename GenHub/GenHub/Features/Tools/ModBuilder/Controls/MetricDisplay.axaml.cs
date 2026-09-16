@@ -7,6 +7,9 @@ namespace GenHub.Features.Tools.ModBuilder.Controls;
 /// </summary>
 public partial class MetricDisplay : UserControl
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MetricDisplay"/> class.
+    /// </summary>
     public MetricDisplay()
     {
         InitializeComponent();

@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
 using GenHub.Features.Content.Services.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Tools;
@@ -99,6 +99,73 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
         Assert.Equal(["install", "chromium"], installerArguments);
         Assert.True(File.Exists(executablePath));
         Assert.Equal(_runtimeDirectory, Environment.GetEnvironmentVariable(ManagedChromiumRuntime.BrowserPathEnvironmentVariable));
+    }
+
+    /// <summary>
+    /// Verifies lifecycle callbacks are invoked when Chromium installation starts and succeeds.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureInstalledAsync_WhenInstalling_InvokesLifecycleCallbacksAsync()
+    {
+        // Arrange
+        var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
+        var startingCalled = false;
+        bool? completedSuccess = null;
+        var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
+        chromium.SetupGet(browser => browser.ExecutablePath).Returns(executablePath);
+        var runtime = new ManagedChromiumRuntime(
+            _runtimeDirectory,
+            _ =>
+            {
+                Directory.CreateDirectory(_runtimeDirectory);
+                File.WriteAllText(executablePath, "browser");
+                return 0;
+            },
+            _ => Task.FromResult(true),
+            new Mock<ILogger>().Object,
+            onInstallStarting: () => startingCalled = true,
+            onInstallCompleted: success => completedSuccess = success);
+
+        // Act
+        await runtime.EnsureInstalledAsync(chromium.Object, default);
+
+        // Assert
+        Assert.True(startingCalled);
+        Assert.True(completedSuccess);
+    }
+
+    /// <summary>
+    /// Verifies lifecycle completion callback is not invoked when Chromium installation is canceled.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureInstalledAsync_WhenCanceled_DoesNotInvokeCompletedCallbackAsync()
+    {
+        // Arrange
+        var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
+        var startingCalled = false;
+        bool? completedSuccess = null;
+        using var cts = new CancellationTokenSource();
+
+        var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
+        chromium.SetupGet(browser => browser.ExecutablePath).Returns(executablePath);
+        var runtime = new ManagedChromiumRuntime(
+            _runtimeDirectory,
+            _ =>
+            {
+                cts.Cancel();
+                throw new OperationCanceledException(cts.Token);
+            },
+            _ => Task.FromResult(true),
+            new Mock<ILogger>().Object,
+            onInstallStarting: () => startingCalled = true,
+            onInstallCompleted: success => completedSuccess = success);
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runtime.EnsureInstalledAsync(chromium.Object, cts.Token));
+        Assert.True(startingCalled);
+        Assert.Null(completedSuccess);
     }
 
     /// <summary>

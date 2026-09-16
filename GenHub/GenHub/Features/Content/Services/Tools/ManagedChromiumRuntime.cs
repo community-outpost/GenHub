@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Playwright;
 using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
 
 namespace GenHub.Features.Content.Services.Tools;
 
@@ -17,7 +17,9 @@ internal sealed class ManagedChromiumRuntime(
     string runtimeDirectory,
     Func<string[], int> installer,
     Func<string, Task<bool>> requestInstallConsentAsync,
-    ILogger logger)
+    ILogger logger,
+    Action? onInstallStarting = null,
+    Action<bool>? onInstallCompleted = null)
 {
     /// <summary>
     /// Environment variable used by Playwright to locate app-owned browser binaries.
@@ -87,6 +89,7 @@ internal sealed class ManagedChromiumRuntime(
             logger.LogDebug("Managed Chromium install consented. Installing under {RuntimeDirectory}", runtimeDirectory);
 
             int exitCode = 0;
+            onInstallStarting?.Invoke();
             try
             {
                 exitCode = await Task.Run(
@@ -103,6 +106,7 @@ internal sealed class ManagedChromiumRuntime(
             }
             catch (Exception ex)
             {
+                onInstallCompleted?.Invoke(false);
                 throw new InvalidOperationException(
                     "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.",
                     ex);
@@ -111,10 +115,12 @@ internal sealed class ManagedChromiumRuntime(
             cancellationToken.ThrowIfCancellationRequested();
             if (exitCode != 0 || !File.Exists(chromium.ExecutablePath))
             {
+                onInstallCompleted?.Invoke(false);
                 throw new InvalidOperationException(
                     "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.");
             }
 
+            onInstallCompleted?.Invoke(true);
             logger.LogInformation("Managed Chromium installation completed in {RuntimeDirectory}", runtimeDirectory);
         }
         finally

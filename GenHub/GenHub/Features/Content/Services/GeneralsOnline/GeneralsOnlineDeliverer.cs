@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -14,6 +7,13 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
@@ -82,17 +82,18 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Generating variant manifests (60Hz, MapPack, and GameData Patch)",
             });
 
-            var manifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+            var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 packageManifest,
                 extractPath,
                 cancellationToken);
 
-            if (manifests.Count == 0)
+            var manifests = manifestResult.Data ?? [];
+            if (!manifestResult.Success || manifests.Count == 0)
             {
-                logger.LogError("No manifests could be created from extracted content");
+                logger.LogError("No manifests could be created from extracted content: {Error}", manifestResult.FirstError);
                 CleanupTempArtifacts(zipPath, extractPath, logger);
                 return OperationResult<ContentManifest>.CreateFailure(
-                    "Failed to create any variant manifests from extracted content");
+                    manifestResult.FirstError ?? "Failed to create any variant manifests from extracted content");
             }
 
             // Step 4: Add all variant manifests to the ContentManifestPool

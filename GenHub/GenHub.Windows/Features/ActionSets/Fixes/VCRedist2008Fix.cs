@@ -1,14 +1,14 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Constants;
+using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.GameInstallations;
-using Microsoft.Extensions.Logging;
-using Microsoft.Win32;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix that checks for and installs Visual C++ 2008 Redistributable (x86).

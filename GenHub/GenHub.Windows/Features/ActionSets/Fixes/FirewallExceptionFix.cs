@@ -1,15 +1,15 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Constants;
+using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Features.ActionSets;
-using GenHub.Core.Models.GameInstallations;
-using Microsoft.Extensions.Logging;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix that adds Windows Firewall exceptions for game executables to allow multiplayer.

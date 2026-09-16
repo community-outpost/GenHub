@@ -4,11 +4,12 @@ GenHub provides a suite of integrated tools designed to enhance your Command & C
 
 ## Available Tools
 
-GenHub currently offers two fully-featured tools with a third in development:
+GenHub currently offers three fully-featured tools with another in development:
 
 1. **Replay Manager** - Manage, import, and share replay files
 2. **Map Manager** - Manage, import, and share custom maps with MapPack support
-3. **Publisher Studio** (Future) - Create and distribute custom content catalogs
+3. **Hotkeys Editor** - Customize in-game hotkeys and generate overlay textures
+4. **Publisher Studio** (Future) - Create and distribute custom content catalogs
 
 All tools are accessible from the **TOOLS** tab in the GenHub interface and share common features like cloud uploading, import/export capabilities, and seamless integration with game profiles.
 
@@ -101,6 +102,22 @@ MapPacks are a unique feature that allows you to create named collections of map
 - Validate maps before distribution to prevent crashes
 
 [View Full Map Manager Documentation](./map-manager.md)
+
+---
+
+## Hotkeys Editor
+
+The Visual Hotkeys Editor allows visual configuration of unit, structure, upgrade, and ability hotkeys for C&C Generals and Zero Hour.
+
+### Key Features
+
+- **Visual hotkey customization** across all factions and categories
+- **Live conflict detection** with Next Conflict traversal
+- **Overlay button generator** for in-game visual hotkey badge reminders
+- **Direct .big packaging** with priority loading (`!Hotkeys_...`)
+- **Addon manifest lifecycle** with in-place updates and profile integration
+
+[View Full Hotkeys Editor Documentation](./hotkeys-editor.md)
 
 ---
 

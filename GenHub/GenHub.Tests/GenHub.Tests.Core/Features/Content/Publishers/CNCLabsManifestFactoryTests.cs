@@ -1,8 +1,3 @@
-using System;
-using System.IO;
-using System.IO.Compression;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -12,8 +7,12 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.Publishers;
@@ -58,7 +57,9 @@ public sealed class CNCLabsManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifest = Assert.Single(await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+        Assert.True(result.Success);
+        var manifest = Assert.Single(result.Data!);
 
         // Assert
         var file = Assert.Single(manifest.Files);
@@ -98,7 +99,9 @@ public sealed class CNCLabsManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifest = Assert.Single(await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory));
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+        Assert.True(result.Success);
+        var manifest = Assert.Single(result.Data!);
 
         // Assert
         var file = Assert.Single(manifest.Files);

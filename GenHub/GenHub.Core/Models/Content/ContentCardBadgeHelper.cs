@@ -1,12 +1,12 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using GenHub.Core.Constants;
-using GenHub.Core.Extensions;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Results.Content;
 
 namespace GenHub.Core.Models.Content;
 
@@ -520,6 +520,34 @@ public static partial class ContentCardBadgeHelper
     {
         ArgumentNullException.ThrowIfNull(result);
         return IsGitHub(result) && !IsOfficialProvider(result);
+    }
+
+    /// <summary>
+    /// Checks whether the search result belongs to ModDB.
+    /// </summary>
+    /// <param name="result">The search result to check.</param>
+    /// <returns>True if the item belongs to ModDB; otherwise false.</returns>
+    public static bool IsModDb(ContentSearchResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return (result.ProviderName?.Equals(ModDBConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase) == true) ||
+               (result.ResolverId?.Contains(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase) == true) ||
+               (result.Id?.Contains(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase) == true) ||
+               (!string.IsNullOrEmpty(result.SourceUrl) &&
+                result.SourceUrl.Contains(ModDBConstants.DomainFragment, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether the search result allows user-defined content type selection and correction.
+    /// Official publishers (Generals Online, Community Outpost, The Super Hackers) lock their content type,
+    /// while community and third-party publishers (Generic GitHub, ModDB) allow user correction.
+    /// </summary>
+    /// <param name="result">The search result to check.</param>
+    /// <returns>True if the item allows changing its content type; otherwise false.</returns>
+    public static bool CanChangeContentType(ContentSearchResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return !IsOfficialProvider(result) && (IsGenericGitHub(result) || IsModDb(result));
     }
 
     private static bool HasMetadata(ContentSearchResult result, string key) =>

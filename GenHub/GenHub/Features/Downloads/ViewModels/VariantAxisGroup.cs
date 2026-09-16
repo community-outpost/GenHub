@@ -1,5 +1,5 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Downloads.ViewModels;
 

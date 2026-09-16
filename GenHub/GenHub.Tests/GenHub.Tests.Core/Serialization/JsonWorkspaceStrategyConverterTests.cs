@@ -1,5 +1,5 @@
-using System.Text.Json;
 using GenHub.Core.Models.Enums;
+using System.Text.Json;
 using Xunit;
 
 namespace GenHub.Tests.Core.Serialization;

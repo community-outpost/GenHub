@@ -1,49 +1,77 @@
 :root {
-    /* Primary Purple Tones */
-    --primary: #7c3aed;
+    /* Color Palette - Vibrant Gaming Dark Theme */
+    --primary: #8b5cf6;
     --primary-dark: #6d28d9;
-    --primary-light: #a78bfa;
-    --primary-glow: rgba(124, 58, 237, 0.4);
+    --primary-light: #c4b5fd;
+    --primary-glow: rgba(139, 92, 246, 0.35);
     
-    /* Accent Colors */
-    --accent: #a855f7;
-    --accent-glow: rgba(168, 85, 247, 0.3);
+    /* Accents */
+    --accent-purple: #a855f7;
+    --accent-cyan: #38bdf8;
+    --accent-cyan-glow: rgba(56, 189, 248, 0.25);
+    --accent-emerald: #10b981;
+    --accent-emerald-glow: rgba(16, 185, 129, 0.25);
+    --accent-amber: #f59e0b;
+    --accent-rose: #f43f5e;
     --success: #10b981;
     
-    /* Purple-tinted Backgrounds */
-    --bg-deep: #0a0612;
-    --bg-dark: #100a1f;
-    --bg-card: rgba(25, 15, 45, 0.6);
-    --bg-card-solid: #1a0f2e;
-    --bg-elevated: rgba(30, 20, 55, 0.8);
+    /* Deep Cosmic Backgrounds */
+    --bg-deep: #07040d;
+    --bg-dark: #0d081a;
+    --bg-surface: rgba(19, 13, 36, 0.72);
+    --bg-surface-elevated: rgba(27, 18, 52, 0.85);
+    --bg-card: rgba(22, 14, 44, 0.6);
+    --bg-card-hover: rgba(32, 20, 62, 0.85);
+    --bg-card-solid: #150d27;
     
     /* Glass Effect */
-    --glass-bg: rgba(20, 10, 40, 0.4);
-    --glass-border: rgba(124, 58, 237, 0.2);
-    --glass-highlight: rgba(167, 139, 250, 0.08);
+    --glass-bg: rgba(20, 13, 38, 0.65);
+    --glass-border: rgba(139, 92, 246, 0.22);
+    --glass-border-hover: rgba(168, 85, 247, 0.5);
+    --glass-highlight: rgba(196, 181, 253, 0.1);
     
-    /* Text Colors */
-    --text-main: #f0f4ff;
-    --text-secondary: #c7d2fe;
-    --text-muted: #7c8db5;
+    /* Typography */
+    --text-main: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     
     /* Borders */
-    --border: rgba(124, 58, 237, 0.25);
-    --border-subtle: rgba(167, 139, 250, 0.08);
+    --border: rgba(139, 92, 246, 0.22);
+    --border-subtle: rgba(139, 92, 246, 0.12);
+    --border-bright: rgba(168, 85, 247, 0.6);
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%);
-    --gradient-glow: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(168, 85, 247, 0.15) 100%);
-    --gradient-text: linear-gradient(135deg, #f0f4ff 0%, #d8b4fe 50%, #a78bfa 100%);
+    --gradient-primary: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
+    --gradient-accent: linear-gradient(135deg, #a855f7 0%, #38bdf8 100%);
+    --gradient-cyan: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+    --gradient-emerald: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    --gradient-glow: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(56, 189, 248, 0.12) 100%);
+    --gradient-text: linear-gradient(135deg, #ffffff 0%, #e2e8f0 40%, #c4b5fd 100%);
+    --gradient-card-border: linear-gradient(135deg, rgba(139, 92, 246, 0.5), rgba(56, 189, 248, 0.2), rgba(139, 92, 246, 0.1));
     
     /* Shadows */
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
-    --shadow-glow: 0 0 40px var(--primary-glow), 0 0 80px rgba(124, 58, 237, 0.2);
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 35px var(--primary-glow), 0 0 70px rgba(139, 92, 246, 0.15);
+    --shadow-cyan-glow: 0 0 30px var(--accent-cyan-glow);
     
     /* Blur */
     --blur-sm: 8px;
     --blur-md: 16px;
-    --blur-lg: 24px;
+    --blur-lg: 28px;
+    
+    /* Radii */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-full: 9999px;
+    
+    /* Transitions */
+    --transition-fast: 0.18s ease;
+    --transition-base: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }

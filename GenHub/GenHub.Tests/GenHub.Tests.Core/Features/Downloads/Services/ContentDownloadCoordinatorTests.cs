@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
@@ -13,6 +9,10 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Downloads.Services;

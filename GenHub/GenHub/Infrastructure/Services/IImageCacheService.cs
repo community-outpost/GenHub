@@ -1,6 +1,6 @@
+using Avalonia.Media.Imaging;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Media.Imaging;
 
 namespace GenHub.Infrastructure.Services;
 

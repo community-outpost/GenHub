@@ -7,6 +7,9 @@ namespace GenHub.Features.Tools.ModBuilder.Controls;
 /// </summary>
 public partial class FileTreeItem : UserControl
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FileTreeItem"/> class.
+    /// </summary>
     public FileTreeItem()
     {
         InitializeComponent();

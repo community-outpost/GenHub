@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -10,6 +7,9 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Theming;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Common.Services;
 
@@ -129,8 +129,8 @@ public class ThemeService(
             resources[ThemeResourceKeys.SidebarItemSelectedBorder] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.SidebarGlassBorderBrush] = new SolidColorBrush(glassBorderColor);
             resources[ThemeResourceKeys.ComboBoxItemBackgroundSelected] = new SolidColorBrush(badgeBgColor);
-            resources[ThemeResourceKeys.ComboBoxItemBackgroundSelectedPointerOver] = new SolidColorBrush(primaryColor);
-            resources[ThemeResourceKeys.ComboBoxItemBackgroundPointerOver] = new SolidColorBrush(primaryColor);
+            resources[ThemeResourceKeys.ComboBoxItemBackgroundSelectedPointerOver] = new SolidColorBrush(tintBgColor);
+            resources[ThemeResourceKeys.ComboBoxItemBackgroundPointerOver] = new SolidColorBrush(tintBgColor);
             resources[ThemeResourceKeys.ComboBoxItemForegroundPointerOver] = new SolidColorBrush(Colors.White);
             resources[ThemeResourceKeys.ExpanderHeaderBackgroundPointerOver] = new SolidColorBrush(tintBgColor);
             resources[ThemeResourceKeys.ExpanderHeaderBackgroundPressed] = new SolidColorBrush(badgeBgColor);

@@ -1,8 +1,8 @@
-#pragma warning disable CS0618 // Type or member is obsolete
-
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
+
+#pragma warning disable CS0618 // Type or member is obsolete
 
 namespace GenHub.Core.Models.Common;
 

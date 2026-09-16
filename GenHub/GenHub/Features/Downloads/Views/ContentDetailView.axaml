@@ -1539,7 +1539,7 @@
                                     <TextBlock Grid.Column="1" Text="{Binding LastUpdatedDisplay}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
                                 </Grid>
 
-                                <!-- Content type can only be corrected before download for generic GitHub items.
+                                <!-- Content type can be corrected for community and third-party publishers (Generic GitHub, ModDB).
                                      Official providers (Generals Online, Community Outpost, The Super Hackers) are locked. -->
                                 <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
                                     <TextBlock Grid.Column="0" Text="Type" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>

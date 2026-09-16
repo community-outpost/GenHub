@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Content;
 
@@ -46,10 +47,10 @@ public interface IPublisherManifestFactory
     /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>
-    /// One or more manifests with file hashes and sizes. Multi-variant content
+    /// An operation result containing one or more manifests with file hashes and sizes. Multi-variant content
     /// (e.g., separate Generals and Zero Hour executables) may return multiple manifests.
     /// </returns>
-    Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default);

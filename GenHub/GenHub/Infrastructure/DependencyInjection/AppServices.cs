@@ -48,6 +48,7 @@ public static class AppServices
         services.AddUploadThingServices(); // Shared cloud upload service
         services.AddReplayManagerServices();
         services.AddMapManager();
+        services.AddGenHotkeys();
         services.AddModBuilder();
 
         // Register Notification services

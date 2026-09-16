@@ -1,8 +1,8 @@
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Storage;
 
 namespace GenHub.Core.Interfaces.Storage;
 

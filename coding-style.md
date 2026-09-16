@@ -95,6 +95,11 @@ and additional project-specific preferences aligned with StyleCop, DeepSource, a
 - **Time and Dates**: Always use `DateTime.UtcNow` or `DateTimeOffset.UtcNow` for timestamps, file manifests, and metrics. Never use local `DateTime.Now`.
 - **Concurrency & Locking**: Never lock on `this`, `typeof(...)`, or string literals. Use a dedicated `private readonly object _syncLock = new();` or asynchronous synchronization primitives like `SemaphoreSlim`.
 - **Cancellation**: Long-running or asynchronous operations must accept and propagate a `CancellationToken`.
+- **No Unicode Emojis**: Never use emojis in code, comments, log messages, UI strings, dialogs, or documentation. Use clean semantic text or vector icons.
+- **User Notifications & Feedback**:
+  - Always inject `INotificationService` and dispatch toast notifications (`ShowSuccess`, `ShowInfo`, `ShowWarning`, `ShowError`) for user actions, operation outcomes, warnings, and errors.
+  - Never introduce one-off status labels, status textblocks, or `StatusMessage` / `StatusText` UI properties to display action results. Status labels are an anti-pattern.
+  - Use `NotificationDurations` constants (`Short`, `Medium`, `Long`, `VeryLong`, `Critical`) for timeout durations.
 
 ---
 

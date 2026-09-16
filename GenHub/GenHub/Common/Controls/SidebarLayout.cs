@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -8,6 +6,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using System;
+using System.Collections;
 
 namespace GenHub.Common.Controls;
 

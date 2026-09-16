@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
@@ -17,6 +9,14 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -570,7 +570,7 @@ public class GenericCatalogDiscoverer(
                     [
                         new CatalogDependency
                         {
-                            PublisherId = "ea",
+                            PublisherId = PublisherTypeConstants.Ea,
                             ContentId = item.TargetGame == GameType.Generals ? ContentConstants.GeneralsGameSegment : ContentConstants.ZeroHourGameSegment,
                             VersionConstraint = item.TargetGame == GameType.Generals ? "1.08" : "1.04",
                             ContentType = ContentType.GameInstallation.ToString(),
@@ -891,7 +891,7 @@ public class GenericCatalogDiscoverer(
                 {
                     return new CatalogDependency
                     {
-                        PublisherId = dep.PublisherId ?? "ea",
+                        PublisherId = dep.PublisherId ?? PublisherTypeConstants.Ea,
                         ContentId = siblingTargetGame == GameType.Generals ? ContentConstants.GeneralsGameSegment : ContentConstants.ZeroHourGameSegment,
                         VersionConstraint = siblingTargetGame == GameType.Generals ? "1.08" : "1.04",
                         ContentType = ContentType.GameInstallation.ToString(),

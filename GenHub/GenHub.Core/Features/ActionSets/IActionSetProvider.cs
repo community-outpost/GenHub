@@ -1,6 +1,6 @@
-namespace GenHub.Core.Features.ActionSets;
-
 using System.Collections.Generic;
+
+namespace GenHub.Core.Features.ActionSets;
 
 /// <summary>
 /// Defines a provider for discovering ActionSets.

@@ -1,6 +1,3 @@
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text.Json;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -24,6 +21,9 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Text.Json;
 
 namespace GenHub.Tests.Core.Features.Launching;
 

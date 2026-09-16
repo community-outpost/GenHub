@@ -1,11 +1,11 @@
+using GenHub.Features.Info.Services;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Features.Info.Services;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Info.Services;

@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -20,6 +14,12 @@ using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using ContentState = GenHub.Core.Models.Enums.ContentState;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -75,6 +75,49 @@ public class DownloadsBrowserViewModelTests
         // Assert
         Assert.True(viewModel.CanSearch);
         Assert.True(viewModel.CanShowFilters);
+    }
+
+    /// <summary>
+    /// Verifies that the ModDB browse experience exposes search and filters.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SelectPublisher_ModDB_ExposesSearchAndFiltersAsync()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        await viewModel.InitializeAsync();
+
+        // Act
+        viewModel.SelectedPublisher = viewModel.Publishers.Single(
+            p => p.PublisherId == ModDBConstants.PublisherType);
+
+        // Assert
+        Assert.True(viewModel.CanSearch);
+        Assert.True(viewModel.CanShowFilters);
+    }
+
+    /// <summary>
+    /// Verifies that searching a direct ModDB URL auto-switches to the ModDB publisher.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SearchAsync_DirectModDBUrl_SwitchesToModDBPublisherAsync()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectedPublisher = viewModel.Publishers.Single(
+            p => p.PublisherId == GitHubTopicsConstants.PublisherType);
+
+        viewModel.SearchTerm = "https://www.moddb.com/mods/rise-of-the-reds";
+
+        // Act
+        await viewModel.SearchCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(ModDBConstants.PublisherType, viewModel.SelectedPublisher?.PublisherId);
     }
 
     /// <summary>

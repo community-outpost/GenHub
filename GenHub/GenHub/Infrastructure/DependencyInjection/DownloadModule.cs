@@ -1,11 +1,11 @@
-using System;
-using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

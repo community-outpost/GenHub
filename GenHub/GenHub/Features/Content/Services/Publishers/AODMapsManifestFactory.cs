@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -14,8 +6,17 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using Slugify;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -40,7 +41,7 @@ public partial class AODMapsManifestFactory(
     }
 
     /// <inheritdoc />
-    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -55,8 +56,8 @@ public partial class AODMapsManifestFactory(
     /// <param name="extractedDirectory">The directory where content was extracted.</param>
     /// <param name="progress">Progress reporter for tracking progress.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of enriched content manifests.</returns>
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    /// <returns>A result containing a list of enriched content manifests.</returns>
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -67,21 +68,28 @@ public partial class AODMapsManifestFactory(
         if (!Directory.Exists(extractedDirectory))
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
         if (zipFiles.Length == 0)
         {
             logger.LogDebug("No ZIP files found in directory {Directory}, returning original manifest", extractedDirectory);
-            return [originalManifest];
+            return OperationResult<List<ContentManifest>>.CreateSuccess([originalManifest]);
         }
 
         foreach (var zipPath in zipFiles)
         {
             var extractPath = Path.Combine(extractedDirectory, Path.GetFileNameWithoutExtension(zipPath));
             Directory.CreateDirectory(extractPath);
-            ExtractZipSafely(zipPath, extractPath);
+            var extractResult = ExtractZipSafely(zipPath, extractPath);
+            if (!extractResult.Success)
+            {
+                logger.LogWarning("Failed to safely extract ZIP {ZipPath}: {Error}", zipPath, extractResult.FirstError);
+                return OperationResult<List<ContentManifest>>.CreateFailure(
+                    extractResult.FirstError ?? $"Failed to safely extract ZIP: {zipPath}");
+            }
+
             File.Delete(zipPath);
         }
 
@@ -105,10 +113,10 @@ public partial class AODMapsManifestFactory(
         if (files.Count == 0)
         {
             logger.LogWarning("AODMaps archive contained no files in directory {Directory}", extractedDirectory);
-            throw new InvalidDataException("AODMaps archive contained no files.");
+            return OperationResult<List<ContentManifest>>.CreateFailure("AODMaps archive contained no files.");
         }
 
-        return
+        return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
             new ContentManifest
             {
@@ -130,7 +138,7 @@ public partial class AODMapsManifestFactory(
                 RequiredDirectories = originalManifest.RequiredDirectories,
                 InstallationInstructions = originalManifest.InstallationInstructions,
             },
-        ];
+        ]);
     }
 
     /// <inheritdoc />
@@ -265,7 +273,7 @@ public partial class AODMapsManifestFactory(
         return builder;
     }
 
-    private static void ExtractZipSafely(string zipPath, string extractPath)
+    private static OperationResult ExtractZipSafely(string zipPath, string extractPath)
     {
         using var archive = ZipFile.OpenRead(zipPath);
         var rootPath = Path.GetFullPath(extractPath) + Path.DirectorySeparatorChar;
@@ -274,7 +282,7 @@ public partial class AODMapsManifestFactory(
             var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.FullName));
             if (!destinationPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidDataException($"ZIP entry has an unsafe path: {entry.FullName}");
+                return OperationResult.CreateFailure($"ZIP entry has an unsafe path: {entry.FullName}");
             }
 
             var dir = Path.GetDirectoryName(destinationPath);
@@ -285,5 +293,7 @@ public partial class AODMapsManifestFactory(
 
             entry.ExtractToFile(destinationPath, overwrite: true);
         }
+
+        return OperationResult.CreateSuccess();
     }
 }

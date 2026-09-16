@@ -1,5 +1,7 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Constants;
+using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,10 +9,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.GameInstallations;
-using Microsoft.Extensions.Logging;
-using SharpCompress.Archives;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Downloads and installs custom widescreen window definitions and the expanded LAN lobby menu addon.

@@ -1,8 +1,8 @@
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Features.Info.Services;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Info;

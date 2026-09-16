@@ -1,7 +1,7 @@
-namespace GenHub.Core.Interfaces.Content;
-
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.Content;
+
+namespace GenHub.Core.Interfaces.Content;
 
 /// <summary>
 /// Service to determine the current state of content for UI display.
@@ -19,7 +19,8 @@ public interface IContentStateService
     /// <param name="contentId">The ID of the content that changed.</param>
     /// <param name="newState">The new state of the content.</param>
     /// <param name="manifestId">The manifest ID if available.</param>
-    void NotifyStateChanged(string contentId, ContentState newState, string? manifestId = null);
+    /// <param name="moddbId">The stable ModDB ID if available.</param>
+    void NotifyStateChanged(string contentId, ContentState newState, string? manifestId = null, string? moddbId = null);
 
     /// <summary>
     /// Gets the state for a content search result.

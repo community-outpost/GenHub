@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Resources;
 using Avalonia;
 using GenHub.Common.Markup;
 using GenHub.Common.Services;
@@ -11,6 +5,12 @@ using GenHub.Core.Constants;
 using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Resources;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Services;

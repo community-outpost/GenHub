@@ -1,14 +1,16 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Publishers;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentProviders;
 
@@ -20,6 +22,7 @@ public class ModDBContentProvider(
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
+    ModDBManifestFactory manifestFactory,
     ILogger<ModDBContentProvider> logger,
     IContentValidator contentValidator,
     IInstallationInstructionsService installationInstructionsService)
@@ -82,11 +85,14 @@ public class ModDBContentProvider(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        // Implementation-specific content preparation for ModDB
-        Logger.LogDebug("Preparing ModDB content for manifest {ManifestId}", manifest.Id);
+        Logger.LogInformation("Preparing ModDB content: {ManifestId} ({Name})", manifest.Id, manifest.Name);
 
-        // For now, return the manifest as-is since ModDB content preparation
-        // would be implemented based on ModDB's specific requirements
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        return DeliverAndEnrichContentAsync(
+            _httpDeliverer,
+            manifestFactory,
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken);
     }
 }

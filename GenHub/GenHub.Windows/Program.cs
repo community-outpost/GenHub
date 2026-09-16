@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Avalonia;
 using DotNetEnv;
 using GenHub.Core.Constants;
@@ -9,6 +7,8 @@ using GenHub.Windows.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Linq;
 using Velopack;
 
 namespace GenHub.Windows;

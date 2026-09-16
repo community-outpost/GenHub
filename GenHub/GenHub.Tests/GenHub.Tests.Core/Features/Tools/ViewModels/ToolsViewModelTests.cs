@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools;
@@ -8,6 +5,9 @@ using GenHub.Features.Tools.ViewModels;
 using GenHub.Tests.Core.Features.Tools.Mocks;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ViewModels;

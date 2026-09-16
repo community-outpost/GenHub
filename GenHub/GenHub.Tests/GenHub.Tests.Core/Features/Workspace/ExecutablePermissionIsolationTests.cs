@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Manifest;
@@ -8,6 +5,9 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Workspace;

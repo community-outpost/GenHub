@@ -1,13 +1,13 @@
-namespace GenHub.Tests.Windows.Features.ActionSets.Fixes;
-
-using System.IO;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Windows.Features.ActionSets.Fixes;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.IO;
+using System.Threading.Tasks;
 using Xunit;
+
+namespace GenHub.Tests.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Unit tests for <see cref="OneDriveFix"/>.

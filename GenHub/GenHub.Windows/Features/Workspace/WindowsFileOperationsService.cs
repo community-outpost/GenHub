@@ -1,8 +1,3 @@
-using System;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
@@ -10,6 +5,11 @@ using GenHub.Core.Models.Enums;
 using GenHub.Features.Workspace;
 using GenHub.Windows.Constants;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Windows.Features.Workspace;
 
@@ -130,6 +130,18 @@ public partial class WindowsFileOperationsService(
 
                     casSourcePath = pathResult.Data;
                     logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
+
+                    sameVolume = FileOperationsService.AreSameVolume(casSourcePath, destinationPath);
+                    if (!sameVolume)
+                    {
+                        logger.LogWarning(
+                            "Content {Hash} at {NewPath} is still on volume {SourceVolume} after migration, while workspace is on {DestVolume}. Hard link cannot cross volumes.",
+                            hash,
+                            casSourcePath,
+                            Path.GetPathRoot(casSourcePath),
+                            destRoot);
+                        return false;
+                    }
                 }
                 else if (!sameVolume)
                 {
@@ -138,7 +150,7 @@ public partial class WindowsFileOperationsService(
 
                     // Exception will be caught and logged by the outer catch block
                     throw new IOException(errorMessage);
-            }
+                }
             }
 
             FileOperationsService.EnsureDirectoryExists(destinationPath);

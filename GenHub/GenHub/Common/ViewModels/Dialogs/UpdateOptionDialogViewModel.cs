@@ -1,8 +1,8 @@
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
+using System.Threading.Tasks;
 
 namespace GenHub.Common.ViewModels.Dialogs;
 

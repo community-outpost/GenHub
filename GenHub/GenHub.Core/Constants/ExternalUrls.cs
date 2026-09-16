@@ -1,6 +1,6 @@
-namespace GenHub.Core.Constants;
-
 using System.Diagnostics.CodeAnalysis;
+
+namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for external URLs used for downloading dependencies or tools.

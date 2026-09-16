@@ -1,6 +1,6 @@
-using System.Threading.Tasks;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Shortcuts;
 

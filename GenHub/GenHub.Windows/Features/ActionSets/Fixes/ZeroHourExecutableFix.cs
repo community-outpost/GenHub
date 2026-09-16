@@ -1,11 +1,11 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix that ensures that Zero Hour executable is properly patched.

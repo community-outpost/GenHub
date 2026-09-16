@@ -1,6 +1,3 @@
-namespace GenHub.Tests.Windows.Features.ActionSets.Fixes;
-
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -8,7 +5,10 @@ using GenHub.Windows.Features.ActionSets.Fixes;
 using GenHub.Windows.Features.ActionSets.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Threading.Tasks;
 using Xunit;
+
+namespace GenHub.Tests.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Unit tests for <see cref="PreferIPv4Fix"/>.

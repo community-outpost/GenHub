@@ -10,16 +10,21 @@ namespace GenHub.Infrastructure.Converters;
 /// </summary>
 public class FileIconConverter : IMultiValueConverter
 {
+    /// <inheritdoc/>
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values.Count < 2)
+        {
             return "📄";
+        }
 
         var isDirectory = values[0] as bool? ?? false;
         var extension = values[1] as string ?? string.Empty;
 
         if (isDirectory)
+        {
             return "📁";
+        }
 
         return extension.ToLowerInvariant() switch
         {
@@ -31,7 +36,7 @@ public class FileIconConverter : IMultiValueConverter
             "txt" or "md" or "log" => "📝",
             "big" => "📦",
             "zip" or "rar" or "7z" => "🗜️",
-            _ => "📄"
+            _ => "📄",
         };
     }
 }

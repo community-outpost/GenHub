@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -12,6 +7,11 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.ContentProviders;
 
@@ -393,12 +393,19 @@ public abstract class BaseContentProvider : IContentProvider
                     $"Content delivery failed: {deliveryResult.FirstError}");
             }
 
-            var extractedManifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+            var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 manifest,
                 workingDirectory,
                 cancellationToken).ConfigureAwait(false);
 
-            var resultManifest = extractedManifests.Count > 0 ? extractedManifests[0] : (deliveryResult.Data ?? manifest);
+            if (!manifestResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Content preparation failed: {manifestResult.FirstError}");
+            }
+
+            var extractedManifests = manifestResult.Data;
+            var resultManifest = extractedManifests is { Count: > 0 } ? extractedManifests[0] : (deliveryResult.Data ?? manifest);
 
             Logger.LogInformation(
                 "Successfully prepared {SourceName} content {ManifestId} with {FileCount} files",

@@ -1,5 +1,3 @@
-using System.Net.Http;
-using System.Text.Json;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -9,6 +7,8 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net.Http;
+using System.Text.Json;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -443,6 +443,76 @@ public sealed class ContentGridItemViewModelTests
         Assert.Equal("1.20260807.moddb.mod.generalsundonev101patch", viewModel.SearchResult.Id);
         Assert.False(viewModel.ShowDownloadButton);
         Assert.True(viewModel.ShowAddToProfileButton);
+    }
+
+    /// <summary>
+    /// Verifies that OnContentStateChanged updates state when there is an explicit type mismatch
+    /// but the stable ModDB ID matches via event args.
+    /// </summary>
+    [Fact]
+    public void OnContentStateChanged_WhenExplicitModDbTypeMismatchAndModDbIdMatches_UpdatesState()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "moddb.map.314093",
+            Name = "Generals Undone",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+        };
+        searchResult.ResolverMetadata[ContentConstants.ExplicitContentTypeMetadataKey] = "true";
+        searchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "314093";
+
+        var stateService = new Mock<IContentStateService>();
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+        viewModel.Initialize();
+
+        var eventArgs = new ContentStateChangedEventArgs(
+            "1.20260807.moddb.mod.generalsundone",
+            ContentState.Downloaded,
+            "1.20260807.moddb.mod.generalsundone",
+            "314093");
+
+        stateService.Raise(s => s.ContentStateChanged += null, eventArgs);
+
+        Assert.Equal(ContentState.Downloaded, viewModel.CurrentState);
+        Assert.True(viewModel.IsDownloaded);
+        Assert.Equal("1.20260807.moddb.mod.generalsundone", viewModel.SearchResult.Id);
+    }
+
+    /// <summary>
+    /// Verifies that OnContentStateChanged does NOT update state when content type mismatches
+    /// and stable ModDB ID differs, even if the item names match.
+    /// </summary>
+    [Fact]
+    public void OnContentStateChanged_WhenModDbTypeMismatchAndModDbIdDiffers_DoesNotUpdateStateEvenIfTitleMatches()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "moddb.map.314093",
+            Name = "Generals Undone",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+        };
+        searchResult.ResolverMetadata[ContentConstants.ExplicitContentTypeMetadataKey] = "true";
+        searchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "314093";
+
+        var stateService = new Mock<IContentStateService>();
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+        viewModel.Initialize();
+
+        // Download event for a different item with same title but type Mod and different ModDB ID
+        var eventArgs = new ContentStateChangedEventArgs(
+            "1.20260807.moddb.mod.generalsundone",
+            ContentState.Downloaded,
+            "1.20260807.moddb.mod.generalsundone",
+            "999999");
+
+        stateService.Raise(s => s.ContentStateChanged += null, eventArgs);
+
+        Assert.Equal(ContentState.NotDownloaded, viewModel.CurrentState);
+        Assert.False(viewModel.IsDownloaded);
     }
 
     /// <summary>

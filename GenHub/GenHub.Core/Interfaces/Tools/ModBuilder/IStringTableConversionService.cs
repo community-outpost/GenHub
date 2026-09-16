@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Results;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Tools.ModBuilder;
 

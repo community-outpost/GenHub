@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
@@ -12,6 +5,13 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
 
@@ -122,13 +122,16 @@ public sealed class ReplayExportService(
         IProgress<double>? progress,
         CancellationToken ct)
     {
-        if (replayList.Count == 1 && replayList[0].FileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
+        if (replayList.Count == 1 &&
+            (replayList[0].FileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+             replayList[0].FileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+             replayList[0].FileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase)))
         {
             var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
             if (!isValid)
             {
-                logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
-                throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
+                logger.LogError("Archive validation failed for upload: {Error}", errorMessage);
+                throw new ArgumentException(errorMessage ?? "Invalid archive for upload.");
             }
 
             return (replayList[0].FullPath, false, progress);

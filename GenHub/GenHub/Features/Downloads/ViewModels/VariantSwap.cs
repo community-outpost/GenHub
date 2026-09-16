@@ -1,7 +1,7 @@
+using GenHub.Core.Models.Results.Content;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using GenHub.Core.Models.Results.Content;
 
 namespace GenHub.Features.Downloads.ViewModels;
 

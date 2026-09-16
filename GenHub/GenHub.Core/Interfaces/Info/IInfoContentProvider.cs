@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Info;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Info;
 
 namespace GenHub.Core.Interfaces.Info;
 

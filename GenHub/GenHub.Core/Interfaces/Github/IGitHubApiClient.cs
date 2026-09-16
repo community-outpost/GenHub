@@ -1,5 +1,5 @@
-using System.Security;
 using GenHub.Core.Models.GitHub;
+using System.Security;
 
 namespace GenHub.Core.Interfaces.GitHub;
 

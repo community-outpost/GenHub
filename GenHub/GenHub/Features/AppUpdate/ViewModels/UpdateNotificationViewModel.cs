@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Input;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,6 +8,15 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Input;
 using Velopack;
 using Velopack.Sources;
 
@@ -356,6 +356,30 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         // automatically check for updates and load prs when dialog opens
         _ = InitializeAsync();
+    }
+
+    private static void RunOnUi(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    private static async Task RunOnUiAsync(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
     }
 
     private async Task LoadArtifactsForSubscribedItemAsync()
@@ -1337,30 +1361,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         HasError = false;
         ErrorMessage = string.Empty;
         LatestVersion = string.Empty;
-    }
-
-    private static void RunOnUi(Action action)
-    {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(action);
-        }
-    }
-
-    private static async Task RunOnUiAsync(Action action)
-    {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(action);
-        }
     }
 
     partial void OnIsCheckingChanged(bool value)

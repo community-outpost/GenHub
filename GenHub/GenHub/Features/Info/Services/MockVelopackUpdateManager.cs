@@ -1,13 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Velopack;
 
 namespace GenHub.Features.Info.Services;

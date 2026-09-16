@@ -1,15 +1,15 @@
-namespace GenHub.Tests.Core.Features.ActionSets;
-
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
+
+namespace GenHub.Tests.Core.Features.ActionSets;
 
 /// <summary>
 /// Unit tests for <see cref="ActionSetOrchestrator"/>.

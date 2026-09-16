@@ -1,8 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
@@ -10,6 +5,11 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -123,7 +123,9 @@ public sealed class GitHubManifestFactoryTests : IDisposable
             .ReturnsAsync("sha256-hash");
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Single(manifests);
@@ -170,7 +172,9 @@ public sealed class GitHubManifestFactoryTests : IDisposable
             .ReturnsAsync(new[] { "340_ControlBarProZH.big" });
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(manifest, _tempDirectory);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Single(manifests);

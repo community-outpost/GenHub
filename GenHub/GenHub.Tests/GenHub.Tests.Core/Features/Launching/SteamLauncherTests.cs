@@ -156,11 +156,11 @@ public sealed class SteamLauncherTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies an uncertain pre-existing backup prevents preparation without changing either executable.
+    /// Verifies preparation refreshes a stale backup from the genuine game executable and deploys the proxy.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task PrepareForProfileAsync_UnrelatedPreExistingBackup_FailsWithoutMutationAsync()
+    public async Task PrepareForProfileAsync_WhenTargetIsGenuineAndBackupExists_RefreshesBackupAndDeploysProxyAsync()
     {
         // Arrange
         var backupPath = _originalExecutablePath + SteamConstants.BackupExtension;
@@ -171,20 +171,19 @@ public sealed class SteamLauncherTests : IDisposable
         var result = await PrepareAsync(CreateLauncher());
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Contains("unverified pre-existing backup", result.AllErrors);
-        Assert.Equal("current executable", File.ReadAllText(_originalExecutablePath));
-        Assert.Equal("stale pre-existing backup", File.ReadAllText(backupPath));
-        Assert.False(File.Exists(Path.Combine(_gameInstallPath, "proxy_config.json")));
+        Assert.True(result.Success, result.AllErrors);
+        Assert.Equal("proxy executable", File.ReadAllText(_originalExecutablePath));
+        Assert.Equal("current executable", File.ReadAllText(backupPath));
+        Assert.True(File.Exists(Path.Combine(_gameInstallPath, "proxy_config.json")));
         Assert.Empty(GetRollbackArtifacts());
     }
 
     /// <summary>
-    /// Verifies cleanup preserves an unrelated backup instead of overwriting a valid executable.
+    /// Verifies cleanup preserves genuine executable, removes stale backup and proxy artifacts, and succeeds.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CleanupGameDirectoryAsync_UnrelatedBackup_PreservesExecutableAndArtifactsAsync()
+    public async Task CleanupGameDirectoryAsync_WhenTargetIsGenuineAndBackupExists_CleansArtifactsAndPreservesExecutableAsync()
     {
         // Arrange
         var backupPath = _originalExecutablePath + SteamConstants.BackupExtension;
@@ -198,10 +197,32 @@ public sealed class SteamLauncherTests : IDisposable
             ExecutableName);
 
         // Assert
-        Assert.False(result.Success);
+        Assert.True(result.Success, result.AllErrors);
         Assert.Equal("original executable", File.ReadAllText(_originalExecutablePath));
-        Assert.Equal("stale pre-existing backup", File.ReadAllText(backupPath));
-        Assert.Equal("pre-existing config", File.ReadAllText(configPath));
+        Assert.False(File.Exists(backupPath));
+        Assert.False(File.Exists(configPath));
+    }
+
+    /// <summary>
+    /// Verifies cleanup removes identical duplicate backup and succeeds.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupGameDirectoryAsync_IdenticalBackup_DeletesDuplicateBackupAndSucceedsAsync()
+    {
+        // Arrange
+        var backupPath = _originalExecutablePath + SteamConstants.BackupExtension;
+        File.WriteAllText(backupPath, "original executable");
+
+        // Act
+        var result = await CreateLauncher().CleanupGameDirectoryAsync(
+            _gameInstallPath,
+            ExecutableName);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.Equal("original executable", File.ReadAllText(_originalExecutablePath));
+        Assert.False(File.Exists(backupPath));
     }
 
     /// <summary>

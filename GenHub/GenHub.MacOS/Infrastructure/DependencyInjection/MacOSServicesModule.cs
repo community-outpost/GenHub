@@ -1,5 +1,3 @@
-using System;
-using System.Runtime.Versioning;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
@@ -15,6 +13,8 @@ using GenHub.MacOS.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Runtime.Versioning;
 
 namespace GenHub.MacOS.Infrastructure.DependencyInjection;
 

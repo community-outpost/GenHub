@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
+using System.Collections.Generic;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels.Wizard;

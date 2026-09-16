@@ -1,10 +1,3 @@
-using System;
-using System.IO;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 using GenHub.Core.Constants;
@@ -12,6 +5,13 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.Services;
 using Moq;
 using Moq.Protected;
+using System;
+using System.IO;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Services;

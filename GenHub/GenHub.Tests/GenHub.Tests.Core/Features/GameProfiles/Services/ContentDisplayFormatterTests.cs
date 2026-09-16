@@ -7,7 +7,6 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using Moq;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.Services;

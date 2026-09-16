@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Content;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Downloads.ViewModels.Filters;
 

@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Manifest;
 using System;
 using System.Collections.Generic;
-using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Models.Content;
 

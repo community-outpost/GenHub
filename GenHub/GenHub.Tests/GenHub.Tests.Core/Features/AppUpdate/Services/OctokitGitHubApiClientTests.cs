@@ -1,10 +1,10 @@
-using System.Net;
-using System.Security;
 using FluentAssertions;
 using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net;
+using System.Security;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 

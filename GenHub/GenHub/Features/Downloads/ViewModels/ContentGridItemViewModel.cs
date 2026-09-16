@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -22,6 +15,13 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
@@ -551,7 +551,7 @@ public sealed partial class ContentGridItemViewModel(
         RunOnUi(() =>
         {
             HasActiveDownloads = true;
-            if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
+            if (IsMatchingDownloadMessage(message.ContentKey ?? string.Empty, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
             {
                 IsDownloading = true;
                 DownloadProgress = 0;
@@ -606,7 +606,7 @@ public sealed partial class ContentGridItemViewModel(
 
     private bool MatchesManifestOrMetadata(ContentStateChangedEventArgs e)
     {
-        if (string.IsNullOrEmpty(e.ManifestId))
+        if (string.IsNullOrEmpty(e.ManifestId) || SearchResult == null)
         {
             return false;
         }
@@ -614,10 +614,15 @@ public sealed partial class ContentGridItemViewModel(
         var segments = e.ManifestId.Split('.');
         if (segments.Length != 5 ||
             (!string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) &&
-             !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)) ||
-            !string.Equals(segments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase))
+             !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)))
         {
             return false;
+        }
+
+        var typeMatches = string.Equals(segments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase);
+        if (!typeMatches)
+        {
+            return MatchesResolverMetadata(e);
         }
 
         var manifestNormName = ContentStateService.NormalizeSegment(segments[4]);
@@ -639,10 +644,20 @@ public sealed partial class ContentGridItemViewModel(
 
     private bool MatchesKey(string key, ContentStateChangedEventArgs e)
     {
-        return SearchResult.ResolverMetadata?.TryGetValue(key, out var id) == true &&
-               !string.IsNullOrEmpty(id) &&
-               (e.ManifestId?.Contains(id, StringComparison.OrdinalIgnoreCase) == true ||
-                e.ContentId?.Contains(id, StringComparison.OrdinalIgnoreCase) == true);
+        if (SearchResult.ResolverMetadata?.TryGetValue(key, out var id) != true || string.IsNullOrEmpty(id))
+        {
+            return false;
+        }
+
+        if (string.Equals(key, ModDBConstants.ContentIdMetadataKey, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrEmpty(e.ModDbId) &&
+            string.Equals(e.ModDbId, id, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return e.ManifestId?.Contains(id, StringComparison.OrdinalIgnoreCase) == true ||
+               e.ContentId?.Contains(id, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <summary>

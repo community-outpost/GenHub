@@ -7,7 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="780"
         x:Class="GenHub.Features.Downloads.Views.ProfileSelectionView"
         x:DataType="vm:ProfileSelectionViewModel"
-        Title="Add to Profile"
+        Title="{Binding DialogTitle}"
         Width="1200" Height="780"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
@@ -109,7 +109,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
                 <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
                        Width="24" Height="24" />
-                <TextBlock Text="Add to Profile"
+                <TextBlock Text="{Binding DialogTitle}"
                            VerticalAlignment="Center"
                            FontSize="14" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimary}" />
@@ -199,11 +199,11 @@
             <Border Grid.Row="0" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,16">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Spacing="3">
-                        <TextBlock Text="Add to profile" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock Text="{Binding HeaderTitle}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                         <TextBlock Text="{Binding ContentName}" FontSize="13" Foreground="{DynamicResource AccentBrush}" TextTrimming="CharacterEllipsis"
                                    IsVisible="{Binding ContentName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="Click a profile to add it" Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding HeaderSubtitle}" Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" />
                 </Grid>
             </Border>
 
@@ -242,7 +242,7 @@
                                         <Grid>
                                             <profileViews:GameProfileCardView DataContext="{Binding ProfileCard}" IsHitTestVisible="False" />
                                             <Border Classes="action-badge" IsHitTestVisible="False" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="14" CornerRadius="14" Background="{DynamicResource AccentBrush}" Padding="10,5">
-                                                <TextBlock Text="Add" FontSize="11" FontWeight="Bold" Foreground="White" />
+                                                <TextBlock Text="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).ActionBadgeText}" FontSize="11" FontWeight="Bold" Foreground="White" />
                                             </Border>
                                         </Grid>
                                     </Button>
@@ -257,7 +257,7 @@
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
                                                 <TextBlock Text="+" FontSize="42" FontWeight="Light" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" />
                                                 <TextBlock Text="Create new profile" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
-                                                <TextBlock Text="Add this content to a fresh profile" FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).CreateProfileCardSubtitle}" FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" />
                                             </StackPanel>
                                         </Border>
                                     </Button>

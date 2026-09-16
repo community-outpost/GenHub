@@ -1,7 +1,7 @@
+using GenHub.Core.Models.Info;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Info;
 
 namespace GenHub.Features.Info.Services;
 

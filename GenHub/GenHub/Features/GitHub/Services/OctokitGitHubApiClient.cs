@@ -1,3 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Models.GitHub;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using Octokit;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,12 +13,6 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.GitHub;
-using GenHub.Core.Models.GitHub;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
-using Octokit;
 
 namespace GenHub.Features.GitHub.Services;
 

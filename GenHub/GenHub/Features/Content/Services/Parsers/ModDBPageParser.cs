@@ -1,3 +1,10 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Parsers;
+using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Parsers;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -7,13 +14,6 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp;
-using AngleSharp.Dom;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Parsers;
-using GenHub.Core.Interfaces.Tools;
-using GenHub.Core.Models.Parsers;
-using Microsoft.Extensions.Logging;
 using IDocument = AngleSharp.Dom.IDocument;
 
 namespace GenHub.Features.Content.Services.Parsers;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
@@ -62,6 +63,11 @@ public static class CommunityOutpostConstants
     /// Tag and content code for Community Patch items.
     /// </summary>
     public const string CommunityPatchTag = "community-patch";
+
+    /// <summary>
+    /// Tag for addon content items.
+    /// </summary>
+    public const string AddonTag = "addon";
 
     /// <summary>
     /// Description for the discoverer.
@@ -129,20 +135,60 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Tags associated with the patch content.
     /// </summary>
-    public static readonly string[] PatchTags = ["patch", "community", "weekly", "legionnaire"];
+    public static readonly IReadOnlyList<string> PatchTags = ["patch", "community", "weekly", "legionnaire"];
+
+    /// <summary>
+    /// Tags associated with community patch content.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CommunityPatchTags = [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, "weekly", GitHubTopicsConstants.GameClientTopic];
 
     /// <summary>
     /// Tags associated with official patches.
     /// </summary>
-    public static readonly string[] OfficialPatchTags = ["patch", "official", "ea"];
+    public static readonly IReadOnlyList<string> OfficialPatchTags = ["patch", "official", "ea"];
 
     /// <summary>
-    /// Tags associated with addons.
+    /// Tags associated with base game content.
     /// </summary>
-    public static readonly string[] AddonTags = ["addon", "community", "genpatcher"];
+    public static readonly IReadOnlyList<string> BaseGameTags = ["base-game", "vanilla"];
+
+    /// <summary>
+    /// Tags associated with control bar addons.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ControlBarTags = [AddonTag, "control-bar", "ui"];
+
+    /// <summary>
+    /// Tags associated with hotkey addons.
+    /// </summary>
+    public static readonly IReadOnlyList<string> HotkeysTags = [AddonTag, "hotkeys", "keyboard"];
+
+    /// <summary>
+    /// Tags associated with camera modifications.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CameraTags = [AddonTag, "camera"];
 
     /// <summary>
     /// Tags associated with tools.
     /// </summary>
-    public static readonly string[] ToolsTags = ["tool", "utility", "genpatcher"];
+    public static readonly IReadOnlyList<string> ToolsTags = ["tool", "utility", "genpatcher"];
+
+    /// <summary>
+    /// Tags associated with maps and missions.
+    /// </summary>
+    public static readonly IReadOnlyList<string> MapsTags = ["maps", "missions"];
+
+    /// <summary>
+    /// Tags associated with visual enhancements.
+    /// </summary>
+    public static readonly IReadOnlyList<string> VisualsTags = [AddonTag, "visuals", "graphics"];
+
+    /// <summary>
+    /// Tags associated with system prerequisites.
+    /// </summary>
+    public static readonly IReadOnlyList<string> PrerequisitesTags = ["prerequisite", "system"];
+
+    /// <summary>
+    /// Tags associated with addons.
+    /// </summary>
+    public static readonly IReadOnlyList<string> AddonTags = [AddonTag, "community", "genpatcher"];
 }

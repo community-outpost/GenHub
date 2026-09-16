@@ -1,7 +1,7 @@
 // File name intentionally matches generic type param T style, avoiding rename friction
-#pragma warning disable SA1649 // File name should match first type name
-
 using System.Diagnostics.CodeAnalysis;
+
+#pragma warning disable SA1649 // File name should match first type name
 
 namespace GenHub.Core.Models.Results;
 

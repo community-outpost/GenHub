@@ -1,3 +1,10 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Info;
+using GenHub.Core.Models.Info;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,13 +13,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp;
-using AngleSharp.Dom;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Info;
-using GenHub.Core.Models.Info;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Info.Services;
 
@@ -160,16 +160,16 @@ public class FaqService(IHttpClientFactory httpClientFactory, ILogger<FaqService
             }
             else if (child.TagName.Equals("TABLE", StringComparison.OrdinalIgnoreCase))
             {
-                 // Simple table extraction: just row by row
-                 var rows = child.QuerySelectorAll("tr");
-                 foreach (var row in rows)
-                 {
-                     var cells = row.QuerySelectorAll("td");
-                     var rowText = string.Join(" | ", cells.Select(c => c.TextContent.Trim()));
-                     sb.AppendLine(rowText);
-                 }
+                // Simple table extraction: just row by row
+                var rows = child.QuerySelectorAll("tr");
+                foreach (var row in rows)
+                {
+                    var cells = row.QuerySelectorAll("td");
+                    var rowText = string.Join(" | ", cells.Select(c => c.TextContent.Trim()));
+                    sb.AppendLine(rowText);
+                }
 
-                 sb.AppendLine();
+                sb.AppendLine();
             }
         }
 

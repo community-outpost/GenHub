@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -41,6 +36,11 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -365,7 +365,6 @@ public static class ContentPipelineModule
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<AODMapsDiscoverer>());
 
         // Register AODMaps resolver
-        services.AddTransient<AODMapsResolver>();
         services.AddTransient<IContentResolver, AODMapsResolver>();
 
         // Register AODMaps manifest factory
@@ -378,6 +377,9 @@ public static class ContentPipelineModule
     /// </summary>
     private static void AddModDBPipeline(IServiceCollection services)
     {
+        // Register ModDB content provider
+        services.AddTransient<IContentProvider, ModDBContentProvider>();
+
         // Register named HTTP client for ModDB
         services.AddHttpClient(ModDBConstants.PublisherPrefix, httpClient =>
         {
@@ -392,14 +394,8 @@ public static class ContentPipelineModule
         services.AddSingleton<ModDBPageParser>();
         services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<ModDBPageParser>());
 
-        // Register ModDB discoverer (concrete and interface) with named HttpClient
-        services.AddSingleton<ModDBDiscoverer>(sp =>
-        {
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient(ModDBConstants.PublisherPrefix);
-            var logger = sp.GetRequiredService<ILogger<ModDBDiscoverer>>();
-            return new ModDBDiscoverer(httpClient, logger);
-        });
+        // Register ModDB discoverer (concrete and interface)
+        services.AddSingleton<ModDBDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<ModDBDiscoverer>());
 
         // Register ModDB resolver

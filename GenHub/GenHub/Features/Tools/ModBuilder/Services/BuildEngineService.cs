@@ -1,3 +1,16 @@
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.ModBuilder;
+using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Features.Content.Services.CommunityOutpost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,19 +20,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.Messaging;
-using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
-using GenHub.Features.Content.Services.CommunityOutpost;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Tools.ModBuilder;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Results.ModBuilder;
-using GenHub.Core.Models.Tools.ModBuilder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using ContentManifest = GenHub.Core.Models.Manifest.ContentManifest;
 
 namespace GenHub.Features.Tools.ModBuilder.Services;
@@ -329,6 +329,12 @@ public sealed class BuildEngineService(
                 else
                 {
                     logger.LogWarning("Skipping clean for unsafe or external build directory: {BuildDir}", buildDir);
+                    progress?.Report(new BuildProgress
+                    {
+                        CurrentStage = BuildStage.Loading,
+                        CurrentStep = "Cleaning build directories",
+                        Message = $"Skipped unsafe or external build directory: {buildDir}",
+                    });
                 }
             }
 
@@ -342,6 +348,12 @@ public sealed class BuildEngineService(
                 else
                 {
                     logger.LogWarning("Skipping clean for unsafe or external release directory: {ReleaseDir}", releaseDir);
+                    progress?.Report(new BuildProgress
+                    {
+                        CurrentStage = BuildStage.Loading,
+                        CurrentStep = "Cleaning build directories",
+                        Message = $"Skipped unsafe or external release directory: {releaseDir}",
+                    });
                 }
             }
 
@@ -1747,7 +1759,7 @@ public sealed class BuildEngineService(
             logger.LogDebug("Reusing cached build structure (hash matches: {Hash})", configHash);
             _cachedBuildStructure.Setup.Step = buildSteps;
             _cachedBuildStructure.Setup.ZipCompressionLevel = configuration.ZipCompressionLevel;
-            if (configuration.Folders != null)
+            if (configuration.Folders != null && _cachedBuildStructure.Setup.Folders != null)
             {
                 if (!string.IsNullOrEmpty(configuration.Folders.AbsBuildDir))
                 {

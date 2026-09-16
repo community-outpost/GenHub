@@ -1,10 +1,10 @@
-using System;
-using System.Windows.Input;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
+using System;
+using System.Windows.Input;
 
 namespace GenHub.Features.Notifications.ViewModels;
 

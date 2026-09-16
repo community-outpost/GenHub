@@ -1,11 +1,11 @@
-namespace GenHub.Tests.Windows.Features.ActionSets;
-
-using System.Threading.Tasks;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Threading.Tasks;
 using Xunit;
+
+namespace GenHub.Tests.Windows.Features.ActionSets;
 
 /// <summary>
 /// Tests for the <see cref="BaseActionSet"/> class.

@@ -1,8 +1,8 @@
-using System;
-using System.IO;
 using GenHub.Core.Constants;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using System;
+using System.IO;
 
 namespace GenHub.Windows.Features.Shortcuts;
 

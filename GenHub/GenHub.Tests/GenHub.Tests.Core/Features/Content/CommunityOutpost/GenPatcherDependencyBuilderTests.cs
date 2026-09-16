@@ -1,7 +1,6 @@
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;

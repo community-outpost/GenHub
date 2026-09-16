@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -20,6 +14,12 @@ using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using GenHub.Features.GameProfiles.Views.Wizard;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -298,8 +298,8 @@ public class SetupWizardService(
         }
         else
         {
-             // If we didn't show the wizard, it means we either had nothing to do or only auto-accept actions.
-             result.Confirmed = true;
+            // If we didn't show the wizard, it means we either had nothing to do or only auto-accept actions.
+            result.Confirmed = true;
         }
 
         // 5. Final decisions: If item was in wizard, override with user selection

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Parsers;
 
@@ -112,6 +113,17 @@ public class ContentSearchResult
     public void UpdateId(string newId)
     {
         Id = newId;
+    }
+
+    /// <summary>
+    /// Gets the ModDB content identifier from the resolver metadata, if present.
+    /// </summary>
+    /// <returns>The ModDB content identifier, or <see langword="null"/> if not present.</returns>
+    public string? GetModDbId()
+    {
+        return ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId)
+            ? modDbId
+            : null;
     }
 
     /// <summary>

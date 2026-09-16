@@ -1,9 +1,9 @@
-using System;
-using System.IO;
-using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using GenHub.Common.ViewModels;
+using System;
+using System.IO;
+using System.Reflection;
 
 namespace GenHub;
 

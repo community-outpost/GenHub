@@ -1,13 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -33,6 +23,16 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.Views;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
@@ -572,14 +572,15 @@ public partial class ContentDetailViewModel(
 
     /// <summary>
     /// Gets a value indicating whether the user can change the content type.
-    /// Official providers (Generals Online, Community Outpost, The Super Hackers) and other
-    /// structured publishers lock their content type; only un-downloaded generic GitHub community items
-    /// allow user correction prior to download.
+    /// Official publishers lock their content type, while community and third-party publishers
+    /// (e.g. Generic GitHub, ModDB) allow user-defined type selection both before and after download,
+    /// so long as a download is not actively in flight.
     /// </summary>
     public bool CanChangeContentType =>
-        !IsDownloaded &&
         !IsDownloading &&
-        ContentCardBadgeHelper.IsGenericGitHub(searchResult);
+        !(SelectedDownloadableItem?.IsDownloading ?? false) &&
+        !HasBundleComponents &&
+        ContentCardBadgeHelper.CanChangeContentType(searchResult);
 
     /// <summary>
     /// Gets the provider name.
@@ -1247,7 +1248,26 @@ public partial class ContentDetailViewModel(
     /// Awaits any in-flight content-type persist started by the Type dropdown.
     /// </summary>
     /// <returns>A task that completes when persistence finishes.</returns>
-    protected Task WaitForContentTypePersistAsync() => _contentTypePersistTask ?? Task.CompletedTask;
+    protected async Task WaitForContentTypePersistAsync()
+    {
+        Task? task;
+        lock (_contentTypePersistLock)
+        {
+            task = _contentTypePersistTask;
+        }
+
+        if (task != null)
+        {
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Persistence failures are already logged in PersistContentTypeChangeAsync
+            }
+        }
+    }
 
     /// <summary>
     /// Disposes unmanaged and managed resources.
@@ -1319,12 +1339,6 @@ public partial class ContentDetailViewModel(
 
     private static string CreateFileContentId(DownloadableFile file) =>
         CreateFileContentId(file.DownloadUrl, file.Name);
-
-    private static bool IsModDbContent(ContentSearchResult content) =>
-        string.Equals(content.ProviderName, ModDBConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(content.ProviderName, ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-        (!string.IsNullOrEmpty(content.SourceUrl) &&
-         content.SourceUrl.Contains(ModDBConstants.DomainFragment, StringComparison.OrdinalIgnoreCase));
 
     private static List<Comment> FlattenComments(IEnumerable<Comment> comments)
     {
@@ -2011,7 +2025,7 @@ public partial class ContentDetailViewModel(
         RunOnUiThread(() =>
         {
             HasActiveDownloads = true;
-            if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
+            if (IsMatchingDownloadMessage(message.ContentKey ?? string.Empty, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
             {
                 IsDownloading = true;
                 DownloadProgress = 0;
@@ -3187,13 +3201,14 @@ public partial class ContentDetailViewModel(
 
     partial void OnSelectedContentTypeChanged(ContentType value)
     {
-        if (ContentCardBadgeHelper.IsOfficialProvider(searchResult))
+        if (!ContentCardBadgeHelper.CanChangeContentType(searchResult))
         {
             if (!_suppressContentTypePersist)
             {
-                var expected = searchResult.ContentType == ContentType.UnknownContentType
-                    ? ContentType.Mod
-                    : searchResult.ContentType;
+                var expected = SelectedDownloadableItem?.ContentType ??
+                    (searchResult.ContentType == ContentType.UnknownContentType
+                        ? ContentType.Mod
+                        : searchResult.ContentType);
 
                 if (value != expected)
                 {
@@ -3215,6 +3230,7 @@ public partial class ContentDetailViewModel(
         if (SelectedDownloadableItem != null)
         {
             SelectedDownloadableItem.ContentType = value;
+            OnPropertyChanged(nameof(ContentType));
             if (!_suppressContentTypePersist && SelectedDownloadableItem.IsDownloaded && !string.IsNullOrEmpty(SelectedDownloadableItem.DownloadedManifestId))
             {
                 QueueContentTypePersist(value, SelectedDownloadableItem.DownloadedManifestId);
@@ -3224,6 +3240,8 @@ public partial class ContentDetailViewModel(
         }
 
         searchResult.ContentType = value;
+        searchResult.ResolverMetadata[ContentConstants.ExplicitContentTypeMetadataKey] = ContentConstants.ExplicitContentTypeEnabledValue;
+        OnPropertyChanged(nameof(ContentType));
 
         // Pre-download: the coordinator reads searchResult.ContentType when building the manifest.
         // Post-download: persist so Add to Profile / launch use the corrected classification.
@@ -3339,6 +3357,9 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
+        OnPropertyChanged(nameof(CanChangeContentType));
+        OnPropertyChanged(nameof(SelectedContentType));
+        OnPropertyChanged(nameof(ContentType));
     }
 
     /// <summary>
@@ -3690,7 +3711,7 @@ public partial class ContentDetailViewModel(
             DownloadProgress = 0;
             DownloadStatusMessage = ContentConstants.StartingDownloadStatusMessage;
 
-            if (IsModDbContent(targetContent))
+            if (ContentCardBadgeHelper.IsModDb(targetContent))
             {
                 notificationService.ShowInfo(
                     "ModDB download starting",
@@ -3918,7 +3939,12 @@ public partial class ContentDetailViewModel(
             rowSearchResult.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = searchResult.Id;
         }
 
-        if (IsModDbContent(searchResult))
+        if (overrideContentType.HasValue || (SelectedDownloadableItem?.File == file && ContentCardBadgeHelper.CanChangeContentType(searchResult)))
+        {
+            rowSearchResult.ResolverMetadata[ContentConstants.ExplicitContentTypeMetadataKey] = ContentConstants.ExplicitContentTypeEnabledValue;
+        }
+
+        if (ContentCardBadgeHelper.IsModDb(searchResult))
         {
             var detailUrl = file.DetailsUrl ?? file.DownloadUrl;
             if (!string.IsNullOrWhiteSpace(detailUrl))
@@ -4339,6 +4365,8 @@ public partial class ContentDetailViewModel(
     [RelayCommand]
     private async Task AddToProfileAsync()
     {
+        await WaitForContentTypePersistAsync();
+
         if (HasBundleComponents)
         {
             if (!AreBundleComponentsReadyForProfile)
@@ -4990,5 +5018,4 @@ public partial class ContentDetailViewModel(
                 (trimmedSearchName.Contains(a.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
                  a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
     }
-
 }

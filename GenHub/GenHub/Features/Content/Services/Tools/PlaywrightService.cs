@@ -1,3 +1,14 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using Avalonia.Threading;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
+using Microsoft.Playwright;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -5,16 +16,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp;
-using AngleSharp.Dom;
-using Avalonia.Threading;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Notifications;
-using GenHub.Core.Interfaces.Tools;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
 
 namespace GenHub.Features.Content.Services.Tools;
 
@@ -391,17 +392,17 @@ public sealed class PlaywrightService(
             logger.LogInformation("Starting Playwright download from {Url}", configuration.Url);
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-            var isModDb = IsModDbHost(configuration.Url);
-            var usePersistentModDbProfile = isModDb && configuration.Url.Scheme == Uri.UriSchemeHttps;
+            var isModDbOrDbolical = IsModDbOrDbolicalHost(configuration.Url);
+            var usePersistentModDbOrDbolicalProfile = isModDbOrDbolical && configuration.Url.Scheme == Uri.UriSchemeHttps;
 
-            if (isModDb && !usePersistentModDbProfile)
+            if (isModDbOrDbolical && !usePersistentModDbOrDbolicalProfile)
             {
                 logger.LogDebug("Download URL {Url} uses HTTP; persistent ModDB profile will not be used.", configuration.Url);
             }
 
             // Headed ModDB profile is shared with FetchPersistentHtmlAsync / multi-URL sweeps —
             // serialize so a download cannot relaunch Chromium while a section page is mid-Goto.
-            var isOuterSession = usePersistentModDbProfile && !_isInPersistentSession.Value;
+            var isOuterSession = usePersistentModDbOrDbolicalProfile && !_isInPersistentSession.Value;
             if (isOuterSession)
             {
                 await _persistentFetchLock.WaitAsync(cancellationToken);
@@ -410,7 +411,7 @@ public sealed class PlaywrightService(
 
             try
             {
-                return await DownloadFileCoreAsync(configuration, usePersistentModDbProfile, stopwatch, cancellationToken);
+                return await DownloadFileCoreAsync(configuration, usePersistentModDbOrDbolicalProfile, stopwatch, cancellationToken);
             }
             finally
             {
@@ -519,22 +520,43 @@ public sealed class PlaywrightService(
         }
     }
 
+    private static TimeSpan CalculateSaveTimeout(TimeSpan timeout)
+    {
+        if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+        {
+            return TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, timeout.TotalMilliseconds));
+        }
+
+        return Timeout.InfiniteTimeSpan;
+    }
+
+    private static void PrepareDestinationDirectory(string destinationPath, bool overwriteExisting)
+    {
+        if (File.Exists(destinationPath) && overwriteExisting)
+        {
+            File.Delete(destinationPath);
+        }
+
+        var dir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+    }
+
     private static bool IsModDbVerificationPage(string? title) =>
-        !string.IsNullOrWhiteSpace(title) &&
-        ModDBConstants.BotProtectionTitleMarkers.Any(marker => title.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        ModDBConstants.IsChallengePageTitle(title);
 
-    private static bool IsModDbHost(Uri uri) =>
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
-        (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-         uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase));
+    private static bool IsModDbOrDbolicalHost(Uri uri) =>
+        ModDBConstants.IsModDbOrDbolicalUri(uri);
 
-    private static bool IsModDbHost(string url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri) && IsModDbHost(uri);
+    private static bool IsModDbOrDbolicalHost(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && IsModDbOrDbolicalHost(uri);
 
-    private static bool IsHttpsModDbUrl(string url) =>
+    private static bool IsHttpsModDbOrDbolicalUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         uri.Scheme == Uri.UriSchemeHttps &&
-        IsModDbHost(uri);
+        IsModDbOrDbolicalHost(uri);
 
     private static async Task<IDocument> OpenDocumentAsync(string html, CancellationToken cancellationToken)
     {
@@ -566,9 +588,9 @@ public sealed class PlaywrightService(
                 throw new ArgumentException($"Invalid URL (must be absolute HTTP/HTTPS): {url}", nameof(urls));
             }
 
-            if (string.Equals(profileName, ModDBConstants.BrowserProfileName, StringComparison.OrdinalIgnoreCase) && !IsHttpsModDbUrl(url))
+            if (string.Equals(profileName, ModDBConstants.BrowserProfileName, StringComparison.OrdinalIgnoreCase) && !IsHttpsModDbOrDbolicalUrl(url))
             {
-                throw new ArgumentException($"URL is not permitted for profile '{profileName}' (must be HTTPS ModDB): {url}", nameof(urls));
+                throw new ArgumentException($"URL is not permitted for profile '{profileName}' (must be HTTPS ModDB or DBolical): {url}", nameof(urls));
             }
         }
     }
@@ -987,7 +1009,7 @@ public sealed class PlaywrightService(
 
         logger.LogInformation("Download did not start automatically within 5s. Attempting to find fallback link...");
 
-        const string FallbackSelector = "a[href*='media.moddb.com'], a[href*='files.moddb.com'], a#download, a.download, a.btn-download, a.buttondownload, a[href*='/mirror/'], a[href*='/downloads/start/'], a[href*='/addons/start/']";
+        const string FallbackSelector = "a[href*='media.moddb.com'], a[href*='files.moddb.com'], a[href*='dl.dbolical.com'], a[href*='.dbolical.com/'], a#download, a.download, a.btn-download, a.buttondownload, a[href*='/mirror/'], a[href*='/downloads/start/'], a[href*='/addons/start/']";
 
         IElementHandle? fallbackLink = null;
         try
@@ -1026,7 +1048,7 @@ public sealed class PlaywrightService(
         {
             try
             {
-                var startPageFallback = await page.QuerySelectorAsync("a:has-text('click here'), a:has-text('Click here'), a[href*='media.moddb.com'], a[href*='files.moddb.com'], a[href*='/mirror/']");
+                var startPageFallback = await page.QuerySelectorAsync("a:has-text('click here'), a:has-text('Click here'), a[href*='media.moddb.com'], a[href*='files.moddb.com'], a[href*='dl.dbolical.com'], a[href*='dbolical.com'], a[href*='/mirror/']");
                 if (startPageFallback != null)
                 {
                     var startText = await startPageFallback.InnerTextAsync();
@@ -1148,6 +1170,14 @@ public sealed class PlaywrightService(
 
             var playwright = await EnsureManagedPlaywrightAsync(cancellationToken);
             Directory.CreateDirectory(profileDir);
+
+            var profileDirName = Path.GetFileName(profileDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            var profileLabel = string.Equals(profileDirName, ModDBConstants.CanonicalIdentifier, StringComparison.OrdinalIgnoreCase)
+                ? "ModDB"
+                : profileDirName;
+            NotifyBrowserWindowOpening(
+                $"Opening {profileLabel} Browser",
+                $"A browser window is opening to load {profileLabel} content. Please do not close it.");
 
             var context = await playwright.Chromium.LaunchPersistentContextAsync(
                 profileDir,
@@ -1373,7 +1403,28 @@ public sealed class PlaywrightService(
             Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.BrowserRuntime),
             Microsoft.Playwright.Program.Main,
             RequestManagedChromiumInstallConsentAsync,
-            logger);
+            logger,
+            onInstallStarting: () => notificationService?.ShowInfo(
+                ModDBConstants.ChromiumInstallTitle,
+                ModDBConstants.ChromiumDownloadingMessage,
+                NotificationDurations.VeryLong),
+            onInstallCompleted: success =>
+            {
+                if (success)
+                {
+                    notificationService?.ShowSuccess(
+                        ModDBConstants.ChromiumReadyTitle,
+                        ModDBConstants.ChromiumReadyMessage,
+                        NotificationDurations.Medium);
+                }
+                else
+                {
+                    notificationService?.ShowError(
+                        ModDBConstants.ChromiumInstallFailedTitle,
+                        ModDBConstants.ChromiumInstallFailedMessage,
+                        NotificationDurations.Long);
+                }
+            });
 
         return Interlocked.CompareExchange(ref managedChromiumRuntime, newRuntime, null) ?? newRuntime;
     }
@@ -1427,9 +1478,9 @@ public sealed class PlaywrightService(
             throw new ArgumentException($"Invalid URL (must be absolute HTTP/HTTPS): {url}", nameof(url));
         }
 
-        if (string.Equals(profileName, ModDBConstants.BrowserProfileName, StringComparison.OrdinalIgnoreCase) && !IsHttpsModDbUrl(url))
+        if (string.Equals(profileName, ModDBConstants.BrowserProfileName, StringComparison.OrdinalIgnoreCase) && !IsHttpsModDbOrDbolicalUrl(url))
         {
-            throw new ArgumentException($"URL is not permitted for profile '{profileName}' (must be HTTPS ModDB): {url}", nameof(url));
+            throw new ArgumentException($"URL is not permitted for profile '{profileName}' (must be HTTPS ModDB or DBolical): {url}", nameof(url));
         }
 
         logger.LogDebug("Fetching HTML (persistent profile '{Profile}') from {Url}", profileName, url);
@@ -1463,7 +1514,7 @@ public sealed class PlaywrightService(
             WaitUntil = WaitUntilState.DOMContentLoaded,
         });
 
-        if (IsModDbHost(url))
+        if (IsModDbOrDbolicalHost(url))
         {
             await WaitForModDbContentAsync(page, url, cancellationToken);
         }
@@ -1512,6 +1563,10 @@ public sealed class PlaywrightService(
                             "ModDB verification is open in Chromium for {Url}. Waiting for the user to complete it.",
                             url);
                         verificationObserved = true;
+                        notificationService?.ShowWarning(
+                            ModDBConstants.VerificationRequiredTitle,
+                            ModDBConstants.VerificationRequiredMessage,
+                            NotificationDurations.VeryLong);
                     }
                 }
                 else if (ready)
@@ -1519,6 +1574,10 @@ public sealed class PlaywrightService(
                     if (verificationObserved)
                     {
                         logger.LogInformation("ModDB verification completed; parsing content from {Url}", url);
+                        notificationService?.ShowSuccess(
+                            ModDBConstants.VerificationClearedTitle,
+                            ModDBConstants.VerificationClearedMessage,
+                            NotificationDurations.Medium);
                     }
 
                     return;
@@ -1649,6 +1708,35 @@ public sealed class PlaywrightService(
         }
     }
 
+    private void ValidatePersistentDownloadUrl(string downloadUrl, bool usePersistentModDbProfile)
+    {
+        if (usePersistentModDbProfile && !IsHttpsModDbOrDbolicalUrl(downloadUrl))
+        {
+            logger.LogWarning("Download URL {DownloadUrl} is not a valid HTTPS ModDB or DBolical URL. Aborting download.", downloadUrl);
+            throw new InvalidOperationException($"Download URL '{downloadUrl}' must be a secure HTTPS ModDB or DBolical URL for persistent profile.");
+        }
+    }
+
+    private async Task HandleDownloadInterruptionAsync(
+        IDownload download,
+        string destinationPath,
+        TimeSpan saveTimeout,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await download.CancelAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to cancel download after timeout or cancellation.");
+        }
+
+        CleanPartialOutputFile(destinationPath);
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new TimeoutException($"Download timed out after {saveTimeout.TotalSeconds} seconds.");
+    }
+
     private async Task<DownloadResult> SaveDownloadFileAsync(
         IDownload download,
         GenHub.Core.Models.Common.DownloadConfiguration configuration,
@@ -1656,28 +1744,11 @@ public sealed class PlaywrightService(
         System.Diagnostics.Stopwatch stopwatch,
         CancellationToken cancellationToken)
     {
-        if (usePersistentModDbProfile && !IsHttpsModDbUrl(download.Url))
-        {
-            logger.LogWarning("Download URL {DownloadUrl} is not a valid HTTPS ModDB URL. Aborting download.", download.Url);
-            throw new InvalidOperationException($"Download URL '{download.Url}' must be an HTTPS ModDB URL for persistent profile.");
-        }
-
-        if (File.Exists(configuration.DestinationPath) && configuration.OverwriteExisting)
-        {
-            File.Delete(configuration.DestinationPath);
-        }
-
-        var dir = Path.GetDirectoryName(configuration.DestinationPath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
+        ValidatePersistentDownloadUrl(download.Url, usePersistentModDbProfile);
+        PrepareDestinationDirectory(configuration.DestinationPath, configuration.OverwriteExisting);
 
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var saveTimeout = configuration.Timeout > TimeSpan.Zero && configuration.Timeout != Timeout.InfiniteTimeSpan
-            ? TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, configuration.Timeout.TotalMilliseconds))
-            : Timeout.InfiniteTimeSpan;
-
+        var saveTimeout = CalculateSaveTimeout(configuration.Timeout);
         if (saveTimeout != Timeout.InfiniteTimeSpan)
         {
             linkedCts.CancelAfter(saveTimeout);
@@ -1689,18 +1760,7 @@ public sealed class PlaywrightService(
 
         if (completedTask != saveTask)
         {
-            try
-            {
-                await download.CancelAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Failed to cancel download after timeout or cancellation.");
-            }
-
-            CleanPartialOutputFile(configuration.DestinationPath);
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new TimeoutException($"Download timed out after {saveTimeout.TotalSeconds} seconds.");
+            await HandleDownloadInterruptionAsync(download, configuration.DestinationPath, saveTimeout, cancellationToken);
         }
 
         try
@@ -1716,11 +1776,60 @@ public sealed class PlaywrightService(
         var fileInfo = new FileInfo(configuration.DestinationPath);
         logger.LogInformation("Playwright download completed: {Path}, Size: {Size}", configuration.DestinationPath, fileInfo.Length);
 
+        var hashVerified = false;
+        if (!string.IsNullOrWhiteSpace(configuration.ExpectedHash))
+        {
+            var (success, errorMessage) = await VerifyDownloadedFileHashAsync(
+                configuration.DestinationPath,
+                configuration.ExpectedHash,
+                cancellationToken);
+
+            if (!success)
+            {
+                return DownloadResult.CreateFailure(
+                    errorMessage ?? "File hash mismatch.",
+                    fileInfo.Length,
+                    stopwatch.Elapsed);
+            }
+
+            hashVerified = true;
+        }
+
         return DownloadResult.CreateSuccess(
             configuration.DestinationPath,
             fileInfo.Length,
             stopwatch.Elapsed,
-            hashVerified: false);
+            hashVerified: hashVerified);
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> VerifyDownloadedFileHashAsync(
+        string destinationPath,
+        string expectedHash,
+        CancellationToken cancellationToken)
+    {
+        string actualHash;
+        try
+        {
+            actualHash = await DownloadSecurityValidator.ComputeSha256Async(destinationPath, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            CleanPartialOutputFile(destinationPath);
+            throw;
+        }
+
+        if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "Hash mismatch for downloaded file {Path}. Expected: {Expected}, Actual: {Actual}",
+                destinationPath,
+                expectedHash,
+                actualHash);
+            CleanPartialOutputFile(destinationPath);
+            return (false, $"File hash mismatch. Expected {expectedHash}, got {actualHash}.");
+        }
+
+        return (true, null);
     }
 
     private void CleanPartialOutputFile(string destinationPath)

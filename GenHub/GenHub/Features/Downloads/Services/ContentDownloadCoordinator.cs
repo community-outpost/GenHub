@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
@@ -15,6 +10,11 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.Services;
 
@@ -449,9 +449,11 @@ public sealed class ContentDownloadCoordinator(
                 var originalContentId = searchResult.Id ?? string.Empty;
                 searchResult.UpdateId(manifest.Id.Value);
 
+                var moddbId = searchResult.GetModDbId();
+
                 // Update state. The event carries both the original catalog ID and the manifest ID
                 // so every subscriber can match regardless of which ID it currently holds.
-                contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value);
+                contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value, moddbId);
 
                 string? parentContentId = null;
                 if (searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var pid) == true)
@@ -462,7 +464,7 @@ public sealed class ContentDownloadCoordinator(
                 if (!string.IsNullOrWhiteSpace(parentContentId) &&
                     !string.Equals(parentContentId, originalContentId, StringComparison.OrdinalIgnoreCase))
                 {
-                    contentStateService.NotifyStateChanged(parentContentId, ContentState.Downloaded, manifest.Id.Value);
+                    contentStateService.NotifyStateChanged(parentContentId, ContentState.Downloaded, manifest.Id.Value, moddbId);
                 }
 
                 // Notify other components

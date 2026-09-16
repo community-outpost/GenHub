@@ -1,11 +1,11 @@
-using System;
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
 using GenHub.Features.Notifications.ViewModels;
+using System;
+using System.Collections.ObjectModel;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 

@@ -1,5 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -13,6 +11,8 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.Services;
 

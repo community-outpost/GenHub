@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Enums;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using GenHub.Core.Models.Enums;
 
 namespace GenHub.Features.Downloads.ViewModels;
 

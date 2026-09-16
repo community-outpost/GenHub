@@ -1,7 +1,7 @@
+using GenHub.Core.Interfaces.Workspace;
 using System;
 using System.IO;
 using System.Runtime.Versioning;
-using GenHub.Core.Interfaces.Workspace;
 
 namespace GenHub.Windows.Features.Workspace;
 

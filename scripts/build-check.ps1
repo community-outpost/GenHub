@@ -51,7 +51,7 @@ param(
     [int]$TimeoutSeconds = 120,
 
     [ValidateSet("quiet", "minimal", "normal", "detailed")]
-    [string]$Verbosity = "quiet"
+    [string]$Verbosity = "minimal"
 )
 
 $ErrorActionPreference = "Stop"

@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -522,6 +523,78 @@ public class GameProfileLauncherViewModelTests
         };
 
         Assert.Equal(expectedVersion, item.Version);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ProfileLaunchedMessage updates the matching profile's IsProcessRunning and ProcessId properties.
+    /// </summary>
+    [AvaloniaFact]
+    public void Receive_ProfileLaunchedMessage_UpdatesIsProcessRunningAndProcessId()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var profile = new GameProfile
+        {
+            Id = "test-profile-123",
+            Name = "Test Profile",
+        };
+        var item = new GameProfileItemViewModel("test-profile-123", profile, string.Empty, string.Empty);
+        vm.Profiles.Add(item);
+
+        vm.Receive(new ProfileLaunchedMessage("test-profile-123", 45678));
+
+        Assert.True(item.IsProcessRunning);
+        Assert.Equal(45678, item.ProcessId);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ProfileStoppedMessage clears IsProcessRunning and resets ProcessId to 0.
+    /// </summary>
+    [AvaloniaFact]
+    public void Receive_ProfileStoppedMessage_ClearsIsProcessRunningAndProcessId()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var profile = new GameProfile
+        {
+            Id = "test-profile-123",
+            Name = "Test Profile",
+        };
+        var item = new GameProfileItemViewModel("test-profile-123", profile, string.Empty, string.Empty)
+        {
+            IsProcessRunning = true,
+            ProcessId = 45678,
+        };
+        vm.Profiles.Add(item);
+
+        vm.Receive(new ProfileStoppedMessage("test-profile-123", 45678));
+
+        Assert.False(item.IsProcessRunning);
+        Assert.Equal(0, item.ProcessId);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ProfileStoppedMessage with mismatched PID is ignored as stale.
+    /// </summary>
+    [AvaloniaFact]
+    public void Receive_ProfileStoppedMessage_WithMismatchedProcessId_IgnoresStaleStop()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var profile = new GameProfile
+        {
+            Id = "test-profile-123",
+            Name = "Test Profile",
+        };
+        var item = new GameProfileItemViewModel("test-profile-123", profile, string.Empty, string.Empty)
+        {
+            IsProcessRunning = true,
+            ProcessId = 45678,
+        };
+        vm.Profiles.Add(item);
+
+        // A message arrives with a different, stale PID (e.g. from an earlier instance that exited late)
+        vm.Receive(new ProfileStoppedMessage("test-profile-123", 11111));
+
+        Assert.True(item.IsProcessRunning);
+        Assert.Equal(45678, item.ProcessId);
     }
 
     private static ProfileResourceService CreateProfileResourceService()

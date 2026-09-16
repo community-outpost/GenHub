@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
@@ -18,6 +10,14 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Services.Providers.VersionSchemes;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.Services;
 
@@ -83,7 +83,8 @@ public sealed partial class ContentStateService(
     /// <param name="contentId">The ID of the content that changed.</param>
     /// <param name="newState">The new state of the content.</param>
     /// <param name="manifestId">The manifest ID if available.</param>
-    public void NotifyStateChanged(string contentId, ContentState newState, string? manifestId = null)
+    /// <param name="moddbId">The stable ModDB ID if available.</param>
+    public void NotifyStateChanged(string contentId, ContentState newState, string? manifestId = null, string? moddbId = null)
     {
         if (newState == ContentState.Downloaded &&
             !string.IsNullOrEmpty(contentId) &&
@@ -106,7 +107,7 @@ public sealed partial class ContentStateService(
         }
 
         logger.LogDebug("Content state changed: {ContentId} -> {State}", contentId, newState);
-        ContentStateChanged?.Invoke(this, new ContentStateChangedEventArgs(contentId, newState, manifestId));
+        ContentStateChanged?.Invoke(this, new ContentStateChangedEventArgs(contentId, newState, manifestId, moddbId));
     }
 
     /// <inheritdoc/>
@@ -663,10 +664,10 @@ public sealed partial class ContentStateService(
                 }
 
                 if (token switch
-                    {
-                        "720" or "720p" or "900" or "900p" or "1080" or "1080p" or "1440" or "1440p" or "2160" or "4k" or "5k" or "8k" => true,
-                        _ => false,
-                    })
+                {
+                    "720" or "720p" or "900" or "900p" or "1080" or "1080p" or "1440" or "1440p" or "2160" or "4k" or "5k" or "8k" => true,
+                    _ => false,
+                })
                 {
                     return token switch
                     {

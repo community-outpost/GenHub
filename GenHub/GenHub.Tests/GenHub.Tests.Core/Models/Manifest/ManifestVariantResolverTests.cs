@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Core.Models.Manifest;
+using System.Collections.Generic;
 using Xunit;
 
 namespace GenHub.Tests.Core.Models.Manifest;

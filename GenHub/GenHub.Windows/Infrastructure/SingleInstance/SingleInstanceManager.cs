@@ -1,3 +1,6 @@
+using GenHub.Core.Interfaces.SingleInstance;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -5,9 +8,6 @@ using System.IO.Pipes;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.SingleInstance;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GenHub.Windows.Infrastructure.SingleInstance;
 

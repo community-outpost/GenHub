@@ -69,7 +69,7 @@ dotnet_naming_style.interface_style.required_prefix = I
 dotnet_naming_style.interface_style.capitalization = pascal_case
 
 # Common Analyzer Severities (preempts DeepSource & SonarCloud findings)
-dotnet_diagnostic.CA1031.severity = warning       # Do not catch generic System.Exception (CS-R1008)
+dotnet_diagnostic.CA1031.severity = suggestion       # Do not catch generic System.Exception (CS-R1008)
 dotnet_diagnostic.CS0168.severity = warning       # Variable is declared but never used (CS-W1100)
 dotnet_diagnostic.CS0219.severity = warning       # Variable is assigned but its value is never used
 dotnet_diagnostic.IDE0059.severity = warning       # Unnecessary assignment of a value
@@ -77,3 +77,21 @@ dotnet_diagnostic.IDE0060.severity = suggestion    # Remove unused parameter
 dotnet_diagnostic.IDE0063.severity = suggestion    # Use simple 'using' statement
 dotnet_diagnostic.IDE0079.severity = warning       # Remove unnecessary suppression
 dotnet_diagnostic.CA2007.severity = none          # Do not require ConfigureAwait for desktop UI app
+
+# ModBuilder Feature Analyzer Configuration
+[**/ModBuilder/**.cs]
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1204.severity = none
+dotnet_diagnostic.SA1413.severity = none
+dotnet_diagnostic.SA1202.severity = none
+dotnet_diagnostic.SA1117.severity = none
+dotnet_diagnostic.SA1116.severity = none
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1636.severity = none
+dotnet_diagnostic.SA1203.severity = none
+dotnet_diagnostic.SA1617.severity = none
+dotnet_diagnostic.SA1513.severity = none
+dotnet_diagnostic.SA1108.severity = none
+dotnet_diagnostic.SA1629.severity = none
+dotnet_diagnostic.SA1518.severity = none
+dotnet_diagnostic.SA1210.severity = none

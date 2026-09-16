@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Services.Providers.VersionSchemes;
 using Microsoft.Extensions.Logging;
 using System;
@@ -178,7 +179,7 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -236,7 +237,17 @@ public class GeneralsOnlineManifestFactory(
         var manifests = CreateManifests(release);
 
         // Update with file hashes from the installation
-        return await UpdateManifestsWithExtractedFiles(manifests, installationPath, cancellationToken);
+        var updateResult = await UpdateManifestsWithExtractedFiles(manifests, installationPath, cancellationToken);
+        if (!updateResult.Success)
+        {
+            logger.LogWarning(
+                "Failed to create GeneralsOnline manifests from local install at {Path}: {Error}",
+                installationPath,
+                updateResult.FirstError);
+            return [];
+        }
+
+        return updateResult.Data ?? [];
     }
 
     private static int ParseVersionForManifestId(string version)
@@ -586,7 +597,7 @@ public class GeneralsOnlineManifestFactory(
     /// <param name="extractPath">The path to the directory containing extracted files.</param>
     /// <param name="cancellationToken">Token to cancel the operation if needed.</param>
     /// <returns>Updated content manifests with file hashes and details.</returns>
-    private async Task<List<ContentManifest>> UpdateManifestsWithExtractedFiles(
+    private async Task<OperationResult<List<ContentManifest>>> UpdateManifestsWithExtractedFiles(
         List<ContentManifest> manifests,
         string extractPath,
         CancellationToken cancellationToken = default)
@@ -618,7 +629,7 @@ public class GeneralsOnlineManifestFactory(
                     manifest.Name,
                     manifest.ContentType,
                     extractPath);
-                throw new InvalidDataException(
+                return OperationResult<List<ContentManifest>>.CreateFailure(
                     $"Manifest '{manifest.Name}' of type {manifest.ContentType} has no files in extract path '{extractPath}'.");
             }
 
@@ -643,7 +654,7 @@ public class GeneralsOnlineManifestFactory(
 
         ReconcileMissingMapPackDependencies(updatedManifests);
 
-        return updatedManifests;
+        return OperationResult<List<ContentManifest>>.CreateSuccess(updatedManifests);
     }
 
     private async Task<List<ExtractedFileInfo>> ScanExtractedFilesAsync(

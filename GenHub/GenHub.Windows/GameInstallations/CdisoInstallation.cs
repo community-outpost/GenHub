@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -8,6 +5,9 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace GenHub.Windows.GameInstallations;
 

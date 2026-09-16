@@ -1,12 +1,3 @@
-using System;
-using System.Buffers;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -30,6 +21,15 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Buffers;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Launching;
 
@@ -368,7 +368,7 @@ public class GameLauncher(
                 return LaunchOperationResult<GameProcessInfo>.CreateFailure(result.FirstError!, launchId, launchInfo.ProfileId);
             }
 
-            return LaunchOperationResult<GameProcessInfo>.CreateSuccess(result.Data!, launchId, launchInfo.ProfileId);
+            return LaunchOperationResult<GameProcessInfo>.CreateSuccess(result.Data, launchId, launchInfo.ProfileId);
         }
         catch (Exception ex)
         {
@@ -1015,12 +1015,24 @@ public class GameLauncher(
         };
         logger.LogDebug("[GameLauncher] BaseInstallationPath set to: {Path}", workspaceConfig.BaseInstallationPath);
 
-        if (isSteamLaunch && !string.IsNullOrEmpty(actualInstallationPath))
+        if (!string.IsNullOrEmpty(actualInstallationPath))
         {
-            var cleanupResult = await PerformPreLaunchSteamCleanupAsync(actualInstallationPath, cancellationToken);
-            if (!cleanupResult.Success)
+            var backupPath = Path.Combine(actualInstallationPath, $"{GameClientConstants.GeneralsExecutable}{FileTypes.BackupExtension}");
+            if (isSteamLaunch || File.Exists(backupPath))
             {
-                return OperationResult<WorkspaceInfo>.CreateFailure(cleanupResult.FirstError ?? "Pre-launch Steam cleanup failed");
+                var cleanupResult = await PerformPreLaunchSteamCleanupAsync(actualInstallationPath, cancellationToken);
+                if (!cleanupResult.Success)
+                {
+                    if (isSteamLaunch)
+                    {
+                        return OperationResult<WorkspaceInfo>.CreateFailure(cleanupResult.FirstError ?? "Pre-launch Steam cleanup failed");
+                    }
+
+                    logger.LogWarning(
+                        "[GameLauncher] Pre-launch cleanup for installation at '{Path}' reported failure: {Error}",
+                        actualInstallationPath,
+                        cleanupResult.FirstError ?? "Unknown error");
+                }
             }
         }
 

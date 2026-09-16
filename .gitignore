@@ -197,3 +197,9 @@ GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.webloc
 # ModBuilder cache and serialization files
 *.msgpack
 .modbuilder_cache/
+
+# Landing page build output
+public/
+Landing-page/assets/data/*.json
+__pycache__/
+*.pyc

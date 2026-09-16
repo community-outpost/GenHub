@@ -1,16 +1,18 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.ContentDeliverers;
 
@@ -18,7 +20,10 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers remote HTTP content.
 /// Pure delivery - downloads and extracts content.
 /// </summary>
-public class HttpContentDeliverer(IDownloadService downloadService, ILogger<HttpContentDeliverer> logger) : IContentDeliverer
+public class HttpContentDeliverer(
+    IDownloadService downloadService,
+    ILogger<HttpContentDeliverer> logger,
+    IPlaywrightService? playwrightService = null) : IContentDeliverer
 {
     /// <inheritdoc />
     public string SourceName => ContentSourceNames.HttpDeliverer;
@@ -81,8 +86,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
                 });
 
                 // Download the file
-                var downloadResult = await downloadService.DownloadFileAsync(
-                    new Uri(file.DownloadUrl!), localPath, file.Hash, null, cancellationToken);
+                var downloadResult = await DownloadFileAsync(file, localPath, cancellationToken);
 
                 if (!downloadResult.Success)
                 {
@@ -119,7 +123,8 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
             foreach (var file in manifest.Files.Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
             {
                 if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var uri) ||
-                    !(uri.Scheme == "http" || uri.Scheme == "https"))
+                    !(uri.Scheme == "http" || uri.Scheme == "https") ||
+                    (ModDBConstants.IsModDbOrDbolicalUri(uri) && uri.Scheme != Uri.UriSchemeHttps))
                 {
                     return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
                 }
@@ -150,5 +155,39 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
         }
 
         return targetPath;
+    }
+
+    private async Task<DownloadResult> DownloadFileAsync(
+        ManifestFile file,
+        string localPath,
+        CancellationToken cancellationToken)
+    {
+        if (Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var fileUri) &&
+            ModDBConstants.IsModDbOrDbolicalUri(fileUri))
+        {
+            if (fileUri.Scheme != Uri.UriSchemeHttps)
+            {
+                return DownloadResult.CreateFailure("ModDB and DBolical downloads must use HTTPS.");
+            }
+
+            if (playwrightService != null)
+            {
+                logger.LogInformation("Routing ModDB download through Playwright for {Url}", file.DownloadUrl);
+                var downloadConfig = new DownloadConfiguration
+                {
+                    Url = fileUri,
+                    DestinationPath = localPath,
+                    OverwriteExisting = true,
+                    ExpectedHash = file.Hash,
+                };
+                return await playwrightService.DownloadFileAsync(downloadConfig, cancellationToken);
+            }
+
+            return await downloadService.DownloadFileAsync(
+                fileUri, localPath, file.Hash, null, cancellationToken);
+        }
+
+        return await downloadService.DownloadFileAsync(
+            new Uri(file.DownloadUrl!), localPath, file.Hash, null, cancellationToken);
     }
 }

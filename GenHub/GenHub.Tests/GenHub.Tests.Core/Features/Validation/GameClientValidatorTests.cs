@@ -5,7 +5,6 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
-
 using GenHub.Features.Validation;
 using Microsoft.Extensions.Logging;
 using Moq;

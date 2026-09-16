@@ -2,9 +2,6 @@
 // Copyright (c) Enowx Labs. All rights reserved.
 // </copyright>
 
-using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text;
 using FluentAssertions;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
@@ -12,6 +9,9 @@ using GenHub.Features.Tools.ModBuilder.Services;
 using Moq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using Xunit;
 
 namespace GenHub.Tests.Performance.ModBuilder;

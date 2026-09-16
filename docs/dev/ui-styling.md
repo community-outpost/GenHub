@@ -13,6 +13,8 @@ This document defines the mandatory UI standards and design patterns for Avaloni
 2. **Use shared controls.** Do not build one-off sidebars, search boxes, or card containers. Use existing controls in `GenHub.Common.Controls` (like `SidebarLayout`).
 3. **Inset pill navigation.** Sidebars and lists use inset rounded pills with consistent margins and padding, not full-bleed rectangles with sharp corners.
 4. **Theme support.** Colors must adapt dynamically when switching between factions, profiles, or themes.
+5. **No Unicode Emojis.** Never use emojis in UI views, button labels, badges, dialogs, tooltips, or notifications. Use clean semantic text, theme brush indicators, or vector SVG StreamGeometry `PathIcon` controls from application resources.
+6. **Toast notifications for user feedback.** Never create ad-hoc status labels, status bars, or inline `StatusMessage` TextBlocks to report success, failure, or action completion. All user feedback, operation completions, warnings, and errors must be dispatched through `INotificationService` as toast notifications.
 
 ## Semantic theme tokens
 
@@ -128,11 +130,11 @@ Item templates inside sidebars must use inset rounded rows:
 
 All selection dropdowns automatically inherit the global style from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml` via `App.axaml`:
 
-- **Container:** Rounded 8px corners (`CornerRadius="8"`), `MinHeight="36"`, background bound to `{DynamicResource SurfaceElevatedBrush}` with subtle 1px border `{DynamicResource BorderBrush}`.
-- **Hover & Focus:** Background transitions to `{DynamicResource SurfaceHoverBrush}`, border highlights to `{DynamicResource BorderHighlightBrush}` on hover and `{DynamicResource AccentBrush}` on focus/open.
-- **Glyph:** Vector chevron (`Data="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"`) that rotates 180 degrees smoothly when the dropdown opens.
+- **Container:** Rounded 8px corners (`CornerRadius="8"`), `MinHeight="36"`, background bound to `{DynamicResource CardBackground}` with subtle 1px border `{DynamicResource BorderBrush}`.
+- **Hover & Focus:** Background transitions to `{DynamicResource SurfaceElevatedBrush}`, border highlights to `{DynamicResource BorderHighlightBrush}` on hover and `{DynamicResource AccentBrush}` on focus/open.
+- **Glyph:** Vector chevron (`Data="M7 10l5 5 5-5z"`) that rotates 180 degrees smoothly when the dropdown opens.
 - **Popup menu:** Elevated surface with rounded 8px corners, internal 4px padding, and drop shadow (`BoxShadow="0 10 28 0 #99000000"`).
-- **Items:** Inset rounded items (`Margin="2,1"`, `CornerRadius="6"`, `Padding="12,8"`) with accent pill selection highlights.
+- **Items:** Inset rounded items (`Margin="0,1"`, `CornerRadius="6"`, `Padding="12,8"`) with accent pill selection highlights.
 
 > [!IMPORTANT]
 > Never write inline `ComboBox` control templates or duplicate `ComboBox` styles inside individual feature views. Always rely on the global `ComboBoxStyles.axaml` resource.
@@ -194,10 +196,10 @@ GenHub supports live hot-swappable accent color palettes managed by `IThemeServi
 
 All dropdowns inherit styles from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml`:
 
-- **Item Template:** `ComboBoxItem` uses a custom `ControlTemplate` with `x:Name="PART_ContentPresenter"` and 6px rounded corners.
-- **Hover on Unselected:** Highlights with `{DynamicResource SurfaceHoverBrush}`.
+- **Item Template:** `ComboBoxItem` uses a custom `ControlTemplate` with `Border#ItemBorder` and inner `ContentPresenter x:Name="PART_ContentPresenter"` with 6px rounded corners.
+- **Hover on Unselected:** Highlights row with `{DynamicResource AccentTintBackgroundBrush}`.
 - **Selected State:** Outlined with `{DynamicResource AccentBrush}` and filled with soft `{DynamicResource AccentBadgeBackgroundBrush}`.
-- **Hover on Selected:** Filled with vibrant `{DynamicResource AccentBrush}` and high-contrast white text.
+- **Hover on Selected:** Highlights row with `{DynamicResource AccentTintBackgroundBrush}` and outlined with `{DynamicResource AccentBrush}`.
 
 ## Tab and pill buttons (RadioButton.TabButton & Button.pill-tab)
 
@@ -219,8 +221,63 @@ Use standardized button classes rather than ad-hoc button styling:
 | `Button.tab-icon-btn` | Large square navigation tab buttons (`56x56`, `CornerRadius="12"`). |
 | `Button.dialog-close-btn` | Modal and flyout close buttons. |
 
+## User feedback and toast notifications (INotificationService)
+
+A common anti-pattern when building desktop UI is placing a passive status label or `TextBlock` (e.g. `<TextBlock Text="{Binding StatusMessage}" />`) at the bottom of a view or dialog. Status labels are easily overlooked, introduce visual clutter, and fragment user experience across features.
+
+In GenHub, **all user feedback, action confirmations, operation completions, warnings, and error alerts must use the central `INotificationService` toast notification system**.
+
+### Why Toast Notifications?
+
+- **High Visibility:** Animated toasts appear at the top/bottom corner of the window where users naturally see them.
+- **Auto-dismissal:** Toasts dismiss automatically according to standardized timeouts (`NotificationDurations`), avoiding stale status strings lingering indefinitely.
+- **Persistent Feed:** All notifications are automatically recorded in the notification history feed (the bell icon in the window title bar), allowing users to review previous notifications.
+- **Actionable:** Notifications support actions (e.g. undo, open folder, view logs) directly from the toast.
+
+### Implementation Pattern
+
+ViewModels should accept `INotificationService` via primary constructor injection and dispatch notifications for all user-initiated actions and operation outcomes:
+
+```csharp
+public partial class MyFeatureViewModel(
+    IMyService myService,
+    INotificationService notificationService,
+    ILogger<MyFeatureViewModel> logger) : ObservableObject
+{
+    [RelayCommand]
+    public async Task SaveSettingsAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await myService.SaveAsync(cancellationToken);
+        if (result.Success)
+        {
+            notificationService.ShowSuccess(
+                "Settings Saved",
+                "Your configuration has been updated successfully.",
+                NotificationDurations.Short);
+        }
+        else
+        {
+            notificationService.ShowError(
+                "Save Failed",
+                $"Unable to save settings: {string.Join(", ", result.Errors)}",
+                NotificationDurations.Medium);
+        }
+    }
+}
+```
+
+### Standard Notification Durations
+
+Always use constants from `GenHub.Core.Constants.NotificationDurations`:
+- `NotificationDurations.Short` (3s): Quick feedback for frequent user actions (e.g., hotkey assigned, toggle changed, item copied).
+- `NotificationDurations.Medium` (5s): Standard notifications (e.g., profile created, download finished, settings saved).
+- `NotificationDurations.Long` (6s): Important notifications or messages requiring reading.
+- `NotificationDurations.VeryLong` (10s): Complex messages or interactive toasts with action buttons.
+- `NotificationDurations.Critical` (15s): Error notifications requiring user attention or manual intervention.
+
 ## Anti-patterns to avoid
 
+- **Inline status labels / textblocks.** Never add `<TextBlock Text="{Binding StatusMessage}" />` or status bars to report action success, errors, or feedback. All feedback must use `INotificationService` toast notifications.
 - **Hardcoding hex values in XAML.** Never write `Background="#252525"` or `Foreground="#FFFFFF"`. Use dynamic theme resources.
 - **Local Accent Resource Shadows.** Never define `<SolidColorBrush x:Key="AccentColor" ...>` in local controls.
 - **Duplicating ComboBox, Expander, or ScrollBar templates.** Never copy-paste `ComboBox`, `Expander`, or `ScrollBar` template styles into local views.
@@ -240,4 +297,5 @@ Use standardized button classes rather than ad-hoc button styling:
 - [ ] Scrollable views configure `VerticalScrollBarVisibility="Auto"` and `HorizontalScrollBarVisibility="Disabled"`.
 - [ ] List items use inset pill containers with 8px corner radii.
 - [ ] Buttons use standard action or icon classes.
+- [ ] User action feedback, completions, warnings, and errors use `INotificationService` toasts (no inline `StatusMessage` labels).
 - [ ] Tested on dark theme and resizable window layouts.

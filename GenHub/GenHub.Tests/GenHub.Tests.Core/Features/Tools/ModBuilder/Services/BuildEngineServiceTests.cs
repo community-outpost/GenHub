@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
@@ -14,6 +9,11 @@ using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ModBuilder.Services;
@@ -1130,16 +1130,21 @@ public sealed class BuildEngineServiceTests : IDisposable
             },
         };
 
+        var reportedProgress = new List<BuildProgress>();
+        var progress = new Progress<BuildProgress>(reportedProgress.Add);
+
         // Act
         var result = await _service.ExecuteBuildAsync(
             project,
             configuration,
             new List<string>(),
-            BuildStep.Clean);
+            BuildStep.Clean,
+            progress);
 
         // Assert
         result.Success.Should().BeTrue(result.FirstError);
         Directory.Exists(outsideDir).Should().BeTrue();
         File.Exists(testFile).Should().BeTrue();
+        reportedProgress.Should().Contain(p => p.Message != null && p.Message.Contains("Skipped unsafe or external build directory"));
     }
 }

@@ -1,11 +1,11 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Launching;

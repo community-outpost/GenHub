@@ -1,4 +1,3 @@
-using System.Text.Json;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -7,6 +6,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text.Json;
 
 namespace GenHub.Tests.Core.Common.Services;
 

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -10,6 +6,10 @@ using GenHub.Core.Models.UserData;
 using GenHub.Features.UserData.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -30,6 +30,8 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
     public ProfileContentLinkerServiceTests()
     {
         ProfileContentLinkerService.ResetActiveProfilesForTesting();
+        _userDataTrackerMock.Setup(t => t.DeactivateProfileUserDataAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _linkerService = new ProfileContentLinkerService(
             _userDataTrackerMock.Object,
             _loggerMock.Object);
@@ -215,6 +217,9 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
+        _userDataTrackerMock.Verify(
+            t => t.DeactivateProfileUserDataAsync(oldProfileId, false, It.IsAny<CancellationToken>()),
+            Times.Once);
         _userDataTrackerMock.Verify(
             t => t.InstallUserDataAsync(
                 "1.0.0.map.zh-map",

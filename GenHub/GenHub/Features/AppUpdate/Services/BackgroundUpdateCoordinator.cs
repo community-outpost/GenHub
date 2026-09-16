@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
@@ -17,6 +14,9 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.AppUpdate.Views;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Velopack;
 
 namespace GenHub.Features.AppUpdate.Services;

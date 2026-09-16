@@ -1,12 +1,12 @@
+using Serilog.Core;
+using Serilog.Events;
+using Serilog.Formatting;
+using Serilog.Formatting.Display;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
-using Serilog.Core;
-using Serilog.Events;
-using Serilog.Formatting;
-using Serilog.Formatting.Display;
 
 namespace GenHub.Infrastructure.Logging;
 

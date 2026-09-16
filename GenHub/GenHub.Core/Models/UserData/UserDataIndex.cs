@@ -1,3 +1,7 @@
+using GenHub.Core.Helpers;
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Models.UserData;
 
 /// <summary>
@@ -26,7 +30,7 @@ public class UserDataIndex
     /// Gets or sets a dictionary mapping absolute file paths to their installation key.
     /// Enables quick conflict detection when installing new content.
     /// </summary>
-    public Dictionary<string, string> FileToInstallationMap { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> FileToInstallationMap { get; set; } = new(PathHelper.PathComparer);
 
     /// <summary>
     /// Gets or sets a dictionary mapping profile IDs to their installation keys.

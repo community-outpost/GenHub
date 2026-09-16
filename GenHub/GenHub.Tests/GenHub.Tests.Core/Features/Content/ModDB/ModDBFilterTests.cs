@@ -1,5 +1,7 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.ModDB;
+using GenHub.Features.Content.Services.ContentDiscoverers;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.ModDB;
@@ -66,5 +68,51 @@ public class ModDBFilterTests
         Assert.Contains("filter=t", queryString);
         Assert.Contains("category=30", queryString);
         Assert.Contains("sort=rank-asc", queryString);
+    }
+
+    /// <summary>
+    /// Verifies that when searching addons section without query.ModDBSection specified,
+    /// ModDBAddonCategory is mapped to Category for query string serialization as ?category=.
+    /// </summary>
+    [Fact]
+    public void BuildFilterFromQuery_AddonsSectionWithAddonCategory_MapsToCategory()
+    {
+        // Arrange
+        var query = new ContentSearchQuery
+        {
+            SearchTerm = "test",
+            ModDBAddonCategory = "multiplayer-map",
+        };
+
+        // Act
+        var filter = ModDBDiscoverer.BuildFilterFromQuery(query, ModDBConstants.AddonsSection);
+
+        // Assert
+        Assert.Equal("multiplayer-map", filter.Category);
+        Assert.Null(filter.AddonCategory);
+        Assert.Contains("category=multiplayer-map", filter.ToQueryString());
+    }
+
+    /// <summary>
+    /// Verifies that when searching downloads section, ModDBAddonCategory is mapped to AddonCategory
+    /// for query string serialization as ?categoryaddon=.
+    /// </summary>
+    [Fact]
+    public void BuildFilterFromQuery_DownloadsSectionWithAddonCategory_MapsToAddonCategory()
+    {
+        // Arrange
+        var query = new ContentSearchQuery
+        {
+            SearchTerm = "test",
+            ModDBAddonCategory = "multiplayer-map",
+        };
+
+        // Act
+        var filter = ModDBDiscoverer.BuildFilterFromQuery(query, ModDBConstants.DownloadsSection);
+
+        // Assert
+        Assert.Equal("multiplayer-map", filter.AddonCategory);
+        Assert.Null(filter.Category);
+        Assert.Contains("categoryaddon=multiplayer-map", filter.ToQueryString());
     }
 }

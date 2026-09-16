@@ -1,6 +1,6 @@
-using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Enums;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
 

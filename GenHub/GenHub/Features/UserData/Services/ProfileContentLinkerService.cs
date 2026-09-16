@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Models.Enums;
@@ -12,6 +5,13 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.UserData;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.UserData.Services;
 
@@ -70,6 +70,13 @@ public class ProfileContentLinkerService(
             // If skipping cleanup, adopt old profile's manifests for the new profile
             if (skipCleanup && !string.IsNullOrEmpty(oldProfileId))
             {
+                // Deactivate old profile manifests without removing physical files so new profile can adopt them without conflict
+                var deactRes = await userDataTracker.DeactivateProfileUserDataAsync(oldProfileId, removeFiles: false, cancellationToken);
+                if (deactRes != null && !deactRes.Success)
+                {
+                    logger.LogWarning("[ProfileContentLinker] Could not deactivate old profile user data for {OldProfileId}: {Error}", oldProfileId, deactRes.FirstError);
+                }
+
                 var oldUserDataResult = await userDataTracker.GetProfileUserDataAsync(oldProfileId, cancellationToken);
                 if (oldUserDataResult.Success && oldUserDataResult.Data != null)
                 {

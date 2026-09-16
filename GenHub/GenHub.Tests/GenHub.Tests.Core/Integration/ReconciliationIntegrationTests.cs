@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -26,8 +21,12 @@ using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Integration;

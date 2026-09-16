@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
@@ -23,8 +18,12 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Downloads.ViewModels;
@@ -1867,11 +1866,11 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
-    /// Verifies that generic GitHub community content allows changing content type before download,
-    /// but locks it once downloaded or downloading.
+    /// Verifies that generic GitHub community content allows changing content type both before and after download,
+    /// but locks it while a download is actively in progress.
     /// </summary>
     [Fact]
-    public void GenericGitHub_CanChangeContentTypeIsTrue_BeforeDownload_AndFalseAfterDownload()
+    public void GenericGitHub_CanChangeContentTypeIsTrue_BeforeAndAfterDownload_AndFalseWhileDownloading()
     {
         // Arrange
         var searchResult = new ContentSearchResult
@@ -1898,10 +1897,128 @@ public sealed class ContentDetailViewModelTests
         viewModel.IsDownloading = true;
         Assert.False(viewModel.CanChangeContentType);
 
-        // Download complete
+        // Download complete - content type is editable post-download
         viewModel.IsDownloading = false;
         viewModel.IsDownloaded = true;
+        Assert.True(viewModel.CanChangeContentType);
+    }
+
+    /// <summary>
+    /// Verifies that ModDB content allows changing content type both before and after download,
+    /// but locks it while a download is actively in progress.
+    /// </summary>
+    [Fact]
+    public void ModDB_CanChangeContentTypeIsTrue_BeforeAndAfterDownload_AndFalseWhileDownloading()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.20240101.moddb.mod.supermod",
+            Name = "Super Mod",
+            ProviderName = ModDBConstants.PublisherDisplayName,
+            SourceUrl = "https://www.moddb.com/mods/supermod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(searchResult, coordinator.Object);
+
+        // Assert: prior to download, user can change content type
+        Assert.True(viewModel.CanChangeContentType);
+
+        // Act: change content type prior to download
+        viewModel.SelectedContentType = ContentType.ModdingTool;
+        Assert.Equal(ContentType.ModdingTool, searchResult.ContentType);
+        Assert.Equal(ContentType.ModdingTool, viewModel.ContentType);
+        Assert.True(searchResult.ResolverMetadata.TryGetValue(ContentConstants.ExplicitContentTypeMetadataKey, out var explicitFlag));
+        Assert.Equal(ContentConstants.ExplicitContentTypeEnabledValue, explicitFlag);
+
+        // Download in progress
+        viewModel.IsDownloading = true;
         Assert.False(viewModel.CanChangeContentType);
+
+        // Download complete - content type is editable post-download
+        viewModel.IsDownloading = false;
+        viewModel.IsDownloaded = true;
+        Assert.True(viewModel.CanChangeContentType);
+    }
+
+    /// <summary>
+    /// Verifies that changing content type on a downloaded ModDB item persists the new type
+    /// to the manifest pool without re-downloading, and drops game-installation dependencies
+    /// when changing to a standalone type (ModdingTool / Executable).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ModDB_SelectedContentType_WhenDownloaded_PersistsTypeAndClearsGameInstallDepsAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20240101.moddb.mod.supermod";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Super Mod",
+            ProviderName = ModDBConstants.PublisherDisplayName,
+            SourceUrl = "https://www.moddb.com/mods/supermod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Super Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "moddb-superauthor" },
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(ManifestConstants.ZeroHourGameInstallationManifestId),
+                    Name = ManifestConstants.ZeroHourInstallationName,
+                    DependencyType = ContentType.GameInstallation,
+                },
+            ],
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "tool.exe",
+                    Hash = "fakehash123",
+                    Size = 1024,
+                },
+            ],
+        };
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(p => p.GetManifestAsync(It.Is<ManifestId>(id => id.Value == manifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(originalManifest));
+
+        ContentManifest? persistedManifest = null;
+        manifestPoolMock
+            .Setup(p => p.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .Callback<ContentManifest, CancellationToken>((m, _) => persistedManifest = m)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(searchResult, coordinator.Object, manifestPool: manifestPoolMock.Object);
+
+        viewModel.IsDownloaded = true;
+
+        // Act: change to standalone ModdingTool
+        viewModel.SelectedContentType = ContentType.ModdingTool;
+
+        // Wait deterministically for the queued background persist to finish
+        await viewModel.AwaitContentTypePersistAsync();
+
+        // Assert
+        Assert.NotNull(persistedManifest);
+        Assert.Equal(ContentType.ModdingTool, persistedManifest.ContentType);
+        Assert.Empty(persistedManifest.Dependencies);
+        manifestPoolMock.Verify(p => p.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

@@ -1,10 +1,10 @@
-using System.IO.Compression;
-using System.Text;
 using GenHub.Core.Constants;
 using GenHub.Core.Exceptions;
 using GenHub.Core.Utilities;
 using GenHub.Tests.Core.Infrastructure;
 using SharpCompress.Archives;
+using System.IO.Compression;
+using System.Text;
 
 namespace GenHub.Tests.Core.Utilities;
 

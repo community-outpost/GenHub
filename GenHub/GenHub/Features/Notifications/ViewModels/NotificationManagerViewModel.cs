@@ -1,11 +1,11 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
 using Avalonia.Threading;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Notifications;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace GenHub.Features.Notifications.ViewModels;
 

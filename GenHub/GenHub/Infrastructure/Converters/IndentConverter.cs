@@ -1,13 +1,9 @@
-// <copyright file="IndentConverter.cs" company="Enowx Labs">
-// Copyright (c) Enowx Labs. All rights reserved.
-// </copyright>
-
-namespace GenHub.Infrastructure.Converters;
-
-using System;
-using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
+using System;
+using System.Globalization;
+
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts an integer indentation level to an Avalonia Thickness margin for tree views.

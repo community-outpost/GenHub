@@ -1,8 +1,8 @@
+using GenHub.Core.Models.Info;
+using GenHub.Core.Models.Results;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Info;
-using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Info;
 

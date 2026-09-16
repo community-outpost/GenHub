@@ -1,7 +1,7 @@
-using System;
-using System.IO;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.GameSettings;
+using System;
+using System.IO;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameSettings;

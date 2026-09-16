@@ -1,8 +1,8 @@
-using System.Runtime.InteropServices;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;

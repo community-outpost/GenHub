@@ -53,4 +53,30 @@ public class GameClientTests
         Assert.Contains("Test Client", result);
         Assert.Contains("ZeroHour", result);
     }
+
+    /// <summary>
+    /// Verifies that IsPublisherClient accurately distinguishes installation types from real publisher clients.
+    /// </summary>
+    /// <param name="publisherType">The publisher type string to test.</param>
+    /// <param name="expected">The expected classification.</param>
+    [Theory]
+    [InlineData("steam", false)]
+    [InlineData("eaapp", false)]
+    [InlineData("retail", false)]
+    [InlineData("wine", false)]
+    [InlineData("cdiso", false)]
+    [InlineData("thefirstdecade", false)]
+    [InlineData("lutris", false)]
+    [InlineData("unknown", false)]
+    [InlineData("Retail Installation", false)]
+    [InlineData("generalsonline", true)]
+    [InlineData("thesuperhackers", true)]
+    [InlineData("communityoutpost", true)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsPublisherClient_DistinguishesInstallationTypesAccurately(string? publisherType, bool expected)
+    {
+        var client = new GameClient { PublisherType = publisherType };
+        Assert.Equal(expected, client.IsPublisherClient);
+    }
 }

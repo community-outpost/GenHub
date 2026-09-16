@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Tools.MapManager;
@@ -12,6 +5,13 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.MapManager.Services;
 
@@ -161,13 +161,16 @@ public sealed class MapExportService(
         IProgress<double>? progress,
         CancellationToken ct)
     {
-        if (mapList.Count == 1 && mapList[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase))
+        if (mapList.Count == 1 &&
+            (mapList[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase) ||
+             mapList[0].FileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+             mapList[0].FileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase)))
         {
             var (isValid, errorMessage) = importService.ValidateZip(mapList[0].FullPath);
             if (!isValid)
             {
-                logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
-                throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
+                logger.LogError("Archive validation failed for upload: {Error}", errorMessage);
+                throw new ArgumentException(errorMessage ?? "Invalid archive for upload.");
             }
 
             return (mapList[0].FullPath, false, progress);

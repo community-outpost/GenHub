@@ -1,14 +1,15 @@
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -34,7 +35,7 @@ public class GitHubManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -44,7 +45,7 @@ public class GitHubManifestFactory(
         if (!Directory.Exists(extractedDirectory))
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
-            return [];
+            return OperationResult<List<ContentManifest>>.CreateFailure($"Extracted directory does not exist: {extractedDirectory}");
         }
 
         // Process archive payloads and normalize layout prior to computing hashes and creating CAS manifest
@@ -130,7 +131,7 @@ public class GitHubManifestFactory(
             InstallationInstructions = originalManifest.InstallationInstructions,
         };
 
-        return [manifest];
+        return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);
     }
 
     /// <inheritdoc />

@@ -100,7 +100,9 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Equal(4, manifests.Count);
@@ -160,7 +162,9 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Equal(4, manifests.Count);
@@ -199,7 +203,9 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Single(manifests);
@@ -252,7 +258,9 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
             });
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert: Each variant was processed with cleanupSources: false
         Assert.NotEmpty(manifests);
@@ -315,7 +323,9 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
             .ReturnsAsync(Array.Empty<string>());
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert: Only 1080p manifest is created; other variants with no assets are skipped
         Assert.Single(manifests);
@@ -348,7 +358,9 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         };
 
         // Act
-        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
 
         // Assert
         Assert.Equal(4, manifests.Count);

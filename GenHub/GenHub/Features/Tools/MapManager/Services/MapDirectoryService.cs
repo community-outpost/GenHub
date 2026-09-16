@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.MapManager;
@@ -12,6 +5,13 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.MapManager.Services;
 
@@ -148,7 +148,7 @@ public sealed class MapDirectoryService(
                     var zipFiles = Directory.GetFiles(directory, MapManagerConstants.ZipFilePattern, SearchOption.TopDirectoryOnly);
                     foreach (var zipPath in zipFiles)
                     {
-                         try
+                        try
                         {
                             var fileInfo = new FileInfo(zipPath);
                             mapFiles.Add(new MapFile
@@ -175,7 +175,7 @@ public sealed class MapDirectoryService(
                 }
                 catch (Exception ex)
                 {
-                     logger.LogError(ex, "Failed to scan for zip files");
+                    logger.LogError(ex, "Failed to scan for zip files");
                 }
 
                 logger.LogDebug("Found {Count} maps for {GameType}", mapFiles.Count, version);

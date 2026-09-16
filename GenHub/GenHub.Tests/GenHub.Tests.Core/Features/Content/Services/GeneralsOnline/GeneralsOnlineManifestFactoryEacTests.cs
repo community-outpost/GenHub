@@ -286,10 +286,11 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
             NullLogger<GeneralsOnlineManifestFactory>.Instance,
             providerLoader.Object);
 
-        var manifests = await factory.CreateManifestsFromExtractedContentAsync(
+        var result = await factory.CreateManifestsFromExtractedContentAsync(
             originalManifest ?? CreateOriginalManifest(),
             _extractedDirectory);
 
-        return manifests.Single(manifest => manifest.ContentType == ContentType.GameClient);
+        Assert.True(result.Success);
+        return result.Data!.Single(manifest => manifest.ContentType == ContentType.GameClient);
     }
 }

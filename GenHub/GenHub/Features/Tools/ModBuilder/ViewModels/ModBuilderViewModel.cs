@@ -1,15 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -26,6 +14,18 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -1245,7 +1245,7 @@ public partial class ModBuilderViewModel(
                     AppendBuildLog($"Downloading and extracting sample assets for {item.Name}...");
                     var progress = new Progress<string>(msg =>
                     {
-                        InvokeOnUIThreadAsync(() => StatusMessage = msg);
+                        _ = InvokeOnUIThreadAsync(() => StatusMessage = msg);
                         AppendBuildLog(msg);
                     });
 
@@ -1439,7 +1439,7 @@ public partial class ModBuilderViewModel(
 
                 var progress = new Progress<string>(msg =>
                 {
-                    InvokeOnUIThreadAsync(() => StatusMessage = msg);
+                    _ = InvokeOnUIThreadAsync(() => StatusMessage = msg);
                     AppendBuildLog(msg);
                 });
 
@@ -1947,7 +1947,7 @@ public partial class ModBuilderViewModel(
 
         var progressReporter = new Progress<string>(msg =>
         {
-            InvokeOnUIThreadAsync(() => StatusMessage = msg);
+            _ = InvokeOnUIThreadAsync(() => StatusMessage = msg);
             AppendBuildLog(msg);
         });
 

@@ -1,10 +1,10 @@
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Info.Services;
 
@@ -27,9 +27,9 @@ public class MockGameSettingsService : IGameSettingsService
     {
         return Task.FromResult(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings
         {
-             ShowFps = true,
-             Render = { FpsLimit = 144 },
-             AutoLogin = true,
+            ShowFps = true,
+            Render = { FpsLimit = 144 },
+            AutoLogin = true,
         }));
     }
 
@@ -55,7 +55,7 @@ public class MockGameSettingsService : IGameSettingsService
     /// <inheritdoc/>
     public Task<OperationResult<TheSuperHackersSettings>> LoadTheSuperHackersSettingsAsync(GameType gameType)
     {
-         return Task.FromResult(OperationResult<TheSuperHackersSettings>.CreateSuccess(new TheSuperHackersSettings()));
+        return Task.FromResult(OperationResult<TheSuperHackersSettings>.CreateSuccess(new TheSuperHackersSettings()));
     }
 
     /// <inheritdoc/>

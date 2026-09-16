@@ -1,5 +1,6 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,9 +8,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Features.ActionSets;
-using GenHub.Core.Models.GameInstallations;
-using Microsoft.Extensions.Logging;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Abstract base class for executable version verification fixes.

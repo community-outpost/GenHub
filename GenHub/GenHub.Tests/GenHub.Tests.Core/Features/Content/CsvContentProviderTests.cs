@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
@@ -15,6 +10,11 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 

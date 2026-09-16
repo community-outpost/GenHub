@@ -1,14 +1,14 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Constants;
+using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.GameInstallations;
-using Microsoft.Extensions.Logging;
-using Microsoft.Win32;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Installs the Visual C++ 2010 Redistributable (x86) which is required for Generals/Zero Hour.

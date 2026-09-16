@@ -137,6 +137,9 @@
     <Color x:Key="CheckBoxCheckedColor">#AA00FF</Color>
     <SolidColorBrush x:Key="CheckBoxCheckedBrush" Color="{StaticResource CheckBoxCheckedColor}" />
 
+    <!-- Elevation / Shadow Tokens -->
+    <BoxShadows x:Key="FlyoutElevationShadow">0 8 24 0 #40000000</BoxShadows>
+
     <!-- ==================================================================== -->
     <!-- 5. Compatibility / Legacy Colors & Brushes                           -->
     <!-- ==================================================================== -->
@@ -243,9 +246,9 @@
     <!-- 9. Fluent Theme ComboBox Aliases                                     -->
     <!-- ==================================================================== -->
     <SolidColorBrush x:Key="ComboBoxItemBackground" Color="Transparent" />
-    <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="{DynamicResource AccentTintBackgroundColor}" />
     <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="{DynamicResource AccentBadgeBackgroundColor}" />
-    <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="{DynamicResource AccentTintBackgroundColor}" />
     <SolidColorBrush x:Key="ComboBoxItemForeground" Color="{DynamicResource TextPrimaryColor}" />
     <SolidColorBrush x:Key="ComboBoxItemForegroundPointerOver" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ComboBoxItemForegroundSelected" Color="{DynamicResource TextPrimaryColor}" />
@@ -275,4 +278,13 @@
     <SolidColorBrush x:Key="ExpanderChevronBorderBrush" Color="Transparent" />
     <SolidColorBrush x:Key="ExpanderChevronBorderBrushPointerOver" Color="Transparent" />
     <SolidColorBrush x:Key="ExpanderChevronBorderBrushPressed" Color="Transparent" />
+
+    <!-- ==================================================================== -->
+    <!-- 11. Elevation & Scrim Tokens                                         -->
+    <!-- ==================================================================== -->
+    <Color x:Key="OverlayScrimColor">#99000000</Color>
+    <SolidColorBrush x:Key="OverlayScrimBrush" Color="{StaticResource OverlayScrimColor}" />
+    <BoxShadows x:Key="CardBoxShadow">0 4 12 0 #20000000</BoxShadows>
+    <BoxShadows x:Key="DialogBoxShadow">0 8 24 0 #40000000</BoxShadows>
+    <BoxShadows x:Key="FlyoutBoxShadow">0 10 28 0 #99000000</BoxShadows>
 </ResourceDictionary>

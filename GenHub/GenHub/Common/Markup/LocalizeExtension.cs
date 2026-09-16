@@ -1,9 +1,9 @@
-using System;
 using Avalonia;
 using Avalonia.Data;
 using Avalonia.Markup.Xaml;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using System;
 
 namespace GenHub.Common.Markup;
 

@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.Content;
+using System;
+using System.Collections.Generic;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -250,5 +250,73 @@ public class ContentCardBadgeHelperTests
         Assert.True(ContentCardBadgeHelper.IsOfficialProvider(coResult));
         Assert.False(ContentCardBadgeHelper.IsGenericGitHub(goResult));
         Assert.False(ContentCardBadgeHelper.IsGenericGitHub(coResult));
+    }
+
+    /// <summary>
+    /// Verifies that ModDB content is recognized by provider name, resolver ID, prefix, or source URL.
+    /// </summary>
+    [Fact]
+    public void IsModDb_MatchesByProviderName_ResolverId_Prefix_Or_SourceUrl()
+    {
+        var byDisplayName = new ContentSearchResult { ProviderName = ModDBConstants.PublisherDisplayName };
+        var byPublisherType = new ContentSearchResult { ProviderName = ModDBConstants.PublisherType };
+        var byResolver = new ContentSearchResult { ResolverId = ModDBConstants.ResolverId };
+        var byId = new ContentSearchResult { Id = "1.20240101.moddb.mod.testmod" };
+        var byUrl = new ContentSearchResult { SourceUrl = "https://www.moddb.com/mods/testmod" };
+        var unrelated = new ContentSearchResult { ProviderName = "CNCNet", SourceUrl = "https://cncnet.org" };
+
+        Assert.True(ContentCardBadgeHelper.IsModDb(byDisplayName));
+        Assert.True(ContentCardBadgeHelper.IsModDb(byPublisherType));
+        Assert.True(ContentCardBadgeHelper.IsModDb(byResolver));
+        Assert.True(ContentCardBadgeHelper.IsModDb(byId));
+        Assert.True(ContentCardBadgeHelper.IsModDb(byUrl));
+        Assert.False(ContentCardBadgeHelper.IsModDb(unrelated));
+    }
+
+    /// <summary>
+    /// Verifies that CanChangeContentType returns true only for editable publishers (Generic GitHub, ModDB)
+    /// and false for official authoritative publishers.
+    /// </summary>
+    [Fact]
+    public void CanChangeContentType_ReturnsTrueForGenericGitHubAndModDb_ReturnsFalseForOfficialProviders()
+    {
+        var genericGitHub = new ContentSearchResult
+        {
+            Id = "github.communityuser.mod",
+            ProviderName = "GitHub",
+            AuthorName = "communityuser",
+        };
+
+        var modDbItem = new ContentSearchResult
+        {
+            Id = "1.20240101.moddb.mod.testmod",
+            ProviderName = ModDBConstants.PublisherDisplayName,
+            SourceUrl = "https://www.moddb.com/mods/testmod",
+        };
+
+        var officialGo = new ContentSearchResult
+        {
+            Id = "github.generalsonline.launcher",
+            ProviderName = "GitHub",
+            ResolverMetadata = { [GitHubConstants.OwnerMetadataKey] = "GeneralsOnline" },
+        };
+
+        var officialCo = new ContentSearchResult
+        {
+            Id = "1.communityoutpost.maps",
+            ProviderName = PublisherTypeConstants.CommunityOutpost,
+        };
+
+        var officialTsh = new ContentSearchResult
+        {
+            Id = "1.thesuperhackers.patch",
+            ProviderName = PublisherTypeConstants.TheSuperHackers,
+        };
+
+        Assert.True(ContentCardBadgeHelper.CanChangeContentType(genericGitHub));
+        Assert.True(ContentCardBadgeHelper.CanChangeContentType(modDbItem));
+        Assert.False(ContentCardBadgeHelper.CanChangeContentType(officialGo));
+        Assert.False(ContentCardBadgeHelper.CanChangeContentType(officialCo));
+        Assert.False(ContentCardBadgeHelper.CanChangeContentType(officialTsh));
     }
 }

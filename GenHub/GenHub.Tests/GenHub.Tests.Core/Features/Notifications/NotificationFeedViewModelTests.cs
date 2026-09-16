@@ -1,7 +1,3 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Reactive.Subjects;
 using CommunityToolkit.Mvvm.Messaging;
 using FluentAssertions;
 using GenHub.Core.Interfaces.Notifications;
@@ -10,6 +6,10 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Features.Notifications.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Reactive.Subjects;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Notifications;

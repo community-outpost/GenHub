@@ -1,9 +1,9 @@
-using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using System.Net.Http;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;

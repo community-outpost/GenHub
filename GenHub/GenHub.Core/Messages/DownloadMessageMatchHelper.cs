@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Results.Content;
 using System;
 using System.Linq;
-using GenHub.Core.Models.Results.Content;
 
 namespace GenHub.Core.Messages;
 

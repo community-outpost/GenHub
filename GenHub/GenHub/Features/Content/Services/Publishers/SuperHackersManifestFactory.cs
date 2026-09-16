@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -55,7 +56,7 @@ public class SuperHackersManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
@@ -67,7 +68,7 @@ public class SuperHackersManifestFactory(
         if (detectedExecutables.Count == 0)
         {
             logger.LogWarning("No SuperHackers game executables detected in {Directory}", extractedDirectory);
-            return [];
+            return OperationResult<List<ContentManifest>>.CreateFailure($"No SuperHackers game executables detected in {extractedDirectory}");
         }
 
         logger.LogInformation("Detected {Count} game executables for SuperHackers release", detectedExecutables.Count);
@@ -93,7 +94,7 @@ public class SuperHackersManifestFactory(
                 manifest.Files.Count);
         }
 
-        return manifests;
+        return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
     }
 
     /// <inheritdoc />
