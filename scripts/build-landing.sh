@@ -33,6 +33,11 @@ echo "  Tag: ${LATEST_TAG}"
 echo "  Display Name: ${DISPLAY_NAME}"
 echo "  Download URL: ${DOWNLOAD_URL}"
 
+if [[ -f "${SCRIPT_DIR}/fetch-changelogs.py" ]]; then
+    echo "  Syncing changelogs from GitHub & playgenerals.online..."
+    python3 "${SCRIPT_DIR}/fetch-changelogs.py" 2>/dev/null || true
+fi
+
 rm -rf "${ROOT_DIR}/public"
 mkdir -p "${ROOT_DIR}/public"
 cp "${ROOT_DIR}/Landing-page/index.html" "${ROOT_DIR}/public/index.html"

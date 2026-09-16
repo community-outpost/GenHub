@@ -1771,22 +1771,9 @@
     },
     "changelog": {
         "id": "changelog",
-        "title": "Changelog",
-        "desc": "Version history.",
-        "cards": [
-            {
-                "title": "GenHub Alpha 3 (v0.0.3)",
-                "content": "Latest release with CAS storage engine and multi-publisher downloads.",
-                "type": "Changelog",
-                "detailed": "**v0.0.3 Alpha 3 Release Notes:**\n* New ContentDetailView with dependency inspection\n* MapManager DataGrid with SHA-256 integrity verification\n* Multi-publisher catalog with 6 providers\n* Virtual Workspaces with NTFS hardlinks\n* Replay Manager CRC matching"
-            },
-            {
-                "title": "GenHub Alpha 2 (v0.0.2)",
-                "content": "Initial public preview release with setup wizard.",
-                "type": "Changelog",
-                "detailed": "**v0.0.2 Release Notes:**\n* Game profile creation wizard\n* Steam launch integration\n* DirectX 9 / Vulkan configuration\n* Initial download repository"
-            }
-        ]
+        "title": "GenHub Changelog",
+        "desc": "Official releases and version history from GitHub.",
+        "cards": []
     },
     "faq": {
         "id": "faq",
@@ -1930,15 +1917,8 @@
     "gochange": {
         "id": "gochange",
         "title": "Generals Online Changelog",
-        "desc": "View the latest changes and updates to the Generals Online service.",
-        "cards": [
-            {
-                "title": "v2.1.4 Competitive Update",
-                "content": "Ranked ladder calibration and ping optimization.",
-                "type": "Changelog",
-                "detailed": "**v2.1.4 Changelog:**\n* Optimized server relay latency for EU and NA players\n* Fixed spectator mode desync during superweapon detonations\n* Added automatic disconnect detection and ladder Elo adjustment\n* GenTool 8.9 widescreen compatibility update"
-            }
-        ]
+        "desc": "Official patch notes and service updates from playgenerals.online.",
+        "cards": []
     },
     "gofaq": {
         "id": "gofaq",
@@ -2191,24 +2171,186 @@
     }
 
     function formatMarkdown(md) {
-        if (!md) return '';
+        if (!md) return "";
         let html = md
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(\S[^*]*?)\*/g, '<em>$1</em>')
-            .replace(/^\s*[\*\-]\s+(.*)$/gm, '<li>$1</li>');
-        html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, '<ul style="margin: 8px 0; padding-left: 20px;">$1</ul>');
-        return html.replace(/\n/g, '<br>');
+            .replace(/\[(.*?)\]\((https?:\/\/[^\s\)]+)\)/g, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #a78bfa; text-decoration: underline;\">$1</a>")
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*(\S[^*]*?)\*/g, "<em>$1</em>")
+            .replace(/`([^`]+)`/g, "<code style=\"background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 12px; color: #cbd5e1;\">$1</code>")
+            .replace(/^###\s+(.*)$/gm, "<h5 style=\"color: #f1f5f9; margin: 10px 0 4px 0; font-size: 13px; font-weight: 600;\">$1</h5>")
+            .replace(/^##\s+(.*)$/gm, "<h4 style=\"color: #f1f5f9; margin: 12px 0 6px 0; font-size: 14px; font-weight: 700;\">$1</h4>")
+            .replace(/^\s*[\*\-]\s+(.*)$/gm, "<li>$1</li>");
+        html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, "<ul style=\"margin: 8px 0; padding-left: 20px;\">$1</ul>");
+        html = html.replace(/<br>\s*<(ul|li|\/ul|\/li|h4|h5)/g, "<$1").replace(/<\/(ul|li|h4|h5)>\s*<br>/g, "</$1>");
+        return html.replace(/\n/g, "<br>");
+    }
+
+    const changelogState = {
+        "changelog": { status: "idle", promise: null },
+        "gochange": { status: "idle", promise: null }
+    };
+
+    async function lazyLoadChangelog(secKey) {
+        if (changelogState[secKey].status === "loaded") {
+            return;
+        }
+        if (changelogState[secKey].status === "loading") {
+            return changelogState[secKey].promise;
+        }
+
+        changelogState[secKey].status = "loading";
+
+        const container = document.getElementById("ghInfoCardsContainer");
+        if (container) {
+            const isGH = secKey === "changelog";
+            const label = isGH ? "GenHub Releases" : "Generals Online Patch Notes";
+            const sourceUrl = isGH ? "https://github.com/community-outpost/GenHub/releases" : "https://www.playgenerals.online/patchnotes";
+            container.innerHTML = `
+                <div class="gh-info-card" style="text-align: center; padding: 40px 20px; border-color: rgba(139, 92, 246, 0.3);">
+                    <div class="gh-loading-spinner" style="display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(139, 92, 246, 0.25); border-top-color: #8b5cf6; border-radius: 50%; margin-bottom: 14px;"></div>
+                    <h4 style="margin: 0 0 6px 0; color: #f8fafc; font-size: 14px; font-weight: 600;">Fetching ${label}...</h4>
+                    <p style="margin: 0; font-size: 12.5px; color: #94a3b8;">
+                        Connecting to <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" style="color: #a78bfa; text-decoration: underline;">${sourceUrl}</a>
+                    </p>
+                </div>
+            `;
+        }
+
+        const promise = (async () => {
+            if (secKey === "changelog") {
+                try {
+                    let releases = null;
+                    // Attempt direct GitHub Releases API first
+                    try {
+                        const res = await fetch("https://api.github.com/repos/community-outpost/GenHub/releases");
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                                releases = data;
+                            }
+                        }
+                    } catch (netErr) {
+                        console.warn("Direct GitHub API fetch failed, trying local dataset:", netErr);
+                    }
+
+                    // Fallback to local cached release dataset
+                    if (!releases) {
+                        const localRes = await fetch("./assets/data/genhub_releases.json");
+                        if (localRes.ok) {
+                            releases = await localRes.json();
+                        }
+                    }
+
+                    if (Array.isArray(releases) && releases.length > 0) {
+                        infoData["changelog"].cards = releases.map(r => {
+                            const tag = r.tag_name || "";
+                            const name = r.name || `GenHub ${tag}`;
+                            const dateStr = r.published_at ? new Date(r.published_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+                            const rawBody = r.body || "No release notes provided.";
+
+                            const cleanLines = rawBody.split("\n")
+                                .map(l => l.trim())
+                                .filter(l => l && !l.startsWith("#") && !l.startsWith("*") && !l.startsWith("-") && !l.startsWith("!"));
+                            const summaryText = cleanLines.slice(0, 2).join(" ") || "Official GenHub release with updated assets and dependencies.";
+                            const content = dateStr ? `Released on ${dateStr}. ${summaryText}` : summaryText;
+
+                            return {
+                                title: name,
+                                type: r.prerelease ? "Pre-release" : "Release",
+                                content: content,
+                                detailed: `**Release:** [${tag}](${r.html_url || "https://github.com/community-outpost/GenHub/releases"})\n` +
+                                          (dateStr ? `**Published:** ${dateStr}\n\n` : "\n") +
+                                          rawBody
+                            };
+                        });
+                        changelogState["changelog"].status = "loaded";
+                    } else {
+                        throw new Error("No release data found");
+                    }
+                } catch (err) {
+                    console.error("Failed to load GenHub changelog:", err);
+                    changelogState["changelog"].status = "error";
+                    infoData["changelog"].cards = [{
+                        title: "Unable to Load Releases",
+                        type: "Notice",
+                        content: "Could not fetch releases from GitHub API at this moment.",
+                        detailed: "Please view releases directly at [GitHub Releases](https://github.com/community-outpost/GenHub/releases)."
+                    }];
+                }
+            } else if (secKey === "gochange") {
+                try {
+                    let notes = null;
+                    const localRes = await fetch("./assets/data/generals_online_patchnotes.json");
+                    if (localRes.ok) {
+                        notes = await localRes.json();
+                    }
+
+                    if (Array.isArray(notes) && notes.length > 0) {
+                        infoData["gochange"].cards = notes.map(n => {
+                            const detailsList = Array.isArray(n.details) && n.details.length > 0
+                                ? n.details.map(d => `* ${d}`).join("\n")
+                                : (n.summary ? `* ${n.summary}` : "* Stability and performance improvements.");
+
+                            const detailedMd = `**Official Patch Notes:** [${n.title} on playgenerals.online](${n.url})\n` +
+                                               `**Date:** ${n.date}\n\n` +
+                                               `**Changes & Fixes:**\n` +
+                                               detailsList;
+
+                            return {
+                                title: `${n.title} (${n.date})`,
+                                type: "Patch Notes",
+                                content: n.summary || "Generals Online service updates and gameplay improvements.",
+                                detailed: detailedMd
+                            };
+                        });
+                        changelogState["gochange"].status = "loaded";
+                    } else {
+                        throw new Error("No patch notes data found");
+                    }
+                } catch (err) {
+                    console.error("Failed to load Generals Online patch notes:", err);
+                    changelogState["gochange"].status = "error";
+                    infoData["gochange"].cards = [{
+                        title: "Unable to Load Patch Notes",
+                        type: "Notice",
+                        content: "Could not load patch notes at this time.",
+                        detailed: "Please view patch notes directly at [playgenerals.online/patchnotes](https://www.playgenerals.online/patchnotes)."
+                    }];
+                }
+            }
+        })();
+
+        changelogState[secKey].promise = promise;
+        await promise;
+
+        const currentActiveBtn = document.querySelector("#ghInfoNavList .gh-info-nav-btn.active");
+        const currentActiveId = currentActiveBtn ? currentActiveBtn.getAttribute("data-info-id") : null;
+        if (currentActiveId === secKey) {
+            renderInfoSection(secKey);
+        }
     }
 
     function renderInfoSection(secKey) {
         // Support section aliases
-        if (secKey === 'workspace' && infoData['workspaces']) secKey = 'workspaces';
-        if (secKey === 'faq' && infoData['gofaq']) secKey = 'gofaq';
-        const section = infoData[secKey] || infoData['quickstart'];
-        const titleEl = document.getElementById('ghInfoSectionTitle');
-        const descEl = document.getElementById('ghInfoSectionDesc');
-        const container = document.getElementById('ghInfoCardsContainer');
-        const contentArea = document.getElementById('ghInfoContentArea');
+        if (secKey === "workspace" && infoData["workspaces"]) secKey = "workspaces";
+        if (secKey === "faq" && infoData["gofaq"]) secKey = "gofaq";
+
+        // Lazy-load changelogs on demand when clicked
+        if ((secKey === "changelog" || secKey === "gochange") && changelogState[secKey].status !== "loaded") {
+            const section = infoData[secKey];
+            const titleEl = document.getElementById("ghInfoSectionTitle");
+            const descEl = document.getElementById("ghInfoSectionDesc");
+            if (titleEl && section) titleEl.textContent = section.title;
+            if (descEl && section) descEl.textContent = section.desc;
+            lazyLoadChangelog(secKey);
+            return;
+        }
+
+        const section = infoData[secKey] || infoData["quickstart"];
+        const titleEl = document.getElementById("ghInfoSectionTitle");
+        const descEl = document.getElementById("ghInfoSectionDesc");
+        const container = document.getElementById("ghInfoCardsContainer");
+        const contentArea = document.getElementById("ghInfoContentArea");
 
         if (titleEl) titleEl.textContent = section.title;
         if (descEl) descEl.textContent = section.desc;
@@ -2216,35 +2358,61 @@
 
         if (container) {
             const demoHtml = renderDemoContainer(secKey);
+
+            let sourceBanner = "";
+            if (secKey === "changelog") {
+                sourceBanner = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #cbd5e1;">
+                        <span>Source: <a href="https://github.com/community-outpost/GenHub/releases" target="_blank" rel="noopener noreferrer" style="color: #a78bfa; font-weight: 600; text-decoration: underline;">github.com/community-outpost/GenHub/releases</a></span>
+                        <button class="gh-btn-table" id="ghReloadChangelogBtn" style="font-size: 11px; padding: 2px 8px; height: 24px; cursor: pointer;">\u21bb Refresh</button>
+                    </div>`;
+            } else if (secKey === "gochange") {
+                sourceBanner = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #cbd5e1;">
+                        <span>Source: <a href="https://www.playgenerals.online/patchnotes" target="_blank" rel="noopener noreferrer" style="color: #60a5fa; font-weight: 600; text-decoration: underline;">playgenerals.online/patchnotes</a></span>
+                        <button class="gh-btn-table" id="ghReloadChangelogBtn" style="font-size: 11px; padding: 2px 8px; height: 24px; cursor: pointer;">\u21bb Refresh</button>
+                    </div>`;
+            }
+
             const cardsHtml = (section.cards || []).map(c => `
                 <div class="gh-info-card">
                     <div class="gh-info-card-header">
                         <h4>${c.title}</h4>
-                        <span class="gh-chip">${c.type || 'Concept'}</span>
+                        <span class="gh-chip">${c.type || "Concept"}</span>
                     </div>
                     <p style="font-size: 13.5px; color: #cbd5e1; line-height: 1.5; margin: 8px 0;">${c.content}</p>
-                    ${c.detailed ? `<button class="gh-info-expand-btn">Show Details ▾</button>
+                    ${c.detailed ? `<button class="gh-info-expand-btn">Show Details \u25be</button>
                     <div class="gh-info-detailed-content" style="font-size: 13px; color: #94a3b8; line-height: 1.6; padding-top: 10px;">
                         ${formatMarkdown(c.detailed)}
-                    </div>` : ''}
+                    </div>` : ""}
                 </div>
-            `).join('');
+            `).join("");
 
-            container.innerHTML = demoHtml + cardsHtml;
+            container.innerHTML = demoHtml + sourceBanner + cardsHtml;
 
             // Wire expand buttons
-            container.querySelectorAll('.gh-info-expand-btn').forEach(b => {
-                b.addEventListener('click', () => {
+            container.querySelectorAll(".gh-info-expand-btn").forEach(b => {
+                b.addEventListener("click", () => {
                     const content = b.nextElementSibling;
                     if (content) {
-                        const isShown = content.classList.toggle('active');
-                        b.textContent = isShown ? 'Hide Details ▴' : 'Show Details ▾';
+                        const isShown = content.classList.toggle("active");
+                        b.textContent = isShown ? "Hide Details \u25b4" : "Show Details \u25be";
                     }
                 });
             });
 
+            // Wire reload changelog button if present
+            const reloadBtn = container.querySelector("#ghReloadChangelogBtn");
+            if (reloadBtn) {
+                reloadBtn.addEventListener("click", () => {
+                    changelogState[secKey].status = "idle";
+                    changelogState[secKey].promise = null;
+                    lazyLoadChangelog(secKey);
+                });
+            }
+
             // Wire Demo Profile Card launch / action buttons inside Demo container
-            const demoCard = container.querySelector('.gh-profile-card');
+            const demoCard = container.querySelector(".gh-profile-card");
             if (demoCard) {
                 wireProfileCard(demoCard);
             }
