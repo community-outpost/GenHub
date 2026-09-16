@@ -490,6 +490,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             IsEditable = coreItem.IsEditable,
             SourcePath = coreItem.SourcePath,
             Manifest = coreItem.Manifest,
+            GameClient = coreItem.GameClient,
             IsLocked = isLocked,
             CanToggle = canToggle,
         };

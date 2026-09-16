@@ -216,6 +216,27 @@ public class GameProfileManager(
                 }
             }
 
+            if (request.GameClient == null && request.EnabledContentIds != null && !string.IsNullOrEmpty(profile.GameInstallationId))
+            {
+                try
+                {
+                    var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+                    if (installationResult != null && installationResult.Success && installationResult.Data?.AvailableGameClients != null)
+                    {
+                        var matchedClient = installationResult.Data.AvailableGameClients
+                            .FirstOrDefault(c => request.EnabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+                        if (matchedClient != null)
+                        {
+                            request.GameClient = matchedClient;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Could not resolve game client from installation {InstallationId} during profile update.", profile.GameInstallationId);
+                }
+            }
+
             CheckAndHandleContentChanges(profile, request, previousEnabledContentIds, previousGameClientId, isRunning);
             ApplyUpdateRequestToProfile(profile, request);
             GameSettingsMapper.UpdateFromRequest(profile, request);

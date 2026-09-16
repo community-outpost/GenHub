@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
@@ -515,12 +516,15 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
+        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient();
+
         var createRequest = new CreateProfileRequest
         {
             Name = Name,
             Description = Description,
             GameInstallationId = isStandaloneProfile ? null : SelectedGameInstallation?.SourceId,
-            GameClientId = isStandaloneProfile ? null : SelectedGameInstallation?.GameClientId,
+            GameClientId = isStandaloneProfile ? null : (activeGameClient?.Id ?? SelectedGameInstallation?.GameClientId),
+            GameClient = activeGameClient,
             WorkspaceStrategy = SelectedWorkspaceStrategy,
             EnabledContentIds = enabledContentIds,
             CommandLineArguments = CommandLineArguments,
@@ -765,6 +769,8 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
+        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient();
+
         var updateRequest = new UpdateProfileRequest
         {
             Name = Name,
@@ -778,10 +784,50 @@ public partial class GameProfileSettingsViewModel
             CommandLineArguments = CommandLineArguments,
             IconPath = IconPath,
             CoverPath = CoverPath,
+            GameClient = activeGameClient,
         };
 
         PopulateGameSettings(updateRequest, gameSettings);
         return updateRequest;
+    }
+
+    private GameClient? ResolveActiveGameClient()
+    {
+        var enabledClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
+        if (enabledClientItem?.GameClient != null)
+        {
+            return enabledClientItem.GameClient;
+        }
+
+        if (enabledClientItem?.Manifest != null)
+        {
+            return new GameClient
+            {
+                Id = enabledClientItem.Manifest.Id.Value,
+                Name = enabledClientItem.Manifest.Name,
+                Version = enabledClientItem.Manifest.Version,
+                GameType = enabledClientItem.Manifest.TargetGame,
+                SourceType = ContentType.GameClient,
+                PublisherType = enabledClientItem.Manifest.Publisher?.PublisherType,
+                InstallationId = SelectedGameInstallation?.SourceId,
+            };
+        }
+
+        if (enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
+        {
+            return new GameClient
+            {
+                Id = enabledClientItem.ManifestId,
+                Name = enabledClientItem.DisplayName,
+                Version = enabledClientItem.Version ?? string.Empty,
+                GameType = enabledClientItem.GameType,
+                SourceType = ContentType.GameClient,
+                PublisherType = enabledClientItem.Publisher,
+                InstallationId = SelectedGameInstallation?.SourceId,
+            };
+        }
+
+        return SelectedGameInstallation?.GameClient;
     }
 
     private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)

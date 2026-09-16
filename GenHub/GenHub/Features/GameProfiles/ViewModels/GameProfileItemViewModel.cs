@@ -439,49 +439,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Extract version and publisher info from enabled content manifest IDs (prioritize GameInstallation manifests)
         if (profile is GameProfile gameProfile)
         {
-            // First try to get info from enabled GameInstallation manifests (look for "-installation" suffix)
-            var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains(ContentConstants.InstallationManifestIdMarker, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrEmpty(installationManifestId))
-            {
-                // We use this to check for color/branding mostly?
-                // Actually ExtractManifestInfo primarily sets Publisher, Color, Cover.
-                // For branding, we want GameClient (Mod) to take precedence over Installation (Steam).
-                // So let's look at GameClient FIRST for branding/color.
-            }
-
-            // Prioritize GameClient for branding (Colors/Covers) and Version
-            if (gameProfile.GameClient != null)
-            {
-                ExtractManifestInfo(gameProfile.GameClient.Id);
-
-                if (string.IsNullOrEmpty(_publisher))
-                {
-                    if (!string.IsNullOrEmpty(gameProfile.GameClient.PublisherType))
-                    {
-                        var pub = gameProfile.GameClient.PublisherType.ToLowerInvariant();
-                        _publisher = MapPublisherName(pub, gameProfile.GameClient.PublisherType);
-                        ApplyPublisherBranding(pub);
-                    }
-                    else if (gameProfile.GameClient.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        _publisher = PublisherInfoConstants.GeneralsOnline.Name;
-                        ApplyPublisherBranding(PublisherTypeConstants.GeneralsOnline);
-                    }
-                }
-
-                // Fallback: use GameClient.Version directly if we couldn't extract from manifest
-                // But SKIP if the publisher is "Local" - we want NO version for local content
-                if (string.IsNullOrEmpty(_gameVersion) &&
-                    !string.IsNullOrEmpty(gameProfile.GameClient.Version) &&
-                    !string.Equals(_publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Normalize version to handle Unknown, Auto-Updated, and Automatically added cases
-                    var version = gameProfile.GameClient.Version;
-                    GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
-                }
-            }
-
-            // Now generate the badge description using our new robust logic
+            ResolveProfileVersionAndPublisher(gameProfile);
             UpdateDescription(gameProfile);
         }
 
@@ -774,9 +732,21 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 return versionNumber.ToString("D6");
             }
 
+            if (versionNumber >= 19900000)
+            {
+                return versionNumber.ToString();
+            }
+
             return versionNumber >= 100
                 ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
                 : $"v{versionNumber}";
+        }
+
+        if (!IsZeroOrPlaceholderVersion(versionSegment))
+        {
+            return versionSegment.StartsWith('v') || versionSegment.StartsWith('V')
+                ? versionSegment
+                : $"v{versionSegment}";
         }
 
         return string.Empty;
@@ -935,25 +905,66 @@ public partial class GameProfileItemViewModel : ViewModelBase
         {
             ResolveFromInstallationManifest(gameProfile.EnabledContentIds);
         }
+
+        if (gameProfile.EnabledContentIds != null && gameProfile.EnabledContentIds.Count > 0)
+        {
+            if (gameProfile.GameClient == null || !gameProfile.GameClient.IsPublisherClient)
+            {
+                var enabledClientManifestId = gameProfile.EnabledContentIds
+                    .FirstOrDefault(id => id.Contains(".gameclient.", StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(enabledClientManifestId))
+                {
+                    ExtractManifestInfo(enabledClientManifestId);
+                }
+            }
+
+            if (gameProfile.GameClient == null || !gameProfile.GameClient.IsPublisherClient || string.IsNullOrEmpty(GameVersion))
+            {
+                var patchManifestId = gameProfile.EnabledContentIds
+                    .FirstOrDefault(id => id.Contains(".patch.", StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(patchManifestId))
+                {
+                    var patchSegments = patchManifestId.Split('.');
+                    if (patchSegments.Length >= 4)
+                    {
+                        var patchPub = patchSegments[2].ToLowerInvariant();
+                        var patchVer = ParseManifestVersion(patchPub, patchSegments[1]);
+                        if (!string.IsNullOrEmpty(patchVer))
+                        {
+                            GameVersion = patchVer;
+                        }
+
+                        if (string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Publisher = ParsePublisherName(patchPub, patchSegments[2]);
+                            ApplyPublisherBranding(patchPub);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private void ResolveFromGameClient(GameClient gameClient)
     {
         ExtractManifestInfo(gameClient.Id);
 
-        if (string.IsNullOrEmpty(Publisher))
+        if (!string.IsNullOrEmpty(gameClient.PublisherType))
+        {
+            var pub = gameClient.PublisherType.ToLowerInvariant();
+            Publisher = MapPublisherName(pub, gameClient.PublisherType);
+            ApplyPublisherBranding(pub);
+        }
+        else if (string.IsNullOrEmpty(Publisher))
         {
             ResolvePublisherFromGameClient(gameClient);
         }
 
-        // Fallback: use GameClient.Version directly
-        // But SKIP if the publisher is "Local"
-        if (string.IsNullOrEmpty(GameVersion) &&
-            !string.IsNullOrEmpty(gameClient.Version) &&
-            !string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(gameClient.Version) &&
+            !string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase) &&
+            !IsZeroOrPlaceholderVersion(gameClient.Version))
         {
-            var version = gameClient.Version;
-            GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
+            GameVersion = gameClient.Version;
         }
     }
 

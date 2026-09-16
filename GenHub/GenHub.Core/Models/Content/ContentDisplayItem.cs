@@ -1,5 +1,6 @@
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using System.Globalization;
 
@@ -66,6 +67,11 @@ public class ContentDisplayItem
     /// Gets or sets the game client ID.
     /// </summary>
     public string GameClientId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the associated game client instance, if applicable.
+    /// </summary>
+    public GameClient? GameClient { get; set; }
 
     /// <summary>
     /// Gets or sets the publisher name.

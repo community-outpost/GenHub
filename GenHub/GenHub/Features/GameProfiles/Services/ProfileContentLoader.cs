@@ -294,6 +294,7 @@ public class ProfileContentLoader(
                     ContentType = depManifest.ContentType,
                     GameType = depManifest.TargetGame,
                     Publisher = publisher,
+                    GameClient = CreateGameClientFromManifest(depManifest, null),
                     IsEnabled = false, // Will be enabled by the caller
                 };
 
@@ -371,6 +372,7 @@ public class ProfileContentLoader(
             Publisher = displayFormatter.GetPublisherFromManifest(manifest),
             SourceId = sourceId ?? string.Empty,
             GameClientId = gameClientId ?? string.Empty,
+            GameClient = CreateGameClientFromManifest(manifest, null),
             IsEnabled = isEnabled,
             IsEditable = isLocal,
             SourcePath = manifest.SourcePath,
@@ -416,6 +418,7 @@ public class ProfileContentLoader(
                 Publisher = item.Publisher,
                 SourceId = item.SourceId,
                 GameClientId = item.GameClientId,
+                GameClient = item.GameClient,
                 IsEnabled = enabledIds.Contains(item.ManifestId),
                 IsEditable = item.IsEditable,
             }));
@@ -458,6 +461,7 @@ public class ProfileContentLoader(
             ManifestId = manifestId,
             SourceId = installation.Id,
             GameClientId = baseClient.Id,
+            GameClient = baseClient,
             DisplayName = displayName,
             Description = $"{publisher} - {installation.InstallationType} - {gameType}",
             Version = versionForDisplay,
@@ -494,6 +498,7 @@ public class ProfileContentLoader(
             ManifestId = gameClient.Id,
             SourceId = installation.Id,
             GameClientId = gameClient.Id,
+            GameClient = gameClient,
             DisplayName = displayFormatter.BuildDisplayName(
                 gameClient.GameType,
                 normalizedVersion,
@@ -722,6 +727,7 @@ public class ProfileContentLoader(
                 Publisher = publisher,
                 SourceId = gameInstallation.Id,
                 GameClientId = gameClient.Id,
+                GameClient = gameClient,
                 IsEnabled = true,
                 IsEditable = false,
             };
@@ -737,5 +743,32 @@ public class ProfileContentLoader(
         }
 
         return CreateManifestDisplayItem(manifest, isEnabled: true);
+    }
+
+    private GameClient? CreateGameClientFromManifest(ContentManifest manifest, GameInstallation? installation)
+    {
+        if (manifest.ContentType != ContentType.GameClient)
+        {
+            return null;
+        }
+
+        var clientName = !string.IsNullOrWhiteSpace(manifest.Name)
+            ? manifest.Name
+            : (manifest.Id.Value ?? string.Empty);
+
+        var clientVersion = !string.IsNullOrWhiteSpace(manifest.Version)
+            ? manifest.Version
+            : string.Empty;
+
+        return new GameClient
+        {
+            Id = manifest.Id.Value ?? string.Empty,
+            Name = clientName,
+            Version = clientVersion,
+            GameType = manifest.TargetGame,
+            SourceType = ContentType.GameClient,
+            PublisherType = manifest.Publisher?.PublisherType,
+            InstallationId = installation?.Id ?? string.Empty,
+        };
     }
 }
