@@ -360,6 +360,46 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Invalid receipt paths return a failure even when temporary-file cleanup also rejects the path.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RecordLaunchAsync_InvalidWorkspacePath_ReturnsFailureAsync()
+    {
+        var context = CreateContext();
+        context.WorkspacePath = Path.Combine(_workspacePath, "invalid\0path");
+        var result = await _service.RecordLaunchAsync(context);
+        Assert.False(result.Success);
+    }
+
+    /// <summary>Null versions from malformed receipts render the missing-value label.</summary>
+    /// <param name="nullRecorded">Whether the receipt side contains null.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CompareUpcomingLaunch_NullVersion_UsesMissingValueAsync(bool nullRecorded)
+    {
+        await RecordSuccessfullyAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+        var upcoming = CreateContext();
+        const string manifestId = "1.0.genhub.mod.test";
+        if (nullRecorded)
+        {
+            receipt.ManifestVersions[manifestId] = null!;
+        }
+        else
+        {
+            upcoming.ManifestVersions = new Dictionary<string, string> { [manifestId] = null! };
+        }
+
+        var report = _service.CompareUpcomingLaunch(receipt, upcoming);
+        var before = nullRecorded ? LaunchReceiptConstants.MissingValue : "1.0";
+        var after = nullRecorded ? "1.0" : LaunchReceiptConstants.MissingValue;
+        Assert.Contains(report.DriftedFields, field => field.Contains($"version changed from {before} to {after}"));
+    }
+
+    /// <summary>
     /// A changed game client is reported as drift naming both clients.
     /// </summary>
     /// <returns>The async task.</returns>

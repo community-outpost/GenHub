@@ -96,7 +96,7 @@ public class LaunchReceiptService(
                 {
                     File.Delete(temporaryPath);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
                 {
                     logger.LogWarning(ex, "Could not remove temporary receipt {TemporaryPath}", temporaryPath);
                 }
@@ -304,7 +304,7 @@ public class LaunchReceiptService(
                 (hadVersion && !string.Equals(recordedVersion, upcomingVersion, StringComparison.Ordinal)))
             {
                 report.DriftedFields.Add(
-                    $"Manifest {manifestId} version changed from {(hadVersion ? recordedVersion : LaunchReceiptConstants.MissingValue)} to {(hasVersion ? upcomingVersion : LaunchReceiptConstants.MissingValue)}");
+                    $"Manifest {manifestId} version changed from {NameOrNone(recordedVersion)} to {NameOrNone(upcomingVersion)}");
             }
         }
     }
