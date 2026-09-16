@@ -77,8 +77,8 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RecordLaunchAsync_ReplacesPreviousReceipt()
     {
-        await _service.RecordLaunchAsync(CreateContext(launchId: "first"));
-        await _service.RecordLaunchAsync(CreateContext(launchId: "second"));
+        await RecordSuccessfullyAsync(CreateContext(launchId: "first"));
+        await RecordSuccessfullyAsync(CreateContext(launchId: "second"));
 
         var receipt = await ReadReceiptAsync();
         Assert.Equal("second", receipt.LaunchId);
@@ -106,7 +106,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithUnchangedState_ReportsNoDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
 
         var result = await _service.RevalidateAsync(_workspacePath);
 
@@ -122,7 +122,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithAddedArchive_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         File.WriteAllText(Path.Combine(_archiveRoot, "ModZH.big"), "a third archive");
 
         var result = await _service.RevalidateAsync(_workspacePath);
@@ -141,7 +141,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithRemovedArchive_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         File.Delete(Path.Combine(_archiveRoot, "TexturesZH.big"));
 
         var result = await _service.RevalidateAsync(_workspacePath);
@@ -159,7 +159,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithMutatedArchiveBytes_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         File.WriteAllText(Path.Combine(_archiveRoot, "INIZH.big"), "a much longer replacement archive body");
 
         var result = await _service.RevalidateAsync(_workspacePath);
@@ -179,7 +179,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithEqualSizeArchiveReplacement_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var archivePath = Path.Combine(_archiveRoot, "INIZH.big");
         var originalLength = new FileInfo(archivePath).Length;
         File.WriteAllText(archivePath, "swapped bod");
@@ -201,7 +201,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithMissingArchiveRoot_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         Directory.Delete(_archiveRoot, recursive: true);
 
         var result = await _service.RevalidateAsync(_workspacePath);
@@ -218,7 +218,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithSwappedExecutable_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         File.WriteAllText(_executablePath, "a different executable with a different length");
 
         var result = await _service.RevalidateAsync(_workspacePath);
@@ -235,7 +235,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RevalidateAsync_WithMissingExecutable_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         File.Delete(_executablePath);
 
         var result = await _service.RevalidateAsync(_workspacePath);
@@ -279,11 +279,13 @@ public class LaunchReceiptServiceTests : IDisposable
 
         Assert.True(result.Success);
         Assert.True(result.Data!.HasReceipt);
+        Assert.Contains(result.Data.DriftedFields, field => field.Contains("no executable fingerprint"));
 
         // The comparison path runs on the same launch and reads the same null collections,
         // so tolerating them on read alone would still fail the launch a step later.
         var report = _service.CompareUpcomingLaunch(result.Data.Receipt!, CreateContext());
-        Assert.NotNull(report);
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, field => field.Contains("Executable path changed"));
     }
 
     /// <summary>
@@ -294,7 +296,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithIdenticalConfiguration_ReportsNoDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var revalidation = await _service.RevalidateAsync(_workspacePath);
         Assert.NotNull(revalidation.Data!.Receipt);
 
@@ -311,7 +313,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedManifestVersion_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var report = _service.CompareUpcomingLaunch(receipt, CreateContext(manifestVersion: "2.0"));
@@ -328,7 +330,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedGameClient_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var report = _service.CompareUpcomingLaunch(receipt, CreateContext(gameClientId: "client-2"));
@@ -344,7 +346,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedGameType_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var report = _service.CompareUpcomingLaunch(receipt, CreateContext(gameType: GameType.Generals));
@@ -360,7 +362,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedExecutablePath_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var report = _service.CompareUpcomingLaunch(
@@ -378,7 +380,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedRootPathAndIdenticalContents_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var relocatedRoot = Directory.CreateDirectory(Path.Combine(_root, "retail-copy")).FullName;
@@ -403,7 +405,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedManifestSet_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var upcoming = CreateContext();
@@ -426,7 +428,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task RecordLaunchAsync_CapturesEnvironmentAndVariantIdentity()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
 
         var receipt = await ReadReceiptAsync();
         Assert.Contains("GENHUB_TEST_VARIABLE", receipt.EnvironmentVariableNames);
@@ -445,7 +447,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedEnvironmentValue_DoesNotCompareSecretsAsync()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
         Assert.False(_service.CompareUpcomingLaunch(receipt, CreateContext(environmentValue: "beta")).HasDrift);
     }
@@ -460,10 +462,11 @@ public class LaunchReceiptServiceTests : IDisposable
             """{"SchemaVersion":1,"EnvironmentHashSalt":"legacy-key","EnvironmentVariableHashes":{"TOKEN":"legacy-digest"}}""");
         var result = await _service.RevalidateAsync(_workspacePath);
         Assert.True(result.Success);
+        // Schema-level guard against adding legacy fingerprint properties back.
         var serialized = System.Text.Json.JsonSerializer.Serialize(result.Data!.Receipt);
         Assert.DoesNotContain("legacy-key", serialized);
         Assert.DoesNotContain("legacy-digest", serialized);
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var rewritten = await File.ReadAllTextAsync(path);
         Assert.DoesNotContain("EnvironmentHashSalt", rewritten);
         Assert.DoesNotContain("EnvironmentVariableHashes", rewritten);
@@ -480,7 +483,7 @@ public class LaunchReceiptServiceTests : IDisposable
     {
         const string secret = "s3cr3t-token-value";
 
-        await _service.RecordLaunchAsync(CreateContext(environmentValue: secret));
+        await RecordSuccessfullyAsync(CreateContext(environmentValue: secret));
 
         var receiptJson = await File.ReadAllTextAsync(
             Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName));
@@ -501,7 +504,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedEnvironmentSet_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var upcoming = CreateContext();
@@ -527,7 +530,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithChangedEntryPoint_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var report = _service.CompareUpcomingLaunch(receipt, CreateContext(entryPoint: "otherclient"));
@@ -544,7 +547,7 @@ public class LaunchReceiptServiceTests : IDisposable
     [Fact]
     public async Task CompareUpcomingLaunch_WithVariantNoLongerResolvable_ReportsDrift()
     {
-        await _service.RecordLaunchAsync(CreateContext());
+        await RecordSuccessfullyAsync(CreateContext());
         var receipt = await ReadReceiptAsync();
 
         var upcoming = CreateContext();
@@ -572,6 +575,56 @@ public class LaunchReceiptServiceTests : IDisposable
         Assert.Contains("Failed to record launch receipt", result.FirstError);
     }
 
+    /// <summary>Null variant collections report precise drift without a comparison exception.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_NullVariantIdentifiers_ReportsVariantChangeAsync()
+    {
+        await RecordSuccessfullyAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+        receipt.Variant!.VariantRuntimeIdentifiers = null!;
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext());
+        Assert.Contains(report.DriftedFields, field => field.Contains("Resolved variant changed"));
+        Assert.DoesNotContain(report.DriftedFields, field => field.Contains("could not be compared"));
+    }
+
+    /// <summary>Unsupported schemas are reported rather than compared as current receipts.</summary>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public async Task RevalidateAsync_UnsupportedSchema_ReportsDriftAsync(int version)
+    {
+        await File.WriteAllTextAsync(Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName), $"{{\"SchemaVersion\":{version}}}");
+        var result = await _service.RevalidateAsync(_workspacePath);
+        Assert.True(result.Success);
+        Assert.True(result.Data!.HasDrift);
+        Assert.Contains(result.Data.DriftedFields, field => field.Contains($"schema version {version}"));
+        Assert.Null(result.Data.Receipt);
+    }
+
+    /// <summary>Cancellation propagates and leaves no temporary receipt behind.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RecordLaunchAsync_Cancelled_CleansTemporaryFileAsync()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _service.RecordLaunchAsync(CreateContext(), cancellation.Token));
+        Assert.Empty(Directory.GetFiles(_workspacePath, "*" + LaunchReceiptConstants.TemporaryFileExtension));
+    }
+
+    /// <summary>A failed replacement does not leave an orphaned temporary receipt.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RecordLaunchAsync_ReplacementFails_CleansTemporaryFileAsync()
+    {
+        Directory.CreateDirectory(Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName));
+        var result = await _service.RecordLaunchAsync(CreateContext());
+        Assert.False(result.Success);
+        Assert.Empty(Directory.GetFiles(_workspacePath, "*" + LaunchReceiptConstants.TemporaryFileExtension));
+    }
+
     /// <summary>
     /// Removes the temporary directories.
     /// </summary>
@@ -589,9 +642,16 @@ public class LaunchReceiptServiceTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>
-    /// Reads the receipt back from the workspace.
-    /// </summary>
+    /// <summary>Records fixture data and reports setup failures directly.</summary>
+    /// <param name="context">The fixture launch.</param>
+    /// <returns>The async task.</returns>
+    private async Task RecordSuccessfullyAsync(LaunchReceiptContext context)
+    {
+        var result = await _service.RecordLaunchAsync(context);
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>Reads the receipt back from the workspace.</summary>
     /// <returns>The deserialized receipt.</returns>
     private async Task<LaunchReceipt> ReadReceiptAsync()
     {
