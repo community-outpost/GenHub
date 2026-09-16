@@ -683,8 +683,9 @@ main {
 /* Toast Notifications Container (NotificationToastView.axaml) */
 .genhub-toast-container {
     position: absolute;
-    bottom: 38px;
+    top: 18px;
     right: 18px;
+    bottom: auto;
     z-index: 1500;
     display: flex;
     flex-direction: column;
@@ -2349,25 +2350,96 @@ main {
     background: #14141e;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
-    padding: 10px 14px;
+    padding: 8px 14px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    box-sizing: border-box;
 }
 
 .gh-hotkeys-topbar-left {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+}
+
+.gh-hotkey-field-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gh-hotkeys-topbar-left label,
+.gh-hotkey-field-group label {
+    font-size: 11.5px;
+    color: #cbd5e1;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .gh-hotkeys-topbar-right {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+/* Specific styling for all select dropdowns in hotkeys view to prevent clipping */
+.gh-hotkeys-view select.gh-downloads-filter,
+.gh-hotkeys-view select {
+    height: 30px !important;
+    padding: 4px 28px 4px 10px !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+    background-position: right 8px center !important;
+    background-size: 13px 13px !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+#ghHotkeyProfileSelect {
+    width: 205px !important;
+}
+
+#ghHotkeyPresetSelect {
+    width: 175px !important;
+}
+
+#ghHotkeyGeneralSelect {
+    width: 195px !important;
+}
+
+#ghHotkeyCornerSelect {
+    height: 26px !important;
+    padding: 2px 24px 2px 8px !important;
+    font-size: 11px !important;
+    line-height: 20px !important;
+    width: 120px !important;
+    background-position: right 6px center !important;
+    background-size: 11px 11px !important;
+}
+
+.gh-hotkeys-topbar-right .gh-conflict-pill {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+}
+
+.gh-hotkeys-topbar-right .gh-btn-table {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
 }
 
 .gh-hotkeys-filterbar {
@@ -2380,18 +2452,27 @@ main {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+    box-sizing: border-box;
+}
+
+.gh-hotkeys-filterbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .gh-faction-tabs {
     display: flex;
     gap: 6px;
+    align-items: center;
 }
 
 .gh-faction-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
+    height: 30px;
+    padding: 0 12px;
     border-radius: 6px;
     background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2399,6 +2480,7 @@ main {
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
+    box-sizing: border-box;
     transition: all 0.15s ease;
 }
 
@@ -2435,12 +2517,17 @@ main {
 }
 
 .gh-category-pills {
-    display: flex;
+    display: inline-flex;
     gap: 4px;
+    align-items: center;
 }
 
 .gh-cat-pill {
-    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 12px;
     border-radius: 6px;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2448,6 +2535,7 @@ main {
     font-size: 11.5px;
     font-weight: 500;
     cursor: pointer;
+    box-sizing: border-box;
     transition: all 0.15s ease;
 }
 
@@ -2489,6 +2577,8 @@ main {
 .gh-hotkey-cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    grid-auto-rows: max-content;
+    align-content: start;
     gap: 10px;
     flex: 1;
     min-height: 260px;
@@ -2509,6 +2599,9 @@ main {
     cursor: pointer;
     transition: all 0.15s ease;
     user-select: none;
+    box-sizing: border-box;
+    height: auto;
+    align-self: start;
 }
 
 .gh-action-card:hover {
@@ -2602,26 +2695,29 @@ main {
     font-size: 11.5px;
     color: #94a3b8;
     gap: 10px;
+    box-sizing: border-box;
 }
 
 .gh-hotkeys-footer-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
 }
 
 .gh-hotkeys-footer-left label {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     color: #cbd5e1;
     cursor: pointer;
+    line-height: 1;
 }
 
 .gh-hotkeys-footer-right {
     display: flex;
     align-items: center;
     gap: 8px;
+    line-height: 1;
 }
 
 .gh-genpatcher-view {

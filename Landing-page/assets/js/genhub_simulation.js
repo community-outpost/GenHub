@@ -978,56 +978,59 @@
     }
 
     // GenHotkeys Interactivity (PR #451)
-    const factionTabs = document.querySelectorAll('#ghHotkeyFactionTabs .gh-faction-btn');
-    const generalSelect = document.getElementById('ghHotkeyGeneralSelect');
-    const catPills = document.querySelectorAll('#ghHotkeyCategoryPills .gh-cat-pill');
-    const hotkeyCards = document.querySelectorAll('#ghHotkeyGrid .gh-action-card');
-    const presetSelect = document.getElementById('ghHotkeyPresetSelect');
-    const createAddonBtn = document.getElementById('ghHotkeyCreateAddonBtn');
-    let activeFaction = 'usa';
-    let activeCat = 'all';
+    const factionTabs = document.querySelectorAll("#ghHotkeyFactionTabs .gh-faction-btn");
+    const generalSelect = document.getElementById("ghHotkeyGeneralSelect");
+    const catPills = document.querySelectorAll("#ghHotkeyCategoryPills .gh-cat-pill");
+    const hotkeyCards = document.querySelectorAll("#ghHotkeyGrid .gh-action-card");
+    const presetSelect = document.getElementById("ghHotkeyPresetSelect");
+    const profileSelect = document.getElementById("ghHotkeyProfileSelect");
+    const cornerSelect = document.getElementById("ghHotkeyCornerSelect");
+    const overlayCheck = document.getElementById("ghHotkeyOverlayCheck");
+    const createAddonBtn = document.getElementById("ghHotkeyCreateAddonBtn");
+    let activeFaction = "usa";
+    let activeCat = "all";
 
     const factionGenerals = {
-        'usa': [
-            { val: 'all', label: 'All USA Generals' },
-            { val: 'laser', label: 'Laser General (Townes)' },
-            { val: 'airforce', label: 'Air Force General (Granger)' },
-            { val: 'superweapon', label: 'Superweapon (Alexander)' }
+        "usa": [
+            { val: "all", label: "All USA Generals" },
+            { val: "laser", label: "Laser General (Townes)" },
+            { val: "airforce", label: "Air Force General (Granger)" },
+            { val: "superweapon", label: "Superweapon (Alexander)" }
         ],
-        'china': [
-            { val: 'all', label: 'All China Generals' },
-            { val: 'tank', label: 'Tank General (Kwai)' },
-            { val: 'infantry', label: 'Infantry General (Fai)' },
-            { val: 'nuke', label: 'Nuke General (Tao)' }
+        "china": [
+            { val: "all", label: "All China Generals" },
+            { val: "tank", label: "Tank General (Kwai)" },
+            { val: "infantry", label: "Infantry General (Fai)" },
+            { val: "nuke", label: "Nuke General (Tao)" }
         ],
-        'gla': [
-            { val: 'all', label: 'All GLA Generals' },
-            { val: 'toxin', label: 'Toxin General (Thrax)' },
-            { val: 'demo', label: 'Demolition General (Juhziz)' },
-            { val: 'stealth', label: 'Stealth General (Kassad)' }
+        "gla": [
+            { val: "all", label: "All GLA Generals" },
+            { val: "toxin", label: "Toxin General (Thrax)" },
+            { val: "demo", label: "Demolition General (Juhziz)" },
+            { val: "stealth", label: "Stealth General (Kassad)" }
         ]
     };
 
     function filterHotkeyCards() {
         hotkeyCards.forEach(card => {
-            const cFaction = card.getAttribute('data-faction');
-            const cCat = card.getAttribute('data-cat');
+            const cFaction = card.getAttribute("data-faction");
+            const cCat = card.getAttribute("data-cat");
             const matchFaction = cFaction === activeFaction;
-            const matchCat = activeCat === 'all' || cCat === activeCat;
-            card.style.display = (matchFaction && matchCat) ? 'flex' : 'none';
+            const matchCat = activeCat === "all" || cCat === activeCat;
+            card.style.display = (matchFaction && matchCat) ? "flex" : "none";
         });
     }
 
     factionTabs.forEach(btn => {
-        btn.addEventListener('click', () => {
-            factionTabs.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeFaction = btn.getAttribute('data-faction') || 'usa';
+        btn.addEventListener("click", () => {
+            factionTabs.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            activeFaction = btn.getAttribute("data-faction") || "usa";
 
             if (generalSelect && factionGenerals[activeFaction]) {
-                generalSelect.innerHTML = '';
+                generalSelect.innerHTML = "";
                 factionGenerals[activeFaction].forEach(g => {
-                    const opt = document.createElement('option');
+                    const opt = document.createElement("option");
                     opt.value = g.val;
                     opt.textContent = g.label;
                     generalSelect.appendChild(opt);
@@ -1039,65 +1042,136 @@
     });
 
     catPills.forEach(pill => {
-        pill.addEventListener('click', () => {
-            catPills.forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-            activeCat = pill.getAttribute('data-cat') || 'all';
+        pill.addEventListener("click", () => {
+            catPills.forEach(p => p.classList.remove("active"));
+            pill.classList.add("active");
+            activeCat = pill.getAttribute("data-cat") || "all";
             filterHotkeyCards();
         });
     });
 
+    if (generalSelect) {
+        generalSelect.addEventListener("change", () => {
+            const label = generalSelect.options[generalSelect.selectedIndex]?.text || "General";
+            window.showGenHubToast("GenHotkeys", "General Profile", "Switched variant: " + label);
+        });
+    }
+
+    if (profileSelect) {
+        profileSelect.addEventListener("change", () => {
+            const label = profileSelect.options[profileSelect.selectedIndex]?.text || "Profile";
+            window.showGenHubToast("GenHotkeys", "Profile Switched", "Active configuration: " + label);
+        });
+    }
+
     const hotkeyPresets = {
-        'grid': {
-            'USADozer': 'Q', 'USAColdFusionReactor': 'W', 'USABarracks': 'E', 'USAWarFactory': 'R',
-            'USAPatriot': 'A', 'USAAirfield': 'S', 'USARanger': 'R', 'USAHumvee': 'H',
-            'USACrusaderTank': 'C', 'USAComanche': 'C', 'USARaptor': 'P', 'USAParticleCannon': 'U'
+        "grid": {
+            // USA
+            "USADozer": "Q", "USAColdFusionReactor": "W", "USABarracks": "E", "USAWarFactory": "R",
+            "USAPatriot": "A", "USAAirfield": "S", "USARanger": "R", "USAHumvee": "H",
+            "USACrusaderTank": "C", "USAComanche": "C", "USARaptor": "P", "USAParticleCannon": "U",
+            // China
+            "PRCDozer": "Q", "PRCNuclearReactor": "W", "PRCBarracks": "E", "PRCWarFactory": "R",
+            "PRCBunker": "A", "PRCGattlingCannon": "S", "PRCRedGuard": "R", "PRCTankHunter": "T",
+            "PRCBattlemaster": "B", "PRCGattlingTank": "G", "PRCOverlordTank": "O", "PRCMIG": "M",
+            // GLA
+            "GLACommandCenter": "Q", "GLABarracks": "E", "GLAArmsDealer": "R", "GLABlackMarket": "B",
+            "GLADemoTrap": "D", "GLACamoNetting": "N", "GLAJarmenKell": "J", "GLAAngryMob": "M",
+            "GLAScorpionTank": "S", "GLARocketBuggy": "B", "GLABombTruck": "T", "GLABattleBus": "U"
         },
-        'retail': {
-            'USADozer': 'D', 'USAColdFusionReactor': 'R', 'USABarracks': 'B', 'USAWarFactory': 'W',
-            'USAPatriot': 'P', 'USAAirfield': 'A', 'USARanger': 'R', 'USAHumvee': 'H',
-            'USACrusaderTank': 'C', 'USAComanche': 'C', 'USARaptor': 'R', 'USAParticleCannon': 'P'
+        "retail": {
+            // USA
+            "USADozer": "D", "USAColdFusionReactor": "R", "USABarracks": "B", "USAWarFactory": "W",
+            "USAPatriot": "P", "USAAirfield": "A", "USARanger": "R", "USAHumvee": "H",
+            "USACrusaderTank": "C", "USAComanche": "C", "USARaptor": "R", "USAParticleCannon": "P",
+            // China
+            "PRCDozer": "D", "PRCNuclearReactor": "R", "PRCBarracks": "B", "PRCWarFactory": "W",
+            "PRCBunker": "U", "PRCGattlingCannon": "G", "PRCRedGuard": "R", "PRCTankHunter": "T",
+            "PRCBattlemaster": "B", "PRCGattlingTank": "K", "PRCOverlordTank": "O", "PRCMIG": "M",
+            // GLA
+            "GLACommandCenter": "C", "GLABarracks": "B", "GLAArmsDealer": "A", "GLABlackMarket": "M",
+            "GLADemoTrap": "T", "GLACamoNetting": "N", "GLAJarmenKell": "J", "GLAAngryMob": "M",
+            "GLAScorpionTank": "S", "GLARocketBuggy": "R", "GLABombTruck": "T", "GLABattleBus": "B"
+        },
+        "wasd": {
+            // USA
+            "USADozer": "Q", "USAColdFusionReactor": "E", "USABarracks": "R", "USAWarFactory": "T",
+            "USAPatriot": "F", "USAAirfield": "G", "USARanger": "Z", "USAHumvee": "X",
+            "USACrusaderTank": "C", "USAComanche": "V", "USARaptor": "B", "USAParticleCannon": "Y",
+            // China
+            "PRCDozer": "Q", "PRCNuclearReactor": "E", "PRCBarracks": "R", "PRCWarFactory": "T",
+            "PRCBunker": "F", "PRCGattlingCannon": "G", "PRCRedGuard": "Z", "PRCTankHunter": "X",
+            "PRCBattlemaster": "C", "PRCGattlingTank": "V", "PRCOverlordTank": "B", "PRCMIG": "N",
+            // GLA
+            "GLACommandCenter": "Q", "GLABarracks": "E", "GLAArmsDealer": "R", "GLABlackMarket": "T",
+            "GLADemoTrap": "F", "GLACamoNetting": "G", "GLAJarmenKell": "Z", "GLAAngryMob": "X",
+            "GLAScorpionTank": "C", "GLARocketBuggy": "V", "GLABombTruck": "B", "GLABattleBus": "N"
         }
     };
 
     if (presetSelect) {
-        presetSelect.addEventListener('change', () => {
+        presetSelect.addEventListener("change", () => {
             const p = presetSelect.value;
             const presetMap = hotkeyPresets[p];
             if (presetMap) {
                 hotkeyCards.forEach(card => {
-                    const id = card.getAttribute('data-id');
+                    const id = card.getAttribute("data-id");
                     if (id && presetMap[id]) {
-                        const stamp = card.querySelector('.gh-hotkey-stamp');
-                        const badge = card.querySelector('.gh-key-badge');
+                        const stamp = card.querySelector(".gh-hotkey-stamp");
+                        const badge = card.querySelector(".gh-key-badge");
                         if (stamp) stamp.textContent = presetMap[id];
                         if (badge) badge.textContent = presetMap[id];
                     }
                 });
                 const label = presetSelect.options[presetSelect.selectedIndex]?.text || p;
-                window.showGenHubToast('GenHotkeys', 'Preset Applied', 'Loaded ' + label + ' key mapping preset.');
+                window.showGenHubToast("GenHotkeys", "Preset Applied", "Loaded " + label + " key mapping preset.");
             }
         });
     }
 
+    if (cornerSelect) {
+        cornerSelect.addEventListener("change", () => {
+            const corner = cornerSelect.value;
+            const stamps = document.querySelectorAll(".gh-hotkey-stamp");
+            stamps.forEach(s => {
+                s.style.top = (corner === "tr" || corner === "tl") ? "3px" : "auto";
+                s.style.bottom = (corner === "br" || corner === "bl") ? "3px" : "auto";
+                s.style.left = (corner === "tl" || corner === "bl") ? "4px" : "auto";
+                s.style.right = (corner === "tr" || corner === "br") ? "4px" : "auto";
+            });
+            const label = cornerSelect.options[cornerSelect.selectedIndex]?.text || corner;
+            window.showGenHubToast("GenHotkeys", "Stamp Position", "Badges aligned to " + label + ".");
+        });
+    }
+
+    if (overlayCheck) {
+        overlayCheck.addEventListener("change", () => {
+            const stamps = document.querySelectorAll(".gh-hotkey-stamp");
+            stamps.forEach(s => {
+                s.style.display = overlayCheck.checked ? "block" : "none";
+            });
+            window.showGenHubToast("GenHotkeys", "Cameo Badges", overlayCheck.checked ? "Enabled hotkey overlay badges." : "Disabled hotkey overlay badges.");
+        });
+    }
+
     hotkeyCards.forEach(card => {
-        card.addEventListener('click', () => {
-            hotkeyCards.forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            const title = card.querySelector('.gh-action-title')?.textContent || 'Action';
-            const stamp = card.querySelector('.gh-hotkey-stamp')?.textContent || '';
-            window.showGenHubToast('Hotkeys Editor', 'Command Selected', title + ' [' + stamp + '] ready for binding.');
+        card.addEventListener("click", () => {
+            hotkeyCards.forEach(c => c.classList.remove("selected"));
+            card.classList.add("selected");
+            const title = card.querySelector(".gh-action-title")?.textContent || "Action";
+            const stamp = card.querySelector(".gh-hotkey-stamp")?.textContent || "";
+            window.showGenHubToast("Hotkeys Editor", "Command Selected", title + " [" + stamp + "] ready for binding.");
         });
     });
 
     if (createAddonBtn) {
-        createAddonBtn.addEventListener('click', () => {
+        createAddonBtn.addEventListener("click", () => {
             createAddonBtn.disabled = true;
-            createAddonBtn.innerHTML = '<span>Compiling...</span>';
+            createAddonBtn.innerHTML = "<span>Compiling...</span>";
             setTimeout(() => {
                 createAddonBtn.disabled = false;
-                createAddonBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19,9H15V3H9V9H5L12,16L19,9M5,18V20H19V18H5Z"/></svg> <span>Create Addon</span>';
-                window.showGenHubToast('GenHotkeys', 'Addon Archive Compiled', 'Generated !Hotkeys_Pro_ZH.big with stamped cameos. Registered into CAS.');
+                createAddonBtn.innerHTML = "<svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"currentColor\"><path d=\"M19,9H15V3H9V9H5L12,16L19,9M5,18V20H19V18H5Z\"/></svg> <span>Create Addon</span>";
+                window.showGenHubToast("GenHotkeys", "Addon Archive Compiled", "Generated !Hotkeys_Pro_ZH.big with stamped cameos. Registered into CAS.");
             }, 600);
         });
     }

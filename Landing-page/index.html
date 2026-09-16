@@ -2396,17 +2396,17 @@
                                                         <button class="gh-subtab" data-hotkeys-game="generals" type="button">Generals</button>
                                                         <button class="gh-subtab active" data-hotkeys-game="zerohour" type="button">Zero Hour</button>
                                                     </div>
-                                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                                        <label for="ghHotkeyProfileSelect" style="font-size: 11.5px; color: #cbd5e1; font-weight: 500;">Profile:</label>
-                                                        <select class="gh-downloads-filter" id="ghHotkeyProfileSelect" style="height: 28px; font-size: 11.5px; padding: 0 8px; width: 170px;">
+                                                    <div class="gh-hotkey-field-group">
+                                                        <label for="ghHotkeyProfileSelect">Profile:</label>
+                                                        <select class="gh-downloads-filter" id="ghHotkeyProfileSelect" aria-label="Select Hotkey Profile">
                                                             <option value="pro">Pro Grid Hotkeys (ZH)</option>
                                                             <option value="default">Default Vanilla Setup</option>
                                                             <option value="custom">Tournament Ranked Custom</option>
                                                         </select>
                                                     </div>
-                                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                                        <label for="ghHotkeyPresetSelect" style="font-size: 11.5px; color: #cbd5e1; font-weight: 500;">Preset:</label>
-                                                        <select class="gh-downloads-filter" id="ghHotkeyPresetSelect" style="height: 28px; font-size: 11.5px; padding: 0 8px; width: 155px;">
+                                                    <div class="gh-hotkey-field-group">
+                                                        <label for="ghHotkeyPresetSelect">Preset:</label>
+                                                        <select class="gh-downloads-filter" id="ghHotkeyPresetSelect" aria-label="Select Layout Preset">
                                                             <option value="grid">Grid Layout (QWER)</option>
                                                             <option value="retail">Retail Defaults</option>
                                                             <option value="wasd">WASD Camera Friendly</option>
@@ -2418,7 +2418,7 @@
                                                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                                         <span>0 Conflicts</span>
                                                     </div>
-                                                    <button class="gh-btn-table primary accent" id="ghHotkeyCreateAddonBtn" style="height: 28px; padding: 0 12px; font-size: 11.5px;" title="Package hotkeys and overlays into !Hotkeys_...big in CAS" type="button">
+                                                    <button class="gh-btn-table primary accent" id="ghHotkeyCreateAddonBtn" title="Package hotkeys and overlays into !Hotkeys_...big in CAS" type="button">
                                                         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19,9H15V3H9V9H5L12,16L19,9M5,18V20H19V18H5Z"/></svg>
                                                         <span>Create Addon</span>
                                                     </button>
@@ -2441,8 +2441,8 @@
                                                         <span>GLA</span>
                                                     </button>
                                                 </div>
-                                                <div style="display: flex; align-items: center; gap: 8px;">
-                                                    <select class="gh-downloads-filter" id="ghHotkeyGeneralSelect" style="height: 28px; font-size: 11.5px; padding: 0 8px; width: 160px;" aria-label="Select General variant">
+                                                <div class="gh-hotkeys-filterbar-right">
+                                                    <select class="gh-downloads-filter" id="ghHotkeyGeneralSelect" aria-label="Select General variant">
                                                         <option value="all">All USA Generals</option>
                                                         <option value="laser">Laser General (Townes)</option>
                                                         <option value="airforce">Air Force General (Granger)</option>
@@ -2458,7 +2458,7 @@
 
                                             <!-- Interactive Action Cards Grid with Stamped Cameo Badges -->
                                             <div class="gh-hotkey-cards-grid" id="ghHotkeyGrid">
-                                                <!-- USA Cards -->
+                                                <!-- USA Cards (12 items: 6 buildings, 6 units) -->
                                                 <div class="gh-action-card" data-faction="usa" data-cat="buildings" data-id="USADozer" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
                                                         <img src="./assets/images/cameos/USADozer.webp" alt="Construction Dozer" loading="lazy">
@@ -2531,7 +2531,7 @@
                                                 </div>
                                                 <div class="gh-action-card" data-faction="usa" data-cat="units" data-id="USAHumvee" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
-                                                        <img src="./assets/images/cameos/USAHumvee.webp" alt="Humvee" loading="lazy">
+                                                        <img src="./assets/images/cameos/USAHumvee.webp" alt="Humvee Transport" loading="lazy">
                                                         <span class="gh-hotkey-stamp">H</span>
                                                     </div>
                                                     <div class="gh-action-meta">
@@ -2541,7 +2541,7 @@
                                                 </div>
                                                 <div class="gh-action-card" data-faction="usa" data-cat="units" data-id="USACrusaderTank" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
-                                                        <img src="./assets/images/cameos/USACrusaderTank.webp" alt="Crusader Battle Tank" loading="lazy">
+                                                        <img src="./assets/images/cameos/USACrusaderTank.webp" alt="Crusader Tank" loading="lazy">
                                                         <span class="gh-hotkey-stamp">C</span>
                                                     </div>
                                                     <div class="gh-action-meta">
@@ -2551,7 +2551,7 @@
                                                 </div>
                                                 <div class="gh-action-card" data-faction="usa" data-cat="units" data-id="USAComanche" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
-                                                        <img src="./assets/images/cameos/USAComanche.webp" alt="Comanche Gunship" loading="lazy">
+                                                        <img src="./assets/images/cameos/USAComanche.webp" alt="Comanche" loading="lazy">
                                                         <span class="gh-hotkey-stamp">C</span>
                                                     </div>
                                                     <div class="gh-action-meta">
@@ -2561,7 +2561,7 @@
                                                 </div>
                                                 <div class="gh-action-card" data-faction="usa" data-cat="units" data-id="USARaptor" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
-                                                        <img src="./assets/images/cameos/USARaptor.webp" alt="Raptor Supersonic Jet" loading="lazy">
+                                                        <img src="./assets/images/cameos/USARaptor.webp" alt="Raptor Jet" loading="lazy">
                                                         <span class="gh-hotkey-stamp">P</span>
                                                     </div>
                                                     <div class="gh-action-meta">
@@ -2569,9 +2569,9 @@
                                                         <button class="gh-key-badge" type="button" aria-label="Rebind Raptor Jet">P</button>
                                                     </div>
                                                 </div>
-                                                <div class="gh-action-card" data-faction="usa" data-cat="buildings" data-id="USAParticleCannon" title="Click to edit hotkey binding">
+                                                <div class="gh-action-card" data-faction="usa" data-cat="units" data-id="USAParticleCannon" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
-                                                        <img src="./assets/images/cameos/USAParticleCannon.webp" alt="Particle Uplink Cannon" loading="lazy">
+                                                        <img src="./assets/images/cameos/USAParticleCannon.webp" alt="Particle Cannon" loading="lazy">
                                                         <span class="gh-hotkey-stamp">U</span>
                                                     </div>
                                                     <div class="gh-action-meta">
@@ -2580,7 +2580,7 @@
                                                     </div>
                                                 </div>
 
-                                                <!-- China Cards -->
+                                                <!-- China Cards (12 items: 6 buildings, 6 units) -->
                                                 <div class="gh-action-card" data-faction="china" data-cat="buildings" data-id="PRCDozer" style="display: none;" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
                                                         <img src="./assets/images/cameos/PRCDozer.webp" alt="China Dozer" loading="lazy">
@@ -2589,6 +2589,16 @@
                                                     <div class="gh-action-meta">
                                                         <span class="gh-action-title">China Dozer</span>
                                                         <button class="gh-key-badge" type="button" aria-label="Rebind China Dozer">Q</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="china" data-cat="buildings" data-id="PRCNuclearReactor" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/PRCNuclearReactor.webp" alt="Nuclear Reactor" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">W</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Nuclear Reactor</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Nuclear Reactor">W</button>
                                                     </div>
                                                 </div>
                                                 <div class="gh-action-card" data-faction="china" data-cat="buildings" data-id="PRCBarracks" style="display: none;" title="Click to edit hotkey binding">
@@ -2601,14 +2611,54 @@
                                                         <button class="gh-key-badge" type="button" aria-label="Rebind Red Army Barracks">E</button>
                                                     </div>
                                                 </div>
-                                                <div class="gh-action-card" data-faction="china" data-cat="buildings" data-id="PRCGattlingCannon" style="display: none;" title="Click to edit hotkey binding">
+                                                <div class="gh-action-card" data-faction="china" data-cat="buildings" data-id="PRCWarFactory" style="display: none;" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
-                                                        <img src="./assets/images/cameos/PRCGattlingCannon.webp" alt="Gattling Cannon" loading="lazy">
+                                                        <img src="./assets/images/cameos/PRCWarFactory.webp" alt="War Factory" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">R</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">War Factory</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind War Factory">R</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="china" data-cat="buildings" data-id="PRCBunker" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/PRCBunker.webp" alt="Bunker" loading="lazy">
                                                         <span class="gh-hotkey-stamp">A</span>
                                                     </div>
                                                     <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Bunker</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Bunker">A</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="china" data-cat="buildings" data-id="PRCGattlingCannon" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/PRCGattlingCannon.webp" alt="Gattling Cannon" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">S</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
                                                         <span class="gh-action-title">Gattling Cannon</span>
-                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Gattling Cannon">A</button>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Gattling Cannon">S</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="china" data-cat="units" data-id="PRCRedGuard" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/PRCRedGuard.webp" alt="Red Guard" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">R</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Red Guard</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Red Guard">R</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="china" data-cat="units" data-id="PRCTankHunter" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/PRCTankHunter.webp" alt="Tank Hunter" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">T</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Tank Hunter</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Tank Hunter">T</button>
                                                     </div>
                                                 </div>
                                                 <div class="gh-action-card" data-faction="china" data-cat="units" data-id="PRCBattlemaster" style="display: none;" title="Click to edit hotkey binding">
@@ -2621,6 +2671,16 @@
                                                         <button class="gh-key-badge" type="button" aria-label="Rebind Battlemaster Tank">B</button>
                                                     </div>
                                                 </div>
+                                                <div class="gh-action-card" data-faction="china" data-cat="units" data-id="PRCGattlingTank" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/PRCGattlingTank.webp" alt="Gattling Tank" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">G</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Gattling Tank</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Gattling Tank">G</button>
+                                                    </div>
+                                                </div>
                                                 <div class="gh-action-card" data-faction="china" data-cat="units" data-id="PRCOverlordTank" style="display: none;" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
                                                         <img src="./assets/images/cameos/PRCOverlordTank.webp" alt="Overlord Heavy Tank" loading="lazy">
@@ -2631,8 +2691,28 @@
                                                         <button class="gh-key-badge" type="button" aria-label="Rebind Overlord Tank">O</button>
                                                     </div>
                                                 </div>
+                                                <div class="gh-action-card" data-faction="china" data-cat="units" data-id="PRCMIG" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/PRCMIG.webp" alt="MiG Fighter" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">M</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">MiG Fighter</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind MiG Fighter">M</button>
+                                                    </div>
+                                                </div>
 
-                                                <!-- GLA Cards -->
+                                                <!-- GLA Cards (12 items: 6 buildings, 6 units) -->
+                                                <div class="gh-action-card" data-faction="gla" data-cat="buildings" data-id="GLACommandCenter" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/GLACommandCenter.webp" alt="Command Center" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">Q</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Command Center</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Command Center">Q</button>
+                                                    </div>
+                                                </div>
                                                 <div class="gh-action-card" data-faction="gla" data-cat="buildings" data-id="GLABarracks" style="display: none;" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
                                                         <img src="./assets/images/cameos/GLABarracks.webp" alt="GLA Barracks" loading="lazy">
@@ -2651,6 +2731,56 @@
                                                     <div class="gh-action-meta">
                                                         <span class="gh-action-title">Arms Dealer</span>
                                                         <button class="gh-key-badge" type="button" aria-label="Rebind Arms Dealer">R</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="gla" data-cat="buildings" data-id="GLABlackMarket" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/GLABlackMarket.webp" alt="Black Market" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">B</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Black Market</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Black Market">B</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="gla" data-cat="buildings" data-id="GLADemoTrap" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/GLADemoTrap.webp" alt="Demo Trap" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">D</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Demo Trap</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Demo Trap">D</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="gla" data-cat="buildings" data-id="GLACamoNetting" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/GLACamoNetting.webp" alt="Camo Netting" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">N</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Camo Netting</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Camo Netting">N</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="gla" data-cat="units" data-id="GLAJarmenKell" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/GLAJarmenKell.webp" alt="Jarmen Kell" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">J</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Jarmen Kell</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Jarmen Kell">J</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="gla" data-cat="units" data-id="GLAAngryMob" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/GLAAngryMob.webp" alt="Angry Mob" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">M</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Angry Mob</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Angry Mob">M</button>
                                                     </div>
                                                 </div>
                                                 <div class="gh-action-card" data-faction="gla" data-cat="units" data-id="GLAScorpionTank" style="display: none;" title="Click to edit hotkey binding">
@@ -2673,14 +2803,24 @@
                                                         <button class="gh-key-badge" type="button" aria-label="Rebind Rocket Buggy">B</button>
                                                     </div>
                                                 </div>
-                                                <div class="gh-action-card" data-faction="gla" data-cat="units" data-id="GLAAngryMob" style="display: none;" title="Click to edit hotkey binding">
+                                                <div class="gh-action-card" data-faction="gla" data-cat="units" data-id="GLABombTruck" style="display: none;" title="Click to edit hotkey binding">
                                                     <div class="gh-cameo-wrap">
-                                                        <img src="./assets/images/cameos/GLAAngryMob.webp" alt="Angry Mob" loading="lazy">
-                                                        <span class="gh-hotkey-stamp">M</span>
+                                                        <img src="./assets/images/cameos/GLABombTruck.webp" alt="Bomb Truck" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">T</span>
                                                     </div>
                                                     <div class="gh-action-meta">
-                                                        <span class="gh-action-title">Angry Mob</span>
-                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Angry Mob">M</button>
+                                                        <span class="gh-action-title">Bomb Truck</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Bomb Truck">T</button>
+                                                    </div>
+                                                </div>
+                                                <div class="gh-action-card" data-faction="gla" data-cat="units" data-id="GLABattleBus" style="display: none;" title="Click to edit hotkey binding">
+                                                    <div class="gh-cameo-wrap">
+                                                        <img src="./assets/images/cameos/GLABattleBus.webp" alt="Battle Bus" loading="lazy">
+                                                        <span class="gh-hotkey-stamp">U</span>
+                                                    </div>
+                                                    <div class="gh-action-meta">
+                                                        <span class="gh-action-title">Battle Bus</span>
+                                                        <button class="gh-key-badge" type="button" aria-label="Rebind Battle Bus">U</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2692,9 +2832,9 @@
                                                         <input type="checkbox" id="ghHotkeyOverlayCheck" checked>
                                                         <span>Render stamped hotkey letter badges into .TGA button textures</span>
                                                     </label>
-                                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                                        <span>Corner:</span>
-                                                        <select class="gh-downloads-filter" id="ghHotkeyCornerSelect" style="height: 24px; font-size: 11px; padding: 0 6px;" aria-label="Stamp position corner">
+                                                    <div class="gh-hotkey-field-group">
+                                                        <label for="ghHotkeyCornerSelect">Corner:</label>
+                                                        <select class="gh-downloads-filter" id="ghHotkeyCornerSelect" aria-label="Stamp position corner">
                                                             <option value="br">Bottom-Right</option>
                                                             <option value="bl">Bottom-Left</option>
                                                             <option value="tr">Top-Right</option>
