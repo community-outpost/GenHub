@@ -1,18 +1,19 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -60,18 +61,7 @@ public class ContentStorageServiceTests : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        try
-        {
-            if (Directory.Exists(_tempRoot))
-            {
-                Directory.Delete(_tempRoot, true);
-            }
-        }
-        catch
-        {
-            // Allowed to fail during cleanup
-        }
-
+        Dispose(true);
         GC.SuppressFinalize(this);
     }
 
@@ -83,20 +73,21 @@ public class ContentStorageServiceTests : IDisposable
     public async Task StoreContentAsync_WithTraversingSourcePath_ShouldFailAsync()
     {
         // Arrange
-        // Source Dir: /Temp/Source
-        // File SourcePath: /Temp/Other/secret.txt (Traverses out of Source)
-        var sourceDir = Path.Combine(_tempRoot, "Source");
+        // Source Dir: /Temp/SafeDir
+        // Secret Dir: /Temp/SecretDir/secret.txt
+        // File SourcePath: /Temp/SecretDir/secret.txt (Absolute path outside sourceDir)
+        var sourceDir = Path.Combine(_tempRoot, "SafeDir");
         Directory.CreateDirectory(sourceDir);
 
-        var otherDir = Path.Combine(_tempRoot, "Other");
-        Directory.CreateDirectory(otherDir);
-        var secretFile = Path.Combine(otherDir, "secret.txt");
-        await File.WriteAllTextAsync(secretFile, "secret");
+        var secretDir = Path.Combine(_tempRoot, "SecretDir");
+        Directory.CreateDirectory(secretDir);
+        var secretFile = Path.Combine(secretDir, "secret.txt");
+        await File.WriteAllTextAsync(secretFile, "classified");
 
         var manifest = new ContentManifest
         {
-            Id = "1.0.publisher.gameclient.traversal",
-            ContentType = ContentType.GameClient,
+            Id = "1.0.publisher.gameinstallation.hack",
+            ContentType = ContentType.GameInstallation,
             Files =
             [
                 new()
@@ -153,5 +144,131 @@ public class ContentStorageServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
+    }
+
+    /// <summary>
+    /// Tests that content storage for an Addon physically stores files into CAS,
+    /// populates file hashes, updates source types, and preserves the manifest file list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WithAddonContentType_PhysicallyStoresFilesInCasAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "AddonSource");
+        Directory.CreateDirectory(sourceDir);
+
+        var addonFile = Path.Combine(sourceDir, "addon.big");
+        await File.WriteAllTextAsync(addonFile, "sample-addon-bytes");
+
+        _casServiceMock
+            .Setup(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("cas_hash_addon_123"));
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.local.addon.sample-hotkeys",
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    SourcePath = addonFile,
+                    SourceType = ContentSourceType.LocalFile,
+                },
+            ],
+        };
+
+        // Act
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        // Assert
+        Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
+        _casServiceMock.Verify(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(result.Data);
+        Assert.Single(result.Data.Files);
+        Assert.Equal("cas_hash_addon_123", result.Data.Files[0].Hash);
+        Assert.Equal(ContentSourceType.ContentAddressable, result.Data.Files[0].SourceType);
+    }
+
+    /// <summary>
+    /// Tests that content storage for an external Addon physically stores files into CAS
+    /// to ensure durability even when source folders change.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WithExternalAddon_PhysicallyStoresFilesInCasAsync()
+    {
+        // Arrange
+        var currentDir = AppContext.BaseDirectory;
+        var sourceDir = Path.Combine(currentDir, "ExternalAddon_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sourceDir);
+
+        try
+        {
+            var addonFile = Path.Combine(sourceDir, "external.big");
+            await File.WriteAllTextAsync(addonFile, "sample-external-addon");
+
+            _casServiceMock
+                .Setup(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("cas_hash_external_addon_456"));
+
+            var manifest = new ContentManifest
+            {
+                Id = "1.0.local.addon.external-hotkeys",
+                ContentType = ContentType.Addon,
+                SourcePath = sourceDir,
+                Files =
+                [
+                    new()
+                    {
+                        RelativePath = "external.big",
+                        SourcePath = addonFile,
+                        SourceType = ContentSourceType.LocalFile,
+                    },
+                ],
+            };
+
+            // Act
+            var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+            // Assert
+            Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
+            _casServiceMock.Verify(c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()), Times.Once);
+            Assert.NotNull(result.Data);
+            Assert.Single(result.Data.Files);
+            Assert.Equal("cas_hash_external_addon_456", result.Data.Files[0].Hash);
+            Assert.Equal(ContentSourceType.ContentAddressable, result.Data.Files[0].SourceType);
+        }
+        finally
+        {
+            if (Directory.Exists(sourceDir))
+            {
+                Directory.Delete(sourceDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Disposes resources.
+    /// </summary>
+    /// <param name="disposing">Whether managed resources should be disposed.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            try
+            {
+                if (Directory.Exists(_tempRoot))
+                {
+                    Directory.Delete(_tempRoot, true);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Ignore cleanup errors
+            }
+        }
     }
 }

@@ -137,6 +137,9 @@
     <Color x:Key="CheckBoxCheckedColor">#AA00FF</Color>
     <SolidColorBrush x:Key="CheckBoxCheckedBrush" Color="{StaticResource CheckBoxCheckedColor}" />
 
+    <!-- Elevation / Shadow Tokens -->
+    <BoxShadows x:Key="FlyoutElevationShadow">0 8 24 0 #40000000</BoxShadows>
+
     <!-- ==================================================================== -->
     <!-- 5. Compatibility / Legacy Colors & Brushes                           -->
     <!-- ==================================================================== -->

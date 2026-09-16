@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -18,6 +10,14 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services;
 
@@ -98,6 +98,50 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <summary>
+    /// Determines whether a path is located within a system temporary directory.
+    /// </summary>
+    private static bool IsTempDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var tempPath = Path.GetFullPath(Path.GetTempPath());
+            if (!tempPath.EndsWith(Path.DirectorySeparatorChar) && !tempPath.EndsWith(Path.AltDirectorySeparatorChar))
+            {
+                tempPath += Path.DirectorySeparatorChar;
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            if (!fullPath.EndsWith(Path.DirectorySeparatorChar) && !fullPath.EndsWith(Path.AltDirectorySeparatorChar))
+            {
+                fullPath += Path.DirectorySeparatorChar;
+            }
+
+            var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            return fullPath.StartsWith(tempPath, comparison);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or System.Security.SecurityException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether physical storage should be forced regardless of drive type,
+    /// e.g. for MapPacks or Addons created in temporary directories or user imports.
+    /// </summary>
+    private static bool ShouldForceStorage(ContentManifest manifest, string? sourceDirectory)
+    {
+        return manifest.ContentType is ContentType.MapPack or ContentType.Addon ||
+               IsTempDirectory(sourceDirectory) ||
+               IsTempDirectory(manifest.SourcePath);
+    }
+
+    /// <summary>
     /// Determines whether a manifest requires physical file storage in the CAS system.
     /// </summary>
     /// <param name="manifest">The manifest to check.</param>
@@ -112,6 +156,12 @@ public class ContentStorageService : IContentStorageService
 
         // MapPacks created locally MUST be stored in CAS because the source (temp dir) will be deleted
         if (manifest.ContentType == ContentType.MapPack)
+        {
+            return true;
+        }
+
+        // Addons created locally or imported MUST be stored in CAS for durability
+        if (manifest.ContentType == ContentType.Addon)
         {
             return true;
         }
@@ -237,9 +287,9 @@ public class ContentStorageService : IContentStorageService
         // Check if source directory is on a potentially invalid or removable drive
         bool isInvalidDrive = IsInvalidOrRemovableDrive(sourceDirectory);
 
-        // MapPacks and other local content might be created in temp directories on "invalid" drives (e.g. RAM disks)
-        // We should allow storage if it's a MapPack to ensure it persists after temp cleanup.
-        bool forceStorage = manifest.ContentType == ContentType.MapPack;
+        // MapPacks, Addons, and other local content might be created in temp directories on "invalid" drives (e.g. RAM disks)
+        // We should allow storage if it's a MapPack or Addon to ensure it persists after temp cleanup.
+        bool forceStorage = ShouldForceStorage(manifest, sourceDirectory);
 
         if (isInvalidDrive && !forceStorage)
         {
@@ -425,7 +475,7 @@ public class ContentStorageService : IContentStorageService
             {
                 try
                 {
-                    Directory.Delete(contentDir);
+                    Directory.Delete(contentDir, recursive: false);
                 }
                 catch (Exception deleteEx)
                 {
@@ -660,7 +710,7 @@ public class ContentStorageService : IContentStorageService
             return manifest;
         }
 
-        if (IsInvalidOrRemovableDrive(sourceDirectory))
+        if (IsInvalidOrRemovableDrive(sourceDirectory) && !ShouldForceStorage(manifest, sourceDirectory))
         {
             _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive", sourceDirectory);
             manifest.Files.Clear();

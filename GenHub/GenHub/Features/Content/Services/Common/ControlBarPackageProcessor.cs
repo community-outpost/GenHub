@@ -1,3 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Features.Content.Services.CommunityOutpost;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -5,12 +11,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using GenHub.Features.Content.Services.CommunityOutpost;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Common;
 
@@ -775,8 +775,8 @@ public class ControlBarPackageProcessor(
             var tempArtBig = Path.Combine(tempRoot, "temp_art.big");
             var tempDataBig = Path.Combine(tempRoot, "temp_data.big");
 
-            await BigFilePacker.PackAsync(artPackRoot, tempArtBig);
-            await BigFilePacker.PackAsync(dataPackRoot, tempDataBig);
+            await BigFilePacker.PackAsync(artPackRoot, tempArtBig, cancellationToken);
+            await BigFilePacker.PackAsync(dataPackRoot, tempDataBig, cancellationToken);
 
             File.Move(tempArtBig, artBigPath, overwrite: true);
             File.Move(tempDataBig, dataBigPath, overwrite: true);
@@ -790,7 +790,7 @@ public class ControlBarPackageProcessor(
                     Directory.Delete(tempRoot, recursive: true);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to cleanup temporary pack directory {TempRoot}", tempRoot);
             }
@@ -902,7 +902,7 @@ public class ControlBarPackageProcessor(
             repackedOutputs.Add(metadataFileName);
             logger.LogInformation("Created Control Bar metadata file {FileName} from fallback", metadataFileName);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
         {
             logger.LogError(ex, "Failed to create fallback Control Bar metadata file");
         }
@@ -953,7 +953,7 @@ public class ControlBarPackageProcessor(
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to clean up control bar source directories in {Directory}", extractedDirectory);
         }

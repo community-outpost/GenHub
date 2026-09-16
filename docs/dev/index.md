@@ -76,6 +76,12 @@ GeneralsHub defines mandatory [UI styling and design system standards](./ui-styl
 
 ---
 
+### User Feedback & Notifications
+
+GeneralsHub defines a mandatory [User feedback standard](./ui-styling.md#user-feedback-and-toast-notifications-inotificationservice) requiring all user feedback, operation completions, warnings, and errors to be dispatched via `INotificationService` toast notifications rather than passive inline status labels.
+
+---
+
 ## Architecture
 
 ### Dependency Injection
