@@ -97,6 +97,8 @@ public partial class ReplayManagerViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanResumeOrTakeover))]
+    [NotifyPropertyChangedFor(nameof(CanResumeFromCheckpoint))]
+    [NotifyPropertyChangedFor(nameof(CanTakeoverFromCheckpoint))]
     private bool isBusy;
 
     [ObservableProperty]
@@ -148,13 +150,27 @@ public partial class ReplayManagerViewModel(
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanResumeOrTakeover))]
+    [NotifyPropertyChangedFor(nameof(CanResumeFromCheckpoint))]
+    [NotifyPropertyChangedFor(nameof(CanTakeoverFromCheckpoint))]
     private ReplayCheckpointInfo? selectedCheckpoint;
+
+    /// <summary>
+    /// Gets a value indicating whether replay resume operations can be executed.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
+    public bool CanResumeFromCheckpoint => SelectedCheckpoint != null && !IsBusy;
+
+    /// <summary>
+    /// Gets a value indicating whether match takeover operations can be executed.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
+    public bool CanTakeoverFromCheckpoint => SelectedCheckpoint != null && SelectedSlot != null && !IsBusy;
 
     /// <summary>
     /// Gets a value indicating whether resume or takeover operations can be executed.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
-    public bool CanResumeOrTakeover => SelectedCheckpoint != null && !IsBusy;
+    public bool CanResumeOrTakeover => SelectedCheckpoint != null && SelectedSlot != null && !IsBusy;
 
     /// <summary>
     /// Gets the list of player slots parsed from the active replay.
@@ -165,6 +181,8 @@ public partial class ReplayManagerViewModel(
     /// Gets or sets the player slot selected for live match takeover.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanResumeOrTakeover))]
+    [NotifyPropertyChangedFor(nameof(CanTakeoverFromCheckpoint))]
     private ReplaySlotInfo? selectedSlot;
 
     /// <summary>
@@ -1937,14 +1955,20 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        if (SelectedSlot == null)
+        {
+            notificationService.ShowWarning("No Player Selected", "Please select a player slot to take over.");
+            return;
+        }
+
         if (SelectedCompatibleProfile == null)
         {
             notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile.");
             return;
         }
 
-        var slotIndex = SelectedSlot?.SlotIndex ?? 0;
-        var playerName = SelectedSlot?.PlayerName ?? $"Slot {slotIndex}";
+        var slotIndex = SelectedSlot.SlotIndex;
+        var playerName = SelectedSlot.PlayerName ?? $"Slot {slotIndex}";
 
         await ExecuteCheckpointLaunchOperationAsync(
             "Takeover",

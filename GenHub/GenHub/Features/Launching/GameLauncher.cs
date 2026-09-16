@@ -529,13 +529,15 @@ public class GameLauncher(
         {
             if (string.IsNullOrWhiteSpace(kvp.Key) ||
                 kvp.Key.Contains(' ') ||
+                kvp.Key.Contains('"') ||
                 kvp.Key.StartsWith("_pos", StringComparison.OrdinalIgnoreCase) ||
                 !IsValidCommandArgument(kvp.Key))
             {
                 return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
             }
 
-            if (!string.IsNullOrEmpty(kvp.Value) && !IsValidCommandArgument(kvp.Value))
+            if (!string.IsNullOrEmpty(kvp.Value) &&
+                (kvp.Value.Contains('"') || !IsValidCommandArgument(kvp.Value)))
             {
                 return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
             }

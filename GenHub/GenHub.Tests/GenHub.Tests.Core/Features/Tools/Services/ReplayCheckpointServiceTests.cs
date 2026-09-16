@@ -148,7 +148,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
 
         _mockProcessManager
             .Setup(p => p.GetProcessInfoAsync(99999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateFailure("Process has exited"));
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
 
         var result = await _service.MintCheckpointAsync(replay, profile, targetFrame);
 
@@ -868,5 +868,82 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
 
         await Assert.ThrowsAsync<ObjectDisposedException>(() => localService.MintCheckpointAsync(replay, profile, 100));
         await Assert.ThrowsAsync<ObjectDisposedException>(() => localService.GetCheckpointsForReplayAsync(replay));
+    }
+
+    /// <summary>
+    /// Verifies that MintCheckpointAsync throws ObjectDisposedException if the service is disposed while waiting for the mint lock.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_WhenDisposedWhileWaitingForLock_ThrowsObjectDisposedException()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "LockDispose.rep",
+            FullPath = @"C:\Games\Replays\LockDispose.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-lock-dispose", Name = "Lock Dispose Profile" };
+
+        var localService = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            NullLogger<ReplayCheckpointService>.Instance,
+            customSaveDirectory: _tempSaveDir);
+
+        var lockField = typeof(ReplayCheckpointService).GetField("_mintLock", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(lockField);
+        var sem = (SemaphoreSlim)lockField.GetValue(localService)!;
+
+        // Acquire the semaphore so the next call waits
+        await sem.WaitAsync();
+
+        var mintTask = Task.Run(async () => await localService.MintCheckpointAsync(replay, profile, 100));
+
+        // Wait briefly for mintTask to start waiting on semaphore
+        await Task.Delay(50);
+
+        // Dispose while mintTask is waiting
+        localService.Dispose();
+
+        // Release semaphore so mintTask enters the try block
+        sem.Release();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => mintTask);
+    }
+
+    /// <summary>
+    /// Verifies that MintCheckpointAsync returns failure when save directory cannot be created.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_WhenSaveDirectoryCannotBeCreated_ReturnsFailure()
+    {
+        var invalidDir = Path.Combine(_tempSaveDir, "file_as_dir");
+        await File.WriteAllTextAsync(invalidDir, "blocking file");
+        var badSaveDir = Path.Combine(invalidDir, "nested");
+
+        var localService = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            NullLogger<ReplayCheckpointService>.Instance,
+            customSaveDirectory: badSaveDir);
+
+        var replay = new ReplayFile
+        {
+            FileName = "DirFail.rep",
+            FullPath = @"C:\Games\Replays\DirFail.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-dir-fail", Name = "Dir Fail Profile" };
+
+        var result = await localService.MintCheckpointAsync(replay, profile, 100);
+
+        Assert.False(result.Success);
+        Assert.Contains("Failed to create or access checkpoint save directory", result.FirstError);
     }
 }

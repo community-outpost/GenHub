@@ -233,7 +233,20 @@ public static class DemoViewModelFactory
             var mockLogger = new MockLogger<ReplayManagerViewModel>();
 
             var mockCheckpoint = new MockReplayCheckpointService();
-            var mockProfileManager = new MockGameProfileManager();
+            var demoRecoveryProfile = new GameProfile
+            {
+                Id = "demo-recovery-profile",
+                Name = "Zero Hour 1.04 (Recovery)",
+                GameClient = new GameClient
+                {
+                    Id = "1.0.local.gameclient.generalszh-recovery",
+                    Name = "Zero Hour Recovery Client",
+                    GameType = GameType.ZeroHour,
+                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+                },
+            };
+            var mockProfileManager = new MockGameProfileManager([demoRecoveryProfile]);
 
             var vm = new ReplayManagerViewModel(
                 mockDir,
@@ -254,10 +267,24 @@ public static class DemoViewModelFactory
             System.Diagnostics.Debug.WriteLine($"Failed to create full demo replay manager: {ex}");
 
             // Fail safe with minimal mocks
+            var demoRecoveryProfile = new GameProfile
+            {
+                Id = "demo-recovery-profile",
+                Name = "Zero Hour 1.04 (Recovery)",
+                GameClient = new GameClient
+                {
+                    Id = "1.0.local.gameclient.generalszh-recovery",
+                    Name = "Zero Hour Recovery Client",
+                    GameType = GameType.ZeroHour,
+                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+                },
+            };
+
             return new ReplayManagerViewModel(
                 new MockReplayDirectoryService(),
                 new MockReplayCheckpointService(),
-                new MockGameProfileManager(),
+                new MockGameProfileManager([demoRecoveryProfile]),
                 new MockReplayImportService(),
                 new MockReplayExportService(),
                 new MockUploadHistoryService(),

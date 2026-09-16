@@ -76,8 +76,18 @@ public sealed partial class ReplayCheckpointService(
         await _mintLock.WaitAsync(cancellationToken);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             var saveDirectory = GetSaveDirectory(replay.GameVersion);
-            Directory.CreateDirectory(saveDirectory);
+            try
+            {
+                Directory.CreateDirectory(saveDirectory);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogError(ex, "[ReplayCheckpoint] Failed to create or access save directory: {SaveDirectory}", saveDirectory);
+                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Failed to create or access checkpoint save directory '{saveDirectory}': {ex.Message}");
+            }
 
             var safeReplay = GetSafeReplayName(replay.FileName);
             var saveFileName = $"{ReplayManagerConstants.CheckpointFilePrefix}{safeReplay}_{targetFrame}{ReplayManagerConstants.SaveFileExtension}";

@@ -473,6 +473,62 @@ public sealed class ReplayHeaderParserTests
         Assert.Equal(TimeSpan.FromSeconds(8), result.Data.Duration.Value);
     }
 
+    /// <summary>
+    /// Verifies that when a chunk header specifies a payload extending beyond available bytes,
+    /// its timecode is not counted into maxTimecode and parsing halts safely.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_FallbackChunkWithTruncatedPayload_DoesNotCountTruncatedChunkTimecodeAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        // Header with HeaderFrameCount = 0
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(1000u);
+        writer.Write(1100u);
+        writer.Write(0u);
+        writer.Write((byte)1);
+        writer.Write((byte)2);
+        writer.Write(new byte[8]);
+
+        writer.Write(Encoding.Unicode.GetBytes("Truncated Chunk Test" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("1.04" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/test/test.map;H=Hank;" + char.MinValue));
+        writer.Write(Encoding.ASCII.GetBytes("0" + char.MinValue));
+        writer.Write(new byte[16]);
+
+        // Chunk 1: valid chunk with timecode = 150
+        writer.Write(150u);
+        writer.Write(1u);
+        writer.Write(1u);
+        writer.Write((byte)0); // ncomms = 0
+
+        // Chunk 2: invalid chunk with timecode = 9999, but payload truncated
+        writer.Write(9999u);
+        writer.Write(1u);
+        writer.Write(2u);
+        writer.Write((byte)1); // ncomms = 1
+        writer.Write((byte)0); // type = INTEGER (4 bytes)
+        writer.Write((byte)10); // nargs = 10 -> expects 40 bytes payload, but stream ends here!
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Equal(150u, result.Data.TotalFrames);
+        Assert.Equal(TimeSpan.FromSeconds(5), result.Data.Duration);
+    }
+
     private sealed class OversizedStream : MemoryStream
     {
         public override long Length => ReplayManagerConstants.MaxReplaySizeBytes + 1;

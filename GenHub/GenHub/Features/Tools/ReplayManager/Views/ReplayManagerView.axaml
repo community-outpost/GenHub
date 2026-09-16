@@ -677,7 +677,7 @@
             <Button Grid.Column="1"
                     Classes="Secondary"
                     Command="{Binding ResumeReplayFromCheckpointCommand}"
-                    IsEnabled="{Binding CanResumeOrTakeover}"
+                    IsEnabled="{Binding CanResumeFromCheckpoint}"
                     Padding="14,8"
                     Margin="0,0,8,0"
                     ToolTip.Tip="Resume deterministic replay playback from the selected checkpoint">
@@ -689,7 +689,7 @@
             <Button Grid.Column="2"
                     Classes="Primary"
                     Command="{Binding TakeoverMatchFromCheckpointCommand}"
-                    IsEnabled="{Binding CanResumeOrTakeover}"
+                    IsEnabled="{Binding CanTakeoverFromCheckpoint}"
                     Padding="14,8"
                     ToolTip.Tip="Take over live match control from this checkpoint as the chosen player">
               <StackPanel Orientation="Horizontal" Spacing="6">

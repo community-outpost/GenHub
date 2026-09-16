@@ -1107,11 +1107,14 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LaunchProfileAsync rejects invalid additional arguments containing injection characters.
+    /// Verifies that LaunchProfileAsync rejects invalid additional arguments containing injection characters or double quotes.
     /// </summary>
+    /// <param name="invalidValue">The invalid argument value to test.</param>
     /// <returns>The async task.</returns>
-    [Fact]
-    public async Task LaunchProfileAsync_WithInvalidAdditionalArguments_ShouldFailLaunchAsync()
+    [Theory]
+    [InlineData("malicious;payload")]
+    [InlineData("malicious\"quote")]
+    public async Task LaunchProfileAsync_WithInvalidAdditionalArguments_ShouldFailLaunchAsync(string invalidValue)
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -1119,7 +1122,7 @@ public class GameLauncherTests : IDisposable
 
         var badArgs = new Dictionary<string, string>
         {
-            ["-replay"] = "malicious;payload",
+            ["-replay"] = invalidValue,
         };
 
         // Act

@@ -40,19 +40,40 @@ public static class GameClientCapabilitiesHelper
             (!string.IsNullOrEmpty(name) && (name.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                              name.Contains(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase)));
 
-        var hasRecoveryKeyword =
-            (!string.IsNullOrEmpty(id) && (id.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                           id.Contains(ReplayManagerConstants.CapabilityCheckpointKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                           id.Contains(ReplayManagerConstants.CapabilityTakeoverKeyword, StringComparison.OrdinalIgnoreCase))) ||
-            (!string.IsNullOrEmpty(name) && (name.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                             name.Contains(ReplayManagerConstants.CapabilityCheckpointKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                             name.Contains(ReplayManagerConstants.CapabilityTakeoverKeyword, StringComparison.OrdinalIgnoreCase)));
-
-        if (isSuperHackers || hasRecoveryKeyword)
+        if (isSuperHackers)
         {
             return GameClientCapabilities.AllRecoveryFeatures;
         }
 
-        return GameClientCapabilities.None;
+        var hasRecoveryKeyword =
+            (!string.IsNullOrEmpty(id) && id.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(name) && name.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase));
+
+        if (hasRecoveryKeyword)
+        {
+            return GameClientCapabilities.AllRecoveryFeatures;
+        }
+
+        var capabilities = GameClientCapabilities.None;
+
+        var hasCheckpointKeyword =
+            (!string.IsNullOrEmpty(id) && id.Contains(ReplayManagerConstants.CapabilityCheckpointKeyword, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(name) && name.Contains(ReplayManagerConstants.CapabilityCheckpointKeyword, StringComparison.OrdinalIgnoreCase));
+
+        if (hasCheckpointKeyword)
+        {
+            capabilities |= GameClientCapabilities.CheckpointSaves;
+        }
+
+        var hasTakeoverKeyword =
+            (!string.IsNullOrEmpty(id) && id.Contains(ReplayManagerConstants.CapabilityTakeoverKeyword, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(name) && name.Contains(ReplayManagerConstants.CapabilityTakeoverKeyword, StringComparison.OrdinalIgnoreCase));
+
+        if (hasTakeoverKeyword)
+        {
+            capabilities |= GameClientCapabilities.PlayerTakeover;
+        }
+
+        return capabilities;
     }
 }

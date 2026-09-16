@@ -339,16 +339,18 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 break;
             }
 
+            var next = SkipChunkPayload(buffer, cur, bytesRead);
+            if (!next.HasValue)
+            {
+                break;
+            }
+
             if (timecode > maxTimecode)
             {
                 maxTimecode = timecode;
             }
 
-            cur = SkipChunkPayload(buffer, cur, bytesRead) ?? -1;
-            if (cur < 0)
-            {
-                break;
-            }
+            cur = next.Value;
         }
 
         return maxTimecode > 0 ? maxTimecode : null;
@@ -379,7 +381,8 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             payloadBytes += nargs * argSize;
         }
 
-        return cur + descriptorBytes + payloadBytes;
+        var next = cur + descriptorBytes + payloadBytes;
+        return next <= bytesRead ? next : null;
     }
 
     private static int GetCommandArgSize(byte cmdType) => cmdType switch

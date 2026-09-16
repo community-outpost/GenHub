@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
@@ -701,20 +702,30 @@ public class MockLocalContentService : ILocalContentService
 /// <summary>
 /// Mock implementation of <see cref="IGameProfileManager"/>.
 /// </summary>
-public class MockGameProfileManager : IGameProfileManager
+public class MockGameProfileManager(IReadOnlyList<GameProfile>? profiles = null) : IGameProfileManager
 {
+    private readonly IReadOnlyList<GameProfile> _profiles = profiles ?? [];
+
     /// <inheritdoc/>
     public Task<ProfileOperationResult<IReadOnlyList<GameProfile>>> GetAllProfilesAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        => Task.FromResult(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(_profiles));
 
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> GetProfileAsync(string profileId, CancellationToken cancellationToken = default)
-        => Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
+    {
+        var match = _profiles.FirstOrDefault(p => p.Id == profileId);
+        if (match != null)
+        {
+            return Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(match));
+        }
+
+        return Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
         {
             Id = profileId,
             Name = "Demo Profile",
             GameClient = new GameClient { GameType = GameType.ZeroHour },
         }));
+    }
 
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> CreateProfileAsync(CreateProfileRequest request, CancellationToken cancellationToken = default)

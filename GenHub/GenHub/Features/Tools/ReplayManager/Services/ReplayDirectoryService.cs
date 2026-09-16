@@ -1253,18 +1253,18 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
-        if ((client.Capabilities & GameClientCapabilities.CheckpointSaves) != 0)
+        if ((client.Capabilities & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures)
         {
             return true;
         }
 
-        return (GameClientCapabilitiesHelper.InferCapabilities(client.PublisherType, client.Id, client.Name) & GameClientCapabilities.CheckpointSaves) != 0;
+        return (GameClientCapabilitiesHelper.InferCapabilities(client.PublisherType, client.Id, client.Name) & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures;
     }
 
     private static bool HasEnabledContentCheckpointCapability(IEnumerable<string>? contentIds)
     {
         return contentIds?.Any(id =>
-            (GameClientCapabilitiesHelper.InferCapabilities(null, id, null) & GameClientCapabilities.CheckpointSaves) != 0) == true;
+            (GameClientCapabilitiesHelper.InferCapabilities(null, id, null) & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures) == true;
     }
 
     private static int ScoreRecoveryProfile(
@@ -1385,6 +1385,14 @@ public sealed class ReplayDirectoryService(
 
     private static bool MatchesTruncatedReplayMarker(string profileName, string replayBaseName)
     {
+        // Only a name truncated to the length limit can produce a genuine
+        // prefix match; a short name that happens to be a prefix of an
+        // unrelated replay's base name must not match.
+        if (profileName.Length != ProfileConstants.MaxProfileNameLength)
+        {
+            return false;
+        }
+
         // Fallback for truncated replay profile names: if the profile name contains "(Replay: "
         // and the replay segment in the profile name matches the beginning of replayBaseName.
         const string replayMarker = "(Replay: ";

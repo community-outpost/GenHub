@@ -4047,6 +4047,56 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that FindMatchingProfile does not match a profile dedicated to another replay when the profile name is not truncated even if its replay marker is a prefix of the replay file name.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenNonTruncatedProfileSharesReplayPrefix_DoesNotTreatAsDedicated()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Match10.rep",
+            FullPath = "/replays/Match10.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var genericProfile = new GameProfile
+        {
+            Id = "profile-generic",
+            Name = "Zero Hour Standard",
+            GameClient = new GameClient
+            {
+                Id = "1.104.steam.gameclient.zerohour",
+                GameType = GameType.ZeroHour,
+                PublisherType = "steam",
+            },
+        };
+
+        var prefixProfile = new GameProfile
+        {
+            Id = "profile-match1",
+            Name = "Zero Hour (Replay: Match1)",
+            GameClient = new GameClient
+            {
+                Id = "1.104.steam.gameclient.zerohour",
+                GameType = GameType.ZeroHour,
+                PublisherType = "steam",
+            },
+        };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            [prefixProfile, genericProfile],
+            GameType.ZeroHour,
+            "1.104.steam.gameclient.zerohour",
+            null,
+            replay);
+
+        Assert.NotNull(match);
+        Assert.Equal("profile-generic", match.Id);
+    }
+
+    /// <summary>
     /// Verifies that FindRecoveryProfiles returns matching recovery profile for Zero Hour 1.04 replay.
     /// </summary>
     [Fact]
