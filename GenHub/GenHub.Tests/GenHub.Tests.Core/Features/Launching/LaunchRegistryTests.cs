@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameProfile;
@@ -22,6 +23,55 @@ public class LaunchRegistryTests
     {
         var loggerMock = new Mock<ILogger<LaunchRegistry>>();
         _registry = new LaunchRegistry(loggerMock.Object);
+    }
+
+    /// <summary>Polling a placeholder does not emit a stop before the real process exits.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task PlaceholderCleanup_ThenRealExit_EmitsOneStopWithFailureAsync()
+    {
+        var manager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        var profileId = Guid.NewGuid().ToString();
+        var recipient = new object();
+        var notifications = new List<ProfileStoppedMessage>();
+        WeakReferenceMessenger.Default.Register<ProfileStoppedMessage>(recipient, (_, message) =>
+        {
+            if (message.ProfileId == profileId)
+            {
+                notifications.Add(message);
+            }
+        });
+        try
+        {
+            var launch = new GameLaunchInfo
+            {
+                LaunchId = Guid.NewGuid().ToString(),
+                ProfileId = profileId,
+                WorkspaceId = string.Empty,
+                ProcessInfo = new GameProcessInfo { ProcessId = -1 },
+            };
+            await registry.RegisterLaunchAsync(launch);
+            await registry.GetAllActiveLaunchesAsync();
+            Assert.Null(launch.TerminatedAt);
+            Assert.Empty(notifications);
+
+            launch.ProcessInfo = new GameProcessInfo { ProcessId = 12345 };
+            await registry.RegisterLaunchAsync(launch);
+            manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+            {
+                ProcessId = 12345,
+                ExitCode = 1,
+                ExitTime = DateTime.UtcNow,
+                StandardErrorTail = "init abort",
+            });
+            Assert.Single(notifications);
+            Assert.Contains("init abort", launch.FailureReason);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
     }
 
     /// <summary>

@@ -13,6 +13,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,23 +25,29 @@ namespace GenHub.Features.GameProfiles.Infrastructure;
 public class GameProcessManager(
     ILogger<GameProcessManager> logger) : IGameProcessManager, IDisposable
 {
+    private sealed class ExitFinalizationState
+    {
+        public int Finalized;
+    }
+
     private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
+    private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
 
     /// <summary>
-    /// Stderr captures for processes this manager started itself, keyed by PID.
+    /// Stderr captures for processes this manager started itself, keyed by process instance.
     /// </summary>
     /// <remarks>
     /// The late-failure channel: an initialisation abort slow enough to outlive the
     /// post-spawn detection window exits after the launch was reported as started, and
     /// its stderr — the only explanation of the failure — would otherwise be dropped with
-    /// the start operation's locals. Kept per PID so <see cref="OnProcessExited"/> can
+    /// the start operation's locals. Kept per process instance so <see cref="OnProcessExited"/> can
     /// attach it to the exit event.
     /// </remarks>
-    private readonly ConcurrentDictionary<int, BoundedErrorBuffer> _stderrBuffers = new();
+    private readonly ConcurrentDictionary<Process, BoundedErrorBuffer> _stderrBuffers = new();
 
     /// <summary>
-    /// PIDs whose termination was requested through <see cref="TerminateProcessAsync"/>,
+    /// Process instances whose termination was requested through <see cref="TerminateProcessAsync"/>,
     /// marked before the kill is attempted.
     /// </summary>
     /// <remarks>
@@ -50,7 +57,7 @@ public class GameProcessManager(
     /// marking here lets the exit event distinguish "the user stopped it" from "it
     /// died", and downstream consumers suppress the failure classification.
     /// </remarks>
-    private readonly ConcurrentDictionary<int, byte> _requestedTerminations = new();
+    private readonly ConcurrentDictionary<Process, byte> _requestedTerminations = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     /// <summary>
@@ -129,7 +136,7 @@ public class GameProcessManager(
             }
 
             _managedProcesses[process.Id] = process;
-            _stderrBuffers[process.Id] = capturedErrors;
+            _stderrBuffers[process] = capturedErrors;
 
             if (configuration.WaitForExit)
             {
@@ -228,7 +235,7 @@ public class GameProcessManager(
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!ownsProcess)
                     {
-                        _requestedTerminations[processId] = 1;
+                        _requestedTerminations[process] = 1;
                     }
 
                     process.Kill(entireProcessTree: true);
@@ -241,6 +248,7 @@ public class GameProcessManager(
             if (!ownsProcess)
             {
                 await WaitForExitNotificationAsync(exitObserved.Task, processId);
+                FinalizeProcessExit(process, processId);
             }
 
             terminated = true;
@@ -265,9 +273,9 @@ public class GameProcessManager(
         finally
         {
             ProcessExited -= ObserveExit;
-            if (!terminated || ownsProcess)
+            if (process is not null && (!terminated || ownsProcess))
             {
-                _requestedTerminations.TryRemove(processId, out _);
+                _requestedTerminations.TryRemove(process, out _);
             }
 
             if (ownsProcess || terminated)
@@ -467,7 +475,7 @@ public class GameProcessManager(
     /// </summary>
     public void CleanupDeadProcesses()
     {
-        var deadProcessIds = new List<int>();
+        var deadProcesses = new List<KeyValuePair<int, Process>>();
 
         foreach (var kvp in _managedProcesses)
         {
@@ -476,29 +484,27 @@ public class GameProcessManager(
                 // Check if the process has exited
                 if (kvp.Value.HasExited)
                 {
-                    deadProcessIds.Add(kvp.Key);
-                    kvp.Value.Dispose();
+                    deadProcesses.Add(kvp);
                 }
             }
             catch (InvalidOperationException)
             {
                 // Process already disposed or inaccessible
-                deadProcessIds.Add(kvp.Key);
+                deadProcesses.Add(kvp);
             }
         }
 
         // Remove dead processes from the dictionary
-        foreach (var processId in deadProcessIds)
+        foreach (var entry in deadProcesses)
         {
-            _managedProcesses.TryRemove(processId, out _);
-            _stderrBuffers.TryRemove(processId, out _);
-            _requestedTerminations.TryRemove(processId, out _);
-            logger.LogTrace("Cleaned up dead process {ProcessId} from managed processes", processId);
+            FinalizeProcessExit(entry.Value, entry.Key);
+            entry.Value.Dispose();
+            logger.LogTrace("Cleaned up dead process {ProcessId} from managed processes", entry.Key);
         }
 
-        if (deadProcessIds.Count > 0)
+        if (deadProcesses.Count > 0)
         {
-            logger.LogDebug("Cleaned up {Count} dead processes from managed processes dictionary", deadProcessIds.Count);
+            logger.LogDebug("Cleaned up {Count} dead processes from managed processes dictionary", deadProcesses.Count);
         }
     }
 
@@ -1107,6 +1113,19 @@ public class GameProcessManager(
             }
         }
 
+        FinalizeProcessExit(process, processId);
+    }
+
+    /// <summary>Publishes one exit and clears only state belonging to this process instance.</summary>
+    /// <param name="process">The exited process; no signal is sent by this method.</param>
+    /// <param name="processId">Its positive process ID, captured before disposal.</param>
+    internal void FinalizeProcessExit(Process process, int processId)
+    {
+        if (processId <= 0 || Interlocked.Exchange(ref _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).Finalized, 1) != 0)
+        {
+            return;
+        }
+
         int? exitCode = null;
         try
         {
@@ -1117,17 +1136,17 @@ public class GameProcessManager(
             // Process may have already been disposed
         }
 
-        // Remove from managed processes
-        _managedProcesses.TryRemove(processId, out _);
+        // A delayed callback must not remove a new process that reused the same PID.
+        _managedProcesses.TryRemove(new KeyValuePair<int, Process>(processId, process));
 
-        var terminationRequested = _requestedTerminations.TryRemove(processId, out _);
+        var terminationRequested = _requestedTerminations.TryRemove(process, out _);
 
         // Attach the stderr capture, when this manager started the process itself. This
         // is what makes an abort that outlived the detection window explicable: the exit
         // is already after "launched", so the event is the only place the evidence fits.
         string? stderrTail = null;
         IReadOnlyList<string> unmountableArchives = [];
-        if (_stderrBuffers.TryRemove(processId, out var capturedErrors))
+        if (_stderrBuffers.TryRemove(process, out var capturedErrors))
         {
             DrainStandardError(process, capturedErrors);
 
