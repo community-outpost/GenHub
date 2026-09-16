@@ -3906,16 +3906,41 @@
             async function fetchReleasesData() {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const allReleases = [];
+                let page = 1;
+                const maxPages = 10;
                 try {
-                    const res = await fetch('https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100', {
-                        signal: controller.signal
-                    });
-                    if (!res.ok) return null;
-                    const data = await res.json();
-                    return Array.isArray(data) ? data : null;
+                    while (page <= maxPages) {
+                        const res = await fetch(`https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100&page=${page}`, {
+                            signal: controller.signal
+                        });
+                        if (!res.ok) break;
+                        const data = await res.json();
+                        if (!Array.isArray(data) || data.length === 0) break;
+                        allReleases.push(...data);
+                        if (data.length < 100) break;
+                        page++;
+                    }
+                    if (allReleases.length > 0) return allReleases;
+                } catch {
+                    // Fallback to static build-time dataset if network or rate-limited
                 } finally {
                     clearTimeout(timeoutId);
                 }
+
+                // Consume static pre-paginated dataset if GitHub API fails
+                try {
+                    const localRes = await fetch('./assets/data/genhub_releases.json');
+                    if (localRes.ok) {
+                        const localData = await localRes.json();
+                        if (Array.isArray(localData) && localData.length > 0) {
+                            return localData;
+                        }
+                    }
+                } catch {
+                    // Static fallback unavailable
+                }
+                return null;
             }
 
             function isInstallerAsset(name) {
@@ -3925,12 +3950,17 @@
                        (/\.zip$/i.test(lower) && !/symbols|debug/i.test(lower));
             }
 
+            function isUpdateAsset(name) {
+                const lower = (name || '').toLowerCase();
+                return /\.nupkg$/i.test(lower) || /delta/i.test(lower);
+            }
+
             function processReleaseAsset(asset, metrics) {
                 const cnt = asset.download_count || 0;
                 metrics.totalDownloads += cnt;
                 if (isInstallerAsset(asset.name)) {
                     metrics.installerDownloads += cnt;
-                } else {
+                } else if (isUpdateAsset(asset.name)) {
                     metrics.updateDownloads += cnt;
                 }
                 return cnt;

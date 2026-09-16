@@ -192,3 +192,5 @@ GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.webloc
 # Landing page build output
 public/
 Landing-page/assets/data/*.json
+__pycache__/
+*.pyc

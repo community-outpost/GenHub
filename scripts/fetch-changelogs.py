@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import urllib.request
+from typing import Any, Dict, List, Optional
 
 try:
     from bs4 import BeautifulSoup
@@ -30,13 +31,22 @@ def fetch_github_releases(data_dir: str):
             if not data or not isinstance(data, list):
                 break
             for r in data:
+                assets = []
+                for a in r.get("assets", []):
+                    assets.append({
+                        "name": a.get("name"),
+                        "download_count": a.get("download_count", 0),
+                        "browser_download_url": a.get("browser_download_url", "")
+                    })
                 releases.append({
                     "tag_name": r.get("tag_name"),
                     "name": r.get("name"),
                     "published_at": r.get("published_at"),
                     "html_url": r.get("html_url"),
                     "body": r.get("body", ""),
-                    "prerelease": r.get("prerelease", False)
+                    "prerelease": r.get("prerelease", False),
+                    "draft": r.get("draft", False),
+                    "assets": assets
                 })
             if len(data) < 100:
                 break
@@ -60,7 +70,7 @@ def fetch_html(url: str, user_agent: str = "Mozilla/5.0") -> str:
         return resp.read().decode("utf-8")
 
 
-def extract_list_items(post_element) -> list:
+def extract_list_items(post_element) -> List[str]:
     details = []
     ul = post_element.find("ul")
     if ul:
@@ -71,7 +81,7 @@ def extract_list_items(post_element) -> list:
     return details
 
 
-def extract_paragraph_items(post_element, summary: str) -> list:
+def extract_paragraph_items(post_element, summary: str) -> List[str]:
     details = []
     for dp in post_element.find_all("p"):
         text = dp.get_text(strip=True)
@@ -80,7 +90,7 @@ def extract_paragraph_items(post_element, summary: str) -> list:
     return details
 
 
-def extract_patch_details(full_url: str, summary: str) -> list:
+def extract_patch_details(full_url: str, summary: str) -> List[str]:
     if not full_url or not BeautifulSoup:
         return []
     try:
@@ -98,7 +108,7 @@ def extract_patch_details(full_url: str, summary: str) -> list:
         return []
 
 
-def parse_patch_post(post) -> dict:
+def parse_patch_post(post) -> Optional[Dict[str, Any]]:
     date_el = post.find("div", class_="d-date")
     date_str = date_el.get_text(strip=True) if date_el else ""
 
