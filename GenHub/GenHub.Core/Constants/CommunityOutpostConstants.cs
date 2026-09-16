@@ -64,6 +64,11 @@ public static class CommunityOutpostConstants
     public const string CommunityPatchTag = "community-patch";
 
     /// <summary>
+    /// Tag for addon content items.
+    /// </summary>
+    public const string AddonTag = "addon";
+
+    /// <summary>
     /// Description for the discoverer.
     /// </summary>
     public const string DiscovererDescription = "Discovers content from GenPatcher catalog (dl.dat)";
@@ -134,7 +139,7 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Tags associated with community patch content.
     /// </summary>
-    public static readonly string[] CommunityPatchTags = ["community-patch", "thesuperhackers", "weekly", "game-client"];
+    public static readonly string[] CommunityPatchTags = [CommunityPatchTag, "thesuperhackers", "weekly", "game-client"];
 
     /// <summary>
     /// Tags associated with official patches.
@@ -149,17 +154,17 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Tags associated with control bar addons.
     /// </summary>
-    public static readonly string[] ControlBarTags = ["addon", "control-bar", "ui"];
+    public static readonly string[] ControlBarTags = [AddonTag, "control-bar", "ui"];
 
     /// <summary>
     /// Tags associated with hotkey addons.
     /// </summary>
-    public static readonly string[] HotkeysTags = ["addon", "hotkeys", "keyboard"];
+    public static readonly string[] HotkeysTags = [AddonTag, "hotkeys", "keyboard"];
 
     /// <summary>
     /// Tags associated with camera modifications.
     /// </summary>
-    public static readonly string[] CameraTags = ["addon", "camera"];
+    public static readonly string[] CameraTags = [AddonTag, "camera"];
 
     /// <summary>
     /// Tags associated with tools.
@@ -174,7 +179,7 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Tags associated with visual enhancements.
     /// </summary>
-    public static readonly string[] VisualsTags = ["addon", "visuals", "graphics"];
+    public static readonly string[] VisualsTags = [AddonTag, "visuals", "graphics"];
 
     /// <summary>
     /// Tags associated with system prerequisites.
@@ -184,5 +189,5 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Tags associated with addons.
     /// </summary>
-    public static readonly string[] AddonTags = ["addon", "community", "genpatcher"];
+    public static readonly string[] AddonTags = [AddonTag, "community", "genpatcher"];
 }
