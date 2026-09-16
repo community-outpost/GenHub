@@ -273,15 +273,7 @@ public class GameProcessManager(
         finally
         {
             ProcessExited -= ObserveExit;
-            if (process is not null && (!terminated || ownsProcess))
-            {
-                _requestedTerminations.TryRemove(process, out _);
-            }
-
-            if (ownsProcess || terminated)
-            {
-                process?.Dispose();
-            }
+            CleanupTerminationProcess(process, ownsProcess, terminated);
 
             _terminationSemaphore.Release();
         }
@@ -560,9 +552,9 @@ public class GameProcessManager(
         {
             await notification.WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs));
         }
-        catch (TimeoutException)
+        catch (TimeoutException ex)
         {
-            logger.LogWarning("Timed out waiting for exit notification for process {ProcessId}; continuing termination cleanup", processId);
+            logger.LogWarning(ex, "Timed out waiting for exit notification for process {ProcessId}; continuing termination cleanup", processId);
         }
     }
 
@@ -657,7 +649,7 @@ public class GameProcessManager(
 
         // This is a process-event boundary: one subscriber must not prevent the
         // remaining subscribers (including termination completion) from observing exit.
-        foreach (EventHandler<GameProcessExitedEventArgs> subscriber in ProcessExited?.GetInvocationList() ?? [])
+        foreach (var subscriber in (ProcessExited?.GetInvocationList() ?? []).Cast<EventHandler<GameProcessExitedEventArgs>>())
         {
             try
             {
@@ -1651,6 +1643,23 @@ public class GameProcessManager(
         var detail = capturedErrors.ToString();
 
         return string.IsNullOrWhiteSpace(detail) ? message : $"{message} {detail}";
+    }
+
+    /// <summary>Releases termination-owned state while retaining processes whose stop failed.</summary>
+    /// <param name="process">The process inspected during termination.</param>
+    /// <param name="ownsProcess">Whether termination opened the process handle.</param>
+    /// <param name="terminated">Whether termination completed successfully.</param>
+    private void CleanupTerminationProcess(Process? process, bool ownsProcess, bool terminated)
+    {
+        if (process is not null && (!terminated || ownsProcess))
+        {
+            _requestedTerminations.TryRemove(process, out _);
+        }
+
+        if (ownsProcess || terminated)
+        {
+            process?.Dispose();
+        }
     }
 
     /// <summary>
