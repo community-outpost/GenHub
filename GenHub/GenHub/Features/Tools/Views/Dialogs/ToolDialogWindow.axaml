@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
+        x:Class="GenHub.Features.Tools.Views.Dialogs.ToolDialogWindow"
+        Title="GenHub Publisher Studio"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="Full"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur, Blur, Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+    <Panel Background="{DynamicResource PurpleNebulaBackground}">
+        <ContentControl Name="MainContent"/>
+
+        <!-- Window Drag Region (since we are extending client area) -->
+        <Panel Height="30" VerticalAlignment="Top" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
+    </Panel>
+</Window>

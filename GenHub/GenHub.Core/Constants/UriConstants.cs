@@ -68,6 +68,11 @@ public static class UriConstants
     /// </summary>
     public const string ModBuilderIconUri = "avares://GenHub/Assets/Icons/modbuilder-icon.png";
 
+    /// <summary>
+    /// Icon URI for Publisher Studio tool.
+    /// </summary>
+    public const string PublisherStudioIconUri = "avares://GenHub/Assets/Icons/publisherstudio-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -134,6 +139,11 @@ public static class UriConstants
     /// Filename for ModBuilder icon.
     /// </summary>
     public const string ModBuilderIconFilename = "modbuilder-icon.png";
+
+    /// <summary>
+    /// Filename for Publisher Studio icon.
+    /// </summary>
+    public const string PublisherStudioIconFilename = "publisherstudio-icon.png";
 
     // Cover Path Constants
 

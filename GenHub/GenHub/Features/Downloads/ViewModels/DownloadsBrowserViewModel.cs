@@ -1,3 +1,4 @@
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -27,6 +28,7 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
+using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -2914,6 +2916,70 @@ public sealed partial class DownloadsBrowserViewModel(
                 "Error Adding to Profile",
                 $"An unexpected error occurred: {ex.Message}");
             logger.LogError(ex, "Exception adding content '{ContentName}' to profile", item.Name);
+        }
+    }
+
+    /// <summary>
+    /// Opens the manifests storage directory in the file explorer.
+    /// </summary>
+    [RelayCommand]
+    private void OpenManifestsFolder()
+    {
+        try
+        {
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+            var path = configProvider.GetManifestsPath();
+
+            logger.LogInformation("Opening manifests directory: {Path}", path);
+
+            if (!Directory.Exists(path))
+            {
+                logger.LogWarning("Manifests directory not found at {Path}, creating it", path);
+                Directory.CreateDirectory(path);
+            }
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to open manifests directory");
+            notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
+        }
+    }
+
+    /// <summary>
+    /// Opens the Import Subscription / Catalog dialog.
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportSubscriptionAsync()
+    {
+        try
+        {
+            var importVm = new ImportSubscriptionViewModel(serviceProvider);
+            var dialog = new ImportSubscriptionDialog
+            {
+                DataContext = importVm,
+            };
+
+            var mainWindow = (Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (mainWindow != null)
+            {
+                await dialog.ShowDialog(mainWindow);
+            }
+            else
+            {
+                dialog.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to show Import Subscription dialog");
+            notificationService.ShowError("Import Error", $"Failed to open import dialog: {ex.Message}");
         }
     }
 }

@@ -227,4 +227,16 @@ public static class CatalogConstants
     /// Standard 1920x1080 resolution variant label.
     /// </summary>
     public const string Resolution1920x1080Label = "1920x1080";
+
+    /// <summary>
+    /// Known reference catalog URL for ModDB.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string ModDbCatalogUrl = "https://api.moddb.com/catalog.json";
+
+    /// <summary>
+    /// Known reference catalog URL for CNC Labs.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string CncLabsCatalogUrl = "https://github.com/CnC-Labs/mods-catalog/raw/main/catalog.json";
 }
