@@ -61,6 +61,8 @@ public class LaunchRegistry : ILaunchRegistry
     /// the failure evidence lost. A lock is used rather than a lock-free double-check
     /// because both sequences are short and run at most a handful of times per launch,
     /// so contention is irrelevant, and the atomicity is auditable at a glance.
+    /// Stop-message recipients run synchronously while this lock is held. They must
+    /// not wait for another thread that accesses the registry; post UI work asynchronously.
     /// </remarks>
     private readonly object _exitSync = new();
 
@@ -359,15 +361,8 @@ public class LaunchRegistry : ILaunchRegistry
 
         try
         {
-            // Use ProcessInfo to check if process is still running
-            var runningProcess = Process.GetProcesses()
-                .FirstOrDefault(p => p.Id == launchInfo.ProcessInfo.ProcessId);
-
-            if (runningProcess == null)
-            {
-                HandleMissingProcess(launchInfo, launchId);
-                return;
-            }
+            // Inspect only this positive PID and release the inspection handle promptly.
+            using var runningProcess = Process.GetProcessById(launchInfo.ProcessInfo.ProcessId);
 
             if (runningProcess.HasExited)
             {
@@ -376,6 +371,10 @@ public class LaunchRegistry : ILaunchRegistry
             }
 
             _inspectionFailureCounts.TryRemove(launchId, out _);
+        }
+        catch (ArgumentException)
+        {
+            HandleMissingProcess(launchInfo, launchId);
         }
         catch (Exception ex)
         {

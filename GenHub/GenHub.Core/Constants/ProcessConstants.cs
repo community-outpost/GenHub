@@ -99,11 +99,6 @@ public static class ProcessConstants
     public const int PostSpawnExitDetectionWindowMs = 3000;
 
     /// <summary>
-    /// Interval in milliseconds for process cleanup / reconciliation background task.
-    /// </summary>
-    public const int ProcessCleanupIntervalMs = 300_000; // 5 minutes
-
-    /// <summary>
     /// Maximum number of attempts to discover a Steam-launched process.
     /// </summary>
     public const int SteamProcessDiscoveryMaxAttempts = 240;
