@@ -2277,7 +2277,7 @@ main {
 }
 
 .gh-replay-selected-count strong {
-    color: #6366f1;
+    color: #818cf8;
 }
 
 .gh-zip-name-input {
@@ -2414,23 +2414,23 @@ main {
 }
 
 .gh-faction-btn.active[data-faction="usa"] {
-    background: rgba(59, 130, 246, 0.2);
+    background: #0f2744;
     border-color: #3b82f6;
     color: #93c5fd;
     font-weight: 600;
 }
 
 .gh-faction-btn.active[data-faction="china"] {
-    background: rgba(239, 68, 68, 0.2);
+    background: #450a0a;
     border-color: #ef4444;
     color: #fca5a5;
     font-weight: 600;
 }
 
 .gh-faction-btn.active[data-faction="gla"] {
-    background: rgba(16, 185, 129, 0.2);
+    background: #064e3b;
     border-color: #10b981;
-    color: #6ee7b7;
+    color: #a7f3d0;
     font-weight: 600;
 }
 
@@ -2474,15 +2474,15 @@ main {
 }
 
 .gh-conflict-pill.valid {
-    background: rgba(16, 185, 129, 0.12);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #34d399;
+    background: #064e3b;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    color: #a7f3d0;
 }
 
 .gh-conflict-pill.conflict {
-    background: rgba(239, 68, 68, 0.15);
+    background: #450a0a;
     border: 1px solid rgba(239, 68, 68, 0.4);
-    color: #f87171;
+    color: #fca5a5;
     cursor: pointer;
 }
 
@@ -2543,7 +2543,7 @@ main {
     position: absolute;
     bottom: 3px;
     right: 4px;
-    background: rgba(10, 10, 15, 0.88);
+    background: #0a0a0f;
     border: 1px solid #fbbf24;
     color: #fef08a;
     font-size: 11px;
@@ -2585,8 +2585,8 @@ main {
 }
 
 .gh-action-card:hover .gh-key-badge {
-    background: #8b5cf6;
-    border-color: #a78bfa;
+    background: #6d28d9;
+    border-color: #8b5cf6;
     color: #ffffff;
 }
 
