@@ -3261,6 +3261,12 @@ End
                 }
             }
 
+            function showFallbackStats() {
+                if (installsEl && installsEl.textContent === "—") installsEl.textContent = "Active";
+                if (updatesEl && updatesEl.textContent === "—") updatesEl.textContent = "Active";
+                if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Live metrics temporarily unavailable.</div>';
+            }
+
             async function fetchStats() {
                 try {
                     let data = getCachedStats();
@@ -3269,18 +3275,14 @@ End
                         if (data) cacheStats(data);
                     }
                     if (!data) {
-                        if (installsEl && installsEl.textContent === "—") installsEl.textContent = "Active";
-                        if (updatesEl && updatesEl.textContent === "—") updatesEl.textContent = "Active";
-                        if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Live metrics temporarily unavailable.</div>';
+                        showFallbackStats();
                         return;
                     }
                     const metrics = aggregateReleaseMetrics(data);
                     applyStatsToDom(metrics);
                 } catch (e) {
                     console.info('GitHub release metrics fallback active:', e);
-                    if (installsEl && installsEl.textContent === "—") installsEl.textContent = "Active";
-                    if (updatesEl && updatesEl.textContent === "—") updatesEl.textContent = "Active";
-                    if (breakdownEl) breakdownEl.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 4px 0;">Live metrics temporarily unavailable.</div>';
+                    showFallbackStats();
                 }
             }
 

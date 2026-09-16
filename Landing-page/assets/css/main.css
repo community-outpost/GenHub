@@ -2124,21 +2124,21 @@ main {
 }
 
 .gh-compat-pill.compatible {
-    background: rgba(34, 197, 94, 0.12);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.25);
+    background: #064e3b;
+    color: #a7f3d0;
+    border: 1px solid rgba(52, 211, 153, 0.3);
 }
 
 .gh-compat-pill.req-profile {
-    background: rgba(56, 189, 248, 0.12);
+    background: #0c2333;
     color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.25);
+    border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
 .gh-compat-pill.downloadable {
-    background: rgba(245, 158, 11, 0.12);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    background: #451a03;
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .gh-table-actions-cell {
@@ -2196,9 +2196,9 @@ main {
     width: 24px;
     height: 24px;
     border-radius: 4px;
-    background: transparent;
+    background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
+    color: #e2e8f0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2212,8 +2212,8 @@ main {
 }
 
 .gh-table-act-icon.danger:hover {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background: #450a0a;
+    color: #fca5a5;
     border-color: rgba(239, 68, 68, 0.3);
 }
 
@@ -2221,9 +2221,9 @@ main {
     width: 24px;
     height: 24px;
     border-radius: 4px;
-    background: transparent;
+    background: #1c1c2b;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
+    color: #e2e8f0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2242,14 +2242,14 @@ main {
 
 .gh-table-act-btn.delete:hover,
 .gh-table-act-btn.danger:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    background: #450a0a;
+    color: #fca5a5;
     border-color: rgba(239, 68, 68, 0.3);
 }
 
 .gh-table-act-btn.watch:hover {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
+    background: #052e16;
+    color: #86efac;
     border-color: rgba(34, 197, 94, 0.3);
 }
 
@@ -3440,8 +3440,8 @@ main {
     line-height: 1.6;
     color: #cbd5e1;
     margin-top: 6px;
+    overflow-wrap: break-word;
     overflow-wrap: anywhere;
-    word-break: break-word;
 }
 
 .gh-info-detailed-content.active {
