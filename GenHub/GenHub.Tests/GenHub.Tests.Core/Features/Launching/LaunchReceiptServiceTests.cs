@@ -324,6 +324,42 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A missing manifest version is compared independently on either side.
+    /// </summary>
+    /// <param name="recordedHasVersion">Whether the receipt includes a version.</param>
+    /// <param name="upcomingHasVersion">Whether the upcoming launch includes a version.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    public async Task CompareUpcomingLaunch_WithMissingManifestVersion_ReportsPresenceChangesAsync(
+        bool recordedHasVersion, bool upcomingHasVersion)
+    {
+        await RecordSuccessfullyAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+        var upcoming = CreateContext();
+        if (!recordedHasVersion)
+        {
+            receipt.ManifestVersions.Clear();
+        }
+
+        if (!upcomingHasVersion)
+        {
+            upcoming.ManifestVersions = new Dictionary<string, string>();
+        }
+
+        var report = _service.CompareUpcomingLaunch(receipt, upcoming);
+        Assert.Equal(recordedHasVersion != upcomingHasVersion, report.HasDrift);
+        if (report.HasDrift)
+        {
+            var before = recordedHasVersion ? "1.0" : LaunchReceiptConstants.MissingValue;
+            var after = upcomingHasVersion ? "1.0" : LaunchReceiptConstants.MissingValue;
+            Assert.Contains(report.DriftedFields, field => field.Contains($"version changed from {before} to {after}"));
+        }
+    }
+
+    /// <summary>
     /// A changed game client is reported as drift naming both clients.
     /// </summary>
     /// <returns>The async task.</returns>
