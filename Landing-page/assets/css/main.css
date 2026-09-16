@@ -4196,3 +4196,230 @@ main {
     line-height: 1.5;
     margin: 0;
 }
+
+/* ==========================================================================
+   PROFILE SHARING & IMPORT INSPECTION (PR #400 Parity)
+   ShareProfileDialogWindow.axaml & ImportProfileInspectionWindow.axaml
+   ========================================================================== */
+.gh-modal-window.share-profile {
+    max-width: 580px;
+}
+
+.gh-modal-window.import-inspection {
+    max-width: 680px;
+}
+
+.gh-share-body, .gh-import-body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.gh-share-summary-card, .gh-import-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #14141f;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.gh-share-cover-thumb, .gh-import-cover-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1c1c2b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    flex-shrink: 0;
+}
+
+.gh-share-cover-thumb img, .gh-import-cover-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gh-share-summary-info, .gh-import-summary-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.gh-share-summary-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.gh-theme-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.gh-share-summary-sub, .gh-import-summary-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gh-quota-card {
+    background: #12121c;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gh-quota-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.gh-quota-bar-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.gh-quota-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #8b5cf6, #38bdf8);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.gh-share-section-box {
+    background: #14141f;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.gh-share-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.gh-share-input-row input {
+    flex: 1;
+    font-family: monospace;
+    font-size: 11.5px;
+    padding: 7px 10px;
+    background: #0d0d14;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: #cbd5e1;
+    outline: none;
+}
+
+.gh-share-input-row input:focus {
+    border-color: #8b5cf6;
+}
+
+.gh-manifest-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gh-manifest-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #11111a;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 12px;
+    gap: 8px;
+}
+
+.gh-manifest-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.gh-manifest-title {
+    font-weight: 600;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gh-manifest-prov {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.gh-manifest-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.gh-status-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.gh-status-badge.data-only {
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    color: #c4b5fd;
+}
+
+.gh-status-badge.cached {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+}
+
+.gh-status-badge.download {
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #7dd3fc;
+}
+
+.gh-modal-footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: #11111a;
+}

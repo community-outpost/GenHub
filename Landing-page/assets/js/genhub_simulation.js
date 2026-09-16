@@ -268,6 +268,31 @@
             });
         }
 
+        // Share Profile Button (PR #400 Parity)
+        const shareBtn = card.querySelector('.share-btn');
+        if (shareBtn) {
+            shareBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const pName = card.getAttribute('data-name') || 'Zero Hour';
+                const shareTitle = document.getElementById('ghShareProfileName');
+                const shareUriInput = document.getElementById('ghShareUriInput');
+                const shareCover = document.getElementById('ghShareProfileCover');
+                const cardImg = card.querySelector('.gh-card-bg');
+                
+                if (shareTitle) shareTitle.textContent = pName;
+                if (shareCover && cardImg) shareCover.src = cardImg.src;
+                
+                const dummyToken = btoa(unescape(encodeURIComponent(JSON.stringify({
+                    name: pName,
+                    version: '1.04',
+                    created: new Date().toISOString()
+                })))).substring(0, 32);
+                if (shareUriInput) shareUriInput.value = 'genhub://profile/import?data=' + dummyToken;
+
+                openModal('ghShareProfileDialogModal');
+            });
+        }
+
         // Steam Integration Button
         const steamBtn = card.querySelector('.steam-btn');
         if (steamBtn) {
@@ -524,6 +549,114 @@
     if (addLocalBtn) {
         addLocalBtn.addEventListener('click', () => {
             window.showGenHubToast('Info', 'Local Content', 'Select a folder or BIG archive to link into this profile workspace.');
+        });
+    }
+
+    // -------------------------------------------------------------
+    // PR #400: PROFILE SHARING & RICH IMPORT INSPECTION
+    // -------------------------------------------------------------
+    // Copy Share Link Button
+    const copyShareLinkBtn = document.getElementById('ghCopyShareLinkBtn');
+    if (copyShareLinkBtn) {
+        copyShareLinkBtn.addEventListener('click', () => {
+            const shareUriInput = document.getElementById('ghShareUriInput');
+            const link = shareUriInput ? shareUriInput.value : 'genhub://profile/import?...';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(link).catch(() => {});
+            }
+            const orig = copyShareLinkBtn.textContent;
+            copyShareLinkBtn.textContent = 'Copied!';
+            setTimeout(() => { copyShareLinkBtn.textContent = orig; }, 1500);
+            window.showGenHubToast('Success', 'Share Link Copied', 'Protocol link copied! Paste into Discord or browser to share.');
+        });
+    }
+
+    // Export .ghprofile Package Button
+    const exportGhProfileBtn = document.getElementById('ghExportGhProfileBtn');
+    if (exportGhProfileBtn) {
+        exportGhProfileBtn.addEventListener('click', () => {
+            const shareTitle = document.getElementById('ghShareProfileName')?.textContent || 'Profile';
+            const safeName = shareTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+            window.showGenHubToast('Success', 'Package Exported', 'Saved "' + safeName + '.ghprofile" package to Downloads folder.');
+            closeModal('ghShareProfileDialogModal');
+        });
+    }
+
+    // Header Import Button
+    const importProfileBtn = document.getElementById('ghImportProfileBtn');
+    if (importProfileBtn) {
+        importProfileBtn.addEventListener('click', () => {
+            openModal('ghImportProfileInspectionModal');
+        });
+    }
+
+    // Confirm Import Profile Button
+    const confirmImportProfileBtn = document.getElementById('ghConfirmImportProfileBtn');
+    if (confirmImportProfileBtn) {
+        confirmImportProfileBtn.addEventListener('click', () => {
+            const nameInput = document.getElementById('ghImportProfileNameInput');
+            const importedName = nameInput && nameInput.value && nameInput.value.trim() ? nameInput.value.trim() : 'Tournament Zero Hour v1.04';
+            
+            // Create a new card in ghProfilesList
+            const list = document.getElementById('ghProfilesList');
+            const addProfileBtn = document.getElementById('ghAddNewProfileBtn');
+            const newCard = document.createElement('div');
+            newCard.className = 'gh-profile-card';
+            newCard.setAttribute('data-profile-id', 'p_' + Date.now());
+            newCard.setAttribute('data-name', importedName);
+            newCard.innerHTML = `
+                <img src="./assets/images/zerohour-cover.png" alt="` + escapeHtml(importedName) + ` Cover" class="gh-card-bg">
+                <div class="gh-card-gradient"></div>
+                <div class="gh-running-badge"><span class="gh-running-dot"></span> RUNNING</div>
+                <div class="gh-card-actions-bar">
+                    <button class="gh-card-act-btn share-btn" title="Share Profile (genhub://)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-share"></use></svg>
+                    </button>
+                    <button class="gh-card-act-btn steam-btn" title="Steam Overlay & Playtime Tracking">
+                        <img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img">
+                    </button>
+                    <button class="gh-card-act-btn edit-btn" title="Edit Profile Settings">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-edit"></use></svg>
+                    </button>
+                    <button class="gh-card-act-btn clone-btn" title="Duplicate Profile">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-clone"></use></svg>
+                    </button>
+                    <button class="gh-card-act-btn shortcut-btn" title="Create Desktop Shortcut">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-shortcut"></use></svg>
+                    </button>
+                    <button class="gh-card-act-btn delete-btn" title="Delete Profile">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-delete"></use></svg>
+                    </button>
+                </div>
+                <div class="gh-card-hover">
+                    <button class="gh-launch-btn">
+                        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <span class="launch-text">LAUNCH</span>
+                    </button>
+                </div>
+                <div class="gh-card-meta">
+                    <div class="gh-card-info-row">
+                        <div class="gh-card-badge-icon">
+                            <img src="./assets/images/communityoutpost-logo.png" alt="Community Outpost">
+                        </div>
+                        <div class="gh-card-texts">
+                            <div class="gh-card-title">` + escapeHtml(importedName) + `</div>
+                            <div class="gh-card-sub">Imported from shared genhub:// link</div>
+                        </div>
+                    </div>
+                    <div class="gh-card-tags">
+                        <span class="gh-tag">v1.04</span>
+                        <span class="gh-tag">Shared Profile</span>
+                    </div>
+                </div>
+            `;
+            wireProfileCard(newCard);
+            if (list && addProfileBtn) {
+                list.insertBefore(newCard, addProfileBtn);
+            }
+            updateProfilesCount();
+            closeModal('ghImportProfileInspectionModal');
+            window.showGenHubToast('Success', 'Profile Imported', 'Successfully imported "' + importedName + '" with 3 verified manifests!');
         });
     }
 
@@ -1560,6 +1693,12 @@
                 "content": "Quick reference for profile card buttons.",
                 "type": "HowTo",
                 "detailed": "**Profile Card Controls:**\n             1.  **Play:** Launches the game with this profile's active mods, settings, and workspace.\n             2.  **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.\n             3.  **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.\n             4.  **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.\n             5.  **Delete Profile:** Removes the profile and its dedicated workspace configuration.\n\n             **Copy Profile Feature:**\n             Cloning creates a complete, independent copy of the profile:\n             -   **Identical Settings:** Video, audio, and control options are duplicated.\n             -   **Identical Content:** All active mods, maps, and patches carry over.\n             -   **Independent Workspace:** Modifying the cloned profile never alters the original.\n\n             **Steam Status:**\n             -   **Gray Icon:** Steam integration is inactive.\n             -   **Blue Icon:** Steam integration is active. Playtime will log to Steam and the Steam Overlay will work in-game."
+            },
+            {
+                "title": "Profile Sharing & Inspection",
+                "content": "Share configurations with friends via genhub:// links or standalone packages.",
+                "type": "Feature",
+                "detailed": "**Profile Sharing (PR #400):**\n             GenHub lets you distribute your exact mod setup, custom maps, and game configurations directly to friends with a single click.\n\n             **Sharing Features:**\n             -   **Protocol Links (genhub://):** Generates lightweight URI links you can paste in Discord or chat. Friends clicking the link open GenHub automatically.\n             -   **Standalone Archives (.ghprofile):** Export an offline package containing all profile configurations and dependency manifests.\n             -   **Rich Inspection Window:** Inspect required downloads, cached manifests, and game version compatibility before importing into your library."
             },
             {
                 "title": "Advanced Profile Options",

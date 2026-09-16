@@ -588,6 +588,160 @@
                         </dialog>
 
                         
+                        <!-- Share Profile Dialog Modal (PR #400 ShareProfileDialogWindow.axaml) -->
+                        <dialog class="gh-modal-backdrop" id="ghShareProfileDialogModal" aria-modal="true" aria-labelledby="ghShareModalTitle">
+                            <div class="gh-modal-window share-profile">
+                                <div class="gh-sel-header">
+                                    <div class="gh-sel-title-wrap">
+                                        <h3 id="ghShareModalTitle">Share Game Profile</h3>
+                                        <div class="gh-sel-subtitle">Distribute your configuration and custom mods directly to friends</div>
+                                    </div>
+                                    <button class="gh-modal-close-btn" data-close-modal="ghShareProfileDialogModal" aria-label="Close dialog">✕</button>
+                                </div>
+                                <div class="gh-share-body">
+                                    <!-- Profile Hero Summary -->
+                                    <div class="gh-share-summary-card">
+                                        <div class="gh-share-cover-thumb">
+                                            <img src="./assets/images/zerohour-cover.png" alt="Profile Cover" id="ghShareProfileCover">
+                                        </div>
+                                        <div class="gh-share-summary-info">
+                                            <div class="gh-share-summary-title">
+                                                <span class="gh-theme-dot" id="ghShareThemeDot" style="background: #8b5cf6;"></span>
+                                                <span id="ghShareProfileName">Shockwave 1.201</span>
+                                            </div>
+                                            <div class="gh-share-summary-sub">
+                                                <span class="gh-chip" id="ghShareGameBadge">Zero Hour 1.04</span>
+                                                <span>•</span>
+                                                <span>3 Content Manifests</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Cloud Quota Indicator -->
+                                    <div class="gh-quota-card">
+                                        <div class="gh-quota-header">
+                                            <span style="color: #94a3b8;">Share Quota & Cloud Storage</span>
+                                            <span style="color: #38bdf8;" id="ghShareQuotaText">12.4 MB / 500 MB (2.5%)</span>
+                                        </div>
+                                        <div class="gh-quota-bar-track">
+                                            <div class="gh-quota-bar-fill" style="width: 2.5%;"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Protocol Share Link -->
+                                    <div class="gh-share-section-box">
+                                        <div style="font-size: 12.5px; font-weight: 700; color: #ffffff;">Protocol Share Link (genhub://)</div>
+                                        <div style="font-size: 11.5px; color: #94a3b8;">Send this one-click link on Discord or chat to let friends import directly.</div>
+                                        <div class="gh-share-input-row">
+                                            <input type="text" readonly id="ghShareUriInput" value="genhub://profile/import?data=eJyLz80vz0w..." aria-label="GenHub Share Link">
+                                            <button class="gh-btn-table primary accent" id="ghCopyShareLinkBtn" type="button" style="height: 32px; padding: 0 12px;">Copy Link</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Standalone Package Export -->
+                                    <div class="gh-share-section-box">
+                                        <div style="font-size: 12.5px; font-weight: 700; color: #ffffff;">Standalone Profile Package (.ghprofile)</div>
+                                        <div style="font-size: 11.5px; color: #94a3b8;">Export an offline portable archive containing all profile configs and manifests.</div>
+                                        <div style="display: flex; justify-content: flex-end;">
+                                            <button class="gh-btn-table secondary" id="ghExportGhProfileBtn" type="button" style="height: 32px; padding: 0 14px;">
+                                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="margin-right: 6px;"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
+                                                Export .ghprofile
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="gh-modal-footer-actions">
+                                    <button class="gh-btn-secondary" data-close-modal="ghShareProfileDialogModal" type="button">Close</button>
+                                </div>
+                            </div>
+                        </dialog>
+
+                        <!-- Import Profile Inspection Modal (PR #400 ImportProfileInspectionWindow.axaml) -->
+                        <dialog class="gh-modal-backdrop" id="ghImportProfileInspectionModal" aria-modal="true" aria-labelledby="ghImportModalTitle">
+                            <div class="gh-modal-window import-inspection">
+                                <div class="gh-sel-header">
+                                    <div class="gh-sel-title-wrap">
+                                        <h3 id="ghImportModalTitle">Import Shared Profile</h3>
+                                        <div class="gh-sel-subtitle">Review included manifests, target client version, and required downloads before importing</div>
+                                    </div>
+                                    <button class="gh-modal-close-btn" data-close-modal="ghImportProfileInspectionModal" aria-label="Close dialog">✕</button>
+                                </div>
+                                <div class="gh-import-body">
+                                    <!-- Profile Hero Preview -->
+                                    <div class="gh-import-summary-card">
+                                        <div class="gh-import-cover-thumb">
+                                            <img src="./assets/images/zerohour-cover.png" alt="Import Profile Cover" id="ghImportCoverImg">
+                                        </div>
+                                        <div class="gh-import-summary-info">
+                                            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                                                <label for="ghImportProfileNameInput" class="sr-only">Profile Name</label>
+                                                <input type="text" class="gh-form-input" id="ghImportProfileNameInput" value="Tournament Zero Hour v1.04" style="height: 30px; font-weight: 700; font-size: 13.5px; color: #ffffff; flex: 1;">
+                                                <span class="gh-chip" style="background: #281742; color: #c4b5fd; border-color: rgba(139, 92, 246, 0.4);">ZH 1.04</span>
+                                            </div>
+                                            <div class="gh-import-summary-sub">
+                                                <span>Provenance: <strong>Community Outpost / TheSuperHackers</strong></span>
+                                                <span>•</span>
+                                                <span>Total Size: <strong>14.2 MB</strong></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Manifests Breakdown -->
+                                    <div>
+                                        <div class="gh-section-title" style="margin-bottom: 8px;">Included Content & Manifests</div>
+                                        <div class="gh-manifest-list">
+                                            <div class="gh-manifest-row">
+                                                <div class="gh-manifest-left">
+                                                    <div class="gh-manifest-title">GenTool Modern Engine & Widescreen v8.9</div>
+                                                    <span class="gh-manifest-prov">(TheSuperHackers)</span>
+                                                </div>
+                                                <div class="gh-manifest-badges">
+                                                    <span class="gh-status-badge data-only">DATA ONLY</span>
+                                                    <span class="gh-status-badge cached">CACHED</span>
+                                                </div>
+                                            </div>
+                                            <div class="gh-manifest-row">
+                                                <div class="gh-manifest-left">
+                                                    <div class="gh-manifest-title">ZH Official Tournament Map Pack (12 Maps)</div>
+                                                    <span class="gh-manifest-prov">(Community Outpost)</span>
+                                                </div>
+                                                <div class="gh-manifest-badges">
+                                                    <span class="gh-status-badge data-only">DATA ONLY</span>
+                                                    <span class="gh-status-badge cached">CACHED</span>
+                                                </div>
+                                            </div>
+                                            <div class="gh-manifest-row">
+                                                <div class="gh-manifest-left">
+                                                    <div class="gh-manifest-title">Replay Match Analysis & Overlays Module</div>
+                                                    <span class="gh-manifest-prov">(GitHub Releases)</span>
+                                                </div>
+                                                <div class="gh-manifest-badges">
+                                                    <span class="gh-status-badge download">⬇ 14.2 MB</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Target Installation Selector -->
+                                    <div class="gh-form-group">
+                                        <label class="gh-form-label" for="ghImportTargetInstallSelect">Target Game Installation</label>
+                                        <select class="gh-form-select" id="ghImportTargetInstallSelect" style="width: 100%;">
+                                            <option value="zh_steam" selected>Command & Conquer: Zero Hour (Steam) — C:\Program Files (x86)\Steam\steamapps\common\Command & Conquer - Zero Hour</option>
+                                            <option value="zh_ea">Command & Conquer: Generals Zero Hour (EA App) — C:\Program Files\EA Games\Command and Conquer Generals Zero Hour</option>
+                                            <option value="zh_custom">Command & Conquer Generals - Custom — D:\Games\Command & Conquer Generals - Custom</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="gh-modal-footer-actions">
+                                    <button class="gh-btn-secondary" data-close-modal="ghImportProfileInspectionModal" type="button">Cancel</button>
+                                    <button class="gh-btn-primary" id="ghConfirmImportProfileBtn" type="button" style="padding: 8px 20px;">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-right: 6px;"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
+                                        IMPORT PROFILE
+                                    </button>
+                                </div>
+                            </div>
+                        </dialog>
+
                         <!-- Profile Settings Window Modal (GameProfileSettingsWindow.axaml & GameProfileNavigationView.axaml) -->
                         <dialog class="gh-modal-backdrop" id="ghGameProfileSettingsWindow" aria-modal="true" aria-labelledby="ghWinProfileTitle">
                             <div class="gh-profile-settings-window">
@@ -962,7 +1116,10 @@
                                         <p>Select a profile to launch or create a new one</p>
                                         <span class="gh-loaded-count" id="ghProfilesCount">Loaded 4 profiles</span>
                                     </div>
-                                    <button class="gh-scan-btn" id="ghScanBtn" title="Scan local drives for existing games">SCAN</button>
+                                    <div class="gh-profiles-header-actions">
+                                        <button class="gh-scan-btn secondary" id="ghImportProfileBtn" title="Import shared profile (genhub:// or .ghprofile)">IMPORT</button>
+                                        <button class="gh-scan-btn" id="ghScanBtn" title="Scan local drives for existing games">SCAN</button>
+                                    </div>
                                 </div>
 
                                 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
@@ -979,6 +1136,9 @@
                                         <symbol id="gh-icon-delete" viewBox="0 0 24 24">
                                             <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
                                         </symbol>
+                                        <symbol id="gh-icon-share" viewBox="0 0 24 24">
+                                            <path d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z"/>
+                                        </symbol>
                                     </defs>
                                 </svg>
                                 <!-- Vertical Wrapping Grid of Profiles (No horizontal scroll, full Image 7 actions) -->
@@ -994,6 +1154,9 @@
                                         <div class="gh-card-actions-bar">
                                             <button class="gh-card-act-btn steam-btn" title="Steam Overlay & Playtime Tracking">
                                                 <img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img">
+                                            </button>
+                                            <button class="gh-card-act-btn share-btn" title="Share Profile (genhub://)">
+                                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-share"></use></svg>
                                             </button>
                                             <button class="gh-card-act-btn edit-btn" title="Edit Profile Settings">
                                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-edit"></use></svg>
@@ -1045,6 +1208,9 @@
                                             <button class="gh-card-act-btn steam-btn" title="Steam Overlay & Playtime Tracking">
                                                 <img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img">
                                             </button>
+                                            <button class="gh-card-act-btn share-btn" title="Share Profile (genhub://)">
+                                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-share"></use></svg>
+                                            </button>
                                             <button class="gh-card-act-btn edit-btn" title="Edit Profile Settings">
                                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-edit"></use></svg>
                                             </button>
@@ -1093,6 +1259,9 @@
                                             <button class="gh-card-act-btn steam-btn" title="Steam Overlay & Playtime Tracking">
                                                 <img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img">
                                             </button>
+                                            <button class="gh-card-act-btn share-btn" title="Share Profile (genhub://)">
+                                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-share"></use></svg>
+                                            </button>
                                             <button class="gh-card-act-btn edit-btn" title="Edit Profile Settings">
                                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-edit"></use></svg>
                                             </button>
@@ -1140,6 +1309,9 @@
                                         <div class="gh-card-actions-bar">
                                             <button class="gh-card-act-btn steam-btn" title="Steam Overlay & Playtime Tracking">
                                                 <img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img">
+                                            </button>
+                                            <button class="gh-card-act-btn share-btn" title="Share Profile (genhub://)">
+                                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-share"></use></svg>
                                             </button>
                                             <button class="gh-card-act-btn edit-btn" title="Edit Profile Settings">
                                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-edit"></use></svg>
