@@ -24,7 +24,10 @@ public interface ILaunchReceiptService
     /// </summary>
     /// <param name="workspacePath">The workspace directory the receipt would live in.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
-    /// <returns>A drift report; an absent receipt yields an empty report, not a failure.</returns>
+    /// <returns>A successful drift report for absent, unreadable, malformed, or outdated receipts.
+    /// Unreadable and malformed receipts include diagnostic drift entries. Failure results
+    /// are reserved for implementations that cannot perform revalidation; callers treat them as advisory.</returns>
+    /// <exception cref="OperationCanceledException">The caller cancels revalidation.</exception>
     Task<OperationResult<LaunchReceiptDriftReport>> RevalidateAsync(string workspacePath, CancellationToken cancellationToken = default);
 
     /// <summary>

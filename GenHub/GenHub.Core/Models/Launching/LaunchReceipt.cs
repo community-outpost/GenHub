@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
@@ -10,6 +11,7 @@ namespace GenHub.Core.Models.Launching;
 public class LaunchReceipt
 {
     /// <summary>Gets or sets the receipt schema version.</summary>
+    [JsonRequired]
     public int SchemaVersion { get; set; } = LaunchReceiptConstants.CurrentSchemaVersion;
 
     /// <summary>Gets or sets when the receipt was recorded, in UTC.</summary>

@@ -41,6 +41,7 @@ public class LaunchReceiptService(
     public async Task<OperationResult<LaunchReceipt>> RecordLaunchAsync(LaunchReceiptContext context, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
+        string? temporaryPath = null;
 
         try
         {
@@ -75,17 +76,31 @@ public class LaunchReceiptService(
             }
 
             var receiptPath = GetReceiptPath(context.WorkspacePath);
-            var temporaryPath = receiptPath + ".tmp";
+            temporaryPath = receiptPath + "." + Guid.NewGuid().ToString("N") + LaunchReceiptConstants.TemporaryFileExtension;
             await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(receipt, JsonOptions), cancellationToken);
             File.Move(temporaryPath, receiptPath, overwrite: true);
 
             logger.LogDebug("Launch receipt recorded at {ReceiptPath}", receiptPath);
             return OperationResult<LaunchReceipt>.CreateSuccess(receipt);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to record launch receipt for profile {ProfileId}", context.ProfileId);
             return OperationResult<LaunchReceipt>.CreateFailure($"Failed to record launch receipt: {ex.Message}");
+        }
+        finally
+        {
+            if (temporaryPath is not null)
+            {
+                try
+                {
+                    File.Delete(temporaryPath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogWarning(ex, "Could not remove temporary receipt {TemporaryPath}", temporaryPath);
+                }
+            }
         }
     }
 
@@ -122,6 +137,15 @@ public class LaunchReceiptService(
             return OperationResult<LaunchReceiptDriftReport>.CreateSuccess(report);
         }
 
+        if (receipt.SchemaVersion != LaunchReceiptConstants.CurrentSchemaVersion)
+        {
+            report.DriftedFields.Add($"Receipt schema version {receipt.SchemaVersion} differs from supported version {LaunchReceiptConstants.CurrentSchemaVersion}");
+            if (receipt.SchemaVersion != LaunchReceiptConstants.LegacySchemaVersion)
+            {
+                return OperationResult<LaunchReceiptDriftReport>.CreateSuccess(report);
+            }
+        }
+
         report.Receipt = receipt;
 
         // Guarded as widely as the parse above. A receipt that parses but carries null or
@@ -130,7 +154,11 @@ public class LaunchReceiptService(
         // LaunchProfileAsync's catch-all — the opposite of the guarantee this method makes.
         try
         {
-            if (receipt.Executable is not null)
+            if (receipt.Executable is null || string.IsNullOrWhiteSpace(receipt.Executable.Path))
+            {
+                report.DriftedFields.Add("Receipt carries no executable fingerprint");
+            }
+            else
             {
                 CompareExecutable(receipt.Executable, report);
             }
@@ -173,7 +201,7 @@ public class LaunchReceiptService(
             if (!string.Equals(receipt.GameClientId ?? string.Empty, upcoming.GameClientId ?? string.Empty, StringComparison.Ordinal))
             {
                 report.DriftedFields.Add(
-                    $"Game client changed from {receipt.GameClientId ?? "(none)"} to {upcoming.GameClientId ?? "(none)"}");
+                    $"Game client changed from {receipt.GameClientId ?? LaunchReceiptConstants.MissingValue} to {upcoming.GameClientId ?? LaunchReceiptConstants.MissingValue}");
             }
 
             if (receipt.GameType != upcoming.GameType)
@@ -232,7 +260,7 @@ public class LaunchReceiptService(
     /// <param name="value">The value to render.</param>
     /// <returns>The value, or a placeholder when it is missing.</returns>
     private static string NameOrNone(string? value) =>
-        string.IsNullOrEmpty(value) ? "(none)" : value;
+        string.IsNullOrEmpty(value) ? LaunchReceiptConstants.MissingValue : value;
 
     /// <summary>
     /// Normalises a path for comparison by unifying separators and dropping a trailing one.
@@ -388,13 +416,13 @@ public class LaunchReceiptService(
                 $"Host runtime identifier changed from {recorded.RuntimeIdentifier} to {upcoming.RuntimeIdentifier}");
         }
 
-        if (!recorded.VariantRuntimeIdentifiers.SequenceEqual(upcoming.VariantRuntimeIdentifiers, StringComparer.OrdinalIgnoreCase))
+        if (!(recorded.VariantRuntimeIdentifiers ?? []).SequenceEqual(upcoming.VariantRuntimeIdentifiers ?? [], StringComparer.OrdinalIgnoreCase))
         {
             report.DriftedFields.Add(
-                $"Resolved variant changed from [{string.Join(", ", recorded.VariantRuntimeIdentifiers)}] to [{string.Join(", ", upcoming.VariantRuntimeIdentifiers)}]");
+                $"Resolved variant changed from [{string.Join(", ", recorded.VariantRuntimeIdentifiers ?? [])}] to [{string.Join(", ", upcoming.VariantRuntimeIdentifiers ?? [])}]");
         }
 
-        if (!string.Equals(recorded.EntryPointRelativePath, upcoming.EntryPointRelativePath, StringComparison.Ordinal))
+        if (!string.Equals(recorded.EntryPointRelativePath, upcoming.EntryPointRelativePath, PathHelper.PathComparison))
         {
             report.DriftedFields.Add(
                 $"Entry point changed from {recorded.EntryPointRelativePath ?? LaunchReceiptConstants.UnresolvedEntryPoint} to {upcoming.EntryPointRelativePath ?? LaunchReceiptConstants.UnresolvedEntryPoint}");

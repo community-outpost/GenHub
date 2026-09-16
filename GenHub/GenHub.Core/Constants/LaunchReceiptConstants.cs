@@ -8,4 +8,13 @@ public static class LaunchReceiptConstants
 
     /// <summary>Display text when an entry point could not be resolved.</summary>
     public const string UnresolvedEntryPoint = "(unresolved)";
+
+    /// <summary>Previous receipt schema supported for migration.</summary>
+    public const int LegacySchemaVersion = 1;
+
+    /// <summary>Suffix for temporary receipt files.</summary>
+    public const string TemporaryFileExtension = ".tmp";
+
+    /// <summary>Display text for a missing recorded value.</summary>
+    public const string MissingValue = "(none)";
 }
