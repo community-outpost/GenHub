@@ -696,6 +696,8 @@ main {
 .genhub-toast {
     pointer-events: auto;
     width: 320px;
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
     background: #181824;
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 10px;
@@ -705,6 +707,7 @@ main {
     align-items: flex-start;
     gap: 10px;
     animation: ghSlideInToast 0.22s ease;
+    transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 @keyframes ghSlideInToast {
@@ -1077,8 +1080,8 @@ main {
 
 .gh-scan-btn:hover {
     background: #272535;
-    border-color: rgba(168, 85, 247, 0.5);
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+    border-color: var(--gh-accent-border, rgba(168, 85, 247, 0.5));
+    box-shadow: 0 0 10px var(--gh-accent-glow, rgba(168, 85, 247, 0.2));
 }
 
 .gh-profiles-row {
@@ -1376,9 +1379,9 @@ main {
 }
 
 .gh-profile-card.add-card:hover {
-    background: rgba(139, 92, 246, 0.08);
-    border-color: #8b5cf6 !important;
-    box-shadow: 0 0 16px rgba(139, 92, 246, 0.25) !important;
+    background: var(--gh-accent-glow, rgba(139, 92, 246, 0.08));
+    border-color: var(--gh-accent, #8b5cf6) !important;
+    box-shadow: 0 0 16px var(--gh-accent-glow, rgba(139, 92, 246, 0.25)) !important;
     transform: translateY(-2px);
 }
 
@@ -1625,6 +1628,7 @@ main {
     font-family: inherit;
     outline: none;
     width: 160px;
+    transition: border-color 0.15s ease, width 0.15s ease;
 }
 
 .gh-downloads-search:focus {
@@ -4084,8 +4088,7 @@ main {
 
 .genhub-app-window select option,
 .gh-form-select option,
-.gh-downloads-filter option,
-.gh-detail-select option {
+.gh-downloads-filter option {
     background-color: #171725 !important;
     color: #f1f5f9 !important;
     padding: 8px 12px !important;
@@ -4338,7 +4341,7 @@ main {
 }
 
 .gh-share-input-row input:focus {
-    border-color: #8b5cf6;
+    border-color: var(--gh-accent, #8b5cf6);
 }
 
 .gh-manifest-list {
@@ -4397,21 +4400,21 @@ main {
 }
 
 .gh-status-badge.data-only {
-    background: rgba(139, 92, 246, 0.15);
-    border: 1px solid rgba(139, 92, 246, 0.35);
-    color: #c4b5fd;
+    background-color: #241442;
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    color: #ffffff;
 }
 
 .gh-status-badge.cached {
-    background: rgba(16, 185, 129, 0.15);
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    color: #6ee7b7;
+    background-color: #064e3b;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    color: #ffffff;
 }
 
 .gh-status-badge.download {
-    background: rgba(56, 189, 248, 0.15);
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    color: #7dd3fc;
+    background-color: #0c4a6e;
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    color: #ffffff;
 }
 
 .gh-modal-footer-actions {

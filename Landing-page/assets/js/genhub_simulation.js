@@ -252,8 +252,20 @@
                 const textSpan = launchBtn.querySelector('.launch-text');
 
                 if (!isRunning) {
-                    document.querySelectorAll('.gh-profile-card').forEach(c => c.classList.remove('active-profile'));
+                    document.querySelectorAll('.gh-profile-card').forEach(c => {
+                        c.classList.remove('active-profile');
+                        const otherBtn = c.querySelector('.launch-text');
+                        if (otherBtn) otherBtn.textContent = 'LAUNCH';
+                    });
                     card.classList.add('active-profile');
+                    if (!card.querySelector('.gh-running-badge')) {
+                        const badge = document.createElement('div');
+                        badge.className = 'gh-running-badge';
+                        badge.innerHTML = '<span class="gh-running-dot"></span> RUNNING';
+                        const grad = card.querySelector('.gh-card-gradient');
+                        if (grad) grad.after(badge);
+                        else card.prepend(badge);
+                    }
                     if (textSpan) textSpan.textContent = 'STOP';
                     const statusText = document.getElementById('ghStatusText');
                     if (statusText) statusText.textContent = `Running: ${pName} (PID: 14820)`;
@@ -487,7 +499,6 @@
                 newCard.innerHTML = `
                     <img src="./assets/images/zerohour-cover.png" alt="Profile Cover" class="gh-card-bg">
                     <div class="gh-card-gradient"></div>
-                    <div class="gh-running-badge"><span class="gh-running-dot"></span> RUNNING</div>
                     <div class="gh-card-actions-bar">
                         <button class="gh-card-act-btn steam-btn" title="Steam Overlay">
                             <img src="./assets/icons/steam-icon.png" alt="Steam" class="gh-act-icon-img">
@@ -607,7 +618,6 @@
             newCard.innerHTML = `
                 <img src="./assets/images/zerohour-cover.png" alt="` + escapeHtml(importedName) + ` Cover" class="gh-card-bg">
                 <div class="gh-card-gradient"></div>
-                <div class="gh-running-badge"><span class="gh-running-dot"></span> RUNNING</div>
                 <div class="gh-card-actions-bar">
                     <button class="gh-card-act-btn share-btn" title="Share Profile (genhub://)">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><use href="#gh-icon-share"></use></svg>

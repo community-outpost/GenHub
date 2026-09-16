@@ -439,10 +439,6 @@
         box-sizing: border-box !important;
     }
 
-    .gh-info-title {
-        display: none !important;
-    }
-
     .gh-info-module-select-wrap {
         width: 100% !important;
         margin-bottom: 0 !important;
