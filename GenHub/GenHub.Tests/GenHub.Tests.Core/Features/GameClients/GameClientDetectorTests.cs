@@ -1,3 +1,4 @@
+using System.Reflection;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
@@ -68,6 +69,33 @@ public class GameClientDetectorTests : IDisposable
             NullLogger<GameClientDetector>.Instance);
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
+    }
+
+    /// <summary>Pooled publisher manifests are scoped to the requested game.</summary>
+    /// <param name="gameType">The requested game or all-game sentinel.</param>
+    /// <param name="expectedCount">The expected number of manifests.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(GameType.Generals, 1)]
+    [InlineData(GameType.ZeroHour, 1)]
+    [InlineData(GameType.Unknown, 2)]
+    public async Task GetExistingPublisherManifestsAsync_FiltersTargetGameAsync(GameType gameType, int expectedCount)
+    {
+        var manifests = new[] { GameType.Generals, GameType.ZeroHour }.Select(game => new ContentManifest
+        {
+            Id = ManifestId.Create($"1.1.generalsonline.gameclient.{game.ToString().ToLowerInvariant()}"),
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = game,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Files = [new ManifestFile { SourceType = ContentSourceType.ContentAddressable, Hash = "test-hash" }],
+        }).ToList();
+        _contentManifestPoolMock.Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests));
+        var method = typeof(GameClientDetector).GetMethod("GetExistingPublisherManifestsAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var result = await (Task<List<ContentManifest>>)method.Invoke(
+            _detector, [PublisherTypeConstants.GeneralsOnline, gameType, CancellationToken.None])!;
+        Assert.Equal(expectedCount, result.Count);
+        Assert.All(result, manifest => Assert.True(gameType == GameType.Unknown || manifest.TargetGame == gameType));
     }
 
     /// <summary>

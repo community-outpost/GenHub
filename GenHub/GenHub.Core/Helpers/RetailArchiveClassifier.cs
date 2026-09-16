@@ -26,9 +26,8 @@ public static class RetailArchiveClassifier
     /// <param name="directory">The directory to classify.</param>
     /// <returns>
     /// The classification; an absent or null directory classifies as holding neither game.
-    /// A directory holding only unrecognised archives (mods, hotkey packs, control bars)
-    /// also classifies as neither — an arbitrary <c>.big</c> proves nothing about retail
-    /// data, which is exactly why the executable-name proxy this replaces was retired.
+    /// Generals uses canonical retail names; Zero Hour accepts any root-level
+    /// <c>*zh.big</c> archive, including names added by localised or modified installs.
     /// </returns>
     /// <remarks>
     /// Only the directory root is examined, never subdirectories: <c>Data/INI/INIZH.big</c>
@@ -56,7 +55,7 @@ public static class RetailArchiveClassifier
             var archiveName = Path.GetFileName(archivePath);
 
             if (!hasZeroHour &&
-                RetailArchiveConstants.ZeroHourArchiveNames.Contains(archiveName))
+                archiveName.EndsWith(RetailArchiveConstants.ZeroHourArchiveSuffix, StringComparison.OrdinalIgnoreCase))
             {
                 hasZeroHour = true;
             }

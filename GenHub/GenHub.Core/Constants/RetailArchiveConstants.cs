@@ -41,6 +41,9 @@ public static class RetailArchiveConstants
     /// </remarks>
     public const string ArchiveSearchPattern = "*.big";
 
+    /// <summary>Case-insensitive suffix identifying Zero Hour data during discovery.</summary>
+    public const string ZeroHourArchiveSuffix = "zh.big";
+
     /// <summary>
     /// How <see cref="ArchiveSearchPattern"/> is matched within a retail root.
     /// </summary>

@@ -123,11 +123,9 @@ public class GameInstallationValidator(
     /// <param name="gameType">The game whose pass produced the issue.</param>
     /// <returns>True when the issue refers to the other game's known root archive.</returns>
     /// <remarks>
-    /// Recognition uses the same retail vocabulary that classified the directory in the
-    /// first place: in the Generals pass a canonical retail Zero Hour archive belongs to Zero
-    /// Hour, and in the Zero Hour pass any canonical Generals archive name belongs to
-    /// Generals. Only the directory root is tolerated — deeper files are outside the
-    /// vocabulary and stay reported.
+    /// Validation tolerates only known retail archives of the sibling game. Discovery
+    /// accepts the broader Zero Hour suffix pattern, but that must not hide unexpected
+    /// mod files during validation. Deeper files also remain reported.
     /// </remarks>
     private static bool IsSiblingGameRootArchive(ValidationIssue issue, GameType gameType)
     {
@@ -192,7 +190,9 @@ public class GameInstallationValidator(
                 language,
                 installation,
                 progress,
-                cancellationToken);
+                cancellationToken,
+                targetIndex - 1,
+                targets.Count);
 
             issues.AddRange(result.Issues);
             totalFiles += result.TotalFilesValidated;
@@ -215,7 +215,9 @@ public class GameInstallationValidator(
         string? language,
         GameInstallation? installation,
         IProgress<ValidationProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int targetIndex = 0,
+        int targetCount = 1)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var stopwatch = Stopwatch.StartNew();
@@ -232,7 +234,7 @@ public class GameInstallationValidator(
             gameType,
             normalizedLanguage);
 
-        progress?.Report(new ValidationProgress(1, 4, "Resolving manifest"));
+        progress?.Report(new ValidationProgress((targetIndex * 4) + 1, targetCount * 4, "Resolving manifest"));
 
         ContentManifest? manifest = null;
         var csvIssues = new List<ValidationIssue>();
@@ -279,12 +281,12 @@ public class GameInstallationValidator(
                 });
             }
 
-            progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
+            progress?.Report(new ValidationProgress((targetIndex * 4) + 4, targetCount * 4, "Validation complete"));
             stopwatch.Stop();
             return new ValidationResult(installationPath, issues, stopwatch.Elapsed, 0);
         }
 
-        progress?.Report(new ValidationProgress(3, 4, "Validating content files"));
+        progress?.Report(new ValidationProgress((targetIndex * 4) + 3, targetCount * 4, "Validating content files"));
         int totalFiles = 0;
         try
         {
@@ -325,7 +327,7 @@ public class GameInstallationValidator(
             issues.AddRange(dirIssues);
         }
 
-        progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
+        progress?.Report(new ValidationProgress((targetIndex * 4) + 4, targetCount * 4, "Validation complete"));
 
         stopwatch.Stop();
         return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
