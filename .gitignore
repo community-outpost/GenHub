@@ -178,7 +178,6 @@ _NCrunch*
 # Velopack releases
 releases/
 Releases/
-.gitnexus
 
 # SampleCatalogs: machine-specific generated shortcuts. Never commit them.
 GenHub/GenHub/SampleCatalogs/register-genhub-scheme.reg
