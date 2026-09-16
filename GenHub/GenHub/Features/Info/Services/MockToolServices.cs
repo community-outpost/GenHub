@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -28,7 +19,15 @@ using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Tools;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.ReplayManager;
-
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
+using System.Threading;
+using System.Threading.Tasks;
 using MapImportResult = GenHub.Core.Models.Tools.MapManager.ImportResult;
 using ReplayImportResult = GenHub.Core.Models.Tools.ReplayManager.ImportResult;
 
@@ -303,13 +302,13 @@ public class MockReplayImportService : IReplayImportService
     /// <inheritdoc/>
     public Task<ReplayImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, CancellationToken ct = default)
     {
-         return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
+        return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
     }
 
     /// <inheritdoc/>
     public Task<ReplayImportResult> ImportFromUrlAsync(string url, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-         return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
+        return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
     }
 
     /// <inheritdoc/>
@@ -447,20 +446,20 @@ public class MockMapImportService : IMapImportService
     /// <inheritdoc/>
     public Task<MapImportResult> ImportFromFilesAsync(IEnumerable<string> filePaths, GameType targetVersion, CancellationToken ct = default)
     {
-         // MapImportResult does NOT have FilesSkipped (unlike ReplayImportResult)
-         return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
+        // MapImportResult does NOT have FilesSkipped (unlike ReplayImportResult)
+        return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
     }
 
     /// <inheritdoc/>
     public Task<MapImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, CancellationToken ct = default)
     {
-         return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
+        return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
     }
 
     /// <inheritdoc/>
     public Task<MapImportResult> ImportFromUrlAsync(string url, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-         return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
+        return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
     }
 
     /// <inheritdoc/>

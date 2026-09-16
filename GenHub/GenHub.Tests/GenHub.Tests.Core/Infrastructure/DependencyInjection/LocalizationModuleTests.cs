@@ -1,8 +1,8 @@
-using System.Globalization;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;

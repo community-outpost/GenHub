@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Avalonia.Controls;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
@@ -7,6 +5,8 @@ using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 using GenHub.Features.Tools.ReplayManager.Views;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Tools.ReplayManager;
 

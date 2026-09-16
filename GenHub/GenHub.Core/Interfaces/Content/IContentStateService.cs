@@ -1,7 +1,7 @@
-namespace GenHub.Core.Interfaces.Content;
-
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.Content;
+
+namespace GenHub.Core.Interfaces.Content;
 
 /// <summary>
 /// Service to determine the current state of content for UI display.

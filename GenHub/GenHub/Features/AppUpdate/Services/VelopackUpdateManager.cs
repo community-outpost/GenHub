@@ -1,3 +1,11 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Enums;
+using GenHub.Features.AppUpdate.Interfaces;
+using Microsoft.Extensions.Logging;
+using NuGet.Versioning;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,14 +20,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GitHub;
-using GenHub.Core.Models.AppUpdate;
-using GenHub.Core.Models.Enums;
-using GenHub.Features.AppUpdate.Interfaces;
-using Microsoft.Extensions.Logging;
-using NuGet.Versioning;
 using Velopack;
 using Velopack.Sources;
 

@@ -1,10 +1,10 @@
+using Markdown.Avalonia.Utils;
 using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
-using Markdown.Avalonia.Utils;
 
 namespace GenHub.Infrastructure.Markdown;
 

@@ -1,6 +1,6 @@
-using System.Runtime.Versioning;
 using GenHub.Linux.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
+using System.Runtime.Versioning;
 
 namespace GenHub.Tests.Linux.Infrastructure.DependencyInjection;
 

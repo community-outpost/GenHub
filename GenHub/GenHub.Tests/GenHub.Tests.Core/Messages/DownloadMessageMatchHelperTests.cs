@@ -1,7 +1,7 @@
-using System.Collections.Generic;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Results.Content;
+using System.Collections.Generic;
 using Xunit;
 
 namespace GenHub.Tests.Core.Messages;

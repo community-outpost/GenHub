@@ -1,5 +1,5 @@
-using System;
 using GenHub.Features.Content.Services.ContentDiscoverers;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Services;

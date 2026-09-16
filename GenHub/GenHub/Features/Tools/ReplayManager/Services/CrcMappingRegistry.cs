@@ -1,3 +1,7 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Tools.ReplayManager;
+using GenHub.Core.Models.Tools.ReplayManager;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -6,10 +10,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Tools.ReplayManager;
-using GenHub.Core.Models.Tools.ReplayManager;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
 

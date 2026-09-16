@@ -1,6 +1,6 @@
-using System.Runtime.Versioning;
 using GenHub.MacOS.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
+using System.Runtime.Versioning;
 
 namespace GenHub.Tests.MacOS.Infrastructure.DependencyInjection;
 

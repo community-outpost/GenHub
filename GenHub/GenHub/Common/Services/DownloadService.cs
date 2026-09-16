@@ -1,13 +1,13 @@
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Models.Common;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Common.Services;
 

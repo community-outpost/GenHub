@@ -1,12 +1,12 @@
-using System;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace GenHub.MacOS.Features.Shortcuts;
 

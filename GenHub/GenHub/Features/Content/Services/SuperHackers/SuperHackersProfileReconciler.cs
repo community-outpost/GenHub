@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -21,6 +15,12 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.SuperHackers;
 
@@ -351,8 +351,8 @@ public class SuperHackersProfileReconciler(
 
             if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
             {
-                 return OperationResult<List<ContentManifest>>.CreateFailure(
-                    "No SuperHackers content found from provider");
+                return OperationResult<List<ContentManifest>>.CreateFailure(
+                   "No SuperHackers content found from provider");
             }
 
             var items = searchResult.Data.ToList();
@@ -417,10 +417,10 @@ public class SuperHackersProfileReconciler(
                 // Clone the profile
                 var cloneRequest = new Core.Models.GameProfile.CreateProfileRequest
                 {
-                   Name = $"{profile.Name} (v{newVersion})",
-                   GameInstallationId = profile.GameInstallationId,
-                   WorkspaceStrategy = profile.WorkspaceStrategy,
-                   GameClient = profile.GameClient, // Default to old, override below if mapping exists
+                    Name = $"{profile.Name} (v{newVersion})",
+                    GameInstallationId = profile.GameInstallationId,
+                    WorkspaceStrategy = profile.WorkspaceStrategy,
+                    GameClient = profile.GameClient, // Default to old, override below if mapping exists
                 };
 
                 // Update GameClient if mapped

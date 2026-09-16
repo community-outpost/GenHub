@@ -1,6 +1,6 @@
-using System.Globalization;
 using Avalonia.Headless.XUnit;
 using GenHub.Infrastructure.Converters;
+using System.Globalization;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 

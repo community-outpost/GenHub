@@ -1,8 +1,8 @@
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Models.CommunityOutpost;
 

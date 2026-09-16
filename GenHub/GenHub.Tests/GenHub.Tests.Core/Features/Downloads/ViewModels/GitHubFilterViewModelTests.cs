@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Features.Downloads.ViewModels.Filters;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Downloads.ViewModels;

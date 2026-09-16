@@ -14,10 +14,10 @@ using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Xunit;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
+using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Features.Content.Services.GitHub;

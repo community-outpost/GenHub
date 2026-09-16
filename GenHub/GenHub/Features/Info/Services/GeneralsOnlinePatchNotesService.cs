@@ -1,3 +1,8 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Info;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,11 +11,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp;
-using AngleSharp.Dom;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.Info;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Info.Services;
 

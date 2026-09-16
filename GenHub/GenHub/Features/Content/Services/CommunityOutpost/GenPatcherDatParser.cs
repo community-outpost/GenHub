@@ -1,6 +1,6 @@
+using GenHub.Core.Models.CommunityOutpost;
 using System.Collections.Generic;
 using System.Linq;
-using GenHub.Core.Models.CommunityOutpost;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 

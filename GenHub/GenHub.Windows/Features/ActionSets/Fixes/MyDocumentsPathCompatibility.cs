@@ -1,14 +1,14 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
+using GenHub.Core.Constants;
+using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Features.ActionSets;
-using GenHub.Core.Models.GameInstallations;
-using Microsoft.Extensions.Logging;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix for My Documents path compatibility issues (e.g. non-English characters or double backslashes).

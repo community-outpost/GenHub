@@ -1,9 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Features.GameInstallations;
 using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Features.GameInstallations;
 using Xunit;
 
 namespace GenHub.Tests.Features.GameInstallations;

@@ -1,5 +1,5 @@
-using System;
 using GenHub.Core.Models.Enums;
+using System;
 
 namespace GenHub.Core.Models.Workspace;
 

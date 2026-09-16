@@ -1,9 +1,9 @@
-using System.Text.Json;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text.Json;
 using Velopack.Sources;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;

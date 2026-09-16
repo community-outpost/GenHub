@@ -1,15 +1,15 @@
-using System;
-using System.Diagnostics;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Security;
-using System.Threading.Tasks;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GitHub.ViewModels;
 

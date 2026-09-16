@@ -1,6 +1,6 @@
-using System.Globalization;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Manifest;
+using System.Globalization;
 using Xunit;
 
 namespace GenHub.Tests.Core.Models.Manifest;

@@ -1,6 +1,6 @@
-using System.Text.Json;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using System.Text.Json;
 using Xunit;
 using GameProfileModel = GenHub.Core.Models.GameProfile.GameProfile;
 

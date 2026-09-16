@@ -1,4 +1,3 @@
-using System.Reflection;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -9,6 +8,7 @@ using GenHub.Features.Manifest;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Reflection;
 
 namespace GenHub.Tests.Core.Features.Manifest;
 

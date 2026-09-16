@@ -1,3 +1,13 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Helpers;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -9,16 +19,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp;
-using AngleSharp.Dom;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Results.Content;
-using GenHub.Features.Content.Services.Helpers;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 
@@ -66,7 +66,7 @@ public partial class AODMapsDiscoverer(
             // If neither, return empty but success (or failure if strict)
             if (query is null)
             {
-               return OperationResult<ContentDiscoveryResult>.CreateFailure("Query cannot be null");
+                return OperationResult<ContentDiscoveryResult>.CreateFailure("Query cannot be null");
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -440,9 +440,9 @@ public partial class AODMapsDiscoverer(
         var downloadUrl = downloadEl?.GetAttribute(AODMapsConstants.HrefAttribute);
         if (string.IsNullOrEmpty(downloadUrl))
         {
-             // Try standard click php link if download attribute missing
-             downloadEl = content.QuerySelector("a[href*='ccount/click.php']");
-             downloadUrl = downloadEl?.GetAttribute("href");
+            // Try standard click php link if download attribute missing
+            downloadEl = content.QuerySelector("a[href*='ccount/click.php']");
+            downloadUrl = downloadEl?.GetAttribute("href");
         }
 
         if (string.IsNullOrEmpty(downloadUrl))

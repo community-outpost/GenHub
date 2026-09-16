@@ -1,7 +1,7 @@
+using GenHub.Core.Models.Content;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using GenHub.Core.Models.Content;
 
 namespace GenHub.Features.Downloads.ViewModels.Filters;
 

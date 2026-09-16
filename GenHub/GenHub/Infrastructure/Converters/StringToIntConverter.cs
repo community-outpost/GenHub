@@ -1,8 +1,8 @@
-namespace GenHub.Infrastructure.Converters;
-
+using Avalonia.Data.Converters;
 using System;
 using System.Globalization;
-using Avalonia.Data.Converters;
+
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts a string to an integer for CommandParameter binding.

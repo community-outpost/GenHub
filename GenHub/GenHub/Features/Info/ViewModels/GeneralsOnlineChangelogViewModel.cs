@@ -1,11 +1,11 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Info;
 using GenHub.Features.Info.Services;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Info.ViewModels;
 

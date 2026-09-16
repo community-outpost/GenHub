@@ -1,7 +1,7 @@
-using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.GameClients;
+using System;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 

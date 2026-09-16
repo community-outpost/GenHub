@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Helpers;
@@ -45,7 +48,7 @@ public static partial class SteamAppIdResolver
             return false;
         }
 
-        IEnumerable<string> manifests = [];
+        IEnumerable<string> manifests = Array.Empty<string>();
         try
         {
             manifests = Directory.EnumerateFiles(steamAppsDir.FullName, "appmanifest_*.acf", SearchOption.TopDirectoryOnly);

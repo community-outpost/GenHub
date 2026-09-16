@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
@@ -16,6 +8,14 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 
@@ -159,6 +159,12 @@ public partial class CommunityOutpostDiscoverer(
         }
     }
 
+    /// <summary>
+    /// Regex for extracting community patch download link.
+    /// </summary>
+    [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
+    internal static partial Regex CommunityPatchRegex();
+
     private static bool TryGetSameHost(string url1, string url2, out string? host)
     {
         if (Uri.TryCreate(url1, UriKind.Absolute, out var uri1) &&
@@ -171,6 +177,27 @@ public partial class CommunityOutpostDiscoverer(
 
         host = null;
         return false;
+    }
+
+    /// <summary>
+    /// Gets tags for a content category.
+    /// </summary>
+    private static string[] GetTagsForCategory(GenPatcherContentCategory category)
+    {
+        return category switch
+        {
+            GenPatcherContentCategory.CommunityPatch => ["community-patch", "thesuperhackers", "weekly", "game-client"],
+            GenPatcherContentCategory.OfficialPatch => CommunityOutpostConstants.OfficialPatchTags,
+            GenPatcherContentCategory.BaseGame => ["base-game", "vanilla"],
+            GenPatcherContentCategory.ControlBar => ["addon", "control-bar", "ui"],
+            GenPatcherContentCategory.Hotkeys => ["addon", "hotkeys", "keyboard"],
+            GenPatcherContentCategory.Camera => ["addon", "camera"],
+            GenPatcherContentCategory.Tools => CommunityOutpostConstants.ToolsTags,
+            GenPatcherContentCategory.Maps => ["maps", "missions"],
+            GenPatcherContentCategory.Visuals => ["addon", "visuals", "graphics"],
+            GenPatcherContentCategory.Prerequisites => ["prerequisite", "system"],
+            _ => CommunityOutpostConstants.AddonTags,
+        };
     }
 
     private async Task FetchAndAppendCatalogResultsAsync(
@@ -216,30 +243,6 @@ public partial class CommunityOutpostDiscoverer(
         {
             logger.LogWarning(ex, "Failed to fetch/parse GenPatcher catalog, returning Community Patch only");
         }
-    }
-
-    [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
-    internal static partial Regex CommunityPatchRegex();
-
-    /// <summary>
-    /// Gets tags for a content category.
-    /// </summary>
-    private static string[] GetTagsForCategory(GenPatcherContentCategory category)
-    {
-        return category switch
-        {
-            GenPatcherContentCategory.CommunityPatch => ["community-patch", "thesuperhackers", "weekly", "game-client"],
-            GenPatcherContentCategory.OfficialPatch => CommunityOutpostConstants.OfficialPatchTags,
-            GenPatcherContentCategory.BaseGame => ["base-game", "vanilla"],
-            GenPatcherContentCategory.ControlBar => ["addon", "control-bar", "ui"],
-            GenPatcherContentCategory.Hotkeys => ["addon", "hotkeys", "keyboard"],
-            GenPatcherContentCategory.Camera => ["addon", "camera"],
-            GenPatcherContentCategory.Tools => CommunityOutpostConstants.ToolsTags,
-            GenPatcherContentCategory.Maps => ["maps", "missions"],
-            GenPatcherContentCategory.Visuals => ["addon", "visuals", "graphics"],
-            GenPatcherContentCategory.Prerequisites => ["prerequisite", "system"],
-            _ => CommunityOutpostConstants.AddonTags,
-        };
     }
 
     /// <summary>

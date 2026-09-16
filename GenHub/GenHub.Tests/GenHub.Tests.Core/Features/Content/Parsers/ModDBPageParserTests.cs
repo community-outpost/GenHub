@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
@@ -11,6 +6,11 @@ using GenHub.Core.Models.Parsers;
 using GenHub.Features.Content.Services.Parsers;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Parsers;
@@ -387,7 +387,6 @@ public sealed class ModDBPageParserTests
                 <div class="row rowcomment" id="comment201">
                   <div class="heading"><a href="/members/scorpionwins">Scorpionwins</a> <span class="subheading">Jul 31 2026</span></div>
                   <div class="commentbody">
-
 
                     How to activate additional weapons?
                     <div class="actions">Reply Good karma Bad karma+1 vote</div>

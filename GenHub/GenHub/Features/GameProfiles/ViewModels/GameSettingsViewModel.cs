@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
@@ -17,6 +9,14 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -630,8 +630,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
         else
         {
-             PatStatusMessage = "Invalid Token";
-             PatStatusColor = "#FF5252"; // Red
+            PatStatusMessage = "Invalid Token";
+            PatStatusColor = "#FF5252"; // Red
         }
 
         IsLoading = false;

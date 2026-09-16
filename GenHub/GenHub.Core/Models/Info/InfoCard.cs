@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Core.Models.Enums;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Info;
 

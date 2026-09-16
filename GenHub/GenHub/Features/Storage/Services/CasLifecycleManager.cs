@@ -1,3 +1,9 @@
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -5,12 +11,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Storage;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace GenHub.Features.Storage.Services;
 

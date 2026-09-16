@@ -1,7 +1,7 @@
+using GenHub.Core.Models.Common;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Common;
 
 namespace GenHub.Core.Interfaces.Common;
 

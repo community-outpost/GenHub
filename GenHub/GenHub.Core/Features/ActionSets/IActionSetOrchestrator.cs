@@ -1,10 +1,10 @@
-namespace GenHub.Core.Features.ActionSets;
-
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+
+namespace GenHub.Core.Features.ActionSets;
 
 /// <summary>
 /// Service responsible for managing and executing action sets.

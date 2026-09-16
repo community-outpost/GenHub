@@ -1,3 +1,10 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Tools.MapManager;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.MapManager;
+using GenHub.Core.Utilities;
+using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,13 +13,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Tools.MapManager;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Tools.MapManager;
-using GenHub.Core.Utilities;
-using Microsoft.Extensions.Logging;
-using SharpCompress.Archives;
 
 namespace GenHub.Features.Tools.MapManager.Services;
 
@@ -264,247 +264,247 @@ public sealed class MapImportService(
         return await Task.Run(
             async () =>
             {
-            var result = new ImportResult();
+                var result = new ImportResult();
 
-            var (isValid, errorMessage) = ValidateZip(zipPath);
-            if (!isValid)
-            {
-                logger.LogWarning("ZIP validation failed: {Error}", errorMessage);
-                result.Errors.Add(errorMessage ?? "Invalid ZIP file");
-                return result;
-            }
-
-            var targetDir = directoryService.GetMapDirectory(targetVersion);
-            directoryService.EnsureDirectoryExists(targetVersion);
-
-            try
-            {
-                using var archive = ZipFile.OpenRead(zipPath);
-                var allEntries = archive.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToList();
-
-                var entriesByDirectory = allEntries
-                    .GroupBy(e =>
-                    {
-                        var parts = e.FullName.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
-                        return parts.Length > 1 ? parts[0] : string.Empty;
-                    })
-                    .ToDictionary(g => g.Key, g => g.ToList());
-
-                int totalMaps = 0;
-                int processedMaps = 0;
-                long expandedBytes = 0;
-
-                // Count total maps for progress
-                foreach (var group in entriesByDirectory)
+                var (isValid, errorMessage) = ValidateZip(zipPath);
+                if (!isValid)
                 {
-                    totalMaps += group.Value.Count(e => e.Name.EndsWith(".map", StringComparison.OrdinalIgnoreCase));
+                    logger.LogWarning("ZIP validation failed: {Error}", errorMessage);
+                    result.Errors.Add(errorMessage ?? "Invalid ZIP file");
+                    return result;
                 }
 
-                if (totalMaps == 0)
+                var targetDir = directoryService.GetMapDirectory(targetVersion);
+                directoryService.EnsureDirectoryExists(targetVersion);
+
+                try
                 {
-                    return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
-                }
+                    using var archive = ZipFile.OpenRead(zipPath);
+                    var allEntries = archive.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToList();
 
-                foreach (var (directoryName, entries) in entriesByDirectory)
-                {
-                    var mapEntries = entries.Where(e => e.Name.EndsWith(".map", StringComparison.OrdinalIgnoreCase)).ToList();
-                    if (mapEntries.Count == 0)
-                        continue;
-
-                    foreach (var mapEntry in mapEntries)
-                    {
-                        ct.ThrowIfCancellationRequested();
-
-                        if (mapEntry.Length > IMapImportService.MaxMapSizeBytes)
+                    var entriesByDirectory = allEntries
+                        .GroupBy(e =>
                         {
-                            result.Errors.Add($"Map too large: {mapEntry.Name}");
+                            var parts = e.FullName.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
+                            return parts.Length > 1 ? parts[0] : string.Empty;
+                        })
+                        .ToDictionary(g => g.Key, g => g.ToList());
+
+                    int totalMaps = 0;
+                    int processedMaps = 0;
+                    long expandedBytes = 0;
+
+                    // Count total maps for progress
+                    foreach (var group in entriesByDirectory)
+                    {
+                        totalMaps += group.Value.Count(e => e.Name.EndsWith(".map", StringComparison.OrdinalIgnoreCase));
+                    }
+
+                    if (totalMaps == 0)
+                    {
+                        return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
+                    }
+
+                    foreach (var (directoryName, entries) in entriesByDirectory)
+                    {
+                        var mapEntries = entries.Where(e => e.Name.EndsWith(".map", StringComparison.OrdinalIgnoreCase)).ToList();
+                        if (mapEntries.Count == 0)
                             continue;
-                        }
 
-                        var mapFileName = Path.GetFileName(mapEntry.FullName.Replace('\\', '/'));
-
-                        // Determine the directory name for this map
-                        var mapDirName = string.IsNullOrEmpty(directoryName)
-                            ? Path.GetFileNameWithoutExtension(mapFileName)
-                            : Path.GetFileName(directoryName);
-
-                        if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == "..")
+                        foreach (var mapEntry in mapEntries)
                         {
-                            mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
-                        }
+                            ct.ThrowIfCancellationRequested();
 
-                        var mapDirPath = GetUniqueDirectoryPath(Path.Combine(targetDir, mapDirName));
-                        var mapDestPath = Path.Combine(mapDirPath, mapFileName);
-                        var assetFiles = new List<string>();
-                        string? thumbnailPath = null;
+                            if (mapEntry.Length > IMapImportService.MaxMapSizeBytes)
+                            {
+                                result.Errors.Add($"Map too large: {mapEntry.Name}");
+                                continue;
+                            }
 
-                        long mapExpandedBytes = 0;
+                            var mapFileName = Path.GetFileName(mapEntry.FullName.Replace('\\', '/'));
 
-                        try
-                        {
-                            Directory.CreateDirectory(mapDirPath);
+                            // Determine the directory name for this map
+                            var mapDirName = string.IsNullOrEmpty(directoryName)
+                                ? Path.GetFileNameWithoutExtension(mapFileName)
+                                : Path.GetFileName(directoryName);
+
+                            if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == "..")
+                            {
+                                mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
+                            }
+
+                            var mapDirPath = GetUniqueDirectoryPath(Path.Combine(targetDir, mapDirName));
+                            var mapDestPath = Path.Combine(mapDirPath, mapFileName);
+                            var assetFiles = new List<string>();
+                            string? thumbnailPath = null;
+
+                            long mapExpandedBytes = 0;
 
                             try
                             {
-                                await using var mapStream = mapEntry.Open();
-                                mapExpandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                                    mapStream,
-                                    mapDestPath,
-                                    mapEntry.FullName,
-                                    IMapImportService.MaxMapSizeBytes,
-                                    MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
-                                    cancellationToken: ct);
+                                Directory.CreateDirectory(mapDirPath);
+
+                                try
+                                {
+                                    await using var mapStream = mapEntry.Open();
+                                    mapExpandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                                        mapStream,
+                                        mapDestPath,
+                                        mapEntry.FullName,
+                                        IMapImportService.MaxMapSizeBytes,
+                                        MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
+                                        cancellationToken: ct);
+                                }
+                                catch (InvalidDataException ex)
+                                {
+                                    logger.LogInformation(ex, "Decompression via ZipArchive failed for map {Entry}, attempting SharpCompress fallback", mapEntry.FullName);
+                                    var written = await ExtractEntryWithSharpCompressAsync(
+                                        zipPath,
+                                        mapEntry.FullName,
+                                        mapDestPath,
+                                        IMapImportService.MaxMapSizeBytes,
+                                        MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
+                                        ct);
+                                    if (written > 0)
+                                    {
+                                        mapExpandedBytes += written;
+                                    }
+                                    else
+                                    {
+                                        throw;
+                                    }
+                                }
+
+                                // Extract related asset files from the same directory in the ZIP
+                                if (!string.IsNullOrEmpty(directoryName))
+                                {
+                                    var mapEntriesInGroup = mapEntries.Count;
+                                    var mapBaseName = Path.GetFileNameWithoutExtension(mapFileName);
+                                    var assetEntries = entries.Where(e =>
+                                    {
+                                        var fn = Path.GetFileName(e.FullName.Replace('\\', '/'));
+                                        if (fn.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
+                                            !MapManagerConstants.AllowedExtensions.Contains(Path.GetExtension(fn), StringComparer.OrdinalIgnoreCase))
+                                        {
+                                            return false;
+                                        }
+
+                                        if (mapEntriesInGroup > 1)
+                                        {
+                                            return fn.StartsWith(mapBaseName + "_", StringComparison.OrdinalIgnoreCase) ||
+                                                   fn.StartsWith(mapBaseName + ".", StringComparison.OrdinalIgnoreCase) ||
+                                                   fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+                                        }
+
+                                        return true;
+                                    });
+
+                                    foreach (var assetEntry in assetEntries)
+                                    {
+                                        var assetFileName = Path.GetFileName(assetEntry.FullName.Replace('\\', '/'));
+                                        var assetDestPath = Path.Combine(mapDirPath, assetFileName);
+                                        if (!File.Exists(assetDestPath))
+                                        {
+                                            try
+                                            {
+                                                await using var assetStream = assetEntry.Open();
+                                                mapExpandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                                                    assetStream,
+                                                    assetDestPath,
+                                                    assetEntry.FullName,
+                                                    MapManagerConstants.MaxAssetSizeBytes,
+                                                    MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
+                                                    cancellationToken: ct);
+                                            }
+                                            catch (InvalidDataException ex)
+                                            {
+                                                logger.LogInformation(ex, "Decompression via ZipArchive failed for asset {Entry}, attempting SharpCompress fallback", assetEntry.FullName);
+                                                var written = await ExtractEntryWithSharpCompressAsync(
+                                                    zipPath,
+                                                    assetEntry.FullName,
+                                                    assetDestPath,
+                                                    MapManagerConstants.MaxAssetSizeBytes,
+                                                    MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
+                                                    ct);
+                                                if (written > 0)
+                                                {
+                                                    mapExpandedBytes += written;
+                                                }
+                                                else
+                                                {
+                                                    throw;
+                                                }
+                                            }
+                                        }
+
+                                        assetFiles.Add(assetDestPath);
+
+                                        // Check for thumbnail
+                                        if (assetFileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
+                                            (thumbnailPath == null && assetFileName.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            thumbnailPath = assetDestPath;
+                                        }
+                                    }
+                                }
+
+                                expandedBytes += mapExpandedBytes;
                             }
-                            catch (InvalidDataException ex)
+                            catch (Exception ex) when (ex is not OperationCanceledException)
                             {
-                                logger.LogInformation(ex, "Decompression via ZipArchive failed for map {Entry}, attempting SharpCompress fallback", mapEntry.FullName);
-                                var written = await ExtractEntryWithSharpCompressAsync(
+                                logger.LogWarning(
+                                    "Discarding map {Entry} from {ZipPath}: {Reason}",
+                                    mapEntry.FullName,
                                     zipPath,
-                                    mapEntry.FullName,
-                                    mapDestPath,
-                                    IMapImportService.MaxMapSizeBytes,
-                                    MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
-                                    ct);
-                                if (written > 0)
-                                {
-                                    mapExpandedBytes += written;
-                                }
-                                else
-                                {
-                                    throw;
-                                }
+                                    ex.Message);
+                                result.Errors.Add(ex.Message);
+                                DeleteDirectoryBestEffort(mapDirPath);
+                                continue;
                             }
 
-                            // Extract related asset files from the same directory in the ZIP
-                            if (!string.IsNullOrEmpty(directoryName))
+                            var totalSize = new FileInfo(mapDestPath).Length + assetFiles.Sum(f => new FileInfo(f).Length);
+
+                            result.FilesImported++;
+                            processedMaps++;
+                            progress?.Report((double)processedMaps / totalMaps);
+                            logger.LogInformation("Extracted map to directory: {DirectoryName}/{FileName}", mapDirName, mapEntry.Name);
+
+                            // Create MapFile object
+                            var displayName = mapNameParser.ParseMapName(mapDestPath);
+                            var mapFile = new MapFile
                             {
-                                var mapEntriesInGroup = mapEntries.Count;
-                                var mapBaseName = Path.GetFileNameWithoutExtension(mapFileName);
-                                var assetEntries = entries.Where(e =>
-                                {
-                                    var fn = Path.GetFileName(e.FullName.Replace('\\', '/'));
-                                    if (fn.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
-                                        !MapManagerConstants.AllowedExtensions.Contains(Path.GetExtension(fn), StringComparer.OrdinalIgnoreCase))
-                                    {
-                                        return false;
-                                    }
-
-                                    if (mapEntriesInGroup > 1)
-                                    {
-                                        return fn.StartsWith(mapBaseName + "_", StringComparison.OrdinalIgnoreCase) ||
-                                               fn.StartsWith(mapBaseName + ".", StringComparison.OrdinalIgnoreCase) ||
-                                               fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
-                                    }
-
-                                    return true;
-                                });
-
-                                foreach (var assetEntry in assetEntries)
-                                {
-                                    var assetFileName = Path.GetFileName(assetEntry.FullName.Replace('\\', '/'));
-                                    var assetDestPath = Path.Combine(mapDirPath, assetFileName);
-                                    if (!File.Exists(assetDestPath))
-                                    {
-                                        try
-                                        {
-                                            await using var assetStream = assetEntry.Open();
-                                            mapExpandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                                                assetStream,
-                                                assetDestPath,
-                                                assetEntry.FullName,
-                                                MapManagerConstants.MaxAssetSizeBytes,
-                                                MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
-                                                cancellationToken: ct);
-                                        }
-                                        catch (InvalidDataException ex)
-                                        {
-                                            logger.LogInformation(ex, "Decompression via ZipArchive failed for asset {Entry}, attempting SharpCompress fallback", assetEntry.FullName);
-                                            var written = await ExtractEntryWithSharpCompressAsync(
-                                                zipPath,
-                                                assetEntry.FullName,
-                                                assetDestPath,
-                                                MapManagerConstants.MaxAssetSizeBytes,
-                                                MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
-                                                ct);
-                                            if (written > 0)
-                                            {
-                                                mapExpandedBytes += written;
-                                            }
-                                            else
-                                            {
-                                                throw;
-                                            }
-                                        }
-                                    }
-
-                                    assetFiles.Add(assetDestPath);
-
-                                    // Check for thumbnail
-                                    if (assetFileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
-                                        (thumbnailPath == null && assetFileName.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
-                                    {
-                                        thumbnailPath = assetDestPath;
-                                    }
-                                }
-                            }
-
-                            expandedBytes += mapExpandedBytes;
+                                FileName = mapEntry.Name,
+                                FullPath = mapDestPath,
+                                SizeBytes = totalSize,
+                                GameType = targetVersion,
+                                LastModified = File.GetLastWriteTime(mapDestPath),
+                                DirectoryName = Path.GetFileName(mapDirPath),
+                                IsDirectory = true,
+                                AssetFiles = assetFiles,
+                                DisplayName = displayName,
+                                ThumbnailPath = thumbnailPath,
+                                ThumbnailBitmap = null,
+                            };
+                            result.ImportedMaps.Add(mapFile);
                         }
-                        catch (Exception ex) when (ex is not OperationCanceledException)
-                        {
-                            logger.LogWarning(
-                                "Discarding map {Entry} from {ZipPath}: {Reason}",
-                                mapEntry.FullName,
-                                zipPath,
-                                ex.Message);
-                            result.Errors.Add(ex.Message);
-                            DeleteDirectoryBestEffort(mapDirPath);
-                            continue;
-                        }
-
-                        var totalSize = new FileInfo(mapDestPath).Length + assetFiles.Sum(f => new FileInfo(f).Length);
-
-                        result.FilesImported++;
-                        processedMaps++;
-                        progress?.Report((double)processedMaps / totalMaps);
-                        logger.LogInformation("Extracted map to directory: {DirectoryName}/{FileName}", mapDirName, mapEntry.Name);
-
-                        // Create MapFile object
-                        var displayName = mapNameParser.ParseMapName(mapDestPath);
-                        var mapFile = new MapFile
-                        {
-                            FileName = mapEntry.Name,
-                            FullPath = mapDestPath,
-                            SizeBytes = totalSize,
-                            GameType = targetVersion,
-                            LastModified = File.GetLastWriteTime(mapDestPath),
-                            DirectoryName = Path.GetFileName(mapDirPath),
-                            IsDirectory = true,
-                            AssetFiles = assetFiles,
-                            DisplayName = displayName,
-                            ThumbnailPath = thumbnailPath,
-                            ThumbnailBitmap = null,
-                        };
-                        result.ImportedMaps.Add(mapFile);
                     }
+
+                    progress?.Report(1.0);
+                }
+                catch (InvalidDataException ex)
+                {
+                    logger.LogInformation(ex, "ZipFile.OpenRead failed for {ZipPath}, falling back to SharpCompress", zipPath);
+                    return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogError(ex, "Failed to import from ZIP: {ZipPath}", zipPath);
+                    result.Errors.Add($"ZIP extraction failed: {ex.Message}");
                 }
 
-                progress?.Report(1.0);
-            }
-            catch (InvalidDataException ex)
-            {
-                logger.LogInformation(ex, "ZipFile.OpenRead failed for {ZipPath}, falling back to SharpCompress", zipPath);
-                return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Failed to import from ZIP: {ZipPath}", zipPath);
-                result.Errors.Add($"ZIP extraction failed: {ex.Message}");
-            }
-
-            result.Success = result.FilesImported > 0;
-            return result;
-        },
+                result.Success = result.FilesImported > 0;
+                return result;
+            },
             ct);
     }
 

@@ -1,11 +1,3 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.GameSettings;
@@ -14,6 +6,14 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix that applies essential crash-prevention settings to Options.ini for Generals and Zero Hour while preserving user preferences.

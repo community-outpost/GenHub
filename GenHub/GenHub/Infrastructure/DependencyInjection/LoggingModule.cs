@@ -1,7 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
-using System.Text.Json;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Infrastructure.Logging;
@@ -10,6 +6,10 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using System;
+using System.Globalization;
+using System.IO;
+using System.Text.Json;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

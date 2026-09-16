@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
@@ -15,6 +12,9 @@ using GenHub.Features.Tools.MapManager.ViewModels;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Info.ViewModels;
 
@@ -472,26 +472,26 @@ public static class DemoViewModelFactory
         catch
         {
             // Fallback for deprecated method
-             var mockLogger = new MockLogger<GameProfileSettingsViewModel>();
-             var mockSettingsLogger = new MockLogger<GameSettingsViewModel>();
+            var mockLogger = new MockLogger<GameProfileSettingsViewModel>();
+            var mockSettingsLogger = new MockLogger<GameSettingsViewModel>();
 
-             return new DemoGameProfileSettingsViewModel(
-                new MockGameProfileManager(),
-                new MockGameSettingsService(),
-                new MockConfigurationProviderService(),
-                new MockProfileContentLoader(),
-                null,
-                new MockNotificationService(),
-                new MockContentManifestPool(),
-                new MockContentStorageService(),
-                new MockLocalContentService(),
-                null, // genLauncherNormalizationService
-                null, // dialogService
-                mockLogger,
-                mockSettingsLogger)
-             {
-                 IsAddLocalContentDialogOpen = false,
-             };
+            return new DemoGameProfileSettingsViewModel(
+               new MockGameProfileManager(),
+               new MockGameSettingsService(),
+               new MockConfigurationProviderService(),
+               new MockProfileContentLoader(),
+               null,
+               new MockNotificationService(),
+               new MockContentManifestPool(),
+               new MockContentStorageService(),
+               new MockLocalContentService(),
+               null, // genLauncherNormalizationService
+               null, // dialogService
+               mockLogger,
+               mockSettingsLogger)
+            {
+                IsAddLocalContentDialogOpen = false,
+            };
         }
     }
 

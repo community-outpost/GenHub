@@ -1,8 +1,3 @@
-namespace GenHub.Windows.Features.ActionSets.UI;
-
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -10,6 +5,11 @@ using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Windows.Features.ActionSets.UI;
 
 #pragma warning disable S2325 // Methods/properties bound by Avalonia XAML or Command patterns must be instance members
 

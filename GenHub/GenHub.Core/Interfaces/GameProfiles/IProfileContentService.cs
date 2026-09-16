@@ -1,6 +1,6 @@
-using System.Collections.Generic;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 

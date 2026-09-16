@@ -10,7 +10,6 @@
 //
 //  Version: 2025-06-17
 // -----------------------------------------------------------------------------
-
 using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage(

@@ -1,8 +1,8 @@
-using System.Linq;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Infrastructure.DependencyInjection;

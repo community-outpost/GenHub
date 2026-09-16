@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -34,6 +26,14 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.Models;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Settings.ViewModels;
 
@@ -351,7 +351,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the status color for the PAT indicator.
     /// </summary>
-    public string PatStatusColor => _isPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+    public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.

@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
-using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Notifications;
 

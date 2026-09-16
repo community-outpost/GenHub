@@ -1,10 +1,10 @@
+using GenHub.Core.Models.AppUpdate;
+using GenHub.Features.AppUpdate.Interfaces;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.AppUpdate;
-using GenHub.Features.AppUpdate.Interfaces;
-using Microsoft.Extensions.Logging;
 using Velopack;
 
 namespace GenHub.Features.AppUpdate.Services;

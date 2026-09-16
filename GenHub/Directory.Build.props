@@ -33,6 +33,9 @@
     -->
     <InformationalVersion Condition="'$(GitShortHash)' != ''">$(Version)+$(GitShortHash)</InformationalVersion>
     <InformationalVersion Condition="'$(GitShortHash)' == ''">$(Version)</InformationalVersion>
+
+    <!-- Enforce zero warnings policy across all projects -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <!-- Embed build metadata in assembly for runtime access -->
@@ -49,5 +52,10 @@
       <_Parameter1>BuildChannel</_Parameter1>
       <_Parameter2>$(BuildChannel)</_Parameter2>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- StyleCop configuration -->
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)..\stylecop.json" Link="stylecop.json" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,3 @@
-namespace GenHub.Core.Helpers;
-
 using GenHub.Core.Models.Results;
 using System;
 using System.Collections.Generic;
@@ -10,6 +8,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+
+namespace GenHub.Core.Helpers;
 
 /// <summary>
 /// Provides security validation for downloaded executables and packages, including SHA-256 and Authenticode checks.

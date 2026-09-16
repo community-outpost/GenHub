@@ -1,9 +1,9 @@
+using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.AppUpdate;
-using GenHub.Core.Models.Enums;
 using Velopack;
 
 namespace GenHub.Features.AppUpdate.Interfaces;

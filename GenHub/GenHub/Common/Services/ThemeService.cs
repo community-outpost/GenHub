@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -10,6 +7,9 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Theming;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Common.Services;
 

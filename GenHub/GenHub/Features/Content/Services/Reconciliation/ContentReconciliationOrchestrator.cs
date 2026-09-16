@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
@@ -14,6 +8,12 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Reconciliation;
 
@@ -241,12 +241,12 @@ public class ContentReconciliationOrchestrator(
                 }
                 else
                 {
-                     logger.LogWarning("[Orchestrator:{OpId}] ReconcileManifestRemoval failed for {ManifestId}: {Error}", operationId, manifestId, reconcileResult.FirstError);
-                     warnings.Add($"Manifest removal reconciliation failed for {manifestId}: {reconcileResult.FirstError}");
+                    logger.LogWarning("[Orchestrator:{OpId}] ReconcileManifestRemoval failed for {ManifestId}: {Error}", operationId, manifestId, reconcileResult.FirstError);
+                    warnings.Add($"Manifest removal reconciliation failed for {manifestId}: {reconcileResult.FirstError}");
 
-                     // We don't abort here, but track it so we don't do unsafe optimized cleanup later
-                     // If profiles failed to update, they might still reference the content
-                     criticalFailureOccurred = true;
+                    // We don't abort here, but track it so we don't do unsafe optimized cleanup later
+                    // If profiles failed to update, they might still reference the content
+                    criticalFailureOccurred = true;
                 }
             }
 

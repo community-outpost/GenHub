@@ -1,4 +1,3 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -7,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
+using System;
 
 namespace GenHub.Features.Tools.ReplayManager.Views;
 

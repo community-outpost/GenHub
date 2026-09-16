@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using GenHub.Core.Interfaces.Common;
+using System.Collections.Concurrent;
 
 namespace GenHub.Common.Services;
 

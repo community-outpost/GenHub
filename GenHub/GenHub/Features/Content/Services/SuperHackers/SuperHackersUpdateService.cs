@@ -1,3 +1,10 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results.Content;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,13 +13,6 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Results.Content;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.SuperHackers;
 
@@ -49,9 +49,9 @@ public class SuperHackersUpdateService(
 
             if (string.IsNullOrEmpty(latestVersion))
             {
-               return ContentUpdateCheckResult.CreateFailure(
-                   "Could not retrieve latest version from GitHub",
-                   currentVersion);
+                return ContentUpdateCheckResult.CreateFailure(
+                    "Could not retrieve latest version from GitHub",
+                    currentVersion);
             }
 
             var updateAvailable = IsNewerVersion(latestVersion, currentVersion);
@@ -128,23 +128,23 @@ public class SuperHackersUpdateService(
             // Allow override via HttpClient configuration if needed, but default to direct API
             if (httpClient.BaseAddress != null && !httpClient.BaseAddress.ToString().Contains("api.github.com"))
             {
-               // This handles if client is pre-configured with a base URL
+                // This handles if client is pre-configured with a base URL
             }
             else
             {
-                 // Ensure User-Agent is set globally or here (GitHub requires it)
-                 if (httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
-                 {
-                     httpClient.DefaultRequestHeaders.Add("User-Agent", "GenHub-Agent");
-                 }
+                // Ensure User-Agent is set globally or here (GitHub requires it)
+                if (httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
+                {
+                    httpClient.DefaultRequestHeaders.Add("User-Agent", "GenHub-Agent");
+                }
             }
 
             var response = await httpClient.GetAsync(url, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                 logger.LogWarning("GitHub API returned {StatusCode}", response.StatusCode);
-                 return null;
+                logger.LogWarning("GitHub API returned {StatusCode}", response.StatusCode);
+                return null;
             }
 
             var release = await response.Content.ReadFromJsonAsync<GitHubRelease>(cancellationToken: cancellationToken);
@@ -154,8 +154,8 @@ public class SuperHackersUpdateService(
 
             if (!string.IsNullOrEmpty(version))
             {
-                 // Remove 'v' prefix if present common in GitHub releases
-                 version = version.TrimStart('v', 'V');
+                // Remove 'v' prefix if present common in GitHub releases
+                version = version.TrimStart('v', 'V');
             }
 
             logger.LogInformation("Successfully fetched version from GitHub: '{Version}'", version);

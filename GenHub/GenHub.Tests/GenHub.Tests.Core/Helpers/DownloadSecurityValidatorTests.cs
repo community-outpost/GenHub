@@ -1,13 +1,13 @@
-namespace GenHub.Tests.Core.Helpers;
-
+using GenHub.Core.Helpers;
+using GenHub.Core.Models.Results;
 using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using GenHub.Core.Helpers;
-using GenHub.Core.Models.Results;
 using Xunit;
+
+namespace GenHub.Tests.Core.Helpers;
 
 /// <summary>
 /// Unit tests for <see cref="DownloadSecurityValidator"/>.

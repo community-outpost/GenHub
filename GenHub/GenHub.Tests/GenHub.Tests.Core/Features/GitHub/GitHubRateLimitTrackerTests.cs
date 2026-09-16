@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Exceptions;
 using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.GitHub;

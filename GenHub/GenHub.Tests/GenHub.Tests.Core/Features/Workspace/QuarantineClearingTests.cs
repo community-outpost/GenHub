@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using GenHub.Features.Workspace;
+using System.Diagnostics;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 

@@ -1,10 +1,10 @@
-using System;
-using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using GenHub.Features.Content.ViewModels.Catalog;
+using System;
+using System.Threading;
 
 namespace GenHub.Features.Downloads.Views;
 

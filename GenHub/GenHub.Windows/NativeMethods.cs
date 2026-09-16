@@ -1,6 +1,6 @@
+using GenHub.Core.Constants;
 using System;
 using System.Runtime.InteropServices;
-using GenHub.Core.Constants;
 
 namespace GenHub.Windows;
 

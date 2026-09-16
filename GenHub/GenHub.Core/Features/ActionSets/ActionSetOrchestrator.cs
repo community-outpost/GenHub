@@ -1,5 +1,3 @@
-namespace GenHub.Core.Features.ActionSets;
-
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -9,6 +7,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
+namespace GenHub.Core.Features.ActionSets;
 
 /// <summary>
 /// Implementation of the ActionSet orchestrator.

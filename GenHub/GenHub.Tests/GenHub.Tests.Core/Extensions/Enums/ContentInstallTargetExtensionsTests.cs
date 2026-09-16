@@ -1,7 +1,7 @@
-using System;
-using System.Linq;
 using GenHub.Core.Extensions.Enums;
 using GenHub.Core.Models.Enums;
+using System;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Extensions.Enums;

@@ -1,12 +1,12 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Info;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Info;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Info;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Info;
 
 namespace GenHub.Features.Info.Services;
 

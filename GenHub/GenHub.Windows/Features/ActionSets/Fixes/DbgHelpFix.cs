@@ -1,7 +1,7 @@
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
 using GenHub.Core.Constants;
 using Microsoft.Extensions.Logging;
+
+namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix for the dbghelp.dll which causes crashes on modern systems.

@@ -1,10 +1,10 @@
-using System;
-using System.Globalization;
 using Avalonia;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using GenHub.Core.Models.Enums;
 using GenHub.Infrastructure.Converters;
+using System;
+using System.Globalization;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;

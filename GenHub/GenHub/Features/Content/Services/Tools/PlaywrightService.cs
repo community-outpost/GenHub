@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
 using Avalonia.Threading;
@@ -16,6 +9,13 @@ using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Tools;
 
@@ -517,6 +517,30 @@ public sealed class PlaywrightService(
             profileName.Contains('\\'))
         {
             throw new ArgumentException($"Invalid profile name '{profileName}': contains invalid path characters.", nameof(profileName));
+        }
+    }
+
+    private static TimeSpan CalculateSaveTimeout(TimeSpan timeout)
+    {
+        if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+        {
+            return TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, timeout.TotalMilliseconds));
+        }
+
+        return Timeout.InfiniteTimeSpan;
+    }
+
+    private static void PrepareDestinationDirectory(string destinationPath, bool overwriteExisting)
+    {
+        if (File.Exists(destinationPath) && overwriteExisting)
+        {
+            File.Delete(destinationPath);
+        }
+
+        var dir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
         }
     }
 
@@ -1682,30 +1706,6 @@ public sealed class PlaywrightService(
 
             tabSemaphore.Release();
         }
-    }
-
-    private static void PrepareDestinationDirectory(string destinationPath, bool overwriteExisting)
-    {
-        if (File.Exists(destinationPath) && overwriteExisting)
-        {
-            File.Delete(destinationPath);
-        }
-
-        var dir = Path.GetDirectoryName(destinationPath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-    }
-
-    private static TimeSpan CalculateSaveTimeout(TimeSpan timeout)
-    {
-        if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
-        {
-            return TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, timeout.TotalMilliseconds));
-        }
-
-        return Timeout.InfiniteTimeSpan;
     }
 
     private void ValidatePersistentDownloadUrl(string downloadUrl, bool usePersistentModDbProfile)

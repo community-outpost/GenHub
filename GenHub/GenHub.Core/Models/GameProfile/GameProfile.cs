@@ -1,9 +1,9 @@
-using System.Text.Json.Serialization;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Serialization;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.GameProfile;
 

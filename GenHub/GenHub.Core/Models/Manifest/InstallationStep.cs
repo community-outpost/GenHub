@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Enums;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Manifest;
 

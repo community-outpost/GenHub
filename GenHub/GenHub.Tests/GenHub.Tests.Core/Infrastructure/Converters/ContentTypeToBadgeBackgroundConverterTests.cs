@@ -1,7 +1,7 @@
-using System;
-using System.Globalization;
 using Avalonia.Media;
 using GenHub.Infrastructure.Converters;
+using System;
+using System.Globalization;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 

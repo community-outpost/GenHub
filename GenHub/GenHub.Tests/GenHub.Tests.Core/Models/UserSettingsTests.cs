@@ -1,7 +1,7 @@
-#pragma warning disable CS0618 // Type or member is obsolete
-
 using GenHub.Core.Models.Common;
 using Xunit;
+
+#pragma warning disable CS0618 // Type or member is obsolete
 
 namespace GenHub.Tests.Core.Models;
 

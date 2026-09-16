@@ -1,9 +1,9 @@
+using GenHub.Core.Models.Parsers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Parsers;
 
 namespace GenHub.Core.Interfaces.Parsers;
 

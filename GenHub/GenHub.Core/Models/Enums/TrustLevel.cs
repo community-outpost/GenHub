@@ -1,9 +1,8 @@
 // Copyright (c) GenHub. All rights reserved.
 // Licensed under the MIT license.
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Enums;
-
-using System.Text.Json.Serialization;
 
 /// <summary>
 /// Defines the trust level for a subscribed publisher.

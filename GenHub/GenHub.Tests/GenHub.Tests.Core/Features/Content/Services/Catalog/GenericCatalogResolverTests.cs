@@ -1,7 +1,3 @@
-using System;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -14,6 +10,10 @@ using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;

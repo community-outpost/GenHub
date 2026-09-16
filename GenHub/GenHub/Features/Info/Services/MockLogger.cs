@@ -1,5 +1,5 @@
-using System;
 using Microsoft.Extensions.Logging;
+using System;
 
 namespace GenHub.Features.Info.Services;
 
