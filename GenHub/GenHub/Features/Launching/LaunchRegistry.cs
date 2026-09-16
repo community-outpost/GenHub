@@ -200,6 +200,16 @@ public class LaunchRegistry : ILaunchRegistry
         // write drains an empty buffer, and this event strands until it expires.
         lock (_exitSync)
         {
+            // A repeated delivery has the same exit identity. A recycled PID with a
+            // different exit time/code belongs to a new launch awaiting registration.
+            // Redelivery must preserve the original ExitTime even when cloning the args;
+            // stamping a new time describes a new exit and cannot be safely deduplicated.
+            if (_activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId
+                && l.TerminatedAt == e.ExitTime && l.ExitCode == e.ExitCode))
+            {
+                return;
+            }
+
             // Find the live launch holding this PID. Terminated launches keep their PID in
             // the registry, so a recycled PID would otherwise match the dead launch first
             // and lose the event to the idempotency guard rather than applying it to the
@@ -209,16 +219,6 @@ public class LaunchRegistry : ILaunchRegistry
             if (launch != null)
             {
                 ApplyProcessExit(launch, e);
-                return;
-            }
-
-            // A repeated delivery has the same exit identity. A recycled PID with a
-            // different exit time/code belongs to a new launch awaiting registration.
-            // Redelivery must preserve the original ExitTime even when cloning the args;
-            // stamping a new time describes a new exit and cannot be safely deduplicated.
-            if (_activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId
-                && l.TerminatedAt == e.ExitTime && l.ExitCode == e.ExitCode))
-            {
                 return;
             }
 

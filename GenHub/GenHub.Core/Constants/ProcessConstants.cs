@@ -159,4 +159,6 @@ public static class ProcessConstants
     /// <summary>Maximum time to await a managed process exit notification after it has exited.</summary>
     public const int TerminationExitNotificationTimeoutMs = 5_000;
 
+    /// <summary>Error returned when a termination request does not identify one process.</summary>
+    public const string InvalidProcessIdError = "Process ID must be greater than zero.";
 }

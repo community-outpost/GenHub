@@ -181,6 +181,13 @@ public class GameProcessManager(
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default)
     {
+        // Unix treats zero and negative PIDs as process groups or broadcast targets.
+        // Reject them before any process lookup, subscription, or operating-system call.
+        if (processId <= 0)
+        {
+            return OperationResult<bool>.CreateFailure(ProcessConstants.InvalidProcessIdError);
+        }
+
         await _terminationSemaphore.WaitAsync(cancellationToken);
         Process? process = null;
         var ownsProcess = false;
@@ -1080,12 +1087,26 @@ public class GameProcessManager(
         return archives;
     }
 
-    private void OnProcessExited(object? sender, EventArgs e)
+    internal void OnProcessExited(object? sender, EventArgs e)
     {
         if (sender is not Process process)
             return;
 
-        var processId = process.Id;
+        var processId = 0;
+        try
+        {
+            processId = process.Id;
+        }
+        catch (InvalidOperationException)
+        {
+            // A delayed callback can arrive after termination disposed the process.
+            processId = _managedProcesses.FirstOrDefault(entry => ReferenceEquals(entry.Value, process)).Key;
+            if (processId == 0)
+            {
+                return;
+            }
+        }
+
         int? exitCode = null;
         try
         {
