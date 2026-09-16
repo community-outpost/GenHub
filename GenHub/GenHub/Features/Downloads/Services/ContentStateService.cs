@@ -772,6 +772,34 @@ public sealed partial class ContentStateService(
         return null;
     }
 
+    /// <summary>
+    /// Strips a trailing recognized variant suffix (such as -720p, -1080p, -4k) from a content-name segment,
+    /// ensuring that hyphenated content names without recognized variant tokens (e.g. generals-gameplay vs generals-tools)
+    /// are not truncated and do not false-match.
+    /// </summary>
+    /// <param name="segment">The segment to strip the variant suffix from.</param>
+    /// <returns>The content-name segment without a recognized trailing variant suffix.</returns>
+    internal static string StripVariantSuffix(string segment)
+    {
+        var variantToken = ExtractVariantToken(segment);
+        if (string.IsNullOrEmpty(variantToken))
+        {
+            return segment;
+        }
+
+        var lastDash = segment.LastIndexOf('-');
+        if (lastDash > 0 && lastDash < segment.Length - 1)
+        {
+            var trailing = segment[(lastDash + 1)..];
+            if (string.Equals(ExtractVariantToken(trailing), variantToken, StringComparison.OrdinalIgnoreCase))
+            {
+                return segment[..lastDash];
+            }
+        }
+
+        return segment;
+    }
+
     private static bool CompareVersionStrings(
         string? prospectiveVersionStr,
         string? localVersionStr,
@@ -1324,32 +1352,6 @@ public sealed partial class ContentStateService(
         }
 
         return 0;
-    }
-
-    /// <summary>
-    /// Strips a trailing recognized variant suffix (such as -720p, -1080p, -4k) from a content-name segment,
-    /// ensuring that hyphenated content names without recognized variant tokens (e.g. generals-gameplay vs generals-tools)
-    /// are not truncated and do not false-match.
-    /// </summary>
-    internal static string StripVariantSuffix(string segment)
-    {
-        var variantToken = ExtractVariantToken(segment);
-        if (string.IsNullOrEmpty(variantToken))
-        {
-            return segment;
-        }
-
-        var lastDash = segment.LastIndexOf('-');
-        if (lastDash > 0 && lastDash < segment.Length - 1)
-        {
-            var trailing = segment[(lastDash + 1)..];
-            if (string.Equals(ExtractVariantToken(trailing), variantToken, StringComparison.OrdinalIgnoreCase))
-            {
-                return segment[..lastDash];
-            }
-        }
-
-        return segment;
     }
 
     /// <summary>

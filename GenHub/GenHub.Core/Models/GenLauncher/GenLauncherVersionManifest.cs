@@ -19,7 +19,7 @@ public class GenLauncherVersionManifest
 
     /// <summary>Gets or sets the raw modification type (Mod, Addon, Patch, etc.).</summary>
     [YamlMember(Alias = "ModificationType")]
-    public string ModificationType { get; set; } = "Mod";
+    public string? ModificationType { get; set; }
 
     /// <summary>Gets or sets direct download link (e.g. Dropbox, OneDrive, or HTTP mirror).</summary>
     [YamlMember(Alias = "SimpleDownloadLink")]

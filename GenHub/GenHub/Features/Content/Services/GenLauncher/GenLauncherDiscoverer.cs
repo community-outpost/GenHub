@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
@@ -17,6 +9,14 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.GenLauncher;
 
@@ -138,108 +138,9 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         return [GameType.ZeroHour, GameType.Generals];
     }
 
-    private static string? CleanImageUrl(string? rawUrl)
-    {
-        if (string.IsNullOrWhiteSpace(rawUrl))
-        {
-            return null;
-        }
+    private static string? CleanImageUrl(string? rawUrl) => ContentCardBadgeHelper.CleanImageUrl(rawUrl);
 
-        if (rawUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return rawUrl;
-    }
-
-    private static string? ResolveIconUrl(string? rawUrl, string? fallbackUrl)
-    {
-        var cleaned = CleanImageUrl(rawUrl);
-        return !string.IsNullOrWhiteSpace(cleaned) ? cleaned : CleanImageUrl(fallbackUrl);
-    }
-
-    private async Task<List<ContentSearchResult>> DiscoverGameCatalogAsync(
-        HttpClient client,
-        ProviderDefinition? provider,
-        GameType game,
-        SemaphoreSlim semaphore,
-        CancellationToken cancellationToken)
-    {
-        var items = new List<ContentSearchResult>();
-        var catalogUrl = game == GameType.Generals
-            ? provider?.Endpoints.GetEndpoint("generalsCatalogUrl") ?? GenLauncherConstants.GeneralsCatalogUrl
-            : provider?.Endpoints.GetEndpoint("zeroHourCatalogUrl") ?? GenLauncherConstants.ZeroHourCatalogUrl;
-
-        var rootYaml = await FetchStringWithCacheAsync(client, catalogUrl, cancellationToken);
-        if (string.IsNullOrWhiteSpace(rootYaml))
-        {
-            _logger.LogWarning("Could not fetch root catalog from {Url}", catalogUrl);
-            return items;
-        }
-
-        GenLauncherRootManifest rootManifest;
-        try
-        {
-            rootManifest = _catalogParser.ParseRootCatalog(rootYaml);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to parse root catalog YAML for {Game}", game);
-            return items;
-        }
-
-        var modTasks = rootManifest.ModDatas.Select(async modEntry =>
-        {
-            await semaphore.WaitAsync(cancellationToken);
-            try
-            {
-                return await ProcessModEntryAsync(client, modEntry, game, cancellationToken);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
-
-        var modResults = await Task.WhenAll(modTasks);
-        foreach (var modResultList in modResults)
-        {
-            items.AddRange(modResultList);
-        }
-
-        var originalPatches = await ProcessUrlListAsync(
-            client,
-            rootManifest.OriginalGamePatches,
-            game,
-            ContentType.Patch,
-            $"{game} Official Patches",
-            semaphore,
-            cancellationToken);
-        items.AddRange(originalPatches);
-
-        var originalAddons = await ProcessUrlListAsync(
-            client,
-            rootManifest.OriginalGameAddons,
-            game,
-            ContentType.Addon,
-            $"{game} Official Addons",
-            semaphore,
-            cancellationToken);
-        items.AddRange(originalAddons);
-
-        var globalAddons = await ProcessUrlListAsync(
-            client,
-            rootManifest.GlobalAddonsData,
-            game,
-            ContentType.Addon,
-            $"{game} Global Addons",
-            semaphore,
-            cancellationToken);
-        items.AddRange(globalAddons);
-
-        return items;
-    }
+    private static string? ResolveIconUrl(string? rawUrl, string? fallbackUrl) => ContentCardBadgeHelper.ResolveIconUrl(rawUrl, fallbackUrl);
 
     private static List<ContentSearchResult> FilterDiscoveredItems(
         IEnumerable<ContentSearchResult> allItems,
@@ -262,302 +163,6 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         }
 
         return filtered.ToList();
-    }
-
-    private async Task<List<ContentSearchResult>> ProcessModEntryAsync(
-        HttpClient client,
-        GenLauncherModDataEntry modEntry,
-        GameType game,
-        CancellationToken cancellationToken)
-    {
-        var results = new List<ContentSearchResult>();
-        if (string.IsNullOrWhiteSpace(modEntry.ModName))
-        {
-            return results;
-        }
-
-        if (!string.IsNullOrWhiteSpace(modEntry.ModLink) && !IsValidHttpUrl(modEntry.ModLink, out _))
-        {
-            _logger.LogWarning("Rejecting mod {ModName} with unsafe ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
-            return results;
-        }
-
-        var modSlug = GenLauncherCatalogParser.Slugify(modEntry.ModName);
-        var mainResult = new ContentSearchResult
-        {
-            Id = $"genlauncher-{game.ToString().ToLowerInvariant()}-{modSlug}",
-            Name = modEntry.ModName,
-            ContentType = ContentType.Mod,
-            TargetGame = game,
-            ProviderName = PublisherTypeConstants.GenLauncher,
-            ResolverId = GenLauncherConstants.PublisherId,
-            SourceUrl = modEntry.ModLink,
-            RequiresResolution = true,
-            VariantGroupId = modSlug,
-            VariantFamilyName = modEntry.ModName,
-        };
-
-        mainResult.Tags.Add("genlauncher");
-        mainResult.Tags.Add("mod");
-        mainResult.Tags.Add(game.ToString().ToLowerInvariant());
-
-        GenLauncherVersionManifest? mainManifest = null;
-        if (!string.IsNullOrWhiteSpace(modEntry.ModLink))
-        {
-            var manifestYaml = await FetchStringWithCacheAsync(client, modEntry.ModLink, cancellationToken);
-            if (!string.IsNullOrWhiteSpace(manifestYaml))
-            {
-                try
-                {
-                    mainManifest = _catalogParser.ParseVersionManifest(manifestYaml);
-                    EnrichSearchResult(mainResult, mainManifest, modEntry.ModLink);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to parse version manifest for mod {ModName}", modEntry.ModName);
-                }
-            }
-        }
-
-        var variants = new List<ContentVariantInfo>
-        {
-            new()
-            {
-                Id = "base",
-                Name = $"{modEntry.ModName} (Base)",
-                ManifestId = mainResult.Id,
-                IsDefault = true,
-            },
-        };
-
-        var filesSections = new List<ContentSection>();
-        if (mainManifest != null)
-        {
-            var mainSizeBytes = await TryCalculateDownloadSizeAsync(client, mainManifest, cancellationToken);
-            if (mainSizeBytes.HasValue && mainSizeBytes.Value > 0)
-            {
-                mainResult.DownloadSize = mainSizeBytes.Value;
-            }
-
-            filesSections.Add(new DownloadableFile(
-                Name: $"{modEntry.ModName} {mainManifest.Version}".Trim(),
-                Version: mainManifest.Version,
-                SizeBytes: mainSizeBytes,
-                DownloadUrl: mainManifest.SimpleDownloadLink,
-                FileSectionType: FileSectionType.Downloads,
-                Description: BuildDescription(mainManifest),
-                ThumbnailUrl: ResolveIconUrl(mainManifest.UIImageSourceLink, mainResult.IconUrl)));
-        }
-
-        var modContext = new ModProcessingContext(
-            client,
-            game,
-            modEntry.ModName,
-            modSlug,
-            mainResult.IconUrl,
-            results,
-            variants,
-            filesSections);
-
-        await ProcessModChildrenAsync(
-            modContext,
-            modEntry.ModPatches,
-            ContentType.Patch,
-            FileSectionType.Downloads,
-            cancellationToken);
-
-        await ProcessModChildrenAsync(
-            modContext,
-            modEntry.ModAddons,
-            ContentType.Addon,
-            FileSectionType.Addons,
-            cancellationToken);
-
-        mainResult.Variants = variants;
-        if (filesSections.Count > 0)
-        {
-            mainResult.ParsedPageData = new ParsedWebPage(
-                new Uri(string.IsNullOrWhiteSpace(modEntry.ModLink) ? GenLauncherConstants.WebsiteUrl : modEntry.ModLink),
-                new GlobalContext(modEntry.ModName, "GenLauncher Community", null, PublisherTypeConstants.GenLauncher),
-                filesSections,
-                PageType.Detail);
-        }
-
-        results.Insert(0, mainResult);
-        return results;
-    }
-
-    private async Task ProcessModChildrenAsync(
-        ModProcessingContext context,
-        IEnumerable<string>? urls,
-        ContentType contentType,
-        FileSectionType sectionType,
-        CancellationToken cancellationToken)
-    {
-        if (urls == null)
-        {
-            return;
-        }
-
-        foreach (var url in urls)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var item = await ProcessChildManifestAsync(
-                context.Client,
-                url,
-                context.Game,
-                contentType,
-                context.ModName,
-                context.ModSlug,
-                context.ParentIconUrl,
-                cancellationToken);
-            if (item == null)
-            {
-                continue;
-            }
-
-            long? sizeBytes = null;
-            if (item.Data is GenLauncherVersionManifest childManifest)
-            {
-                sizeBytes = await TryCalculateDownloadSizeAsync(context.Client, childManifest, cancellationToken);
-                if (sizeBytes.HasValue && sizeBytes.Value > 0)
-                {
-                    item.DownloadSize = sizeBytes.Value;
-                }
-            }
-
-            context.Results.Add(item);
-            var slug = GenLauncherCatalogParser.Slugify(item.Name);
-            context.Variants.Add(new ContentVariantInfo
-            {
-                Id = slug,
-                Name = item.Name,
-                ManifestId = item.Id,
-                IsDefault = false,
-            });
-
-            context.FilesSections.Add(new DownloadableFile(
-                Name: item.Name,
-                Version: item.Version,
-                SizeBytes: sizeBytes,
-                DownloadUrl: item.SourceUrl,
-                FileSectionType: sectionType,
-                Description: item.Description,
-                ThumbnailUrl: item.IconUrl ?? context.ParentIconUrl));
-        }
-    }
-
-    private sealed record ModProcessingContext(
-        HttpClient Client,
-        GameType Game,
-        string ModName,
-        string ModSlug,
-        string? ParentIconUrl,
-        List<ContentSearchResult> Results,
-        List<ContentVariantInfo> Variants,
-        List<ContentSection> FilesSections);
-
-    private async Task<ContentSearchResult?> ProcessChildManifestAsync(
-        HttpClient client,
-        string manifestUrl,
-        GameType game,
-        ContentType defaultType,
-        string parentModName,
-        string parentModSlug,
-        string? parentIconUrl,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(manifestUrl))
-        {
-            return null;
-        }
-
-        var yaml = await FetchStringWithCacheAsync(client, manifestUrl, cancellationToken);
-        if (string.IsNullOrWhiteSpace(yaml))
-        {
-            return null;
-        }
-
-        GenLauncherVersionManifest versionManifest;
-        try
-        {
-            versionManifest = _catalogParser.ParseVersionManifest(yaml);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to parse child version manifest from {Url}", manifestUrl);
-            return null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
-        {
-            _logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
-            return null;
-        }
-
-        var slug = GenLauncherCatalogParser.Slugify(versionManifest.Name);
-        var actualType = versionManifest.ModificationType != null
-            ? GenLauncherCatalogParser.MapContentType(versionManifest.GetParsedType())
-            : defaultType;
-
-        var result = new ContentSearchResult
-        {
-            Id = $"genlauncher-{game.ToString().ToLowerInvariant()}-{slug}",
-            Name = versionManifest.Name,
-            Version = versionManifest.Version,
-            ContentType = actualType,
-            TargetGame = game,
-            ProviderName = PublisherTypeConstants.GenLauncher,
-            ResolverId = GenLauncherConstants.PublisherId,
-            SourceUrl = versionManifest.SimpleDownloadLink ?? manifestUrl,
-            IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, parentIconUrl),
-            RequiresResolution = true,
-            VariantGroupId = parentModSlug,
-            VariantFamilyName = parentModName,
-        };
-
-        result.Tags.Add("genlauncher");
-        result.Tags.Add(actualType.ToString().ToLowerInvariant());
-        result.Tags.Add(game.ToString().ToLowerInvariant());
-
-        EnrichSearchResult(result, versionManifest, manifestUrl, parentIconUrl);
-        return result;
-    }
-
-    private async Task<List<ContentSearchResult>> ProcessUrlListAsync(
-        HttpClient client,
-        List<string> urls,
-        GameType game,
-        ContentType contentType,
-        string familyName,
-        SemaphoreSlim semaphore,
-        CancellationToken cancellationToken)
-    {
-        var results = new List<ContentSearchResult>();
-        if (urls == null || urls.Count == 0)
-        {
-            return results;
-        }
-
-        var familySlug = GenLauncherCatalogParser.Slugify(familyName);
-
-        var tasks = urls.Select(async url =>
-        {
-            await semaphore.WaitAsync(cancellationToken);
-            try
-            {
-                return await ProcessChildManifestAsync(client, url, game, contentType, familyName, familySlug, null, cancellationToken);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
-
-        var items = await Task.WhenAll(tasks);
-        results.AddRange(items.OfType<ContentSearchResult>());
-
-        return results;
     }
 
     private static void EnrichSearchResult(
@@ -735,6 +340,428 @@ public class GenLauncherDiscoverer : IContentDiscoverer
         return true;
     }
 
+    private async Task<List<ContentSearchResult>> DiscoverGameCatalogAsync(
+        HttpClient client,
+        ProviderDefinition? provider,
+        GameType game,
+        SemaphoreSlim semaphore,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<ContentSearchResult>();
+        var catalogUrl = game == GameType.Generals
+            ? provider?.Endpoints.GetEndpoint("generalsCatalogUrl") ?? GenLauncherConstants.GeneralsCatalogUrl
+            : provider?.Endpoints.GetEndpoint("zeroHourCatalogUrl") ?? GenLauncherConstants.ZeroHourCatalogUrl;
+
+        var rootYaml = await FetchStringWithCacheAsync(client, catalogUrl, cancellationToken);
+        if (string.IsNullOrWhiteSpace(rootYaml))
+        {
+            _logger.LogWarning("Could not fetch root catalog from {Url}", catalogUrl);
+            return items;
+        }
+
+        GenLauncherRootManifest rootManifest;
+        try
+        {
+            rootManifest = _catalogParser.ParseRootCatalog(rootYaml);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse root catalog YAML for {Game}", game);
+            return items;
+        }
+
+        var modTasks = rootManifest.ModDatas.Select(async modEntry =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                return await ProcessModEntryAsync(client, modEntry, game, cancellationToken);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        var modResults = await Task.WhenAll(modTasks);
+        foreach (var modResultList in modResults)
+        {
+            items.AddRange(modResultList);
+        }
+
+        var originalPatches = await ProcessUrlListAsync(
+            client,
+            rootManifest.OriginalGamePatches,
+            game,
+            ContentType.Patch,
+            $"{game} Official Patches",
+            semaphore,
+            cancellationToken);
+        items.AddRange(originalPatches);
+
+        var originalAddons = await ProcessUrlListAsync(
+            client,
+            rootManifest.OriginalGameAddons,
+            game,
+            ContentType.Addon,
+            $"{game} Official Addons",
+            semaphore,
+            cancellationToken);
+        items.AddRange(originalAddons);
+
+        var globalAddons = await ProcessUrlListAsync(
+            client,
+            rootManifest.GlobalAddonsData,
+            game,
+            ContentType.Addon,
+            $"{game} Global Addons",
+            semaphore,
+            cancellationToken);
+        items.AddRange(globalAddons);
+
+        return items;
+    }
+
+    private async Task<List<ContentSearchResult>> ProcessModEntryAsync(
+        HttpClient client,
+        GenLauncherModDataEntry modEntry,
+        GameType game,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<ContentSearchResult>();
+        if (string.IsNullOrWhiteSpace(modEntry.ModName))
+        {
+            return results;
+        }
+
+        if (!string.IsNullOrWhiteSpace(modEntry.ModLink) && !IsValidHttpUrl(modEntry.ModLink, out _))
+        {
+            _logger.LogWarning("Rejecting mod {ModName} with unsafe ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
+            return results;
+        }
+
+        var modSlug = GenLauncherCatalogParser.Slugify(modEntry.ModName);
+        var mainResult = new ContentSearchResult
+        {
+            Id = $"genlauncher-{game.ToString().ToLowerInvariant()}-{modSlug}",
+            Name = modEntry.ModName,
+            ContentType = ContentType.Mod,
+            TargetGame = game,
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ResolverId = GenLauncherConstants.PublisherId,
+            SourceUrl = modEntry.ModLink,
+            RequiresResolution = true,
+            VariantGroupId = modSlug,
+            VariantFamilyName = modEntry.ModName,
+        };
+
+        mainResult.Tags.Add("genlauncher");
+        mainResult.Tags.Add("mod");
+        mainResult.Tags.Add(game.ToString().ToLowerInvariant());
+
+        var mainManifest = await TryFetchAndEnrichManifestAsync(
+            client,
+            modEntry.ModLink,
+            modEntry.ModName,
+            mainResult,
+            cancellationToken);
+
+        var variants = new List<ContentVariantInfo>
+        {
+            new()
+            {
+                Id = "base",
+                Name = $"{modEntry.ModName} (Base)",
+                ManifestId = mainResult.Id,
+                IsDefault = true,
+            },
+        };
+
+        var filesSections = new List<ContentSection>();
+        if (mainManifest != null)
+        {
+            var mainSizeBytes = await TryCalculateDownloadSizeAsync(client, mainManifest, cancellationToken);
+            if (mainSizeBytes.HasValue && mainSizeBytes.Value > 0)
+            {
+                mainResult.DownloadSize = mainSizeBytes.Value;
+            }
+
+            filesSections.Add(new DownloadableFile(
+                Name: $"{modEntry.ModName} {mainManifest.Version}".Trim(),
+                Version: mainManifest.Version,
+                SizeBytes: mainSizeBytes,
+                DownloadUrl: mainManifest.SimpleDownloadLink,
+                FileSectionType: FileSectionType.Downloads,
+                Description: BuildDescription(mainManifest),
+                ThumbnailUrl: ResolveIconUrl(mainManifest.UIImageSourceLink, mainResult.IconUrl)));
+        }
+
+        var modContext = new ModProcessingContext(
+            client,
+            game,
+            modEntry.ModName,
+            modSlug,
+            mainResult.IconUrl,
+            results,
+            variants,
+            filesSections);
+
+        await ProcessModChildrenAsync(
+            modContext,
+            modEntry.ModPatches,
+            ContentType.Patch,
+            FileSectionType.Downloads,
+            cancellationToken);
+
+        await ProcessModChildrenAsync(
+            modContext,
+            modEntry.ModAddons,
+            ContentType.Addon,
+            FileSectionType.Addons,
+            cancellationToken);
+
+        mainResult.Variants = variants;
+        if (filesSections.Count > 0)
+        {
+            mainResult.ParsedPageData = new ParsedWebPage(
+                new Uri(string.IsNullOrWhiteSpace(modEntry.ModLink) ? GenLauncherConstants.WebsiteUrl : modEntry.ModLink),
+                new GlobalContext(modEntry.ModName, "GenLauncher Community", null, PublisherTypeConstants.GenLauncher),
+                filesSections,
+                PageType.Detail);
+        }
+
+        results.Insert(0, mainResult);
+        return results;
+    }
+
+    private async Task<GenLauncherVersionManifest?> TryFetchAndEnrichManifestAsync(
+        HttpClient client,
+        string? modLink,
+        string modName,
+        ContentSearchResult mainResult,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(modLink))
+        {
+            return null;
+        }
+
+        var manifestYaml = await FetchStringWithCacheAsync(client, modLink, cancellationToken);
+        if (string.IsNullOrWhiteSpace(manifestYaml))
+        {
+            return null;
+        }
+
+        try
+        {
+            var mainManifest = _catalogParser.ParseVersionManifest(manifestYaml);
+            EnrichSearchResult(mainResult, mainManifest, modLink);
+            return mainManifest;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse version manifest for mod {ModName}", modName);
+            return null;
+        }
+    }
+
+    private async Task ProcessModChildrenAsync(
+        ModProcessingContext context,
+        IEnumerable<string>? urls,
+        ContentType contentType,
+        FileSectionType sectionType,
+        CancellationToken cancellationToken)
+    {
+        if (urls == null)
+        {
+            return;
+        }
+
+        var urlList = urls.ToList();
+        if (urlList.Count == 0)
+        {
+            return;
+        }
+
+        var childContext = new ChildManifestContext(
+            context.Client,
+            context.Game,
+            context.ModName,
+            context.ModSlug,
+            context.ParentIconUrl);
+
+        var childTasks = urlList.Select(async url =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var item = await ProcessChildManifestAsync(
+                childContext,
+                url,
+                contentType,
+                cancellationToken);
+            if (item == null)
+            {
+                return ((ContentSearchResult?)null, (long?)null);
+            }
+
+            long? sizeBytes = null;
+            if (item.Data is GenLauncherVersionManifest childManifest)
+            {
+                sizeBytes = await TryCalculateDownloadSizeAsync(context.Client, childManifest, cancellationToken);
+                if (sizeBytes.HasValue && sizeBytes.Value > 0)
+                {
+                    item.DownloadSize = sizeBytes.Value;
+                }
+            }
+
+            return ((ContentSearchResult?)item, sizeBytes);
+        });
+
+        var childResults = await Task.WhenAll(childTasks);
+        foreach (var (item, sizeBytes) in childResults)
+        {
+            if (item == null)
+            {
+                continue;
+            }
+
+            context.Results.Add(item);
+            var slug = GenLauncherCatalogParser.Slugify(item.Name);
+            context.Variants.Add(new ContentVariantInfo
+            {
+                Id = slug,
+                Name = item.Name,
+                ManifestId = item.Id,
+                IsDefault = false,
+            });
+
+            context.FilesSections.Add(new DownloadableFile(
+                Name: item.Name,
+                Version: item.Version,
+                SizeBytes: sizeBytes,
+                DownloadUrl: item.SourceUrl,
+                FileSectionType: sectionType,
+                Description: item.Description,
+                ThumbnailUrl: item.IconUrl ?? context.ParentIconUrl));
+        }
+    }
+
+    private sealed record ModProcessingContext(
+        HttpClient Client,
+        GameType Game,
+        string ModName,
+        string ModSlug,
+        string? ParentIconUrl,
+        List<ContentSearchResult> Results,
+        List<ContentVariantInfo> Variants,
+        List<ContentSection> FilesSections);
+
+    private sealed record ChildManifestContext(
+        HttpClient Client,
+        GameType Game,
+        string ParentModName,
+        string ParentModSlug,
+        string? ParentIconUrl);
+
+    private async Task<ContentSearchResult?> ProcessChildManifestAsync(
+        ChildManifestContext context,
+        string manifestUrl,
+        ContentType defaultType,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(manifestUrl))
+        {
+            return null;
+        }
+
+        var yaml = await FetchStringWithCacheAsync(context.Client, manifestUrl, cancellationToken);
+        if (string.IsNullOrWhiteSpace(yaml))
+        {
+            return null;
+        }
+
+        GenLauncherVersionManifest versionManifest;
+        try
+        {
+            versionManifest = _catalogParser.ParseVersionManifest(yaml);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse child version manifest from {Url}", manifestUrl);
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
+        {
+            _logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
+            return null;
+        }
+
+        var slug = GenLauncherCatalogParser.Slugify(versionManifest.Name);
+        var actualType = versionManifest.ModificationType != null
+            ? GenLauncherCatalogParser.MapContentType(versionManifest.GetParsedType())
+            : defaultType;
+
+        var result = new ContentSearchResult
+        {
+            Id = $"genlauncher-{context.Game.ToString().ToLowerInvariant()}-{slug}",
+            Name = versionManifest.Name,
+            Version = versionManifest.Version,
+            ContentType = actualType,
+            TargetGame = context.Game,
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ResolverId = GenLauncherConstants.PublisherId,
+            SourceUrl = versionManifest.SimpleDownloadLink ?? manifestUrl,
+            IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, context.ParentIconUrl),
+            RequiresResolution = true,
+            VariantGroupId = context.ParentModSlug,
+            VariantFamilyName = context.ParentModName,
+        };
+
+        result.Tags.Add("genlauncher");
+        result.Tags.Add(actualType.ToString().ToLowerInvariant());
+        result.Tags.Add(context.Game.ToString().ToLowerInvariant());
+
+        EnrichSearchResult(result, versionManifest, manifestUrl, context.ParentIconUrl);
+        return result;
+    }
+
+    private async Task<List<ContentSearchResult>> ProcessUrlListAsync(
+        HttpClient client,
+        List<string> urls,
+        GameType game,
+        ContentType contentType,
+        string familyName,
+        SemaphoreSlim semaphore,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<ContentSearchResult>();
+        if (urls == null || urls.Count == 0)
+        {
+            return results;
+        }
+
+        var familySlug = GenLauncherCatalogParser.Slugify(familyName);
+        var childContext = new ChildManifestContext(client, game, familyName, familySlug, null);
+
+        var tasks = urls.Select(async url =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                return await ProcessChildManifestAsync(childContext, url, contentType, cancellationToken);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        var items = await Task.WhenAll(tasks);
+        results.AddRange(items.OfType<ContentSearchResult>());
+
+        return results;
+    }
+
     private async Task<long?> TryCalculateDownloadSizeAsync(
         HttpClient client,
         GenLauncherVersionManifest manifest,
@@ -742,54 +769,86 @@ public class GenLauncherDiscoverer : IContentDiscoverer
     {
         try
         {
-            if (!string.IsNullOrWhiteSpace(manifest.S3HostLink) && !string.IsNullOrWhiteSpace(manifest.S3BucketName))
+            var s3Size = await TryCalculateS3SizeAsync(client, manifest, cancellationToken);
+            if (s3Size.HasValue)
             {
-                var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-                    manifest.S3HostLink,
-                    manifest.S3BucketName,
-                    manifest.S3FolderName);
-
-                var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(xml))
-                {
-                    var entries = GenLauncherS3XmlParser.ParseListBucketResult(
-                        xml,
-                        manifest.S3FolderName ?? string.Empty,
-                        manifest.S3HostLink,
-                        manifest.S3BucketName);
-
-                    if (entries.Count > 0)
-                    {
-                        var totalSize = entries.Sum(e => e.Size);
-                        if (totalSize > 0)
-                        {
-                            return totalSize;
-                        }
-                    }
-                }
+                return s3Size.Value;
             }
 
-            if (!string.IsNullOrWhiteSpace(manifest.SimpleDownloadLink) &&
-                Uri.TryCreate(manifest.SimpleDownloadLink, UriKind.Absolute, out var uri) &&
-                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-            {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromSeconds(3));
-                using var req = new HttpRequestMessage(HttpMethod.Head, uri);
-                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
-                if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
-                {
-                    return resp.Content.Headers.ContentLength.Value;
-                }
-            }
+            return await TryCalculateHeadSizeAsync(client, manifest.SimpleDownloadLink, manifest.Name, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (OperationCanceledException)
         {
-            throw;
+            return null;
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to probe download size for {Name}", manifest.Name);
+            return null;
+        }
+    }
+
+    private async Task<long?> TryCalculateS3SizeAsync(
+        HttpClient client,
+        GenLauncherVersionManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(manifest.S3HostLink) || string.IsNullOrWhiteSpace(manifest.S3BucketName))
+        {
+            return null;
+        }
+
+        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+            manifest.S3HostLink,
+            manifest.S3BucketName,
+            manifest.S3FolderName);
+
+        var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return null;
+        }
+
+        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+            xml,
+            manifest.S3FolderName ?? string.Empty,
+            manifest.S3HostLink,
+            manifest.S3BucketName);
+
+        if (entries.Count > 0)
+        {
+            var totalSize = entries.Sum(e => e.Size);
+            if (totalSize > 0)
+            {
+                return totalSize;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<long?> TryCalculateHeadSizeAsync(
+        HttpClient client,
+        string? downloadUrl,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(downloadUrl) || !IsValidHttpUrl(downloadUrl, out var uri))
+        {
+            return null;
+        }
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(3));
+        using var req = new HttpRequestMessage(HttpMethod.Head, uri);
+        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+        if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
+        {
+            return resp.Content.Headers.ContentLength.Value;
         }
 
         return null;

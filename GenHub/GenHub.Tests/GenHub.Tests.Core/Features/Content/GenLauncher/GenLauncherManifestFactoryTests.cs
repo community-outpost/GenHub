@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -12,6 +6,12 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services.GenLauncher;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 

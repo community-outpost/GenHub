@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -1716,6 +1717,76 @@ public partial class ContentDetailViewModel(
         IEnumerable<InstallableVariant> variants,
         string? identifier) => VariantSwap.FindMatchingVariant(variants, identifier);
 
+    [GeneratedRegex(@"[\s\-_.]*v?\d+(?:\.\d+)*\s*$", RegexOptions.IgnoreCase)]
+    private static partial Regex VersionSuffixRegex();
+
+    [GeneratedRegex(@"(?:^|[\s\-_vV])(?<version>\d+(?:\.\d+)+)", RegexOptions.IgnoreCase)]
+    private static partial Regex VersionExtractionRegex();
+
+    private static string StripVersionSuffix(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        return VersionSuffixRegex().Replace(name, string.Empty);
+    }
+
+    private static string? GetEffectiveVersion(ReleaseItemViewModel rel)
+    {
+        if (!string.IsNullOrWhiteSpace(rel.Version))
+        {
+            return rel.Version;
+        }
+
+        if (string.IsNullOrWhiteSpace(rel.Name))
+        {
+            return null;
+        }
+
+        var match = VersionExtractionRegex().Match(rel.Name);
+        return match.Success ? match.Groups["version"].Value : null;
+    }
+
+    private static bool IsSameReleaseLineage(ReleaseItemViewModel rel1, ReleaseItemViewModel rel2)
+    {
+        if (ReferenceEquals(rel1, rel2))
+        {
+            return true;
+        }
+
+        var name1 = ContentStateService.NormalizeSegment(ContentStateService.StripVariantSuffix(StripVersionSuffix(rel1.Name)));
+        var name2 = ContentStateService.NormalizeSegment(ContentStateService.StripVariantSuffix(StripVersionSuffix(rel2.Name)));
+
+        if (string.Equals(name1, name2, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(name1) && !string.IsNullOrEmpty(name2))
+        {
+            if (name1.StartsWith(name2, StringComparison.OrdinalIgnoreCase) &&
+                (name1.Length == name2.Length || char.IsDigit(name1[name2.Length]) || (name1[name2.Length] == 'v' && name1.Length > name2.Length + 1 && char.IsDigit(name1[name2.Length + 1]))))
+            {
+                return true;
+            }
+
+            if (name2.StartsWith(name1, StringComparison.OrdinalIgnoreCase) &&
+                (name2.Length == name1.Length || char.IsDigit(name2[name1.Length]) || (name2[name1.Length] == 'v' && name2.Length > name1.Length + 1 && char.IsDigit(name2[name1.Length + 1]))))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? ResolveItemThumbnailUrl(string? rawUrl, string? parentFallbackUrl)
+    {
+        return ContentCardBadgeHelper.ResolveIconUrl(rawUrl, parentFallbackUrl);
+    }
+
     partial void OnIsDownloadingChanged(bool value)
     {
         RunOnUiThread(() =>
@@ -2024,13 +2095,11 @@ public partial class ContentDetailViewModel(
             return true;
         }
 
-        if (!string.IsNullOrEmpty(parentContentId))
+        if (!string.IsNullOrEmpty(parentContentId) &&
+            (string.Equals(parentContentId, searchResult.Id, StringComparison.OrdinalIgnoreCase) ||
+             (SelectedVariant != null && string.Equals(parentContentId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase))))
         {
-            if (string.Equals(parentContentId, searchResult.Id, StringComparison.OrdinalIgnoreCase) ||
-                (SelectedVariant != null && string.Equals(parentContentId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
+            return true;
         }
 
         if (SelectedVariant != null && !string.IsNullOrEmpty(SelectedVariant.ManifestId))
@@ -3393,39 +3462,6 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(ContentType));
     }
 
-    private static bool IsSameReleaseLineage(ReleaseItemViewModel rel1, ReleaseItemViewModel rel2)
-    {
-        if (ReferenceEquals(rel1, rel2))
-        {
-            return true;
-        }
-
-        var name1 = ContentStateService.NormalizeSegment(ContentStateService.StripVariantSuffix(rel1.Name));
-        var name2 = ContentStateService.NormalizeSegment(ContentStateService.StripVariantSuffix(rel2.Name));
-
-        if (string.Equals(name1, name2, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrEmpty(name1) && !string.IsNullOrEmpty(name2))
-        {
-            if (name1.StartsWith(name2, StringComparison.OrdinalIgnoreCase) &&
-                (name1.Length == name2.Length || char.IsDigit(name1[name2.Length]) || name1[name2.Length] == 'v'))
-            {
-                return true;
-            }
-
-            if (name2.StartsWith(name1, StringComparison.OrdinalIgnoreCase) &&
-                (name2.Length == name1.Length || char.IsDigit(name2[name1.Length]) || name2[name1.Length] == 'v'))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /// <summary>
     /// Reconciles release states so older downloaded releases show update available
     /// when a newer release of the same lineage is not downloaded.
@@ -3450,12 +3486,14 @@ public partial class ContentDetailViewModel(
                 continue;
             }
 
+            var relVersion = GetEffectiveVersion(rel);
+
             var candidateUpdate = Releases.FirstOrDefault(other =>
                 !other.IsDownloaded &&
                 !ReferenceEquals(other, rel) &&
                 IsSameReleaseLineage(rel, other) &&
-                (ContentStateService.IsNewerVersion(other.Version, rel.Version) ||
-                 (Releases.IndexOf(other) < Releases.IndexOf(rel) && !string.Equals(other.Version, rel.Version, StringComparison.OrdinalIgnoreCase))));
+                ((relVersion != null && GetEffectiveVersion(other) is { } otherVersion && ContentStateService.CompareVersions(otherVersion, relVersion) > 0) ||
+                 (Releases.IndexOf(other) < Releases.IndexOf(rel) && !(other.Version != null && string.Equals(other.Version, rel.Version, StringComparison.OrdinalIgnoreCase)))));
 
             rel.IsUpdateAvailable = candidateUpdate != null;
         }
@@ -3866,6 +3904,7 @@ public partial class ContentDetailViewModel(
                     }
 
                     ReconcileReleases();
+
                     // Note: searchResult ID update and state change notification are handled by the coordinator
                 }
 
@@ -4142,8 +4181,7 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        if (!ImageCacheService.IsSafeRemoteUrl(downloadUrl, out var uri))
         {
             return;
         }
@@ -4167,9 +4205,21 @@ public partial class ContentDetailViewModel(
                 });
             }
         }
-        catch
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // Best effort probing
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogDebug("Probe file size timed out for URL: {Url}", downloadUrl);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogDebug(ex, "Probe file size HTTP request failed for URL: {Url}", downloadUrl);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Probe file size failed for URL: {Url}", downloadUrl);
         }
     }
 
@@ -4694,23 +4744,6 @@ public partial class ContentDetailViewModel(
                 GetLocalizedString("Common.Status.Error", "Error"),
                 FormatLocalizedString("Downloads.ContentDetail.FailedToShowProfileSelectionDialogFormat", "Failed to show profile selection dialog: {0}", ex.Message));
         }
-    }
-
-    private static string? ResolveItemThumbnailUrl(string? rawUrl, string? parentFallbackUrl)
-    {
-        if (!string.IsNullOrWhiteSpace(rawUrl) &&
-            !rawUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
-        {
-            return rawUrl;
-        }
-
-        if (!string.IsNullOrWhiteSpace(parentFallbackUrl) &&
-            !parentFallbackUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
-        {
-            return parentFallbackUrl;
-        }
-
-        return null;
     }
 
     private ReleaseItemViewModel CreateReleaseItemViewModel(DownloadableFile file)

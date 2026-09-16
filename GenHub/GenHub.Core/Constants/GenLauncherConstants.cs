@@ -59,24 +59,6 @@ public static class GenLauncherConstants
     public const string GeneralsCatalogUrl = "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataGenerals3.yaml";
 
     /// <summary>
-    /// Engine extensions requiring MD5 checksum validation against S3 ETags.
-    /// </summary>
-    public static readonly string[] ChecksumExtensions =
-    [
-        ".w3d",
-        ".big",
-        ".gib",
-        ".bik",
-        ".dds",
-        ".tga",
-        ".ini",
-        ".scb",
-        ".wnd",
-        ".csf",
-        ".str",
-    ];
-
-    /// <summary>
     /// GenLauncher Replace suffix - appended to original game files when temporarily disabled.
     /// </summary>
     public const string ReplaceSuffix = ".GLR";
@@ -120,6 +102,24 @@ public static class GenLauncherConstants
     /// Session key for "do not ask again" preference for normalization dialog.
     /// </summary>
     public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
+
+    /// <summary>
+    /// Engine extensions requiring MD5 checksum validation against S3 ETags.
+    /// </summary>
+    public static readonly string[] ChecksumExtensions =
+    [
+        ".w3d",
+        ".big",
+        ".gib",
+        ".bik",
+        ".dds",
+        ".tga",
+        ".ini",
+        ".scb",
+        ".wnd",
+        ".csf",
+        ".str",
+    ];
 
     /// <summary>
     /// All GenLauncher suffixes that should be removed during normalization.

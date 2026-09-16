@@ -1,8 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -14,6 +9,11 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.GenLauncher;
 
@@ -30,6 +30,10 @@ public class GenLauncherDeliverer : IContentDeliverer
     /// <summary>
     /// Initializes a new instance of the <see cref="GenLauncherDeliverer"/> class.
     /// </summary>
+    /// <param name="downloadService">The download service.</param>
+    /// <param name="manifestPool">The content manifest pool.</param>
+    /// <param name="manifestFactory">The GenLauncher manifest factory.</param>
+    /// <param name="logger">The logger instance.</param>
     public GenLauncherDeliverer(
         IDownloadService downloadService,
         IContentManifestPool manifestPool,
@@ -168,7 +172,11 @@ public class GenLauncherDeliverer : IContentDeliverer
                 CurrentOperation = "Storing content manifest in storage pool",
             });
 
-            await _manifestPool.AddManifestAsync(finalManifest, targetDirectory, null, cancellationToken);
+            var addResult = await _manifestPool.AddManifestAsync(finalManifest, targetDirectory, null, cancellationToken);
+            if (!addResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(addResult.FirstError ?? "Failed to store content manifest in storage pool");
+            }
 
             progress?.Report(new ContentAcquisitionProgress
             {

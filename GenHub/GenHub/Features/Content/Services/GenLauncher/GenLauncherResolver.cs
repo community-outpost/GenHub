@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
@@ -15,6 +8,13 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Services.Dependencies;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.GenLauncher;
 
@@ -119,38 +119,6 @@ public class GenLauncherResolver : IContentResolver
         }
     }
 
-    private async Task<GenLauncherVersionManifest?> FetchVersionManifestIfNeededAsync(
-        HttpClient client,
-        ContentSearchResult discoveredItem,
-        CancellationToken cancellationToken)
-    {
-        if (discoveredItem.Data is GenLauncherVersionManifest manifest)
-        {
-            return manifest;
-        }
-
-        var yamlUrl = GetMetadata(discoveredItem.ResolverMetadata, "yamlUrl");
-        if (string.IsNullOrWhiteSpace(yamlUrl))
-        {
-            return null;
-        }
-
-        try
-        {
-            var yaml = await client.GetStringAsync(yamlUrl, cancellationToken);
-            return _catalogParser.ParseVersionManifest(yaml);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to fetch/parse version manifest from {Url}", yamlUrl);
-            return null;
-        }
-    }
-
     private static void PopulateMetadataAndDependencies(
         ContentManifest manifest,
         ContentSearchResult discoveredItem,
@@ -195,61 +163,6 @@ public class GenLauncherResolver : IContentResolver
                 CompatibleGameTypes = [discoveredItem.TargetGame],
                 InstallBehavior = DependencyInstallBehavior.RequireExisting,
             });
-        }
-    }
-
-    [SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "GenLauncher MinIO remotes operate over plain HTTP without TLS")]
-    private async Task<bool> TryResolveS3StoragePayloadAsync(
-        ContentManifest manifest,
-        HttpClient client,
-        GenLauncherVersionManifest? versionManifest,
-        ContentSearchResult discoveredItem,
-        CancellationToken cancellationToken)
-    {
-        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Host");
-        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Bucket");
-        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Folder");
-
-        if (string.IsNullOrWhiteSpace(s3Host) || string.IsNullOrWhiteSpace(s3Bucket) || string.IsNullOrWhiteSpace(s3Folder))
-        {
-            return false;
-        }
-
-        try
-        {
-            var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(s3Host, s3Bucket, s3Folder);
-            _logger.LogInformation("Querying GenLauncher S3 bucket at {Url}", queryUrl);
-
-            var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
-            var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(s3Xml, s3Folder, s3Host, s3Bucket);
-            if (fileEntries.Count == 0)
-            {
-                return false;
-            }
-
-            foreach (var entry in fileEntries)
-            {
-                manifest.Files.Add(new ManifestFile
-                {
-                    RelativePath = entry.RelativePath,
-                    DownloadUrl = entry.DownloadUrl,
-                    Size = entry.Size,
-                    Hash = entry.ETag,
-                    SourceType = ContentSourceType.RemoteDownload,
-                    IsRequired = true,
-                });
-            }
-
-            return true;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to resolve S3 files for {Name}, falling back to download link", discoveredItem.Name);
-            return false;
         }
     }
 
@@ -304,5 +217,110 @@ public class GenLauncherResolver : IContentResolver
         }
 
         return null;
+    }
+
+    private async Task<GenLauncherVersionManifest?> FetchVersionManifestIfNeededAsync(
+        HttpClient client,
+        ContentSearchResult discoveredItem,
+        CancellationToken cancellationToken)
+    {
+        if (discoveredItem.Data is GenLauncherVersionManifest manifest)
+        {
+            return manifest;
+        }
+
+        var yamlUrl = GetMetadata(discoveredItem.ResolverMetadata, "yamlUrl");
+        if (string.IsNullOrWhiteSpace(yamlUrl))
+        {
+            return null;
+        }
+
+        try
+        {
+            var yaml = await client.GetStringAsync(yamlUrl, cancellationToken);
+            return _catalogParser.ParseVersionManifest(yaml);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch/parse version manifest from {Url}", yamlUrl);
+            return null;
+        }
+    }
+
+    [SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "GenLauncher MinIO remotes operate over plain HTTP without TLS")]
+    private async Task<bool> TryResolveS3StoragePayloadAsync(
+        ContentManifest manifest,
+        HttpClient client,
+        GenLauncherVersionManifest? versionManifest,
+        ContentSearchResult discoveredItem,
+        CancellationToken cancellationToken)
+    {
+        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Host");
+        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Bucket");
+        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Folder");
+
+        if (string.IsNullOrWhiteSpace(s3Host) || string.IsNullOrWhiteSpace(s3Bucket) || string.IsNullOrWhiteSpace(s3Folder))
+        {
+            return false;
+        }
+
+        try
+        {
+            var hasMorePages = true;
+            string? nextMarker = null;
+            var anyFiles = false;
+
+            while (hasMorePages)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(s3Host, s3Bucket, s3Folder, nextMarker);
+                _logger.LogInformation("Querying GenLauncher S3 bucket at {Url}", queryUrl);
+
+                var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
+                var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
+                    s3Xml,
+                    s3Folder,
+                    s3Host,
+                    s3Bucket,
+                    out var isTruncated,
+                    out nextMarker);
+
+                if (fileEntries.Count == 0 && !anyFiles)
+                {
+                    return false;
+                }
+
+                foreach (var entry in fileEntries)
+                {
+                    manifest.Files.Add(new ManifestFile
+                    {
+                        RelativePath = entry.RelativePath,
+                        DownloadUrl = entry.DownloadUrl,
+                        Size = entry.Size,
+                        Hash = entry.ETag,
+                        SourceType = ContentSourceType.RemoteDownload,
+                        IsRequired = true,
+                    });
+                    anyFiles = true;
+                }
+
+                hasMorePages = isTruncated && !string.IsNullOrEmpty(nextMarker);
+            }
+
+            return anyFiles;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to resolve S3 files for {Name}, falling back to download link", discoveredItem.Name);
+            return false;
+        }
     }
 }

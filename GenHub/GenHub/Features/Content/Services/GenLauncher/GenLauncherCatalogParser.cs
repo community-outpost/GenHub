@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
@@ -12,6 +6,12 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -40,6 +40,39 @@ public partial class GenLauncherCatalogParser : ICatalogParser
 
     /// <inheritdoc/>
     public string CatalogFormat => GenLauncherConstants.CatalogFormat;
+
+    /// <summary>
+    /// Maps a GenLauncher modification type to GenHub ContentType.
+    /// </summary>
+    /// <param name="type">The GenLauncher modification type.</param>
+    /// <returns>The corresponding GenHub content type.</returns>
+    public static ContentType MapContentType(GenLauncherModificationType type)
+    {
+        return type switch
+        {
+            GenLauncherModificationType.Mod => ContentType.Mod,
+            GenLauncherModificationType.Addon => ContentType.Addon,
+            GenLauncherModificationType.Patch => ContentType.Patch,
+            GenLauncherModificationType.Executable => ContentType.GameClient,
+            _ => ContentType.Mod,
+        };
+    }
+
+    /// <summary>
+    /// Converts a display name into a URL-friendly slug.
+    /// </summary>
+    /// <param name="name">The display name to slugify.</param>
+    /// <returns>A URL-friendly slug representation.</returns>
+    public static string Slugify(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = CleanSlugRegex().Replace(name.Trim().ToLowerInvariant(), "-");
+        return CollapseDashesRegex().Replace(cleaned, "-").Trim('-');
+    }
 
     /// <inheritdoc/>
     public Task<OperationResult<IEnumerable<ContentSearchResult>>> ParseAsync(
@@ -124,6 +157,8 @@ public partial class GenLauncherCatalogParser : ICatalogParser
             singleResult.Tags.Add("genlauncher");
             singleResult.Tags.Add(contentType.ToString().ToLowerInvariant());
 
+            singleResult.SetData(versionManifest);
+
             results.Add(singleResult);
             return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results.AsEnumerable()));
         }
@@ -141,6 +176,8 @@ public partial class GenLauncherCatalogParser : ICatalogParser
     /// <summary>
     /// Parses a GenLauncher root catalog YAML string.
     /// </summary>
+    /// <param name="yamlContent">The raw YAML catalog content.</param>
+    /// <returns>The deserialized root manifest.</returns>
     public GenLauncherRootManifest ParseRootCatalog(string yamlContent)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(yamlContent);
@@ -150,39 +187,12 @@ public partial class GenLauncherCatalogParser : ICatalogParser
     /// <summary>
     /// Parses a GenLauncher version/mod manifest YAML string.
     /// </summary>
+    /// <param name="yamlContent">The raw YAML version manifest content.</param>
+    /// <returns>The deserialized version manifest.</returns>
     public GenLauncherVersionManifest ParseVersionManifest(string yamlContent)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(yamlContent);
         return _deserializer.Deserialize<GenLauncherVersionManifest>(yamlContent);
-    }
-
-    /// <summary>
-    /// Maps a GenLauncher modification type to GenHub ContentType.
-    /// </summary>
-    public static ContentType MapContentType(GenLauncherModificationType type)
-    {
-        return type switch
-        {
-            GenLauncherModificationType.Mod => ContentType.Mod,
-            GenLauncherModificationType.Addon => ContentType.Addon,
-            GenLauncherModificationType.Patch => ContentType.Patch,
-            GenLauncherModificationType.Executable => ContentType.GameClient,
-            _ => ContentType.Mod,
-        };
-    }
-
-    /// <summary>
-    /// Converts a display name into a URL-friendly slug.
-    /// </summary>
-    public static string Slugify(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return string.Empty;
-        }
-
-        var cleaned = CleanSlugRegex().Replace(name.Trim().ToLowerInvariant(), "-");
-        return CollapseDashesRegex().Replace(cleaned, "-").Trim('-');
     }
 
     [GeneratedRegex(@"[^a-z0-9\-_]", RegexOptions.None, matchTimeoutMilliseconds: 1000)]

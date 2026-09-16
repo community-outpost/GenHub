@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
@@ -14,6 +9,11 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.GenLauncher;
 
@@ -32,6 +32,14 @@ public class GenLauncherProvider : BaseContentProvider
     /// <summary>
     /// Initializes a new instance of the <see cref="GenLauncherProvider"/> class.
     /// </summary>
+    /// <param name="providerDefinitionLoader">The provider definition loader.</param>
+    /// <param name="discoverers">The collection of content discoverers.</param>
+    /// <param name="resolvers">The collection of content resolvers.</param>
+    /// <param name="deliverers">The collection of content deliverers.</param>
+    /// <param name="manifestFactory">The GenLauncher manifest factory.</param>
+    /// <param name="contentValidator">The content validator.</param>
+    /// <param name="installationInstructionsService">The installation instructions service.</param>
+    /// <param name="logger">The logger instance.</param>
     public GenLauncherProvider(
         IProviderDefinitionLoader providerDefinitionLoader,
         IEnumerable<IContentDiscoverer> discoverers,
@@ -89,7 +97,13 @@ public class GenLauncherProvider : BaseContentProvider
             new ContentSearchQuery { SearchTerm = contentId },
             cancellationToken).ConfigureAwait(false);
 
-        var item = discovery.Data?.Items.FirstOrDefault(x =>
+        if (!discovery.Success || discovery.Data == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                discovery.FirstError ?? $"GenLauncher content discovery failed for '{contentId}'");
+        }
+
+        var item = discovery.Data.Items.FirstOrDefault(x =>
             string.Equals(x.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(x.Name, contentId, StringComparison.OrdinalIgnoreCase));
 

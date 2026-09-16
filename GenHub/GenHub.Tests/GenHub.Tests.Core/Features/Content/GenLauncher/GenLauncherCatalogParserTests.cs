@@ -1,5 +1,3 @@
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GenLauncher;
@@ -7,6 +5,8 @@ using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.GenLauncher;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.GenLauncher;
