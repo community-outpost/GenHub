@@ -732,7 +732,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 return versionNumber.ToString("D6");
             }
 
-            if (versionNumber >= 19900000)
+            if (versionNumber >= ManifestConstants.DateBasedVersionThreshold)
             {
                 return versionNumber.ToString();
             }
@@ -906,42 +906,59 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ResolveFromInstallationManifest(gameProfile.EnabledContentIds);
         }
 
-        if (gameProfile.EnabledContentIds != null && gameProfile.EnabledContentIds.Count > 0)
+        if (gameProfile.EnabledContentIds is not { Count: > 0 } enabledIds)
         {
-            if (gameProfile.GameClient == null || !gameProfile.GameClient.IsPublisherClient)
-            {
-                var enabledClientManifestId = gameProfile.EnabledContentIds
-                    .FirstOrDefault(id => id.Contains(".gameclient.", StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrEmpty(enabledClientManifestId))
-                {
-                    ExtractManifestInfo(enabledClientManifestId);
-                }
-            }
+            return;
+        }
 
-            if (gameProfile.GameClient == null || !gameProfile.GameClient.IsPublisherClient || string.IsNullOrEmpty(GameVersion))
-            {
-                var patchManifestId = gameProfile.EnabledContentIds
-                    .FirstOrDefault(id => id.Contains(".patch.", StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrEmpty(patchManifestId))
-                {
-                    var patchSegments = patchManifestId.Split('.');
-                    if (patchSegments.Length >= 4)
-                    {
-                        var patchPub = patchSegments[2].ToLowerInvariant();
-                        var patchVer = ParseManifestVersion(patchPub, patchSegments[1]);
-                        if (!string.IsNullOrEmpty(patchVer))
-                        {
-                            GameVersion = patchVer;
-                        }
+        var isPublisherClient = gameProfile.GameClient?.IsPublisherClient == true;
+        if (!isPublisherClient)
+        {
+            TryResolveFromEnabledGameClient(enabledIds);
+        }
 
-                        if (string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            Publisher = ParsePublisherName(patchPub, patchSegments[2]);
-                            ApplyPublisherBranding(patchPub);
-                        }
-                    }
-                }
-            }
+        if (!isPublisherClient || string.IsNullOrEmpty(GameVersion))
+        {
+            TryResolveFromPatchManifest(enabledIds);
+        }
+    }
+
+    private void TryResolveFromEnabledGameClient(IReadOnlyList<string> enabledContentIds)
+    {
+        var enabledClientManifestId = enabledContentIds
+            .FirstOrDefault(id => id.Contains(ManifestConstants.GameClientManifestSegment, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(enabledClientManifestId))
+        {
+            ExtractManifestInfo(enabledClientManifestId);
+        }
+    }
+
+    private void TryResolveFromPatchManifest(IReadOnlyList<string> enabledContentIds)
+    {
+        var patchManifestId = enabledContentIds
+            .FirstOrDefault(id => id.Contains(ManifestConstants.PatchManifestSegment, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrEmpty(patchManifestId))
+        {
+            return;
+        }
+
+        var patchSegments = patchManifestId.Split(ManifestConstants.ManifestIdSegmentSeparator);
+        if (patchSegments.Length < 4)
+        {
+            return;
+        }
+
+        var patchPub = patchSegments[2].ToLowerInvariant();
+        var patchVer = ParseManifestVersion(patchPub, patchSegments[1]);
+        if (!string.IsNullOrEmpty(patchVer))
+        {
+            GameVersion = patchVer;
+        }
+
+        if (string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
+        {
+            Publisher = ParsePublisherName(patchPub, patchSegments[2]);
+            ApplyPublisherBranding(patchPub);
         }
     }
 

@@ -294,7 +294,7 @@ public class ProfileContentLoader(
                     ContentType = depManifest.ContentType,
                     GameType = depManifest.TargetGame,
                     Publisher = publisher,
-                    GameClient = CreateGameClientFromManifest(depManifest, null),
+                    GameClient = CreateGameClientFromManifest(depManifest),
                     IsEnabled = false, // Will be enabled by the caller
                 };
 
@@ -372,11 +372,44 @@ public class ProfileContentLoader(
             Publisher = displayFormatter.GetPublisherFromManifest(manifest),
             SourceId = sourceId ?? string.Empty,
             GameClientId = gameClientId ?? string.Empty,
-            GameClient = CreateGameClientFromManifest(manifest, null),
+            GameClient = CreateGameClientFromManifest(manifest),
             IsEnabled = isEnabled,
             IsEditable = isLocal,
             SourcePath = manifest.SourcePath,
             Manifest = manifest,
+        };
+    }
+
+    /// <summary>
+    /// Creates a <see cref="GameClient"/> model from a <see cref="ContentManifest"/>.
+    /// </summary>
+    /// <param name="manifest">The content manifest to convert.</param>
+    /// <param name="installationId">Optional installation identifier.</param>
+    /// <returns>The constructed game client, or null if manifest content type is not GameClient.</returns>
+    internal static GameClient? CreateGameClientFromManifest(ContentManifest manifest, string? installationId = null)
+    {
+        if (manifest.ContentType != ContentType.GameClient)
+        {
+            return null;
+        }
+
+        var clientName = !string.IsNullOrWhiteSpace(manifest.Name)
+            ? manifest.Name
+            : (manifest.Id.Value ?? string.Empty);
+
+        var clientVersion = !string.IsNullOrWhiteSpace(manifest.Version)
+            ? manifest.Version
+            : string.Empty;
+
+        return new GameClient
+        {
+            Id = manifest.Id.Value ?? string.Empty,
+            Name = clientName,
+            Version = clientVersion,
+            GameType = manifest.TargetGame,
+            SourceType = ContentType.GameClient,
+            PublisherType = manifest.Publisher?.PublisherType,
+            InstallationId = installationId ?? string.Empty,
         };
     }
 
@@ -419,6 +452,7 @@ public class ProfileContentLoader(
                 SourceId = item.SourceId,
                 GameClientId = item.GameClientId,
                 GameClient = item.GameClient,
+                Manifest = item.Manifest,
                 IsEnabled = enabledIds.Contains(item.ManifestId),
                 IsEditable = item.IsEditable,
             }));
@@ -743,32 +777,5 @@ public class ProfileContentLoader(
         }
 
         return CreateManifestDisplayItem(manifest, isEnabled: true);
-    }
-
-    private GameClient? CreateGameClientFromManifest(ContentManifest manifest, GameInstallation? installation)
-    {
-        if (manifest.ContentType != ContentType.GameClient)
-        {
-            return null;
-        }
-
-        var clientName = !string.IsNullOrWhiteSpace(manifest.Name)
-            ? manifest.Name
-            : (manifest.Id.Value ?? string.Empty);
-
-        var clientVersion = !string.IsNullOrWhiteSpace(manifest.Version)
-            ? manifest.Version
-            : string.Empty;
-
-        return new GameClient
-        {
-            Id = manifest.Id.Value ?? string.Empty,
-            Name = clientName,
-            Version = clientVersion,
-            GameType = manifest.TargetGame,
-            SourceType = ContentType.GameClient,
-            PublisherType = manifest.Publisher?.PublisherType,
-            InstallationId = installation?.Id ?? string.Empty,
-        };
     }
 }

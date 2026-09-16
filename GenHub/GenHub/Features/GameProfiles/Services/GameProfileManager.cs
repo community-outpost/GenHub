@@ -216,26 +216,7 @@ public class GameProfileManager(
                 }
             }
 
-            if (request.GameClient == null && request.EnabledContentIds != null && !string.IsNullOrEmpty(profile.GameInstallationId))
-            {
-                try
-                {
-                    var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-                    if (installationResult != null && installationResult.Success && installationResult.Data?.AvailableGameClients != null)
-                    {
-                        var matchedClient = installationResult.Data.AvailableGameClients
-                            .FirstOrDefault(c => request.EnabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
-                        if (matchedClient != null)
-                        {
-                            request.GameClient = matchedClient;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Could not resolve game client from installation {InstallationId} during profile update.", profile.GameInstallationId);
-                }
-            }
+            await ResolveFallbackGameClientAsync(profile, request, cancellationToken);
 
             CheckAndHandleContentChanges(profile, request, previousEnabledContentIds, previousGameClientId, isRunning);
             ApplyUpdateRequestToProfile(profile, request);
@@ -401,12 +382,7 @@ public class GameProfileManager(
         }
 
         if (profile.GameClient == null ||
-            !string.Equals(requestedClient.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.ExecutablePath, profile.GameClient.ExecutablePath, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.WorkingDirectory, profile.GameClient.WorkingDirectory, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.InstallationId, profile.GameClient.InstallationId, StringComparison.OrdinalIgnoreCase) ||
-            requestedClient.GameType != profile.GameClient.GameType)
+            !string.Equals(requestedClient.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase))
         {
             return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change game client while profile is running.");
         }
@@ -448,6 +424,42 @@ public class GameProfileManager(
 
         profile.Name = name;
         return null;
+    }
+
+    /// <summary>
+    /// Attempts to resolve a fallback game client from the profile installation when the request omits the game client.
+    /// </summary>
+    private async Task ResolveFallbackGameClientAsync(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.GameClient != null || request.EnabledContentIds == null || string.IsNullOrEmpty(profile.GameInstallationId))
+        {
+            return;
+        }
+
+        try
+        {
+            var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            if (installationResult is { Success: true, Data.AvailableGameClients: not null })
+            {
+                var matchedClient = installationResult.Data.AvailableGameClients
+                    .FirstOrDefault(c => request.EnabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+                if (matchedClient != null)
+                {
+                    request.GameClient = matchedClient;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not resolve game client from installation {InstallationId} during profile update.", profile.GameInstallationId);
+        }
     }
 
     /// <summary>

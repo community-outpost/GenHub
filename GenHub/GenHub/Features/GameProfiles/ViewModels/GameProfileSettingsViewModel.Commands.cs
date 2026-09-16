@@ -8,6 +8,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -801,33 +802,43 @@ public partial class GameProfileSettingsViewModel
 
         if (enabledClientItem?.Manifest != null)
         {
-            return new GameClient
-            {
-                Id = enabledClientItem.Manifest.Id.Value,
-                Name = enabledClientItem.Manifest.Name,
-                Version = enabledClientItem.Manifest.Version,
-                GameType = enabledClientItem.Manifest.TargetGame,
-                SourceType = ContentType.GameClient,
-                PublisherType = enabledClientItem.Manifest.Publisher?.PublisherType,
-                InstallationId = SelectedGameInstallation?.SourceId,
-            };
+            return ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, SelectedGameInstallation?.SourceId);
         }
 
         if (enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
         {
-            return new GameClient
-            {
-                Id = enabledClientItem.ManifestId,
-                Name = enabledClientItem.DisplayName,
-                Version = enabledClientItem.Version ?? string.Empty,
-                GameType = enabledClientItem.GameType,
-                SourceType = ContentType.GameClient,
-                PublisherType = enabledClientItem.Publisher,
-                InstallationId = SelectedGameInstallation?.SourceId,
-            };
+            return CreateGameClientFromDisplayItem(enabledClientItem, SelectedGameInstallation?.SourceId);
         }
 
         return SelectedGameInstallation?.GameClient;
+    }
+
+    private GameClient CreateGameClientFromDisplayItem(ContentDisplayItem item, string? installationId)
+    {
+        var publisherType = item.Publisher;
+        var version = item.Version ?? string.Empty;
+
+        var manifestIdValue = item.ManifestId.Value ?? string.Empty;
+        var segments = manifestIdValue.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
+        if (segments.Length >= 4)
+        {
+            publisherType = segments[2].ToLowerInvariant();
+            if (!string.IsNullOrEmpty(segments[1]))
+            {
+                version = segments[1];
+            }
+        }
+
+        return new GameClient
+        {
+            Id = manifestIdValue,
+            Name = !string.IsNullOrWhiteSpace(item.DisplayName) ? item.DisplayName : manifestIdValue,
+            Version = version,
+            GameType = item.GameType,
+            SourceType = ContentType.GameClient,
+            PublisherType = publisherType,
+            InstallationId = installationId,
+        };
     }
 
     private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)

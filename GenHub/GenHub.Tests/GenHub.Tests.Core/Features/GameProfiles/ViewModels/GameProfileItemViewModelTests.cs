@@ -264,4 +264,26 @@ public class GameProfileItemViewModelTests
         Assert.Equal("000104", vm.GameVersion);
         Assert.Contains("Generals Online", vm.Description);
     }
+
+    /// <summary>
+    /// Verifies that non-numeric version strings in manifest ID are preserved or formatted with v prefix.
+    /// </summary>
+    [Fact]
+    public void Construction_WithNonNumericVersion_SetsVersionBadge()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-nonnumeric",
+            Name = "Test Non-Numeric Profile",
+            EnabledContentIds = ["1.v104b.thesuperhackers.gameclient.zerohour"],
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-profile-nonnumeric", profile, null!, null!);
+
+        // Assert
+        Assert.Equal("The Super Hackers", vm.Publisher);
+        Assert.Equal("v104b", vm.GameVersion);
+    }
 }
