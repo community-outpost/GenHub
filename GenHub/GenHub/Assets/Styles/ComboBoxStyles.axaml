@@ -82,16 +82,17 @@
                         </PathIcon.Transitions>
                     </PathIcon>
 
+                    <!-- DropDown Popup -->
                     <Popup x:Name="PART_Popup"
-                           Grid.Column="0"
-                           WindowManagerAddShadowHint="True"
-                           Width="{Binding #Background.Bounds.Width}"
-                           MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                           IsLightDismissEnabled="True"
+                           WindowManagerAddShadowHint="False"
                            IsOpen="{TemplateBinding IsDropDownOpen, Mode=TwoWay}"
-                           PlacementTarget="{TemplateBinding}">
+                           MinWidth="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}"
+                           MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                           PlacementTarget="{TemplateBinding}"
+                           IsLightDismissEnabled="True"
+                           InheritsTransform="True">
                         <Border x:Name="PopupBorder"
-                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                Background="{DynamicResource CardBackground}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
@@ -111,23 +112,20 @@
         </Setter>
     </Style>
 
-    <!-- Hover State -->
+    <!-- PointerOver State -->
     <Style Selector="ComboBox:pointerover /template/ Border#Background">
-        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
     </Style>
 
     <Style Selector="ComboBox:pointerover /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
 
     <!-- Focus State -->
-    <Style Selector="ComboBox:focus /template/ Border#Background">
+    <Style Selector="ComboBox:focus-visible /template/ Border#Background">
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-    </Style>
-
-    <Style Selector="ComboBox:focus /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
     <!-- Open State -->
@@ -149,6 +147,8 @@
     <!-- ComboBoxItem Style -->
     <Style Selector="ComboBoxItem">
         <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="CornerRadius" Value="6" />
@@ -160,34 +160,88 @@
             <ControlTemplate>
                 <Border x:Name="ItemBorder"
                         Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}"
                         Margin="0,1">
                     <Border.Transitions>
                         <Transitions>
                             <BrushTransition Property="Background" Duration="0:0:0.1" />
+                            <BrushTransition Property="BorderBrush" Duration="0:0:0.1" />
                         </Transitions>
                     </Border.Transitions>
-                    <ContentPresenter Content="{TemplateBinding Content}"
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
                                       ContentTemplate="{TemplateBinding ContentTemplate}"
                                       HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      Background="Transparent"
+                                      BorderBrush="Transparent"
+                                      BorderThickness="0" />
                 </Border>
             </ControlTemplate>
         </Setter>
     </Style>
 
-    <!-- ComboBoxItem States -->
+    <!-- Prevent FluentTheme from applying unwanted background/border to inner ContentPresenter -->
+    <Style Selector="ComboBoxItem /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
+    <!-- ComboBoxItem States applied to ItemBorder -->
     <Style Selector="ComboBoxItem:pointerover /template/ Border#ItemBorder">
         <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
     <Style Selector="ComboBoxItem:selected /template/ Border#ItemBorder">
         <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
 
     <Style Selector="ComboBoxItem:selected:pointerover /template/ Border#ItemBorder">
         <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:pressed /template/ Border#ItemBorder">
+        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <!-- Foreground Contrast States -->
+    <Style Selector="ComboBoxItem:pointerover">
+        <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:selected:pointerover">
+        <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
 
     <!-- Clean / Compact Variant -->

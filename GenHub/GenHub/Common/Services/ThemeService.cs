@@ -129,8 +129,8 @@ public class ThemeService(
             resources[ThemeResourceKeys.SidebarItemSelectedBorder] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.SidebarGlassBorderBrush] = new SolidColorBrush(glassBorderColor);
             resources[ThemeResourceKeys.ComboBoxItemBackgroundSelected] = new SolidColorBrush(badgeBgColor);
-            resources[ThemeResourceKeys.ComboBoxItemBackgroundSelectedPointerOver] = new SolidColorBrush(primaryColor);
-            resources[ThemeResourceKeys.ComboBoxItemBackgroundPointerOver] = new SolidColorBrush(primaryColor);
+            resources[ThemeResourceKeys.ComboBoxItemBackgroundSelectedPointerOver] = new SolidColorBrush(tintBgColor);
+            resources[ThemeResourceKeys.ComboBoxItemBackgroundPointerOver] = new SolidColorBrush(tintBgColor);
             resources[ThemeResourceKeys.ComboBoxItemForegroundPointerOver] = new SolidColorBrush(Colors.White);
             resources[ThemeResourceKeys.ExpanderHeaderBackgroundPointerOver] = new SolidColorBrush(tintBgColor);
             resources[ThemeResourceKeys.ExpanderHeaderBackgroundPressed] = new SolidColorBrush(badgeBgColor);
