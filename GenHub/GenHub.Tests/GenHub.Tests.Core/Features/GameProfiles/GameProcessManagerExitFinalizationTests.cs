@@ -11,6 +11,24 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// <summary>Verifies cleanup using inert Process objects; never starts or signals a process.</summary>
 public class GameProcessManagerExitFinalizationTests
 {
+    /// <summary>A missing positive PID is a successful stop, using a lookup that cannot reach the OS.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task TerminateProcessAsync_MissingPositivePid_SucceedsWithoutProcessAccessAsync()
+    {
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>());
+        var lookedUp = false;
+        manager.TerminationProcessLookup = pid =>
+        {
+            Assert.Equal(12345, pid);
+            lookedUp = true;
+            throw new ArgumentException("Mock missing process");
+        };
+        var result = await manager.TerminateProcessAsync(12345);
+        Assert.True(lookedUp);
+        Assert.True(result.Success);
+    }
+
     /// <summary>A timeout fallback clears state and a delayed duplicate cannot affect a reused PID.</summary>
     [Fact]
     public void FinalizeProcessExit_DuplicateAfterPidReuse_PreservesNewProcess()
@@ -49,6 +67,8 @@ public class GameProcessManagerExitFinalizationTests
 
         manager.FinalizeProcessExit(newProcess, reusedPid);
         Assert.Equal(2, notifications.Count);
+        Assert.NotEqual(Guid.Empty, notifications[0].ProcessInstanceId);
+        Assert.NotEqual(notifications[0].ProcessInstanceId, notifications[1].ProcessInstanceId);
         Assert.True(notifications[1].TerminationRequested);
         Assert.Empty(managed);
         Assert.Empty(requested);

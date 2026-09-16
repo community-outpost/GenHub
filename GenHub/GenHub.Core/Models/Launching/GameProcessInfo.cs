@@ -6,6 +6,9 @@ public class GameProcessInfo
     /// <summary>Gets or sets the process ID.</summary>
     public int ProcessId { get; set; }
 
+    /// <summary>Gets or sets the manager-assigned identity, which remains distinct when a PID is reused.</summary>
+    public Guid ProcessInstanceId { get; set; }
+
     /// <summary>Gets or sets the executable path.</summary>
     public string ExecutablePath { get; set; } = string.Empty;
 

@@ -12,6 +12,9 @@ public class GameProcessExitedEventArgs : EventArgs
     /// </summary>
     public int ProcessId { get; init; }
 
+    /// <summary>Gets the manager-assigned identity of the exited process, independent of its reusable PID.</summary>
+    public Guid ProcessInstanceId { get; init; }
+
     /// <summary>
     /// Gets the exit code of the process.
     /// </summary>

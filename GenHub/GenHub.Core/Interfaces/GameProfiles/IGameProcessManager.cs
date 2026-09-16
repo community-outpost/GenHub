@@ -13,6 +13,7 @@ public interface IGameProcessManager
     /// <summary>
     /// Occurs when a managed game process exits.
     /// </summary>
+    /// <remarks>Handlers must return promptly and must not synchronously wait for termination; schedule follow-up work asynchronously.</remarks>
     event EventHandler<GameProcessExitedEventArgs>? ProcessExited;
 
     /// <summary>
