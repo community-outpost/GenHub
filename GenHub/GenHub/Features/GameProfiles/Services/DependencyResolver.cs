@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
@@ -279,7 +280,7 @@ public class DependencyResolver(
             return AreGameVariantsCompatible(declaredName, acquiredName);
         }
 
-        if (acquiredName.StartsWith(declaredName + ManifestConstants.VariantSeparator, StringComparison.OrdinalIgnoreCase))
+        if (CatalogManifestIdentity.IsContentNameOrVariantMatch(acquiredName, declaredName))
         {
             return true;
         }

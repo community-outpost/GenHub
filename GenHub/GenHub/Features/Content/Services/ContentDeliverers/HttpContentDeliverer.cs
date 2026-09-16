@@ -40,8 +40,22 @@ public class HttpContentDeliverer(
     /// <inheritdoc />
     public bool CanDeliver(ContentManifest manifest)
     {
+        if (manifest == null)
+        {
+            return false;
+        }
+
+        var files = manifest.Files;
+
+        // Dependency-only packages (bundles or meta-packages) have no remote files to fetch,
+        // but must declare dependencies to be deliverable.
+        if ((files?.Count ?? 0) == 0)
+        {
+            return manifest.Dependencies is { Count: > 0 };
+        }
+
         // Can deliver if files have HTTP download URLs
-        return manifest.Files.Any(f =>
+        return files!.Any(f =>
             !string.IsNullOrEmpty(f.DownloadUrl) &&
             Uri.TryCreate(f.DownloadUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == "http" || uri.Scheme == "https"));
@@ -56,9 +70,17 @@ public class HttpContentDeliverer(
     {
         try
         {
-            var filesToDownload = packageManifest.Files.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList();
+            var filesToDownload = packageManifest.Files?.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList() ?? [];
             var totalFiles = filesToDownload.Count;
             var processedFiles = 0;
+
+            if (totalFiles == 0)
+            {
+                logger.LogInformation(
+                    "Manifest {ManifestId} has no remote files to download (dependency-only bundle); delivery succeeded",
+                    packageManifest.Id);
+                return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
+            }
 
             // Download and add files
             foreach (var file in filesToDownload)

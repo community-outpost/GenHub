@@ -40,7 +40,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -97,6 +99,12 @@ public static class ContentPipelineModule
         {
             httpClient.Timeout = TimeSpan.FromSeconds(30);
         });
+
+        // Register named HTTP client for publisher catalog downloads with SSRF protection and manual redirect validation
+        services.AddHttpClient(CatalogConstants.CatalogHttpClientName, static httpClient =>
+        {
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+        }).ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
 
         // Register core storage and manifest services
         services.AddSingleton<IContentStorageService>(sp =>

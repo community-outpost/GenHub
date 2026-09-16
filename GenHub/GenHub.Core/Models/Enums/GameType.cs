@@ -1,8 +1,11 @@
 namespace GenHub.Core.Models.Enums;
 
+using System.Text.Json.Serialization;
+
 /// <summary>
 /// Represents the type of Command and Conquer game.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum GameType
 {
     /// <summary>

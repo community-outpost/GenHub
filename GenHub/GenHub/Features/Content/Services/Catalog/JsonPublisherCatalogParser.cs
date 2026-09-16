@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,6 +25,12 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// </remarks>
 public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logger) : IPublisherCatalogParser
 {
+    private static readonly JsonSerializerOptions CatalogSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     /// <inheritdoc />
     public async Task<OperationResult<PublisherCatalog>> ParseCatalogAsync(
         string catalogJson,
@@ -37,7 +44,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             }
 
             var catalog = await Task.Run(
-                () => JsonSerializer.Deserialize<PublisherCatalog>(catalogJson),
+                () => JsonSerializer.Deserialize<PublisherCatalog>(catalogJson, CatalogSerializerOptions),
                 cancellationToken);
 
             if (catalog == null)
@@ -114,15 +121,13 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     /// <inheritdoc />
     public bool VerifySignature(string catalogJson, PublisherCatalog catalog)
     {
-        if (string.IsNullOrWhiteSpace(catalog.Signature))
+        if (!string.IsNullOrWhiteSpace(catalog.Signature))
         {
-            logger.LogDebug("No signature present in catalog");
-            return true;
+            logger.LogWarning(
+                "Signature present in catalog for publisher '{PublisherId}', but cryptographic verification is not configured; ignoring signature",
+                catalog.Publisher?.Id);
         }
 
-        logger.LogWarning(
-            "Signature present in catalog for publisher '{PublisherId}', but signature verification is unconfigured; accepting catalog without validation",
-            catalog.Publisher?.Id);
         return true;
     }
 
@@ -240,7 +245,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 continue;
             }
 
-            content.Tags ??= [];
+            content.Description ??= string.Empty;
+            content.Tags = content.Tags != null
+                ? content.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
+                : [];
             if (content.Metadata != null)
             {
                 content.Metadata.ScreenshotUrls ??= [];
@@ -348,7 +356,6 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         if (string.IsNullOrWhiteSpace(release.Version))
         {
             errors.Add($"Content '{content.Id}' has release with missing version");
-            return;
         }
 
         var hasArtifacts = release.Artifacts is { Count: > 0 };
@@ -359,7 +366,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             ValidateDependencies(content, release, itemsById, hostPublisherId, errors);
         }
 
-        var isDynamicRelease = release.Version.Equals("latest", StringComparison.OrdinalIgnoreCase) ||
+        var isDynamicRelease = release.Version?.Equals(CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase) == true ||
             content.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true;
 
         if (!hasArtifacts && !hasDependencies && !isDynamicRelease)
@@ -395,9 +402,9 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 errors.Add($"Artifact in '{content.Id}' v{release.Version} missing download URL");
             }
             else if (!Uri.TryCreate(artifact.DownloadUrl, UriKind.Absolute, out var artifactUri) ||
-                     (artifactUri.Scheme != Uri.UriSchemeHttp && artifactUri.Scheme != Uri.UriSchemeHttps))
+                     artifactUri.Scheme != Uri.UriSchemeHttps)
             {
-                errors.Add($"Artifact in '{content.Id}' v{release.Version} has invalid download URL '{artifact.DownloadUrl}'. Remote artifacts must use HTTP(S).");
+                errors.Add($"Artifact in '{content.Id}' v{release.Version} has invalid download URL '{artifact.DownloadUrl}'. Remote artifacts must use HTTPS.");
             }
 
             if (string.IsNullOrWhiteSpace(artifact.Sha256))
