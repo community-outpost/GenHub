@@ -25,12 +25,6 @@
         <conv:StringToImageConverter x:Key="StringToImageConverter" />
         <conv:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
         <conv:FileSizeConverter x:Key="FileSizeConverter" />
-        <SolidColorBrush x:Key="SuccessGreenFill" Color="#2510B981" />
-        <SolidColorBrush x:Key="SuccessGreenFillSoft" Color="#2010B981" />
-        <SolidColorBrush x:Key="InfoBlueFillSoft" Color="#2000B0FF" />
-        <SolidColorBrush x:Key="DangerRedFill" Color="#25EF4444" />
-        <SolidColorBrush x:Key="WarningAmberFillSoft" Color="#20FFA500" />
-        <SolidColorBrush x:Key="PurpleFillMedium" Color="#305E35B1" />
         <Color x:Key="OverlayWhite50Color">#80FFFFFF</Color>
         <Color x:Key="OverlayWhite12Color">#20FFFFFF</Color>
         <Color x:Key="OverlayWhite02Color">#05FFFFFF</Color>
@@ -44,9 +38,6 @@
         <SolidColorBrush x:Key="BorderWhite25" Color="#40FFFFFF" />
         <SolidColorBrush x:Key="ShadowBlack12" Color="#20000000" />
         <SolidColorBrush x:Key="ScrimBlack86" Color="#DD000000" />
-        <SolidColorBrush x:Key="PurpleDeep" Color="#5E35B1" />
-        <SolidColorBrush x:Key="PurpleTextLight" Color="#D1C4E9" />
-        <Color x:Key="DialogSurfaceColor">#08080C</Color>
     </Window.Resources>
 
     <Grid Margin="16">
@@ -70,7 +61,7 @@
                     <ExperimentalAcrylicBorder.Material>
                         <ExperimentalAcrylicMaterial
                             BackgroundSource="Digger"
-                            TintColor="{StaticResource DialogSurfaceColor}"
+                            TintColor="{DynamicResource SurfaceBackgroundDark}"
                             TintOpacity="0.96"
                             MaterialOpacity="0.88" />
                     </ExperimentalAcrylicBorder.Material>
@@ -126,7 +117,7 @@
 
                     <!-- Persistent Error Alert (Row 1) -->
                     <Border Grid.Row="1"
-                            Background="{StaticResource DangerRedFill}"
+                            Background="{DynamicResource ErrorFillBrush}"
                             BorderBrush="{DynamicResource ErrorBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
@@ -203,7 +194,7 @@
                                             <Border Background="{StaticResource FillWhite14}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
                                                 <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
                                             </Border>
-                                            <Border Background="{StaticResource SuccessGreenFill}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" IsVisible="{Binding HasNameConflict}">
+                                            <Border Background="{DynamicResource SuccessFillBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" IsVisible="{Binding HasNameConflict}">
                                                 <TextBlock Text="Name Auto-Renamed" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
                                             </Border>
                                         </WrapPanel>
@@ -212,7 +203,7 @@
                             </Border>
 
                             <!-- Security Warnings Card -->
-                            <Border Background="{StaticResource WarningAmberFillSoft}"
+                            <Border Background="{DynamicResource WarningFillBrush}"
                                     BorderBrush="{DynamicResource WarningBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
@@ -273,8 +264,8 @@
                                                         <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
                                                             <!-- Content Type Badge -->
                                                             <Border Grid.Column="0"
-                                                                    Background="{StaticResource PurpleFillMedium}"
-                                                                    BorderBrush="{StaticResource PurpleDeep}"
+                                                                    Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                    BorderBrush="{DynamicResource AccentBrush}"
                                                                     BorderThickness="1"
                                                                     CornerRadius="4"
                                                                     Padding="6,2"
@@ -283,7 +274,7 @@
                                                                 <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
                                                                            FontSize="10"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="{StaticResource PurpleTextLight}" />
+                                                                           Foreground="{DynamicResource AccentLightBrush}" />
                                                             </Border>
 
                                                             <!-- Name and Provenance -->
@@ -299,7 +290,7 @@
 
                                                             <!-- Security Badge -->
                                                             <Panel Grid.Column="2" VerticalAlignment="Center" Margin="8,0">
-                                                                <Border Background="{StaticResource SuccessGreenFillSoft}"
+                                                                <Border Background="{DynamicResource SuccessFillBrush}"
                                                                         BorderBrush="{DynamicResource SuccessBrush}"
                                                                         BorderThickness="1"
                                                                         CornerRadius="6"
@@ -316,7 +307,7 @@
                                                                                    Foreground="{DynamicResource SuccessBrush}" />
                                                                     </StackPanel>
                                                                 </Border>
-                                                                <Border Background="{StaticResource WarningAmberFillSoft}"
+                                                                <Border Background="{DynamicResource WarningFillBrush}"
                                                                         BorderBrush="{DynamicResource WarningBrush}"
                                                                         BorderThickness="1"
                                                                         CornerRadius="6"
@@ -345,7 +336,7 @@
 
                                                             <!-- Status Badge -->
                                                             <Panel Grid.Column="4" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                                <Border Background="{StaticResource SuccessGreenFillSoft}"
+                                                                <Border Background="{DynamicResource SuccessFillBrush}"
                                                                         BorderBrush="{DynamicResource SuccessBrush}"
                                                                         BorderThickness="1"
                                                                         CornerRadius="6"
@@ -364,7 +355,7 @@
                                                                                    HorizontalAlignment="Center" />
                                                                     </StackPanel>
                                                                 </Border>
-                                                                <Border Background="{StaticResource InfoBlueFillSoft}"
+                                                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                                                         BorderBrush="{DynamicResource AccentLightBrush}"
                                                                         BorderThickness="1"
                                                                         CornerRadius="6"
@@ -504,7 +495,7 @@
 
                                                                                             <!-- Executable Badge -->
                                                                                             <Border Grid.Column="2"
-                                                                                                    Background="{StaticResource DangerRedFill}"
+                                                                                                    Background="{DynamicResource ErrorFillBrush}"
                                                                                                     BorderBrush="{DynamicResource ErrorBrush}"
                                                                                                     BorderThickness="1"
                                                                                                     CornerRadius="4"

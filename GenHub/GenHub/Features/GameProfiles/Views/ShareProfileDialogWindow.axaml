@@ -30,8 +30,7 @@
         <SolidColorBrush x:Key="FillWhite14" Color="#25FFFFFF" />
         <SolidColorBrush x:Key="BorderWhite19" Color="#30FFFFFF" />
         <SolidColorBrush x:Key="BorderWhite31" Color="#50FFFFFF" />
-        <Color x:Key="DialogSurfaceColor">#08080C</Color>
-    </Window.Resources>
+            </Window.Resources>
 
     <!-- Root Container with Margin for Window Shadow -->
     <Grid Margin="16">
@@ -55,7 +54,7 @@
                     <ExperimentalAcrylicBorder.Material>
                         <ExperimentalAcrylicMaterial
                             BackgroundSource="Digger"
-                            TintColor="{StaticResource DialogSurfaceColor}"
+                            TintColor="{DynamicResource SurfaceBackgroundDark}"
                             TintOpacity="0.96"
                             MaterialOpacity="0.88" />
                     </ExperimentalAcrylicBorder.Material>
@@ -151,34 +150,6 @@
                                            Foreground="{DynamicResource TextSecondary}"
                                            Margin="0,2,0,0" />
                             </Grid>
-                        </Border>
-
-                        <!-- Status Alert (if visible) -->
-                        <Border BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="12,8"
-                                Classes.error="{Binding IsStatusError}"
-                                Classes.success="{Binding !IsStatusError}"
-                                IsVisible="{Binding IsStatusMessageVisible}">
-                            <Border.Styles>
-                                <Style Selector="Border.error">
-                                    <Setter Property="Background" Value="{DynamicResource ErrorFillBrush}" />
-                                    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-                                </Style>
-                                <Style Selector="Border.success">
-                                    <Setter Property="Background" Value="{DynamicResource SuccessFillBrush}" />
-                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
-                                </Style>
-                                <Style Selector="Border.error TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource ErrorTextBrush}" />
-                                </Style>
-                                <Style Selector="Border.success TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                </Style>
-                            </Border.Styles>
-                            <TextBlock Text="{Binding StatusMessage}"
-                                       FontSize="12"
-                                       FontWeight="SemiBold" />
                         </Border>
 
                         <!-- Cloud Storage Notice Card -->

@@ -162,25 +162,31 @@ public class Program
 
     private static void ForwardCommandLineCommands(string[] args, ILogger bootstrapLogger)
     {
-        var profileId = CommandLineParser.ExtractProfileId(args);
-        if (!string.IsNullOrEmpty(profileId))
-        {
-            bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
-        }
-
-        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
-        if (!string.IsNullOrEmpty(subscriptionUrl))
-        {
-            bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
-            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
-        }
-
         var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
         if (!string.IsNullOrEmpty(profileShareUri))
         {
             bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");
             SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
+            return;
         }
+
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+        {
+            bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance");
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
+            return;
+        }
+
+        var profileId = CommandLineParser.ExtractProfileId(args);
+        if (!string.IsNullOrEmpty(profileId))
+        {
+            bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+            return;
+        }
+
+        bootstrapLogger.LogInformation("Forwarding activate command to primary instance");
+        SingleInstanceManager.SendCommandToPrimaryInstance(IpcCommands.ActivateCommand);
     }
 }

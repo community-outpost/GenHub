@@ -92,6 +92,38 @@ public static class PublisherTypeConstants
     /// <summary>
     /// Set of publisher identifiers trusted to execute installation steps (e.g. installers).
     /// </summary>
+    /// <summary>
+    /// Set of known curated or platform publisher identifiers that must not be registered via untrusted direct package imports.
+    /// </summary>
+    public static readonly IReadOnlySet<string> CuratedPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        GeneralsOnline,
+        CommunityOutpost,
+        TheSuperHackers,
+        LegacySuperHackers,
+        GitHub,
+        ModDB,
+        CncLabs,
+        AODMaps,
+        SteamWorkshop,
+        Ea,
+        Steam,
+        Retail,
+        GenHubLocal,
+        GenHubInternal,
+    };
+
+    /// <summary>
+    /// Determines whether the specified publisher is a known curated or platform publisher.
+    /// </summary>
+    /// <param name="publisher">The publisher identifier to check.</param>
+    /// <returns><c>true</c> if the publisher is a curated or platform publisher; otherwise, <c>false</c>.</returns>
+    public static bool IsCuratedPublisher(string? publisher) =>
+        !string.IsNullOrWhiteSpace(publisher) && CuratedPublishers.Contains(publisher);
+
+    /// <summary>
+    /// Set of publisher identifiers trusted to execute installation steps (e.g. installers).
+    /// </summary>
     public static readonly IReadOnlySet<string> TrustedExecutablePublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         GeneralsOnline,

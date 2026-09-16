@@ -101,7 +101,9 @@ public sealed partial class ImportProfileInspectionViewModel(
     private ObservableCollection<string> _securityWarnings = inspectionResult != null ? BuildSecurityWarnings(inspectionResult, CalculateTotalExecutables(inspectionResult)) : [];
 
     [ObservableProperty]
-    private bool _hasSecurityWarnings = (inspectionResult?.SecurityWarnings.Count > 0) || (inspectionResult != null && CalculateTotalExecutables(inspectionResult) > 0);
+    private bool _hasSecurityWarnings = (inspectionResult?.SecurityWarnings.Count > 0) ||
+                                        (inspectionResult != null && CalculateTotalExecutables(inspectionResult) > 0) ||
+                                        ((inspectionResult?.MissingManifestCount ?? 0) > 0 && (inspectionResult?.TotalDownloadBytesRequired ?? 0) == 0);
 
     [ObservableProperty]
     private long _totalDownloadBytesRequired = inspectionResult?.TotalDownloadBytesRequired ?? 0;
@@ -119,7 +121,9 @@ public sealed partial class ImportProfileInspectionViewModel(
     [ObservableProperty]
     private string _actionButtonText = (inspectionResult?.TotalDownloadBytesRequired ?? 0) > 0
         ? $"Import & Download ({ByteFormatHelper.FormatBytes(inspectionResult?.TotalDownloadBytesRequired ?? 0)})"
-        : "Import Profile";
+        : (inspectionResult?.MissingManifestCount ?? 0) > 0
+            ? "Import & Download"
+            : "Import Profile";
 
     private static bool ValidateArguments(
         SharedProfileInspectionResult inspectionResult,
@@ -252,6 +256,11 @@ public sealed partial class ImportProfileInspectionViewModel(
         {
             var extList = string.Join(", ", ProfileSharingConstants.ExecutableFileExtensions);
             warnings.Insert(0, $"Executable binaries detected ({totalExecutables} file(s) ending in {extList}). Ensure you trust the author before running.");
+        }
+
+        if (result.MissingManifestCount > 0 && result.TotalDownloadBytesRequired == 0)
+        {
+            warnings.Add("Some required dependencies do not report an exact download size. Additional downloads will occur during import.");
         }
 
         return new ObservableCollection<string>(warnings);

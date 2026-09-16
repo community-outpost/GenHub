@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.SingleInstance;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -6,6 +8,8 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,9 +21,10 @@ namespace GenHub.Windows.Infrastructure.SingleInstance;
 /// </summary>
 public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDisposable
 {
-    private const string MutexName = "Global\\GenHub";
-    private const string PipeName = "GenHub_SingleInstance_Pipe";
     private const int PipeConnectionTimeoutMs = 3000;
+
+    private static readonly string MutexName = GenerateMutexName();
+    private static readonly string PipeName = GeneratePipeName();
 
     private readonly ILogger<SingleInstanceManager> _logger;
     private readonly Mutex _mutex;
@@ -69,11 +74,17 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
     {
         try
         {
+            var sanitizedCommand = CommandLineParser.SanitizePayload(command).Trim();
+            if (!IsValidIpcCommand(sanitizedCommand))
+            {
+                return false;
+            }
+
             using var pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
             pipeClient.Connect(timeout: PipeConnectionTimeoutMs);
 
             using var writer = new StreamWriter(pipeClient);
-            writer.WriteLine(command);
+            writer.WriteLine(sanitizedCommand);
             writer.Flush();
 
             return true;
@@ -120,6 +131,84 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
         _pipeServerCts.Dispose();
     }
 
+    private static string GeneratePipeName()
+    {
+        var rawUser = Environment.UserName ?? "default";
+        var userBytes = Encoding.UTF8.GetBytes(rawUser);
+        var hash = Convert.ToHexString(SHA256.HashData(userBytes))[..8].ToLowerInvariant();
+        return $"{CommandLineConstants.SingleInstancePipePrefix}{hash}_{CommandLineConstants.SingleInstancePipeSuffix}";
+    }
+
+    private static string GenerateMutexName()
+    {
+        var rawUser = Environment.UserName ?? "default";
+        var userBytes = Encoding.UTF8.GetBytes(rawUser);
+        var hash = Convert.ToHexString(SHA256.HashData(userBytes))[..8].ToLowerInvariant();
+        return $"Local\\GenHub_{hash}";
+    }
+
+    private static bool IsValidIpcCommand(string command)
+    {
+        if (string.Equals(command, IpcCommands.ActivateCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var id = command[IpcCommands.LaunchProfilePrefix.Length..].Trim();
+            return !string.IsNullOrEmpty(id) && !id.Contains('/') && !id.Contains('\\') && !id.Contains("..");
+        }
+
+        if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var url = command[IpcCommands.SubscribePrefix.Length..].Trim();
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                   (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        }
+
+        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = command[IpcCommands.ImportProfilePrefix.Length..].Trim();
+            if (target.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+                target.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (target.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) &&
+                File.Exists(target))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private static void LogReceivedCommand(ILogger logger, string command)
+    {
+        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportProfilePrefix);
+        }
+        else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.SubscribePrefix);
+        }
+        else if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var id = command[IpcCommands.LaunchProfilePrefix.Length..];
+            logger.LogInformation("Received IPC command: {Prefix}{ProfileId}", IpcCommands.LaunchProfilePrefix, id);
+        }
+        else
+        {
+            logger.LogInformation("Received IPC command: {Command}", command);
+        }
+    }
+
     private void StartPipeServer()
     {
         _pipeListenerTask = Task.Run(
@@ -134,18 +223,26 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
                             PipeDirection.In,
                             1,
                             PipeTransmissionMode.Byte,
-                            PipeOptions.Asynchronous);
+                            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
                         _logger.LogDebug("Pipe server waiting for connection...");
                         await _pipeServer.WaitForConnectionAsync(_pipeServerCts.Token);
 
                         using var reader = new StreamReader(_pipeServer);
-                        var command = await reader.ReadLineAsync(_pipeServerCts.Token);
+                        var rawCommand = await reader.ReadLineAsync(_pipeServerCts.Token);
 
-                        if (!string.IsNullOrEmpty(command))
+                        if (!string.IsNullOrWhiteSpace(rawCommand))
                         {
-                            _logger.LogInformation("Received command from secondary instance: {Command}", command);
-                            CommandReceived?.Invoke(this, command);
+                            var command = CommandLineParser.SanitizePayload(rawCommand).Trim();
+                            if (IsValidIpcCommand(command))
+                            {
+                                LogReceivedCommand(_logger, command);
+                                CommandReceived?.Invoke(this, command);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Rejecting unknown or malformed IPC command from secondary Windows instance.");
+                            }
                         }
 
                         _pipeServer.Disconnect();

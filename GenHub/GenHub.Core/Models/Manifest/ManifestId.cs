@@ -16,6 +16,23 @@ public readonly struct ManifestId(string value)
     public string Value { get; } = value;
 
     /// <summary>
+    /// Gets the publisher segment if formatted with 5 segments; otherwise returns null.
+    /// </summary>
+    public string? Publisher
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Value))
+            {
+                return null;
+            }
+
+            var segments = Value.Split('.');
+            return segments.Length >= 3 ? segments[2] : (segments.Length >= 2 ? segments[1] : null);
+        }
+    }
+
+    /// <summary>
     /// Conversion from <see cref="string"/> to <see cref="ManifestId"/> which validates the input.
     /// Made implicit for convenience in tests and call-sites that use plain strings.
     /// </summary>

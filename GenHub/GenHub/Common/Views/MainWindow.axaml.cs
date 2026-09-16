@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using GenHub.Common.Helpers;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -33,9 +34,16 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
 
-    private static void OnDragOver(object? sender, DragEventArgs e)
+    private void OnDragOver(object? sender, DragEventArgs e)
     {
-        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
+        if (DataContext is MainViewModel { SelectedTab: NavigationTab.GameProfiles } && e.Data.Contains(DataFormats.Files))
+        {
+            e.DragEffects = DragDropEffects.Copy;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
     }
 
     /// <summary>
@@ -88,7 +96,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            if (e.Handled || DataContext is not MainViewModel mainVm || mainVm.GameProfilesViewModel == null)
+            if (e.Handled || DataContext is not MainViewModel { SelectedTab: NavigationTab.GameProfiles } mainVm || mainVm.GameProfilesViewModel == null)
             {
                 return;
             }
@@ -99,8 +107,7 @@ public partial class MainWindow : Window
                 foreach (var file in files)
                 {
                     if (file?.Path?.LocalPath is { } path &&
-                        (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(FileTypes.JsonFileExtension, StringComparison.OrdinalIgnoreCase)))
+                        path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
                     {
                         e.Handled = true;
                         await mainVm.GameProfilesViewModel.ImportProfileFromFileOrUriAsync(path);

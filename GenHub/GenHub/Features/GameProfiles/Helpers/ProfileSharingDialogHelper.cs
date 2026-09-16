@@ -63,7 +63,8 @@ public static class ProfileSharingDialogHelper
                 profileResult.Data,
                 sharingService,
                 loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? NullLogger<ShareProfileDialogViewModel>.Instance,
-                uploadHistoryService);
+                uploadHistoryService,
+                notificationService: notificationService);
 
             var dialog = new ShareProfileDialogWindow
             {

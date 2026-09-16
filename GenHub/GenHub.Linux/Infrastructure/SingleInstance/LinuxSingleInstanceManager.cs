@@ -1,3 +1,4 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.SingleInstance;
@@ -73,7 +74,8 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
     /// <returns>The single instance manager if primary; otherwise null.</returns>
     public static LinuxSingleInstanceManager? TryCreatePrimary(ILogger<LinuxSingleInstanceManager> logger)
     {
-        var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub", "lock");
+        var dataRoot = StorageMigrationService.GetDefaultDataRoot();
+        var lockFilePath = Path.Combine(dataRoot, "lock");
         var lockDir = Path.GetDirectoryName(lockFilePath);
         if (!string.IsNullOrEmpty(lockDir))
         {
@@ -101,41 +103,44 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
     {
         try
         {
-            var profileId = CommandLineParser.ExtractProfileId(args);
-            var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
             var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
+            var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+            var profileId = CommandLineParser.ExtractProfileId(args);
+
+            string commandToSend;
+            if (!string.IsNullOrEmpty(profileShareUri))
+            {
+                logger.LogInformation("Forwarding import-profile command to primary instance");
+                commandToSend = $"{IpcCommands.ImportProfilePrefix}{profileShareUri}";
+            }
+            else if (!string.IsNullOrEmpty(subscriptionUrl))
+            {
+                logger.LogInformation("Forwarding subscribe command to primary instance");
+                commandToSend = $"{IpcCommands.SubscribePrefix}{subscriptionUrl}";
+            }
+            else if (!string.IsNullOrEmpty(profileId))
+            {
+                logger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+                commandToSend = $"{IpcCommands.LaunchProfilePrefix}{profileId}";
+            }
+            else
+            {
+                logger.LogInformation("Forwarding activate command to primary instance");
+                commandToSend = IpcCommands.ActivateCommand;
+            }
+
+            commandToSend = CommandLineParser.SanitizePayload(commandToSend).Trim();
+            if (!IsValidIpcCommand(commandToSend))
+            {
+                logger.LogWarning("Refusing to forward invalid IPC command.");
+                return false;
+            }
 
             using var pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
             pipeClient.Connect(timeout: PipeConnectionTimeoutMs);
 
             using var writer = new StreamWriter(pipeClient);
-
-            if (string.IsNullOrEmpty(profileId) && string.IsNullOrEmpty(subscriptionUrl) && string.IsNullOrEmpty(profileShareUri))
-            {
-                logger.LogInformation("Forwarding activate command to primary instance");
-                writer.WriteLine(IpcCommands.ActivateCommand);
-                writer.Flush();
-                return true;
-            }
-
-            if (!string.IsNullOrEmpty(profileId))
-            {
-                logger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-                writer.WriteLine($"{IpcCommands.LaunchProfilePrefix}{profileId}");
-            }
-
-            if (!string.IsNullOrEmpty(subscriptionUrl))
-            {
-                logger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
-                writer.WriteLine($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
-            }
-
-            if (!string.IsNullOrEmpty(profileShareUri))
-            {
-                logger.LogInformation("Forwarding import-profile command to primary instance");
-                writer.WriteLine($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
-            }
-
+            writer.WriteLine(commandToSend);
             writer.Flush();
             return true;
         }
@@ -181,6 +186,68 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         var userBytes = Encoding.UTF8.GetBytes(rawUser);
         var hash = Convert.ToHexString(SHA256.HashData(userBytes))[..8].ToLowerInvariant();
         return $"{CommandLineConstants.SingleInstancePipePrefix}{hash}_{CommandLineConstants.SingleInstancePipeSuffix}";
+    }
+
+    private static bool IsValidIpcCommand(string command)
+    {
+        if (string.Equals(command, IpcCommands.ActivateCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var id = command[IpcCommands.LaunchProfilePrefix.Length..].Trim();
+            return !string.IsNullOrEmpty(id) && !id.Contains('/') && !id.Contains('\\') && !id.Contains("..");
+        }
+
+        if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var url = command[IpcCommands.SubscribePrefix.Length..].Trim();
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                   (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        }
+
+        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = command[IpcCommands.ImportProfilePrefix.Length..].Trim();
+            if (target.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+                target.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (target.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) &&
+                File.Exists(target))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private static void LogReceivedCommand(ILogger logger, string command)
+    {
+        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportProfilePrefix);
+        }
+        else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.SubscribePrefix);
+        }
+        else if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var id = command[IpcCommands.LaunchProfilePrefix.Length..];
+            logger.LogInformation("Received IPC command: {Prefix}{ProfileId}", IpcCommands.LaunchProfilePrefix, id);
+        }
+        else
+        {
+            logger.LogInformation("Received IPC command: {Command}", command);
+        }
     }
 
     private void StartPipeServer()
@@ -239,16 +306,19 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
             }
 
             using var reader = new StreamReader(_pipeServer);
-            while (true)
+            var rawCommand = await reader.ReadLineAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(rawCommand))
             {
-                var command = await reader.ReadLineAsync(cancellationToken);
-                if (string.IsNullOrEmpty(command))
+                var command = CommandLineParser.SanitizePayload(rawCommand).Trim();
+                if (IsValidIpcCommand(command))
                 {
-                    break;
+                    LogReceivedCommand(_logger, command);
+                    CommandReceived?.Invoke(this, command);
                 }
-
-                _logger.LogInformation("Received command from secondary Linux instance: {Command}", command);
-                CommandReceived?.Invoke(this, command);
+                else
+                {
+                    _logger.LogWarning("Rejecting unknown or malformed IPC command from secondary Linux instance.");
+                }
             }
 
             _pipeServer.Disconnect();

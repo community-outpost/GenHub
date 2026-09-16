@@ -40,6 +40,11 @@ public static class ProfileSharingConstants
     public const int MaxProfileNameLength = 100;
 
     /// <summary>
+    /// Default name used for shared profile fallback when input name is empty.
+    /// </summary>
+    public const string DefaultSharedProfileName = "Shared Profile";
+
+    /// <summary>
     /// Maximum number of search results to request during fallback dependency resolution.
     /// </summary>
     public const int FallbackSearchLimit = 10;

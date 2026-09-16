@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
-#
-# Builds GenHub.app from a published GenHub.MacOS output.
-#
-# This produces an UNSIGNED bundle. That is deliberate and sufficient for local use
-# and for CI smoke-testing: a bundle you build yourself is never quarantined, so
-# Gatekeeper does not block it. Distributing it to anyone else additionally requires
-# a Developer ID signature and notarization, which are tracked separately.
-#
-# The bundle matters even unsigned. Avalonia launched from a bare executable has no
-# Dock presence, no menu bar, unreliable window activation, and cannot be opened from
-# Finder. Those are the symptoms this fixes.
+# Packages a self-contained GenHub.MacOS publish directory into a macOS .app bundle.
 #
 # Usage:
-#   package-macos-app.sh <publish-dir> <output-dir> [version]
+#   package-macos-app.sh <publish-dir> <output-dir> <app-name> <version>
 #
 # Example:
-#   dotnet publish GenHub/GenHub.MacOS/GenHub.MacOS.csproj -c Release -r osx-arm64 \
-#       --self-contained true -o macos-publish
-#   .github/scripts/package-macos-app.sh macos-publish dist 0.0.1
-
+#   ./package-macos-app.sh artifacts/GenHub.MacOS artifacts/macos/arm64 GenHub 0.1.0-alpha.1
+#
+# Produces:
+#   <output-dir>/<app-name>.app
+#
+# Requirements:
+#   - bash 4+
+#   - iconutil and sips (available on macOS runners; optional, skipped on Linux)
 set -euo pipefail
 
-PUBLISH_DIR="${1:?usage: package-macos-app.sh <publish-dir> <output-dir> [version]}"
-OUTPUT_DIR="${2:?usage: package-macos-app.sh <publish-dir> <output-dir> [version]}"
-VERSION="${3:-0.0.1}"
-BUNDLE_VERSION="${VERSION%%-*}"
+PUBLISH_DIR="${1:-}"
+OUTPUT_DIR="${2:-}"
+APP_NAME="${3:-GenHub}"
+VERSION="${4:-}"
 
-APP_NAME="GenHub"
+if [[ -z "$PUBLISH_DIR" || -z "$OUTPUT_DIR" || -z "$VERSION" ]]; then
+  echo "usage: $0 <publish-dir> <output-dir> <app-name> <version>" >&2
+  exit 2
+fi
+
+BUNDLE_VERSION="${VERSION%%-*}"
 EXECUTABLE_NAME="GenHub.MacOS"
 BUNDLE_ID="org.communityoutpost.genhub"
 
@@ -80,6 +79,17 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <string>11.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>GenHub Protocol</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>genhub</string>
+            </array>
+        </dict>
+    </array>
     <!-- Not a background agent: without this the app has no Dock tile and no menu bar. -->
     <key>LSUIElement</key>
     <false/>
@@ -98,58 +108,17 @@ if [[ -f "$ICON_PNG" ]] && command -v iconutil >/dev/null 2>&1 && command -v sip
   for size in 16 32 128 256 512; do
     ICON_1X="$ICONSET/icon_${size}x${size}.png"
     ICON_2X="$ICONSET/icon_${size}x${size}@2x.png"
-    if ! sips -z "$size" "$size" "$ICON_PNG" --out "$ICON_1X" >/dev/null 2>&1 \
-        || [[ ! -s "$ICON_1X" ]]; then
-      echo "  warning: failed to generate ${size}x${size} icon"
-      ICON_GENERATION_FAILED=1
-    fi
-    if ! sips -z $((size * 2)) $((size * 2)) "$ICON_PNG" --out "$ICON_2X" >/dev/null 2>&1 \
-        || [[ ! -s "$ICON_2X" ]]; then
-      echo "  warning: failed to generate ${size}x${size}@2x icon"
-      ICON_GENERATION_FAILED=1
-    fi
+    sips -z "$size" "$size" "$ICON_PNG" --out "$ICON_1X" >/dev/null 2>&1 || { ICON_GENERATION_FAILED=1; break; }
+    sips -z "$((size * 2))" "$((size * 2))" "$ICON_PNG" --out "$ICON_2X" >/dev/null 2>&1 || { ICON_GENERATION_FAILED=1; break; }
   done
-
-  if [[ "$ICON_GENERATION_FAILED" -eq 0 ]] \
-      && iconutil -c icns "$ICONSET" -o "$CONTENTS/Resources/AppIcon.icns" 2>/dev/null; then
-    echo "  embedded AppIcon.icns"
+  if [[ "$ICON_GENERATION_FAILED" -eq 0 ]]; then
+    iconutil -c icns "$ICONSET" -o "$CONTENTS/Resources/AppIcon.icns" || echo "warning: iconutil failed, continuing without custom icon" >&2
   else
-    echo "  warning: icon generation failed; bundle will use the default icon"
+    echo "warning: icon resize failed, continuing without custom icon" >&2
   fi
   rm -rf "$ICON_TEMP_DIR"
 else
-  echo "  note: no icon source or tooling; bundle will use the default icon"
+  echo "info: iconutil or source icon missing, bundle will use default application icon"
 fi
 
-# Deliberately NOT signing the bundle here.
-#
-# `dotnet publish` already ad-hoc signs the apphost (verify with
-# `codesign -dv Contents/MacOS/GenHub.MacOS`, which reports Signature=adhoc). That is
-# what Apple Silicon requires to execute, so a locally built bundle runs as-is.
-#
-# Signing the whole bundle currently fails, and it is worth knowing why before anyone
-# attempts notarization:
-#   * `codesign --deep` aborts on Contents/MacOS/.playwright — a ~117 MB vendored Node
-#     runtime pulled in by Microsoft.Playwright (used by the CNCLabs and AOD map
-#     discoverers). codesign rejects it as "bundle format unrecognized".
-#   * Without --deep it aborts on the first of ~266 unsigned managed DLLs.
-# Running codesign anyway leaves the bundle worse than untouched: it writes a
-# signature that claims resources which are not there, and the bundle then fails
-# `codesign --verify`.
-#
-# Real distribution needs a Developer ID identity, inside-out signing of every nested
-# Mach-O, and a decision about whether .playwright ships at all. Tracked separately.
-if command -v codesign >/dev/null 2>&1; then
-  # Capture first rather than piping into grep -q: under `set -o pipefail`, grep -q
-  # exits on its first match and SIGPIPEs codesign, so the pipeline reports failure
-  # even when the signature is present.
-  SIGN_INFO="$(codesign -dv "$CONTENTS/MacOS/$EXECUTABLE_NAME" 2>&1 || true)"
-  case "$SIGN_INFO" in
-    *"Signature=adhoc"*)
-      echo "  apphost carries its publish-time ad-hoc signature (runs locally, not distributable)" ;;
-    *)
-      echo "  warning: apphost is not signed; it may be killed on Apple Silicon" ;;
-  esac
-fi
-
-echo "Built $APP_BUNDLE"
+echo "Created $APP_BUNDLE successfully"

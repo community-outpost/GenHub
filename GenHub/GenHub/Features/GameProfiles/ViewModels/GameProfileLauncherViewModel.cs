@@ -488,6 +488,42 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
+        string? targetHost = null;
+        if (shareUriOrPath.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            int queryStart = shareUriOrPath.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
+            if (queryStart != -1)
+            {
+                var urlValue = shareUriOrPath[(queryStart + 4)..];
+                int ampIndex = urlValue.IndexOf('&');
+                if (ampIndex != -1)
+                {
+                    urlValue = urlValue[..ampIndex];
+                }
+
+                var unescaped = Uri.UnescapeDataString(urlValue);
+                if (Uri.TryCreate(unescaped, UriKind.Absolute, out var uri))
+                {
+                    targetHost = uri.Host;
+                }
+            }
+        }
+
+        if (!string.IsNullOrEmpty(targetHost))
+        {
+            var confirmed = await dialogService.ShowConfirmationAsync(
+                "Download Remote Profile?",
+                $"A link requested to import a shared game profile from host '{targetHost}'.\n\nDo you want to download and inspect this profile package?",
+                confirmText: "Download & Inspect",
+                cancelText: "Cancel");
+
+            if (!confirmed)
+            {
+                logger.LogInformation("User declined remote profile download from {Host}", targetHost);
+                return;
+            }
+        }
+
         var safeSource = shareUriOrPath.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase)
             ? $"{CommandLineConstants.UriScheme} URI"
             : Path.GetFileName(shareUriOrPath);

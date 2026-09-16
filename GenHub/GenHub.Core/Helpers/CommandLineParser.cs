@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using System;
+using System.Text;
 
 namespace GenHub.Core.Helpers;
 
@@ -12,7 +14,7 @@ public static class CommandLineParser
     /// Supports both spaced and inline formats: <c>--launch-profile &lt;id&gt;</c> and <c>--launch-profile=&lt;id&gt;</c>.<br/>
     /// Strips balanced quotes around the identifier if present.
     /// </summary>
-    /// <param name=\"args\">The command line arguments.</param>
+    /// <param name="args">The command line arguments.</param>
     /// <returns>The extracted profile identifier if present; otherwise, <c>null</c>.</returns>
     public static string? ExtractProfileId(string[] args)
     {
@@ -25,13 +27,15 @@ public static class CommandLineParser
                 var nextArg = args[i + 1];
                 if (!nextArg.StartsWith('-'))
                 {
-                    return Unquote(nextArg);
+                    var id = SanitizePayload(Unquote(nextArg));
+                    return string.IsNullOrWhiteSpace(id) ? null : id;
                 }
             }
 
             if (arg.StartsWith(CommandLineConstants.LaunchProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
             {
-                return Unquote(arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..]);
+                var id = SanitizePayload(Unquote(arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..]));
+                return string.IsNullOrWhiteSpace(id) ? null : id;
             }
         }
 
@@ -42,9 +46,9 @@ public static class CommandLineParser
     /// Extracts the absolute URL from a single <c>genhub://subscribe?url=...</c> argument or URL string.
     /// </summary>
     /// <remarks>
-    /// Delegates to <see cref=\"ExtractSubscriptionUrl(string[])\"/> to parse the single argument.
+    /// Delegates to <see cref="ExtractSubscriptionUrl(string[])"/> to parse the single argument.
     /// </remarks>
-    /// <param name=\"arg\">The single command line argument or URL string.</param>
+    /// <param name="arg">The single command line argument or URL string.</param>
     /// <returns>The decoded absolute URL if present; otherwise, <c>null</c>.</returns>
     public static string? ExtractSubscriptionUrl(string? arg)
     {
@@ -59,7 +63,7 @@ public static class CommandLineParser
     /// Callers treat it as a GenHub catalog JSON URL today; later it may also be a Provider
     /// Definition URL without changing this parser.
     /// </remarks>
-    /// <param name=\"args\">The command line arguments.</param>
+    /// <param name="args">The command line arguments.</param>
     /// <returns>The decoded absolute URL if present; otherwise, <c>null</c>.</returns>
     public static string? ExtractSubscriptionUrl(string[] args)
     {
@@ -77,10 +81,7 @@ public static class CommandLineParser
                 if (queryStart != -1)
                 {
                     string url = arg[(queryStart + CommandLineConstants.SubscribeUrlParam.Length)..];
-                    string unescaped = Uri.UnescapeDataString(url)
-                        .Replace("\r", string.Empty)
-                        .Replace("\n", string.Empty)
-                        .Trim(' ', '\t');
+                    string unescaped = SanitizePayload(Uri.UnescapeDataString(url).Trim(' ', '\t'));
                     unescaped = Unquote(unescaped);
 
                     if (string.IsNullOrWhiteSpace(unescaped))
@@ -114,26 +115,30 @@ public static class CommandLineParser
     /// Extracts a profile share URI, catalog view URI, or .ghprofile file path from command line arguments.
     /// Supports direct <c>genhub://profile/...</c> URIs, <c>--import-profile &lt;target&gt;</c>, <c>--import-profile=&lt;target&gt;</c>, and <c>.ghprofile</c> file paths.
     /// </summary>
-    /// <param name=\"args\">The command line arguments.</param>
+    /// <param name="args">The command line arguments.</param>
     /// <returns>The extracted share URI or file path if present; otherwise, <c>null</c>.</returns>
     public static string? ExtractProfileShareUri(string[] args)
     {
         for (int i = 0; i < args.Length; i++)
         {
-            string arg = Unquote(args[i].Trim());
+            string rawArg = args[i].Trim();
+            string sanitizedArg = SanitizePayload(rawArg);
+            string arg = Unquote(sanitizedArg.Trim());
 
             if (arg.Equals(CommandLineConstants.ImportProfileArg, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
                 var nextArg = args[i + 1];
                 if (!nextArg.StartsWith('-'))
                 {
-                    return Unquote(nextArg.Trim());
+                    var result = SanitizePayload(Unquote(nextArg.Trim()));
+                    return string.IsNullOrWhiteSpace(result) ? null : result;
                 }
             }
 
             if (arg.StartsWith(CommandLineConstants.ImportProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
             {
-                return Unquote(arg[CommandLineConstants.ImportProfileInlinePrefix.Length..].Trim());
+                var result = SanitizePayload(Unquote(arg[CommandLineConstants.ImportProfileInlinePrefix.Length..].Trim()));
+                return string.IsNullOrWhiteSpace(result) ? null : result;
             }
 
             if (arg.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
@@ -149,6 +154,32 @@ public static class CommandLineParser
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Strips C0 control characters (including CRLF and nulls) and the DEL character from command line and IPC payloads.
+    /// </summary>
+    /// <param name="input">The input string to sanitize.</param>
+    /// <returns>The sanitized string.</returns>
+    public static string SanitizePayload(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
+        var sb = new StringBuilder(input.Length);
+        foreach (char c in input)
+        {
+            if (c < 0x20 || c == 0x7F)
+            {
+                continue;
+            }
+
+            sb.Append(c);
+        }
+
+        return sb.ToString();
     }
 
     private static string Unquote(string s)

@@ -8,6 +8,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameProfile;
 using Microsoft.Extensions.Logging;
 using System;
@@ -29,7 +30,8 @@ public partial class ShareProfileDialogViewModel(
     IProfileSharingService profileSharingService,
     ILogger logger,
     IUploadHistoryService? uploadHistoryService,
-    string? initialShareUri) : ViewModelBase, IDisposable
+    string? initialShareUri,
+    INotificationService? notificationService) : ViewModelBase, IDisposable
 {
     private readonly bool _guardsChecked = ValidateArguments(profileId, profile, profileSharingService, logger);
     private readonly System.Threading.CancellationTokenSource _cts = new();
@@ -48,6 +50,7 @@ public partial class ShareProfileDialogViewModel(
     /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
     /// <param name="initialShareUri">Optional pre-generated share URI.</param>
     /// <param name="autoInitialize">Flag indicating whether background quota and share link initialization should execute.</param>
+    /// <param name="notificationService">Optional notification service instance for toast messages.</param>
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
@@ -55,8 +58,9 @@ public partial class ShareProfileDialogViewModel(
         ILogger logger,
         IUploadHistoryService? uploadHistoryService = null,
         string? initialShareUri = null,
-        bool autoInitialize = true)
-        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, initialShareUri)
+        bool autoInitialize = true,
+        INotificationService? notificationService = null)
+        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, initialShareUri, notificationService)
     {
         if (autoInitialize)
         {
@@ -73,14 +77,16 @@ public partial class ShareProfileDialogViewModel(
     /// <param name="profileSharingService">The sharing service instance.</param>
     /// <param name="logger">The logger instance.</param>
     /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
+    /// <param name="notificationService">Optional notification service instance for toast messages.</param>
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
         string shareUri,
         IProfileSharingService profileSharingService,
         ILogger logger,
-        IUploadHistoryService? uploadHistoryService = null)
-        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, shareUri)
+        IUploadHistoryService? uploadHistoryService = null,
+        INotificationService? notificationService = null)
+        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, shareUri, notificationService)
     {
         InitializeStartupTasks();
     }
@@ -406,6 +412,18 @@ public partial class ShareProfileDialogViewModel(
         StatusMessage = message;
         IsStatusError = isError;
         IsStatusMessageVisible = true;
+
+        if (notificationService != null)
+        {
+            if (isError)
+            {
+                notificationService.ShowError("Profile Sharing", message);
+            }
+            else
+            {
+                notificationService.ShowSuccess("Profile Sharing", message);
+            }
+        }
     }
 
     private async Task CleanupInFlightTasksAndDisposeCtsAsync()

@@ -29,7 +29,7 @@ public class ContentSearchResult
     public bool IsInferred { get; set; } = false;
 
     /// <summary>Gets or sets the game this content is for (e.g., Generals, ZeroHour).</summary>
-    public GameType TargetGame { get; set; }
+    public GameType TargetGame { get; set; } = GameType.Unknown;
 
     /// <summary>Gets or sets the name of the provider that supplied this result.</summary>
     public string ProviderName { get; set; } = string.Empty;

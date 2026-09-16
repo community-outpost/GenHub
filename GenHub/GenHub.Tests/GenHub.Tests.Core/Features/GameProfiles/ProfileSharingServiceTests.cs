@@ -70,6 +70,12 @@ public class ProfileSharingServiceTests
         _installationServiceMock.Setup(i => i.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
 
+        var defaultManifest = CreateTestManifest("1.0.generalsonline.gameclient.generalsonline", "Generals Online", ContentType.GameClient);
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.generalsonline.gameclient.generalsonline", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(defaultManifest));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(It.Is<ManifestId>(id => id.Value == "1.0.generalsonline.gameclient.generalsonline"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(defaultManifest));
+
         _factoryResolver = new PublisherManifestFactoryResolver([], NullLogger<PublisherManifestFactoryResolver>.Instance);
         _service = new ProfileSharingService(
             _profileRepositoryMock.Object,
@@ -100,7 +106,7 @@ public class ProfileSharingServiceTests
         var result = await _service.ExportProfileToUriAsync("profile-1");
 
         // Assert
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.FirstError);
         Assert.NotNull(result.Data);
         Assert.StartsWith($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", result.Data, StringComparison.OrdinalIgnoreCase);
     }
@@ -1823,6 +1829,7 @@ public class ProfileSharingServiceTests
             Name = "ShockWave Mod",
             Version = "1.0",
             ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
             ProviderName = "ModDB",
         };
 
@@ -1865,7 +1872,7 @@ public class ProfileSharingServiceTests
         var result = await _service.ImportSharedProfileAsync(request);
 
         // Assert
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.FirstError);
         Assert.NotNull(capturedQuery);
         Assert.Equal("ModDB", capturedQuery.ProviderName);
         Assert.Equal(GameType.ZeroHour, capturedQuery.TargetGame);
@@ -2532,6 +2539,7 @@ public class ProfileSharingServiceTests
             Name = "Lemon Control Bar 1080p",
             Version = "1.103",
             ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
             ProviderName = ContentSourceNames.GitHubDiscoverer,
         };
 
@@ -2574,7 +2582,7 @@ public class ProfileSharingServiceTests
         var result = await _service.ImportSharedProfileAsync(request);
 
         // Assert
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.FirstError);
         Assert.NotNull(capturedQuery);
         Assert.Equal(ContentSourceNames.GitHubDiscoverer, capturedQuery.ProviderName);
         _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(searchResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);

@@ -74,6 +74,9 @@ public class ProfileSharingService(
     // Static because connections are pinned through a shared handler; entries are refreshed on every validation.
     private static readonly ConcurrentDictionary<string, HashSet<IPAddress>> ValidatedHostAddresses = new(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly System.Text.RegularExpressions.Regex DuplicateCounterRegex =
+        new(@"\s*\(\d+\)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     // HTTP client whose connections are pinned to previously validated addresses, defeating DNS rebinding.
     private readonly HttpClient safeHttpClient = CreateSafeHttpClient();
 
@@ -608,15 +611,30 @@ public class ProfileSharingService(
 
     private static OperationResult<bool> ValidateClientCompatibility(GameInstallation? installation, SharedGameProfilePackage package)
     {
-        if (installation == null || package.Profile.GameClientManifestId == null)
+        if (installation == null)
         {
-            return OperationResult<bool>.CreateSuccess(true);
+            return OperationResult<bool>.CreateFailure($"No game installation available for profile game type {package.Profile.GameType}.");
         }
 
-        var matchedClient = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId);
-        if (matchedClient is { } client && client.GameType != package.Profile.GameType)
+        bool supportsGame = package.Profile.GameType switch
         {
-            return OperationResult<bool>.CreateFailure($"Client '{client.Name}' game type ({client.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
+            GameType.Generals => installation.HasGenerals || installation.GeneralsClient != null,
+            GameType.ZeroHour => installation.HasZeroHour || installation.ZeroHourClient != null,
+            _ => installation.AvailableGameClients.Any(c => c.GameType == package.Profile.GameType),
+        };
+
+        if (!supportsGame)
+        {
+            return OperationResult<bool>.CreateFailure($"Selected game installation '{installation.DisplayName}' does not support shared profile game type ({package.Profile.GameType}).");
+        }
+
+        if (package.Profile.GameClientManifestId != null)
+        {
+            var matchedClient = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId);
+            if (matchedClient is { } client && client.GameType != package.Profile.GameType)
+            {
+                return OperationResult<bool>.CreateFailure($"Client '{client.Name}' game type ({client.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
+            }
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -1349,6 +1367,49 @@ public class ProfileSharingService(
         dep.ContentType == ContentType.GameInstallation ||
         dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsLocalOrSourcelessDependency(SharedManifestDependency dependency)
+    {
+        if (string.Equals(dependency.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(dependency.PublisherType, PublisherTypeConstants.GenHubLocal, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (ManifestId.TryCreate(dependency.ManifestId, out var parsed))
+        {
+            if (string.Equals(parsed.Publisher, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(parsed.Publisher, PublisherTypeConstants.GenHubLocal, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (!HasAcquisitionSource(dependency) &&
+            !PublisherTypeConstants.IsCuratedPublisher(dependency.PublisherType))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasAcquisitionSource(SharedManifestDependency dependency)
+    {
+        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl) ||
+            !string.IsNullOrWhiteSpace(dependency.PackageHash))
+        {
+            return true;
+        }
+
+        if (dependency.Files != null && dependency.Files.Count > 0 &&
+            dependency.Files.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private static OperationResult<string> CreateFallbackAcquisitionFailure(SharedManifestDependency dependency)
     {
         if (dependency.ManifestId.Contains(ManifestConstants.LocalSegment, StringComparison.OrdinalIgnoreCase) ||
@@ -1366,12 +1427,42 @@ public class ProfileSharingService(
         IEnumerable<ContentSearchResult> results,
         SharedManifestDependency dependency)
     {
-        var resultList = results.ToList();
+        var resultList = results.Where(r => IsCandidateCompatible(r, dependency)).ToList();
 
         return FindExactManifestIdMatch(resultList, dependency.ManifestId)
-            ?? FindDisplayNameMatch(resultList, dependency.DisplayName)
-            ?? FindNormalizedDisplayNameMatch(resultList, dependency.DisplayName)
+            ?? FindDisplayNameMatch(resultList, dependency.DisplayName, dependency)
+            ?? FindNormalizedDisplayNameMatch(resultList, dependency.DisplayName, dependency)
             ?? FindSegmentMatch(resultList, dependency.ManifestId);
+    }
+
+    private static bool IsCandidateCompatible(ContentSearchResult candidate, SharedManifestDependency dependency)
+    {
+        if (candidate.ContentType != dependency.ContentType)
+        {
+            return false;
+        }
+
+        if (dependency.TargetGame != GameType.Unknown && candidate.TargetGame != GameType.Unknown &&
+            candidate.TargetGame != dependency.TargetGame)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool HasCompatiblePublisher(ContentSearchResult candidate, SharedManifestDependency dependency)
+    {
+        if (ManifestId.TryCreate(candidate.Id, out var candidateId) &&
+            ManifestId.TryCreate(dependency.ManifestId, out var depId))
+        {
+            if (!string.Equals(candidateId.Publisher, depId.Publisher, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static ContentSearchResult? FindExactManifestIdMatch(
@@ -1382,7 +1473,8 @@ public class ProfileSharingService(
 
     private static ContentSearchResult? FindDisplayNameMatch(
         IReadOnlyList<ContentSearchResult> results,
-        string? displayName)
+        string? displayName,
+        SharedManifestDependency dependency)
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -1391,12 +1483,14 @@ public class ProfileSharingService(
 
         return results.FirstOrDefault(r =>
             !string.IsNullOrWhiteSpace(r.Name) &&
-            string.Equals(r.Name, displayName, StringComparison.OrdinalIgnoreCase));
+            string.Equals(r.Name, displayName, StringComparison.OrdinalIgnoreCase) &&
+            HasCompatiblePublisher(r, dependency));
     }
 
     private static ContentSearchResult? FindNormalizedDisplayNameMatch(
         IReadOnlyList<ContentSearchResult> results,
-        string? displayName)
+        string? displayName,
+        SharedManifestDependency dependency)
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -1411,7 +1505,8 @@ public class ProfileSharingService(
 
         return results.FirstOrDefault(r =>
             !string.IsNullOrWhiteSpace(r.Name) &&
-            string.Equals(NormalizeContentName(r.Name), normalizedDepName, StringComparison.OrdinalIgnoreCase));
+            string.Equals(NormalizeContentName(r.Name), normalizedDepName, StringComparison.OrdinalIgnoreCase) &&
+            HasCompatiblePublisher(r, dependency));
     }
 
     private static ContentSearchResult? FindSegmentMatch(
@@ -1977,21 +2072,8 @@ public class ProfileSharingService(
             return OperationResult<SharedManifestDependency?>.CreateSuccess(null);
         }
 
-        var fallbackPubType = ManifestId.TryCreate(contentId, out var parsedFallbackId)
-            ? ResolvePublisherType(null, parsedFallbackId)
-            : PublisherTypeConstants.Local;
-        var fallbackPubName = GetDefaultPublisherNameForType(fallbackPubType);
-
-        return OperationResult<SharedManifestDependency?>.CreateSuccess(new SharedManifestDependency
-        {
-            ManifestId = contentId,
-            DisplayName = contentId,
-            Version = ProfileSharingConstants.DefaultFallbackContentVersion,
-            ContentType = ContentType.Mod,
-            Publisher = fallbackPubName,
-            PublisherType = fallbackPubType,
-            IsCachedLocally = true,
-        });
+        return OperationResult<SharedManifestDependency?>.CreateFailure(
+            $"Content manifest '{contentId}' referenced by profile could not be found in local manifest pool.");
     }
 
     private async Task<OperationResult<SharedManifestDependency>> BuildManifestDependencyAsync(
@@ -2372,6 +2454,12 @@ public class ProfileSharingService(
             }
 
             // 5. Fallback: Search & acquire from connected content provider pipeline (GeneralsOnline, ModDB, AODMaps, etc.)
+            if (IsLocalOrSourcelessDependency(dependency))
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"Local dependency '{dependency.DisplayName}' ({dependency.ManifestId}) is not present on this machine and cannot be acquired from remote providers.");
+            }
+
             return await SearchAndAcquireFallbackManifestAsync(dependency, progress, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -2558,6 +2646,10 @@ public class ProfileSharingService(
 
             return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Failed to download and register cloud package for {ManifestId}", dependency.ManifestId);
@@ -2620,6 +2712,30 @@ public class ProfileSharingService(
         var resolvedPublisherType = ResolvePublisherType(dependency.PublisherType, validatedManifestId);
         var resolvedPublisherName = dependency.Publisher ?? GetDefaultPublisherNameForType(resolvedPublisherType);
 
+        // Curated or platform publishers must never be registered from direct/untrusted package extracts into the manifest pool
+        if (PublisherTypeConstants.IsCuratedPublisher(resolvedPublisherType) ||
+            PublisherTypeConstants.IsCuratedPublisher(validatedManifestId.Publisher))
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Refusing to register manifest '{ManifestId}' from direct package extract because publisher '{Publisher}' is curated.",
+                validatedManifestId,
+                resolvedPublisherType);
+
+            return OperationResult<bool>.CreateFailure(
+                $"Cannot register manifest '{validatedManifestId}' from direct package download. Content from curated publisher '{resolvedPublisherType}' must be acquired through its official provider.");
+        }
+
+        // Never overwrite an already acquired manifest
+        var isAcquiredResult = await manifestPool.IsManifestAcquiredAsync(validatedManifestId, cancellationToken);
+        if (isAcquiredResult.Success && isAcquiredResult.Data)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Manifest '{ManifestId}' is already acquired in the local pool. Skipping overwrite from untrusted package.",
+                validatedManifestId);
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
         var contentManifest = new ContentManifest
         {
             Id = validatedManifestId,
@@ -2672,6 +2788,25 @@ public class ProfileSharingService(
                     validatedManifestId,
                     addResult.FirstError);
                 return OperationResult<bool>.CreateFailure($"Failed to register extracted manifest '{validatedManifestId}': {addResult.FirstError}");
+            }
+        }
+
+        // Re-scan staging directory for nested archive executables or dangerous scripts
+        if (Directory.Exists(stagingDir))
+        {
+            var stagingFiles = Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories);
+            var foundExecutables = stagingFiles
+                .Where(f => ProfileSharingConstants.ExecutableFileExtensions.Contains(Path.GetExtension(f)))
+                .Select(f => Path.GetRelativePath(stagingDir, f))
+                .ToList();
+
+            if (foundExecutables.Count > 0)
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                    "Extracted content for manifest '{ManifestId}' contains {Count} executable file(s): {Files}",
+                    validatedManifestId,
+                    foundExecutables.Count,
+                    string.Join(", ", foundExecutables.Take(5)));
             }
         }
 
@@ -2877,7 +3012,7 @@ public class ProfileSharingService(
             var urlSearchResult = await contentOrchestrator.SearchAsync(urlQuery, cancellationToken);
             if (urlSearchResult.Success && urlSearchResult.Data != null)
             {
-                var match = FindMatchingResult(urlSearchResult.Data, dependency) ?? urlSearchResult.Data.FirstOrDefault();
+                var match = FindMatchingResult(urlSearchResult.Data, dependency);
                 if (match != null)
                 {
                     return await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
@@ -3019,6 +3154,7 @@ public class ProfileSharingService(
             }
 
             bool isCached = false;
+            long missingBytes = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => f.Size) ?? 0);
             var acquiredResult = await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
             if (acquiredResult.Success && acquiredResult.Data)
             {
@@ -3028,7 +3164,7 @@ public class ProfileSharingService(
             else
             {
                 missingCount++;
-                totalMissingDownloadBytes += reqManifest.DownloadSize;
+                totalMissingDownloadBytes += missingBytes;
             }
 
             inspectedManifests.Add(new SharedManifestDependency
@@ -3037,14 +3173,15 @@ public class ProfileSharingService(
                 DisplayName = reqManifest.DisplayName,
                 Version = reqManifest.Version,
                 ContentType = reqManifest.ContentType,
+                TargetGame = reqManifest.TargetGame != GameType.Unknown ? reqManifest.TargetGame : package.Profile.GameType,
                 Publisher = reqManifest.Publisher,
                 PublisherType = reqManifest.PublisherType,
-                DownloadSize = reqManifest.DownloadSize,
+                DownloadSize = missingBytes > 0 ? missingBytes : reqManifest.DownloadSize,
                 IsCachedLocally = isCached,
                 Hash = reqManifest.Hash,
                 PackageUrl = reqManifest.PackageUrl,
                 PackageHash = reqManifest.PackageHash,
-                Files = reqManifest.Files,
+                Files = reqManifest.Files ?? [],
             });
         }
 
@@ -3087,6 +3224,17 @@ public class ProfileSharingService(
         string profileName,
         CancellationToken cancellationToken)
     {
+        string baseName = DuplicateCounterRegex.Replace(profileName.Trim(), string.Empty).Trim();
+        if (string.IsNullOrEmpty(baseName))
+        {
+            baseName = ProfileSharingConstants.DefaultSharedProfileName;
+        }
+
+        if (baseName.Length > 100)
+        {
+            baseName = baseName[..100].Trim();
+        }
+
         string suggestedName = profileName;
         bool hasNameConflict = false;
 
@@ -3094,14 +3242,14 @@ public class ProfileSharingService(
         if (allProfilesResult is { Success: true, Data: not null })
         {
             var existingNames = allProfilesResult.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (existingNames.Contains(profileName))
+            if (existingNames.Contains(suggestedName))
             {
                 hasNameConflict = true;
                 int counter = 1;
-                suggestedName = $"{profileName} ({counter})";
+                suggestedName = $"{baseName} ({counter})";
                 while (existingNames.Contains(suggestedName))
                 {
-                    suggestedName = $"{profileName} ({++counter})";
+                    suggestedName = $"{baseName} ({++counter})";
                 }
             }
         }

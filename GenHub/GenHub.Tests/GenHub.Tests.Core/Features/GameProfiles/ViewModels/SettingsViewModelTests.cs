@@ -1291,7 +1291,7 @@ public class SettingsViewModelTests
         mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
     }
 
-
+    /// <summary>
     /// Verifies that RefreshUploadsCommand populates active upload items and computes quota percentage.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
