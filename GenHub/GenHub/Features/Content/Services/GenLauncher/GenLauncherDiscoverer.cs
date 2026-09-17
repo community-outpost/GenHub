@@ -210,16 +210,19 @@ public class GenLauncherDiscoverer(
         if (!string.IsNullOrEmpty(manifest.S3HostLink))
         {
             result.ResolverMetadata["s3HostLink"] = manifest.S3HostLink;
+            result.ResolverMetadata["s3Host"] = manifest.S3HostLink;
         }
 
         if (!string.IsNullOrEmpty(manifest.S3BucketName))
         {
             result.ResolverMetadata["s3BucketName"] = manifest.S3BucketName;
+            result.ResolverMetadata["s3Bucket"] = manifest.S3BucketName;
         }
 
         if (!string.IsNullOrEmpty(manifest.S3FolderName))
         {
             result.ResolverMetadata["s3FolderName"] = manifest.S3FolderName;
+            result.ResolverMetadata["s3Folder"] = manifest.S3FolderName;
         }
 
         if (!string.IsNullOrEmpty(manifest.SimpleDownloadLink))
@@ -228,6 +231,7 @@ public class GenLauncherDiscoverer(
         }
 
         result.ResolverMetadata["yamlUrl"] = manifestUrl;
+        result.Description = BuildDescription(manifest);
     }
 
     private static string BuildDescription(GenLauncherVersionManifest manifest)

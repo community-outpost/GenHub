@@ -74,9 +74,9 @@ public sealed class GenLauncherResolverTests
             TargetGame = GameType.ZeroHour,
             ResolverMetadata =
             {
-                ["s3Host"] = "s3.amazonaws.com",
-                ["s3Bucket"] = "genlauncher",
-                ["s3Folder"] = "Mods/Shockwave",
+                ["s3HostLink"] = "s3.amazonaws.com",
+                ["s3BucketName"] = "genlauncher",
+                ["s3FolderName"] = "Mods/Shockwave",
             },
         };
         searchResult.SetData(new GenLauncherVersionManifest
@@ -192,9 +192,9 @@ public sealed class GenLauncherResolverTests
             TargetGame = GameType.ZeroHour,
             ResolverMetadata =
             {
-                ["s3Host"] = "127.0.0.1:9000",
-                ["s3Bucket"] = "internal-bucket",
-                ["s3Folder"] = "Mods/Test",
+                ["s3HostLink"] = "127.0.0.1:9000",
+                ["s3BucketName"] = "internal-bucket",
+                ["s3FolderName"] = "Mods/Test",
             },
         };
 

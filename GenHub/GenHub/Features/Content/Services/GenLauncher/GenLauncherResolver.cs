@@ -308,9 +308,9 @@ public class GenLauncherResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken)
     {
-        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, "s3HostLink");
-        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3BucketName");
-        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3FolderName");
+        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, "s3HostLink") ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Host");
+        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3BucketName") ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Bucket");
+        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3FolderName") ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Folder");
 
         if (string.IsNullOrWhiteSpace(s3Host) || string.IsNullOrWhiteSpace(s3Bucket) || string.IsNullOrWhiteSpace(s3Folder))
         {
