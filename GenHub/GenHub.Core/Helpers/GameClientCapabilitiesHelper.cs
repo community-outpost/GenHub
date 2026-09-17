@@ -34,7 +34,7 @@ public static class GameClientCapabilitiesHelper
     /// <returns>The inferred <see cref="GameClientCapabilities"/> flags.</returns>
     public static GameClientCapabilities InferCapabilities(string? publisher, string? id, string? name)
     {
-        if (IsSuperHackersPublisher(publisher) || ContainsKeyword(id, name, ReplayManagerConstants.CapabilityRecoveryKeyword))
+        if (ContainsKeyword(id, name, ReplayManagerConstants.CapabilityRecoveryKeyword))
         {
             return GameClientCapabilities.AllRecoveryFeatures;
         }
