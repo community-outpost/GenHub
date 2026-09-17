@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using Xunit;
 
@@ -100,16 +101,16 @@ public sealed class DependencyResolverCatalogIdentityTests
     {
         var manifests = new[]
         {
-            new GenHub.Core.Models.Manifest.ContentManifest
+            new ContentManifest
             {
-                Id = new GenHub.Core.Models.Manifest.ManifestId("1.0.generic-catalog.mod.example"),
+                Id = new ManifestId("1.0.generic-catalog.mod.example"),
                 Version = "1.0.0",
             },
         };
 
-        var dependency = new GenHub.Core.Models.Manifest.ContentDependency
+        var dependency = new ContentDependency
         {
-            Id = new GenHub.Core.Models.Manifest.ManifestId("1.0.generic-catalog.mod.example"),
+            Id = new ManifestId("1.0.generic-catalog.mod.example"),
             MinVersion = "2.0.0",
         };
 
@@ -129,16 +130,16 @@ public sealed class DependencyResolverCatalogIdentityTests
     {
         var manifests = new[]
         {
-            new GenHub.Core.Models.Manifest.ContentManifest
+            new ContentManifest
             {
-                Id = new GenHub.Core.Models.Manifest.ManifestId("1.0.generic-catalog.mod.example"),
+                Id = new ManifestId("1.0.generic-catalog.mod.example"),
                 Version = "2.1.0",
             },
         };
 
-        var dependency = new GenHub.Core.Models.Manifest.ContentDependency
+        var dependency = new ContentDependency
         {
-            Id = new GenHub.Core.Models.Manifest.ManifestId("1.0.generic-catalog.mod.example"),
+            Id = new ManifestId("1.0.generic-catalog.mod.example"),
             MinVersion = "2.0.0",
         };
 
@@ -148,5 +149,118 @@ public sealed class DependencyResolverCatalogIdentityTests
             manifests);
 
         Assert.Equal("1.0.generic-catalog.mod.example", result);
+    }
+
+    /// <summary>
+    /// Tests that FindVersionIndependentCatalogMatch selects the latest compatible version when multiple candidates exist.
+    /// </summary>
+    [Fact]
+    public void FindVersionIndependentCatalogMatch_MultipleVersions_SelectsLatestCompatibleVersion()
+    {
+        var manifests = new[]
+        {
+            new ContentManifest
+            {
+                Id = new ManifestId("1.10.generic-catalog.mod.example"),
+                Version = "1.0.0",
+            },
+            new ContentManifest
+            {
+                Id = new ManifestId("1.21.generic-catalog.mod.example"),
+                Version = "2.1.0",
+            },
+            new ContentManifest
+            {
+                Id = new ManifestId("1.24.generic-catalog.mod.example"),
+                Version = "2.4.0",
+            },
+            new ContentManifest
+            {
+                Id = new ManifestId("1.30.generic-catalog.mod.example"),
+                Version = "3.0.0",
+            },
+        };
+
+        var dependency = new ContentDependency
+        {
+            Id = new ManifestId("1.0.generic-catalog.mod.example"),
+            MinVersion = "2.0.0",
+            MaxVersion = "2.9.9",
+        };
+
+        var result = DependencyResolver.FindVersionIndependentCatalogMatch(
+            "1.0.generic-catalog.mod.example",
+            dependency,
+            manifests);
+
+        Assert.Equal("1.24.generic-catalog.mod.example", result);
+    }
+
+    /// <summary>
+    /// Tests that TryGetCommunityOutpostContentCode fails closed on unknown segment names.
+    /// </summary>
+    [Fact]
+    public void TryGetCommunityOutpostContentCode_UnknownSegment_FailsClosed()
+    {
+        var success = CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(
+            "1.0.communityoutpost.addon.unknownfabricatedcontent",
+            out var contentType,
+            out var contentCode);
+
+        Assert.False(success);
+        Assert.Empty(contentCode);
+    }
+
+    /// <summary>
+    /// Tests that GetCommunityOutpostContentCode extracts normalized code from contentCode tag.
+    /// </summary>
+    [Fact]
+    public void GetCommunityOutpostContentCode_WithContentCodeTag_ReturnsNormalizedCode()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = new ManifestId("1.0.communityoutpost.addon.gentool89suite"),
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:gent"],
+            },
+        };
+
+        var code = CommunityOutpostDependencyIdentity.GetCommunityOutpostContentCode(manifest);
+
+        Assert.Equal("gent", code);
+    }
+
+    /// <summary>
+    /// Tests that FindVersionIndependentCatalogMatch matches Community Outpost content via semantic content codes.
+    /// </summary>
+    [Fact]
+    public void FindVersionIndependentCatalogMatch_CommunityOutpostContentCode_ReturnsMatch()
+    {
+        var manifests = new[]
+        {
+            new ContentManifest
+            {
+                Id = new ManifestId("1.10.communityoutpost.addon.hlenenglish"),
+                Version = "1.10.0",
+                Metadata = new ContentMetadata
+                {
+                    Tags = ["contentCode:hlen"],
+                },
+            },
+        };
+
+        var dependency = new ContentDependency
+        {
+            Id = new ManifestId("1.0.communityoutpost.addon.hlen"),
+            MinVersion = "1.0.0",
+        };
+
+        var result = DependencyResolver.FindVersionIndependentCatalogMatch(
+            "1.0.communityoutpost.addon.hlen",
+            dependency,
+            manifests);
+
+        Assert.Equal("1.10.communityoutpost.addon.hlenenglish", result);
     }
 }

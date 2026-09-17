@@ -1143,18 +1143,11 @@ public class ProfileLauncherFacade(
         {
             if (ManifestId.TryCreate(profile.GameClient.Id, out var clientManifestId))
             {
-                try
+                var clientManifestResult = await manifestPool.GetManifestAsync(clientManifestId, cancellationToken);
+                if (clientManifestResult.Success && clientManifestResult.Data != null)
                 {
-                    var clientManifestResult = await manifestPool.GetManifestAsync(clientManifestId, cancellationToken);
-                    if (clientManifestResult.Success && clientManifestResult.Data != null)
-                    {
-                        manifests.Add(clientManifestResult.Data);
-                        hasGameClientManifest = true;
-                    }
-                }
-                catch (ArgumentException ex)
-                {
-                    logger.LogWarning(ex, "Skipping invalid game client manifest ID during validation: {ClientContentId}", profile.GameClient.Id);
+                    manifests.Add(clientManifestResult.Data);
+                    hasGameClientManifest = true;
                 }
             }
         }
@@ -1399,11 +1392,24 @@ public class ProfileLauncherFacade(
     {
         ContentManifest? requiredManifest = null;
 
-        if (manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch))
+        var matchedCatalogId = DependencyResolver.FindVersionIndependentCatalogMatch(
+            dependency.Id.ToString(),
+            dependency,
+            potentialMatches);
+
+        if (!string.IsNullOrEmpty(matchedCatalogId))
+        {
+            requiredManifest = potentialMatches.FirstOrDefault(m =>
+                string.Equals(m.Id.Value, matchedCatalogId, StringComparison.OrdinalIgnoreCase))
+                ?? (manifestsById.TryGetValue(matchedCatalogId, out var direct) ? direct : null);
+        }
+
+        if (requiredManifest == null && manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch))
         {
             requiredManifest = exactMatch;
         }
-        else
+
+        if (requiredManifest == null)
         {
             var depIdSegments = dependency.Id.ToString().Split('.');
             if (depIdSegments.Length >= 5)
@@ -1437,8 +1443,8 @@ public class ProfileLauncherFacade(
                             string.Equals(manifestPublisher, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
                             string.Equals(depPublisher, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
                         {
-                            var depCode = DependencyResolver.CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(dependency.Id.ToString(), out _, out var code) ? code : null;
-                            var manifestCode = DependencyResolver.CommunityOutpostDependencyIdentity.GetCommunityOutpostContentCode(m);
+                            var depCode = CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(dependency.Id.ToString(), out _, out var code) ? code : null;
+                            var manifestCode = CommunityOutpostDependencyIdentity.GetCommunityOutpostContentCode(m);
                             if (!string.IsNullOrEmpty(depCode) && !string.IsNullOrEmpty(manifestCode) && string.Equals(depCode, manifestCode, StringComparison.OrdinalIgnoreCase))
                             {
                                 return true;
