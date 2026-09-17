@@ -4066,6 +4066,9 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
     <value>PAT validated successfully ✓</value>
   </data>
+  <data name="Settings.GitHubPat.Status.SavedPending" xml:space="preserve">
+    <value>PAT saved (validation pending)</value>
+  </data>
   <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
     <value>Tool Plugin Assembly</value>
   </data>
@@ -7519,6 +7522,245 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Choose an available game client to create a fresh profile</value>
+  <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
+    <value>Share Profile...</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.ShareProfile" xml:space="preserve">
+    <value>Share Profile</value>
+  </data>
+  <data name="GameProfiles.Launcher.Button.Import" xml:space="preserve">
+    <value>IMPORT</value>
+  </data>
+  <data name="GameProfiles.Launcher.Tooltip.Import" xml:space="preserve">
+    <value>Import a game profile package (.ghprofile, .json, or drag &amp; drop onto window)</value>
+  </data>
+  <data name="Settings.CloudStorage.Title" xml:space="preserve">
+    <value>Cloud Storage &amp; Uploads</value>
+  </data>
+  <data name="Settings.CloudStorage.PoolTitle" xml:space="preserve">
+    <value>UploadThing Cloud Storage Pool</value>
+  </data>
+  <data name="Settings.CloudStorage.PoolDescription" xml:space="preserve">
+    <value>Temporary storage pool for sharing maps, replays, and custom profile packages.</value>
+  </data>
+  <data name="Settings.CloudStorage.RetentionNotice" xml:space="preserve">
+    <value>Files automatically expire after 14 days. Removing records clears local tracking without deleting hosted files.</value>
+  </data>
+  <data name="Settings.CloudStorage.ActiveRecordsHeader" xml:space="preserve">
+    <value>Active Upload Records</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.ClearAll" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="Settings.CloudStorage.EmptyMessage" xml:space="preserve">
+    <value>No active cloud uploads. When you upload custom replays, maps, or share profiles with local content, they will appear here.</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.CopyLink" xml:space="preserve">
+    <value>Copy Link</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Title" xml:space="preserve">
+    <value>SHARE GAME PROFILE</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Subtitle" xml:space="preserve">
+    <value>Distribute your profile and custom mods directly to friends</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Tooltip.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.CloudStorageTitle" xml:space="preserve">
+    <value>Cloud Storage Sync &amp; Quota</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.GenerateLink" xml:space="preserve">
+    <value>Generate Share Link</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ProtocolShareLink" xml:space="preserve">
+    <value>Protocol Share Link (genhub://):</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.CopyLink" xml:space="preserve">
+    <value>Copy Link</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.RecipientInfo" xml:space="preserve">
+    <value>Recipients opening this link or .ghprofile package will launch GenHub's import inspector.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.StandalonePackage" xml:space="preserve">
+    <value>Standalone Profile Package (.ghprofile)</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportDescription" xml:space="preserve">
+    <value>Export a portable profile file you can share with friends directly.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportFile" xml:space="preserve">
+    <value>Export File</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Button.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Title" xml:space="preserve">
+    <value>IMPORT SHARED PROFILE</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Subtitle" xml:space="preserve">
+    <value>Review the included content manifests, target client version, and required downloads before importing.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ProfileName" xml:space="preserve">
+    <value>Profile Name:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.NameAutoRenamed" xml:space="preserve">
+    <value>Name Auto-Renamed</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.SecurityGuardrails" xml:space="preserve">
+    <value>Security &amp; Sanitization Guardrails</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.BreakdownHeader" xml:space="preserve">
+    <value>CONTENT &amp; MOD MANIFESTS BREAKDOWN</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.SafeDataOnly" xml:space="preserve">
+    <value>Safe: Component contains assets and configuration files only.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.DataOnly" xml:space="preserve">
+    <value>DATA ONLY</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.WarningExecutables" xml:space="preserve">
+    <value>Warning: Component contains executable binaries (.exe, .dll, or .asi). Ensure you trust the author.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Executables" xml:space="preserve">
+    <value>EXECUTABLES</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Cached" xml:space="preserve">
+    <value>CACHED</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.Details" xml:space="preserve">
+    <value>Toggle download, verification, and file details</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ManifestId" xml:space="preserve">
+    <value>Manifest ID:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Sha256Hash" xml:space="preserve">
+    <value>SHA-256 Hash:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.CopyHash" xml:space="preserve">
+    <value>Copy SHA-256 Hash</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.DownloadUrl" xml:space="preserve">
+    <value>Download URL:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.CopyUrl" xml:space="preserve">
+    <value>Copy Download URL</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Binary" xml:space="preserve">
+    <value>BINARY</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetOptionsHeader" xml:space="preserve">
+    <value>TARGET INSTALLATION &amp; LAUNCH OPTIONS</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetInstallation" xml:space="preserve">
+    <value>Target Game Installation:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetInstallationDescription" xml:space="preserve">
+    <value>Select the local game installation (e.g. Steam, EA App) that provides the base game executable and assets for this profile.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.NoCompatibleInstallation" xml:space="preserve">
+    <value>No compatible installation found for this game client.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.LaunchArguments" xml:space="preserve">
+    <value>Launch Arguments:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.IncludeGameSettings" xml:space="preserve">
+    <value>Apply video resolution and audio configuration overrides</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.AllCachedLocally" xml:space="preserve">
+    <value>All required content is already cached locally.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ImportingProgress" xml:space="preserve">
+    <value>Importing Profile &amp; Content...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.CancelImport" xml:space="preserve">
+    <value>Cancel Import</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.LinkGenerated" xml:space="preserve">
+    <value>Share link generated!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.LinkGenerationFailed" xml:space="preserve">
+    <value>Generation failed: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.PackagingUploading" xml:space="preserve">
+    <value>Packaging &amp; uploading custom content...</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.EncodingPackage" xml:space="preserve">
+    <value>Encoding profile package...</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.CopiedToClipboard" xml:space="preserve">
+    <value>Copied to clipboard!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ClipboardUnavailable" xml:space="preserve">
+    <value>Clipboard unavailable.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.FailedToCopy" xml:space="preserve">
+    <value>Failed to copy link.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ExportSuccess" xml:space="preserve">
+    <value>Profile package exported successfully!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ExportFailed" xml:space="preserve">
+    <value>Export failed: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.FailedToExport" xml:space="preserve">
+    <value>Failed to export profile file.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.CloudNotice" xml:space="preserve">
+    <value>This profile contains custom local content that must be uploaded to temporary cloud storage (14-day retention) to generate a shareable link. You can also export a standalone .ghprofile file without uploading to cloud.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Title.Notification" xml:space="preserve">
+    <value>Profile Sharing</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportProfile" xml:space="preserve">
+    <value>Import Profile</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportAndDownload" xml:space="preserve">
+    <value>Import &amp; Download</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportAndDownloadSize" xml:space="preserve">
+    <value>Import &amp; Download ({0})</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.EmptyName" xml:space="preserve">
+    <value>Profile name cannot be empty.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.NameTooLong" xml:space="preserve">
+    <value>Profile name cannot exceed {0} characters.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.SelectInstallation" xml:space="preserve">
+    <value>Please select a valid game installation.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Status.StartingImport" xml:space="preserve">
+    <value>Starting import...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Status.ProcessingContent" xml:space="preserve">
+    <value>Processing content...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportSuccess" xml:space="preserve">
+    <value>Successfully imported '{0}'.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportSuccessTitle" xml:space="preserve">
+    <value>Profile Imported</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportFailedTitle" xml:space="preserve">
+    <value>Profile Import Failed</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.ExecutablesDetected" xml:space="preserve">
+    <value>Executable binaries detected ({0} file(s) ending in {1}). Ensure you trust the author before running.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingSizes" xml:space="preserve">
+    <value>Some required dependencies do not report an exact download size. Additional downloads will occur during import.</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Updating {0}: {1:0}% ({2}/{3} files)</value>

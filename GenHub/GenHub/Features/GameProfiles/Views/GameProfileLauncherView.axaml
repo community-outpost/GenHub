@@ -250,9 +250,9 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <!-- Import Profile Button -->
                                     <Button Command="{Binding ImportProfileCommand}"
-                                            Content="IMPORT"
+                                            Content="{localization:Localize GameProfiles.Launcher.Button.Import}"
                                             Classes="outline"
-                                            ToolTip.Tip="Import a game profile package (.ghprofile, .json, or drag &amp; drop onto window)"
+                                            ToolTip.Tip="{localization:Localize GameProfiles.Launcher.Tooltip.Import}"
                                             IsVisible="{Binding !IsScanning}" />
 
                                     <!-- Scan Button -->

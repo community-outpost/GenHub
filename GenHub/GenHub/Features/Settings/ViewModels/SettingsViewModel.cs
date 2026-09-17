@@ -370,7 +370,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _uploadHistoryService.UploadHistoryChanged += OnUploadHistoryChanged;
         }
-        }
 
         LoadSettings();
         _ = RefreshUploadsAsync();
@@ -580,7 +579,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 if (_uploadHistoryService != null)
                 {
                     _uploadHistoryService.UploadHistoryChanged -= OnUploadHistoryChanged;
-                }
                 }
 
                 _memoryUpdateTimer?.Dispose();
@@ -1657,18 +1655,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     IsPatValid = false;
                     return;
                 }
-            }
-            else
-            {
-                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ClientNotAvailable") ?? "GitHub API client not available";
-                IsPatValid = false;
-                return;
+
+                validated = true;
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
-            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓";
-            IsPatValid = true;
+            PatStatusMessage = validated
+                ? _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓"
+                : _localizationService?.GetString("Settings.GitHubPat.Status.SavedPending") ?? "PAT saved (validation pending)";
+            IsPatValid = validated;
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
         }

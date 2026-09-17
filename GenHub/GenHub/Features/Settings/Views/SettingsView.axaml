@@ -984,7 +984,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04M14,13V17H10V13H7L12,8L17,13H14Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="Cloud Storage &amp; Uploads" Classes="section-header" Margin="0"/>
+                <TextBlock Text="{localization:Localize Settings.CloudStorage.Title}" Classes="section-header" Margin="0"/>
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
@@ -998,8 +998,8 @@
               <StackPanel Spacing="10">
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Grid.Column="0" Spacing="2">
-                    <TextBlock Text="UploadThing Cloud Storage Pool" Classes="setting-label" />
-                    <TextBlock Text="Temporary storage pool for sharing maps, replays, and custom profile packages."
+                    <TextBlock Text="{localization:Localize Settings.CloudStorage.PoolTitle}" Classes="setting-label" />
+                    <TextBlock Text="{localization:Localize Settings.CloudStorage.PoolDescription}"
                                Classes="setting-description" />
                   </StackPanel>
                   <TextBlock Grid.Column="1"
@@ -1017,7 +1017,7 @@
                              Background="{DynamicResource BorderSubtleBrush}"
                              Foreground="{DynamicResource AccentBrush}" />
 
-                <TextBlock Text="Files automatically expire after 14 days. Removing records clears local tracking without deleting hosted files."
+                <TextBlock Text="{localization:Localize Settings.CloudStorage.RetentionNotice}"
                            FontSize="11"
                            Foreground="{DynamicResource TextSecondary}" />
               </StackPanel>
@@ -1025,14 +1025,14 @@
 
             <!-- Active Uploads Header & Controls -->
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
-              <TextBlock Grid.Column="0" Text="Active Upload Records" Classes="setting-label" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="0" Text="{localization:Localize Settings.CloudStorage.ActiveRecordsHeader}" Classes="setting-label" VerticalAlignment="Center" />
               <Button Grid.Column="1"
-                      Content="Refresh"
+                      Content="{localization:Localize Settings.CloudStorage.Button.Refresh}"
                       Command="{Binding RefreshUploadsCommand}"
                       Classes="secondary-button"
                       Margin="0,0,8,0" />
               <Button Grid.Column="2"
-                      Content="Clear All"
+                      Content="{localization:Localize Settings.CloudStorage.Button.ClearAll}"
                       Command="{Binding ClearAllUploadsCommand}"
                       IsEnabled="{Binding HasUploads}"
                       Classes="secondary-button" />
@@ -1045,7 +1045,7 @@
                     BorderThickness="1"
                     CornerRadius="6"
                     Padding="24">
-              <TextBlock Text="No active cloud uploads. When you upload custom replays, maps, or share profiles with local content, they will appear here."
+              <TextBlock Text="{localization:Localize Settings.CloudStorage.EmptyMessage}"
                          FontSize="12"
                          Foreground="{DynamicResource TextSecondary}"
                          TextAlignment="Center"
@@ -1096,7 +1096,7 @@
                       </StackPanel>
 
                       <Button Grid.Column="2"
-                              Content="Copy Link"
+                              Content="{localization:Localize Settings.CloudStorage.Button.CopyLink}"
                               Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).CopyUploadUrlCommand}"
                               CommandParameter="{Binding Url}"
                               Classes="secondary-button"
@@ -1106,7 +1106,7 @@
                               VerticalAlignment="Center" />
 
                       <Button Grid.Column="3"
-                              Content="Delete"
+                              Content="{localization:Localize Settings.CloudStorage.Button.Delete}"
                               Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DeleteUploadCommand}"
                               CommandParameter="{Binding .}"
                               Classes="secondary-button"

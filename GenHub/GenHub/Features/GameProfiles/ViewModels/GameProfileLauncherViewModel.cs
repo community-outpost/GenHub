@@ -614,20 +614,6 @@ public partial class GameProfileLauncherViewModel(
         return !client.IsPublisherClient;
     }
 
-    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
-        {
-            if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage) || IsLaunching || IsPreparingWorkspace || IsScanning)
-            {
-                return;
-            }
-
-            var profileCount = Math.Max(0, Profiles.Count - 1);
-            StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
-        }
-    }
-
     private static string? TryExtractRemoteImportHost(string shareUriOrPath)
     {
         if (!shareUriOrPath.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
@@ -672,6 +658,20 @@ public partial class GameProfileLauncherViewModel(
             dialog.Closed += (s, e) => tcs.TrySetResult(true);
             dialog.Show();
             await tcs.Task;
+        }
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
+        {
+            if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage) || IsLaunching || IsPreparingWorkspace || IsScanning)
+            {
+                return;
+            }
+
+            var profileCount = Math.Max(0, Profiles.Count - 1);
+            StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
         }
     }
 

@@ -4,10 +4,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
         xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
         mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="700"
         x:Class="GenHub.Features.GameProfiles.Views.ImportProfileInspectionWindow"
         x:DataType="vm:ImportProfileInspectionViewModel"
-        Title="Import Shared Game Profile"
+        Title="{localization:Localize GameProfiles.ImportInspection.Title}"
         Width="740" Height="720"
         MinWidth="600" MinHeight="550"
         WindowStartupLocation="CenterOwner"
@@ -87,14 +88,14 @@
                                           Width="20" Height="20"
                                           Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                           VerticalAlignment="Center" />
-                                <TextBlock Text="IMPORT SHARED PROFILE"
+                                <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Title}"
                                            FontSize="16"
                                            FontWeight="Bold"
                                            Foreground="{DynamicResource TextPrimary}"
                                            LetterSpacing="0.8"
                                            VerticalAlignment="Center" />
                             </StackPanel>
-                            <TextBlock Text="Review the included content manifests, target client version, and required downloads before importing."
+                            <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Subtitle}"
                                        FontSize="12"
                                        Foreground="{DynamicResource TextSecondary}" />
                         </StackPanel>
@@ -177,7 +178,7 @@
                                     <!-- Details -->
                                     <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                         <StackPanel Spacing="4">
-                                            <TextBlock Text="Profile Name:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                            <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.ProfileName}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                             <TextBox Text="{Binding ProfileName, Mode=TwoWay}"
                                                      Height="36"
                                                      Padding="10,0"
@@ -195,7 +196,7 @@
                                                 <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
                                             </Border>
                                             <Border Background="{DynamicResource SuccessFillBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" IsVisible="{Binding HasNameConflict}">
-                                                <TextBlock Text="Name Auto-Renamed" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.NameAutoRenamed}" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
                                             </Border>
                                         </WrapPanel>
                                     </StackPanel>
@@ -214,7 +215,7 @@
                                         <PathIcon Data="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z"
                                                   Width="16" Height="16"
                                                   Foreground="{DynamicResource WarningBrush}" />
-                                        <TextBlock Text="Security &amp; Sanitization Guardrails"
+                                        <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.SecurityGuardrails}"
                                                    Foreground="{DynamicResource WarningBrush}"
                                                    FontSize="12"
                                                    FontWeight="Bold" />
@@ -238,7 +239,7 @@
                                 <StackPanel Spacing="12">
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0"
-                                                   Text="CONTENT &amp; MOD MANIFESTS BREAKDOWN"
+                                                   Text="{localization:Localize GameProfiles.ImportInspection.BreakdownHeader}"
                                                    FontSize="12"
                                                    FontWeight="Bold"
                                                    Foreground="{DynamicResource TextSecondary}"
@@ -295,13 +296,13 @@
                                                                         BorderThickness="1"
                                                                         CornerRadius="6"
                                                                         Padding="6,2"
-                                                                        ToolTip.Tip="Safe: Component contains assets and configuration files only."
+                                                                        ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.SafeDataOnly}"
                                                                         IsVisible="{Binding !ContainsExecutables}">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                                         <PathIcon Data="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"
                                                                                   Width="10" Height="10"
                                                                                   Foreground="{DynamicResource SuccessBrush}" />
-                                                                        <TextBlock Text="DATA ONLY"
+                                                                        <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Badge.DataOnly}"
                                                                                    FontSize="9"
                                                                                    FontWeight="Bold"
                                                                                    Foreground="{DynamicResource SuccessBrush}" />
@@ -312,13 +313,13 @@
                                                                         BorderThickness="1"
                                                                         CornerRadius="6"
                                                                         Padding="6,2"
-                                                                        ToolTip.Tip="Warning: Component contains executable binaries (.exe, .dll, or .asi). Ensure you trust the author."
+                                                                        ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.WarningExecutables}"
                                                                         IsVisible="{Binding ContainsExecutables}">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                                         <PathIcon Data="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z"
                                                                                   Width="10" Height="10"
                                                                                   Foreground="{DynamicResource WarningBrush}" />
-                                                                        <TextBlock Text="EXECUTABLES"
+                                                                        <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Badge.Executables}"
                                                                                    FontSize="9"
                                                                                    FontWeight="Bold"
                                                                                    Foreground="{DynamicResource WarningBrush}" />
@@ -347,7 +348,7 @@
                                                                                   Width="10" Height="10"
                                                                                   Foreground="{DynamicResource SuccessBrush}"
                                                                                   VerticalAlignment="Center" />
-                                                                        <TextBlock Text="CACHED"
+                                                                        <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Badge.Cached}"
                                                                                    FontSize="10"
                                                                                    FontWeight="Bold"
                                                                                    Foreground="{DynamicResource SuccessBrush}"
@@ -386,9 +387,9 @@
                                                                     Padding="8,4"
                                                                     VerticalAlignment="Center"
                                                                     Cursor="Hand"
-                                                                    ToolTip.Tip="Toggle download, verification, and file details">
+                                                                    ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.Details}">
                                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                    <TextBlock Text="Details"
+                                                                    <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Button.Details}"
                                                                                FontSize="10"
                                                                                FontWeight="SemiBold"
                                                                                Foreground="{DynamicResource TextSecondary}"
@@ -412,13 +413,13 @@
                                                             <StackPanel Spacing="8">
                                                                 <!-- Manifest ID -->
                                                                 <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,2">
-                                                                    <TextBlock Grid.Column="0" Text="Manifest ID:" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" />
+                                                                    <TextBlock Grid.Column="0" Text="{localization:Localize GameProfiles.ImportInspection.ManifestId}" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" />
                                                                     <TextBlock Grid.Column="1" Text="{Binding ManifestId}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource TextPrimary}" />
                                                                 </Grid>
 
                                                                 <!-- Hash -->
                                                                 <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding Hash, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                    <TextBlock Grid.Column="0" Text="SHA-256 Hash:" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                    <TextBlock Grid.Column="0" Text="{localization:Localize GameProfiles.ImportInspection.Sha256Hash}" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                                     <TextBlock Grid.Column="1" Text="{Binding Hash}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                                                     <Button Grid.Column="2"
                                                                             Command="{Binding CopyHashCommand}"
@@ -427,7 +428,7 @@
                                                                             Background="Transparent"
                                                                             BorderThickness="0"
                                                                             Cursor="Hand"
-                                                                            ToolTip.Tip="Copy SHA-256 Hash">
+                                                                            ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyHash}">
                                                                         <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
                                                                                   Width="11" Height="11"
                                                                                   Foreground="{DynamicResource TextSecondary}" />
@@ -436,7 +437,7 @@
 
                                                                 <!-- Download Source URL -->
                                                                 <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                    <TextBlock Grid.Column="0" Text="Download URL:" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                    <TextBlock Grid.Column="0" Text="{localization:Localize GameProfiles.ImportInspection.DownloadUrl}" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                                     <TextBlock Grid.Column="1" Text="{Binding DownloadUrl}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource AccentLightBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                                                     <Button Grid.Column="2"
                                                                             Command="{Binding CopyDownloadUrlCommand}"
@@ -445,7 +446,7 @@
                                                                             Background="Transparent"
                                                                             BorderThickness="0"
                                                                             Cursor="Hand"
-                                                                            ToolTip.Tip="Copy Download URL">
+                                                                            ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyUrl}">
                                                                         <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
                                                                                   Width="11" Height="11"
                                                                                   Foreground="{DynamicResource TextSecondary}" />
@@ -503,7 +504,7 @@
                                                                                                     Margin="6,0"
                                                                                                     VerticalAlignment="Center"
                                                                                                     IsVisible="{Binding IsExecutable}">
-                                                                                                <TextBlock Text="BINARY"
+                                                                                                <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Badge.Binary}"
                                                                                                            FontSize="8"
                                                                                                            FontWeight="Bold"
                                                                                                            Foreground="{DynamicResource ErrorBrush}" />
@@ -539,7 +540,7 @@
                                     CornerRadius="12"
                                     Padding="16">
                                 <StackPanel Spacing="12">
-                                    <TextBlock Text="TARGET INSTALLATION &amp; LAUNCH OPTIONS"
+                                    <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.TargetOptionsHeader}"
                                                FontSize="12"
                                                FontWeight="Bold"
                                                Foreground="{DynamicResource TextSecondary}"
@@ -548,8 +549,8 @@
                                     <!-- Installation Selector -->
                                     <StackPanel Spacing="6">
                                         <StackPanel Spacing="2">
-                                            <TextBlock Text="Target Game Installation:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                            <TextBlock Text="Select the local game installation (e.g. Steam, EA App) that provides the base game executable and assets for this profile."
+                                            <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.TargetInstallation}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                            <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.TargetInstallationDescription}"
                                                        FontSize="11"
                                                        Foreground="{DynamicResource TextSecondary}"
                                                        TextWrapping="Wrap" />
@@ -569,7 +570,7 @@
                                                       Width="12" Height="12"
                                                       Foreground="{DynamicResource ErrorBrush}"
                                                       VerticalAlignment="Center" />
-                                            <TextBlock Text="No compatible installation found for this game client."
+                                            <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.NoCompatibleInstallation}"
                                                        FontSize="11"
                                                        Foreground="{DynamicResource ErrorBrush}"
                                                        VerticalAlignment="Center" />
@@ -578,7 +579,7 @@
 
                                     <!-- Launch Arguments -->
                                     <StackPanel Spacing="4" IsVisible="{Binding CommandLineArguments, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <TextBlock Text="Launch Arguments:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.LaunchArguments}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                         <Border Background="{StaticResource FillWhite08}" CornerRadius="6" Padding="10,6">
                                              <TextBlock Text="{Binding CommandLineArguments}"
                                                         FontSize="11"
@@ -589,7 +590,7 @@
 
                                     <!-- Include Settings Checkbox -->
                                     <CheckBox IsChecked="{Binding IncludeGameSettings, Mode=TwoWay}"
-                                              Content="Apply video resolution and audio configuration overrides"
+                                              Content="{localization:Localize GameProfiles.ImportInspection.IncludeGameSettings}"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextPrimary}" />
                                 </StackPanel>
@@ -607,7 +608,7 @@
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimary}"
                                        IsVisible="{Binding HasMissingDownloads}" />
-                            <TextBlock Text="All required content is already cached locally."
+                            <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.AllCachedLocally}"
                                        FontSize="12"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource SuccessBrush}"
@@ -617,7 +618,7 @@
                         <!-- Cancel Button -->
                         <Button Grid.Column="1"
                                 Command="{Binding CancelCommand}"
-                                Content="Cancel"
+                                Content="{localization:Localize GameProfiles.ImportInspection.Button.Cancel}"
                                 Width="90" Height="40"
                                 Margin="0,0,12,0"
                                 Background="{StaticResource FillWhite08}"
@@ -710,7 +711,7 @@
                                           Width="20" Height="20"
                                           Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                           VerticalAlignment="Center" />
-                                <TextBlock Text="Importing Profile &amp; Content..."
+                                <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.ImportingProgress}"
                                            FontSize="15"
                                            FontWeight="Bold"
                                            Foreground="{DynamicResource TextPrimary}"
@@ -743,7 +744,7 @@
 
                             <!-- Cancel -->
                             <Button Command="{Binding CancelCommand}"
-                                    Content="Cancel Import"
+                                    Content="{localization:Localize GameProfiles.ImportInspection.Button.CancelImport}"
                                     Height="32"
                                     Padding="16,0"
                                     HorizontalAlignment="Center"

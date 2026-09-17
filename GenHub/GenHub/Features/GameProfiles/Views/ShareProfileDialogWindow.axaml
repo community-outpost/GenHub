@@ -4,11 +4,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.GameProfiles.ViewModels"
         xmlns:conv="using:GenHub.Infrastructure.Converters"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
         mc:Ignorable="d"
         d:DesignWidth="580" d:DesignHeight="560"
         x:Class="GenHub.Features.GameProfiles.Views.ShareProfileDialogWindow"
         x:DataType="vm:ShareProfileDialogViewModel"
-        Title="Share Game Profile"
+        Title="{localization:Localize GameProfiles.ShareDialog.Title}"
         Width="580" Height="600"
         MinHeight="460" MaxHeight="750"
         WindowStartupLocation="CenterOwner"
@@ -80,14 +81,14 @@
                                           Width="18" Height="18"
                                           Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                           VerticalAlignment="Center" />
-                                <TextBlock Text="SHARE GAME PROFILE"
+                                <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.Title}"
                                            FontSize="16"
                                            FontWeight="Bold"
                                            Foreground="{DynamicResource TextPrimary}"
                                            LetterSpacing="0.5"
                                            VerticalAlignment="Center" />
                             </StackPanel>
-                            <TextBlock Text="Distribute your profile and custom mods directly to friends"
+                            <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.Subtitle}"
                                        FontSize="12"
                                        Foreground="{DynamicResource TextSecondary}"
                                        Margin="26,0,0,0" />
@@ -104,7 +105,7 @@
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
                                 AutomationProperties.Name="Close dialog"
-                                ToolTip.Tip="Close"
+                                ToolTip.Tip="{localization:Localize GameProfiles.ShareDialog.Tooltip.Close}"
                                 Cursor="Hand">
                             <Button.Styles>
                                 <Style Selector="Button:pointerover">
@@ -168,7 +169,7 @@
                                           Margin="0,2,10,0" />
                                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0" Text="Cloud Storage Sync &amp; Quota"
+                                        <TextBlock Grid.Column="0" Text="{localization:Localize GameProfiles.ShareDialog.CloudStorageTitle}"
                                                    FontSize="11"
                                                    FontWeight="Bold"
                                                    Foreground="{DynamicResource AccentLightBrush}" />
@@ -232,7 +233,7 @@
                                                   Width="13" Height="13"
                                                   Foreground="White"
                                                   IsVisible="{Binding !IsGeneratingLink}" />
-                                        <TextBlock Text="Generate Share Link"
+                                        <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.GenerateLink}"
                                                    FontSize="11"
                                                    FontWeight="SemiBold" />
                                     </StackPanel>
@@ -242,7 +243,7 @@
 
                         <!-- Share Link Field (shown when link is generated) -->
                         <StackPanel Spacing="6" IsVisible="{Binding IsShareUriGenerated}">
-                            <TextBlock Text="Protocol Share Link (genhub://):"
+                            <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.ProtocolShareLink}"
                                        FontSize="12"
                                        Foreground="{DynamicResource TextSecondary}"
                                        FontWeight="Medium" />
@@ -291,14 +292,14 @@
                                                   Width="13" Height="13"
                                                   Foreground="White"
                                                   VerticalAlignment="Center" />
-                                        <TextBlock Text="Copy Link"
+                                        <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.CopyLink}"
                                                    FontSize="12"
                                                    FontWeight="SemiBold"
                                                    VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
                             </Grid>
-                            <TextBlock Text="Recipients opening this link or .ghprofile package will launch GenHub's import inspector."
+                            <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.RecipientInfo}"
                                        FontSize="11"
                                        Foreground="{DynamicResource TextMuted}" />
                         </StackPanel>
@@ -312,11 +313,11 @@
                                 Margin="0,4,0,0">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Standalone Profile Package (.ghprofile)"
+                                    <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.StandalonePackage}"
                                                FontSize="12"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimary}" />
-                                    <TextBlock Text="Export a portable profile file you can share with friends directly."
+                                    <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.ExportDescription}"
                                                FontSize="11"
                                                Foreground="{DynamicResource TextSecondary}" />
                                 </StackPanel>
@@ -356,7 +357,7 @@
                                                   Width="14" Height="14"
                                                   Foreground="{DynamicResource TextPrimary}"
                                                   VerticalAlignment="Center" />
-                                        <TextBlock Text="Export File"
+                                        <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.ExportFile}"
                                                    Foreground="{DynamicResource TextPrimary}"
                                                    FontWeight="SemiBold"
                                                    FontSize="12"
@@ -373,7 +374,7 @@
                     <Grid Grid.Row="2" Margin="0,16,0,0">
                         <Button HorizontalAlignment="Right"
                                 Command="{Binding CloseCommand}"
-                                Content="Close"
+                                Content="{localization:Localize GameProfiles.ShareDialog.Button.Close}"
                                 Width="90" Height="36"
                                 Background="{StaticResource FillWhite08}"
                                 BorderBrush="{StaticResource BorderWhite19}"
