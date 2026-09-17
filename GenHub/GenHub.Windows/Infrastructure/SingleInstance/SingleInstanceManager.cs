@@ -268,8 +268,11 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
         }
         finally
         {
-            _pipeServer?.Dispose();
-            _pipeServer = null;
+            if (_pipeServer != null)
+            {
+                await _pipeServer.DisposeAsync();
+                _pipeServer = null;
+            }
         }
     }
 }
