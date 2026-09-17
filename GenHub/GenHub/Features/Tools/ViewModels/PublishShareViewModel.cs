@@ -35,6 +35,8 @@ namespace GenHub.Features.Tools.ViewModels;
 /// 4. Generate subscription links for users.
 /// </remarks>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies for Publisher Studio operations.")]
+[method: System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies for Publisher Studio operations.")]
 public partial class PublishShareViewModel(
     PublisherStudioProject project,
     IPublisherStudioService publisherStudioService,
@@ -328,9 +330,9 @@ public partial class PublishShareViewModel(
             entry.CatalogName = newCatalogName;
             entry.FileName = newFileName;
 
-            if (!string.IsNullOrEmpty(project.ProjectPath))
+            if (!string.IsNullOrEmpty(project.ProjectPath) && hostingStateManager != null)
             {
-                if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
+                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -399,6 +401,7 @@ public partial class PublishShareViewModel(
     /// <summary>
     /// Asynchronously initializes hosting state, upload hierarchy, and validates catalogs.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
         InitializeCatalogStatuses();
@@ -541,7 +544,7 @@ public partial class PublishShareViewModel(
     private string GetLocalizedString(string key, string defaultValue) =>
         localizationService?.GetString(key) ?? defaultValue;
 
-    private string FormatLocalizedString(string key, string defaultValueFormat, params object[] args)
+    private string FormatLocalizedString(string key, string defaultValueFormat, params object?[] args)
     {
         var template = localizationService?.GetString(key);
         if (!string.IsNullOrEmpty(template))
@@ -946,7 +949,7 @@ public partial class PublishShareViewModel(
 
     private void HandleAuthenticationFailure(OperationResult<bool> result)
     {
-        AuthenticationStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.AuthFailed", "Authentication failed: {0}", result.FirstError);
+        AuthenticationStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.AuthFailed", "Authentication failed: {0}", result.FirstError ?? "Unknown error");
         logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider?.DisplayName ?? "Provider", result.FirstError);
 
         notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.AuthError", "Authentication Error"), result.FirstError ?? "Failed to authenticate with the hosting provider.");
@@ -984,6 +987,7 @@ public partial class PublishShareViewModel(
             {
                 await credentialStore.DeleteCredentialAsync(SelectedHostingProvider.ProviderId).ConfigureAwait(false);
             }
+
             AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.SignedOut", "Signed out");
             GitHubPersonalAccessToken = string.Empty;
             DropboxAccessToken = string.Empty;
@@ -1671,9 +1675,9 @@ public partial class PublishShareViewModel(
             });
         }
 
-        if (!string.IsNullOrEmpty(project.ProjectPath))
+        if (!string.IsNullOrEmpty(project.ProjectPath) && hostingStateManager != null)
         {
-            if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
+            await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken).ConfigureAwait(false);
         }
 
         RefreshHostedAssets();
@@ -1833,19 +1837,30 @@ public partial class PublishShareViewModel(
 
         SelectedHostingProvider = provider;
 
+        var token = await RetrieveOrMigrateTokenAsync(provider).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(token))
+        {
+            return;
+        }
+
+        await TryRestoreProviderAuthenticationAsync(provider, token).ConfigureAwait(false);
+    }
+
+    private async Task<string?> RetrieveOrMigrateTokenAsync(IHostingProvider provider)
+    {
         string? token = null;
         if (credentialStore != null)
         {
-            token = await credentialStore.GetCredentialAsync(provider.ProviderId).ConfigureAwait(false);
+            token = await credentialStore.GetCredentialAsync(provider.ProviderId, CancellationToken.None).ConfigureAwait(false);
         }
 
         // Migrate legacy token if found in hosting state
-        if (string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(_currentHostingState.AuthToken))
+        if (string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(_currentHostingState?.AuthToken))
         {
             token = _currentHostingState.AuthToken;
             if (credentialStore != null)
             {
-                await credentialStore.SaveCredentialAsync(provider.ProviderId, token).ConfigureAwait(false);
+                await credentialStore.SaveCredentialAsync(provider.ProviderId, token, CancellationToken.None).ConfigureAwait(false);
             }
 
             _currentHostingState.AuthToken = null;
@@ -1855,11 +1870,11 @@ public partial class PublishShareViewModel(
             }
         }
 
-        if (string.IsNullOrEmpty(token))
-        {
-            return;
-        }
+        return token;
+    }
 
+    private async Task TryRestoreProviderAuthenticationAsync(IHostingProvider provider, string token)
+    {
         try
         {
             if (provider.ProviderId == HostingConstants.GitHub && provider is GitHubHostingProvider githubProvider)
@@ -1883,20 +1898,24 @@ public partial class PublishShareViewModel(
                 }
             }
 
-            // Notify computed properties
-            OnPropertyChanged(nameof(IsProviderAuthenticated));
-            OnPropertyChanged(nameof(NeedsAuthentication));
-            OnPropertyChanged(nameof(ShowGitHubPatInput));
-            OnPropertyChanged(nameof(ShowGoogleOAuthButton));
-            OnPropertyChanged(nameof(ShowDropboxTokenInput));
-            OnPropertyChanged(nameof(ConnectButtonText));
-            OnPropertyChanged(nameof(PublishButtonText));
-            OnPropertyChanged(nameof(TargetDestinationDescription));
+            NotifyAuthenticationPropertiesChanged();
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to restore authentication");
         }
+    }
+
+    private void NotifyAuthenticationPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(IsProviderAuthenticated));
+        OnPropertyChanged(nameof(NeedsAuthentication));
+        OnPropertyChanged(nameof(ShowGitHubPatInput));
+        OnPropertyChanged(nameof(ShowGoogleOAuthButton));
+        OnPropertyChanged(nameof(ShowDropboxTokenInput));
+        OnPropertyChanged(nameof(ConnectButtonText));
+        OnPropertyChanged(nameof(PublishButtonText));
+        OnPropertyChanged(nameof(TargetDestinationDescription));
     }
 
     /// <summary>
@@ -2618,9 +2637,9 @@ public partial class PublishShareViewModel(
             {
                 MergeCloudHostingState(result.Data);
 
-                if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null)
+                if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null && hostingStateManager != null)
                 {
-                    if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
+                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct).ConfigureAwait(false);
                 }
 
                 InitializeCatalogStatuses();
@@ -2662,9 +2681,9 @@ public partial class PublishShareViewModel(
             if (result.Success && result.Data != null)
             {
                 MergeCloudHostingState(result.Data);
-                if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null)
+                if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null && hostingStateManager != null)
                 {
-                    if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None);
+                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None).ConfigureAwait(false);
                 }
 
                 InitializeCatalogStatuses();

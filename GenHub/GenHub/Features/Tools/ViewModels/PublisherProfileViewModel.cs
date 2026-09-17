@@ -61,21 +61,6 @@ public partial class PublisherProfileViewModel(
     [ObservableProperty]
     private string? _statusMessage;
 
-    partial void OnPublisherIdChanged(string value) => MarkDirty();
-    partial void OnPublisherNameChanged(string value) => MarkDirty();
-    partial void OnAvatarUrlChanged(string value) => MarkDirty();
-    partial void OnWebsiteUrlChanged(string value) => MarkDirty();
-    partial void OnSupportUrlChanged(string value) => MarkDirty();
-    partial void OnContactEmailChanged(string value) => MarkDirty();
-    partial void OnDescriptionChanged(string value) => MarkDirty();
-    partial void OnTagsStringChanged(string value) => MarkDirty();
-
-    private void MarkDirty()
-    {
-        IsSavedSuccessfully = false;
-        parentViewModel?.MarkDirty();
-    }
-
     /// <summary>
     /// Validates that a string is either empty or a valid HTTP/HTTPS URL.
     /// </summary>
@@ -120,6 +105,28 @@ public partial class PublisherProfileViewModel(
         return new ValidationResult("Contact email must be a valid email address.");
     }
 
+    partial void OnPublisherIdChanged(string value) => MarkDirty();
+
+    partial void OnPublisherNameChanged(string value) => MarkDirty();
+
+    partial void OnAvatarUrlChanged(string value) => MarkDirty();
+
+    partial void OnWebsiteUrlChanged(string value) => MarkDirty();
+
+    partial void OnSupportUrlChanged(string value) => MarkDirty();
+
+    partial void OnContactEmailChanged(string value) => MarkDirty();
+
+    partial void OnDescriptionChanged(string value) => MarkDirty();
+
+    partial void OnTagsStringChanged(string value) => MarkDirty();
+
+    private void MarkDirty()
+    {
+        IsSavedSuccessfully = false;
+        parentViewModel?.MarkDirty();
+    }
+
     /// <summary>
     /// Saves the publisher profile to the project and writes to disk immediately.
     /// </summary>
@@ -153,28 +160,26 @@ public partial class PublisherProfileViewModel(
             project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
             project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
 
-            foreach (var catalog in project.Catalogs.Select(namedCatalog => namedCatalog.Catalog).Where(catalog => catalog != null))
-            {
-                catalog.Publisher = project.Catalog.Publisher;
-            }
+            project.Tags = TagsString
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            project.Tags.Clear();
-            project.Tags.AddRange(TagsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-
-            parentViewModel?.MarkDirty();
+            // Persist changes to disk through parent view model
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
             }
 
             IsSavedSuccessfully = true;
-            StatusMessage = "Profile saved successfully.";
-            logger?.LogInformation("Publisher profile saved for: {PublisherId}", project.Catalog.Publisher.Id);
+            StatusMessage = "Publisher profile saved successfully.";
+            logger?.LogInformation("Publisher profile saved: {PublisherId} ({PublisherName})", PublisherId, PublisherName);
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to save publisher profile");
-            StatusMessage = $"Error saving profile: {ex.Message}";
+            StatusMessage = $"Failed to save: {ex.Message}";
             IsSavedSuccessfully = false;
         }
     }

@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Features.Tools.Services.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ namespace GenHub.Tests.Core.Features.Tools.Services;
 public sealed class HostingCredentialStoreTests : IDisposable
 {
     private readonly string _testBaseDir;
+    private readonly Mock<IConfigurationProviderService> _configProviderMock = new();
     private readonly Mock<ILogger<HostingCredentialStore>> _loggerMock = new();
     private readonly HostingCredentialStore _store;
 
@@ -25,7 +27,8 @@ public sealed class HostingCredentialStoreTests : IDisposable
     {
         _testBaseDir = Path.Combine(Path.GetTempPath(), "genhub_cred_tests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_testBaseDir);
-        _store = new HostingCredentialStore(_loggerMock.Object, _testBaseDir);
+        _configProviderMock.Setup(c => c.GetApplicationDataPath()).Returns(_testBaseDir);
+        _store = new HostingCredentialStore(_configProviderMock.Object, _loggerMock.Object);
     }
 
     /// <inheritdoc/>
@@ -54,8 +57,7 @@ public sealed class HostingCredentialStoreTests : IDisposable
         const string providerId = "github";
         const string secretToken = "ghp_secure_personal_access_token_1234567890";
 
-        var saveResult = await _store.SaveCredentialAsync(providerId, secretToken);
-        Assert.True(saveResult);
+        await _store.SaveCredentialAsync(providerId, secretToken);
 
         var retrieved = await _store.GetCredentialAsync(providerId);
         Assert.Equal(secretToken, retrieved);
@@ -86,22 +88,21 @@ public sealed class HostingCredentialStoreTests : IDisposable
         var retrievedBefore = await _store.GetCredentialAsync(providerId);
         Assert.Equal(token, retrievedBefore);
 
-        var deleteResult = await _store.DeleteCredentialAsync(providerId);
-        Assert.True(deleteResult);
+        await _store.DeleteCredentialAsync(providerId);
 
         var retrievedAfter = await _store.GetCredentialAsync(providerId);
         Assert.Null(retrievedAfter);
     }
 
     /// <summary>
-    /// Tests that deleting a non-existent credential returns false without throwing.
+    /// Tests that deleting a non-existent credential completes without throwing.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeleteCredentialAsync_WhenNotStored_ReturnsFalse()
+    public async Task DeleteCredentialAsync_WhenNotStored_DoesNotThrow()
     {
-        var deleteResult = await _store.DeleteCredentialAsync("never_saved_provider");
-        Assert.False(deleteResult);
+        var exception = await Record.ExceptionAsync(() => _store.DeleteCredentialAsync("never_saved_provider"));
+        Assert.Null(exception);
     }
 
     /// <summary>
@@ -109,9 +110,24 @@ public sealed class HostingCredentialStoreTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task SaveCredentialAsync_WithInvalidArgs_ThrowsArgumentException()
+    public async Task SaveCredentialAsync_WithNullOrWhitespaceProviderId_ThrowsArgumentException()
     {
         await Assert.ThrowsAsync<ArgumentException>(() => _store.SaveCredentialAsync(string.Empty, "token"));
-        await Assert.ThrowsAsync<ArgumentException>(() => _store.SaveCredentialAsync("provider", string.Empty));
+        await Assert.ThrowsAsync<ArgumentException>(() => _store.SaveCredentialAsync("   ", "token"));
+    }
+
+    /// <summary>
+    /// Tests that saving with an empty credential clears the stored token.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveCredentialAsync_WithEmptyCredential_ClearsStoredToken()
+    {
+        const string providerId = "github";
+        await _store.SaveCredentialAsync(providerId, "initial_token");
+        Assert.Equal("initial_token", await _store.GetCredentialAsync(providerId));
+
+        await _store.SaveCredentialAsync(providerId, string.Empty);
+        Assert.Null(await _store.GetCredentialAsync(providerId));
     }
 }

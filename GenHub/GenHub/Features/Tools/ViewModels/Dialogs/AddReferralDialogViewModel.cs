@@ -143,7 +143,12 @@ public partial class AddReferralDialogViewModel(
             return;
         }
 
-        _discoveryCts?.Cancel();
+        if (_discoveryCts != null)
+        {
+            await _discoveryCts.CancelAsync().ConfigureAwait(false);
+            _discoveryCts.Dispose();
+        }
+
         _discoveryCts = new CancellationTokenSource();
         var ct = _discoveryCts.Token;
 
