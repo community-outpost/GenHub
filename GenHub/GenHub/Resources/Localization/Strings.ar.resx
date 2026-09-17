@@ -4627,6 +4627,69 @@
   <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
     <value>تحويل ملفات .ctr / .gib إلى تنسيق .big النشط للتشغيل المباشر عبر GameClient</value>
   </data>
+  <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
+    <value>التحقق من صحة تنسيقات الأرشيف وتحويلها...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
+    <value>تطبيع الأرشيفات غير النشطة (.ctr / .gib) إلى .big...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
+    <value>تم تطبيع الأرشيفات غير النشطة إلى .big بنجاح.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationFailed" xml:space="preserve">
+    <value>فشل التطبيع: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressAnalyzingFiles" xml:space="preserve">
+    <value>تحليل الملفات وحساب التجزئة...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusScanningContent" xml:space="preserve">
+    <value>مسح المحتوى المحلي...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingManifest" xml:space="preserve">
+    <value>تحديث بيان المحتوى...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressCasStorage" xml:space="preserve">
+    <value>{0} من أصل {1} من الملفات المخزنة في تجمع CAS{2}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressWritingMetadata" xml:space="preserve">
+    <value>كتابة البيانات الوصفية...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingFiles" xml:space="preserve">
+    <value>تحديث ملفات المحتوى...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFiles" xml:space="preserve">
+    <value>استيراد ملفات المحتوى...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportCancelled" xml:space="preserve">
+    <value>تم إلغاء الاستيراد.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSuccessful" xml:space="preserve">
+    <value>تم الاستيراد بنجاح.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportError" xml:space="preserve">
+    <value>خطأ في الاستيراد: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFile" xml:space="preserve">
+    <value>جارٍ استيراد {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogTitle" xml:space="preserve">
+    <value>تم اكتشاف تعارض في الملفات</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogMessage" xml:space="preserve">
+    <value>استيراد '{0}' يتعارض مع {1} من الملفات الموجودة. هل تريد استبدال الملفات الموجودة؟</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogOverwrite" xml:space="preserve">
+    <value>استبدال</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogCancel" xml:space="preserve">
+    <value>تخطي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSkippedCollision" xml:space="preserve">
+    <value>تم تخطي الاستيراد بسبب تعارض الملفات.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SingleCollisionDialogMessage" xml:space="preserve">
+    <value>الملف '{0}' موجود بالفعل في منطقة التجهيز بمحتوى مختلف. هل تريد الاستبدال؟</value>
+  </data>
   <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
     <value>إضافة محتوى</value>
   </data>

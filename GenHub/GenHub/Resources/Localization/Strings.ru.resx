@@ -4627,6 +4627,69 @@
   <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
     <value>Преобразовать файлы .ctr / .gib в активный формат .big для прямого запуска через GameClient</value>
   </data>
+  <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
+    <value>Проверка и преобразование форматов архивов...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
+    <value>Нормализация неактивных архивов (.ctr / .gib) в .big...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
+    <value>Неактивные архивы успешно нормализованы в .big.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationFailed" xml:space="preserve">
+    <value>Сбой нормализации: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressAnalyzingFiles" xml:space="preserve">
+    <value>Анализ файлов и вычисление хешей...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusScanningContent" xml:space="preserve">
+    <value>Сканирование локального контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingManifest" xml:space="preserve">
+    <value>Обновление манифеста контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressCasStorage" xml:space="preserve">
+    <value>{0} из {1} файлов сохранено в пуле CAS{2}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressWritingMetadata" xml:space="preserve">
+    <value>Запись метаданных...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingFiles" xml:space="preserve">
+    <value>Обновление файлов контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFiles" xml:space="preserve">
+    <value>Импорт файлов контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportCancelled" xml:space="preserve">
+    <value>Импорт отменен.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSuccessful" xml:space="preserve">
+    <value>Импорт успешно завершен.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportError" xml:space="preserve">
+    <value>Ошибка импорта: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFile" xml:space="preserve">
+    <value>Импорт {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogTitle" xml:space="preserve">
+    <value>Обнаружены конфликты файлов</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogMessage" xml:space="preserve">
+    <value>Импорт '{0}' конфликтует с существующими файлами ({1}). Перезаписать существующие файлы?</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogOverwrite" xml:space="preserve">
+    <value>Перезаписать</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogCancel" xml:space="preserve">
+    <value>Пропустить</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSkippedCollision" xml:space="preserve">
+    <value>Импорт пропущен из-за конфликтов файлов.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SingleCollisionDialogMessage" xml:space="preserve">
+    <value>Файл '{0}' уже существует в промежуточной области с другим содержимым. Перезаписать?</value>
+  </data>
   <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
     <value>Добавить контент</value>
   </data>

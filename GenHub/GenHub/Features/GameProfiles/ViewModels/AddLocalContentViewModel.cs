@@ -7,6 +7,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Common;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -28,6 +29,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <param name="dialogService">Service for showing dialogs.</param>
 /// <param name="archivePayloadProcessor">Service for archive extraction and payload structure normalization.</param>
 /// <param name="logger">Logger instance.</param>
+/// <param name="localizationService">Localization service for user-facing status and progress messages.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods access CommunityToolkit MVVM generated properties.")]
 public partial class AddLocalContentViewModel(
     ILocalContentService localContentService,
@@ -35,7 +37,8 @@ public partial class AddLocalContentViewModel(
     IGenLauncherNormalizationService? genLauncherNormalizationService,
     IDialogService? dialogService,
     IArchivePayloadProcessor? archivePayloadProcessor = null,
-    ILogger<AddLocalContentViewModel>? logger = null) : ObservableObject, IDisposable
+    ILogger<AddLocalContentViewModel>? logger = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     /// <summary>
     /// Gets the list of available game types.
@@ -209,8 +212,10 @@ public partial class AddLocalContentViewModel(
         return items;
     }
 
-    private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target)
+    private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!target.Exists)
         {
             Directory.CreateDirectory(target.FullName);
@@ -218,14 +223,49 @@ public partial class AddLocalContentViewModel(
 
         foreach (var file in source.GetFiles())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             file.CopyTo(Path.Combine(target.FullName, file.Name), true);
         }
 
         foreach (var subDirectory in source.GetDirectories())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var nextTargetSubDir = target.CreateSubdirectory(subDirectory.Name);
-            CopyDirectory(subDirectory, nextTargetSubDir);
+            CopyDirectory(subDirectory, nextTargetSubDir, cancellationToken);
         }
+    }
+
+    private static List<string> DetectDirectoryCollisions(DirectoryInfo source, DirectoryInfo target)
+    {
+        var collisions = new List<string>();
+        if (!target.Exists)
+        {
+            return collisions;
+        }
+
+        foreach (var file in source.GetFiles())
+        {
+            var targetFilePath = Path.Combine(target.FullName, file.Name);
+            if (File.Exists(targetFilePath) && !FilesHaveIdenticalContent(file.FullName, targetFilePath))
+            {
+                collisions.Add(file.Name);
+            }
+        }
+
+        foreach (var subDir in source.GetDirectories())
+        {
+            var targetSubDirPath = Path.Combine(target.FullName, subDir.Name);
+            if (Directory.Exists(targetSubDirPath))
+            {
+                var subCollisions = DetectDirectoryCollisions(subDir, new DirectoryInfo(targetSubDirPath));
+                foreach (var sc in subCollisions)
+                {
+                    collisions.Add(Path.Combine(subDir.Name, sc).Replace('\\', '/'));
+                }
+            }
+        }
+
+        return collisions;
     }
 
     private static string FormatNormalizationSuccessMessage(GenLauncherNormalizationResult result)
@@ -248,7 +288,20 @@ public partial class AddLocalContentViewModel(
         return $"Normalized {result.NormalizedCount} file(s). Import successful.";
     }
 
+    private readonly ILocalizationService? _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
+
+    private string GetLocalizedString(string key, string fallback) =>
+        _localizationService?[key] ?? fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object[] args) =>
+        _localizationService != null ? _localizationService.GetString(key, args) : string.Format(fallback, args);
+
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
+
+    /// <summary>
+    /// Gets the temporary staging directory path for local content.
+    /// </summary>
+    internal string StagingPath => _stagingPath;
 
     private string? _originalManifestId;
     private string? _pendingEntryPoint;
@@ -525,7 +578,7 @@ public partial class AddLocalContentViewModel(
         try
         {
             IsBusy = true;
-            StatusMessage = $"Importing {Path.GetFileName(path)}...";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportingFile", "Importing {0}...", Path.GetFileName(path));
             logger?.LogInformation("Importing content from {Path} to staging {Staging}", path, _stagingPath);
 
             if (!Directory.Exists(_stagingPath))
@@ -533,7 +586,12 @@ public partial class AddLocalContentViewModel(
                 Directory.CreateDirectory(_stagingPath);
             }
 
-            await StageContentFromPathAsync(path, cancellationToken);
+            var staged = await StageContentFromPathAsync(path, cancellationToken);
+            if (!staged)
+            {
+                return;
+            }
+
             CreateMapFoldersIfNeeded();
 
             var normalizationSetStatus = await HandleGenLauncherNormalizationAsync(cancellationToken);
@@ -546,14 +604,19 @@ public partial class AddLocalContentViewModel(
 
             if (!normalizationSetStatus.Value)
             {
-                StatusMessage = "Import successful.";
+                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSuccessful", "Import successful.");
             }
 
             Validate();
         }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportCancelled", "Import cancelled.");
+            logger?.LogInformation("Import cancelled by user");
+        }
         catch (Exception ex)
         {
-            StatusMessage = $"Import Error: {ex.Message}";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportError", "Import Error: {0}", ex.Message);
             logger?.LogError(ex, "Error importing content to staging");
         }
         finally
@@ -579,12 +642,39 @@ public partial class AddLocalContentViewModel(
         }
     }
 
-    private async Task StageContentFromPathAsync(string path, CancellationToken cancellationToken)
+    private async Task<bool> StageContentFromPathAsync(string path, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (File.Exists(path))
         {
             var extension = Path.GetExtension(path);
             var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
+
+            if (File.Exists(destFile) && !FilesHaveIdenticalContent(path, destFile))
+            {
+                logger?.LogWarning("Detected file collision when importing {Source}: file {Dest} already exists with different content.", path, destFile);
+                if (dialogService != null)
+                {
+                    var confirmMessage = string.Format(
+                        GetLocalizedString("Profiles.AddLocalContent.SingleCollisionDialogMessage", "The file '{0}' already exists in staging with different content. Overwrite?"),
+                        Path.GetFileName(path));
+
+                    var overwrite = await dialogService.ShowConfirmationAsync(
+                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogTitle", "File Collisions Detected"),
+                        confirmMessage,
+                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogOverwrite", "Overwrite"),
+                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogCancel", "Skip"));
+
+                    if (!overwrite)
+                    {
+                        logger?.LogInformation("User skipped importing {Path} due to detected file collision.", path);
+                        StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+                        return false;
+                    }
+                }
+            }
+
             File.Copy(path, destFile, true);
 
             if (archivePayloadProcessor != null)
@@ -619,7 +709,39 @@ public partial class AddLocalContentViewModel(
             var dirInfo = new DirectoryInfo(path);
             logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", path, _stagingPath);
 
-            await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath)), cancellationToken);
+            var collisions = DetectDirectoryCollisions(dirInfo, new DirectoryInfo(_stagingPath));
+            if (collisions.Count > 0)
+            {
+                logger?.LogWarning(
+                    "Detected {Count} file collision(s) when importing from {Source} into staging {Staging}: {Collisions}",
+                    collisions.Count,
+                    path,
+                    _stagingPath,
+                    string.Join(", ", collisions));
+
+                if (dialogService != null)
+                {
+                    var confirmMessage = string.Format(
+                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogMessage", "Importing '{0}' conflicts with {1} existing file(s). Overwrite existing files?"),
+                        Path.GetFileName(path),
+                        collisions.Count);
+
+                    var overwrite = await dialogService.ShowConfirmationAsync(
+                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogTitle", "File Collisions Detected"),
+                        confirmMessage,
+                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogOverwrite", "Overwrite"),
+                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogCancel", "Skip"));
+
+                    if (!overwrite)
+                    {
+                        logger?.LogInformation("User skipped importing {Path} due to detected file collisions.", path);
+                        StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+                        return false;
+                    }
+                }
+            }
+
+            await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath), cancellationToken), cancellationToken);
 
             if (archivePayloadProcessor != null)
             {
@@ -631,6 +753,8 @@ public partial class AddLocalContentViewModel(
                     cancellationToken: cancellationToken);
             }
         }
+
+        return true;
     }
 
     private async Task<bool?> HandleGenLauncherNormalizationAsync(CancellationToken cancellationToken)
@@ -808,20 +932,20 @@ public partial class AddLocalContentViewModel(
         {
             IsBusy = true;
             IsProgressIndeterminate = true;
-            ProgressDetailMessage = "Validating and converting archive formats...";
-            StatusMessage = "Normalizing inactive archives (.ctr / .gib) to .big...";
+            ProgressDetailMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressValidatingArchive", "Validating and converting archive formats...");
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressNormalizingArchives", "Normalizing inactive archives (.ctr / .gib) to .big...");
             logger?.LogInformation("User triggered archive normalization in staging: {StagingPath}", _stagingPath);
 
             await Task.Run(NormalizeStagingDirectory, _cts?.Token ?? CancellationToken.None);
 
             await RefreshStagingTreeAsync();
-            StatusMessage = "Inactive archives normalized to .big successfully.";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizedSuccess", "Inactive archives normalized to .big successfully.");
             Validate();
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error normalizing inactive archives in staging");
-            StatusMessage = $"Normalization failed: {ex.Message}";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizationFailed", "Normalization failed: {0}", ex.Message);
         }
         finally
         {
@@ -918,8 +1042,10 @@ public partial class AddLocalContentViewModel(
             IsBusy = true;
             IsProgressIndeterminate = true;
             ProgressPercentage = 0;
-            ProgressDetailMessage = "Analyzing files and computing hashes...";
-            StatusMessage = IsEditing ? "Updating content manifest..." : "Scanning local content...";
+            ProgressDetailMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressAnalyzingFiles", "Analyzing files and computing hashes...");
+            StatusMessage = IsEditing
+                ? GetLocalizedString("Profiles.AddLocalContent.StatusUpdatingManifest", "Updating content manifest...")
+                : GetLocalizedString("Profiles.AddLocalContent.StatusScanningContent", "Scanning local content...");
 
             var targetGame = SelectedGameType;
 
@@ -930,14 +1056,18 @@ public partial class AddLocalContentViewModel(
                     ProgressPercentage = p.Percentage;
                     IsProgressIndeterminate = false;
                     var fileLabel = !string.IsNullOrWhiteSpace(p.CurrentFileName) ? $" ({Path.GetFileName(p.CurrentFileName)})" : string.Empty;
-                    ProgressDetailMessage = $"{p.ProcessedCount} of {p.TotalCount} files stored in CAS pool{fileLabel}";
+                    ProgressDetailMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressCasStorage", "{0} of {1} files stored in CAS pool{2}", p.ProcessedCount, p.TotalCount, fileLabel);
                     StatusMessage = $"{(IsEditing ? "Updating" : "Importing")} {ContentName}: {p.Percentage:0}% ({p.ProcessedCount}/{p.TotalCount} files)";
                 }
                 else
                 {
                     IsProgressIndeterminate = true;
-                    ProgressDetailMessage = !string.IsNullOrWhiteSpace(p.CurrentFileName) ? p.CurrentFileName : "Writing metadata...";
-                    StatusMessage = IsEditing ? "Updating content files..." : "Importing content files...";
+                    ProgressDetailMessage = !string.IsNullOrWhiteSpace(p.CurrentFileName)
+                        ? p.CurrentFileName
+                        : GetLocalizedString("Profiles.AddLocalContent.ProgressWritingMetadata", "Writing metadata...");
+                    StatusMessage = IsEditing
+                        ? GetLocalizedString("Profiles.AddLocalContent.StatusUpdatingFiles", "Updating content files...")
+                        : GetLocalizedString("Profiles.AddLocalContent.StatusImportingFiles", "Importing content files...");
                 }
             });
 

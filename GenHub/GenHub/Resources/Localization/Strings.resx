@@ -4627,6 +4627,69 @@ This will modify game files and configuration settings at:
   <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
     <value>Convert .ctr / .gib files to active .big format for direct modern GameClient launch</value>
   </data>
+  <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
+    <value>Validating and converting archive formats...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
+    <value>Normalizing inactive archives (.ctr / .gib) to .big...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
+    <value>Inactive archives normalized to .big successfully.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationFailed" xml:space="preserve">
+    <value>Normalization failed: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressAnalyzingFiles" xml:space="preserve">
+    <value>Analyzing files and computing hashes...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusScanningContent" xml:space="preserve">
+    <value>Scanning local content...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingManifest" xml:space="preserve">
+    <value>Updating content manifest...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressCasStorage" xml:space="preserve">
+    <value>{0} of {1} files stored in CAS pool{2}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressWritingMetadata" xml:space="preserve">
+    <value>Writing metadata...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingFiles" xml:space="preserve">
+    <value>Updating content files...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFiles" xml:space="preserve">
+    <value>Importing content files...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportCancelled" xml:space="preserve">
+    <value>Import cancelled.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSuccessful" xml:space="preserve">
+    <value>Import successful.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportError" xml:space="preserve">
+    <value>Import Error: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFile" xml:space="preserve">
+    <value>Importing {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogTitle" xml:space="preserve">
+    <value>File Collisions Detected</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogMessage" xml:space="preserve">
+    <value>Importing '{0}' conflicts with {1} existing file(s). Overwrite existing files?</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogOverwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogCancel" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSkippedCollision" xml:space="preserve">
+    <value>Import skipped due to file collisions.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SingleCollisionDialogMessage" xml:space="preserve">
+    <value>The file '{0}' already exists in staging with different content. Overwrite?</value>
+  </data>
   <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
     <value>Add Content</value>
   </data>

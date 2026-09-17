@@ -1183,6 +1183,185 @@ public class AddLocalContentViewModelTests : IDisposable
         Assert.Contains("Normalization warning: Disk I/O error. Import will continue.", vm.StatusMessage);
     }
 
+    /// <summary>
+    /// Verifies that cancellation during ImportContentAsync sets the status to cancelled without error.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenCancelled_SetsStatusToImportCancelledWithoutError()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "file.txt"), "data");
+
+        var archiveProcessorMock = new Mock<IArchivePayloadProcessor>();
+        archiveProcessorMock
+            .Setup(x => x.ProcessPayloadAsync(
+                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
+                It.IsAny<GameType>(),
+                false,
+                It.IsAny<CancellationToken>()))
+            .Throws(new OperationCanceledException());
+
+        var vm = new AddLocalContentViewModel(
+            _localContentServiceMock.Object,
+            _contentStorageServiceMock.Object,
+            _normalizationServiceMock.Object,
+            _dialogServiceMock.Object,
+            archiveProcessorMock.Object,
+            NullLogger<AddLocalContentViewModel>.Instance);
+        _viewModels.Add(vm);
+
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.Equal("Import cancelled.", vm.StatusMessage);
+        Assert.DoesNotContain("Import Error:", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that when directory collision is detected and user declines overwrite, files are not replaced.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenDirectoryCollisionDetected_AndUserSkips_DoesNotOverwrite()
+    {
+        var tempDir1 = CreateTempDirectory();
+        var tempDir2 = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir1, "Readme.txt"), "Original content");
+        File.WriteAllText(Path.Combine(tempDir2, "Readme.txt"), "Conflicting new content");
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir1);
+
+        _dialogServiceMock
+            .Setup(d => d.ShowConfirmationAsync(
+                It.Is<string>(s => s.Contains("Collision")),
+                It.IsAny<string>(),
+                It.Is<string>(s => s == "Overwrite"),
+                It.Is<string>(s => s == "Skip"),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        await vm.ImportContentAsync(tempDir2);
+
+        Assert.Equal("Import skipped due to file collisions.", vm.StatusMessage);
+        var stagingFile = Path.Combine(vm.StagingPath, "Readme.txt");
+        Assert.Equal("Original content", await File.ReadAllTextAsync(stagingFile));
+    }
+
+    /// <summary>
+    /// Verifies that when directory collision is detected and user confirms overwrite, files are replaced.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenDirectoryCollisionDetected_AndUserConfirms_Overwrites()
+    {
+        var tempDir1 = CreateTempDirectory();
+        var tempDir2 = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir1, "Readme.txt"), "Original content");
+        File.WriteAllText(Path.Combine(tempDir2, "Readme.txt"), "Overwritten content");
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir1);
+
+        _dialogServiceMock
+            .Setup(d => d.ShowConfirmationAsync(
+                It.Is<string>(s => s.Contains("Collision")),
+                It.IsAny<string>(),
+                It.Is<string>(s => s == "Overwrite"),
+                It.Is<string>(s => s == "Skip"),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        await vm.ImportContentAsync(tempDir2);
+
+        var stagingFile = Path.Combine(vm.StagingPath, "Readme.txt");
+        Assert.Equal("Overwritten content", await File.ReadAllTextAsync(stagingFile));
+    }
+
+    /// <summary>
+    /// Verifies that when single file collision is detected and user declines overwrite, the file is not replaced.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenSingleFileCollisionDetected_AndUserSkips_DoesNotOverwrite()
+    {
+        var tempDir1 = CreateTempDirectory();
+        var tempDir2 = CreateTempDirectory();
+        var file1 = Path.Combine(tempDir1, "mod.big");
+        var file2 = Path.Combine(tempDir2, "mod.big");
+        File.WriteAllText(file1, "First version");
+        File.WriteAllText(file2, "Second version");
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(file1);
+
+        _dialogServiceMock
+            .Setup(d => d.ShowConfirmationAsync(
+                It.Is<string>(s => s.Contains("Collision")),
+                It.IsAny<string>(),
+                It.Is<string>(s => s == "Overwrite"),
+                It.Is<string>(s => s == "Skip"),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        await vm.ImportContentAsync(file2);
+
+        Assert.Equal("Import skipped due to file collisions.", vm.StatusMessage);
+        var stagingFile = Path.Combine(vm.StagingPath, "mod.big");
+        Assert.Equal("First version", await File.ReadAllTextAsync(stagingFile));
+    }
+
+    /// <summary>
+    /// Verifies that when colliding files have identical content, no prompt is triggered and import succeeds.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenFilesHaveIdenticalContent_DoesNotTriggerCollisionPrompt()
+    {
+        var tempDir1 = CreateTempDirectory();
+        var tempDir2 = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir1, "Readme.txt"), "Same exact content");
+        File.WriteAllText(Path.Combine(tempDir2, "Readme.txt"), "Same exact content");
+
+        var vm = CreateViewModel();
+        await vm.ImportContentAsync(tempDir1);
+
+        await vm.ImportContentAsync(tempDir2);
+
+        _dialogServiceMock.Verify(
+            d => d.ShowConfirmationAsync(
+                It.Is<string>(s => s.Contains("Collision")),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()),
+            Times.Never);
+        Assert.Equal("Import successful.", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that providing a custom localization service resolves user-facing status messages.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WithLocalizationService_UsesLocalizedStrings()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "file.txt"), "data");
+
+        var locMock = new Mock<ILocalizationService>();
+        locMock.Setup(l => l.GetString("Profiles.AddLocalContent.StatusImportingFile", It.IsAny<object[]>()))
+            .Returns("Importation en cours...");
+        locMock.Setup(l => l["Profiles.AddLocalContent.StatusImportSuccessful"])
+            .Returns("Importation reussie.");
+
+        var vm = CreateViewModel(locMock.Object);
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.Equal("Importation reussie.", vm.StatusMessage);
+    }
+
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)
     {
         foreach (var item in items)
@@ -1203,7 +1382,7 @@ public class AddLocalContentViewModelTests : IDisposable
         return path;
     }
 
-    private AddLocalContentViewModel CreateViewModel()
+    private AddLocalContentViewModel CreateViewModel(ILocalizationService? localizationService = null)
     {
         var vm = new AddLocalContentViewModel(
             _localContentServiceMock.Object,
@@ -1211,7 +1390,8 @@ public class AddLocalContentViewModelTests : IDisposable
             _normalizationServiceMock.Object,
             _dialogServiceMock.Object,
             null,
-            NullLogger<AddLocalContentViewModel>.Instance);
+            NullLogger<AddLocalContentViewModel>.Instance,
+            localizationService);
         _viewModels.Add(vm);
         return vm;
     }
