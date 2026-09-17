@@ -15,31 +15,6 @@ public class SuperHackersClientIdentifier : IGameClientIdentifier
     /// <inheritdoc/>
     public string PublisherId => PublisherTypeConstants.TheSuperHackers;
 
-    /// <summary>
-    /// Determines whether a file carries a known executable name, with or without its
-    /// <c>.exe</c> extension.
-    /// </summary>
-    /// <param name="filePath">The candidate file path.</param>
-    /// <param name="windowsExecutableName">The Windows name of the executable, ending in <c>.exe</c>.</param>
-    /// <returns>True when the file is that executable in Windows or native form.</returns>
-    internal static bool MatchesExecutableName(string filePath, string windowsExecutableName)
-    {
-        var fileName = Path.GetFileName(filePath);
-
-        if (string.Equals(fileName, windowsExecutableName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // A native build of the same client drops the extension: generalszh.exe on
-        // Windows is GeneralsZH as a Mach-O or ELF binary.
-        return !Path.HasExtension(fileName)
-            && string.Equals(
-                fileName,
-                Path.GetFileNameWithoutExtension(windowsExecutableName),
-                StringComparison.OrdinalIgnoreCase);
-    }
-
     /// <inheritdoc/>
     public bool CanIdentify(string executablePath)
     {
@@ -68,5 +43,30 @@ public class SuperHackersClientIdentifier : IGameClientIdentifier
             displayName: displayName,
             gameType: gameType,
             localVersion: null); // Don't fetch from web during detection!
+    }
+
+    /// <summary>
+    /// Determines whether a file carries a known executable name, with or without its
+    /// <c>.exe</c> extension.
+    /// </summary>
+    /// <param name="filePath">The candidate file path.</param>
+    /// <param name="windowsExecutableName">The Windows name of the executable, ending in <c>.exe</c>.</param>
+    /// <returns>True when the file is that executable in Windows or native form.</returns>
+    internal static bool MatchesExecutableName(string filePath, string windowsExecutableName)
+    {
+        var fileName = Path.GetFileName(filePath);
+
+        if (string.Equals(fileName, windowsExecutableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // A native build of the same client drops the extension: generalszh.exe on
+        // Windows is GeneralsZH as a Mach-O or ELF binary.
+        return !Path.HasExtension(fileName)
+            && string.Equals(
+                fileName,
+                Path.GetFileNameWithoutExtension(windowsExecutableName),
+                StringComparison.OrdinalIgnoreCase);
     }
 }

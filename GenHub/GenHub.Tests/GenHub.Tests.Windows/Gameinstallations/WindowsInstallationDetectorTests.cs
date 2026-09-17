@@ -45,6 +45,7 @@ public class WindowsInstallationDetectorTests
     }
 
     /// <summary>A partial higher-priority detection cannot hide the other game in a combined root.</summary>
+    /// <param name="generalsClaimed">Whether the earlier detection claimed Generals rather than Zero Hour.</param>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
