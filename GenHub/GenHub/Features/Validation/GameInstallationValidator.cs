@@ -191,8 +191,7 @@ public class GameInstallationValidator(
                 installation,
                 progress,
                 cancellationToken,
-                targetIndex - 1,
-                targets.Count);
+                (targetIndex - 1, targets.Count));
 
             issues.AddRange(result.Issues);
             totalFiles += result.TotalFilesValidated;
@@ -216,12 +215,13 @@ public class GameInstallationValidator(
         GameInstallation? installation,
         IProgress<ValidationProgress>? progress,
         CancellationToken cancellationToken,
-        int targetIndex = 0,
-        int targetCount = 1)
+        (int Index, int Count)? target = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var stopwatch = Stopwatch.StartNew();
         var issues = new List<ValidationIssue>();
+
+        var (targetIndex, targetCount) = target ?? (0, 1);
 
         var detectedLanguage = string.IsNullOrWhiteSpace(language)
             ? await _languageDetector.DetectAsync(installationPath, cancellationToken)
@@ -250,18 +250,7 @@ public class GameInstallationValidator(
 
         if (manifest == null && manifestProvider != null)
         {
-            logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
-            var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
-            if (gameType == GameType.ZeroHour)
-            {
-                targetInstall.SetPaths(generalsPath: null, zeroHourPath: installationPath);
-            }
-            else
-            {
-                targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
-            }
-
-            manifest = await manifestProvider.GetManifestAsync(targetInstall, gameType, cancellationToken);
+            manifest = await ResolveFallbackManifestAsync(installationPath, gameType, installation, cancellationToken);
         }
 
         if (manifest == null)
@@ -331,6 +320,26 @@ public class GameInstallationValidator(
 
         stopwatch.Stop();
         return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
+    }
+
+    private async Task<ContentManifest?> ResolveFallbackManifestAsync(
+        string installationPath,
+        GameType gameType,
+        GameInstallation? installation,
+        CancellationToken cancellationToken)
+    {
+        logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
+        var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
+        if (gameType == GameType.ZeroHour)
+        {
+            targetInstall.SetPaths(generalsPath: null, zeroHourPath: installationPath);
+        }
+        else
+        {
+            targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
+        }
+
+        return await manifestProvider!.GetManifestAsync(targetInstall, gameType, cancellationToken);
     }
 
     private void AddValidationUnavailableIssue(
