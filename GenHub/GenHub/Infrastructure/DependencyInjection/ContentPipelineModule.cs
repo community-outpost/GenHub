@@ -340,8 +340,8 @@ public static class ContentPipelineModule
         services.AddHttpClient(PublisherTypeConstants.GenLauncher, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(GenLauncherConstants.DefaultHttpTimeoutSeconds);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GenHub/1.0");
-        });
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
+        }).ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
 
         // Register GenLauncher catalog parser
         services.AddSingleton<GenLauncherCatalogParser>();

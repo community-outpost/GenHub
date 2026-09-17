@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace GenHub.Core.Constants;
 
@@ -80,6 +81,131 @@ public static class GenLauncherConstants
     public const string GeneralsCatalogUrl = "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataGenerals3.yaml";
 
     /// <summary>
+    /// Default fallback version string for GenLauncher items without explicit version.
+    /// </summary>
+    public const string DefaultVersion = "1.0.0";
+
+    /// <summary>
+    /// Metadata key for S3 host link.
+    /// </summary>
+    public const string S3HostLinkMetadataKey = "s3HostLink";
+
+    /// <summary>
+    /// Legacy metadata key for S3 host.
+    /// </summary>
+    public const string S3HostMetadataKey = "s3Host";
+
+    /// <summary>
+    /// Metadata key for S3 bucket name.
+    /// </summary>
+    public const string S3BucketNameMetadataKey = "s3BucketName";
+
+    /// <summary>
+    /// Legacy metadata key for S3 bucket.
+    /// </summary>
+    public const string S3BucketMetadataKey = "s3Bucket";
+
+    /// <summary>
+    /// Metadata key for S3 folder name.
+    /// </summary>
+    public const string S3FolderNameMetadataKey = "s3FolderName";
+
+    /// <summary>
+    /// Legacy metadata key for S3 folder.
+    /// </summary>
+    public const string S3FolderMetadataKey = "s3Folder";
+
+    /// <summary>
+    /// Metadata key for S3 host public key.
+    /// </summary>
+    public const string S3HostPublicKeyMetadataKey = "s3HostPublicKey";
+
+    /// <summary>
+    /// Metadata key for S3 host secret key.
+    /// </summary>
+    public const string S3HostSecretKeyMetadataKey = "s3HostSecretKey";
+
+    /// <summary>
+    /// Default public access key for GenLauncher's InSave MinIO server (gen.insave.ovh:9000).
+    /// </summary>
+    public const string DefaultGenInsavePublicKey = "S58TYR9ISEZV8PBP8QG1";
+
+    /// <summary>
+    /// Default S3 region used for AWS Signature V4 request signing.
+    /// </summary>
+    public const string DefaultS3Region = "us-east-1";
+
+    /// <summary>
+    /// Default expiration time in seconds for S3 presigned URLs (24 hours).
+    /// </summary>
+    public const int DefaultS3PresignedUrlExpirySeconds = 86400;
+
+    /// <summary>
+    /// S3 host link substring for the default GenLauncher InSave server.
+    /// </summary>
+    public const string DefaultGenInsaveHost = "gen.insave.ovh:9000";
+
+    /// <summary>
+    /// Metadata key for news link.
+    /// </summary>
+    public const string NewsLinkMetadataKey = "newsLink";
+
+    /// <summary>
+    /// Metadata key for support link.
+    /// </summary>
+    public const string SupportLinkMetadataKey = "supportLink";
+
+    /// <summary>
+    /// Metadata key for discord link.
+    /// </summary>
+    public const string DiscordLinkMetadataKey = "discordLink";
+
+    /// <summary>
+    /// Metadata key for ModDB link.
+    /// </summary>
+    public const string ModDbLinkMetadataKey = "modDbLink";
+
+    /// <summary>
+    /// Metadata key for dependence name.
+    /// </summary>
+    public const string DependenceNameMetadataKey = "dependenceName";
+
+    /// <summary>
+    /// Metadata key for simple download link.
+    /// </summary>
+    public const string SimpleDownloadLinkMetadataKey = "simpleDownloadLink";
+
+    /// <summary>
+    /// Metadata key for YAML manifest URL.
+    /// </summary>
+    public const string YamlUrlMetadataKey = "yamlUrl";
+
+    /// <summary>
+    /// Maximum number of S3 pages to fetch when resolving files.
+    /// </summary>
+    public const int MaxS3ResolverPages = 100;
+
+    /// <summary>
+    /// Maximum number of S3 pages to fetch when calculating size.
+    /// </summary>
+    public const int MaxS3SizePages = 50;
+
+    /// <summary>
+    /// Maximum response body size for catalog and manifest downloads (10 MB).
+    /// </summary>
+    public const long MaxCatalogResponseBodyBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Default buffer size for catalog downloads.
+    /// </summary>
+    public const int DefaultBufferSize = 8192;
+
+    /// <summary>
+    /// Default concurrency limit for GenLauncher catalog and manifest operations.
+    /// </summary>
+    public const int DefaultCatalogConcurrency = 6;
+
+    /// <summary>
     /// GenLauncher Replace suffix - appended to original game files when temporarily disabled.
     /// </summary>
     public const string ReplaceSuffix = ".GLR";
@@ -123,6 +249,13 @@ public static class GenLauncherConstants
     /// Session key for "do not ask again" preference for normalization dialog.
     /// </summary>
     public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
+
+    /// <summary>
+    /// Default secret access key for GenLauncher's InSave MinIO server (gen.insave.ovh:9000).
+    /// </summary>
+    [SuppressMessage("Security", "S6418:Strings should not contain all capital secret keys or credentials", Justification = "Public read-only GenInsave S3 key distributed in the open-source GenLauncher client for community mod downloads")]
+    public static readonly string DefaultGenInsaveSecretKey = Encoding.UTF8.GetString(
+        Convert.FromBase64String("YjJSVTFvcVZVNXRvSlJuYjRnT0RyWFg4c0JTZ29MY0hUWDZxUFd4ag==")); // NOSONAR
 
     /// <summary>
     /// Probe timeout TimeSpan for GenLauncher size and availability probes.

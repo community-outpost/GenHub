@@ -78,7 +78,7 @@ public class GenLauncherResolver(
                     slug,
                     0)),
                 Name = discoveredItem.Name,
-                Version = !string.IsNullOrWhiteSpace(discoveredItem.Version) ? discoveredItem.Version : "1.0.0",
+                Version = !string.IsNullOrWhiteSpace(discoveredItem.Version) ? discoveredItem.Version : GenLauncherConstants.DefaultVersion,
                 ContentType = discoveredItem.ContentType,
                 TargetGame = discoveredItem.TargetGame,
                 OriginalProviderName = PublisherTypeConstants.GenLauncher,
@@ -124,7 +124,7 @@ public class GenLauncherResolver(
         {
             Description = discoveredItem.Description ?? string.Empty,
             IconUrl = versionManifest?.UIImageSourceLink ?? discoveredItem.IconUrl ?? string.Empty,
-            ChangelogUrl = versionManifest?.NewsLink ?? GetMetadata(discoveredItem.ResolverMetadata, "newsLink") ?? string.Empty,
+            ChangelogUrl = versionManifest?.NewsLink ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.NewsLinkMetadataKey) ?? string.Empty,
         };
 
         if (discoveredItem.Tags.Count > 0)
@@ -137,7 +137,7 @@ public class GenLauncherResolver(
             ? BaseDependencyBuilder.CreateZeroHour104Dependency()
             : BaseDependencyBuilder.CreateGenerals108Dependency());
 
-        var dependenceName = versionManifest?.DependenceName ?? GetMetadata(discoveredItem.ResolverMetadata, "dependenceName");
+        var dependenceName = versionManifest?.DependenceName ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.DependenceNameMetadataKey);
         if (!string.IsNullOrWhiteSpace(dependenceName))
         {
             var parentSlug = GenLauncherCatalogParser.Slugify(dependenceName);
@@ -165,7 +165,7 @@ public class GenLauncherResolver(
     {
         var rawDownloadLink = versionManifest?.SimpleDownloadLink
             ?? discoveredItem.SelectedDownloadUrl
-            ?? GetMetadata(discoveredItem.ResolverMetadata, "simpleDownloadLink");
+            ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey);
 
         if (string.IsNullOrWhiteSpace(rawDownloadLink))
         {
@@ -235,7 +235,7 @@ public class GenLauncherResolver(
             return manifest;
         }
 
-        var yamlUrl = GetMetadata(item.ResolverMetadata, "yamlUrl");
+        var yamlUrl = GetMetadata(item.ResolverMetadata, GenLauncherConstants.YamlUrlMetadataKey);
         if (string.IsNullOrWhiteSpace(yamlUrl) &&
             !string.IsNullOrWhiteSpace(item.SourceUrl) &&
             (item.SourceUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
@@ -265,15 +265,19 @@ public class GenLauncherResolver(
         }
     }
 
-    private async Task<(List<ManifestFile>? Files, bool HasMore, string? NextMarker)> FetchS3PageFilesAsync(
+    private async Task<(List<ManifestFile>? Files, bool IsTruncated, string? NextMarker)> FetchS3PageFilesAsync(
         HttpClient client,
-        string s3Host,
-        string s3Bucket,
-        string s3Folder,
+        S3BucketQuery query,
         string? currentMarker,
         CancellationToken cancellationToken)
     {
-        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(s3Host, s3Bucket, s3Folder, currentMarker);
+        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+            query.Host,
+            query.Bucket,
+            query.Folder,
+            currentMarker,
+            query.PublicKey,
+            query.SecretKey);
         if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
         {
             logger.LogWarning("Rejecting unsafe S3 query URL: {Url}", queryUrl);
@@ -285,11 +289,13 @@ public class GenLauncherResolver(
         var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
         var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
             s3Xml,
-            s3Folder,
-            s3Host,
-            s3Bucket,
+            query.Folder,
+            query.Host,
+            query.Bucket,
             out var isTruncated,
-            out var nextMarker);
+            out var nextMarker,
+            query.PublicKey,
+            query.SecretKey);
 
         var files = new List<ManifestFile>();
         foreach (var entry in fileEntries)
@@ -305,8 +311,7 @@ public class GenLauncherResolver(
             });
         }
 
-        var hasMore = isTruncated && !string.IsNullOrEmpty(nextMarker);
-        return (files, hasMore, nextMarker);
+        return (files, isTruncated, nextMarker);
     }
 
     private async Task<bool> TryResolveS3StoragePayloadAsync(
@@ -316,9 +321,11 @@ public class GenLauncherResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken)
     {
-        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, "s3HostLink") ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Host");
-        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3BucketName") ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Bucket");
-        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3FolderName") ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Folder");
+        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostLinkMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostMetadataKey);
+        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3BucketNameMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3BucketMetadataKey);
+        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3FolderNameMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3FolderMetadataKey);
+        var s3PublicKey = versionManifest?.S3HostPublicKey ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostPublicKeyMetadataKey);
+        var s3SecretKey = versionManifest?.S3HostSecretKey ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostSecretKeyMetadataKey);
 
         if (string.IsNullOrWhiteSpace(s3Host) || string.IsNullOrWhiteSpace(s3Bucket) || string.IsNullOrWhiteSpace(s3Folder))
         {
@@ -331,14 +338,16 @@ public class GenLauncherResolver(
             var s3Files = new List<ManifestFile>();
             var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
             var pageCount = 0;
-            const int maxPages = 100;
+            const int maxPages = GenLauncherConstants.MaxS3ResolverPages;
             var reachedTerminalPage = false;
+
+            var query = new S3BucketQuery(s3Host, s3Bucket, s3Folder, s3PublicKey, s3SecretKey);
 
             while (pageCount++ < maxPages)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var (files, hasMore, marker) = await FetchS3PageFilesAsync(
-                    client, s3Host, s3Bucket, s3Folder, nextMarker, cancellationToken);
+                var (files, isTruncated, marker) = await FetchS3PageFilesAsync(
+                    client, query, nextMarker, cancellationToken);
 
                 if (files == null || (files.Count == 0 && s3Files.Count == 0))
                 {
@@ -347,10 +356,16 @@ public class GenLauncherResolver(
 
                 s3Files.AddRange(files);
 
-                if (!hasMore || string.IsNullOrEmpty(marker) || !seenMarkers.Add(marker))
+                if (!isTruncated)
                 {
                     reachedTerminalPage = true;
                     break;
+                }
+
+                if (string.IsNullOrEmpty(marker) || !seenMarkers.Add(marker))
+                {
+                    logger.LogWarning("S3 pagination indicated truncation but provided missing or repeated marker for {Name}", discoveredItem.Name);
+                    return false;
                 }
 
                 nextMarker = marker;
@@ -375,4 +390,11 @@ public class GenLauncherResolver(
             return false;
         }
     }
+
+    private sealed record S3BucketQuery(
+        string Host,
+        string Bucket,
+        string Folder,
+        string? PublicKey,
+        string? SecretKey);
 }

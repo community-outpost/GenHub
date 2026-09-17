@@ -1281,7 +1281,9 @@ public sealed partial class ContentStateService(
         {
             var cleanedItemVer = item.Version.Trim().TrimStart('v', 'V');
             var cleanedManVer = manifest.Version.Trim().TrimStart('v', 'V');
-            if (string.Equals(cleanedItemVer, cleanedManVer, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(cleanedItemVer, cleanedManVer, StringComparison.OrdinalIgnoreCase) &&
+                (string.IsNullOrWhiteSpace(item.Name) || string.IsNullOrWhiteSpace(manifest.Name) ||
+                 string.Equals(item.Name, manifest.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
@@ -1442,17 +1444,17 @@ public sealed partial class ContentStateService(
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version) &&
-            string.Equals(item.Version.Trim().TrimStart('v', 'V'), manifest.Version.Trim().TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
         if (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(manifest.Name) &&
-            (string.Equals(item.Name, manifest.Name, StringComparison.OrdinalIgnoreCase) ||
-             manifest.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase) ||
-             item.Name.Contains(manifest.Name, StringComparison.OrdinalIgnoreCase)))
+            string.Equals(item.Name, manifest.Name, StringComparison.OrdinalIgnoreCase))
         {
+            if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
+            {
+                return string.Equals(
+                    item.Version.Trim().TrimStart('v', 'V'),
+                    manifest.Version.Trim().TrimStart('v', 'V'),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+
             return true;
         }
 
@@ -1461,21 +1463,18 @@ public sealed partial class ContentStateService(
         {
             var lastSegment = NormalizeSegment(segments[^1]);
             if (!string.IsNullOrEmpty(lastSegment) && !string.IsNullOrEmpty(itemSlug) &&
-                (lastSegment.Contains(itemSlug, StringComparison.OrdinalIgnoreCase) ||
-                 itemSlug.Contains(lastSegment, StringComparison.OrdinalIgnoreCase)))
+                string.Equals(lastSegment, itemSlug, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
         }
 
-        if (!string.IsNullOrEmpty(itemSlug) && itemSlug.Length >= 4)
+        if (!string.IsNullOrEmpty(itemSlug) && itemSlug.Length >= 4 &&
+            (manifest.Id.Value.Contains(itemSlug, StringComparison.OrdinalIgnoreCase) ||
+             (!string.IsNullOrEmpty(manifest.OriginalContentId) &&
+              manifest.OriginalContentId.Contains(itemSlug, StringComparison.OrdinalIgnoreCase))))
         {
-            if (manifest.Id.Value.Contains(itemSlug, StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrEmpty(manifest.OriginalContentId) &&
-                 manifest.OriginalContentId.Contains(itemSlug, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
+            return true;
         }
 
         // If the stored manifest does not specify release-level metadata (Name and Version are blank),

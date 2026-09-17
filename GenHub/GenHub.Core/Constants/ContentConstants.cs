@@ -190,6 +190,11 @@ public static class ContentConstants
     public const string ContentNotDownloadedTitle = "Content Not Downloaded";
 
     /// <summary>
+    /// Localization key for the content not downloaded dialog title.
+    /// </summary>
+    public const string ContentNotDownloadedTitleKey = "Downloads.ContentDetail.ContentNotDownloadedTitle";
+
+    /// <summary>
     /// Release categorization keyword indicating a patch release.
     /// </summary>
     public const string PatchKeyword = "patch";

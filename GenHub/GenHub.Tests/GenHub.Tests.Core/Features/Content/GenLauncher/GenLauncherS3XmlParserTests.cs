@@ -1,4 +1,5 @@
 using GenHub.Features.Content.Services.GenLauncher;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.GenLauncher;
@@ -41,7 +42,7 @@ public sealed class GenLauncherS3XmlParserTests
 </ListBucketResult>";
 
     /// <summary>
-    /// Tests that ParseListBucketResult correctly extracts files when XML uses an xmlns namespace.
+    /// Tests that ParseListBucketResult correctly extracts files and presigns URLs for InSave host.
     /// </summary>
     [Fact]
     public void ParseListBucketResult_WithNamespace_ExtractsValidFiles()
@@ -59,7 +60,9 @@ public sealed class GenLauncherS3XmlParserTests
         Assert.Equal("Shockwave.big", first.RelativePath);
         Assert.Equal(104857600, first.Size);
         Assert.Equal("0123456789abcdef0123456789abcdef", first.ETag);
-        Assert.Equal("http://gen.insave.ovh:9000/generals-mods/Shockwave_1.2/Shockwave.big", first.DownloadUrl);
+        Assert.StartsWith("http://gen.insave.ovh:9000/generals-mods/Shockwave_1.2/Shockwave.big?", first.DownloadUrl);
+        Assert.Contains("X-Amz-Signature=", first.DownloadUrl);
+        Assert.Contains("X-Amz-Algorithm=AWS4-HMAC-SHA256", first.DownloadUrl);
 
         var second = entries[1];
         Assert.Equal("Data/INI/GameData.ini", second.RelativePath);
@@ -67,7 +70,7 @@ public sealed class GenLauncherS3XmlParserTests
     }
 
     /// <summary>
-    /// Tests that ParseListBucketResult correctly extracts files when XML has no namespace.
+    /// Tests that ParseListBucketResult correctly extracts files when XML has no namespace and host is unsigned.
     /// </summary>
     [Fact]
     public void ParseListBucketResult_WithoutNamespace_ExtractsValidFiles()
@@ -93,5 +96,25 @@ public sealed class GenLauncherS3XmlParserTests
     {
         var entries = GenLauncherS3XmlParser.ParseListBucketResult(string.Empty, "folder", "host", "bucket");
         Assert.Empty(entries);
+    }
+
+    /// <summary>
+    /// Tests that ParseListBucketResult throws InvalidOperationException when S3 returns an Error XML document.
+    /// </summary>
+    [Fact]
+    public void ParseListBucketResult_ErrorXml_ThrowsInvalidOperationException()
+    {
+        const string errorXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<Error>
+    <Code>NoSuchBucket</Code>
+    <Message>The specified bucket does not exist</Message>
+    <BucketName>invalid-bucket</BucketName>
+</Error>";
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            GenLauncherS3XmlParser.ParseListBucketResult(errorXml, "folder", "host", "bucket"));
+
+        Assert.Contains("NoSuchBucket", ex.Message);
+        Assert.Contains("The specified bucket does not exist", ex.Message);
     }
 }
