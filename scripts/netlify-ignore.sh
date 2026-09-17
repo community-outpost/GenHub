@@ -27,7 +27,23 @@ if [[ "$PULL_REQUEST" == "true" || "$CONTEXT" == "deploy-preview" ]]; then
   TARGET_BASE=""
   if [[ -n "$REVIEW_ID" ]]; then
     echo "Querying GitHub API for target base branch of PR #$REVIEW_ID..."
-    TARGET_BASE=$(curl -s -H "User-Agent: Netlify-Ignore" "https://api.github.com/repos/community-outpost/GenHub/pulls/$REVIEW_ID" 2>/dev/null | python3 -c 'import sys, json; print(json.load(sys.stdin).get("base", {}).get("ref", ""))' 2>/dev/null || true)
+    AUTH_HEADER=()
+    TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+    if [[ -n "$TOKEN" ]]; then
+      echo "Using authenticated GitHub API request."
+      AUTH_HEADER=(-H "Authorization: Bearer $TOKEN")
+    fi
+
+    API_RESPONSE=$(curl -s "${AUTH_HEADER[@]}" -H "User-Agent: Netlify-Ignore" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/community-outpost/GenHub/pulls/$REVIEW_ID" 2>/dev/null || true)
+    if command -v jq >/dev/null 2>&1; then
+      TARGET_BASE=$(echo "$API_RESPONSE" | jq -r '.base.ref // empty' 2>/dev/null || true)
+    elif command -v python3 >/dev/null 2>&1; then
+      TARGET_BASE=$(echo "$API_RESPONSE" | python3 -c 'import sys, json; print(json.load(sys.stdin).get("base", {}).get("ref", ""))' 2>/dev/null || true)
+    elif command -v python >/dev/null 2>&1; then
+      TARGET_BASE=$(echo "$API_RESPONSE" | python -c 'import sys, json; print(json.load(sys.stdin).get("base", {}).get("ref", ""))' 2>/dev/null || true)
+    elif command -v node >/dev/null 2>&1; then
+      TARGET_BASE=$(echo "$API_RESPONSE" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log(JSON.parse(d).base?.ref||"")}catch(e){}})' 2>/dev/null || true)
+    fi
     echo "PR #$REVIEW_ID target branch: '$TARGET_BASE'"
   fi
 
