@@ -391,7 +391,6 @@ public class GenLauncherResolver(
             if (resp.IsSuccessStatusCode)
             {
                 s3Xml = await resp.Content.ReadAsStringAsync(cancellationToken);
-                return (s3Xml, false);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
