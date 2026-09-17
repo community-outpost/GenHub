@@ -503,6 +503,32 @@ public class CrossPublisherDependencyResolverTests
     }
 
     /// <summary>
+    /// Verifies that FetchExternalCatalogAsync blocks IPv4-mapped IPv6 literals, 6to4, and NAT64 embeddings for SSRF protection.
+    /// </summary>
+    /// <param name="url">The transition/mapped address URL to test.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("http://[::ffff:169.254.169.254]/latest/meta-data/")]
+    [InlineData("http://[::ffff:127.0.0.1]/catalog.json")]
+    [InlineData("http://[::ffff:10.0.0.1]/catalog.json")]
+    [InlineData("http://[::ffff:192.168.1.1]/catalog.json")]
+    [InlineData("http://[2002:a9fe:a9fe::]/catalog.json")]
+    [InlineData("http://[64:ff9b::169.254.169.254]/catalog.json")]
+    [InlineData("http://[64:ff9b:1::1]/catalog.json")]
+    public async Task FetchExternalCatalogAsync_Ipv6TransitionAndEmbeddedAddresses_ReturnsFailureAsync(string url)
+    {
+        // Arrange
+        var resolver = CreateResolver();
+
+        // Act
+        var result = await resolver.FetchExternalCatalogAsync(url);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("not allowed", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Helper method to create a resolver instance.
     /// </summary>
     /// <returns>A new <see cref="CrossPublisherDependencyResolver"/> instance.</returns>

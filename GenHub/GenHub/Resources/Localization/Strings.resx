@@ -11952,6 +11952,135 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
     <value>Creating MapPack...</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectToProvider" xml:space="preserve">
+    <value>Connect to {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProvider" xml:space="preserve">
+    <value>Connect Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishToProvider" xml:space="preserve">
+    <value>Publish to {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCatalogs" xml:space="preserve">
+    <value>Publish All Catalogs &amp; Update Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderSelected" xml:space="preserve">
+    <value>No hosting provider selected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGoogleDrive" xml:space="preserve">
+    <value>Your Google Drive (inside '{0}' folder)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationDropbox" xml:space="preserve">
+    <value>Your Dropbox account (inside '/Apps/GenHub/' app folder)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGitHub" xml:space="preserve">
+    <value>Your GitHub Gists (manifests &amp; definitions only; binaries require CDN URLs)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedTitle" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedMessage" xml:space="preserve">
+    <value>Successfully connected to {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTitle" xml:space="preserve">
+    <value>Authentication Canceled</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTimeout" xml:space="preserve">
+    <value>Authentication timed out or was canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledAborted" xml:space="preserve">
+    <value>Hosting provider connection was aborted.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledDriveHelp" xml:space="preserve">
+    <value>Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
+    <value>Authentication error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
+    <value>Authentication failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Authenticating" xml:space="preserve">
+    <value>Authenticating...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGitHubToken" xml:space="preserve">
+    <value>Please enter your Personal Access Token</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxToken" xml:space="preserve">
+    <value>Please enter your Dropbox Access Token</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGoogleCredentials" xml:space="preserve">
+    <value>Google Drive requires client credentials. Enter your Client ID and Client Secret above.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticatedSuccess" xml:space="preserve">
+    <value>Authenticated successfully</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignedOut" xml:space="preserve">
+    <value>Signed out</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignOutError" xml:space="preserve">
+    <value>Sign out error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.RestoredConnection" xml:space="preserve">
+    <value>Restored connection</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleProvider" xml:space="preserve">
+    <value>Incompatible Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishWarning" xml:space="preserve">
+    <value>Publish Warning</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishFailed" xml:space="preserve">
+    <value>Publish Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LinkCopied" xml:space="preserve">
+    <value>Link copied to clipboard.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.BrowserError" xml:space="preserve">
+    <value>Browser Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CouldNotOpenUrl" xml:space="preserve">
+    <value>Could not open URL: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderNotConnected" xml:space="preserve">
+    <value>Provider Not Connected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectBeforeScan" xml:space="preserve">
+    <value>Connect to your hosting provider before scanning storage.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StorageSynced" xml:space="preserve">
+    <value>Storage Synced</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
+    <value>Scan Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
+    <value>Copied to Clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DirectDownloadUrlCopied" xml:space="preserve">
+    <value>Direct download URL copied.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTitle" xml:space="preserve">
+    <value>Delete Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogMessage" xml:space="preserve">
+    <value>Are you sure you want to delete catalog '{0}'? This cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteConfirm" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DuplicateCatalogId" xml:space="preserve">
+    <value>Duplicate Catalog ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogAlreadyExists" xml:space="preserve">
+    <value>A catalog with ID '{0}' already exists.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

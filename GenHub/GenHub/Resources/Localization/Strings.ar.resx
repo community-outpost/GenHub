@@ -11854,6 +11854,135 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
     <value>جاري إنشاء حزمة الخرائط...</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectToProvider" xml:space="preserve">
+    <value>الاتصال بـ {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProvider" xml:space="preserve">
+    <value>اتصال بالمزود</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishToProvider" xml:space="preserve">
+    <value>نشر إلى {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCatalogs" xml:space="preserve">
+    <value>نشر جميع الفهارس وتحديث التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderSelected" xml:space="preserve">
+    <value>لم يتم تحديد مزود استضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGoogleDrive" xml:space="preserve">
+    <value>Google Drive الخاص بك (داخل مجلد '{0}')</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationDropbox" xml:space="preserve">
+    <value>حساب Dropbox الخاص بك (داخل مجلد التطبيق '/Apps/GenHub/')</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGitHub" xml:space="preserve">
+    <value>GitHub Gists الخاصة بك (البيانات والتعريفات فقط؛ الملفات الثنائية تتطلب عناوين CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedTitle" xml:space="preserve">
+    <value>متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedMessage" xml:space="preserve">
+    <value>تم الاتصال بنجاح بـ {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTitle" xml:space="preserve">
+    <value>تم إلغاء المصادقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTimeout" xml:space="preserve">
+    <value>انتهت مهلة المصادقة أو تم إلغاؤها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledAborted" xml:space="preserve">
+    <value>تم إحباط الاتصال بمزود الاستضافة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledDriveHelp" xml:space="preserve">
+    <value>تم إلغاء المصادقة أو انتهت المهلة. بالنسبة إلى Google Drive، تأكد من تحديد 'Desktop app' (وليس 'Web application') في Google Cloud Console.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
+    <value>خطأ في المصادقة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
+    <value>فشلت المصادقة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Authenticating" xml:space="preserve">
+    <value>جارٍ التحقق من الهوية...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGitHubToken" xml:space="preserve">
+    <value>يرجى إدخال رمز الوصول الشخصي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxToken" xml:space="preserve">
+    <value>يرجى إدخال رمز وصول Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGoogleCredentials" xml:space="preserve">
+    <value>يتطلب Google Drive بيانات اعتماد العميل. أدخل معرّف العميل وسر العميل أعلاه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticatedSuccess" xml:space="preserve">
+    <value>تمت المصادقة بنجاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignedOut" xml:space="preserve">
+    <value>تم تسجيل الخروج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignOutError" xml:space="preserve">
+    <value>خطأ أثناء تسجيل الخروج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.RestoredConnection" xml:space="preserve">
+    <value>تمت استعادة الاتصال</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleProvider" xml:space="preserve">
+    <value>مزود غير متوافق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishWarning" xml:space="preserve">
+    <value>تحذير النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishFailed" xml:space="preserve">
+    <value>فشل النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Copied" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LinkCopied" xml:space="preserve">
+    <value>تم نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.BrowserError" xml:space="preserve">
+    <value>خطأ في المتصفح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CouldNotOpenUrl" xml:space="preserve">
+    <value>تعذر فتح الرابط: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderNotConnected" xml:space="preserve">
+    <value>المزود غير متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectBeforeScan" xml:space="preserve">
+    <value>اتصل بمزود الاستضافة قبل فحص مساحة التخزين.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StorageSynced" xml:space="preserve">
+    <value>تمت مزامنة التخزين</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
+    <value>خطأ في الفحص</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
+    <value>تم النسخ إلى الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DirectDownloadUrlCopied" xml:space="preserve">
+    <value>تم نسخ رابط التنزيل المباشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTitle" xml:space="preserve">
+    <value>حذف الفهرس</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogMessage" xml:space="preserve">
+    <value>هل أنت متأكد من حذف الفهرس '{0}'؟ لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteConfirm" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DuplicateCatalogId" xml:space="preserve">
+    <value>معرّف فهرس مكرر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogAlreadyExists" xml:space="preserve">
+    <value>يوجد فهرس بالمعرّف '{0}' بالفعل.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

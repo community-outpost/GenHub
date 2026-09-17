@@ -124,12 +124,7 @@ public class ManualHostingProvider : IHostingProvider
     /// <inheritdoc/>
     public string GetSubscriptionLink(string catalogUrl)
     {
-        if (string.IsNullOrEmpty(catalogUrl))
-        {
-            return string.Empty;
-        }
-
-        return $"genhub://subscribe?url={Uri.EscapeDataString(catalogUrl)}";
+        return CommandLineConstants.BuildSubscriptionUrl(catalogUrl);
     }
 
     /// <inheritdoc/>

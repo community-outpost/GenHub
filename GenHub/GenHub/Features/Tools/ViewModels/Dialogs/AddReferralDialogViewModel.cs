@@ -18,7 +18,9 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for the Add Referral dialog with publisher discovery.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class AddReferralDialogViewModel : ObservableValidator, IDisposable
+public partial class AddReferralDialogViewModel(
+    Action<PublisherReferral> onReferralCreated,
+    IEnumerable<PublisherReferralOption>? existingSubscriptions = null) : ObservableValidator, IDisposable
 {
     private static readonly HttpClient SharedHttpClient = new(
         ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
@@ -26,7 +28,6 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
         Timeout = TimeSpan.FromSeconds(15),
     };
 
-    private readonly Action<PublisherReferral> _onReferralCreated;
     private CancellationTokenSource? _discoveryCts;
 
     [ObservableProperty]
@@ -56,7 +57,8 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
     private PublisherProfile? _discoveredPublisher;
 
     [ObservableProperty]
-    private ObservableCollection<PublisherReferralOption> _availablePublishers = new();
+    private ObservableCollection<PublisherReferralOption> _availablePublishers = new(
+        existingSubscriptions ?? Enumerable.Empty<PublisherReferralOption>());
 
     [ObservableProperty]
     private PublisherReferralOption? _selectedPublisher;
@@ -70,35 +72,6 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
         "https://gist.githubusercontent.com/username/...",
         "https://example.com/publisher.json",
     ];
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AddReferralDialogViewModel"/> class.
-    /// </summary>
-    /// <param name="onReferralCreated">Callback invoked when referral is created.</param>
-    /// <param name="existingSubscriptions">List of existing publisher subscriptions to offer as suggestions.</param>
-    public AddReferralDialogViewModel(
-        Action<PublisherReferral> onReferralCreated,
-        IEnumerable<PublisherReferralOption>? existingSubscriptions = null)
-    {
-        _onReferralCreated = onReferralCreated ?? throw new ArgumentNullException(nameof(onReferralCreated));
-
-        // Load available publishers from subscriptions
-        if (existingSubscriptions != null)
-        {
-            foreach (var publisher in existingSubscriptions)
-            {
-                AvailablePublishers.Add(publisher);
-            }
-        }
-
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(PublisherId) or nameof(CatalogUrl) or nameof(SelectedPublisher))
-            {
-                Validate();
-            }
-        };
-    }
 
     /// <inheritdoc />
     public void Dispose()
@@ -121,94 +94,105 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
         }
     }
 
+    partial void OnPublisherIdChanged(string value) => Validate();
+
+    partial void OnCatalogUrlChanged(string value) => Validate();
+
+    partial void OnSelectedPublisherChanged(PublisherReferralOption? value) => Validate();
+
+    /// <summary>
+    /// Closes the dialog without saving.
+    /// </summary>
     [RelayCommand]
     private void Close()
     {
-        _onReferralCreated(null!);
+        ArgumentNullException.ThrowIfNull(onReferralCreated);
+        onReferralCreated(null!);
     }
 
+    /// <summary>
+    /// Creates the referral if validation passes.
+    /// </summary>
     [RelayCommand]
     private void CreateReferral()
     {
         Validate();
+
         if (!IsValid) return;
 
         var referral = new PublisherReferral
         {
-            PublisherId = string.IsNullOrWhiteSpace(PublisherId) ? SelectedPublisher?.PublisherId ?? string.Empty : PublisherId.ToLowerInvariant().Trim(),
-            CatalogUrl = string.IsNullOrWhiteSpace(CatalogUrl) ? SelectedPublisher?.CatalogUrl ?? string.Empty : CatalogUrl.Trim(),
+            PublisherId = PublisherId.ToLowerInvariant().Trim(),
+            CatalogUrl = CatalogUrl.Trim(),
             Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
         };
 
-        _onReferralCreated(referral);
+        ArgumentNullException.ThrowIfNull(onReferralCreated);
+        onReferralCreated(referral);
     }
 
     /// <summary>
-    /// Discovers publisher information from the entered URL.
+    /// Attempts to discover publisher information from the entered Catalog URL.
     /// </summary>
     [RelayCommand]
     private async Task DiscoverPublisherAsync()
     {
-        if (string.IsNullOrWhiteSpace(CatalogUrl))
+        if (string.IsNullOrWhiteSpace(CatalogUrl) || !Uri.TryCreate(CatalogUrl, UriKind.Absolute, out var uri))
         {
-            ValidationError = "Please enter a Catalog or Provider Definition URL first";
+            ValidationError = "Please enter a valid URL first";
             return;
         }
 
-        var requestedUrl = CatalogUrl.Trim();
+        _discoveryCts?.Cancel();
+        _discoveryCts = new CancellationTokenSource();
+        var ct = _discoveryCts.Token;
+
         IsBusy = true;
         ValidationError = null;
-        DiscoveredPublisher = null;
-
-        if (_discoveryCts != null)
-        {
-            await _discoveryCts.CancelAsync();
-            _discoveryCts.Dispose();
-        }
-
-        _discoveryCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var ct = _discoveryCts.Token;
 
         try
         {
-            var json = await SharedHttpClient.GetStringAsync(requestedUrl, ct);
-            if (ct.IsCancellationRequested || !string.Equals(CatalogUrl?.Trim(), requestedUrl, StringComparison.Ordinal))
+            var response = await SharedHttpClient.GetAsync(uri, ct);
+            if (!response.IsSuccessStatusCode)
             {
+                SetDiscoveryErrorIfCurrentToken(ct, $"Could not fetch catalog: HTTP {(int)response.StatusCode}");
                 return;
             }
 
-            if (TryExtractPublisherFromDefinition(json, out var defProfile, out var newCatalogUrl))
+            var json = await response.Content.ReadAsStringAsync(ct);
+
+            // Attempt to parse as PublisherDefinition first (which contains PublisherProfile)
+            if (TryExtractPublisherFromDefinition(json, out var defProfile, out var extractedUrl))
             {
                 DiscoveredPublisher = defProfile;
                 PublisherId = defProfile.Id;
-                if (!string.IsNullOrEmpty(newCatalogUrl))
+                if (!string.IsNullOrEmpty(extractedUrl))
                 {
-                    CatalogUrl = newCatalogUrl;
+                    CatalogUrl = extractedUrl;
                 }
 
+                Validate();
                 return;
             }
 
-            if (TryExtractPublisherFromCatalog(json, out var catProfile, out var parseError))
+            // Fallback: try parsing as a raw PublisherCatalog
+            if (TryExtractPublisherFromCatalog(json, out var catProfile, out var error))
             {
                 DiscoveredPublisher = catProfile;
                 PublisherId = catProfile.Id;
+                Validate();
                 return;
             }
 
-            ValidationError = parseError;
+            SetDiscoveryErrorIfCurrentToken(ct, error ?? "Could not find publisher details in the response");
         }
         catch (OperationCanceledException)
         {
-            SetDiscoveryErrorIfCurrentToken(ct, "Discovery request timed out or was canceled.");
-        }
-        catch (HttpRequestException ex)
-        {
-            SetDiscoveryErrorIfCurrentToken(ct, $"Failed to fetch URL: {ex.Message}");
+            // Request was canceled, do nothing
         }
         catch (Exception ex)
         {
-            SetDiscoveryErrorIfCurrentToken(ct, $"Discovery failed: {ex.Message}");
+            SetDiscoveryErrorIfCurrentToken(ct, $"Discovery error: {ex.Message}");
         }
         finally
         {

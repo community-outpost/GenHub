@@ -492,8 +492,7 @@ public class GoogleDriveHostingProvider(
     /// <inheritdoc />
     public string GetSubscriptionLink(string catalogUrl)
     {
-        var encodedUrl = Uri.EscapeDataString(catalogUrl);
-        return $"genhub://subscribe?url={encodedUrl}";
+        return CommandLineConstants.BuildSubscriptionUrl(catalogUrl);
     }
 
     /// <inheritdoc />

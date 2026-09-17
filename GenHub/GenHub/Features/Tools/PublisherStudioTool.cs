@@ -46,7 +46,11 @@ public class PublisherStudioTool : IToolPlugin
     public void OnActivated(IServiceProvider serviceProvider)
     {
         // Only create ViewModel once - preserve state across activations
-        _viewModel ??= serviceProvider.GetRequiredService<PublisherStudioViewModel>();
+        if (_viewModel == null)
+        {
+            _viewModel = serviceProvider.GetRequiredService<PublisherStudioViewModel>();
+            _ = _viewModel.InitializeAsync();
+        }
 
         if (_view != null)
         {

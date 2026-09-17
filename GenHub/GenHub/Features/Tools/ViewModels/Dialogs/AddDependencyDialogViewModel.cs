@@ -18,7 +18,10 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for the Add Dependency dialog.
 /// Provides validation and creation of new CatalogDependency entries.
 /// </summary>
-public partial class AddDependencyDialogViewModel : ObservableValidator, IDisposable
+public partial class AddDependencyDialogViewModel(
+    PublisherCatalog catalog,
+    CatalogContentItem currentContent,
+    Action<CatalogDependency> onDependencyCreated) : ObservableValidator, IDisposable
 {
     private static readonly HttpClient SharedHttpClient = new(
         ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
@@ -26,15 +29,13 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
         Timeout = TimeSpan.FromSeconds(15),
     };
 
-    private readonly PublisherCatalog _catalog;
-    private readonly Action<CatalogDependency> _onDependencyCreated;
     private CancellationTokenSource? _discoveryCts;
 
     [ObservableProperty]
-    private bool _isFromMyCatalog = true;
+    private bool _isFromMyCatalog = catalog?.Content.Any(c => c.Id != currentContent.Id) == true;
 
     [ObservableProperty]
-    private CatalogContentItem? _selectedContent;
+    private CatalogContentItem? _selectedContent = catalog?.Content.FirstOrDefault(c => c.Id != currentContent.Id);
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -75,7 +76,9 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
     /// Gets the content items from the catalog that can be selected as dependencies.
     /// Excludes the current content item to prevent circular dependencies.
     /// </summary>
-    public IReadOnlyList<CatalogContentItem> AvailableContent { get; }
+    public IReadOnlyList<CatalogContentItem> AvailableContent { get; } = catalog?.Content
+        .Where(c => c.Id != currentContent.Id)
+        .ToList() ?? [];
 
     /// <summary>
     /// Gets example version constraints for user guidance.
@@ -89,51 +92,9 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
     ];
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AddDependencyDialogViewModel"/> class.
-    /// </summary>
-    /// <param name="catalog">The current publisher catalog.</param>
-    /// <param name="currentContent">The content item being edited (to exclude from dependencies).</param>
-    /// <param name="onDependencyCreated">Callback invoked when dependency is successfully created.</param>
-    public AddDependencyDialogViewModel(
-        PublisherCatalog catalog,
-        CatalogContentItem currentContent,
-        Action<CatalogDependency> onDependencyCreated)
-    {
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        ArgumentNullException.ThrowIfNull(currentContent);
-        _onDependencyCreated = onDependencyCreated ?? throw new ArgumentNullException(nameof(onDependencyCreated));
-
-        // Filter out current content to prevent self-dependency
-        AvailableContent = catalog.Content
-            .Where(c => c.Id != currentContent.Id)
-            .ToList();
-
-        // Auto-select first available if any
-        if (AvailableContent.Count > 0)
-        {
-            SelectedContent = AvailableContent[0];
-            IsFromMyCatalog = true;
-        }
-        else
-        {
-            // If no other content exists (e.g. only 1 item total), default to External
-            IsFromMyCatalog = false;
-        }
-
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(IsFromMyCatalog) or nameof(SelectedContent) or
-                nameof(ExternalPublisherId) or nameof(ExternalContentId))
-            {
-                Validate();
-            }
-        };
-    }
-
-    /// <summary>
     /// Gets display text for a content item in the dropdown.
     /// </summary>
-    /// <param name="content">The content item.</param>
+    /// <param name=\"content\">The content item.</param>
     /// <returns>Display text showing name and latest version.</returns>
     public static string GetContentDisplayText(CatalogContentItem content)
     {
@@ -160,7 +121,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
     /// <summary>
     /// Releases unmanaged and - optionally - managed resources.
     /// </summary>
-    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    /// <param name=\"disposing\"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (disposing)
@@ -170,10 +131,18 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
         }
     }
 
+    partial void OnIsFromMyCatalogChanged(bool value) => Validate();
+
+    partial void OnSelectedContentChanged(CatalogContentItem? value) => Validate();
+
+    partial void OnExternalPublisherIdChanged(string value) => Validate();
+
+    partial void OnExternalContentIdChanged(string value) => Validate();
+
     /// <summary>
     /// Applies an example version constraint.
     /// </summary>
-    /// <param name="example">The example constraint to apply.</param>
+    /// <param name=\"example\">The example constraint to apply.</param>
     [RelayCommand]
     private void ApplyVersionConstraintExample(string? example)
     {
@@ -189,7 +158,8 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
     [RelayCommand]
     private void Close()
     {
-        _onDependencyCreated(null!);
+        ArgumentNullException.ThrowIfNull(onDependencyCreated);
+        onDependencyCreated(null!);
     }
 
     /// <summary>
@@ -219,14 +189,15 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
 
         var dependency = new CatalogDependency
         {
-            PublisherId = _catalog.Publisher.Id,
+            PublisherId = catalog.Publisher.Id,
             ContentId = SelectedContent.Id,
             VersionConstraint = string.IsNullOrWhiteSpace(VersionConstraint) ? null : VersionConstraint.Trim(),
             IsOptional = IsOptional,
             CatalogUrl = null, // Same catalog, no URL needed
         };
 
-        _onDependencyCreated(dependency);
+        ArgumentNullException.ThrowIfNull(onDependencyCreated);
+        onDependencyCreated(dependency);
     }
 
     private void CreateExternalDependency()
@@ -263,7 +234,8 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
             ConflictsWith = ConflictsWithIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
         };
 
-        _onDependencyCreated(dependency);
+        ArgumentNullException.ThrowIfNull(onDependencyCreated);
+        onDependencyCreated(dependency);
     }
 
     /// <summary>
@@ -344,11 +316,11 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
     {
         try
         {
-            var catalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
-            if (catalog != null)
+            var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
+            if (parsedCatalog != null)
             {
-                ExternalPublisherId = catalog.Publisher.Id;
-                foreach (var item in catalog.Content)
+                ExternalPublisherId = parsedCatalog.Publisher.Id;
+                foreach (var item in parsedCatalog.Content)
                 {
                     DiscoveredContent.Add(item);
                 }
@@ -373,10 +345,10 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
                 ExternalPublisherId = definition.Publisher.Id;
 
                 var catalogJson = await client.GetStringAsync(definition.CatalogUrl, cancellationToken);
-                var catalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
-                if (catalog != null)
+                var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
+                if (parsedCatalog != null)
                 {
-                    foreach (var item in catalog.Content)
+                    foreach (var item in parsedCatalog.Content)
                     {
                         DiscoveredContent.Add(item);
                     }

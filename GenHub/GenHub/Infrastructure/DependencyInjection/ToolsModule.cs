@@ -33,6 +33,7 @@ public static class ToolsModule
         // Register Hosting Provider Factory for decentralized catalog distribution
         services.AddSingleton<IHostingProviderFactory, HostingProviderFactory>();
         services.AddSingleton<IHostingStateManager, HostingStateManager>();
+        services.AddSingleton<IHostingCredentialStore, HostingCredentialStore>();
 
         // Register ViewModels
         services.AddTransient<PublisherStudioViewModel>();

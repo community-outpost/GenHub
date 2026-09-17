@@ -21,10 +21,8 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// Provides validation and creation of new ReleaseArtifact entries.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class AddArtifactDialogViewModel : ObservableValidator
+public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated) : ObservableValidator
 {
-    private readonly Action<ReleaseArtifact> _onArtifactCreated;
-
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Filename is required")]
@@ -91,23 +89,6 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     /// Gets a value indicating whether the artifact is hosted remotely (URL set, no local file).
     /// </summary>
     public bool IsHosted => !string.IsNullOrEmpty(DownloadUrl) && !IsLocalFile;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AddArtifactDialogViewModel"/> class.
-    /// </summary>
-    /// <param name="onArtifactCreated">Callback invoked when artifact is successfully created.</param>
-    public AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated)
-    {
-        _onArtifactCreated = onArtifactCreated ?? throw new ArgumentNullException(nameof(onArtifactCreated));
-
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(Filename) or nameof(DownloadUrl) or nameof(LocalFilePath) or nameof(UseLocalFile))
-            {
-                Validate();
-            }
-        };
-    }
 
     /// <summary>
     /// Attempts to parse a human-readable file size string (e.g. 500 MB, 1.2 GB, or raw bytes).
@@ -183,6 +164,11 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
 
+    partial void OnFilenameChanged(string value)
+    {
+        Validate();
+    }
+
     partial void OnUseLocalFileChanged(bool value)
     {
         if (value)
@@ -196,6 +182,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
 
         OnPropertyChanged(nameof(UseExistingUrl));
         UpdateArtifactStatus();
+        Validate();
     }
 
     partial void OnLocalFilePathChanged(string? value)
@@ -203,6 +190,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         OnPropertyChanged(nameof(IsLocalFile));
         OnPropertyChanged(nameof(IsHosted));
         UpdateArtifactStatus();
+        Validate();
     }
 
     partial void OnDownloadUrlChanged(string value)
@@ -234,6 +222,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         OnPropertyChanged(nameof(IsLocalFile));
         OnPropertyChanged(nameof(IsHosted));
         UpdateArtifactStatus();
+        Validate();
     }
 
     partial void OnFileSizeInputChanged(string value)
@@ -272,7 +261,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         }
         else
         {
-            ArtifactStatus = "No file or URL configured";
+            ArtifactStatus = "No file configured";
         }
     }
 
@@ -453,56 +442,25 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
             LocalFilePath = UseLocalFile ? LocalFilePath : null,
         };
 
-        _onArtifactCreated(artifact);
+        ArgumentNullException.ThrowIfNull(onArtifactCreated);
+        onArtifactCreated(artifact);
     }
 
     /// <summary>
     /// Closes the dialog without saving.
     /// </summary>
     [RelayCommand]
-    private void Close()
+    private void Cancel()
     {
-        _onArtifactCreated(null!);
+        // Dialog window will be closed by view binding
     }
 
     private void Validate()
     {
         ValidateAllProperties();
-        if (HasErrors)
-        {
-            IsValid = false;
-            ValidationError = string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage));
-            return;
-        }
-
-        if (!UseLocalFile)
-        {
-            if (string.IsNullOrWhiteSpace(DownloadUrl))
-            {
-                IsValid = false;
-                ValidationError = "Download URL is required";
-                return;
-            }
-
-            if (!Uri.TryCreate(DownloadUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                IsValid = false;
-                ValidationError = "Please enter a valid HTTP or HTTPS download URL";
-                return;
-            }
-        }
-        else
-        {
-            if (string.IsNullOrWhiteSpace(LocalFilePath) || !File.Exists(LocalFilePath))
-            {
-                IsValid = false;
-                ValidationError = "Please select a local file to upload";
-                return;
-            }
-        }
-
-        IsValid = true;
-        ValidationError = null;
+        IsValid = !HasErrors;
+        ValidationError = HasErrors
+            ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
+            : null;
     }
 }

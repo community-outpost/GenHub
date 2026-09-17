@@ -10,16 +10,15 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// <summary>
 /// ViewModel for the Publisher Setup Wizard.
 /// </summary>
-public partial class PublisherSetupWizardViewModel : ObservableValidator
+public partial class PublisherSetupWizardViewModel(
+    PublisherStudioProject project,
+    Action<bool> closeAction) : ObservableValidator
 {
-    private readonly PublisherStudioProject _project;
-    private readonly Action<bool> _closeAction;
-
     [ObservableProperty]
     private int _currentStep;
 
     [ObservableProperty]
-    private string _stepTitle = "Welcome";
+    private string _stepTitle = "Publisher Identity";
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -56,19 +55,6 @@ public partial class PublisherSetupWizardViewModel : ObservableValidator
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public bool IsStep2 => CurrentStep == 2;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PublisherSetupWizardViewModel"/> class.
-    /// </summary>
-    /// <param name="project">The publisher studio project.</param>
-    /// <param name="closeAction">The action to call when closing the wizard.</param>
-    public PublisherSetupWizardViewModel(PublisherStudioProject project, Action<bool> closeAction)
-    {
-        _project = project;
-        _closeAction = closeAction;
-        CurrentStep = 0;
-        UpdateStepTitle();
-    }
 
     [RelayCommand]
     private void NextStep()
@@ -113,18 +99,23 @@ public partial class PublisherSetupWizardViewModel : ObservableValidator
     private void Finish()
     {
         // Save to project
-        _project.Catalog.Publisher.Id = PublisherId;
-        _project.Catalog.Publisher.Name = PublisherName;
-        _project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl;
-        _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail;
+        if (project?.Catalog?.Publisher != null)
+        {
+            project.Catalog.Publisher.Id = PublisherId;
+            project.Catalog.Publisher.Name = PublisherName;
+            project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl;
+            project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail;
+        }
 
-        _closeAction(true);
+        ArgumentNullException.ThrowIfNull(closeAction);
+        closeAction(true);
     }
 
     [RelayCommand]
     private void Cancel()
     {
-        _closeAction(false);
+        ArgumentNullException.ThrowIfNull(closeAction);
+        closeAction(false);
     }
 
     private void UpdateStepTitle()

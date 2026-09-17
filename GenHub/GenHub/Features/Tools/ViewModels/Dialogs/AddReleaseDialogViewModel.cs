@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
-using GenHub.Features.Tools.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,22 +14,22 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
 
 /// <summary>
-/// ViewModel for the Add New Release dialog.
-/// Provides validation and creation of new ContentRelease entries.
+/// ViewModel for the Add/Edit Release dialog.
 /// </summary>
-public partial class AddReleaseDialogViewModel : ObservableValidator
+public partial class AddReleaseDialogViewModel(
+    CatalogContentItem contentItem,
+    PublisherCatalog catalog,
+    Action<ContentRelease> onReleaseCreated,
+    IPublisherStudioDialogService dialogService) : ObservableValidator
 {
-    private readonly CatalogContentItem _contentItem;
-    private readonly PublisherCatalog _catalog;
-    private readonly Action<ContentRelease> _onReleaseCreated;
-    private readonly IPublisherStudioDialogService _dialogService;
+    private readonly ContentRelease? _existingRelease;
     private readonly string? _originalVersion;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Version is required")]
-    [RegularExpression(@"^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$", ErrorMessage = "Use semantic versioning (e.g., 1.0.0, 2.1.0-beta)")]
-    private string _version = string.Empty;
+    [RegularExpression(@"^\d+\.\d+(\.\d+)?(-[a-zA-Z0-9.]+)?$", ErrorMessage = "Version format: X.Y or X.Y.Z or X.Y.Z-tag (e.g. 1.0, 2.1.0, 1.0.0-beta)")]
+    private string _version = GetNextVersion(contentItem?.Releases ?? []);
 
     [ObservableProperty]
     private DateTimeOffset _releaseDate = DateTimeOffset.UtcNow;
@@ -83,19 +83,19 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     /// <summary>
     /// Gets the content item name for display in the dialog title.
     /// </summary>
-    public string ContentName => _contentItem.Name;
+    public string ContentName => contentItem?.Name ?? string.Empty;
 
     /// <summary>
     /// Gets the suggested next version based on existing releases.
     /// </summary>
-    public string SuggestedVersion => GetNextVersion(_contentItem.Releases);
+    public string SuggestedVersion => GetNextVersion(contentItem?.Releases ?? []);
 
-    [GeneratedRegex("^(\\d+)\\.(\\d+)\\.(\\d+)")]
+    [GeneratedRegex(@"^(\d+)\.(\d+)\.(\d+)")]
     private static partial Regex VersionRegex();
 
     private static string GetNextVersion(IReadOnlyList<ContentRelease> existingReleases)
     {
-        if (existingReleases.Count == 0)
+        if (existingReleases == null || existingReleases.Count == 0)
         {
             return "1.0.0";
         }
@@ -134,36 +134,6 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AddReleaseDialogViewModel"/> class.
-    /// </summary>
-    /// <param name="contentItem">The content item to add a release to.</param>
-    /// <param name="catalog">The publisher catalog.</param>
-    /// <param name="onReleaseCreated">Callback invoked when release is successfully created.</param>
-    /// <param name="dialogService">The dialog service.</param>
-    public AddReleaseDialogViewModel(
-        CatalogContentItem contentItem,
-        PublisherCatalog catalog,
-        Action<ContentRelease> onReleaseCreated,
-        IPublisherStudioDialogService dialogService)
-    {
-        _contentItem = contentItem ?? throw new ArgumentNullException(nameof(contentItem));
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        _onReleaseCreated = onReleaseCreated ?? throw new ArgumentNullException(nameof(onReleaseCreated));
-        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-
-        // Set suggested version as default
-        Version = SuggestedVersion;
-
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(Version))
-            {
-                Validate();
-            }
-        };
-    }
-
-    /// <summary>
     /// Initializes a new instance of the <see cref="AddReleaseDialogViewModel"/> class in edit mode,
     /// pre-populated with an existing release's data.
     /// </summary>
@@ -182,6 +152,7 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     {
         ArgumentNullException.ThrowIfNull(existing);
 
+        _existingRelease = existing;
         IsEditMode = true;
         _originalVersion = existing.Version;
         Version = existing.Version;
@@ -191,44 +162,49 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
         IsFeatured = existing.IsFeatured;
         Changelog = existing.Changelog ?? string.Empty;
 
+        Artifacts.Clear();
         foreach (var artifact in existing.Artifacts)
         {
             Artifacts.Add(artifact);
         }
 
-        foreach (var dependency in existing.Dependencies)
+        Dependencies.Clear();
+        foreach (var dep in existing.Dependencies)
         {
-            Dependencies.Add(dependency);
+            Dependencies.Add(dep);
         }
     }
 
+    partial void OnVersionChanged(string value) => Validate();
+
     /// <summary>
-    /// Applies the suggested version.
+    /// Suggests the next version based on existing releases.
     /// </summary>
     [RelayCommand]
-    private void ApplySuggestedVersion()
+    private void SuggestVersion()
     {
         Version = SuggestedVersion;
     }
 
     /// <summary>
-    /// Closes the dialog without saving.
-    /// </summary>
-    [RelayCommand]
-    private void Close()
-    {
-        _onReleaseCreated(null!);
-    }
-
-    /// <summary>
-    /// Adds an artifact to the release.
+    /// Opens the Add Artifact dialog.
     /// </summary>
     [RelayCommand]
     private async Task AddArtifactAsync()
     {
-        var artifact = await _dialogService.ShowAddArtifactDialogAsync();
+        if (dialogService == null) return;
+        var artifact = await dialogService.ShowAddArtifactDialogAsync();
         if (artifact != null)
         {
+            // If this is marked as primary, unmark others
+            if (artifact.IsPrimary)
+            {
+                foreach (var a in Artifacts)
+                {
+                    a.IsPrimary = false;
+                }
+            }
+
             Artifacts.Add(artifact);
             Validate();
         }
@@ -239,23 +215,36 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     /// </summary>
     /// <param name="artifact">The artifact to remove.</param>
     [RelayCommand]
-    private void RemoveArtifact(ReleaseArtifact artifact)
+    private void RemoveArtifact(ReleaseArtifact? artifact)
     {
-        Artifacts.Remove(artifact);
-        Validate();
+        if (artifact != null)
+        {
+            Artifacts.Remove(artifact);
+            Validate();
+        }
     }
 
     /// <summary>
-    /// Adds a dependency to the release.
+    /// Opens the Add Dependency dialog.
     /// </summary>
     [RelayCommand]
     private async Task AddDependencyAsync()
     {
-        var dependency = await _dialogService.ShowAddDependencyDialogAsync(_catalog, _contentItem);
+        if (dialogService == null) return;
+        var dependency = await dialogService.ShowAddDependencyDialogAsync(catalog, contentItem);
         if (dependency != null)
         {
+            // Avoid duplicate dependencies for the same content
+            var existing = Dependencies.FirstOrDefault(d =>
+                string.Equals(d.PublisherId, dependency.PublisherId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(d.ContentId, dependency.ContentId, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                Dependencies.Remove(existing);
+            }
+
             Dependencies.Add(dependency);
-            Validate();
         }
     }
 
@@ -264,9 +253,21 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     /// </summary>
     /// <param name="dependency">The dependency to remove.</param>
     [RelayCommand]
-    private void RemoveDependency(CatalogDependency dependency)
+    private void RemoveDependency(CatalogDependency? dependency)
     {
-        Dependencies.Remove(dependency);
+        if (dependency != null)
+        {
+            Dependencies.Remove(dependency);
+        }
+    }
+
+    /// <summary>
+    /// Closes the dialog without saving.
+    /// </summary>
+    [RelayCommand]
+    private void Cancel()
+    {
+        // Dialog window will be closed by view binding
     }
 
     /// <summary>
@@ -275,7 +276,12 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     [RelayCommand]
     private void CreateRelease()
     {
-        ValidateAllProperties();
+        Validate();
+
+        if (!IsValid)
+        {
+            return;
+        }
 
         // Check for artifacts
         if (Artifacts.Count == 0)
@@ -293,7 +299,7 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
         }
 
         // Check for duplicate version (skip check if version hasn't changed in edit mode)
-        var isDuplicateVersion = _contentItem.Releases.Any(r => r.Version.Equals(Version, StringComparison.OrdinalIgnoreCase));
+        var isDuplicateVersion = contentItem.Releases.Any(r => r.Version.Equals(Version, StringComparison.OrdinalIgnoreCase));
         var isOriginalVersion = IsEditMode && _originalVersion != null && _originalVersion.Equals(Version, StringComparison.OrdinalIgnoreCase);
         if (isDuplicateVersion && !isOriginalVersion)
         {
@@ -314,7 +320,8 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
             Dependencies = [.. Dependencies],
         };
 
-        _onReleaseCreated(release);
+        ArgumentNullException.ThrowIfNull(onReleaseCreated);
+        onReleaseCreated(release);
     }
 
     private void Validate()

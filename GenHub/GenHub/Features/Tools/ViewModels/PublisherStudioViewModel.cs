@@ -23,7 +23,16 @@ namespace GenHub.Features.Tools.ViewModels;
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
-public partial class PublisherStudioViewModel : ObservableObject, IDisposable
+public partial class PublisherStudioViewModel(
+    ILogger<PublisherStudioViewModel> logger,
+    IPublisherStudioService publisherStudioService,
+    IPublisherStudioDialogService dialogService,
+    IHostingProviderFactory? hostingProviderFactory = null,
+    IHostingStateManager? hostingStateManager = null,
+    INotificationService? notificationService = null,
+    IConfigurationProviderService? configurationProvider = null,
+    ILocalizationService? localizationService = null,
+    IHostingCredentialStore? credentialStore = null) : ObservableObject, IDisposable
 {
     /// <summary>Tab index for the Profile tab.</summary>
     public const int TabProfile = 0;
@@ -42,14 +51,10 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
 
     private const string StudioNotificationTitle = "Publisher Studio";
 
-    private readonly string _settingsPath;
-    private readonly IConfigurationProviderService? _configurationProvider;
-    private readonly ILogger<PublisherStudioViewModel> _logger;
-    private readonly IPublisherStudioService _publisherStudioService;
-    private readonly IPublisherStudioDialogService _dialogService;
-    private readonly IHostingProviderFactory? _hostingProviderFactory;
-    private readonly IHostingStateManager _hostingStateManager;
-    private readonly INotificationService? _notificationService;
+    private readonly string _settingsPath = Path.Combine(
+        configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
+        "GenHub",
+        "publisher_studio_settings.json");
 
     [ObservableProperty]
     private PublisherStudioProject? _currentProject;
@@ -105,69 +110,6 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
     public bool ShouldShowSetupOverlay => !IsSetupComplete && SelectedTabIndex != 0;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PublisherStudioViewModel"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="publisherStudioService">The publisher studio service.</param>
-    /// <param name="dialogService">The dialog service.</param>
-    /// <param name="hostingProviderFactory">The hosting provider factory.</param>
-    /// <param name="hostingStateManager">The hosting state manager.</param>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="configurationProvider">The configuration provider service.</param>
-    public PublisherStudioViewModel(
-        ILogger<PublisherStudioViewModel> logger,
-        IPublisherStudioService publisherStudioService,
-        IPublisherStudioDialogService dialogService,
-        IHostingProviderFactory? hostingProviderFactory = null,
-        IHostingStateManager? hostingStateManager = null,
-        INotificationService? notificationService = null,
-        IConfigurationProviderService? configurationProvider = null)
-        : this(logger, publisherStudioService, dialogService, autoInitialize: false)
-    {
-        _hostingProviderFactory = hostingProviderFactory;
-        _hostingStateManager = hostingStateManager ?? _hostingStateManager;
-
-        _notificationService = notificationService;
-        _configurationProvider = configurationProvider;
-        _settingsPath = Path.Combine(
-            configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
-            "GenHub",
-            "publisher_studio_settings.json");
-
-        // Now that all dependencies including _hostingProviderFactory are assigned, initialize
-        _ = InitializeAsync();
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PublisherStudioViewModel"/> class for testing or lightweight usage.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="publisherStudioService">The publisher studio service.</param>
-    /// <param name="dialogService">The dialog service.</param>
-    /// <param name="autoInitialize">Whether to automatically initialize the project on creation.</param>
-    public PublisherStudioViewModel(
-        ILogger<PublisherStudioViewModel> logger,
-        IPublisherStudioService publisherStudioService,
-        IPublisherStudioDialogService dialogService,
-        bool autoInitialize)
-    {
-        _logger = logger;
-        _publisherStudioService = publisherStudioService;
-        _dialogService = dialogService;
-        _hostingStateManager = new HostingStateManager(Microsoft.Extensions.Logging.LoggerFactory.Create(b => { }).CreateLogger<HostingStateManager>());
-        _settingsPath = Path.Combine(
-            Path.GetTempPath(),
-            "GenHub",
-            "publisher_studio_settings.json");
-
-        if (autoInitialize)
-        {
-            // Initialize: auto-load last project or create a default one
-            _ = InitializeAsync();
-        }
-    }
-
-    /// <summary>
     /// Marks the current project as dirty (having unsaved changes).
     /// </summary>
     public void MarkDirty()
@@ -201,12 +143,12 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
                 CurrentProject.ProjectPath = GetDefaultProjectPath();
             }
 
-            var result = await _publisherStudioService.SaveProjectAsync(CurrentProject);
+            var result = await publisherStudioService.SaveProjectAsync(CurrentProject);
             if (result.Success)
             {
                 HasUnsavedChanges = false;
                 StatusMessage = "Project saved. Go to 'Publish & Share' to export and release.";
-                _logger.LogInformation("Saved project: {ProjectName}", CurrentProject.ProjectName);
+                logger.LogInformation("Saved project: {ProjectName}", CurrentProject.ProjectName);
 
                 // Persist the project path for auto-load on next launch
                 if (!string.IsNullOrEmpty(CurrentProject.ProjectPath))
@@ -214,7 +156,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
                     await SaveLastProjectPathAsync(CurrentProject.ProjectPath);
                 }
 
-                _notificationService?.ShowSuccess(
+                notificationService?.ShowSuccess(
                     "Project Saved",
                     $"Your publisher project '{CurrentProject.ProjectName}' has been saved successfully.",
                     autoDismissMs: 4000);
@@ -225,9 +167,9 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
             else
             {
                 StatusMessage = $"Failed to save: {result.FirstError}";
-                _logger.LogError("Failed to save project: {Error}", result.FirstError);
+                logger.LogError("Failed to save project: {Error}", result.FirstError);
 
-                _notificationService?.ShowError(
+                notificationService?.ShowError(
                     "Save Failed",
                     result.FirstError ?? "An unknown error occurred while saving the project.");
             }
@@ -235,9 +177,9 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             StatusMessage = $"Error saving: {ex.Message}";
-            _logger.LogError(ex, "Error saving project");
+            logger.LogError(ex, "Error saving project");
 
-            _notificationService?.ShowError(
+            notificationService?.ShowError(
                 "Save Error",
                 $"An error occurred while saving: {ex.Message}");
         }
@@ -258,7 +200,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _logger.LogInformation("Handling dropped path: {Path}", path);
+        logger.LogInformation("Handling dropped path: {Path}", path);
 
         // Switch to Content Library tab
         SelectedTabIndex = TabCatalogs;
@@ -319,7 +261,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
     {
         if (value != null && CurrentProject != null)
         {
-            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, _logger, _dialogService);
+            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, logger, dialogService);
         }
     }
 
@@ -353,7 +295,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
     /// </summary>
     private string GetDefaultProjectPath()
     {
-        var baseDir = _configurationProvider?.GetApplicationDataPath()
+        var baseDir = configurationProvider?.GetApplicationDataPath()
             ?? Path.Combine(Path.GetTempPath(), "GenHub");
         var projectDir = Path.Combine(baseDir, "PublisherStudio", "projects");
         if (!Directory.Exists(projectDir))
@@ -391,7 +333,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize PublisherStudioViewModel");
+            logger.LogError(ex, "Failed to initialize PublisherStudioViewModel");
         }
     }
 
@@ -400,7 +342,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var filePath = await _dialogService.ShowProjectOpenPromptAsync("Load Project");
+            var filePath = await dialogService.ShowProjectOpenPromptAsync("Load Project");
             if (string.IsNullOrEmpty(filePath))
                 return;
 
@@ -409,8 +351,8 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             StatusMessage = $"Error loading project: {ex.Message}";
-            _notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
-            _logger.LogError(ex, "Error loading project");
+            notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
+            logger.LogError(ex, "Error loading project");
         }
     }
 
@@ -418,7 +360,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var result = await _publisherStudioService.LoadProjectAsync(filePath);
+            var result = await publisherStudioService.LoadProjectAsync(filePath);
             if (result.Success && result.Data != null)
             {
                 CurrentProject = result.Data;
@@ -427,21 +369,21 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
                 await SaveLastProjectPathAsync(filePath);
                 HasUnsavedChanges = false;
                 StatusMessage = $"Project loaded: {CurrentProject.ProjectName}";
-                _notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
-                _logger.LogInformation("Loaded publisher project from {Path}", filePath);
+                notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
+                logger.LogInformation("Loaded publisher project from {Path}", filePath);
             }
             else
             {
                 StatusMessage = $"Failed to load project: {result.FirstError}";
-                _notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
-                _logger.LogError("Failed to load project: {Error}", result.FirstError);
+                notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
+                logger.LogError("Failed to load project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error loading project: {ex.Message}";
-            _notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
-            _logger.LogError(ex, "Error loading project from {Path}", filePath);
+            notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
+            logger.LogError(ex, "Error loading project from {Path}", filePath);
         }
     }
 
@@ -459,7 +401,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to save publisher studio settings");
+            logger.LogWarning(ex, "Failed to save publisher studio settings");
         }
     }
 
@@ -475,7 +417,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to load last project path from settings");
+            logger.LogWarning(ex, "Failed to load last project path from settings");
             return null;
         }
     }
@@ -499,28 +441,28 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var result = await _publisherStudioService.CreateProjectAsync("New Publisher");
+            var result = await publisherStudioService.CreateProjectAsync("New Publisher");
             if (result.Success && result.Data != null)
             {
                 CurrentProject = result.Data;
                 CurrentProject.ProjectPath = GetDefaultProjectPath();
                 await InitializeChildViewModelsAsync();
                 StatusMessage = showWizard ? "New project created - configure your publisher profile to get started" : "New project created";
-                _notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Medium);
-                _logger.LogInformation("Created new publisher project");
+                notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Medium);
+                logger.LogInformation("Created new publisher project");
             }
             else
             {
                 StatusMessage = $"Failed to create project: {result.FirstError}";
-                _notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
-                _logger.LogError("Failed to create new project: {Error}", result.FirstError);
+                notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
+                logger.LogError("Failed to create new project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error: {ex.Message}";
-            _notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
-            _logger.LogError(ex, "Error creating new project");
+            notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
+            logger.LogError(ex, "Error creating new project");
         }
     }
 
@@ -561,7 +503,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         MarkDirty();
         OnPropertyChanged(nameof(CanRemoveCatalog));
         PublishShareViewModel?.SyncAvailableCatalogs();
-        _logger.LogInformation("Added new catalog: {CatalogId}", newId);
+        logger.LogInformation("Added new catalog: {CatalogId}", newId);
     }
 
     /// <summary>
@@ -574,11 +516,11 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         if (CurrentProject.Catalogs.Count <= 1)
         {
             StatusMessage = "Cannot remove the last catalog";
-            _notificationService?.ShowWarning(StudioNotificationTitle, StatusMessage, NotificationDurations.Medium);
+            notificationService?.ShowWarning(StudioNotificationTitle, StatusMessage, NotificationDurations.Medium);
             return;
         }
 
-        var confirmed = await _dialogService.ShowConfirmationAsync(
+        var confirmed = await dialogService.ShowConfirmationAsync(
             "Delete Catalog",
             $"Are you sure you want to delete the catalog '{catalog.Name}'? This action cannot be undone.",
             confirmText: "Delete",
@@ -595,7 +537,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         MarkDirty();
         OnPropertyChanged(nameof(CanRemoveCatalog));
         PublishShareViewModel?.SyncAvailableCatalogs();
-        _logger.LogInformation("Removed catalog: {CatalogId}", catalog.Id);
+        logger.LogInformation("Removed catalog: {CatalogId}", catalog.Id);
     }
 
     /// <summary>
@@ -609,14 +551,14 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         var target = catalog ?? SelectedCatalog;
         if (target == null) return;
 
-        var newName = await _dialogService.ShowRenameCatalogDialogAsync(target.Name);
+        var newName = await dialogService.ShowRenameCatalogDialogAsync(target.Name);
         if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == target.Name) return;
 
         var newId = Slugify(newName);
         if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
         {
             StatusMessage = $"A catalog with ID '{newId}' already exists.";
-            _notificationService?.ShowWarning("Duplicate Catalog ID", StatusMessage);
+            notificationService?.ShowWarning("Duplicate Catalog ID", StatusMessage);
             return;
         }
 
@@ -643,8 +585,8 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
 
         await SaveProjectAsync();
         StatusMessage = $"Renamed catalog to '{target.Name}'";
-        _notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
-        _logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);
+        notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
+        logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);
     }
 
     /// <summary>
@@ -672,7 +614,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
             CurrentProject.Catalogs.Add(defaultCatalog);
             if (CurrentProject.Catalog?.Content?.Count > 0)
             {
-                _logger.LogInformation("Migrated single catalog to multi-catalog format");
+                logger.LogInformation("Migrated single catalog to multi-catalog format");
             }
         }
     }
@@ -686,7 +628,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
             return;
 
         // Check if hosting state file exists
-        if (!_hostingStateManager.StateFileExists(CurrentProject.ProjectPath))
+        if (!hostingStateManager.StateFileExists(CurrentProject.ProjectPath))
         {
             CurrentProject.Catalogs ??= [];
 
@@ -703,8 +645,8 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
             {
                 IsRecoveryNeeded = true;
                 StatusMessage = "Hosting state missing - recovery may be needed. Use Publish & Share tab to reconnect.";
-                _notificationService?.ShowWarning(StudioNotificationTitle, StatusMessage, NotificationDurations.VeryLong);
-                _logger.LogWarning("Project appears to have been published but hosting state is missing");
+                notificationService?.ShowWarning(StudioNotificationTitle, StatusMessage, NotificationDurations.VeryLong);
+                logger.LogWarning("Project appears to have been published but hosting state is missing");
             }
         }
     }
@@ -755,11 +697,11 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
 
         SelectedCatalog = selectedCatalog;
 
-        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, _logger);
-        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, _logger, _dialogService);
+        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger);
+        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService);
         PublishShareViewModel?.Dispose();
-        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, _publisherStudioService, _logger, _hostingProviderFactory, _hostingStateManager, _notificationService);
-        ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, _logger, _dialogService);
+        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService);
+        ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService);
 
         // Check for hosting state recovery
         CheckHostingStateRecovery();
