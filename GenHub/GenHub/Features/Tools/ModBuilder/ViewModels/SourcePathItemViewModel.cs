@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -39,62 +40,74 @@ public partial class SourcePathItemViewModel : ObservableObject
     {
         Pattern = pattern;
         MatchedFilesCount = matchedCount;
-        DetermineTypeAndIcon();
+        ApplyTypeAndIcon();
     }
 
     partial void OnPatternChanged(string value)
     {
-        DetermineTypeAndIcon();
+        ApplyTypeAndIcon();
     }
 
-    private void DetermineTypeAndIcon()
+    private static bool IsFolderAllFilesGlob(string path) =>
+        path.EndsWith("/**/*.*", StringComparison.Ordinal) ||
+        path.EndsWith("/**", StringComparison.Ordinal) ||
+        path.EndsWith("/*.*", StringComparison.Ordinal);
+
+    private static bool IsExtensionGlob(string path) =>
+        path.Contains("/**/*.", StringComparison.Ordinal) ||
+        path.Contains("/*.", StringComparison.Ordinal);
+
+    private static (string TypeLabel, string IconKey) GetFileProperties(string path)
     {
-        if (string.IsNullOrWhiteSpace(Pattern))
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        var typeLabel = ext switch
         {
-            TypeLabel = "Empty";
-            IconKey = "IconTextFile";
-            IsDirectoryGlob = false;
-            return;
+            ".tga" or ".dds" or ".png" => "Texture / Image",
+            ".ini" => "INI Config",
+            ".wnd" => "Window UI",
+            ".csf" or ".str" => "String Table",
+            ".wav" or ".mp3" => "Audio File",
+            _ => "File",
+        };
+        var iconKey = ext switch
+        {
+            ".tga" or ".dds" or ".png" => "IconImageFile",
+            _ => "IconTextFile",
+        };
+        return (typeLabel, iconKey);
+    }
+
+    private static (string TypeLabel, string IconKey, bool IsDirectoryGlob) DetermineTypeAndIcon(string pattern)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            return ("Empty", "IconTextFile", false);
         }
 
-        var normalized = Pattern.Replace('\\', '/').Trim();
-        if (normalized.EndsWith("/**/*.*") || normalized.EndsWith("/**") || normalized.EndsWith("/*.*"))
+        var normalized = pattern.Replace('\\', '/').Trim();
+        if (IsFolderAllFilesGlob(normalized))
         {
-            TypeLabel = "Folder (All Files)";
-            IconKey = "IconOpenFolder";
-            IsDirectoryGlob = true;
+            return ("Folder (All Files)", "IconOpenFolder", true);
         }
-        else if (normalized.Contains("/**/*.") || normalized.Contains("/*."))
+
+        if (IsExtensionGlob(normalized))
         {
             var ext = Path.GetExtension(normalized);
-            TypeLabel = string.IsNullOrEmpty(ext) ? "Glob Pattern" : $"{ext.TrimStart('.').ToUpperInvariant()} Glob";
-            IconKey = "IconSearch";
-            IsDirectoryGlob = true;
+            var label = string.IsNullOrEmpty(ext) ? "Glob Pattern" : $"{ext.TrimStart('.').ToUpperInvariant()} Glob";
+            return (label, "IconSearch", true);
         }
-        else if (normalized.Contains('*') || normalized.Contains('?'))
+
+        if (normalized.Contains('*', StringComparison.Ordinal) || normalized.Contains('?', StringComparison.Ordinal))
         {
-            TypeLabel = "Wildcard Glob";
-            IconKey = "IconSearch";
-            IsDirectoryGlob = false;
+            return ("Wildcard Glob", "IconSearch", false);
         }
-        else
-        {
-            var ext = Path.GetExtension(normalized).ToLowerInvariant();
-            TypeLabel = ext switch
-            {
-                ".tga" or ".dds" or ".png" => "Texture / Image",
-                ".ini" => "INI Config",
-                ".wnd" => "Window UI",
-                ".csf" or ".str" => "String Table",
-                ".wav" or ".mp3" => "Audio File",
-                _ => "File",
-            };
-            IconKey = ext switch
-            {
-                ".tga" or ".dds" or ".png" => "IconImageFile",
-                _ => "IconTextFile",
-            };
-            IsDirectoryGlob = false;
-        }
+
+        var (typeLabel, iconKey) = GetFileProperties(normalized);
+        return (typeLabel, iconKey, false);
+    }
+
+    private void ApplyTypeAndIcon()
+    {
+        (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(Pattern);
     }
 }

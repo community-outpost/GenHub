@@ -1328,28 +1328,24 @@ public partial class ModBuilderViewModel(
         {
             var content = File.ReadAllText(targetFile);
 
-            if (sampleId.Equals(ModBuilderConstants.ImprovedMenusSampleName, StringComparison.OrdinalIgnoreCase))
+            if (sampleId.Equals(ModBuilderConstants.ImprovedMenusSampleName, StringComparison.OrdinalIgnoreCase) &&
+                (!content.Contains("ImprovedMenus_English", StringComparison.OrdinalIgnoreCase) ||
+                 !content.Contains("ImprovedMenus_Russian", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!content.Contains("ImprovedMenus_English", StringComparison.OrdinalIgnoreCase) ||
-                    !content.Contains("ImprovedMenus_Russian", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                return true;
             }
-            else if (sampleId.Equals(ModBuilderConstants.LeikezeHotkeysSampleName, StringComparison.OrdinalIgnoreCase))
+
+            if (sampleId.Equals(ModBuilderConstants.LeikezeHotkeysSampleName, StringComparison.OrdinalIgnoreCase) &&
+                !content.Contains("LeikezeHotkeys_ZH_EN", StringComparison.OrdinalIgnoreCase))
             {
-                if (!content.Contains("LeikezeHotkeys_ZH_EN", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                return true;
             }
-            else if (sampleId.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase))
+
+            if (sampleId.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) &&
+                (!content.Contains("GeneralsGamePatch2", StringComparison.OrdinalIgnoreCase) ||
+                 content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!content.Contains("GeneralsGamePatch2", StringComparison.OrdinalIgnoreCase) ||
-                    content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                return true;
             }
         }
         catch

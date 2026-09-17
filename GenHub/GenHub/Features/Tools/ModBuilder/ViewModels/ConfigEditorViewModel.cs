@@ -319,13 +319,14 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
+        var projectDir = CurrentProject.ProjectDir;
         var topLevel = GetTopLevelWindow(owner);
         if (topLevel?.StorageProvider == null)
         {
             return;
         }
 
-        var startFolder = await ResolveStartFolderAsync(topLevel).ConfigureAwait(false);
+        var startFolder = await ResolveStartFolderAsync(topLevel, projectDir).ConfigureAwait(false);
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Select files to add to bundle item",
@@ -337,8 +338,6 @@ public partial class ConfigEditorViewModel(
         {
             return;
         }
-
-        var projectDir = CurrentProject.ProjectDir;
         foreach (var file in files)
         {
             var localPath = file.TryGetLocalPath();
@@ -366,13 +365,14 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
+        var projectDir = CurrentProject.ProjectDir;
         var topLevel = GetTopLevelWindow(owner);
         if (topLevel?.StorageProvider == null)
         {
             return;
         }
 
-        var startFolder = await ResolveStartFolderAsync(topLevel).ConfigureAwait(false);
+        var startFolder = await ResolveStartFolderAsync(topLevel, projectDir).ConfigureAwait(false);
         var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Select directory to add to bundle item",
@@ -384,8 +384,6 @@ public partial class ConfigEditorViewModel(
         {
             return;
         }
-
-        var projectDir = CurrentProject.ProjectDir;
         var folder = folders[0];
         var localPath = folder.TryGetLocalPath();
         if (string.IsNullOrEmpty(localPath))
@@ -415,9 +413,7 @@ public partial class ConfigEditorViewModel(
         var dialog = new Views.ProjectItemPickerDialog(pickerVm);
         var parentWindow = owner ?? GetActiveWindow();
 
-        var confirmed = parentWindow != null
-            ? await dialog.ShowDialog<bool>(parentWindow).ConfigureAwait(false)
-            : false;
+        var confirmed = parentWindow != null && await dialog.ShowDialog<bool>(parentWindow).ConfigureAwait(false);
 
         if (confirmed && dialog.ResultPatterns.Count > 0)
         {
@@ -493,15 +489,15 @@ public partial class ConfigEditorViewModel(
         return targetWindow != null ? TopLevel.GetTopLevel(targetWindow) : null;
     }
 
-    private async Task<IStorageFolder?> ResolveStartFolderAsync(TopLevel topLevel)
+    private static async Task<IStorageFolder?> ResolveStartFolderAsync(TopLevel topLevel, string? projectDir)
     {
-        if (CurrentProject == null)
+        if (string.IsNullOrEmpty(projectDir))
         {
             return null;
         }
 
-        var gameFilesDir = Path.Combine(CurrentProject.ProjectDir, ModBuilderConstants.GameFilesEditedDir);
-        var targetDir = Directory.Exists(gameFilesDir) ? gameFilesDir : CurrentProject.ProjectDir;
+        var gameFilesDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
+        var targetDir = Directory.Exists(gameFilesDir) ? gameFilesDir : projectDir;
 
         if (Directory.Exists(targetDir))
         {
@@ -714,6 +710,42 @@ public partial class ConfigEditorViewModel(
         return files;
     }
 
+    private static string? NullIfEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
+
+    private static bool? NullableTrue(bool? value) => value is true ? true : null;
+
+    private static object CreateItemsDto(IEnumerable<BundleItem> items) =>
+        new
+        {
+            BundleItems = items.Select(item => new
+            {
+                item.Name,
+                NamePrefix = NullIfEmpty(item.NamePrefix),
+                NameSuffix = NullIfEmpty(item.NameSuffix),
+                IsBig = NullableTrue(item.IsBig),
+                BigSuffix = NullIfEmpty(item.BigSuffix),
+                SetGameLanguageOnInstall = NullIfEmpty(item.SetGameLanguageOnInstall),
+                SourceFiles = item.Files.Select(f => f.AbsSourceFile).ToArray(),
+            }).ToArray(),
+        };
+
+    private static object CreatePacksDto(IEnumerable<BundlePack> packs) =>
+        new
+        {
+            BundlePacks = packs.Select(pack => new
+            {
+                pack.Name,
+                NamePrefix = NullIfEmpty(pack.NamePrefix),
+                NameSuffix = NullIfEmpty(pack.NameSuffix),
+                Big = NullableTrue(pack.Big),
+                OutputFile = NullIfEmpty(pack.OutputFile),
+                SetGameLanguageOnInstall = NullIfEmpty(pack.SetGameLanguageOnInstall),
+                AllowBuild = NullableTrue(pack.AllowBuild),
+                AllowInstall = NullableTrue(pack.AllowInstall),
+                Items = pack.ItemNames.ToArray(),
+            }).ToArray(),
+        };
+
     private async Task PersistConfigurationToDiskAsync(string projectDir, CancellationToken cancellationToken)
     {
         if (Configuration == null)
@@ -727,44 +759,14 @@ public partial class ConfigEditorViewModel(
         var itemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
         var packsPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
 
-        var itemsDto = new
-        {
-            BundleItems = Configuration.Items.Select(item => new
-            {
-                Name = item.Name,
-                NamePrefix = string.IsNullOrEmpty(item.NamePrefix) ? null : item.NamePrefix,
-                NameSuffix = string.IsNullOrEmpty(item.NameSuffix) ? null : item.NameSuffix,
-                IsBig = item.IsBig ? (bool?)true : null,
-                BigSuffix = string.IsNullOrEmpty(item.BigSuffix) ? null : item.BigSuffix,
-                SetGameLanguageOnInstall = string.IsNullOrEmpty(item.SetGameLanguageOnInstall) ? null : item.SetGameLanguageOnInstall,
-                SourceFiles = item.Files.Select(f => f.AbsSourceFile).ToArray(),
-            }).ToArray(),
-        };
-
-        var packsDto = new
-        {
-            BundlePacks = Configuration.Packs.Select(pack => new
-            {
-                Name = pack.Name,
-                NamePrefix = string.IsNullOrEmpty(pack.NamePrefix) ? null : pack.NamePrefix,
-                NameSuffix = string.IsNullOrEmpty(pack.NameSuffix) ? null : pack.NameSuffix,
-                Big = pack.Big == true ? (bool?)true : null,
-                OutputFile = string.IsNullOrEmpty(pack.OutputFile) ? null : pack.OutputFile,
-                SetGameLanguageOnInstall = string.IsNullOrEmpty(pack.SetGameLanguageOnInstall) ? null : pack.SetGameLanguageOnInstall,
-                AllowBuild = pack.AllowBuild ? (bool?)true : null,
-                AllowInstall = pack.AllowInstall ? (bool?)true : null,
-                Items = pack.ItemNames.ToArray(),
-            }).ToArray(),
-        };
-
         var serializerOptions = new System.Text.Json.JsonSerializerOptions
         {
             WriteIndented = true,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         };
 
-        var itemsJson = System.Text.Json.JsonSerializer.Serialize(itemsDto, serializerOptions);
-        var packsJson = System.Text.Json.JsonSerializer.Serialize(packsDto, serializerOptions);
+        var itemsJson = System.Text.Json.JsonSerializer.Serialize(CreateItemsDto(Configuration.Items), serializerOptions);
+        var packsJson = System.Text.Json.JsonSerializer.Serialize(CreatePacksDto(Configuration.Packs), serializerOptions);
 
         await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
         await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
