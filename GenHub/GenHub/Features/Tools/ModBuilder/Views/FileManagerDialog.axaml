@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
@@ -42,11 +43,11 @@
           <Path Width="16" Height="16" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconFolder}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
         <StackPanel VerticalAlignment="Center">
-          <TextBlock Text="Game Asset &amp; File Manager"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManagerDialog.Title}"
                      FontSize="14"
                      FontWeight="Bold"
                      Foreground="{DynamicResource TextPrimary}"/>
-          <TextBlock Text="Browse game files and import textures, INIs, and models into your project"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManagerDialog.Subtitle}"
                      FontSize="11"
                      Foreground="{DynamicResource TextSecondary}"/>
         </StackPanel>
@@ -55,17 +56,17 @@
       <!-- Right Header Actions (Window Controls) -->
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
         <!-- Minimize Button -->
-        <Button Click="MinimizeButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Minimize" Cursor="Hand">
+        <Button Click="MinimizeButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManagerDialog.TooltipMinimize}" Cursor="Hand">
           <Path Width="10" Height="2" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconMinimize}" Stretch="Uniform"/>
         </Button>
 
         <!-- Maximize/Restore Button -->
-        <Button Click="MaximizeButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Maximize / Restore" Cursor="Hand">
+        <Button Click="MaximizeButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManagerDialog.TooltipMaximize}" Cursor="Hand">
           <Path Width="10" Height="10" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconMaximize}" Stretch="Uniform"/>
         </Button>
 
         <!-- Close Button -->
-        <Button Click="CloseButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Close" Cursor="Hand">
+        <Button Click="CloseButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManagerDialog.TooltipClose}" Cursor="Hand">
           <Path Width="10" Height="10" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform"/>
         </Button>
       </StackPanel>

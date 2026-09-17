@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
@@ -33,7 +34,7 @@
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16"
           Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
       <StackPanel Grid.Column="0" Spacing="4">
-        <TextBlock Text="Bundle Pack Editor"
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.Title}"
                    FontSize="20"
                    FontWeight="Bold"
                    Foreground="{DynamicResource TextPrimary}"/>
@@ -45,7 +46,7 @@
       </StackPanel>
 
       <StackPanel Grid.Column="1" Spacing="4">
-        <TextBlock Text="Total Files"
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.TotalFiles}"
                    FontSize="11"
                    Foreground="{DynamicResource TextSecondary}"
                    HorizontalAlignment="Right"/>
@@ -76,7 +77,7 @@
           <!-- Search bar -->
           <TextBox Grid.Row="0"
                    Text="{Binding SearchFilter}"
-                   Watermark="Search files..."
+                   Watermark="{localization:Localize Tools.ModBuilder.BundleEditor.WatermarkSearchFiles}"
                    VerticalContentAlignment="Center"
                    Margin="0,0,0,12">
             <TextBox.InnerLeftContent>
@@ -95,13 +96,13 @@
                     Background="{DynamicResource AccentBrush}"
                     Foreground="White" BorderThickness="0"
                     Padding="12,7" CornerRadius="8" Cursor="Hand"
-                    ToolTip.Tip="Add files to bundle (Ctrl+A)">
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.BundleEditor.TooltipAddFiles}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconAdd}"
                       Fill="White"
                       Width="13" Height="13"
                       Stretch="Uniform"/>
-                <TextBlock Text="Add Files" FontWeight="SemiBold"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.ButtonAddFiles}" FontWeight="SemiBold"/>
               </StackPanel>
             </Button>
 
@@ -111,13 +112,13 @@
                     Foreground="{DynamicResource TextPrimary}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     Padding="12,7" CornerRadius="8" Cursor="Hand"
-                    ToolTip.Tip="Remove selected files (Delete)">
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.BundleEditor.TooltipRemoveFiles}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconRemove}"
                       Fill="{DynamicResource TextSecondary}"
                       Width="13" Height="13"
                       Stretch="Uniform"/>
-                <TextBlock Text="Remove"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.ButtonRemove}"/>
               </StackPanel>
             </Button>
 
@@ -128,7 +129,7 @@
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     Padding="8,7" CornerRadius="8" Cursor="Hand"
-                    ToolTip.Tip="Move up (Ctrl+Up)">
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.BundleEditor.TooltipMoveUp}">
               <Path Data="{StaticResource IconChevronUp}"
                     Fill="{DynamicResource TextPrimary}"
                     Width="13" Height="13"
@@ -140,7 +141,7 @@
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     Padding="8,7" CornerRadius="8" Cursor="Hand"
-                    ToolTip.Tip="Move down (Ctrl+Down)">
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.BundleEditor.TooltipMoveDown}">
               <Path Data="{StaticResource IconChevronDown}"
                     Fill="{DynamicResource TextPrimary}"
                     Width="13" Height="13"
@@ -154,13 +155,13 @@
                     Foreground="{DynamicResource TextPrimary}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     Padding="12,7" CornerRadius="8" Cursor="Hand"
-                    ToolTip.Tip="Convert all TGA files to DDS">
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.BundleEditor.TooltipConvertAll}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconConverting}"
                       Fill="{DynamicResource AccentBrush}"
                       Width="13" Height="13"
                       Stretch="Uniform"/>
-                <TextBlock Text="Convert All"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.ButtonConvertAll}"/>
               </StackPanel>
             </Button>
           </StackPanel>
@@ -213,7 +214,7 @@
                             CornerRadius="4"
                             Padding="6,2"
                             IsVisible="{Binding IsCached}">
-                      <TextBlock Text="Cached"
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.TagCached}"
                                  FontSize="10.5"
                                  FontWeight="SemiBold"
                                  Foreground="{DynamicResource SuccessBrush}"/>
@@ -224,7 +225,7 @@
                             CornerRadius="4"
                             Padding="6,2"
                             IsVisible="{Binding IsModified}">
-                      <TextBlock Text="Modified"
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.TagModified}"
                                  FontSize="10.5"
                                  FontWeight="SemiBold"
                                  Foreground="{DynamicResource WarningBrush}"/>
@@ -255,7 +256,7 @@
 
         <Grid RowDefinitions="Auto,*">
           <TextBlock Grid.Row="0"
-                     Text="File Preview"
+                     Text="{localization:Localize Tools.ModBuilder.BundleEditor.FilePreviewHeader}"
                      FontSize="14"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource TextPrimary}"
@@ -267,7 +268,7 @@
 
               <!-- File details -->
               <StackPanel Spacing="4">
-                <TextBlock Text="File Name"
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.LabelFileName}"
                            FontSize="11"
                            Foreground="{DynamicResource TextSecondary}"/>
                 <TextBlock Text="{Binding SelectedFile.FileName}"
@@ -278,7 +279,7 @@
               </StackPanel>
 
               <StackPanel Spacing="4">
-                <TextBlock Text="Source Path"
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.LabelSourcePath}"
                            FontSize="11"
                            Foreground="{DynamicResource TextSecondary}"/>
                 <TextBlock Text="{Binding SelectedFile.SourcePath}"
@@ -288,7 +289,7 @@
               </StackPanel>
 
               <StackPanel Spacing="4">
-                <TextBlock Text="File Type"
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.LabelFileType}"
                            FontSize="11"
                            Foreground="{DynamicResource TextSecondary}"/>
                 <TextBlock Text="{Binding SelectedFile.FileType}"
@@ -297,7 +298,7 @@
               </StackPanel>
 
               <StackPanel Spacing="4">
-                <TextBlock Text="File Size"
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.LabelFileSize}"
                            FontSize="11"
                            Foreground="{DynamicResource TextSecondary}"/>
                 <TextBlock Text="{Binding SelectedFile.FileSizeFormatted}"
@@ -306,7 +307,7 @@
               </StackPanel>
 
               <StackPanel Spacing="4">
-                <TextBlock Text="Last Modified"
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.LabelLastModified}"
                            FontSize="11"
                            Foreground="{DynamicResource TextSecondary}"/>
                 <TextBlock Text="{Binding SelectedFile.LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
@@ -320,7 +321,7 @@
                       CornerRadius="8"
                       Height="180"
                       Margin="0,8,0,0">
-                <TextBlock Text="Image preview coming soon"
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.ImagePreviewComingSoon}"
                            FontSize="12"
                            Foreground="{DynamicResource TextSecondary}"
                            HorizontalAlignment="Center"
@@ -335,7 +336,7 @@
     <!-- Footer actions -->
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,0">
       <TextBlock Grid.Column="0"
-                 Text="* Changes will be applied when you save the project"
+                 Text="{localization:Localize Tools.ModBuilder.BundleEditor.NoticeChangesSavedOnProjectSave}"
                  FontSize="11.5"
                  Foreground="{DynamicResource TextSecondary}"
                  VerticalAlignment="Center"
@@ -343,7 +344,7 @@
 
       <Button Grid.Column="1"
               Command="{Binding SaveCommand}"
-              ToolTip.Tip="Save bundle pack changes"
+              ToolTip.Tip="{localization:Localize Tools.ModBuilder.BundleEditor.TooltipSave}"
               Background="{DynamicResource AccentBrush}"
               Foreground="White" BorderThickness="0"
               Padding="18,8" CornerRadius="8"
@@ -354,19 +355,19 @@
                 Fill="White"
                 Width="13" Height="13"
                 Stretch="Uniform"/>
-          <TextBlock Text="Save" FontWeight="SemiBold"/>
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.ButtonSave}" FontWeight="SemiBold"/>
         </StackPanel>
       </Button>
 
       <Button Grid.Column="2"
               Command="{Binding CancelCommand}"
-              ToolTip.Tip="Close without saving changes"
+              ToolTip.Tip="{localization:Localize Tools.ModBuilder.BundleEditor.TooltipCancel}"
               Background="{DynamicResource SurfaceElevatedBrush}"
               Foreground="{DynamicResource TextPrimary}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               Padding="18,8" CornerRadius="8"
               MinWidth="100" Cursor="Hand">
-        <TextBlock Text="Cancel" HorizontalAlignment="Center"/>
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.ButtonCancel}" HorizontalAlignment="Center"/>
       </Button>
     </Grid>
   </Grid>

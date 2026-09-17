@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="120"
@@ -94,7 +95,7 @@
                      FontSize="13"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource AccentBrush}"/>
-          <TextBlock Text="Processed"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.ProgressCard.Processed}"
                      FontSize="10.5"
                      Foreground="{DynamicResource TextSecondary}"
                      Margin="0,2,0,0"/>
@@ -106,7 +107,7 @@
                      FontSize="13"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource AccentBrush}"/>
-          <TextBlock Text="Speed"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.ProgressCard.Speed}"
                      FontSize="10.5"
                      Foreground="{DynamicResource TextSecondary}"
                      Margin="0,2,0,0"/>
@@ -118,7 +119,7 @@
                      FontSize="13"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource AccentBrush}"/>
-          <TextBlock Text="Remaining"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.ProgressCard.Remaining}"
                      FontSize="10.5"
                      Foreground="{DynamicResource TextSecondary}"
                      Margin="0,2,0,0"/>
@@ -135,7 +136,7 @@
               IsVisible="{Binding HasCurrentFile}">
         <Grid ColumnDefinitions="Auto,*">
           <TextBlock Grid.Column="0"
-                     Text="Processing:"
+                     Text="{localization:Localize Tools.ModBuilder.ProgressCard.ProcessingPrefix}"
                      FontSize="11"
                      Foreground="{DynamicResource TextSecondary}"
                      Margin="0,0,8,0"/>

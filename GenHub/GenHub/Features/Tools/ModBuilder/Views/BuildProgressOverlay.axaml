@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
@@ -52,7 +53,7 @@
       <Grid RowDefinitions="Auto,*,Auto">
         <!-- Header -->
         <StackPanel Grid.Row="0" Spacing="12">
-          <TextBlock Text="Building Project"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.Title}"
                      FontSize="20"
                      FontWeight="Bold"
                      Foreground="{DynamicResource TextPrimary}"/>
@@ -117,7 +118,7 @@
                   BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                   CornerRadius="8" Padding="12" Margin="0,0,6,0">
             <StackPanel Spacing="4">
-              <TextBlock Text="Files/sec"
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.FilesPerSec}"
                          FontSize="11"
                          Foreground="{DynamicResource TextSecondary}"/>
               <TextBlock Text="{Binding FilesPerSecond, StringFormat='{}{0:F1}'}"
@@ -132,7 +133,7 @@
                   BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                   CornerRadius="8" Padding="12" Margin="4,0,4,0">
             <StackPanel Spacing="4">
-              <TextBlock Text="Cache Hits"
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.CacheHits}"
                          FontSize="11"
                          Foreground="{DynamicResource TextSecondary}"/>
               <TextBlock FontSize="16"
@@ -150,7 +151,7 @@
                   BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                   CornerRadius="8" Padding="12" Margin="4,0,4,0">
             <StackPanel Spacing="4">
-              <TextBlock Text="Elapsed"
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.Elapsed}"
                          FontSize="11"
                          Foreground="{DynamicResource TextSecondary}"/>
               <TextBlock Text="{Binding ElapsedTime}"
@@ -165,7 +166,7 @@
                   BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                   CornerRadius="8" Padding="12" Margin="6,0,0,0">
             <StackPanel Spacing="4">
-              <TextBlock Text="ETA"
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.Eta}"
                          FontSize="11"
                          Foreground="{DynamicResource TextSecondary}"/>
               <TextBlock Text="{Binding EstimatedTimeRemaining}"
@@ -180,7 +181,7 @@
                   Margin="0,18,0,0"
                   HorizontalAlignment="Center"
                   Command="{Binding CancelCommand}"
-                  ToolTip.Tip="Cancel the active build process"
+                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.BuildOverlay.TooltipCancel}"
                   Background="{DynamicResource ErrorBadgeBackgroundBrush}"
                   Foreground="{DynamicResource ErrorBrush}"
                   BorderBrush="{DynamicResource ErrorBrush}"
@@ -193,7 +194,7 @@
                     Fill="{DynamicResource ErrorBrush}"
                     Width="14" Height="14"
                     Stretch="Uniform"/>
-              <TextBlock Text="Cancel Build" FontWeight="SemiBold"/>
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.ButtonCancel}" FontWeight="SemiBold"/>
             </StackPanel>
           </Button>
         </Grid>

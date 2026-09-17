@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels;assembly=GenHub"
@@ -133,11 +134,11 @@
       <!-- ==================== HEADER SECTION ==================== -->
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
         <StackPanel Grid.Column="0" Spacing="4">
-          <TextBlock Text="ModBuilder"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.BrandTitle}"
                      FontSize="22"
                      FontWeight="Bold"
                      Foreground="{DynamicResource TextPrimary}"/>
-          <TextBlock Text="C&amp;C Generals &amp; Zero Hour Content Creation Tool"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.BrandSubtitle}"
                      FontSize="13"
                      Foreground="{DynamicResource TextSecondary}"/>
         </StackPanel>
@@ -146,27 +147,27 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <Button Command="{Binding NewProjectCommand}"
                   Classes="dashboard-primary-btn"
-                  ToolTip.Tip="Create a brand new mod project (Ctrl+N)">
+                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipNewProject}">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
               <Path Width="14" Height="14"
                     Fill="White"
                     Data="{StaticResource IconAdd}"
                     Stretch="Uniform"
                     VerticalAlignment="Center"/>
-              <TextBlock Text="New Project" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonNewProject}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
 
           <Button Command="{Binding OpenProjectCommand}"
                   Classes="dashboard-secondary-btn"
-                  ToolTip.Tip="Open an existing project from disk (Ctrl+O)">
+                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipOpenProject}">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
               <Path Width="14" Height="14"
                     Fill="{DynamicResource TextPrimary}"
                     Data="{StaticResource IconFolder}"
                     Stretch="Uniform"
                     VerticalAlignment="Center"/>
-              <TextBlock Text="Open Project" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonOpenProject}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </StackPanel>
@@ -197,23 +198,23 @@
                         VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                  <TextBlock Text="New Project"
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectTitle}"
                              FontSize="15"
                              FontWeight="SemiBold"
                              Foreground="{DynamicResource TextPrimary}"/>
-                  <TextBlock Text="Start from scratch"
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectSubtitle}"
                              FontSize="12"
                              Foreground="{DynamicResource TextSecondary}"/>
                 </StackPanel>
               </StackPanel>
               <TextBlock Grid.Row="1"
-                         Text="Set up a structured mod workspace with standard INI, Art, and Audio directories ready for authoring."
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectDesc}"
                          FontSize="12"
                          Foreground="{DynamicResource TextSecondary}"
                          TextWrapping="Wrap"
                          Margin="0,12,0,12"/>
               <TextBlock Grid.Row="2"
-                         Text="Create Project &#x2192;"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectAction}"
                          FontSize="12"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource AccentPrimary}"/>
@@ -243,23 +244,23 @@
                         VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                  <TextBlock Text="Open Project"
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectTitle}"
                              FontSize="15"
                              FontWeight="SemiBold"
                              Foreground="{DynamicResource TextPrimary}"/>
-                  <TextBlock Text="Browse your disk"
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectSubtitle}"
                              FontSize="12"
                              Foreground="{DynamicResource TextSecondary}"/>
                 </StackPanel>
               </StackPanel>
               <TextBlock Grid.Row="1"
-                         Text="Open an existing .mbproj project file or import a workspace configured with ModBuilder tools."
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectDesc}"
                          FontSize="12"
                          Foreground="{DynamicResource TextSecondary}"
                          TextWrapping="Wrap"
                          Margin="0,12,0,12"/>
               <TextBlock Grid.Row="2"
-                         Text="Browse Files &#x2192;"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectAction}"
                          FontSize="12"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource SuccessBrush}"/>
@@ -289,23 +290,23 @@
                         VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                  <TextBlock Text="Sample Projects"
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsTitle}"
                              FontSize="15"
                              FontWeight="SemiBold"
                              Foreground="{DynamicResource TextPrimary}"/>
-                  <TextBlock Text="Learn by example"
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsSubtitle}"
                              FontSize="12"
                              Foreground="{DynamicResource TextSecondary}"/>
                 </StackPanel>
               </StackPanel>
               <TextBlock Grid.Row="1"
-                         Text="Explore community patch and hotkey sample projects with preconfigured bundle items and release archives."
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsDesc}"
                          FontSize="12"
                          Foreground="{DynamicResource TextSecondary}"
                          TextWrapping="Wrap"
                          Margin="0,12,0,12"/>
               <TextBlock Grid.Row="2"
-                         Text="Open Samples &#x2192;"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsAction}"
                          FontSize="12"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource AccentSecondaryBrush}"/>
@@ -323,14 +324,14 @@
                   Data="{StaticResource IconPackage}"
                   Stretch="Uniform"
                   VerticalAlignment="Center"/>
-            <TextBlock Text="Featured Community Templates"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"
                        VerticalAlignment="Center"/>
           </StackPanel>
           <TextBlock Grid.Column="1"
-                     Text="Popular community addons preconfigured with bundle items &amp; packs"
+                     Text="{localization:Localize Tools.ModBuilder.Dashboard.FeaturedTemplatesSubtitle}"
                      FontSize="12"
                      Foreground="{DynamicResource TextTertiary}"
                      VerticalAlignment="Center"/>
@@ -429,7 +430,7 @@
                               Data="{StaticResource IconFolder}"
                               Stretch="Uniform"
                               VerticalAlignment="Center"/>
-                        <TextBlock Text="Download &amp; Open Project"
+                        <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonDownloadOpenProject}"
                                    FontSize="12"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource AccentPrimary}"
@@ -459,7 +460,7 @@
                   Data="{StaticResource IconTime}"
                   Stretch="Uniform"
                   VerticalAlignment="Center"/>
-            <TextBlock Text="Recent Projects"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.RecentProjectsTitle}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"
@@ -553,19 +554,19 @@
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"/>
             </Border>
-            <TextBlock Text="No projects found"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.NoProjectsFound}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"
                        HorizontalAlignment="Center"/>
-            <TextBlock Text="Create a new project or explore the featured templates to get started"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.NoProjectsFoundDesc}"
                        FontSize="13"
                        Foreground="{DynamicResource TextSecondary}"
                        HorizontalAlignment="Center"
                        TextAlignment="Center"/>
             <Button Command="{Binding LoadSampleProjectCommand}"
                     Classes="dashboard-primary-btn"
-                    ToolTip.Tip="Explore the built-in sample projects"
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipExploreTemplates}"
                     HorizontalAlignment="Center"
                     Margin="0,8,0,0">
               <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -574,7 +575,7 @@
                       Data="{StaticResource IconPackage}"
                       Stretch="Uniform"
                       VerticalAlignment="Center"/>
-                <TextBlock Text="Explore Templates" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonExploreTemplates}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
           </StackPanel>
@@ -592,11 +593,11 @@
                 VerticalAlignment="Top"
                 Margin="0,2,16,0"/>
           <StackPanel Grid.Column="1" Spacing="4">
-            <TextBlock Text="Quick Tip: Build Workflow"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.TipWorkflowTitle}"
                        FontSize="13"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"/>
-            <TextBlock Text="Organize source files inside 'GameFilesEdited', configure output archives in 'config/ModBundlePacks.json', and click 'Execute Build' to create distribution-ready .big and .zip archives automatically."
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.TipWorkflowDesc}"
                        FontSize="12"
                        Foreground="{DynamicResource TextSecondary}"
                        TextWrapping="Wrap"/>
