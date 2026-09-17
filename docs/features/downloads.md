@@ -19,7 +19,7 @@ The Downloads browser replaces the legacy publisher card view with a master-deta
 ### Key Features
 
 - **Unified Master-Detail Browser**: Browse all content sources from a clean sidebar layout with an adaptive card grid and modal detail views.
-- **Active Built-In Publishers**: Out-of-the-box support for Generals Online, TheSuperHackers, Community Outpost, and GitHub.
+- **Active Built-In Publishers**: Out-of-the-box support for Generals Online, TheSuperHackers, Community Outpost, GitHub, and GenLauncher.
 - **Creator Subscriptions**: Dynamic discovery and resolution for third-party creator catalogs published via standard `catalog.json` and subscribed through `genhub://subscribe?url=...`.
 - **Deduplicated Background Downloads**: Coordinated by `ContentDownloadCoordinator`, supporting multiplexed progress reporting and avoiding concurrent duplicate downloads.
 - **Centralized State Detection**: Powered by `ContentStateService` and `IContentManifestPool` to detect whether items are `NotDownloaded`, `UpdateAvailable`, or `Downloaded`.
@@ -152,6 +152,14 @@ TheSuperHackers releases package both Generals and Zero Hour executables in the 
 - Each variant card has its own `TargetGame` (`GameType.Generals` or `GameType.ZeroHour`).
 - Manifest IDs carry distinct suffixes (`...gameclient.generals` vs `...gameclient.zerohour`).
 - Downloading either variant downloads the archive once; `SuperHackersManifestFactory` extracts and registers the appropriate client binary for the targeted game type.
+
+#### GenLauncher Publisher
+
+GenLauncher delivers community mods, addons, and patches from the GenLauncher repository ecosystem:
+- **Game-Differentiated Catalog**: Automatically separates content for Generals and Zero Hour into isolated publisher namespaces (`genlaunchergenerals` and `genlauncherzerohour`).
+- **Multi-Release Mod Packages**: Mods like Rise of the Reds package multiple sub-releases (public builds, patches, music packs) as synthetic child items (`file:...`).
+- **Cold-Restart State Recovery**: `ContentStateService` constructs prospective manifest IDs (`1.0.genlauncher{gameToken}.{contentType}.{slug}`) and matches synthetic file rows to persisted manifests via URL, version, and slug verification (`FileRowMatchesManifest`), ensuring state persists correctly across application restarts.
+- **Detail View & Variant Synchronization**: Selecting an installable variant or opening a multi-release mod detail view automatically synchronizes download state (`IsDownloaded = true` and `DownloadedManifestId`) down to each corresponding release row (`ReleaseItemViewModel`), maintaining seamless button transitions between "Download Now" and "Add to Profile".
 
 #### Subscribed Creator Catalogs
 

@@ -68,6 +68,8 @@ This normalization ensures the manifest ID schema remains valid (dots separate s
 - GeneralsOnline Client: `1.0.generalsonline.gameclient.generalsonline_30hz`
 - CNC Labs Map: `1.0.cnclabs.map.desert-storm`
 - WorldBuilder Tool: `1.0.ea.moddingtool.worldbuilder`
+- GenLauncher Zero Hour Mod: `1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20`
+- GenLauncher Generals Mod: `1.0.genlaunchergenerals.mod.generalsimproved`
 
 **Publisher Attribution**: Community publisher name (e.g., "genhub", "generalsonline", "cnclabs")
 
@@ -107,6 +109,30 @@ When generating manifest IDs for content, the version is determined by the follo
 4. **Discovery date** (fallback when no other date information is available)
 
 This fallback hierarchy ensures that content always has a valid version component for the manifest ID, with preference given to publisher-provided semantic versions when available.
+
+### GenLauncher Format
+
+**Format**: `{schemaVersion}.{userVersion}.{publisher}{gameToken}.{contentType}.{slug}`
+
+**Components**:
+
+- **schemaVersion**: Always `1`
+- **userVersion**: `0`
+- **publisher**: Base publisher identifier (`genlauncher`)
+- **gameToken**: Normalized game suffix (`generals` or `zerohour`), producing `genlaunchergenerals` or `genlauncherzerohour`
+- **contentType**: Content type (`mod`, `patch`, `addon`, etc.)
+- **slug**: Alphanumeric normalized slug generated from mod title and release name
+
+**Examples**:
+
+- GenLauncher Zero Hour Mod: `1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20`
+- GenLauncher Generals Mod: `1.0.genlaunchergenerals.mod.generalsimproved`
+
+**Key Points**:
+
+- **Game-differentiated publisher ID**: Concatentates game token to isolate Zero Hour and Generals content into distinct publisher namespaces
+- **Multi-release synthetic rows**: Sibling releases and files use `file:...` synthetic rows disambiguated by URL, version, and slug matching
+- **Cold-restart recovery**: Reconstructed reliably by `ContentStateService.DetermineProspectiveManifestId` without requiring an active session cache
 
 ## API Reference
 
@@ -437,6 +463,13 @@ Different publishers interact with the ContentState system differently:
 - Explicit version tags (v1.0, v2.0) used in manifest ID
 - Updates follow semantic version rules
 - Pre-release handling supported (beta, alpha tags)
+
+**GenLauncher (Game-specific provider with multi-release packages)**:
+
+- Prospective IDs incorporate game type tokens (`genlauncherzerohour` / `genlaunchergenerals`).
+- Multi-release mods contain synthetic child file rows (`file:...`).
+- `ContentStateService` matches persisted manifests by checking source URL, normalized version strings, titles, and slug segments (`FileRowMatchesManifest`), avoiding cross-release false positives.
+- `ContentDetailViewModel` reconciles matching releases across multi-release lists upon page load or variant selection, propagating `IsDownloaded = true` and `DownloadedManifestId` so action buttons accurately transition between "Download Now" and "Add to Profile" after application restarts.
 
 **Creator Publishing (User-specified versions)**:
 

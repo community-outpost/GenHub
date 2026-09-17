@@ -1431,6 +1431,63 @@ public sealed partial class ContentStateService(
         return false;
     }
 
+    private static bool FileRowMatchesManifest(ContentManifest manifest, ContentSearchResult item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) &&
+            ((manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
+                                       string.Equals(f.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+             (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
+              string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version) &&
+            string.Equals(item.Version.Trim().TrimStart('v', 'V'), manifest.Version.Trim().TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(manifest.Name) &&
+            (string.Equals(item.Name, manifest.Name, StringComparison.OrdinalIgnoreCase) ||
+             manifest.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase) ||
+             item.Name.Contains(manifest.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        var itemSlug = NormalizeSegment(item.Name);
+        if (manifest.Id.Value.Split('.') is { Length: >= 4 } segments)
+        {
+            var lastSegment = NormalizeSegment(segments[^1]);
+            if (!string.IsNullOrEmpty(lastSegment) && !string.IsNullOrEmpty(itemSlug) &&
+                (lastSegment.Contains(itemSlug, StringComparison.OrdinalIgnoreCase) ||
+                 itemSlug.Contains(lastSegment, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(itemSlug) && itemSlug.Length >= 4)
+        {
+            if (manifest.Id.Value.Contains(itemSlug, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(manifest.OriginalContentId) &&
+                 manifest.OriginalContentId.Contains(itemSlug, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        // If the stored manifest does not specify release-level metadata (Name and Version are blank),
+        // fallback to matching the parent content source.
+        if (string.IsNullOrWhiteSpace(manifest.Name) && string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private static bool IsSameContentSource(ContentManifest manifest, ContentSearchResult item)
     {
         if (!string.IsNullOrWhiteSpace(item.SourceUrl) && MatchesSourceUrl(manifest, item.SourceUrl))
@@ -1442,7 +1499,9 @@ public sealed partial class ContentStateService(
             !string.IsNullOrWhiteSpace(manifest.OriginalContentId) && (
             string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
             (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
-             string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
+             string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase) &&
+             (!item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase) ||
+              FileRowMatchesManifest(manifest, item))) ||
             (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) == true &&
              (manifest.OriginalContentId.EndsWith($".{cncMapId}", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(manifest.OriginalContentId, cncMapId, StringComparison.OrdinalIgnoreCase))) ||
@@ -1575,6 +1634,11 @@ public sealed partial class ContentStateService(
         {
             providerName = ModDBConstants.PublisherPrefix;
         }
+        else if (IsGenLauncherPublisher(providerName))
+        {
+            var gameToken = item.TargetGame == GameType.Generals ? "generals" : "zerohour";
+            providerName = $"{GenLauncherConstants.PublisherId}{gameToken}";
+        }
 
         var contentName = SanitizeSegmentForManifest(item.Name, null)
             ?? SanitizeSegmentForManifest(item.Id, UnknownSegment)
@@ -1668,7 +1732,8 @@ public sealed partial class ContentStateService(
             (!string.IsNullOrEmpty(manifest.OriginalContentId) && (
                 string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
                 (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
-                 string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)))) ||
+                 string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase) &&
+                 FileRowMatchesManifest(manifest, item)))) ||
             (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && (
                 (manifest.Files?.Any(file =>
                     !string.IsNullOrWhiteSpace(file.DownloadUrl) &&

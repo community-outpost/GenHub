@@ -1980,6 +1980,67 @@ public class ContentStateServiceTests
         Assert.Equal(expectedLanguage, token);
     }
 
+    /// <summary>
+    /// Verifies that a GenLauncher synthetic file row resolves as downloaded against the persisted manifest
+    /// after an app restart.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GenLauncherFileRow_AfterRestart_MatchesPersistedManifestAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20"),
+            Name = "Rise Of The Reds 1.87 Public Build 2.0",
+            Version = "1.87 Public Build 2.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GenLauncher,
+            OriginalContentId = "genlauncher-zerohour-riseofthereds",
+            Publisher = new PublisherInfo
+            {
+                Name = "GenLauncher",
+                PublisherType = PublisherTypeConstants.GenLauncher,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "rotr-individual-files/!!!Rotr_Intrnl_AI.gib",
+                    DownloadUrl = "http://gen.insave.ovh:9000/rotr/rotr-individual-files/!!!Rotr_Intrnl_AI.gib",
+                },
+            ],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(storedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != storedManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var rotrRow = new ContentSearchResult
+        {
+            Id = "file:https://onedrive.live.com/embed?cid=AFB01C08E053A64E&resid=AFB01C08E053A64E%21593&authkey=AMJHOwXKTTTErrI:Rise Of The Reds 1.87 Public Build 2.0",
+            Name = "Rise Of The Reds 1.87 Public Build 2.0",
+            Version = "1.87 Public Build 2.0",
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "https://onedrive.live.com/embed?cid=AFB01C08E053A64E&resid=AFB01C08E053A64E%21593&authkey=AMJHOwXKTTTErrI",
+        };
+        rotrRow.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = "genlauncher-zerohour-riseofthereds";
+
+        var rotrRowState = await service.GetStateAsync(rotrRow);
+        var rotrRowManifestId = await service.GetLocalManifestIdAsync(rotrRow);
+
+        Assert.Equal(ContentState.Downloaded, rotrRowState);
+        Assert.Equal(storedManifest.Id.Value, rotrRowManifestId);
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

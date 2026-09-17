@@ -2081,12 +2081,47 @@ public partial class ContentDetailViewModel(
         if (value != null && Releases.Count > 0)
         {
             var match = Releases.FirstOrDefault(r =>
-                string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase))
-                ?? Releases.FirstOrDefault(r => !string.IsNullOrEmpty(value.Name) && r.Name != null && r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase));
-            if (match != null && !ReferenceEquals(SelectedDownloadableItem, match))
+                string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase) &&
+                r.Name != null && !string.IsNullOrEmpty(value.Name) &&
+                (string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase) ||
+                 r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
+                 value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)))
+                ?? Releases.FirstOrDefault(r =>
+                    string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase))
+                ?? Releases.FirstOrDefault(r =>
+                    string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase))
+                ?? Releases.FirstOrDefault(r =>
+                    !string.IsNullOrEmpty(value.Name) && r.Name != null &&
+                    (r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
+                     value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)));
+            if (match != null)
             {
-                SelectDownloadableItem(match);
+                if (value.CurrentState == ContentState.Downloaded)
+                {
+                    match.IsDownloaded = true;
+                    if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                    {
+                        match.DownloadedManifestId = value.ManifestId;
+                    }
+                }
+                else if (value.CurrentState == ContentState.UpdateAvailable)
+                {
+                    match.IsDownloaded = true;
+                    match.IsUpdateAvailable = true;
+                    if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                    {
+                        match.DownloadedManifestId = value.ManifestId;
+                    }
+                }
+
+                if (!ReferenceEquals(SelectedDownloadableItem, match))
+                {
+                    SelectDownloadableItem(match);
+                }
+                else
+                {
+                    RefreshSelectedTargetProperties();
+                }
             }
         }
     }
@@ -2428,28 +2463,38 @@ public partial class ContentDetailViewModel(
                 IsUpdateAvailable = state == ContentState.UpdateAvailable ||
                     ((state == ContentState.Downloaded) && (_initialIsUpdateAvailable || _updateTargetSearchResult != null));
 
-                if (IsDownloaded && Releases.Count == 1 &&
-                    (string.Equals(Releases[0].Name, searchResult.Name, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(Releases[0].Version, searchResult.Version, StringComparison.OrdinalIgnoreCase)))
+                if (IsDownloaded && Releases.Count > 0)
                 {
-                    Releases[0].IsDownloaded = true;
-                    Releases[0].IsUpdateAvailable = IsUpdateAvailable;
-                    string? manifestIdForRelease = null;
-                    if (!string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _))
-                    {
-                        manifestIdForRelease = localManifestId;
-                    }
-                    else if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
-                    {
-                        manifestIdForRelease = searchResult.Id;
-                    }
+                    var matchingRelease = Releases.Count == 1 &&
+                        (string.Equals(Releases[0].Name, searchResult.Name, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(Releases[0].Version, searchResult.Version, StringComparison.OrdinalIgnoreCase))
+                        ? Releases[0]
+                        : Releases.FirstOrDefault(r =>
+                            (!string.IsNullOrEmpty(localManifestId) && string.Equals(r.DownloadedManifestId, localManifestId, StringComparison.OrdinalIgnoreCase)) ||
+                            (!string.IsNullOrEmpty(searchResult.Version) && string.Equals(r.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase)) ||
+                            (!string.IsNullOrEmpty(searchResult.Name) && (string.Equals(r.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase) || r.Name?.Contains(searchResult.Name, StringComparison.OrdinalIgnoreCase) == true)));
 
-                    if (!string.IsNullOrEmpty(manifestIdForRelease))
+                    if (matchingRelease != null)
                     {
-                        Releases[0].DownloadedManifestId = manifestIdForRelease;
-                    }
+                        matchingRelease.IsDownloaded = true;
+                        matchingRelease.IsUpdateAvailable = IsUpdateAvailable;
+                        string? manifestIdForRelease = null;
+                        if (!string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _))
+                        {
+                            manifestIdForRelease = localManifestId;
+                        }
+                        else if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
+                        {
+                            manifestIdForRelease = searchResult.Id;
+                        }
 
-                    RefreshSelectedTargetProperties();
+                        if (!string.IsNullOrEmpty(manifestIdForRelease))
+                        {
+                            matchingRelease.DownloadedManifestId = manifestIdForRelease;
+                        }
+
+                        RefreshSelectedTargetProperties();
+                    }
                 }
 
                 if (SelectedDownloadableItem != null && SelectedDownloadableItem.IsDownloaded && IsUpdateAvailable)
@@ -4863,15 +4908,38 @@ public partial class ContentDetailViewModel(
         }
 
         var preferredRelease = (SelectedVariant != null
-            ? Releases.FirstOrDefault(r =>
-                string.Equals(r.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(r.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase))
+            ? (Releases.FirstOrDefault(r =>
+                   string.Equals(r.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase) &&
+                   r.Name != null && !string.IsNullOrEmpty(SelectedVariant.Name) &&
+                   (string.Equals(r.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase) ||
+                    r.Name.Contains(SelectedVariant.Name, StringComparison.OrdinalIgnoreCase) ||
+                    SelectedVariant.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)))
+               ?? Releases.FirstOrDefault(r =>
+                   string.Equals(r.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase))
+               ?? Releases.FirstOrDefault(r =>
+                   string.Equals(r.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase))
+               ?? Releases.FirstOrDefault(r =>
+                   !string.IsNullOrEmpty(SelectedVariant.Name) && r.Name != null &&
+                   (r.Name.Contains(SelectedVariant.Name, StringComparison.OrdinalIgnoreCase) ||
+                    SelectedVariant.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase))))
             : null)
             ?? FindMatchingReleaseForSearchResult(Releases)
             ?? FindPreferredRelease(Releases);
 
         if (preferredRelease != null)
         {
+            if (SelectedVariant?.CurrentState == ContentState.Downloaded &&
+                (string.Equals(preferredRelease.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(preferredRelease.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase) ||
+                 (!string.IsNullOrEmpty(SelectedVariant.Name) && preferredRelease.Name?.Contains(SelectedVariant.Name, StringComparison.OrdinalIgnoreCase) == true)))
+            {
+                preferredRelease.IsDownloaded = true;
+                if (!string.IsNullOrEmpty(SelectedVariant.ManifestId) && ManifestIdValidator.IsValid(SelectedVariant.ManifestId, out _))
+                {
+                    preferredRelease.DownloadedManifestId = SelectedVariant.ManifestId;
+                }
+            }
+
             SelectDownloadableItem(preferredRelease, isUserInitiated: false);
         }
     }

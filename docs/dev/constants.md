@@ -1801,6 +1801,23 @@ Constants for the Community Outpost content provider.
 
 ---
 
+## GenLauncherConstants Class
+
+Constants for GenLauncher file normalization, content publisher operations, and discovery.
+
+| Constant                | Value                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `PublisherId`           | `"genlauncher"`                                                               |
+| `PublisherType`         | `"genlauncher"`                                                               |
+| `PublisherName`         | `"GenLauncher"`                                                               |
+| `ProviderDescription`   | `"Community mods, patches, and addons from the GenLauncher repository"`       |
+| `DiscovererDescription` | `"Discovers mods and addons from the GenLauncher YAML repository"`            |
+| `CatalogFormat`         | `"genlauncher-yaml"`                                                          |
+| `WebsiteUrl`            | `"https://github.com/GenTool/GenLauncher"`                                    |
+| `SupportUrl`            | `"https://github.com/GenTool/GenLauncher/issues"`                             |
+
+---
+
 ## ModDBParserConstants Class
 
 CSS selectors for the `ModDBPageParser`.
