@@ -44,6 +44,8 @@ public sealed class ProjectConfigService(
     private const string LemonControlBarWindows1440pItemName = "LemonControlBarWindows_1440p";
     private const string LemonControlBarWindows4KItemName = "LemonControlBarWindows_4K";
     private const string WindowTargetDir = "Window";
+    private const string MenuWindowsItemName = "MenuWindows";
+    private const string MenuMappedImagesItemName = "MenuMappedImages";
 
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -1481,13 +1483,64 @@ public sealed class ProjectConfigService(
     }
 
     /// <summary>
-    /// Creates sample files for a new project based on the specified template.
+    /// Resolves the sample ID for a given template.
     /// </summary>
-    /// <param name="projectDir">The project directory path.</param>
-    /// <param name="directories">The directory configuration.</param>
     /// <param name="template">The project template.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>The resolved sample ID, or null if no template sample exists.</returns>
+    private static string? ResolveSampleId(ProjectTemplate? template)
+    {
+        var name = template?.Name;
+        if (name == null)
+        {
+            return null;
+        }
+
+        if (name == ProjectTemplate.Hotkeys.Name || name == ModBuilderConstants.CustomIconsAlias || name == ModBuilderConstants.HotkeysSampleName)
+        {
+            return ModBuilderConstants.HotkeysSampleName;
+        }
+
+        if (name == ProjectTemplate.ImprovedMenus.Name || name == ModBuilderConstants.ImprovedMenusSampleName)
+        {
+            return ModBuilderConstants.ImprovedMenusSampleName;
+        }
+
+        if (name == ProjectTemplate.GeneralsGamePatch2.Name || name == ModBuilderConstants.GeneralsGamePatch2SampleName)
+        {
+            return ModBuilderConstants.GeneralsGamePatch2SampleName;
+        }
+
+        if (name == ProjectTemplate.LeikezeHotkeys.Name || name == ModBuilderConstants.LeikezeHotkeysSampleName)
+        {
+            return ModBuilderConstants.LeikezeHotkeysSampleName;
+        }
+
+        if (name == ProjectTemplate.LemonControlBar.Name || name == LemonControlBarSampleName || name == ModBuilderConstants.ControlBarAlias)
+        {
+            return LemonControlBarSampleName;
+        }
+
+        return null;
+    }
+
+    private Task CreateFallbackSampleFilesAsync(
+        string? sampleId,
+        string projectDir,
+        ProjectDirectories directories,
+        string configsDir,
+        CancellationToken cancellationToken)
+    {
+        return sampleId switch
+        {
+            ModBuilderConstants.HotkeysSampleName => CreateCustomIconsSampleFilesAsync(projectDir, directories, configsDir, cancellationToken),
+            ModBuilderConstants.ImprovedMenusSampleName => CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken),
+            ModBuilderConstants.GeneralsGamePatch2SampleName => CreateGeneralsGamePatch2SampleFilesAsync(directories, configsDir, cancellationToken),
+            ModBuilderConstants.LeikezeHotkeysSampleName => CreateLeikezeHotkeysSampleFilesAsync(directories, configsDir, cancellationToken),
+            LemonControlBarSampleName => CreateLemonControlBarSampleFilesAsync(directories, configsDir, cancellationToken),
+            _ => CreateBasicModSampleFilesAsync(projectDir, directories, configsDir, cancellationToken),
+        };
+    }
+
     private async Task CreateSampleFilesAsync(
         string projectDir,
         ProjectDirectories directories,
@@ -1499,57 +1552,13 @@ public sealed class ProjectConfigService(
             var configsDir = Path.Combine(projectDir, directories.Configs);
             Directory.CreateDirectory(configsDir);
 
-            string? sampleId = null;
-            if (template?.Name == ProjectTemplate.Hotkeys.Name || template?.Name == ModBuilderConstants.CustomIconsAlias || template?.Name == ModBuilderConstants.HotkeysSampleName)
-            {
-                sampleId = ModBuilderConstants.HotkeysSampleName;
-            }
-            else if (template?.Name == ProjectTemplate.ImprovedMenus.Name || template?.Name == ModBuilderConstants.ImprovedMenusSampleName)
-            {
-                sampleId = ModBuilderConstants.ImprovedMenusSampleName;
-            }
-            else if (template?.Name == ProjectTemplate.GeneralsGamePatch2.Name || template?.Name == ModBuilderConstants.GeneralsGamePatch2SampleName)
-            {
-                sampleId = ModBuilderConstants.GeneralsGamePatch2SampleName;
-            }
-            else if (template?.Name == ProjectTemplate.LeikezeHotkeys.Name || template?.Name == ModBuilderConstants.LeikezeHotkeysSampleName)
-            {
-                sampleId = ModBuilderConstants.LeikezeHotkeysSampleName;
-            }
-            else if (template?.Name == ProjectTemplate.LemonControlBar.Name || template?.Name == LemonControlBarSampleName || template?.Name == ModBuilderConstants.ControlBarAlias)
-            {
-                sampleId = LemonControlBarSampleName;
-            }
-
+            var sampleId = ResolveSampleId(template);
             if (!string.IsNullOrEmpty(sampleId) && TryCopyTemplateConfigs(sampleId, configsDir))
             {
                 return;
             }
 
-            if (sampleId == ModBuilderConstants.HotkeysSampleName)
-            {
-                await CreateCustomIconsSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
-            }
-            else if (sampleId == ModBuilderConstants.ImprovedMenusSampleName)
-            {
-                await CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
-            }
-            else if (sampleId == ModBuilderConstants.GeneralsGamePatch2SampleName)
-            {
-                await CreateGeneralsGamePatch2SampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
-            }
-            else if (sampleId == ModBuilderConstants.LeikezeHotkeysSampleName)
-            {
-                await CreateLeikezeHotkeysSampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
-            }
-            else if (sampleId == LemonControlBarSampleName)
-            {
-                await CreateLemonControlBarSampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await CreateBasicModSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
-            }
+            await CreateFallbackSampleFilesAsync(sampleId, projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -2079,14 +2088,14 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "MenuWindows",
+                        Name = MenuWindowsItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/window/Menus/**/*.wnd" },
                         OutputFormat = "WINDOW",
                         Description = "Widescreen adapted .wnd menu layout definitions (Common)",
                     },
                     new
                     {
-                        Name = "MenuMappedImages",
+                        Name = MenuMappedImagesItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/MappedImages/**/*.ini" },
                         OutputFormat = "INI",
                         Description = "MappedImage coordinate definitions for widescreen menu textures (Common)",
@@ -2132,7 +2141,7 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "ImprovedMenus_English",
-                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTexturesEnglish" },
+                        Items = new[] { MenuWindowsItemName, MenuMappedImagesItemName, "MenuTexturesEnglish" },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusEnglish.big",
                         ManifestFile = "config/0_ImprovedMenusEnglish.big.manifest.json",
                         Big = true,
@@ -2143,7 +2152,7 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "ImprovedMenus_Russian",
-                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTexturesRussian" },
+                        Items = new[] { MenuWindowsItemName, MenuMappedImagesItemName, "MenuTexturesRussian" },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusRussian.big",
                         ManifestFile = "config/0_ImprovedMenusRussian.big.manifest.json",
                         Big = true,
@@ -2154,7 +2163,7 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "ImprovedMenus_Spanish",
-                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTexturesSpanish" },
+                        Items = new[] { MenuWindowsItemName, MenuMappedImagesItemName, "MenuTexturesSpanish" },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusSpanish.big",
                         ManifestFile = "config/0_ImprovedMenusSpanish.big.manifest.json",
                         Big = true,

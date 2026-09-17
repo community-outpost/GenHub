@@ -206,9 +206,10 @@ public partial class BundleItemEditorViewModel : ObservableObject
             var count = result.Files.Count();
 
             MatchingFilesCount = count;
+            var matchSuffix = count == 1 ? "file matches" : "files match";
             MatchingFilesSummary = count == 0
                 ? "Warning: 0 files currently match these patterns"
-                : $"✓ {count} {(count == 1 ? "file matches" : "files match")} in project";
+                : $"✓ {count} {matchSuffix} in project";
         }
         catch (Exception ex)
         {
@@ -228,12 +229,9 @@ public partial class BundleItemEditorViewModel : ObservableObject
             }
 
             var entries = text.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var entry in entries)
+            foreach (var entry in entries.Where(e => !string.IsNullOrWhiteSpace(e)))
             {
-                if (!string.IsNullOrWhiteSpace(entry))
-                {
-                    SourcePatternsList.Add(new SourcePathItemViewModel(entry));
-                }
+                SourcePatternsList.Add(new SourcePathItemViewModel(entry));
             }
         }
         finally

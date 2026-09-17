@@ -134,14 +134,14 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 
         try
         {
-            foreach (var subDir in dirInfo.GetDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
-            {
-                if (ModBuilderConstants.IsIgnoredProjectFile(subDir.FullName))
-                {
-                    continue;
-                }
+            var subDirs = dirInfo.GetDirectories()
+                .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(subDir => subDir.FullName)
+                .Where(fullPath => !ModBuilderConstants.IsIgnoredProjectFile(fullPath));
 
-                var subNode = CreateDirectoryNode(subDir.FullName, baseProjectDir);
+            foreach (var subDirPath in subDirs)
+            {
+                var subNode = CreateDirectoryNode(subDirPath, baseProjectDir);
                 node.Children.Add(subNode);
             }
 
