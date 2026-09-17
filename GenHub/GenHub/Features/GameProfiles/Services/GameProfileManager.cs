@@ -478,16 +478,30 @@ public class GameProfileManager(
                     $"Game client '{request.GameClient.Id}' is not available in installation '{request.GameInstallationId}'.");
             }
 
+            request.GameClient = request.GameClient.Clone();
             return null;
         }
 
         var enabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
         var matchedClient = availableClients.FirstOrDefault(c =>
-            enabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+            c.IsEnabled && enabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+
+        if (matchedClient == null && profile.GameClient != null)
+        {
+            matchedClient = availableClients.FirstOrDefault(c =>
+                c.IsEnabled &&
+                c.GameType == profile.GameClient.GameType &&
+                string.Equals(c.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (matchedClient == null && profile.GameClient == null && request.EnabledContentIds == null)
+        {
+            matchedClient = availableClients.FirstOrDefault(c => c.IsEnabled);
+        }
 
         if (matchedClient != null)
         {
-            request.GameClient = matchedClient;
+            request.GameClient = matchedClient.Clone();
             return null;
         }
 
@@ -516,15 +530,15 @@ public class GameProfileManager(
                 request.EnabledContentIds.Contains(profile.GameClient.Id, StringComparer.OrdinalIgnoreCase))
             {
                 matchedClient = availableClients.FirstOrDefault(c =>
-                    string.Equals(c.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase));
+                    c.IsEnabled && string.Equals(c.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase));
             }
 
             matchedClient ??= availableClients.FirstOrDefault(c =>
-                request.EnabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+                c.IsEnabled && request.EnabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
 
             if (matchedClient != null)
             {
-                request.GameClient = matchedClient;
+                request.GameClient = matchedClient.Clone();
             }
         }
     }
