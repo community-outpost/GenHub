@@ -1139,6 +1139,26 @@ public class ProfileLauncherFacade(
             }
         }
 
+        if (!hasGameClientManifest && profile.GameClient != null && !string.IsNullOrWhiteSpace(profile.GameClient.Id))
+        {
+            if (ManifestId.TryCreate(profile.GameClient.Id, out var clientManifestId))
+            {
+                try
+                {
+                    var clientManifestResult = await manifestPool.GetManifestAsync(clientManifestId, cancellationToken);
+                    if (clientManifestResult.Success && clientManifestResult.Data != null)
+                    {
+                        manifests.Add(clientManifestResult.Data);
+                        hasGameClientManifest = true;
+                    }
+                }
+                catch (ArgumentException ex)
+                {
+                    logger.LogWarning(ex, "Skipping invalid game client manifest ID during validation: {ClientContentId}", profile.GameClient.Id);
+                }
+            }
+        }
+
         return (manifests, hasGameInstallationManifest, hasGameClientManifest);
     }
 
@@ -1408,7 +1428,24 @@ public class ProfileLauncherFacade(
 
                         var nameMatches = CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestContentName, depContentName);
 
-                        return publisherMatches && typeMatches && nameMatches;
+                        if (publisherMatches && typeMatches && nameMatches)
+                        {
+                            return true;
+                        }
+
+                        if (publisherMatches && typeMatches &&
+                            string.Equals(manifestPublisher, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(depPublisher, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var depCode = DependencyResolver.CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(dependency.Id.ToString(), out _, out var code) ? code : null;
+                            var manifestCode = DependencyResolver.CommunityOutpostDependencyIdentity.GetCommunityOutpostContentCode(m);
+                            if (!string.IsNullOrEmpty(depCode) && !string.IsNullOrEmpty(manifestCode) && string.Equals(depCode, manifestCode, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return true;
+                            }
+                        }
+
+                        return false;
                     }
 
                     return false;
