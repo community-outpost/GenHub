@@ -7483,6 +7483,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Profiles.AddLocalContent.StatusNormalizationWarning" xml:space="preserve">
     <value>Предупреждение нормализации: {0}. Импорт продолжится.</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusPartialNormalization" xml:space="preserve">
+    <value>Некоторые неактивные архивы не удалось нормализовать.</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusRemovingItem" xml:space="preserve">
     <value>Удаление {0}...</value>
   </data>

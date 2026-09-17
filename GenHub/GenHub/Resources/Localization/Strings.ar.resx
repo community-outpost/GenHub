@@ -7483,6 +7483,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Profiles.AddLocalContent.StatusNormalizationWarning" xml:space="preserve">
     <value>تحذير الضبط: {0}. سيستمر الاستيراد.</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusPartialNormalization" xml:space="preserve">
+    <value>تعذر تسوية بعض الأرشيفات غير النشطة.</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusRemovingItem" xml:space="preserve">
     <value>جارٍ حذف {0}...</value>
   </data>

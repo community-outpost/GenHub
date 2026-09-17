@@ -936,7 +936,7 @@ public partial class AddLocalContentViewModel(
             }
             else
             {
-                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizationWarning", "Some inactive archives could not be normalized.");
+                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusPartialNormalization", "Some inactive archives could not be normalized.");
             }
 
             Validate();

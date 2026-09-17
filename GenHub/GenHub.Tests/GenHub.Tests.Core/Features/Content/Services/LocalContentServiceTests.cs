@@ -261,6 +261,7 @@ public class LocalContentServiceTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<ContentType>(),
                 It.IsAny<GameType>(),
+                It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -283,6 +284,7 @@ public class LocalContentServiceTests : IDisposable
                 _tempDir,
                 ContentType.Mod,
                 GameType.ZeroHour,
+                true,
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

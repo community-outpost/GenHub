@@ -7577,6 +7577,9 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Profiles.AddLocalContent.StatusNormalizationWarning" xml:space="preserve">
     <value>Normalization warning: {0}. Import will continue.</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusPartialNormalization" xml:space="preserve">
+    <value>Some inactive archives could not be normalized.</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusRemovingItem" xml:space="preserve">
     <value>Removing {0}...</value>
   </data>
