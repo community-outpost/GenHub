@@ -5,12 +5,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -20,7 +22,12 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// ViewModel representing a single content manifest item in the import inspection list.
 /// </summary>
 /// <param name="dependency">The shared manifest dependency model.</param>
-public partial class SharedManifestItemViewModel(SharedManifestDependency dependency) : ViewModelBase
+/// <param name="localizationService">Optional localization service.</param>
+/// <param name="notificationService">Optional notification service.</param>
+public partial class SharedManifestItemViewModel(
+    SharedManifestDependency dependency,
+    ILocalizationService? localizationService = null,
+    INotificationService? notificationService = null) : ViewModelBase
 {
     [ObservableProperty]
     private bool _isExpanded;
@@ -110,12 +117,12 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// <summary>
     /// Gets a value indicating whether this component package contains executable binaries.
     /// </summary>
-    public bool ContainsExecutables { get; } = dependency.Files.Any(IsExecutableFile);
+    public bool ContainsExecutables { get; } = dependency.Files.Any(ManifestHelper.IsExecutableFile);
 
     /// <summary>
     /// Gets the count of executable files contained in this component.
     /// </summary>
-    public int ExecutableFilesCount { get; } = dependency.Files.Count(IsExecutableFile);
+    public int ExecutableFilesCount { get; } = dependency.Files.Count(ManifestHelper.IsExecutableFile);
 
     /// <summary>
     /// Gets a value indicating whether this package originates from a temporary cloud upload.
@@ -141,22 +148,12 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// </summary>
     public bool HasDetails => !string.IsNullOrWhiteSpace(DownloadUrl) || !string.IsNullOrWhiteSpace(Hash) || FilesCount > 0;
 
-    private static bool IsExecutableFile(ManifestFile file)
-    {
-        if (string.IsNullOrWhiteSpace(file.RelativePath))
-        {
-            return false;
-        }
-
-        var ext = Path.GetExtension(file.RelativePath);
-        return ProfileSharingConstants.ExecutableFileExtensions.Contains(ext);
-    }
-
     private string GetProvenance()
     {
         if (IsCloudPackage)
         {
-            return "GenHub Cloud (UploadThing)";
+            return localizationService?.GetString("GameProfiles.ImportInspection.Provenance.CloudPackage")
+                ?? "GenHub Cloud (UploadThing)";
         }
 
         return !string.IsNullOrWhiteSpace(dependency.Publisher)
@@ -191,6 +188,9 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
             if (topLevel?.Clipboard != null)
             {
                 await topLevel.Clipboard.SetTextAsync(Hash);
+                var copiedMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.CopiedToClipboard") ?? "Copied to clipboard!";
+                var title = localizationService?.GetString("GameProfiles.ShareDialog.Title.Notification") ?? "Profile Sharing";
+                notificationService?.ShowSuccess(title, copiedMsg, 2000);
             }
         }
     }
@@ -213,6 +213,9 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
             if (topLevel?.Clipboard != null)
             {
                 await topLevel.Clipboard.SetTextAsync(DownloadUrl);
+                var copiedMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.CopiedToClipboard") ?? "Copied to clipboard!";
+                var title = localizationService?.GetString("GameProfiles.ShareDialog.Title.Notification") ?? "Profile Sharing";
+                notificationService?.ShowSuccess(title, copiedMsg, 2000);
             }
         }
     }

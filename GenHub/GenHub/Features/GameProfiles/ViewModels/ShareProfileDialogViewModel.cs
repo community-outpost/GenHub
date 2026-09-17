@@ -129,20 +129,12 @@ public partial class ShareProfileDialogViewModel(
     private string _generatingStatusText = string.Empty;
 
     [ObservableProperty]
-    private string _statusMessage = string.Empty;
-
-    [ObservableProperty]
-    private bool _isStatusMessageVisible;
-
-    [ObservableProperty]
-    private bool _isStatusError;
-
-    [ObservableProperty]
     private bool _hasCloudUploads = HasLocalCustomContent(profile);
 
     [ObservableProperty]
     private string _cloudUploadDetails = HasLocalCustomContent(profile)
-        ? "This profile contains custom local content that must be uploaded to temporary cloud storage (14-day retention) to generate a shareable link. You can also export a standalone .ghprofile file without uploading to cloud."
+        ? (localizationService?.GetString("GameProfiles.ShareDialog.Status.CloudNotice")
+            ?? "This profile contains custom local content that must be uploaded to temporary cloud storage (14-day retention) to generate a shareable link. You can also export a standalone .ghprofile file without uploading to cloud.")
         : string.Empty;
 
     [ObservableProperty]
@@ -232,7 +224,7 @@ public partial class ShareProfileDialogViewModel(
         return null;
     }
 
-    private static FilePickerSaveOptions CreateExportFilePickerOptions(string profileName)
+    private static FilePickerSaveOptions CreateExportFilePickerOptions(string profileName, ILocalizationService? localizationService)
     {
         string safeProfileName = string.Join("_", profileName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Replace(' ', '_');
         if (string.IsNullOrWhiteSpace(safeProfileName))
@@ -240,9 +232,11 @@ public partial class ShareProfileDialogViewModel(
             safeProfileName = "profile";
         }
 
+        var title = localizationService?.GetString("GameProfiles.ShareDialog.ExportPickerTitle") ?? "Export Game Profile Package";
+
         return new FilePickerSaveOptions
         {
-            Title = "Export Game Profile Package",
+            Title = title,
             SuggestedFileName = $"{safeProfileName}{ProfileSharingConstants.ProfileFileExtension}",
             DefaultExtension = ProfileSharingConstants.ProfileFileExtension.TrimStart('.'),
             FileTypeChoices =
@@ -293,8 +287,8 @@ public partial class ShareProfileDialogViewModel(
         {
             IsGeneratingLink = true;
             GeneratingStatusText = HasCloudUploads
-                ? "Packaging & uploading custom content..."
-                : "Encoding profile package...";
+                ? (localizationService?.GetString("GameProfiles.ShareDialog.Status.PackagingUploading") ?? "Packaging & uploading custom content...")
+                : (localizationService?.GetString("GameProfiles.ShareDialog.Status.EncodingPackage") ?? "Encoding profile package...");
 
             var result = await profileSharingService.ExportProfileToUriAsync(profileId, _cts.Token);
             if (result.Success && !string.IsNullOrEmpty(result.Data))
@@ -302,13 +296,13 @@ public partial class ShareProfileDialogViewModel(
                 ShareUri = result.Data;
                 IsShareUriGenerated = true;
                 var successMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.LinkGenerated") ?? "Share link generated!";
-                ShowStatus(successMsg);
+                ShowNotification(successMsg);
                 logger.LogInformation("Generated share link for profile {ProfileName}", ProfileName);
             }
             else
             {
                 var format = localizationService?.GetString("GameProfiles.ShareDialog.Status.LinkGenerationFailed") ?? "Generation failed: {0}";
-                ShowStatus(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, result.FirstError), isError: true);
+                ShowNotification(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, result.FirstError), isError: true);
                 logger.LogWarning("Failed to generate share link for profile {ProfileId}: {Error}", profileId, result.FirstError);
             }
         }
@@ -320,7 +314,7 @@ public partial class ShareProfileDialogViewModel(
         {
             logger.LogError(ex, "Failed to generate profile share link for profile {ProfileId}", profileId);
             var failMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.GenerateLinkFailed") ?? "Failed to generate link.";
-            ShowStatus(failMsg, isError: true);
+            ShowNotification(failMsg, isError: true);
         }
         finally
         {
@@ -344,19 +338,19 @@ public partial class ShareProfileDialogViewModel(
             {
                 await topLevel.Clipboard.SetTextAsync(ShareUri);
                 var copiedMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.CopiedToClipboard") ?? "Copied to clipboard!";
-                ShowStatus(copiedMsg);
+                ShowNotification(copiedMsg);
             }
             else
             {
                 var unavailMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.ClipboardUnavailable") ?? "Clipboard unavailable.";
-                ShowStatus(unavailMsg, isError: true);
+                ShowNotification(unavailMsg, isError: true);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to copy share URI to clipboard.");
             var copyFailMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.FailedToCopy") ?? "Failed to copy link.";
-            ShowStatus(copyFailMsg, isError: true);
+            ShowNotification(copyFailMsg, isError: true);
         }
     }
 
@@ -383,7 +377,7 @@ public partial class ShareProfileDialogViewModel(
                 return;
             }
 
-            var file = await topLevel.StorageProvider.SaveFilePickerAsync(CreateExportFilePickerOptions(ProfileName));
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(CreateExportFilePickerOptions(ProfileName, localizationService));
             if (file == null)
             {
                 return;
@@ -394,13 +388,13 @@ public partial class ShareProfileDialogViewModel(
             if (result.Success)
             {
                 var exportSuccessMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.ExportSuccess") ?? "Profile package exported successfully!";
-                ShowStatus(exportSuccessMsg);
+                ShowNotification(exportSuccessMsg);
                 logger.LogInformation("Exported profile {ProfileName} to {Path}", ProfileName, destination);
             }
             else
             {
                 var format = localizationService?.GetString("GameProfiles.ShareDialog.Status.ExportFailed") ?? "Export failed: {0}";
-                ShowStatus(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, result.FirstError), isError: true);
+                ShowNotification(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, result.FirstError), isError: true);
             }
         }
         catch (OperationCanceledException ex)
@@ -411,7 +405,7 @@ public partial class ShareProfileDialogViewModel(
         {
             logger.LogError(ex, "Failed to export profile file.");
             var exportFailMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.FailedToExport") ?? "Failed to export profile file.";
-            ShowStatus(exportFailMsg, isError: true);
+            ShowNotification(exportFailMsg, isError: true);
         }
         finally
         {
@@ -425,12 +419,8 @@ public partial class ShareProfileDialogViewModel(
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void ShowStatus(string message, bool isError = false)
+    private void ShowNotification(string message, bool isError = false)
     {
-        StatusMessage = message;
-        IsStatusError = isError;
-        IsStatusMessageVisible = true;
-
         if (notificationService != null)
         {
             var notifTitle = localizationService?.GetString("GameProfiles.ShareDialog.Title.Notification") ?? "Profile Sharing";
@@ -494,7 +484,9 @@ public partial class ShareProfileDialogViewModel(
             double limitMb = usage.LimitBytes / (double)ConversionConstants.BytesPerMegabyte;
             double pct = usage.LimitBytes > 0 ? (quickUsedMb / limitMb) * 100.0 : 0.0;
 
-            UploadQuotaText = $"Storage Quota: {quickUsedMb:F1} MB / {limitMb:F1} MB ({pct:F0}% used)";
+            var quotaFormat = localizationService?.GetString("GameProfiles.ShareDialog.Quota.Format")
+                ?? "Storage Quota: {0:F1} MB / {1:F1} MB ({2:F0}% used)";
+            UploadQuotaText = string.Format(System.Globalization.CultureInfo.CurrentCulture, quotaFormat, quickUsedMb, limitMb, pct);
             UploadQuotaPercentage = Math.Min(100.0, pct);
             IsQuotaNearLimit = pct >= 80.0;
             IsQuotaExceeded = pct >= 100.0;
@@ -502,7 +494,9 @@ public partial class ShareProfileDialogViewModel(
             if (IsQuotaExceeded)
             {
                 HasUploadWarnings = true;
-                UploadWarningMessage = $"Cloud storage limit reached ({limitMb:F0} MB). Old uploads can be cleared in Settings > Cloud Storage & Uploads, or you can export a .ghprofile file instead.";
+                var exceededFormat = localizationService?.GetString("GameProfiles.ShareDialog.Quota.ExceededWarning")
+                    ?? "Cloud storage limit reached ({0:F0} MB). Old uploads can be cleared in Settings > Cloud Storage & Uploads, or you can export a .ghprofile file instead.";
+                UploadWarningMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture, exceededFormat, limitMb);
             }
         }
         catch (Exception ex)

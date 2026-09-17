@@ -93,7 +93,7 @@ public sealed partial class ImportProfileInspectionViewModel(
 
     [ObservableProperty]
     private ObservableCollection<SharedManifestItemViewModel> _manifests = new(
-        inspectionResult?.Manifests.Select(m => new SharedManifestItemViewModel(m)) ?? []);
+        inspectionResult?.Manifests.Select(m => new SharedManifestItemViewModel(m, localizationService, notificationService)) ?? []);
 
     [ObservableProperty]
     private ObservableCollection<SharedInstallationOption> _compatibleInstallations = inspectionResult != null ? CreateInstallationOptions(inspectionResult) : [];
@@ -236,9 +236,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     }
 
     private static int CalculateTotalExecutables(SharedProfileInspectionResult result) =>
-        result.Manifests.Sum(m => m.Files?.Count(f =>
-            !string.IsNullOrWhiteSpace(f.RelativePath) &&
-            ProfileSharingConstants.ExecutableFileExtensions.Contains(Path.GetExtension(f.RelativePath))) ?? 0);
+        result.Manifests.Sum(m => m.Files?.Count(ManifestHelper.IsExecutableFile) ?? 0);
 
     private static ObservableCollection<SharedInstallationOption> CreateInstallationOptions(SharedProfileInspectionResult inspection) =>
         new(inspection.CompatibleInstallations.Select(i => new SharedInstallationOption

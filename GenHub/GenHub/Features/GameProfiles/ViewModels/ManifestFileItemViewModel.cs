@@ -1,7 +1,5 @@
-using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Manifest;
-using System;
 using System.IO;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -40,17 +38,5 @@ public sealed class ManifestFileItemViewModel(ManifestFile file)
     /// <summary>
     /// Gets a value indicating whether this file is an executable binary or script.
     /// </summary>
-    public bool IsExecutable
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(file.RelativePath))
-            {
-                return false;
-            }
-
-            var ext = Path.GetExtension(file.RelativePath);
-            return ProfileSharingConstants.ExecutableFileExtensions.Contains(ext);
-        }
-    }
+    public bool IsExecutable => ManifestHelper.IsExecutableFile(file);
 }

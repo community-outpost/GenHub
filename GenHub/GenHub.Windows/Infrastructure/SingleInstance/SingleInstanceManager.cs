@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.SingleInstance;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -30,14 +31,48 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
     private readonly Mutex _mutex;
     private readonly bool _isFirstInstance;
     private readonly CancellationTokenSource _pipeServerCts;
+    private readonly List<string> _pendingCommands = [];
+    private readonly object _commandLock = new();
 
     private NamedPipeServerStream? _pipeServer;
     private Task? _pipeListenerTask;
+    private EventHandler<string>? _commandReceived;
 
     /// <summary>
     /// Occurs when a command is received from another instance.
     /// </summary>
-    public event EventHandler<string>? CommandReceived;
+    public event EventHandler<string>? CommandReceived
+    {
+        add
+        {
+            List<string>? commandsToReplay = null;
+            lock (_commandLock)
+            {
+                _commandReceived += value;
+                if (_pendingCommands.Count > 0)
+                {
+                    commandsToReplay = [.. _pendingCommands];
+                    _pendingCommands.Clear();
+                }
+            }
+
+            if (commandsToReplay != null)
+            {
+                foreach (var cmd in commandsToReplay)
+                {
+                    value?.Invoke(this, cmd);
+                }
+            }
+        }
+
+        remove
+        {
+            lock (_commandLock)
+            {
+                _commandReceived -= value;
+            }
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SingleInstanceManager"/> class.
@@ -256,7 +291,7 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
                 if (IsValidIpcCommand(command))
                 {
                     LogReceivedCommand(_logger, command);
-                    CommandReceived?.Invoke(this, command);
+                    RaiseCommandReceived(command);
                 }
                 else
                 {
@@ -274,5 +309,21 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
                 _pipeServer = null;
             }
         }
+    }
+
+    private void RaiseCommandReceived(string command)
+    {
+        EventHandler<string>? handler;
+        lock (_commandLock)
+        {
+            handler = _commandReceived;
+            if (handler == null)
+            {
+                _pendingCommands.Add(command);
+                return;
+            }
+        }
+
+        handler(this, command);
     }
 }

@@ -108,8 +108,7 @@ public class Program
     /// <returns>The <see cref="AppBuilder"/>.</returns>
     /// <param name="serviceProvider">The application's dependency injection service provider.</param>
     /// <remarks>
-    /// Don't remove; also used by visual designer.
-    /// </remarks>
+    /// Don't remove; also used by visual designer.</remarks>
     public static AppBuilder BuildAvaloniaApp(IServiceProvider serviceProvider)
         => AppBuilder.Configure(() => new App(serviceProvider))
             .UsePlatformDetect()
@@ -162,31 +161,40 @@ public class Program
 
     private static void ForwardCommandLineCommands(string[] args, ILogger bootstrapLogger)
     {
+        string command;
         var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
         if (!string.IsNullOrEmpty(profileShareUri))
         {
             bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");
-            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
-            return;
+            command = $"{IpcCommands.ImportProfilePrefix}{profileShareUri}";
         }
-
-        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
-        if (!string.IsNullOrEmpty(subscriptionUrl))
+        else
         {
-            bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance");
-            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
-            return;
+            var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+            if (!string.IsNullOrEmpty(subscriptionUrl))
+            {
+                bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance");
+                command = $"{IpcCommands.SubscribePrefix}{subscriptionUrl}";
+            }
+            else
+            {
+                var profileId = CommandLineParser.ExtractProfileId(args);
+                if (!string.IsNullOrEmpty(profileId))
+                {
+                    bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+                    command = $"{IpcCommands.LaunchProfilePrefix}{profileId}";
+                }
+                else
+                {
+                    bootstrapLogger.LogInformation("Forwarding activate command to primary instance");
+                    command = IpcCommands.ActivateCommand;
+                }
+            }
         }
 
-        var profileId = CommandLineParser.ExtractProfileId(args);
-        if (!string.IsNullOrEmpty(profileId))
+        if (!SingleInstanceManager.SendCommandToPrimaryInstance(command))
         {
-            bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
-            return;
+            bootstrapLogger.LogWarning("Failed to forward command to primary instance: {Command}", command);
         }
-
-        bootstrapLogger.LogInformation("Forwarding activate command to primary instance");
-        SingleInstanceManager.SendCommandToPrimaryInstance(IpcCommands.ActivateCommand);
     }
 }

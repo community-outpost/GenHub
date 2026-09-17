@@ -41,7 +41,7 @@ public static class LinuxUriSchemeRegistrar
             Directory.CreateDirectory(appsDir);
             var desktopFilePath = Path.Combine(appsDir, "genhub.desktop");
 
-            var escapedExecPath = executablePath.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            var escapedExecPath = executablePath.Replace("%", "%%").Replace("\\", "\\\\").Replace("\"", "\\\"");
 
             var content = new StringBuilder();
             content.AppendLine("[Desktop Entry]");

@@ -1839,6 +1839,23 @@ public class ProfileSharingService(
         return publisherType;
     }
 
+    private static string GenerateConflictFreeProfileName(string baseName, ISet<string> existingNames)
+    {
+        int counter = 1;
+        string candidate;
+        do
+        {
+            string suffix = $" ({counter})";
+            int maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
+            string truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
+            candidate = $"{truncatedBase}{suffix}";
+            counter++;
+        }
+        while (existingNames.Contains(candidate));
+
+        return candidate;
+    }
+
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(installationId))
@@ -3270,22 +3287,5 @@ public class ProfileSharingService(
         }
 
         return (GenerateConflictFreeProfileName(baseName, existingNames), true);
-    }
-
-    private static string GenerateConflictFreeProfileName(string baseName, ISet<string> existingNames)
-    {
-        int counter = 1;
-        string candidate;
-        do
-        {
-            string suffix = $" ({counter})";
-            int maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
-            string truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
-            candidate = $"{truncatedBase}{suffix}";
-            counter++;
-        }
-        while (existingNames.Contains(candidate));
-
-        return candidate;
     }
 }

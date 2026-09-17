@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.SingleInstance;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Pipes;
@@ -34,14 +35,48 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
     private readonly ILogger<LinuxSingleInstanceManager> _logger;
     private readonly FileStream _lockFile;
     private readonly CancellationTokenSource _pipeServerCts;
+    private readonly List<string> _pendingCommands = [];
+    private readonly object _commandLock = new();
 
     private NamedPipeServerStream? _pipeServer;
     private Task? _pipeListenerTask;
+    private EventHandler<string>? _commandReceived;
 
     /// <summary>
     /// Occurs when a command is received from another instance.
     /// </summary>
-    public event EventHandler<string>? CommandReceived;
+    public event EventHandler<string>? CommandReceived
+    {
+        add
+        {
+            List<string>? commandsToReplay = null;
+            lock (_commandLock)
+            {
+                _commandReceived += value;
+                if (_pendingCommands.Count > 0)
+                {
+                    commandsToReplay = [.. _pendingCommands];
+                    _pendingCommands.Clear();
+                }
+            }
+
+            if (commandsToReplay != null)
+            {
+                foreach (var cmd in commandsToReplay)
+                {
+                    value?.Invoke(this, cmd);
+                }
+            }
+        }
+
+        remove
+        {
+            lock (_commandLock)
+            {
+                _commandReceived -= value;
+            }
+        }
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct UCred
@@ -171,7 +206,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         {
             _pipeListenerTask?.Wait(TimeSpan.FromSeconds(1), CancellationToken.None);
         }
-        catch
+        catch (AggregateException)
         {
             // Ignore task cancellation / disposal errors
         }
@@ -313,7 +348,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
                 if (IsValidIpcCommand(command))
                 {
                     LogReceivedCommand(_logger, command);
-                    CommandReceived?.Invoke(this, command);
+                    RaiseCommandReceived(command);
                 }
                 else
                 {
@@ -327,45 +362,58 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         {
             if (_pipeServer != null)
             {
-                await _pipeServer.DisposeAsync().ConfigureAwait(false);
+                await _pipeServer.DisposeAsync();
                 _pipeServer = null;
             }
         }
     }
 
-    [SuppressMessage("Reliability", "S3869:SafeHandle.DangerousGetHandle should not be called", Justification = "Interoping with libc getsockopt requires extracting the native file descriptor from SafePipeHandle.")]
     private bool IsPeerAuthorized(NamedPipeServerStream pipeServer)
     {
         try
         {
-            bool success = false;
-            pipeServer.SafePipeHandle.DangerousAddRef(ref success);
-            try
-            {
-                var fd = pipeServer.SafePipeHandle.DangerousGetHandle().ToInt32();
-                int len = Marshal.SizeOf<UCred>();
-                int res = getsockopt(fd, SolSocket, SoPeerCred, out var cred, ref len);
-                if (res != 0)
-                {
-                    _logger.LogWarning("getsockopt SO_PEERCRED failed with error {ErrorCode}", Marshal.GetLastWin32Error());
-                    return false;
-                }
+            var safeHandle = pipeServer.SafePipeHandle;
+            int fd = safeHandle.DangerousGetHandle().ToInt32();
 
-                uint myUid = geteuid();
-                return cred.Uid == myUid;
-            }
-            finally
+            var ucred = default(UCred);
+            int len = Marshal.SizeOf<UCred>();
+
+            int result = getsockopt(fd, SolSocket, SoPeerCred, out ucred, ref len);
+            if (result != 0)
             {
-                if (success)
-                {
-                    pipeServer.SafePipeHandle.DangerousRelease();
-                }
+                _logger.LogWarning("getsockopt SO_PEERCRED failed with error {Errno}", Marshal.GetLastPInvokeError());
+                return false;
             }
+
+            uint currentEuid = geteuid();
+            bool authorized = ucred.Uid == currentEuid;
+            if (!authorized)
+            {
+                _logger.LogWarning("Unauthorized peer UID {PeerUid} (expected {CurrentUid})", ucred.Uid, currentEuid);
+            }
+
+            return authorized;
         }
-        catch (Exception ex) when (ex is ObjectDisposedException or DllNotFoundException or EntryPointNotFoundException)
+        catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to verify peer credentials on Linux pipe connection");
+            _logger.LogWarning(ex, "Failed to verify peer credentials on Linux pipe");
             return false;
         }
+    }
+
+    private void RaiseCommandReceived(string command)
+    {
+        EventHandler<string>? handler;
+        lock (_commandLock)
+        {
+            handler = _commandReceived;
+            if (handler == null)
+            {
+                _pendingCommands.Add(command);
+                return;
+            }
+        }
+
+        handler(this, command);
     }
 }
