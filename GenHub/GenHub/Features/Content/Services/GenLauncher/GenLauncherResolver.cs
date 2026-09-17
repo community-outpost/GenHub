@@ -346,13 +346,8 @@ public class GenLauncherResolver(
                 nextMarker = marker;
             }
 
-            if (s3Files.Count > 0)
-            {
-                manifest.Files.AddRange(s3Files);
-                return true;
-            }
-
-            return false;
+            manifest.Files.AddRange(s3Files);
+            return true;
         }
         catch (OperationCanceledException)
         {

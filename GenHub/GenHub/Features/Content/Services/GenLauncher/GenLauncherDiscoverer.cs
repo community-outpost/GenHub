@@ -434,33 +434,30 @@ public class GenLauncherDiscoverer(
     }
 
     private ContentSearchResult CreateParentModResult(
+        ModProcessingContext context,
         GenLauncherModDataEntry modEntry,
-        GameType game,
-        string modSlug,
         GenLauncherVersionManifest? parentManifest,
         string? parentManifestUrl,
-        long? parentSizeBytes,
-        List<ContentVariantInfo> variants,
-        List<ContentSection> filesSections)
+        long? parentSizeBytes)
     {
         var parentResult = new ContentSearchResult
         {
-            Id = $"genlauncher-{game.ToString().ToLowerInvariant()}-{modSlug}",
+            Id = $"genlauncher-{context.Game.ToString().ToLowerInvariant()}-{context.ModSlug}",
             Name = modEntry.ModName,
             ContentType = ContentType.Mod,
-            TargetGame = game,
+            TargetGame = context.Game,
             ProviderName = PublisherTypeConstants.GenLauncher,
             ResolverId = GenLauncherConstants.PublisherId,
             SourceUrl = parentManifest?.SimpleDownloadLink ?? modEntry.ModLink ?? string.Empty,
             IconUrl = ResolveIconUrl(parentManifest?.UIImageSourceLink, null),
             RequiresResolution = true,
-            VariantGroupId = modSlug,
+            VariantGroupId = context.ModSlug,
             VariantFamilyName = modEntry.ModName,
         };
 
         parentResult.Tags.Add("genlauncher");
         parentResult.Tags.Add("mod");
-        parentResult.Tags.Add(game.ToString().ToLowerInvariant());
+        parentResult.Tags.Add(context.Game.ToString().ToLowerInvariant());
 
         if (parentManifest != null && parentManifestUrl != null)
         {
@@ -477,9 +474,9 @@ public class GenLauncherDiscoverer(
             parentResult.DownloadSize = parentSizeBytes.Value;
         }
 
-        variants.Insert(0, new ContentVariantInfo
+        context.Variants.Insert(0, new ContentVariantInfo
         {
-            Id = modSlug,
+            Id = context.ModSlug,
             Name = parentManifest?.Name ?? modEntry.ModName,
             ManifestId = parentResult.Id,
             IsDefault = true,
@@ -487,7 +484,7 @@ public class GenLauncherDiscoverer(
 
         if (parentManifest != null)
         {
-            filesSections.Insert(0, new DownloadableFile(
+            context.FilesSections.Insert(0, new DownloadableFile(
                 Name: $"{modEntry.ModName} {parentManifest.Version}".Trim(),
                 Version: parentManifest.Version,
                 SizeBytes: parentSizeBytes,
@@ -497,13 +494,13 @@ public class GenLauncherDiscoverer(
                 ThumbnailUrl: ResolveIconUrl(parentManifest.UIImageSourceLink, parentResult.IconUrl)));
         }
 
-        parentResult.Variants = variants;
-        if (filesSections.Count > 0)
+        parentResult.Variants = context.Variants;
+        if (context.FilesSections.Count > 0)
         {
             parentResult.ParsedPageData = new ParsedWebPage(
                 new Uri(string.IsNullOrWhiteSpace(modEntry.ModLink) ? GenLauncherConstants.WebsiteUrl : modEntry.ModLink),
                 new GlobalContext(modEntry.ModName, "GenLauncher Community", null, PublisherTypeConstants.GenLauncher),
-                filesSections,
+                context.FilesSections,
                 PageType.Detail);
         }
 
@@ -567,14 +564,11 @@ public class GenLauncherDiscoverer(
             cancellationToken);
 
         var parentResult = CreateParentModResult(
+            context,
             modEntry,
-            game,
-            modSlug,
             parentManifest,
             parentManifestUrl,
-            parentSizeBytes,
-            variants,
-            filesSections);
+            parentSizeBytes);
 
         results.Insert(0, parentResult);
         return results;
