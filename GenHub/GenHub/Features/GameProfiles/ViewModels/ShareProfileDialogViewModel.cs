@@ -23,6 +23,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <summary>
 /// ViewModel for the Share Profile dialog modal.
 /// </summary>
+[method: SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ShareProfileDialogViewModel requires profile context, sharing service, upload history, notifications, logging, and localization services.")]
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ShareProfileDialogViewModel requires profile context, sharing service, upload history, notifications, logging, and localization services.")]
 [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
 public partial class ShareProfileDialogViewModel(
     string profileId,
@@ -53,6 +55,7 @@ public partial class ShareProfileDialogViewModel(
     /// <param name="autoInitialize">Flag indicating whether background quota and share link initialization should execute.</param>
     /// <param name="notificationService">Optional notification service instance for toast messages.</param>
     /// <param name="localizationService">Optional localization service instance for toast and status messages.</param>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Constructor provides full initialization for sharing dialog dependencies.")]
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
@@ -82,6 +85,7 @@ public partial class ShareProfileDialogViewModel(
     /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
     /// <param name="notificationService">Optional notification service instance for toast messages.</param>
     /// <param name="localizationService">Optional localization service instance for toast and status messages.</param>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Constructor provides full initialization for sharing dialog dependencies.")]
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,

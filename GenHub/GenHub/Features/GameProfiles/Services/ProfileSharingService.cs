@@ -3257,31 +3257,35 @@ public class ProfileSharingService(
             suggestedName = baseName;
         }
 
-        bool hasNameConflict = false;
-
         var allProfilesResult = await profileRepository.LoadAllProfilesAsync(cancellationToken);
-        if (allProfilesResult is { Success: true, Data: not null })
+        if (allProfilesResult is not { Success: true, Data: not null })
         {
-            var existingNames = allProfilesResult.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (existingNames.Contains(suggestedName))
-            {
-                hasNameConflict = true;
-                int counter = 1;
-                string suffix = $" ({counter})";
-                int maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
-                string truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
-                suggestedName = $"{truncatedBase}{suffix}";
-                while (existingNames.Contains(suggestedName))
-                {
-                    counter++;
-                    suffix = $" ({counter})";
-                    maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
-                    truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
-                    suggestedName = $"{truncatedBase}{suffix}";
-                }
-            }
+            return (suggestedName, false);
         }
 
-        return (suggestedName, hasNameConflict);
+        var existingNames = allProfilesResult.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!existingNames.Contains(suggestedName))
+        {
+            return (suggestedName, false);
+        }
+
+        return (GenerateConflictFreeProfileName(baseName, existingNames), true);
+    }
+
+    private static string GenerateConflictFreeProfileName(string baseName, ISet<string> existingNames)
+    {
+        int counter = 1;
+        string candidate;
+        do
+        {
+            string suffix = $" ({counter})";
+            int maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
+            string truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
+            candidate = $"{truncatedBase}{suffix}";
+            counter++;
+        }
+        while (existingNames.Contains(candidate));
+
+        return candidate;
     }
 }

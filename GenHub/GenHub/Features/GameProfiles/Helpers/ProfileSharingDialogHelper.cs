@@ -31,6 +31,7 @@ public static class ProfileSharingDialogHelper
     /// <param name="logger">Optional logger for logging diagnostic messages.</param>
     /// <param name="localizationService">Optional localization service for user-facing notifications.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Dialog helper coordinates UI dialog launch across profile management, sharing, notification, upload history, logging, and localization services.")]
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler prevents unhandled exceptions from crashing the application.")]
     public static async Task OpenShareDialogAsync(
         string profileId,
