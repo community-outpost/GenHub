@@ -8681,7 +8681,7 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
     <value>1. Click 'Open Dropbox App Console' below (or create an app if you haven't yet: Scoped access &gt; App folder or Full Dropbox).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DropboxStep2" xml:space="preserve">
-    <value>2. In the 'Permissions' tab at the top: check 'files.content.write', 'files.content.read', and 'sharing.write', then click 'Submit' at the bottom.</value>
+    <value>2. In the 'Permissions' tab at the top: check 'account_info.read', 'files.content.read', 'files.content.write', 'sharing.read', and 'sharing.write', then click 'Submit' at the bottom.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DropboxStep3" xml:space="preserve">
     <value>3. In the 'Settings' tab: scroll down to the 'OAuth 2' section -&gt; find 'Generated access token'.</value>
@@ -9731,6 +9731,9 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
     <value>Recommend other publishers to your subscribers</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.Title" xml:space="preserve">
+    <value>Publisher Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Title" xml:space="preserve">
     <value>Publisher Studio</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.Unsaved" xml:space="preserve">

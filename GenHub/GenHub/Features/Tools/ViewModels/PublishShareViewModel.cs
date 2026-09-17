@@ -774,21 +774,14 @@ public partial class PublishShareViewModel(
         };
         RefreshHostedAssets();
 
-        if (value == null) return;
-
-        // Check if hosting state has saved credentials for this provider
-        if (_currentHostingState is { } hostingState
-            && hostingState.ProviderId == value.ProviderId
-            && !string.IsNullOrEmpty(hostingState.AuthToken))
+        if (value == null)
         {
-            // Restore saved authentication
-            _ = RestoreAuthenticationAsync();
-        }
-        else
-        {
-            // Different provider - clear auth status but preserve entered credentials across UI switches
+            // Clear auth status when no provider selected
             AuthenticationStatusMessage = string.Empty;
+            return;
         }
+
+        _ = RestoreAuthenticationAsync();
     }
 
     /// <summary>
@@ -1069,10 +1062,7 @@ public partial class PublishShareViewModel(
                 logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
 
                 // After loading state, try to restore authentication
-                if (!string.IsNullOrEmpty(_currentHostingState.AuthToken))
-                {
-                    await RestoreAuthenticationAsync();
-                }
+                await RestoreAuthenticationAsync().ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException ex)
@@ -1290,6 +1280,9 @@ public partial class PublishShareViewModel(
         if (SelectedHostingProvider == null)
         {
             UploadStatusMessage = PleaseSelectHostingProviderMessage;
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoProviderTitle", "Provider Required"),
+                PleaseSelectHostingProviderMessage);
             return OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
         }
 
@@ -1301,11 +1294,16 @@ public partial class PublishShareViewModel(
             return OperationResult<HostingUploadResult>.CreateFailure(warningMsg);
         }
 
-        await ValidateCatalogAsync();
+        await ValidateCatalogAsync().ConfigureAwait(false);
         if (!IsValid)
         {
-            UploadStatusMessage = "Please fix validation errors before uploading";
-            return OperationResult<HostingUploadResult>.CreateFailure("Please fix validation errors before uploading");
+            UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
+                ? "Please fix catalog validation errors before uploading."
+                : ValidationMessage;
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedTitle", "Validation Failed"),
+                UploadStatusMessage);
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
 
         try
@@ -1538,8 +1536,8 @@ public partial class PublishShareViewModel(
 
         if (!provider.SupportsArtifactHosting)
         {
-             UploadStatusMessage = "Provider does not support artifact hosting. Please add URLs manually.";
-             return false;
+            UploadStatusMessage = "Provider does not support artifact hosting. Please add URLs manually.";
+            return false;
         }
 
         BuildUploadQueue(pendingArtifacts);
@@ -1823,19 +1821,19 @@ public partial class PublishShareViewModel(
 
     private async Task RestoreAuthenticationAsync()
     {
-        if (_currentHostingState == null)
-        {
-            return;
-        }
+        var provider = SelectedHostingProvider
+            ?? (_currentHostingState != null ? HostingProviders.FirstOrDefault(p => p.ProviderId == _currentHostingState.ProviderId) : null)
+            ?? HostingProviders.FirstOrDefault();
 
-        // Find the matching provider
-        var provider = HostingProviders.FirstOrDefault(p => p.ProviderId == _currentHostingState.ProviderId);
         if (provider == null)
         {
             return;
         }
 
-        SelectedHostingProvider = provider;
+        if (SelectedHostingProvider != provider)
+        {
+            SelectedHostingProvider = provider;
+        }
 
         var token = await RetrieveOrMigrateTokenAsync(provider).ConfigureAwait(false);
         if (string.IsNullOrEmpty(token))
@@ -1977,15 +1975,24 @@ public partial class PublishShareViewModel(
         if (SelectedHostingProvider == null)
         {
             UploadStatusMessage = PleaseSelectHostingProviderMessage;
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoProviderTitle", "Provider Required"),
+                PleaseSelectHostingProviderMessage);
             return OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
         }
 
         // Regenerate to ensure latest values
-        await GenerateProviderDefinitionAsync();
+        await GenerateProviderDefinitionAsync().ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Provider definition JSON is empty");
+            var msg = !string.IsNullOrWhiteSpace(UploadStatusMessage)
+                ? UploadStatusMessage
+                : "No catalogs have been published yet. Please publish a catalog first.";
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionFailedTitle", "Provider Definition Required"),
+                msg);
+            return OperationResult<HostingUploadResult>.CreateFailure(msg);
         }
 
         try
@@ -2031,11 +2038,18 @@ public partial class PublishShareViewModel(
                 RefreshHostedAssets();
                 UploadStatusMessage = "Provider definition uploaded successfully.";
                 logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
+                notificationService?.ShowSuccess(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", "Success"),
+                    "Provider definition uploaded successfully.",
+                    autoDismissMs: 4000);
                 return result;
             }
             else
             {
                 UploadStatusMessage = $"Upload failed: {result.FirstError}";
+                notificationService?.ShowError(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
+                    result.FirstError ?? "Failed to upload provider definition.");
                 return result;
             }
         }
@@ -2043,6 +2057,9 @@ public partial class PublishShareViewModel(
         {
             UploadStatusMessage = $"Error uploading definition: {ex.Message}";
             logger.LogError(ex, "Error uploading provider definition");
+            notificationService?.ShowError(
+                GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
+                ex.Message);
             return OperationResult<HostingUploadResult>.CreateFailure($"Error uploading definition: {ex.Message}");
         }
         finally
@@ -2086,31 +2103,54 @@ public partial class PublishShareViewModel(
         }
     }
 
+    private async Task CopyToClipboardAsync(string text, string successTitle, string successMessage)
+    {
+        try
+        {
+            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var clipboard = (mainWindow != null ? Avalonia.Controls.TopLevel.GetTopLevel(mainWindow)?.Clipboard : null) ?? mainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(text).ConfigureAwait(false);
+                notificationService?.ShowSuccess(successTitle, successMessage, autoDismissMs: 3000);
+                logger.LogInformation("Copied text to clipboard");
+            }
+            else
+            {
+                notificationService?.ShowWarning(
+                    GetLocalizedString("Common.Notification.Warning", "Warning"),
+                    "Clipboard is not available.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to copy to clipboard");
+            notificationService?.ShowError(
+                GetLocalizedString("Common.Notification.Error", "Error"),
+                $"Failed to copy to clipboard: {ex.Message}");
+        }
+    }
+
     /// <summary>
     /// Copies the subscription URL to clipboard.
     /// </summary>
     [RelayCommand]
     private async Task CopySubscriptionUrlAsync()
     {
-        if (string.IsNullOrWhiteSpace(SubscriptionUrl))
+        if (string.IsNullOrWhiteSpace(SubscriptionUrl) ||
+            SubscriptionUrl.Equals("Please publish to generate subscription URL", StringComparison.OrdinalIgnoreCase))
         {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoSubscriptionUrlTitle", "Subscription Link Unavailable"),
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoSubscriptionUrlMessage", "Please publish your catalogs and provider definition first before copying the subscription link."));
             return;
         }
 
-        try
-        {
-            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(SubscriptionUrl);
-                logger.LogInformation("Copied subscription URL to clipboard");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to copy to clipboard");
-        }
+        await CopyToClipboardAsync(
+            SubscriptionUrl,
+            GetLocalizedString("Common.Notification.Success", "Success"),
+            GetLocalizedString("Tools.PublisherStudio.Publish.CopiedToClipboard", "Subscription link copied to clipboard!")).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2122,28 +2162,21 @@ public partial class PublishShareViewModel(
         if (string.IsNullOrWhiteSpace(CatalogJson))
         {
             // Generate first if not already done
-            await ExportCatalogAsync();
+            await ExportCatalogAsync().ConfigureAwait(false);
         }
 
         if (string.IsNullOrWhiteSpace(CatalogJson))
         {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Common.Notification.Warning", "Warning"),
+                "Catalog JSON could not be generated.");
             return;
         }
 
-        try
-        {
-            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(CatalogJson);
-                logger.LogInformation("Copied catalog JSON to clipboard");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to copy catalog to clipboard");
-        }
+        await CopyToClipboardAsync(
+            CatalogJson,
+            GetLocalizedString("Common.Notification.Success", "Success"),
+            "Catalog JSON copied to clipboard!").ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2155,28 +2188,21 @@ public partial class PublishShareViewModel(
         if (string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
             // Generate first if not already done
-            await GenerateProviderDefinitionAsync();
+            await GenerateProviderDefinitionAsync().ConfigureAwait(false);
         }
 
         if (string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Common.Notification.Warning", "Warning"),
+                "Provider definition JSON could not be generated.");
             return;
         }
 
-        try
-        {
-            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(ProviderDefinitionJson);
-                logger.LogInformation("Copied provider definition JSON to clipboard");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to copy provider definition to clipboard");
-        }
+        await CopyToClipboardAsync(
+            ProviderDefinitionJson,
+            GetLocalizedString("Common.Notification.Success", "Success"),
+            "Provider definition JSON copied to clipboard!").ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2187,23 +2213,16 @@ public partial class PublishShareViewModel(
     {
         if (string.IsNullOrWhiteSpace(ProviderDefinitionUrl))
         {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionFailedTitle", "Definition Link Unavailable"),
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoDefinitionUrlMessage", "Please upload the provider definition first before copying its URL."));
             return;
         }
 
-        try
-        {
-            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(ProviderDefinitionUrl);
-                logger.LogInformation("Copied provider definition URL to clipboard");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to copy provider definition URL to clipboard");
-        }
+        await CopyToClipboardAsync(
+            ProviderDefinitionUrl,
+            GetLocalizedString("Common.Notification.Success", "Success"),
+            GetLocalizedString("Tools.PublisherStudio.Publish.CopiedToClipboard", "Provider definition URL copied to clipboard!")).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2214,23 +2233,16 @@ public partial class PublishShareViewModel(
     {
         if (string.IsNullOrEmpty(CatalogUrl))
         {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Common.Notification.Warning", "Warning"),
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogUrlMessage", "Please publish this catalog first before copying its URL."));
             return;
         }
 
-        try
-        {
-            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(CatalogUrl);
-                logger.LogInformation("Copied catalog URL to clipboard");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to copy catalog URL to clipboard");
-        }
+        await CopyToClipboardAsync(
+            CatalogUrl,
+            GetLocalizedString("Common.Notification.Success", "Success"),
+            GetLocalizedString("Tools.PublisherStudio.Publish.CopiedToClipboard", "Catalog URL copied to clipboard!")).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2300,7 +2312,7 @@ public partial class PublishShareViewModel(
 
         try
         {
-            var uploadResult = await UploadCatalogAsync();
+            var uploadResult = await UploadCatalogAsync().ConfigureAwait(false);
             if (uploadResult.Success)
             {
                 // Update status
@@ -2311,6 +2323,17 @@ public partial class PublishShareViewModel(
                     status.LastPublished = DateTime.UtcNow;
                     status.HasChanges = false;
                 }
+
+                notificationService?.ShowSuccess(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", "Published"),
+                    $"Catalog '{catalog.Name}' published successfully.",
+                    autoDismissMs: 4000);
+            }
+            else
+            {
+                notificationService?.ShowError(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Publish Failed"),
+                    uploadResult.FirstError ?? "Failed to publish catalog.");
             }
         }
         finally
@@ -2326,8 +2349,49 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task PublishAllCatalogsAsync()
     {
-        if (!CanPublishAllCatalogs())
+        if (IsUploading)
         {
+            return;
+        }
+
+        if (SelectedHostingProvider == null)
+        {
+            UploadStatusMessage = PleaseSelectHostingProviderMessage;
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoProviderTitle", "Provider Required"),
+                PleaseSelectHostingProviderMessage);
+            return;
+        }
+
+        if (SelectedHostingProvider.RequiresAuthentication && !SelectedHostingProvider.IsAuthenticated)
+        {
+            var authOk = await EnsureProviderAuthenticatedAsync().ConfigureAwait(false);
+            if (!authOk)
+            {
+                notificationService?.ShowWarning(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.AuthError", "Authentication Required"),
+                    UploadStatusMessage);
+                return;
+            }
+        }
+
+        if (HasIncompatibleArtifactsForActiveCatalog)
+        {
+            var warningMsg = $"{SelectedHostingProvider.DisplayName} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+            UploadStatusMessage = warningMsg;
+            notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
+            return;
+        }
+
+        await ValidateCatalogAsync().ConfigureAwait(false);
+        if (!IsValid)
+        {
+            UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
+                ? "Please fix catalog validation errors before publishing."
+                : ValidationMessage;
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedTitle", "Validation Failed"),
+                UploadStatusMessage);
             return;
         }
 
@@ -2385,20 +2449,7 @@ public partial class PublishShareViewModel(
 
     private bool CanPublishAllCatalogs()
     {
-        if (IsUploading || SelectedHostingProvider == null)
-        {
-            return false;
-        }
-
-        if (HasIncompatibleArtifactsForActiveCatalog)
-        {
-            var warningMsg = $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
-            UploadStatusMessage = warningMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
-            return false;
-        }
-
-        return IsValid;
+        return !IsUploading;
     }
 
     private async Task<bool> PublishCatalogItemAsync(NamedCatalog catalog, int currentCatalog, int totalCatalogs, CancellationToken cancellationToken)
@@ -2459,26 +2510,28 @@ public partial class PublishShareViewModel(
                 ? $"Successfully published all {totalCatalogs} catalogs!"
                 : $"Published {succeededCount} of {totalCatalogs} catalogs.";
         }
+
+        notificationService?.ShowSuccess(
+            GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", "Publish Success"),
+            UploadStatusMessage,
+            autoDismissMs: 4000);
     }
 
     [RelayCommand]
     private async Task CopyCustomUrlAsync(string? url)
     {
-        if (string.IsNullOrWhiteSpace(url)) return;
-        try
+        if (string.IsNullOrWhiteSpace(url))
         {
-            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(url);
-                notificationService?.ShowSuccess(GetLocalizedString("Tools.PublisherStudio.Publish.Copied", "Copied"), GetLocalizedString("Tools.PublisherStudio.Publish.LinkCopied", "Link copied to clipboard."));
-            }
+            notificationService?.ShowWarning(
+                GetLocalizedString("Common.Notification.Warning", "Warning"),
+                GetLocalizedString("Tools.PublisherStudio.Publish.NoUrlToCopy", "No URL available to copy."));
+            return;
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to copy URL to clipboard");
-        }
+
+        await CopyToClipboardAsync(
+            url,
+            GetLocalizedString("Tools.PublisherStudio.Publish.CopiedToClipboard", "Copied to Clipboard"),
+            GetLocalizedString("Tools.PublisherStudio.Publish.DirectDownloadUrlCopied", "Direct download URL copied.")).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2702,7 +2755,7 @@ public partial class PublishShareViewModel(
     {
         _currentHostingState ??= new HostingState { ProviderId = SelectedHostingProvider?.ProviderId ?? string.Empty };
 
-        if (cloudState.Definition != null)
+        if (cloudState.Definition != null && !string.IsNullOrEmpty(cloudState.Definition.Url))
         {
             _currentHostingState.Definition = cloudState.Definition;
             ProviderDefinitionUrl = cloudState.Definition.Url;
@@ -2718,7 +2771,11 @@ public partial class PublishShareViewModel(
             var existing = _currentHostingState.Catalogs.FirstOrDefault(c => c.CatalogId == cloudCat.CatalogId || (!string.IsNullOrEmpty(cloudCat.FileName) && c.FileName == cloudCat.FileName));
             if (existing != null)
             {
-                existing.Url = cloudCat.Url;
+                if (!string.IsNullOrEmpty(cloudCat.Url))
+                {
+                    existing.Url = cloudCat.Url;
+                }
+
                 existing.FileSize = cloudCat.FileSize;
                 existing.LastUpdated = cloudCat.LastUpdated;
                 if (!string.IsNullOrEmpty(cloudCat.FileName))
@@ -2726,7 +2783,7 @@ public partial class PublishShareViewModel(
                     existing.FileName = cloudCat.FileName;
                 }
             }
-            else
+            else if (!string.IsNullOrEmpty(cloudCat.Url))
             {
                 _currentHostingState.Catalogs.Add(cloudCat);
             }
@@ -2737,11 +2794,15 @@ public partial class PublishShareViewModel(
             var existing = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == cloudArt.FileName);
             if (existing != null)
             {
-                existing.Url = cloudArt.Url;
+                if (!string.IsNullOrEmpty(cloudArt.Url))
+                {
+                    existing.Url = cloudArt.Url;
+                }
+
                 existing.FileSize = cloudArt.FileSize;
                 existing.LastUpdated = cloudArt.LastUpdated;
             }
-            else
+            else if (!string.IsNullOrEmpty(cloudArt.Url))
             {
                 _currentHostingState.Artifacts.Add(cloudArt);
             }

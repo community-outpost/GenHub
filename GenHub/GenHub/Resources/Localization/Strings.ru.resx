@@ -8588,7 +8588,7 @@ GenHub передает официальный идентификатор AppID 
     <value>1. Нажмите «Открыть консоль приложений Dropbox» ниже (или создайте приложение: Scoped access &gt; App folder или Full Dropbox).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DropboxStep2" xml:space="preserve">
-    <value>2. Во вкладке «Permissions» вверху отметьте «files.content.write», «files.content.read» и «sharing.write», затем нажмите «Submit» внизу.</value>
+    <value>2. Во вкладке «Permissions» вверху отметьте «account_info.read», «files.content.read», «files.content.write», «sharing.read» и «sharing.write», затем нажмите «Submit» внизу.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DropboxStep3" xml:space="preserve">
     <value>3. Во вкладке «Settings» прокрутите до раздела «OAuth 2» -&gt; найдите «Generated access token».</value>
@@ -9638,6 +9638,9 @@ GenHub передает официальный идентификатор AppID 
     <value>Рекомендовать других издателей вашим подписчикам</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.Title" xml:space="preserve">
+    <value>Студия издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Title" xml:space="preserve">
     <value>Студия издателя</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.Unsaved" xml:space="preserve">
