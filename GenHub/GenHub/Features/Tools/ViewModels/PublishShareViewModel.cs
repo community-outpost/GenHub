@@ -2924,5 +2924,4 @@ public partial class PublishShareViewModel(
             }
         }
     }
-
 }

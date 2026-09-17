@@ -51,7 +51,6 @@ public partial class PublisherStudioViewModel(
     /// <summary>Tab index for the Publish &amp; Share tab.</summary>
     public const int TabPublishShare = 4;
 
-
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
         "GenHub",
@@ -114,7 +113,6 @@ public partial class PublisherStudioViewModel(
         localizationService?.GetString("Tools.PublisherStudio.Title")
         ?? localizationService?.GetString("Tools.PublisherStudio.Studio.Title")
         ?? "Publisher Studio";
-
 
     /// <summary>
     /// Marks the current project as dirty (having unsaved changes).
