@@ -154,8 +154,8 @@ public partial class ModBuilderViewModel(
             Id = "GeneralsGamePatch2",
             Name = "Generals Community Patch 2.0",
             Publisher = "TheSuperHackers",
-            Description = "Comprehensive balance and bugfix INI rules for C&C Generals. Demonstrates multi-directory INI rules and balance tuning.",
-            TargetGame = "Generals",
+            Description = "Comprehensive balance and bugfix INI rules for C&C Generals Zero Hour. Demonstrates multi-directory INI rules and balance tuning.",
+            TargetGame = "Zero Hour",
             OutputFileName = "500_900_CommunityPatch_CoreINI.big",
             Tag = "Balance & Bugfix",
             VariantSummary = "Core INI + Multiplayer Maps",
@@ -1385,6 +1385,22 @@ public partial class ModBuilderViewModel(
         if (File.Exists(templateProjFile) && !File.Exists(userProjFile))
         {
             File.Copy(templateProjFile, userProjFile, overwrite: false);
+        }
+        else if (File.Exists(userProjFile) && sampleId.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var content = await File.ReadAllTextAsync(userProjFile, cancellationToken).ConfigureAwait(false);
+                if (content.Contains("\"targetGame\": \"Generals\"", StringComparison.OrdinalIgnoreCase))
+                {
+                    content = content.Replace("\"targetGame\": \"Generals\"", "\"targetGame\": \"ZeroHour\"", StringComparison.OrdinalIgnoreCase);
+                    await File.WriteAllTextAsync(userProjFile, content, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to migrate targetGame for {SampleId}", sampleId);
+            }
         }
 
         await Task.CompletedTask.ConfigureAwait(false);
@@ -3249,6 +3265,12 @@ public partial class ModBuilderViewModel(
 
         if (value != null)
         {
+            if (value.Name.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) &&
+                value.TargetGame == GameType.Generals)
+            {
+                value.TargetGame = GameType.ZeroHour;
+            }
+
             SelectedTargetGame = value.TargetGame;
             SelectedContentType = value.ContentType != ContentType.UnknownContentType
                 ? value.ContentType
