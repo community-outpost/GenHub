@@ -239,17 +239,23 @@ GenHub includes GitHub Actions workflows:
 
 Runs on every push and PR:
 
-1. Builds for Windows and Linux
+1. Builds for Windows, Linux, and macOS
 2. Packages with Velopack using `0.0.{RUN_NUMBER}[-pr{PR_NUMBER}]` versioning
-3. Uploads artifacts to GitHub Actions
-4. Generates `releases.win.json` and `releases.linux.json` metadata
+3. Uploads setup installers, update packages, and metadata to GitHub Actions
+4. Generates `releases.win.json`, `releases.linux.json`, and `releases.osx.json` metadata
 
 **Artifacts uploaded:**
 
-- `genhub-velopack-windows-{VERSION}` - Windows installer and packages
-- `genhub-velopack-linux-{VERSION}` - Linux packages
+- `genhub-setup-windows-{VERSION}` - Standalone setup installer (`*-Setup.exe`)
+- `genhub-setup-linux-{VERSION}` - AppImage setup installer (`*.AppImage`)
+- `genhub-setup-macos-{VERSION}` - macOS installer package (`*.pkg`)
+- `genhub-macos-app-{VERSION}` - macOS application bundle (`GenHub.app`)
+- `genhub-velopack-windows-{VERSION}` - Velopack update packages (`*.nupkg`)
+- `genhub-velopack-linux-{VERSION}` - Velopack update packages (`*.nupkg`)
+- `genhub-velopack-macos-{VERSION}` - Velopack update packages (`*.nupkg`)
 - `genhub-metadata-windows-{VERSION}` - Update metadata (`releases.win.json`)
 - `genhub-metadata-linux-{VERSION}` - Update metadata (`releases.linux.json`)
+- `genhub-metadata-macos-{VERSION}` - Update metadata (`releases.osx.json`)
 
 #### `.github/workflows/release.yml` - Stable Releases
 
