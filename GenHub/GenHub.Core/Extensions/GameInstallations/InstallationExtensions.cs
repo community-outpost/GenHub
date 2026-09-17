@@ -16,10 +16,42 @@ namespace GenHub.Core.Extensions.GameInstallations;
 /// </summary>
 public static class InstallationExtensions
 {
+    /// <summary>
+    /// Candidate executable file names for Generals and Zero Hour installations across all platforms and editions.
+    /// </summary>
+    public static readonly string[] ValidGameExecutableNames =
+    [
+        GameClientConstants.GeneralsExecutable,
+        GameClientConstants.ZeroHourExecutable,
+        GameClientConstants.SteamGameDatExecutable,
+        GameClientConstants.SuperHackersZeroHourExecutable,
+        GameClientConstants.SuperHackersGeneralsExecutable,
+        GameClientConstants.GameExecutable,
+        GameClientConstants.GeneralsOnlineDefaultExecutable,
+        GameClientConstants.GeneralsOnline60HzExecutable,
+        GameClientConstants.GeneralsOnlineEacLauncherExecutable,
+        GameClientConstants.ContraExecutable,
+    ];
+
     private static readonly HashSet<string> InstallationIdentifierSet = new(
         Enum.GetValues<GameInstallationType>().Select(t => t.ToIdentifierString())
             .Concat(new[] { PublisherInfoConstants.Retail.Name }),
         StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Checks whether the directory contains a valid game executable in a case-insensitive manner.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to check.</param>
+    /// <returns>True if at least one recognized executable is found; otherwise false.</returns>
+    public static bool HasValidGameExecutable(string? directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+        {
+            return false;
+        }
+
+        return ValidGameExecutableNames.Any(exe => Path.Combine(directoryPath, exe).FileExistsCaseInsensitive());
+    }
 
     /// <summary>
     /// Checks if a file exists in a case-insensitive manner, compatible across platforms.

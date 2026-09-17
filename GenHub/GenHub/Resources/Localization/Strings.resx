@@ -5498,6 +5498,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.step1-scan.Action.0" xml:space="preserve">
     <value>Go to Detection Guide</value>
   </data>
+  <data name="Info.Card.quickstart.step1-scan.Action.NAV_INFO_scan-games" xml:space="preserve">
+    <value>Go to Detection Guide</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Title" xml:space="preserve">
     <value>Step 2: Essential Downloads</value>
   </data>
@@ -5507,7 +5510,13 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.step2-downloads.Action.0" xml:space="preserve">
     <value>Go to Downloads</value>
   </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_Downloads" xml:space="preserve">
+    <value>Go to Downloads</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Action.1" xml:space="preserve">
+    <value>Learn about Content</value>
+  </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_INFO_game-profile-content" xml:space="preserve">
     <value>Learn about Content</value>
   </data>
   <data name="Info.Card.quickstart.step3-local-content.Title" xml:space="preserve">
@@ -5519,6 +5528,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.step3-local-content.Action.0" xml:space="preserve">
     <value>Learn how to Import</value>
   </data>
+  <data name="Info.Card.quickstart.step3-local-content.Action.NAV_INFO_local-content" xml:space="preserve">
+    <value>Learn how to Import</value>
+  </data>
   <data name="Info.Card.quickstart.manifests-cas.Title" xml:space="preserve">
     <value>The Core: Manifests &amp; CAS</value>
   </data>
@@ -5528,6 +5540,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.manifests-cas.Action.0" xml:space="preserve">
     <value>Storage Settings</value>
   </data>
+  <data name="Info.Card.quickstart.manifests-cas.Action.NAV_Settings" xml:space="preserve">
+    <value>Storage Settings</value>
+  </data>
   <data name="Info.Card.quickstart.automated-maintenance.Title" xml:space="preserve">
     <value>Automated Maintenance</value>
   </data>
@@ -5535,6 +5550,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
     <value>Automatic updates and version compatibility.</value>
   </data>
   <data name="Info.Card.quickstart.automated-maintenance.Action.0" xml:space="preserve">
+    <value>App Updates</value>
+  </data>
+  <data name="Info.Card.quickstart.automated-maintenance.Action.NAV_INFO_app-updates" xml:space="preserve">
     <value>App Updates</value>
   </data>
   <data name="Tools.ReplayManager.Badge.ProfileReady" xml:space="preserve">

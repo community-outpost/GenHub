@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -98,8 +99,7 @@ public class InstallationPathResolver(
 
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
-                var generalsExe = Path.Combine(installation.GeneralsPath, "generals.exe");
-                if (File.Exists(generalsExe))
+                if (InstallationExtensions.HasValidGameExecutable(installation.GeneralsPath))
                 {
                     hasValidFiles = true;
                 }
@@ -107,11 +107,16 @@ public class InstallationPathResolver(
 
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
-                var zhExe = Path.Combine(installation.ZeroHourPath, "generals.exe");
-                if (File.Exists(zhExe))
+                if (InstallationExtensions.HasValidGameExecutable(installation.ZeroHourPath))
                 {
                     hasValidFiles = true;
                 }
+            }
+
+            // Fallback: If neither GeneralsPath nor ZeroHourPath matched, check InstallationPath directly
+            if (!hasValidFiles && InstallationExtensions.HasValidGameExecutable(installation.InstallationPath))
+            {
+                hasValidFiles = true;
             }
 
             if (!hasValidFiles)
@@ -205,41 +210,85 @@ public class InstallationPathResolver(
     {
         var paths = new List<string>();
 
-        // Common installation locations
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        var programFiles64 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-
-        switch (installationType)
+        if (OperatingSystem.IsWindows())
         {
-            case GameInstallationType.Retail:
-                paths.Add(Path.Combine(programFiles, "EA Games"));
-                paths.Add(Path.Combine(programFiles64, "EA Games"));
-                paths.Add(Path.Combine(programFiles, "Electronic Arts"));
-                paths.Add(Path.Combine(programFiles64, "Electronic Arts"));
-                break;
+            // Common installation locations on Windows
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var programFiles64 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
 
-            case GameInstallationType.Steam:
-                // Steam library locations
-                paths.Add(Path.Combine(programFiles, "Steam", "steamapps", "common"));
-                paths.Add(Path.Combine(programFiles64, "Steam", "steamapps", "common"));
-                paths.Add(Path.Combine("C:\\", "Program Files (x86)", "Steam", "steamapps", "common"));
-                paths.Add(Path.Combine("C:\\", "Program Files", "Steam", "steamapps", "common"));
-                break;
+            switch (installationType)
+            {
+                case GameInstallationType.Retail:
+                    paths.Add(Path.Combine(programFiles, "EA Games"));
+                    paths.Add(Path.Combine(programFiles64, "EA Games"));
+                    paths.Add(Path.Combine(programFiles, "Electronic Arts"));
+                    paths.Add(Path.Combine(programFiles64, "Electronic Arts"));
+                    break;
 
-            default:
-                // For unknown types, search common EA Games locations
-                paths.Add(Path.Combine(programFiles, "EA Games"));
-                paths.Add(Path.Combine(programFiles64, "EA Games"));
-                break;
+                case GameInstallationType.Steam:
+                    paths.Add(Path.Combine(programFiles, "Steam", "steamapps", "common"));
+                    paths.Add(Path.Combine(programFiles64, "Steam", "steamapps", "common"));
+                    paths.Add(Path.Combine("C:\\", "Program Files (x86)", "Steam", "steamapps", "common"));
+                    paths.Add(Path.Combine("C:\\", "Program Files", "Steam", "steamapps", "common"));
+                    break;
+
+                default:
+                    paths.Add(Path.Combine(programFiles, "EA Games"));
+                    paths.Add(Path.Combine(programFiles64, "EA Games"));
+                    break;
+            }
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrEmpty(home))
+            {
+                if (installationType == GameInstallationType.Steam)
+                {
+                    paths.Add(Path.Combine(home, ".steam", "steam", "steamapps", "common"));
+                    paths.Add(Path.Combine(home, ".steam", "root", "steamapps", "common"));
+                    paths.Add(Path.Combine(home, ".local", "share", "Steam", "steamapps", "common"));
+                    paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps", "common"));
+                    paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam", "steamapps", "common"));
+                    paths.Add(Path.Combine(home, "snap", "steam", "common", ".local", "share", "Steam", "steamapps", "common"));
+                }
+                else
+                {
+                    paths.Add(Path.Combine(home, "Games"));
+                    paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files (x86)", "EA Games"));
+                    paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files", "EA Games"));
+                }
+            }
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrEmpty(home))
+            {
+                if (installationType == GameInstallationType.Steam)
+                {
+                    paths.Add(Path.Combine(home, "Library", "Application Support", "Steam", "steamapps", "common"));
+                }
+
+                paths.Add("/Applications");
+                paths.Add(Path.Combine(home, "Applications"));
+            }
         }
 
         // Also search user's Documents and Desktop as fallback
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        paths.Add(documents);
-        paths.Add(desktop);
+        if (!string.IsNullOrEmpty(documents))
+        {
+            paths.Add(documents);
+        }
 
-        return paths;
+        if (!string.IsNullOrEmpty(desktop))
+        {
+            paths.Add(desktop);
+        }
+
+        return paths.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
@@ -304,9 +353,8 @@ public class InstallationPathResolver(
     {
         try
         {
-            // Check for generals.exe (both Generals and Zero Hour use this)
-            var generalsExe = Path.Combine(directory, "generals.exe");
-            if (!File.Exists(generalsExe))
+            // Check for valid game executable
+            if (!InstallationExtensions.HasValidGameExecutable(directory))
             {
                 return false;
             }
@@ -314,8 +362,8 @@ public class InstallationPathResolver(
             // If we have a game.dat hash to match, verify it
             if (!string.IsNullOrEmpty(gameDatHash))
             {
-                var gameDatPath = Path.Combine(directory, "game.dat");
-                if (File.Exists(gameDatPath))
+                var gameDatPath = Path.Combine(directory, GameClientConstants.SteamGameDatExecutable);
+                if (gameDatPath.FileExistsCaseInsensitive())
                 {
                     var hash = await ComputeFileHashAsync(gameDatPath, cancellationToken);
                     if (!string.Equals(hash, gameDatHash, StringComparison.OrdinalIgnoreCase))
@@ -328,9 +376,11 @@ public class InstallationPathResolver(
             // Check for game type specific files
             if (installation.HasZeroHour)
             {
-                // Zero Hour has DbgHelp.dll
+                // Zero Hour has DbgHelp.dll or Zero Hour signature files
                 var dbgHelpDll = Path.Combine(directory, "DbgHelp.dll");
-                if (File.Exists(dbgHelpDll))
+                if (dbgHelpDll.FileExistsCaseInsensitive() ||
+                    Path.Combine(directory, GameClientConstants.ZeroHourIniBig).FileExistsCaseInsensitive() ||
+                    Path.Combine(directory, GameClientConstants.ZeroHourPatchBig).FileExistsCaseInsensitive())
                 {
                     return true;
                 }
@@ -338,7 +388,7 @@ public class InstallationPathResolver(
 
             if (installation.HasGenerals)
             {
-                // Just having generals.exe is enough for Generals
+                // Having a valid executable is enough for Generals
                 return true;
             }
 

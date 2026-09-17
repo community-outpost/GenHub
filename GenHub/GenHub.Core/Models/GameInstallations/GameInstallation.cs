@@ -211,26 +211,12 @@ public class GameInstallation(
 
     private static bool HasValidExecutable(string path)
     {
-        var possibleExes = new[] { GameClientConstants.SteamGameDatExecutable, GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
-        return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
+        return InstallationExtensions.HasValidGameExecutable(path);
     }
 
     private static bool HasRootExecutable(string path)
     {
-        var possibleExes = new[]
-        {
-            GameClientConstants.GeneralsExecutable,
-            GameClientConstants.SuperHackersZeroHourExecutable,
-            GameClientConstants.SuperHackersGeneralsExecutable,
-            GameClientConstants.GeneralsOnlineDefaultExecutable,
-            GameClientConstants.GeneralsOnline60HzExecutable,
-            GameClientConstants.GeneralsOnlineEacLauncherExecutable,
-            GameClientConstants.ContraExecutable,
-            GameClientConstants.SteamGameDatExecutable,
-            GameClientConstants.GameExecutable,
-        };
-
-        return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
+        return InstallationExtensions.HasValidGameExecutable(path);
     }
 
     private static bool HasZeroHourArchiveOrExecutableSignature(string path)
