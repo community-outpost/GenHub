@@ -61,6 +61,11 @@ public sealed class MapManagerToolPlugin : IToolPlugin
     /// <inheritdoc />
     public void Dispose()
     {
+        if (_view?.DataContext is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+
         _view = null;
         _serviceProvider = null;
     }

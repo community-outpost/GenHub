@@ -137,7 +137,7 @@
                 <Control x:Name="DiscoverySection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
                     <StackPanel Spacing="20">
-                        <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.Content.AddContentTitle}" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.Content.AvailableContent}" Foreground="{DynamicResource TextPrimary}"/>
 
                         <!-- Filter Pills -->
                         <ItemsControl ItemsSource="{Binding VisibleFilters}">

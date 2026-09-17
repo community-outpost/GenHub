@@ -1,4 +1,5 @@
 using Avalonia.Data.Converters;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using System;
 using System.Globalization;
@@ -28,13 +29,13 @@ public class LocalizedUpdateSortOptionConverter : IValueConverter
 
             return option switch
             {
-                "Last Updated" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.LastUpdated", option),
-                "PR Number (Highest)" or "PR Number (Desc)" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.PrNumberDesc", option),
-                "PR Number (Lowest)" or "PR Number (Asc)" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.PrNumberAsc", option),
+                AppUpdateConstants.SortOptionLastUpdated => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.LastUpdated", option),
+                AppUpdateConstants.SortOptionPrNumberDesc or "PR Number (Desc)" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.PrNumberDesc", option),
+                AppUpdateConstants.SortOptionPrNumberAsc or "PR Number (Asc)" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Updates.Sort.PrNumberAsc", option),
                 _ => option,
             };
         }
-        catch
+        catch (InvalidOperationException)
         {
             return option;
         }

@@ -138,13 +138,13 @@ public sealed partial class ToolsViewModel(
             else
             {
                 var errors = string.Join(", ", result.Errors);
-                ShowStatusMessage(localizationService?.GetString("Tools.Status.FailedToLoad", errors) ?? $"⚠ Failed to load tools: {errors}", MessageType.Error);
+                ShowStatusMessage(localizationService?.GetString("Tools.Status.FailedToLoad", errors) ?? $"Failed to load tools: {errors}", MessageType.Error);
                 logger.LogWarning("Failed to load tools: {Errors}", errors);
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage(localizationService?.GetString("Tools.Status.ErrorLoading", ex.Message) ?? $"⚠ An error occurred while loading tools: {ex.Message}", MessageType.Error);
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.ErrorLoading", ex.Message) ?? $"An error occurred while loading tools: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error loading tools");
         }
         finally
@@ -268,14 +268,15 @@ public sealed partial class ToolsViewModel(
                     HasTools = true;
                     SelectedTool = result.Data;
 
-                    var versionDisplay = string.IsNullOrEmpty(result.Data.Metadata.Version) ? string.Empty : $" v{result.Data.Metadata.Version}";
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolInstalledSuccess", result.Data.Metadata.Name, versionDisplay) ?? $"✓ Tool '{result.Data.Metadata.Name}'{versionDisplay} installed successfully.", MessageType.Success);
+                    var version = result.Data.Metadata.Version ?? string.Empty;
+                    var versionSuffix = string.IsNullOrEmpty(version) ? string.Empty : $" v{version}";
+                    ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolInstalledSuccess", result.Data.Metadata.Name, version) ?? $"Tool '{result.Data.Metadata.Name}'{versionSuffix} installed successfully.", MessageType.Success);
                     logger.LogInformation("Tool {ToolName} added successfully", result.Data.Metadata.Name);
                 }
                 else
                 {
                     var errors = string.Join(", ", result.Errors);
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolInstallFailed", errors) ?? $"✗ Failed to install tool: {errors}", MessageType.Error);
+                    ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolInstallFailed", errors) ?? $"Failed to install tool: {errors}", MessageType.Error);
                     logger.LogWarning("Failed to add tool: {Errors}", errors);
                 }
 
@@ -285,7 +286,7 @@ public sealed partial class ToolsViewModel(
         catch (Exception ex)
         {
             IsLoading = false;
-            ShowStatusMessage(localizationService?.GetString("Tools.Status.AddToolError", ex.Message) ?? $"✗ An error occurred while adding the tool: {ex.Message}", MessageType.Error);
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.AddToolError", ex.Message) ?? $"An error occurred while adding the tool: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error adding tool");
         }
     }
@@ -300,7 +301,7 @@ public sealed partial class ToolsViewModel(
         if (toolToRemove == null) return;
         if (toolToRemove.Metadata.IsBundled)
         {
-            ShowStatusMessage(localizationService?.GetString("Tools.Status.BundledCannotRemove", toolToRemove.Metadata.Name) ?? $"✗ Tool '{toolToRemove.Metadata.Name}' is a bundled tool and cannot be removed.", MessageType.Error);
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.BundledCannotRemove", toolToRemove.Metadata.Name) ?? $"Tool '{toolToRemove.Metadata.Name}' is a bundled tool and cannot be removed.", MessageType.Error);
             return;
         }
 
@@ -339,14 +340,14 @@ public sealed partial class ToolsViewModel(
                     _lastOpenedTool = SelectedTool;
                 }
 
-                ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolRemovedSuccess", toolToRemove.Metadata.Name) ?? $"✓ Tool '{toolToRemove.Metadata.Name}' removed successfully.", MessageType.Success);
+                ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolRemovedSuccess", toolToRemove.Metadata.Name) ?? $"Tool '{toolToRemove.Metadata.Name}' removed successfully.", MessageType.Success);
 
                 logger.LogInformation("Tool {ToolId} removed successfully", toolToRemove.Metadata.Id);
             }
             else
             {
                 var errors = string.Join(", ", result.Errors);
-                ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolRemoveFailed", errors) ?? $"✗ Failed to remove tool: {errors}", MessageType.Error);
+                ShowStatusMessage(localizationService?.GetString("Tools.Status.ToolRemoveFailed", errors) ?? $"Failed to remove tool: {errors}", MessageType.Error);
                 logger.LogWarning("Failed to remove tool: {Errors}", errors);
             }
 
@@ -355,7 +356,7 @@ public sealed partial class ToolsViewModel(
         catch (Exception ex)
         {
             IsLoading = false;
-            ShowStatusMessage(localizationService?.GetString("Tools.Status.RemoveToolError", ex.Message) ?? $"✗ An error occurred while removing the tool: {ex.Message}", MessageType.Error);
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.RemoveToolError", ex.Message) ?? $"An error occurred while removing the tool: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error removing tool");
         }
     }
@@ -407,13 +408,13 @@ public sealed partial class ToolsViewModel(
                                       ?? InstalledTools[0];
                     SelectedTool = toolToSelect;
 
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"✓ Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
+                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
                 }
                 else
                 {
                     SelectedTool = null;
                     _lastOpenedTool = null;
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedListSuccess") ?? "✓ Refreshed tools list.", MessageType.Success);
+                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedListSuccess") ?? "Refreshed tools list.", MessageType.Success);
                 }
 
                 logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
@@ -421,13 +422,13 @@ public sealed partial class ToolsViewModel(
             else
             {
                 var errors = string.Join(", ", result.Errors);
-                ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshFailed", errors) ?? $"⚠ Failed to refresh tools: {errors}", MessageType.Error);
+                ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshFailed", errors) ?? $"Failed to refresh tools: {errors}", MessageType.Error);
                 logger.LogWarning("Failed to refresh tools: {Errors}", errors);
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshError", ex.Message) ?? $"⚠ An error occurred while refreshing tools: {ex.Message}", MessageType.Error);
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshError", ex.Message) ?? $"An error occurred while refreshing tools: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error refreshing tools");
         }
         finally
@@ -480,7 +481,7 @@ public sealed partial class ToolsViewModel(
         {
             logger.LogError(ex, "Error activating tool: {ToolName}", tool.Metadata.Name);
             CurrentToolControl = null;
-            ShowStatusMessage(localizationService?.GetString("Tools.Status.ErrorActivatingTool", tool.Metadata.Name, ex.Message) ?? $"✗ Error loading tool '{tool.Metadata.Name}': {ex.Message}", MessageType.Error);
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.ErrorActivatingTool", tool.Metadata.Name, ex.Message) ?? $"Error loading tool '{tool.Metadata.Name}': {ex.Message}", MessageType.Error);
         }
     }
 
@@ -528,7 +529,7 @@ public sealed partial class ToolsViewModel(
             return;
         }
 
-        if (!HasTools)
+        if (!HasTools && !IsStatusVisible && !IsLoading)
         {
             StatusMessage = localizationService?.GetString("Tools.Status.NoToolsInstalled") ?? "No tools installed. Click 'Add Tool' to install a tool plugin.";
         }

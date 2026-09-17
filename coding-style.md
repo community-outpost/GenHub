@@ -90,7 +90,7 @@ and additional project-specific preferences aligned with StyleCop, DeepSource, a
 - **File Structure**: One top-level type per file.
 - **Error Handling**:
   - Use exceptions appropriately; avoid empty catch blocks.
-  - Catch specific domain exceptions (`IOException`, `HttpRequestException`, `JsonException`) instead of generic `System.Exception``.
+  - Catch specific domain exceptions (`IOException`, `HttpRequestException`, `JsonException`) instead of generic `System.Exception`.
   - For predictable domain failures, prefer `OperationResult<T>` over throwing exceptions for control flow.
 - **Localization**:
   - All user-facing UI text (labels, buttons, tooltips, placeholders, headers, dialog messages) must be defined in `GenHub/GenHub/Resources/Localization/Strings.resx`.

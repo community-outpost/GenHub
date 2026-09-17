@@ -189,10 +189,10 @@
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.Game}" Margin="0,0,0,4" />
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <ToggleButton Classes="filter-toggle"
-                                              Content="{localization:Localize Tools.ReplayManager.Game.ZeroHour}"
+                                              Content="{localization:Localize Common.Game.ZeroHour}"
                                               IsChecked="{Binding IsZeroHourSelected}" />
                                 <ToggleButton Classes="filter-toggle"
-                                              Content="{localization:Localize Tools.ReplayManager.Game.Generals}"
+                                              Content="{localization:Localize Common.Game.Generals}"
                                               IsChecked="{Binding IsGeneralsSelected}" />
                             </StackPanel>
                         </StackPanel>

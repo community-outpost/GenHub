@@ -2742,15 +2742,15 @@
     <comment>Status during tool removal. {0} = tool name</comment>
   </data>
   <data name="Tools.Status.ToolInstalledSuccess" xml:space="preserve">
-    <value>✓ تم تثبيت الأداة '{0}' الإصدار {1} بنجاح.</value>
+    <value>تم تثبيت الأداة '{0}' الإصدار {1} بنجاح.</value>
     <comment>Success message after installing a tool. {0} = tool name, {1} = version</comment>
   </data>
   <data name="Tools.Status.ToolRemovedSuccess" xml:space="preserve">
-    <value>✓ تمت إزالة الأداة '{0}' بنجاح.</value>
+    <value>تمت إزالة الأداة '{0}' بنجاح.</value>
     <comment>Success message after removing a tool. {0} = tool name</comment>
   </data>
   <data name="Tools.Status.ToolsRefreshedSuccess" xml:space="preserve">
-    <value>✓ تم تحديث {0} أداة (أدوات) بنجاح.</value>
+    <value>تم تحديث {0} أداة (أدوات) بنجاح.</value>
     <comment>Success message after refreshing tools. {0} = tool count</comment>
   </data>
   <data name="Tools.Subtitle.Tools" xml:space="preserve">
@@ -3253,7 +3253,8 @@
     <value>تم تحميل GenPatcher</value>
   </data>
   <data name="Tools.GenPatcher.Notify.LoadedDesc" xml:space="preserve">
-    <value>تم تحميل {0} من الإصلاحات لـ {1} بنجاح.</value>
+    <value>تم تحميل {0} إصلاحات بنجاح لـ {1}.
+المطبق: {2} / {3} من الإصلاحات القابلة للتطبيق.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoInstallSelectedTitle" xml:space="preserve">
     <value>لم يتم تحديد أي تثبيت</value>
@@ -3292,7 +3293,7 @@
     <value>Zero Hour</value>
   </data>
   <data name="Info.Module.GeneralsOnline" xml:space="preserve">
-    <value>GeneralsOnline</value>
+    <value>Generals Online</value>
   </data>
   <data name="Info.Guide.DetailedGuide" xml:space="preserve">
     <value>دليل مفصل</value>
@@ -4312,37 +4313,37 @@
     <value>{0} من الخرائط</value>
   </data>
   <data name="Tools.Status.FailedToLoad" xml:space="preserve">
-    <value>⚠ فشل تحميل الأدوات: {0}</value>
+    <value>فشل تحميل الأدوات: {0}</value>
   </data>
   <data name="Tools.Status.ErrorLoading" xml:space="preserve">
-    <value>⚠ حدث خطأ أثناء تحميل الأدوات: {0}</value>
+    <value>حدث خطأ أثناء تحميل الأدوات: {0}</value>
   </data>
   <data name="Tools.Status.ToolInstallFailed" xml:space="preserve">
-    <value>✗ فشل تثبيت الأداة: {0}</value>
+    <value>فشل تثبيت الأداة: {0}</value>
   </data>
   <data name="Tools.Status.AddToolError" xml:space="preserve">
-    <value>✗ حدث خطأ أثناء إضافة الأداة: {0}</value>
+    <value>حدث خطأ أثناء إضافة الأداة: {0}</value>
   </data>
   <data name="Tools.Status.BundledCannotRemove" xml:space="preserve">
-    <value>✗ الأداة '{0}' مضمنة ولا يمكن إزالتها.</value>
+    <value>الأداة '{0}' مضمنة ولا يمكن إزالتها.</value>
   </data>
   <data name="Tools.Status.ToolRemoveFailed" xml:space="preserve">
-    <value>✗ فشل حذف الأداة: {0}</value>
+    <value>فشل حذف الأداة: {0}</value>
   </data>
   <data name="Tools.Status.RemoveToolError" xml:space="preserve">
-    <value>✗ حدث خطأ أثناء حذف الأداة: {0}</value>
+    <value>حدث خطأ أثناء حذف الأداة: {0}</value>
   </data>
   <data name="Tools.Status.RefreshedCountSuccess" xml:space="preserve">
-    <value>✓ تم تحديث {0} من الأدوات بنجاح.</value>
+    <value>تم تحديث {0} من الأدوات بنجاح.</value>
   </data>
   <data name="Tools.Status.RefreshFailed" xml:space="preserve">
-    <value>⚠ فشل تحديث الأدوات: {0}</value>
+    <value>فشل تحديث الأدوات: {0}</value>
   </data>
   <data name="Tools.Status.RefreshError" xml:space="preserve">
-    <value>⚠ حدث خطأ أثناء تحديث الأدوات: {0}</value>
+    <value>حدث خطأ أثناء تحديث الأدوات: {0}</value>
   </data>
   <data name="Tools.Status.ErrorActivatingTool" xml:space="preserve">
-    <value>✗ خطأ أثناء تحميل الأداة '{0}': {1}</value>
+    <value>خطأ أثناء تحميل الأداة '{0}': {1}</value>
   </data>
   <data name="Tools.GenPatcher.Dialog.ApplyAllTitle" xml:space="preserve">
     <value>تطبيق الإصلاحات الموصى بها</value>
@@ -4845,6 +4846,18 @@
   <data name="Downloads.ContentDetail.BundleContents" xml:space="preserve">
     <value>محتويات الحزمة</value>
   </data>
+  <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
+    <value>{0} عناصر</value>
+  </data>
+  <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
+    <value>بواسطة: {0}</value>
+  </data>
+  <data name="Downloads.ContentDetail.HelpfulVotesFormat" xml:space="preserve">
+    <value>{0} شخص وجد هذا مفيداً</value>
+  </data>
+  <data name="Downloads.ContentDetail.KarmaFormat" xml:space="preserve">
+    <value>النقاط: {0}</value>
+  </data>
   <data name="Downloads.ContentDetail.Category" xml:space="preserve">
     <value>الفئة</value>
   </data>
@@ -5091,6 +5104,9 @@
   <data name="Downloads.Subscription.CommunityWarning" xml:space="preserve">
     <value>يتم توفير محتوى المجتمع كما هو دون أي ضمان.</value>
   </data>
+  <data name="Downloads.Subscription.ContentIdFormat" xml:space="preserve">
+    <value>المعرف: {0}</value>
+  </data>
   <data name="Downloads.Subscription.Contact" xml:space="preserve">
     <value>الاتصال</value>
   </data>
@@ -5161,13 +5177,13 @@
     <value>تم تحميل {0} من الخرائط.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.ApplyingFixesDesc" xml:space="preserve">
-    <value>يقوم GenPatcher بتطبيق الإصلاحات المحددة على تثبيت اللعبة.</value>
+    <value>جاري تطبيق {0} من الإصلاحات الموصى بها على {1} ({2})...</value>
   </data>
   <data name="Tools.GenPatcher.Notify.ApplyingFixesTitle" xml:space="preserve">
     <value>تطبيق الإصلاحات</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoFixesToApplyDesc" xml:space="preserve">
-    <value>يرجى تحديد إصلاح واحد على الأقل لتطبيقه.</value>
+    <value>جميع الإصلاحات القابلة للتطبيق ({0}/{1}) مطبقة بالفعل لـ {2}.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoFixesToApplyTitle" xml:space="preserve">
     <value>لم يتم تحديد أي إصلاحات</value>
@@ -6681,5 +6697,11 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Settings.Subscriptions.UpdateTrustFailedMessage" xml:space="preserve">
     <value>فشل تحديث مستوى الثقة: {0}</value>
+  </data>
+  <data name="Settings.Subscriptions.ErrorTitle" xml:space="preserve">
+    <value>خطأ</value>
+  </data>
+  <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
+    <value>المحتوى المتاح</value>
   </data>
 </root>

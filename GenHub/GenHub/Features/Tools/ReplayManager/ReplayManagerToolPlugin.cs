@@ -62,6 +62,11 @@ public sealed class ReplayManagerToolPlugin : IToolPlugin
     /// <inheritdoc />
     public void Dispose()
     {
+        if (_view?.DataContext is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+
         _view = null;
         _serviceProvider = null;
     }

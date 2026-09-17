@@ -136,7 +136,7 @@
                                                     Cursor="Hand">
                                                  <Grid ColumnDefinitions="Auto,*,Auto">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#10B981" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{localization:Localize Notifications.Options.Enable}" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{localization:Localize Notifications.Options.Enable}" Foreground="{DynamicResource TextPrimary}" FontSize="13" VerticalAlignment="Center"/>
                                                     <PathIcon Grid.Column="2" Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="12" Height="12" Foreground="#10B981" VerticalAlignment="Center"
                                                               IsVisible="{Binding IsUnmuted}"/>
                                                 </Grid>
@@ -151,7 +151,7 @@
                                                     Cursor="Hand">
                                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F59E0B" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{localization:Localize Notifications.Options.MuteSession}" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{localization:Localize Notifications.Options.MuteSession}" Foreground="{DynamicResource TextPrimary}" FontSize="13" VerticalAlignment="Center"/>
                                                     <PathIcon Grid.Column="2" Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="12" Height="12" Foreground="#F59E0B" VerticalAlignment="Center"
                                                               IsVisible="{Binding IsSessionMuted}"/>
                                                 </Grid>
@@ -166,7 +166,7 @@
                                                     Cursor="Hand">
                                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#EF4444" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{localization:Localize Notifications.Options.MutePermanently}" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{localization:Localize Notifications.Options.MutePermanently}" Foreground="{DynamicResource TextPrimary}" FontSize="13" VerticalAlignment="Center"/>
                                                     <PathIcon Grid.Column="2" Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="12" Height="12" Foreground="#EF4444" VerticalAlignment="Center"
                                                               IsVisible="{Binding IsPersistentMuted}"/>
                                                 </Grid>

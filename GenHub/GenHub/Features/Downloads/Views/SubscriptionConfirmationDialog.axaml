@@ -422,7 +422,7 @@
                                                                     BorderBrush="{DynamicResource AccentBrush}"
                                                                     BorderThickness="1"
                                                                     CornerRadius="8" Padding="8,3">
-                                                                <TextBlock Text="{Binding ContentType}"
+                                                                <TextBlock Text="{Binding ContentType, Converter={x:Static converters:ContentTypeDisplayConverter.Instance}}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"
                                                                            Foreground="{DynamicResource AccentBrush}" />
@@ -433,7 +433,7 @@
                                                                     BorderBrush="{DynamicResource BorderHighlightBrush}"
                                                                     BorderThickness="1"
                                                                     CornerRadius="8" Padding="8,3">
-                                                                <TextBlock Text="{Binding TargetGame}"
+                                                                <TextBlock Text="{Binding TargetGame, Converter={x:Static converters:GameTypeDisplayConverter.Instance}}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"
                                                                            Foreground="{DynamicResource TextSecondary}" />
@@ -454,7 +454,7 @@
                                                     <!-- Row 2: Id & Meta -->
                                                     <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,6,0,0">
                                                         <TextBlock Grid.Column="0"
-                                                                   Text="{Binding Id, StringFormat='ID: {0}'}"
+                                                                   Text="{Binding Id, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.Subscription.ContentIdFormat'}"
                                                                    FontSize="11"
                                                                    Foreground="{DynamicResource TextMuted}"
                                                                    VerticalAlignment="Center" />

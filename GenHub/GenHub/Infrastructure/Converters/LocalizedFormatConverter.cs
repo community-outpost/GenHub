@@ -27,7 +27,7 @@ public class LocalizedFormatConverter : IValueConverter
                 {
                     return string.Format(culture, format, value);
                 }
-                catch
+                catch (FormatException)
                 {
                     // If formatting fails, fallback to value string
                 }

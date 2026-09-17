@@ -17,6 +17,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -513,8 +514,8 @@ public partial class App : Application
 
         logger?.LogInformation("User confirmed subscription to: {Url}", targetUrl);
         var notificationService = _serviceProvider.GetService<INotificationService>();
-        var title = _localizationService?.GetString("Downloads.Subscription.SubscribedNotificationTitle") ?? "Subscribed";
-        var message = _localizationService?.GetString("Downloads.Subscription.SubscribedNotificationMessage") ?? "Successfully subscribed to content catalog.";
+        var title = LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Downloads.Subscription.SubscribedNotificationTitle", "Subscribed");
+        var message = LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Downloads.Subscription.SubscribedNotificationMessage", "Successfully subscribed to content catalog.");
         notificationService?.ShowSuccess(title, message);
     }
 

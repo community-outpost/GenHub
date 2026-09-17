@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
@@ -69,7 +70,7 @@ public partial class SubscriptionConfirmationViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PublisherInitial))]
-    private string _publisherName = DefaultPublisherName;
+    private string _publisherName = localizationService?.GetString("Downloads.Subscription.LoadingPublisher") ?? DefaultPublisherName;
 
     [ObservableProperty]
     private string? _publisherAvatarUrl;
@@ -125,7 +126,7 @@ public partial class SubscriptionConfirmationViewModel(
     private string? _errorMessage;
 
     [ObservableProperty]
-    private string _errorTitle = "Failed to Load Catalog";
+    private string _errorTitle = localizationService?.GetString("Downloads.Subscription.ErrorTitle.FailedToLoad") ?? "Failed to Load Catalog";
 
     [ObservableProperty]
     private bool _canConfirm;
@@ -204,7 +205,15 @@ public partial class SubscriptionConfirmationViewModel(
 
                     var typeGroups = _parsedCatalog.Content
                         .GroupBy(item => item.ContentType)
-                        .Select(group => $"{group.Count()} {group.Key}");
+                        .Select(group =>
+                        {
+                            var typeKey = $"ContentType.{group.Key}";
+                            var localizedType = localizationService?.GetString(typeKey);
+                            var typeDisplay = (!string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal))
+                                ? localizedType
+                                : group.Key.GetDisplayName();
+                            return $"{group.Count()} {typeDisplay}";
+                        });
                     ContentSummary = string.Join(" • ", typeGroups);
 
                     BuildCategoryFilters(DefaultCategoryKey);
@@ -401,13 +410,19 @@ public partial class SubscriptionConfirmationViewModel(
         };
 
         var groups = ContentItems
-            .GroupBy(item => item.ContentType.ToString())
-            .OrderBy(g => g.Key);
+            .GroupBy(item => item.ContentType)
+            .OrderBy(g => g.Key.ToString());
 
         foreach (var group in groups)
         {
-            var isSelected = string.Equals(activeKey, group.Key, StringComparison.OrdinalIgnoreCase);
-            filters.Add(new CatalogCategoryFilter(group.Key, group.Key, group.Count(), isSelected));
+            var key = group.Key.ToString();
+            var typeKey = $"ContentType.{group.Key}";
+            var localizedType = localizationService?.GetString(typeKey);
+            var typeDisplay = (!string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal))
+                ? localizedType
+                : group.Key.GetDisplayName();
+            var isSelected = string.Equals(activeKey, key, StringComparison.OrdinalIgnoreCase);
+            filters.Add(new CatalogCategoryFilter(key, typeDisplay, group.Count(), isSelected));
         }
 
         CategoryFilters = filters.AsReadOnly();

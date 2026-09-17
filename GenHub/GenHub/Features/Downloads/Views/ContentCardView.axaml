@@ -21,6 +21,7 @@
         <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
         <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
         <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
+        <converters:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -267,8 +268,8 @@
                                         Background="{DynamicResource CardBackground}"
                                         BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
                                         Margin="0,0,4,4"
-                                        ToolTip.Tip="{Binding ContentTypeDisplay}">
-                                    <TextBlock Text="{Binding ContentTypeDisplay}"
+                                        ToolTip.Tip="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}">
+                                    <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
                                                FontSize="10"
                                                FontWeight="Bold"
                                                Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />

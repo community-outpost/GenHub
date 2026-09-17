@@ -32,8 +32,10 @@ public partial class GenPatcherViewModel(
     INotificationService notificationService,
     IDialogService dialogService,
     ILogger<GenPatcherViewModel> logger,
-    ILocalizationService? localizationService = null) : ObservableObject
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
+    private bool _disposed;
+
     [ObservableProperty]
     private ObservableCollection<GameInstallation> availableInstallations = [];
 
@@ -161,6 +163,11 @@ public partial class GenPatcherViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         if (localizationService != null)
         {
             localizationService.PropertyChanged -= OnLocalizationChanged;
@@ -188,6 +195,32 @@ public partial class GenPatcherViewModel(
         }
 
         await LoadFixesCommand.ExecuteAsync(null);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and optionally managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing && localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+        }
+
+        _disposed = true;
     }
 
     private static bool MatchesCategory(ActionSetViewModel vm, string category) =>

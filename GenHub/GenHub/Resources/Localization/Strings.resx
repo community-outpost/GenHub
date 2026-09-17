@@ -2742,15 +2742,15 @@
     <comment>Status during tool removal. {0} = tool name</comment>
   </data>
   <data name="Tools.Status.ToolInstalledSuccess" xml:space="preserve">
-    <value>✓ Tool '{0}' v{1} installed successfully.</value>
+    <value>Tool '{0}' v{1} installed successfully.</value>
     <comment>Success message after installing a tool. {0} = tool name, {1} = version</comment>
   </data>
   <data name="Tools.Status.ToolRemovedSuccess" xml:space="preserve">
-    <value>✓ Tool '{0}' removed successfully.</value>
+    <value>Tool '{0}' removed successfully.</value>
     <comment>Success message after removing a tool. {0} = tool name</comment>
   </data>
   <data name="Tools.Status.ToolsRefreshedSuccess" xml:space="preserve">
-    <value>✓ Refreshed {0} tool(s) successfully.</value>
+    <value>Refreshed {0} tool(s) successfully.</value>
     <comment>Success message after refreshing tools. {0} = tool count</comment>
   </data>
   <data name="Tools.Subtitle.Tools" xml:space="preserve">
@@ -3253,7 +3253,8 @@
     <value>GenPatcher Loaded</value>
   </data>
   <data name="Tools.GenPatcher.Notify.LoadedDesc" xml:space="preserve">
-    <value>Successfully loaded {0} fixes for {1}.</value>
+    <value>Successfully loaded {0} fixes for {1}.
+Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoInstallSelectedTitle" xml:space="preserve">
     <value>No Installation Selected</value>
@@ -3292,7 +3293,7 @@
     <value>Zero Hour</value>
   </data>
   <data name="Info.Module.GeneralsOnline" xml:space="preserve">
-    <value>GeneralsOnline</value>
+    <value>Generals Online</value>
   </data>
   <data name="Info.Guide.DetailedGuide" xml:space="preserve">
     <value>DETAILED GUIDE</value>
@@ -4312,37 +4313,37 @@
     <value>{0} Maps</value>
   </data>
   <data name="Tools.Status.FailedToLoad" xml:space="preserve">
-    <value>⚠ Failed to load tools: {0}</value>
+    <value>Failed to load tools: {0}</value>
   </data>
   <data name="Tools.Status.ErrorLoading" xml:space="preserve">
-    <value>⚠ An error occurred while loading tools: {0}</value>
+    <value>An error occurred while loading tools: {0}</value>
   </data>
   <data name="Tools.Status.ToolInstallFailed" xml:space="preserve">
-    <value>✗ Failed to install tool: {0}</value>
+    <value>Failed to install tool: {0}</value>
   </data>
   <data name="Tools.Status.AddToolError" xml:space="preserve">
-    <value>✗ An error occurred while adding the tool: {0}</value>
+    <value>An error occurred while adding the tool: {0}</value>
   </data>
   <data name="Tools.Status.BundledCannotRemove" xml:space="preserve">
-    <value>✗ Tool '{0}' is a bundled tool and cannot be removed.</value>
+    <value>Tool '{0}' is a bundled tool and cannot be removed.</value>
   </data>
   <data name="Tools.Status.ToolRemoveFailed" xml:space="preserve">
-    <value>✗ Failed to remove tool: {0}</value>
+    <value>Failed to remove tool: {0}</value>
   </data>
   <data name="Tools.Status.RemoveToolError" xml:space="preserve">
-    <value>✗ An error occurred while removing the tool: {0}</value>
+    <value>An error occurred while removing the tool: {0}</value>
   </data>
   <data name="Tools.Status.RefreshedCountSuccess" xml:space="preserve">
-    <value>✓ Refreshed {0} tool(s) successfully.</value>
+    <value>Refreshed {0} tool(s) successfully.</value>
   </data>
   <data name="Tools.Status.RefreshFailed" xml:space="preserve">
-    <value>⚠ Failed to refresh tools: {0}</value>
+    <value>Failed to refresh tools: {0}</value>
   </data>
   <data name="Tools.Status.RefreshError" xml:space="preserve">
-    <value>⚠ An error occurred while refreshing tools: {0}</value>
+    <value>An error occurred while refreshing tools: {0}</value>
   </data>
   <data name="Tools.Status.ErrorActivatingTool" xml:space="preserve">
-    <value>✗ Error loading tool '{0}': {1}</value>
+    <value>Error loading tool '{0}': {1}</value>
   </data>
   <data name="Tools.GenPatcher.Dialog.ApplyAllTitle" xml:space="preserve">
     <value>Apply Recommended Fixes</value>
@@ -4845,6 +4846,18 @@ This will modify game files and configuration settings at:
   <data name="Downloads.ContentDetail.BundleContents" xml:space="preserve">
     <value>Bundle Contents</value>
   </data>
+  <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
+    <value>By: {0}</value>
+  </data>
+  <data name="Downloads.ContentDetail.HelpfulVotesFormat" xml:space="preserve">
+    <value>{0} people found this helpful</value>
+  </data>
+  <data name="Downloads.ContentDetail.KarmaFormat" xml:space="preserve">
+    <value>Karma: {0}</value>
+  </data>
   <data name="Downloads.ContentDetail.Category" xml:space="preserve">
     <value>Category</value>
   </data>
@@ -5091,6 +5104,9 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Subscription.CommunityWarning" xml:space="preserve">
     <value>Community content is provided as-is without warranty.</value>
   </data>
+  <data name="Downloads.Subscription.ContentIdFormat" xml:space="preserve">
+    <value>ID: {0}</value>
+  </data>
   <data name="Downloads.Subscription.Contact" xml:space="preserve">
     <value>Contact</value>
   </data>
@@ -5161,13 +5177,13 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
     <value>Loaded {0} maps.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.ApplyingFixesDesc" xml:space="preserve">
-    <value>GenPatcher is applying selected fixes to your game installation.</value>
+    <value>Applying {0} recommended fix(es) to {1} ({2})...</value>
   </data>
   <data name="Tools.GenPatcher.Notify.ApplyingFixesTitle" xml:space="preserve">
     <value>Applying Fixes</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoFixesToApplyDesc" xml:space="preserve">
-    <value>Please select at least one fix to apply.</value>
+    <value>All {0}/{1} applicable fixes are already applied for {2}.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoFixesToApplyTitle" xml:space="preserve">
     <value>No Fixes Selected</value>
@@ -6775,5 +6791,11 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Settings.Subscriptions.UpdateTrustFailedMessage" xml:space="preserve">
     <value>Failed to update trust level: {0}</value>
+  </data>
+  <data name="Settings.Subscriptions.ErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
+    <value>Available Content</value>
   </data>
 </root>

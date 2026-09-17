@@ -241,12 +241,12 @@
 
                          <!-- 1. The Source: Profile Card -->
                          <StackPanel Spacing="10">
-                             <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step1}" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
+                             <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step1}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" FontWeight="Bold"/>
                              <Viewbox Stretch="Uniform" Width="240">
                                 <!-- Using actual component for fidelity -->
                                 <local:GameProfileCardView DataContext="{Binding DemoShortcutProfile}" Width="300" Height="400"/>
                              </Viewbox>
-                             <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step1Hint}" FontSize="11" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
+                             <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step1Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" FontStyle="Italic"/>
                          </StackPanel>
 
                         <!-- Arrow -->
@@ -254,7 +254,7 @@
 
                         <!-- 2. The Result: Desktop Icon -->
                         <StackPanel Spacing="10">
-                            <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step2}" Foreground="#999" HorizontalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Shortcuts.Step2}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" FontWeight="Bold"/>
                             <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="8" Width="120" Margin="0,50,0,0">
                                  <!-- Windows Desktop Icon Look-alike -->
                                  <Border Background="Transparent" Padding="8">
@@ -295,13 +295,13 @@
                 <Border Classes="demo-container">
                     <StackPanel HorizontalAlignment="Center" Spacing="20">
                         <TextBlock Text="{localization:Localize Info.Demo.Steam.Hint}"
-                                   FontSize="13" Foreground="#666666" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                                   FontSize="13" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
 
                         <Viewbox Stretch="Uniform" MaxHeight="400">
                              <local:GameProfileCardView DataContext="{Binding DemoSteamProfile}" Width="300" Height="400"/>
                         </Viewbox>
 
-                         <TextBlock Text="{localization:Localize Info.Demo.Steam.ActiveHint}" Foreground="#00CCFF" FontSize="12" HorizontalAlignment="Center"/>
+                         <TextBlock Text="{localization:Localize Info.Demo.Steam.ActiveHint}" Foreground="{DynamicResource SystemAccentColorBrush}" FontSize="12" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -382,7 +382,7 @@
                                                     Content="{localization:Localize Info.Demo.AppUpdates.PatSaveTest}"
                                                     Command="{Binding TestPatCommand}"
                                                     Background="{DynamicResource SystemAccentColorBrush}"
-                                                    Foreground="White"
+                                                    Foreground="{DynamicResource PrimaryButtonForeground}"
                                                     Padding="20,0"
                                                     Height="40"
                                                     FontWeight="SemiBold"
@@ -822,8 +822,8 @@
                               Padding="20"
                               Margin="0,0,0,24">
                         <StackPanel>
-                            <TextBlock Text="{localization:Localize Info.Guide.DetailedGuide}" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,12"/>
-                            <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}" Classes="card-content" FontSize="14" Foreground="#BBB"/>
+                            <TextBlock Text="{localization:Localize Info.Guide.DetailedGuide}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" Margin="0,0,0,12"/>
+                            <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}" Classes="card-content" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
                       </Border>
                     </Grid>

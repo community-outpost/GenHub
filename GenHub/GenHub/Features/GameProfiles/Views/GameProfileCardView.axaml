@@ -424,7 +424,6 @@
 
                     <!-- Launch Button Center -->
                     <Button Classes="launch-button"
-                            Content="{localization:Localize GameProfiles.Card.Action.Launch}"
                             Command="{Binding LaunchProfileCommand}"
                             IsVisible="{Binding CanLaunch}">
                         <Button.Content>

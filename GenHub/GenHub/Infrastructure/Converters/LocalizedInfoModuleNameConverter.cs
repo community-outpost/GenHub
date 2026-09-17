@@ -1,4 +1,5 @@
 using Avalonia.Data.Converters;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using System;
 using System.Globalization;
@@ -28,13 +29,13 @@ public class LocalizedInfoModuleNameConverter : IValueConverter
 
             return moduleName switch
             {
-                "GenHub Guide" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.GenHubGuide", moduleName),
-                "Zero Hour" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.ZeroHour", moduleName),
-                "GeneralsOnline" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.GeneralsOnline", moduleName),
+                InfoConstants.ModuleGuide => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.GenHubGuide", moduleName),
+                InfoConstants.ModuleZeroHour => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.ZeroHour", moduleName),
+                InfoConstants.ModuleGeneralsOnline or "Generals Online" => LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Info.Module.GeneralsOnline", moduleName),
                 _ => moduleName,
             };
         }
-        catch
+        catch (InvalidOperationException)
         {
             return moduleName;
         }

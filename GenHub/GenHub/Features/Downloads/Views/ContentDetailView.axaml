@@ -25,6 +25,7 @@
         <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
         <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
         <converters:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
+        <converters:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />
         <markdown:SafeMarkdownHyperlinkCommand x:Key="SafeMarkdownHyperlinkCommand" />
         <markdown:SafeMarkdownPathResolver x:Key="SafeMarkdownPathResolver" />
     </UserControl.Resources>
@@ -303,7 +304,7 @@
                                                                    Foreground="{DynamicResource TextSecondary}" FontSize="13"
                                                                    IsVisible="{Binding UploadDate, Converter={x:Static ObjectConverters.IsNotNull}}" />
                                                     </StackPanel>
-                                                    <TextBlock Text="{Binding Uploader, StringFormat='By: {0}'}"
+                                                    <TextBlock Text="{Binding Uploader, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.ContentDetail.ByAuthorFormat'}"
                                                                Foreground="{DynamicResource TextMuted}" FontSize="12"
                                                                IsVisible="{Binding Uploader, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                 </StackPanel>
@@ -406,7 +407,7 @@
                                                                            IsVisible="{Binding HasReleaseDate}" />
                                                                 <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource TextMuted}"
                                                                            IsVisible="{Binding ShowDateDot}" />
-                                                                <TextBlock Text="{Binding Uploader, StringFormat='By {0}'}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                                <TextBlock Text="{Binding Uploader, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.ContentDetail.ByAuthorFormat'}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
                                                                            IsVisible="{Binding HasUploader}"/>
                                                             </StackPanel>
                                                         </StackPanel>
@@ -774,7 +775,7 @@
                                                                            IsVisible="{Binding HasReleaseDate}" />
                                                                 <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource TextMuted}"
                                                                            IsVisible="{Binding ShowDateDot}" />
-                                                                <TextBlock Text="{Binding Uploader, StringFormat='By {0}'}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                                <TextBlock Text="{Binding Uploader, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.ContentDetail.ByAuthorFormat'}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
                                                                            IsVisible="{Binding HasUploader}"/>
                                                             </StackPanel>
                                                         </StackPanel>
@@ -1194,7 +1195,7 @@
                                                             <TextBlock Grid.Column="2" Text="{Binding Date, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
                                                         </Grid>
                                                         <TextBlock Text="{Binding Content}" Foreground="{DynamicResource TextSecondary}" FontSize="14" LineHeight="20" TextWrapping="Wrap" />
-                                                        <TextBlock Text="{Binding HelpfulVotes, StringFormat='{}{0} people found this helpful'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
+                                                        <TextBlock Text="{Binding HelpfulVotes, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.ContentDetail.HelpfulVotesFormat'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>
@@ -1220,7 +1221,7 @@
                                                             <TextBlock Grid.Column="2" Text="{Binding Date, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
                                                         </Grid>
                                                         <TextBlock Text="{Binding Content}" Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="20" TextWrapping="Wrap" />
-                                                        <TextBlock Text="{Binding Karma, StringFormat='Karma: {0}'}" Foreground="{DynamicResource TextMuted}" FontSize="11" />
+                                                        <TextBlock Text="{Binding Karma, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.ContentDetail.KarmaFormat'}" Foreground="{DynamicResource TextMuted}" FontSize="11" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>
@@ -1580,7 +1581,7 @@
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="{localization:Localize Downloads.ContentDetail.BundleContents}" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
                                 <Border Grid.Column="1" Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="6" Padding="6,2">
-                                    <TextBlock Text="{Binding BundleComponents.Count, StringFormat='{}{0} items'}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding BundleComponents.Count, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.ContentDetail.BundleComponentsCountFormat'}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
                                 </Border>
                             </Grid>
 
@@ -1598,7 +1599,7 @@
                                                                    TextWrapping="Wrap" />
                                                         <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,1" HorizontalAlignment="Left"
                                                                 IsVisible="{Binding ContentTypeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding ContentTypeDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                                            <TextBlock Text="{Binding ContentTypeDisplay, Converter={StaticResource ContentTypeDisplayConverter}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
                                                         </Border>
                                                     </StackPanel>
                                                     <PathIcon Grid.Column="1"

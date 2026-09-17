@@ -31,11 +31,11 @@
       <Grid ColumnDefinitions="Auto,*,Auto,Auto">
         <!-- Game Tabs -->
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-          <RadioButton Content="{localization:Localize Tools.ReplayManager.Game.Generals}"
+          <RadioButton Content="{localization:Localize Common.Game.Generals}"
                        IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.Generals}}"
                        GroupName="GameTabs"
                        Classes="TabButton"/>
-          <RadioButton Content="{localization:Localize Tools.ReplayManager.Game.ZeroHour}"
+          <RadioButton Content="{localization:Localize Common.Game.ZeroHour}"
                        IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.ZeroHour}}"
                        GroupName="GameTabs"
                        Classes="TabButton"/>

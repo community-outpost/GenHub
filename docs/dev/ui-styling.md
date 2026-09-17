@@ -325,7 +325,7 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 #### Buttons and Controls
 ```xml
-<Button Content="{localization:Localize Common.Close}"
+<Button Content="{localization:Localize Common.Button.Close}"
         Command="{Binding SaveCommand}" />
 ```
 
@@ -338,7 +338,7 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 #### TextBoxes and Search Fields (Watermarks)
 ```xml
-<TextBox Watermark="{localization:Localize Common.Search}"
+<TextBox Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
          Text="{Binding SearchQuery, Mode=TwoWay}" />
 ```
 

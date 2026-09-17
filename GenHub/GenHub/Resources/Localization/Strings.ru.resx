@@ -2742,15 +2742,15 @@
     <comment>Status during tool removal. {0} = tool name</comment>
   </data>
   <data name="Tools.Status.ToolInstalledSuccess" xml:space="preserve">
-    <value>✓ Инструмент «{0}» v{1} успешно установлен.</value>
+    <value>Инструмент «{0}» v{1} успешно установлен.</value>
     <comment>Success message after installing a tool. {0} = tool name, {1} = version</comment>
   </data>
   <data name="Tools.Status.ToolRemovedSuccess" xml:space="preserve">
-    <value>✓ Инструмент «{0}» успешно удалён.</value>
+    <value>Инструмент «{0}» успешно удалён.</value>
     <comment>Success message after removing a tool. {0} = tool name</comment>
   </data>
   <data name="Tools.Status.ToolsRefreshedSuccess" xml:space="preserve">
-    <value>✓ Успешно обновлено инструментов: {0}.</value>
+    <value>Успешно обновлено инструментов: {0}.</value>
     <comment>Success message after refreshing tools. {0} = tool count</comment>
   </data>
   <data name="Tools.Subtitle.Tools" xml:space="preserve">
@@ -3253,7 +3253,8 @@
     <value>GenPatcher загружен</value>
   </data>
   <data name="Tools.GenPatcher.Notify.LoadedDesc" xml:space="preserve">
-    <value>Успешно загружено {0} исправлений для {1}.</value>
+    <value>Успешно загружено исправлений: {0} для {1}.
+Применено: {2} / {3} применимых исправлений.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoInstallSelectedTitle" xml:space="preserve">
     <value>Установка не выбрана</value>
@@ -3292,7 +3293,7 @@
     <value>Zero Hour</value>
   </data>
   <data name="Info.Module.GeneralsOnline" xml:space="preserve">
-    <value>GeneralsOnline</value>
+    <value>Generals Online</value>
   </data>
   <data name="Info.Guide.DetailedGuide" xml:space="preserve">
     <value>ПОДРОБНОЕ РУКОВОДСТВО</value>
@@ -4312,37 +4313,37 @@
     <value>{0} карт</value>
   </data>
   <data name="Tools.Status.FailedToLoad" xml:space="preserve">
-    <value>⚠ Не удалось загрузить инструменты: {0}</value>
+    <value>Не удалось загрузить инструменты: {0}</value>
   </data>
   <data name="Tools.Status.ErrorLoading" xml:space="preserve">
-    <value>⚠ Произошла ошибка при загрузке инструментов: {0}</value>
+    <value>Произошла ошибка при загрузке инструментов: {0}</value>
   </data>
   <data name="Tools.Status.ToolInstallFailed" xml:space="preserve">
-    <value>✗ Не удалось установить инструмент: {0}</value>
+    <value>Не удалось установить инструмент: {0}</value>
   </data>
   <data name="Tools.Status.AddToolError" xml:space="preserve">
-    <value>✗ Произошла ошибка при добавлении инструмента: {0}</value>
+    <value>Произошла ошибка при добавлении инструмента: {0}</value>
   </data>
   <data name="Tools.Status.BundledCannotRemove" xml:space="preserve">
-    <value>✗ Инструмент '{0}' является встроенным и не может быть удален.</value>
+    <value>Инструмент '{0}' является встроенным и не может быть удален.</value>
   </data>
   <data name="Tools.Status.ToolRemoveFailed" xml:space="preserve">
-    <value>✗ Не удалось удалить инструмент: {0}</value>
+    <value>Не удалось удалить инструмент: {0}</value>
   </data>
   <data name="Tools.Status.RemoveToolError" xml:space="preserve">
-    <value>✗ Произошла ошибка при удалении инструмента: {0}</value>
+    <value>Произошла ошибка при удалении инструмента: {0}</value>
   </data>
   <data name="Tools.Status.RefreshedCountSuccess" xml:space="preserve">
-    <value>✓ Успешно обновлено {0} инструментов.</value>
+    <value>Успешно обновлено {0} инструментов.</value>
   </data>
   <data name="Tools.Status.RefreshFailed" xml:space="preserve">
-    <value>⚠ Не удалось обновить инструменты: {0}</value>
+    <value>Не удалось обновить инструменты: {0}</value>
   </data>
   <data name="Tools.Status.RefreshError" xml:space="preserve">
-    <value>⚠ Произошла ошибка при обновлении инструментов: {0}</value>
+    <value>Произошла ошибка при обновлении инструментов: {0}</value>
   </data>
   <data name="Tools.Status.ErrorActivatingTool" xml:space="preserve">
-    <value>✗ Ошибка загрузки инструмента '{0}': {1}</value>
+    <value>Ошибка загрузки инструмента '{0}': {1}</value>
   </data>
   <data name="Tools.GenPatcher.Dialog.ApplyAllTitle" xml:space="preserve">
     <value>Применить рекомендуемые исправления</value>
@@ -4845,6 +4846,18 @@
   <data name="Downloads.ContentDetail.BundleContents" xml:space="preserve">
     <value>Содержимое набора</value>
   </data>
+  <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
+    <value>{0} элементов</value>
+  </data>
+  <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
+    <value>Автор: {0}</value>
+  </data>
+  <data name="Downloads.ContentDetail.HelpfulVotesFormat" xml:space="preserve">
+    <value>{0} пользователей сочли это полезным</value>
+  </data>
+  <data name="Downloads.ContentDetail.KarmaFormat" xml:space="preserve">
+    <value>Карма: {0}</value>
+  </data>
   <data name="Downloads.ContentDetail.Category" xml:space="preserve">
     <value>Категория</value>
   </data>
@@ -5091,6 +5104,9 @@
   <data name="Downloads.Subscription.CommunityWarning" xml:space="preserve">
     <value>Контент сообщества предоставляется «как есть» без каких-либо гарантий.</value>
   </data>
+  <data name="Downloads.Subscription.ContentIdFormat" xml:space="preserve">
+    <value>ID: {0}</value>
+  </data>
   <data name="Downloads.Subscription.Contact" xml:space="preserve">
     <value>Контакты</value>
   </data>
@@ -5161,13 +5177,13 @@
     <value>Загружено карт: {0}.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.ApplyingFixesDesc" xml:space="preserve">
-    <value>GenPatcher применяет выбранные исправления к вашей установке игры.</value>
+    <value>Применение {0} рекомендуемых исправлений к {1} ({2})...</value>
   </data>
   <data name="Tools.GenPatcher.Notify.ApplyingFixesTitle" xml:space="preserve">
     <value>Применение исправлений</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoFixesToApplyDesc" xml:space="preserve">
-    <value>Пожалуйста, выберите хотя бы одно исправление для применения.</value>
+    <value>Все применимые исправления ({0}/{1}) уже применены для {2}.</value>
   </data>
   <data name="Tools.GenPatcher.Notify.NoFixesToApplyTitle" xml:space="preserve">
     <value>Исправления не выбраны</value>
@@ -6681,5 +6697,11 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Settings.Subscriptions.UpdateTrustFailedMessage" xml:space="preserve">
     <value>Не удалось обновить уровень доверия: {0}</value>
+  </data>
+  <data name="Settings.Subscriptions.ErrorTitle" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
+    <value>Доступный контент</value>
   </data>
 </root>

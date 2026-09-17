@@ -28,11 +28,11 @@ public class MapTypeDisplayConverter : IValueConverter
         }
 
         var localizationService = LocalizationConverterHelper.ResolveLocalizationService();
-        var archiveLabel = localizationService?.GetString("Tools.MapManager.Type.Archive") ?? "Archive";
-        var mapLabel = localizationService?.GetString("Tools.MapManager.Type.Map") ?? "Map";
-        var iniLabel = localizationService?.GetString("Tools.MapManager.Type.Ini") ?? "Ini";
-        var tgaLabel = localizationService?.GetString("Tools.MapManager.Type.Tga") ?? "TGA";
-        var txtLabel = localizationService?.GetString("Tools.MapManager.Type.Txt") ?? "Txt";
+        var archiveLabel = LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.MapManager.Type.Archive", "Archive");
+        var mapLabel = LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.MapManager.Type.Map", "Map");
+        var iniLabel = LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.MapManager.Type.Ini", "Ini");
+        var tgaLabel = LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.MapManager.Type.Tga", "TGA");
+        var txtLabel = LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.MapManager.Type.Txt", "Txt");
 
         // If it's identified as a raw ZIP archive (not a directory bundle), just say "Archive"
         if (!mapFile.IsDirectory && mapFile.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))

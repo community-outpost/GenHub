@@ -56,6 +56,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private const string ErrorTitle = "Error";
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
+    private string SubscriptionErrorTitle => _localizationService?.GetString("Settings.Subscriptions.ErrorTitle") ?? ErrorTitle;
+
     private readonly IUserSettingsService _userSettingsService;
     private readonly ICasService _casService;
     private readonly IGameProfileManager _profileManager;
@@ -388,7 +390,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Gets the status color for the PAT indicator.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
     public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
@@ -680,7 +681,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (value != null && _localizationService != null &&
             !string.Equals(_localizationService.CurrentCulture.Name, value.Culture.Name, StringComparison.OrdinalIgnoreCase))
         {
-            _localizationService.SetCulture(value.Culture);
+            var result = _localizationService.SetCulture(value.Culture);
+            if (result != null && !result.Success)
+            {
+                _logger.LogWarning("Failed to set culture to {Culture}: {Errors}", value.Culture.Name, string.Join(", ", result.Errors));
+                SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                    string.Equals(l.Culture.Name, _localizationService.CurrentCulture.Name, StringComparison.OrdinalIgnoreCase));
+                return;
+            }
+
             InitializeSections();
             _ = LoadPatStatusAsync();
         }
@@ -2776,7 +2785,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             else if (!result.Success)
             {
                 var loadFailedMessage = _localizationService?.GetString("Settings.Subscriptions.LoadFailedMessage") ?? "Failed to load subscriptions: {0}";
-                _notificationService.ShowError(ErrorTitle, string.Format(CultureInfo.InvariantCulture, loadFailedMessage, result.FirstError));
+                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, loadFailedMessage, result.FirstError));
             }
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
@@ -2787,7 +2796,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to load subscriptions");
             var loadFailedFallback = _localizationService?.GetString("Settings.Subscriptions.LoadFailedFallback") ?? CatalogConstants.LoadSubscriptionsFailedTitle;
-            _notificationService.ShowError(ErrorTitle, loadFailedFallback);
+            _notificationService.ShowError(SubscriptionErrorTitle, loadFailedFallback);
         }
     }
 
@@ -2831,7 +2840,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             else
             {
                 var removeFailedMessage = _localizationService?.GetString("Settings.Subscriptions.RemoveFailedMessage") ?? "Failed to remove subscription: {0}";
-                _notificationService.ShowError(ErrorTitle, string.Format(CultureInfo.InvariantCulture, removeFailedMessage, result.FirstError));
+                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, removeFailedMessage, result.FirstError));
             }
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
@@ -2842,7 +2851,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to remove subscription");
             var removeFailedFallback = _localizationService?.GetString("Settings.Subscriptions.RemoveFailedFallback") ?? "Failed to remove subscription";
-            _notificationService.ShowError(ErrorTitle, removeFailedFallback);
+            _notificationService.ShowError(SubscriptionErrorTitle, removeFailedFallback);
         }
     }
 
@@ -2872,7 +2881,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             else
             {
                 var updateTrustFailedMessage = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedMessage") ?? "Failed to update trust level: {0}";
-                _notificationService.ShowError(ErrorTitle, string.Format(CultureInfo.InvariantCulture, updateTrustFailedMessage, result.FirstError));
+                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, updateTrustFailedMessage, result.FirstError));
             }
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
@@ -2883,7 +2892,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to update trust level");
             var updateTrustFailedFallback = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedFallback") ?? "Failed to update trust level";
-            _notificationService.ShowError(ErrorTitle, updateTrustFailedFallback);
+            _notificationService.ShowError(SubscriptionErrorTitle, updateTrustFailedFallback);
         }
     }
 
@@ -2912,7 +2921,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             else
             {
                 var unknownError = _localizationService?.GetString("Common.UnknownError") ?? "Unknown error";
-                _notificationService.ShowError(ErrorTitle, result.FirstError ?? unknownError);
+                _notificationService.ShowError(SubscriptionErrorTitle, result.FirstError ?? unknownError);
             }
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
@@ -2923,7 +2932,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to refresh catalogs");
             var refreshFailedFallback = _localizationService?.GetString("Settings.Subscriptions.RefreshFailedFallback") ?? "An unexpected error occurred during refresh.";
-            _notificationService.ShowError(ErrorTitle, refreshFailedFallback);
+            _notificationService.ShowError(SubscriptionErrorTitle, refreshFailedFallback);
         }
         finally
         {

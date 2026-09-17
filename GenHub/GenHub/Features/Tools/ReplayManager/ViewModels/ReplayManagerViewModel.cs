@@ -74,7 +74,7 @@ public partial class ReplayManagerViewModel(
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (LocalizationService != null && _lastLoadedCount >= 0)
+        if (LocalizationService != null && _lastLoadedCount >= 0 && !IsBusy)
         {
             StatusMessage = string.Format(LocalizationService.GetString("Tools.ReplayManager.Status.Loaded") ?? "Loaded {0} replays.", _lastLoadedCount);
         }

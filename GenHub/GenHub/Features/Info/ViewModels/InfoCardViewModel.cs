@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Info;
+using GenHub.Infrastructure.Converters;
 using System;
 using System.Collections.Generic;
 
@@ -71,16 +72,8 @@ public partial class InfoCardViewModel : ObservableObject
         UpdateLocalizedContent();
     }
 
-    private static string ResolveString(ILocalizationService? loc, string key, string fallback)
-    {
-        if (loc == null)
-        {
-            return fallback;
-        }
-
-        var val = loc.GetString(key);
-        return (!string.IsNullOrEmpty(val) && !string.Equals(val, key, StringComparison.Ordinal)) ? val : fallback;
-    }
+    private static string ResolveString(ILocalizationService? loc, string key, string fallback) =>
+        LocalizationConverterHelper.GetLocalizedOrDefault(loc, key, fallback);
 
     [RelayCommand]
     private void ToggleExpansion()

@@ -146,6 +146,9 @@ public partial class GenHotkeysViewModel(
     private int _totalConflictsCount;
 
     [ObservableProperty]
+    private int _totalActionsAffectedCount;
+
+    [ObservableProperty]
     private string _conflictStatusText = string.Empty;
 
     [ObservableProperty]
@@ -2205,13 +2208,14 @@ public partial class GenHotkeysViewModel(
 
         var allConflicts = CollectAllGlobalConflicts();
         TotalConflictsCount = allConflicts.Count;
+        TotalActionsAffectedCount = allConflicts.Select(c => (c.Faction?.ShortName ?? string.Empty, c.GameObjectName, c.HotkeyString)).Distinct().Count();
         HasConflicts = allConflicts.Count > 0;
 
         if (allConflicts.Count > 0)
         {
             ConflictStatusText = allConflicts.Count == 1
-                ? GetLocalizedString("Tools.GenHotkeys.ConflictsCountSingle", "1 conflict detected ({0} total actions affected)", allConflicts.Count)
-                : GetLocalizedString("Tools.GenHotkeys.ConflictsCountMultiple", "{0} conflicts detected across {1} actions", allConflicts.Count, allConflicts.Count);
+                ? GetLocalizedString("Tools.GenHotkeys.ConflictsCountSingle", "1 conflict detected ({0} total actions affected)", TotalActionsAffectedCount)
+                : GetLocalizedString("Tools.GenHotkeys.ConflictsCountMultiple", "{0} conflicts detected across {1} actions", allConflicts.Count, TotalActionsAffectedCount);
         }
         else
         {
@@ -2270,8 +2274,26 @@ public partial class GenHotkeysViewModel(
     private string GetLocalizedString(string key, string fallback) =>
         localizationService?[key] is { Length: > 0 } localized && localized != key ? localized : fallback;
 
-    private string GetLocalizedString(string key, string fallback, params object?[] args) =>
-        localizationService != null ? localizationService.GetString(key, args) : string.Format(CultureInfo.InvariantCulture, fallback, args);
+    private string GetLocalizedString(string key, string fallback, params object?[] args)
+    {
+        if (localizationService != null)
+        {
+            var localized = localizationService.GetString(key);
+            if (!string.IsNullOrEmpty(localized) && !string.Equals(localized, key, StringComparison.Ordinal))
+            {
+                try
+                {
+                    return string.Format(localizationService.CurrentCulture, localized, args);
+                }
+                catch (FormatException)
+                {
+                    // Fall back to formatted fallback string below
+                }
+            }
+        }
+
+        return string.Format(CultureInfo.InvariantCulture, fallback, args);
+    }
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -2303,8 +2325,8 @@ public partial class GenHotkeysViewModel(
         if (HasConflicts)
         {
             ConflictStatusText = TotalConflictsCount == 1
-                ? GetLocalizedString("Tools.GenHotkeys.ConflictsCountSingle", "1 conflict detected ({0} total actions affected)", TotalConflictsCount)
-                : GetLocalizedString("Tools.GenHotkeys.ConflictsCountMultiple", "{0} conflicts detected across {1} actions", TotalConflictsCount, TotalConflictsCount);
+                ? GetLocalizedString("Tools.GenHotkeys.ConflictsCountSingle", "1 conflict detected ({0} total actions affected)", TotalActionsAffectedCount)
+                : GetLocalizedString("Tools.GenHotkeys.ConflictsCountMultiple", "{0} conflicts detected across {1} actions", TotalConflictsCount, TotalActionsAffectedCount);
         }
     }
 }

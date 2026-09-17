@@ -25,7 +25,7 @@ internal static class LocalizationConverterHelper
                 return service;
             }
         }
-        catch
+        catch (InvalidOperationException)
         {
             // Resource lookup failure fallback
         }

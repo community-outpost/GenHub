@@ -381,6 +381,11 @@ public partial class GenHubInfoSectionViewModel(
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         if (localizationService != null)
         {
             localizationService.PropertyChanged -= OnLocalizationChanged;
@@ -505,9 +510,15 @@ public partial class GenHubInfoSectionViewModel(
             return;
         }
 
-        if (disposing && localizationService != null)
+        if (disposing)
         {
-            localizationService.PropertyChanged -= OnLocalizationChanged;
+            if (localizationService != null)
+            {
+                localizationService.PropertyChanged -= OnLocalizationChanged;
+            }
+
+            DemoReplayManager?.Dispose();
+            DemoMapManager?.Dispose();
         }
 
         _disposed = true;

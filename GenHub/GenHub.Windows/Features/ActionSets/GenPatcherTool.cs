@@ -16,6 +16,7 @@ namespace GenHub.Windows.Features.ActionSets;
 public class GenPatcherTool(ILogger<GenPatcherTool> logger) : IToolPlugin
 {
     private IServiceProvider? _serviceProvider;
+    private IDisposable? _currentViewModel;
 
     /// <inheritdoc/>
     public ToolMetadata Metadata => new()
@@ -37,7 +38,9 @@ public class GenPatcherTool(ILogger<GenPatcherTool> logger) : IToolPlugin
         // If we have the service provider, resolve the VM
         if (_serviceProvider != null)
         {
-            view.DataContext = _serviceProvider.GetRequiredService<GenPatcherViewModel>();
+            var vm = _serviceProvider.GetRequiredService<GenPatcherViewModel>();
+            _currentViewModel = vm;
+            view.DataContext = vm;
         }
 
         return view;
@@ -59,6 +62,8 @@ public class GenPatcherTool(ILogger<GenPatcherTool> logger) : IToolPlugin
     /// <inheritdoc/>
     public void Dispose()
     {
-        // Cleanup if needed
+        _currentViewModel?.Dispose();
+        _currentViewModel = null;
+        _serviceProvider = null;
     }
 }

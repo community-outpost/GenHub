@@ -543,7 +543,7 @@ public partial class GameProfileLauncherViewModel(
     {
         if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
         {
-            if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage))
+            if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage) || IsLaunching || IsPreparingWorkspace || IsScanning)
             {
                 return;
             }
