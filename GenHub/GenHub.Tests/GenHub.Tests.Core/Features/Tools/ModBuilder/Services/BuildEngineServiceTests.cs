@@ -1131,7 +1131,9 @@ public sealed class BuildEngineServiceTests : IDisposable
         };
 
         var reportedProgress = new List<BuildProgress>();
-        var progress = new Progress<BuildProgress>(reportedProgress.Add);
+        var progressMock = new Mock<IProgress<BuildProgress>>();
+        progressMock.Setup(p => p.Report(It.IsAny<BuildProgress>()))
+            .Callback<BuildProgress>(reportedProgress.Add);
 
         // Act
         var result = await _service.ExecuteBuildAsync(
@@ -1139,7 +1141,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             configuration,
             new List<string>(),
             BuildStep.Clean,
-            progress);
+            progressMock.Object);
 
         // Assert
         result.Success.Should().BeTrue(result.FirstError);
