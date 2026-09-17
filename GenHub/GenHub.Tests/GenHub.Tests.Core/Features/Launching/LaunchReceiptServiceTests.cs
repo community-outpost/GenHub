@@ -705,6 +705,46 @@ public class LaunchReceiptServiceTests : IDisposable
         Assert.Empty(Directory.GetFiles(_workspacePath, "*" + LaunchReceiptConstants.TemporaryFileExtension));
     }
 
+    /// <summary>Resolved roots are recorded even without matching environment variables.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RecordLaunchAsync_WithIndependentArchiveRoots_IgnoresEnvironmentRootAsync()
+    {
+        var context = CreateContext();
+        context.EnvironmentVariables = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.ZeroHourInstallPathVariable] = Path.Combine(_workspacePath, "ignored"),
+        };
+        await RecordSuccessfullyAsync(context);
+        var receipt = await ReadReceiptAsync();
+        Assert.Equal(
+            context.ArchiveRoots[RetailArchiveConstants.ZeroHourInstallPathVariable],
+            receipt.ArchiveRoots[RetailArchiveConstants.ZeroHourInstallPathVariable].Path);
+        context.EnvironmentVariables = new Dictionary<string, string>();
+        Assert.False(_service.CompareUpcomingLaunch(receipt, context).HasDrift);
+        await RecordSuccessfullyAsync(context);
+        Assert.NotEmpty((await ReadReceiptAsync()).ArchiveRoots);
+    }
+
+    /// <summary>Adding or removing a platform-neutral variant produces informational drift.</summary>
+    /// <param name="hasVariants">Whether the recorded manifest has variants.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CompareUpcomingLaunch_WithChangedHasVariants_ReportsDriftAsync(bool hasVariants)
+    {
+        var context = CreateContext();
+        context.Variant!.HasVariants = hasVariants;
+        context.Variant.VariantRuntimeIdentifiers = [];
+        await RecordSuccessfullyAsync(context);
+        var receipt = await ReadReceiptAsync();
+        context.Variant.HasVariants = !hasVariants;
+        var report = _service.CompareUpcomingLaunch(receipt, context);
+        Assert.Single(report.DriftedFields);
+        Assert.Contains("Manifest variant selection changed", report.DriftedFields[0]);
+    }
+
     /// <summary>
     /// Removes the temporary directories.
     /// </summary>
@@ -775,6 +815,11 @@ public class LaunchReceiptServiceTests : IDisposable
             WorkspacePath = _workspacePath,
             ExecutablePath = executablePath ?? _executablePath,
             WorkingDirectory = _workspacePath,
+            ArchiveRoots = new Dictionary<string, string>
+            {
+                [RetailArchiveConstants.ZeroHourInstallPathVariable] =
+                    (archiveRoot ?? _archiveRoot) + Path.DirectorySeparatorChar,
+            },
             EnvironmentVariables = new Dictionary<string, string>
             {
                 [RetailArchiveConstants.ZeroHourInstallPathVariable] =

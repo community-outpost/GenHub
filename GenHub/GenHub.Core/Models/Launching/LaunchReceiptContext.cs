@@ -38,6 +38,13 @@ public class LaunchReceiptContext
     public IReadOnlyDictionary<string, string> EnvironmentVariables { get; set; } = new Dictionary<string, string>();
 
     /// <summary>
+    /// Gets or sets the retail roots resolved for this launch, keyed by the archive-root
+    /// identifiers. On Windows these come from the installation, independently of the
+    /// child environment; on other platforms they include effective environment overrides.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ArchiveRoots { get; set; } = new Dictionary<string, string>();
+
+    /// <summary>
     /// Gets or sets the resolved variant and entry-point identity, when a game client
     /// manifest is part of the launch.
     /// </summary>

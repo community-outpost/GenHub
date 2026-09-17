@@ -68,7 +68,7 @@ public class LaunchReceiptService(
 
             foreach (var variableName in RetailArchiveConstants.InstallPathVariables)
             {
-                if (context.EnvironmentVariables.TryGetValue(variableName, out var root) &&
+                if (context.ArchiveRoots.TryGetValue(variableName, out var root) &&
                     !string.IsNullOrWhiteSpace(root))
                 {
                     receipt.ArchiveRoots[variableName] = FingerprintArchiveRoot(root);
@@ -322,7 +322,7 @@ public class LaunchReceiptService(
         {
             (receipt.ArchiveRoots ?? []).TryGetValue(variableName, out var recordedRoot);
             var upcomingRoot =
-                upcoming.EnvironmentVariables.TryGetValue(variableName, out var configured) &&
+                upcoming.ArchiveRoots.TryGetValue(variableName, out var configured) &&
                 !string.IsNullOrWhiteSpace(configured)
                     ? configured
                     : null;
@@ -417,6 +417,11 @@ public class LaunchReceiptService(
         {
             report.DriftedFields.Add(
                 $"Host runtime identifier changed from {recorded.RuntimeIdentifier} to {upcoming.RuntimeIdentifier}");
+        }
+
+        if (recorded.HasVariants != upcoming.HasVariants)
+        {
+            report.DriftedFields.Add($"Manifest variant selection changed from {recorded.HasVariants} to {upcoming.HasVariants}");
         }
 
         if (!(recorded.VariantRuntimeIdentifiers ?? []).SequenceEqual(upcoming.VariantRuntimeIdentifiers ?? [], StringComparer.OrdinalIgnoreCase))
