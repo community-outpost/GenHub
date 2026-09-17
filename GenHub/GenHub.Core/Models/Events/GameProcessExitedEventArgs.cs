@@ -56,7 +56,7 @@ public class GameProcessExitedEventArgs : EventArgs
     public bool TerminationRequested { get; init; }
 
     /// <summary>
-    /// Describes why this exit is a failure, or returns null for a clean or unknown exit.
+    /// Describes why this exit is a failure, or returns null for a clean, unknown, or deliberately requested exit.
     /// </summary>
     /// <remarks>
     /// The single source of the late-failure wording: the launch registry records it and

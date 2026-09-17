@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.Messaging;
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.GameProfile;
@@ -116,13 +115,15 @@ public class LaunchRegistry : ILaunchRegistry
             // The process may have exited before this registration carried its real PID —
             // the placeholder-PID gap. Apply the buffered exit now so the failure is
             // recorded rather than lost to the race.
+            PruneExpiredPendingExits();
             var processId = launchInfo.ProcessInfo.ProcessId;
             if (processId > 0
-                && _pendingExits.TryRemove(processId, out var pendingExit)
+                && _pendingExits.TryGetValue(processId, out var pendingExit)
                 && DateTime.UtcNow - pendingExit.ExitTime <= PendingExitRetention
                 && (pendingExit.ProcessInstanceId == Guid.Empty
                     || pendingExit.ProcessInstanceId == launchInfo.ProcessInfo.ProcessInstanceId))
             {
+                _pendingExits.TryRemove(processId, out _);
                 _logger.LogInformation(
                     "[LaunchRegistry] Applying buffered exit event for PID {ProcessId} to newly registered launch {LaunchId}",
                     processId,
@@ -148,7 +149,7 @@ public class LaunchRegistry : ILaunchRegistry
             if (_activeLaunches.TryRemove(launchId, out var launchInfo))
             {
                 _inspectionFailureCounts.TryRemove(launchId, out _);
-                launchInfo.TerminatedAt = System.DateTime.UtcNow;
+                launchInfo.TerminatedAt ??= DateTime.UtcNow;
                 if (launchInfo.ProcessInfo.IsRunning)
                 {
                     launchInfo.ProcessInfo.IsRunning = false;
@@ -271,11 +272,11 @@ public class LaunchRegistry : ILaunchRegistry
             }
 
             // A manager-assigned identity can enrich a launch already stopped by polling.
-            // Legacy events without an identity may match only live launches; a PID alone
+            // If either side lacks an identity, match only live launches; a PID alone
             // cannot prove which terminated process produced a delayed event.
             var launch = _activeLaunches.Values.FirstOrDefault(
                 l => l.ProcessInfo.ProcessId == e.ProcessId
-                    && (e.ProcessInstanceId != Guid.Empty
+                    && (l.ProcessInfo.ProcessInstanceId != Guid.Empty && e.ProcessInstanceId != Guid.Empty
                         ? l.ProcessInfo.ProcessInstanceId == e.ProcessInstanceId
                         : !l.TerminatedAt.HasValue));
             if (launch != null)

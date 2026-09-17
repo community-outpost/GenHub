@@ -142,7 +142,11 @@ public class NativeClientLaunchIntegrationTests
             // The expected path: it dies during startup and the failure names the reason
             // rather than reporting a bare exit code.
             Assert.False(result.Success);
-            Assert.Contains("exited during startup", string.Join(" ", result.Errors), StringComparison.OrdinalIgnoreCase);
+            var error = string.Join(" ", result.Errors);
+            Assert.True(
+                error.Contains("exited during startup", StringComparison.OrdinalIgnoreCase)
+                || error.Contains("exited immediately", StringComparison.OrdinalIgnoreCase),
+                error);
         }
         finally
         {

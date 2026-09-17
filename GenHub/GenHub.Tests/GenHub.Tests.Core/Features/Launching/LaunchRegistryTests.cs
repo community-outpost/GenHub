@@ -67,6 +67,62 @@ public class LaunchRegistryTests
         Assert.Null(launch.FailureReason);
     }
 
+    /// <summary>Manager events still stop tool launches registered with only a PID.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task IdentifiedExit_ForLiveUnidentifiedTool_PreservesFailureAndExitTimeAsync()
+    {
+        var manager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        var launch = new GameLaunchInfo
+        {
+            LaunchId = "tool-launch",
+            WorkspaceId = "tool-workspace",
+            ProfileId = "tool-profile",
+            ProcessInfo = new GameProcessInfo { ProcessId = 12345, IsRunning = true },
+        };
+        await registry.RegisterLaunchAsync(launch);
+        var exitTime = DateTime.UtcNow.AddSeconds(-1);
+        manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 12345,
+            ProcessInstanceId = Guid.NewGuid(),
+            ExitCode = 1,
+            ExitTime = exitTime,
+        });
+        Assert.False(launch.IsRunning);
+        Assert.True(launch.HasFailed);
+        Assert.Equal(exitTime, launch.TerminatedAt);
+        await registry.UnregisterLaunchAsync(launch.LaunchId);
+        Assert.Equal(exitTime, launch.TerminatedAt);
+    }
+
+    /// <summary>A mismatched registration cannot consume the pending exit for another instance.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task BufferedExit_MismatchedRegistration_PreservesMatchingInstanceAsync()
+    {
+        var manager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        var identity = Guid.NewGuid();
+        manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 12345, ProcessInstanceId = identity, ExitCode = 1,
+        });
+        var launch = new GameLaunchInfo
+        {
+            LaunchId = "buffered-launch",
+            WorkspaceId = "workspace",
+            ProfileId = "profile",
+            ProcessInfo = new GameProcessInfo { ProcessId = 12345, ProcessInstanceId = Guid.NewGuid() },
+        };
+        await registry.RegisterLaunchAsync(launch);
+        Assert.False(launch.HasFailed);
+        launch.ProcessInfo.ProcessInstanceId = identity;
+        await registry.RegisterLaunchAsync(launch);
+        Assert.True(launch.HasFailed);
+    }
+
     /// <summary>Unregistration cannot emit a second stop while an exit transition is being recorded.</summary>
     /// <returns>The asynchronous operation.</returns>
     [Fact]
@@ -115,16 +171,30 @@ public class LaunchRegistryTests
                 ExitCode = 1,
             }));
             Assert.True(exitRecording.Wait(TimeSpan.FromSeconds(5)));
-            var unregister = Task.Run(async () =>
+            var unregisterCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var unregisterThread = new Thread(() =>
             {
                 unregisterStarted.Set();
-                await registry.UnregisterLaunchAsync(launch.LaunchId);
+                try
+                {
+                    registry.UnregisterLaunchAsync(launch.LaunchId).GetAwaiter().GetResult();
+                    unregisterCompletion.SetResult();
+                }
+                catch (Exception ex)
+                {
+                    unregisterCompletion.SetException(ex);
+                }
             });
+            unregisterThread.Start();
+            var unregister = unregisterCompletion.Task;
             Assert.True(unregisterStarted.Wait(TimeSpan.FromSeconds(5)));
 
-            // Without the shared lock, unregistration completes in this window and
-            // the exit transition subsequently sends another stop.
-            await Task.WhenAny(unregister, Task.Delay(100));
+            // Wait for the worker to either finish (a missing-lock regression) or block
+            // on the lock held by the exit handler, rather than assuming a 100 ms race.
+            Assert.True(SpinWait.SpinUntil(
+                () => unregister.IsCompleted || (unregisterThread.ThreadState & ThreadState.WaitSleepJoin) != 0,
+                TimeSpan.FromSeconds(5)));
+            Assert.False(unregister.IsCompleted);
             releaseExit.Set();
             await Task.WhenAll(exit, unregister).WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(1, stops);
@@ -327,7 +397,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ExitEventBeforePidRegistration_IsAppliedWhenTheRealPidArrives()
+    public async Task ExitEventBeforePidRegistration_IsAppliedWhenTheRealPidArrivesAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
         var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
@@ -378,7 +448,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ExitEventDeliveredBeforeAndAfterPidRegistration_IsRecordedOnce()
+    public async Task ExitEventDeliveredBeforeAndAfterPidRegistration_IsRecordedOnceAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
         var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
@@ -438,7 +508,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ExitEventInterleavedWithRegistration_IsNotStranded()
+    public async Task ExitEventInterleavedWithRegistration_IsNotStrandedAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
         var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
@@ -503,7 +573,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RequestedTerminationWithNonZeroExit_IsNotRecordedAsAFailure()
+    public async Task RequestedTerminationWithNonZeroExit_IsNotRecordedAsAFailureAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
         var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
@@ -541,7 +611,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CleanExitBufferedAcrossTheRace_TerminatesWithoutFailure()
+    public async Task CleanExitBufferedAcrossTheRace_TerminatesWithoutFailureAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
         var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);

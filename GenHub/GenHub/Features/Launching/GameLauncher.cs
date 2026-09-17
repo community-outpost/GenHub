@@ -299,7 +299,7 @@ public class GameLauncher(
                     if (!process.Start())
                         return LaunchResult.CreateFailure("Failed to start process", null);
                     var launchDuration = DateTime.UtcNow - startTime;
-                    return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchDuration);
+                    return LaunchResult.CreateSuccess(process.Id, process.StartTime.ToUniversalTime(), launchDuration);
                 },
                 cancellationToken);
         }
