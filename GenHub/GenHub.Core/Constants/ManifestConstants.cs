@@ -336,6 +336,12 @@ public static class ManifestConstants
     /// <summary>Manifest ID segment for game installation content.</summary>
     public const string GameInstallationManifestSegment = ".gameinstallation.";
 
+    /// <summary>Manifest ID segment for game client content.</summary>
+    public const string GameClientManifestSegment = ".gameclient.";
+
+    /// <summary>Manifest ID segment for patch content.</summary>
+    public const string PatchManifestSegment = ".patch.";
+
     /// <summary>Manifest ID segment for game data content.</summary>
     public const string GameDataManifestSegment = ".gamedata.";
 
@@ -347,4 +353,15 @@ public static class ManifestConstants
 
     /// <summary>Manifest ID segment for mod content.</summary>
     public const string ModManifestSegment = ".mod.";
+
+    /// <summary>
+    /// Threshold value for detecting date-based integer versions (e.g. 20260821 for YYYYMMDD format).
+    /// Integer versions greater than or equal to this threshold represent release dates rather than divided version numbers.
+    /// </summary>
+    public const int DateBasedVersionThreshold = 19900000;
+
+    /// <summary>
+    /// Divisor threshold for separating major and minor numeric version numbers (e.g. 104 -> 1.04).
+    /// </summary>
+    public const int NumericVersionDivisorThreshold = 100;
 }

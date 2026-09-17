@@ -1887,6 +1887,14 @@ public class ProfileLauncherFacade(
                 profile.GameInstallationId = resolvedInstallation.Id;
                 logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId}", profileId, resolvedInstallation.Id);
             }
+            else
+            {
+                logger.LogWarning(
+                    "Failed to rebind profile {ProfileId} to installation {InstallationId}: {Error}",
+                    profileId,
+                    resolvedInstallation.Id,
+                    updateResult.FirstError);
+            }
         }
     }
 }

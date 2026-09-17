@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -115,4 +116,9 @@ public partial class ContentDisplayItem : ObservableObject
     /// Gets or sets the underlying content manifest if available.
     /// </summary>
     public ContentManifest? Manifest { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated game client instance, if applicable.
+    /// </summary>
+    public GameClient? GameClient { get; set; }
 }

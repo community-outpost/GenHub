@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using System.Globalization;
 
@@ -109,5 +110,69 @@ public class GameVersionHelperTests
     public void StripVersionPrefix_RemovesLeadingVPrefix(string? tag, string expected)
     {
         Assert.Equal(expected, GameVersionHelper.StripVersionPrefix(tag));
+    }
+
+    /// <summary>
+    /// Verifies that FormatNumericManifestVersion formats versions correctly across different publishers and options.
+    /// </summary>
+    /// <param name="versionNumber">The integer version number.</param>
+    /// <param name="publisherType">The publisher type identifier.</param>
+    /// <param name="includePrefix">Whether to include the 'v' prefix.</param>
+    /// <param name="expected">The expected formatted version string.</param>
+    [Theory]
+    [InlineData(104, PublisherTypeConstants.GeneralsOnline, false, "000104")]
+    [InlineData(104, "GeneralsOnline", true, "000104")]
+    [InlineData(20260821, "TheSuperHackers", false, "20260821")]
+    [InlineData(20260821, null, true, "20260821")]
+    [InlineData(104, null, false, "1.04")]
+    [InlineData(104, null, true, "v1.04")]
+    [InlineData(100, "Retail", false, "1.00")]
+    [InlineData(100, "Retail", true, "v1.00")]
+    [InlineData(106, "CommunityOutpost", false, "1.06")]
+    [InlineData(106, "CommunityOutpost", true, "v1.06")]
+    [InlineData(4, null, false, "4")]
+    [InlineData(4, null, true, "v4")]
+    [InlineData(0, null, false, "")]
+    [InlineData(0, PublisherTypeConstants.GeneralsOnline, true, "")]
+    [InlineData(-1, null, false, "")]
+    public void FormatNumericManifestVersion_FormatsAccordingToContract(
+        int versionNumber,
+        string? publisherType,
+        bool includePrefix,
+        string expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.FormatNumericManifestVersion(versionNumber, publisherType, includePrefix));
+    }
+
+    /// <summary>
+    /// Verifies that TryParseStrictNumericVersion parses numeric formats and rejects alphanumeric/malformed strings.
+    /// </summary>
+    /// <param name="version">The version string to parse.</param>
+    /// <param name="expectedSuccess">Expected parse success.</param>
+    /// <param name="expectedNumeric">Expected numeric value.</param>
+    [Theory]
+    [InlineData("000104", true, 104)]
+    [InlineData("104", true, 104)]
+    [InlineData("1.04", true, 104)]
+    [InlineData("v1.04", true, 104)]
+    [InlineData("V1.06", true, 106)]
+    [InlineData("1.00", true, 100)]
+    [InlineData("20260821", true, 20260821)]
+    [InlineData("1.04b", false, 0)]
+    [InlineData("1.00alpha", false, 0)]
+    [InlineData("1.0.4", false, 0)]
+    [InlineData("101525_QFE2", false, 0)]
+    [InlineData("0", false, 0)]
+    [InlineData("", false, 0)]
+    [InlineData(null, false, 0)]
+    [InlineData("   ", false, 0)]
+    public void TryParseStrictNumericVersion_ParsesStrictNumericFormats(
+        string? version,
+        bool expectedSuccess,
+        int expectedNumeric)
+    {
+        var success = GameVersionHelper.TryParseStrictNumericVersion(version, out var result);
+        Assert.Equal(expectedSuccess, success);
+        Assert.Equal(expectedNumeric, result);
     }
 }

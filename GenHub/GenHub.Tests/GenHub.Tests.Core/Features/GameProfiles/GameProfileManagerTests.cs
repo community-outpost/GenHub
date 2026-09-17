@@ -632,6 +632,372 @@ public class GameProfileManagerTests
         }
     }
 
+    /// <summary>
+    /// Verifies that UpdateProfileAsync resolves fallback game client from installation when client is omitted and enabled content matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_ResolveFallbackGameClient_When_ClientMatchedInInstallationAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var fallbackClientId = "fallback-client-id";
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "old-client-id", Version = "1.0" },
+            EnabledContentIds = [fallbackClientId],
+        };
+        var request = new UpdateProfileRequest
+        {
+            Name = "Updated Profile",
+            GameClient = null,
+            EnabledContentIds = [fallbackClientId],
+        };
+
+        var matchedClient = new GameClient { Id = fallbackClientId, Version = "2.0", GameType = GameType.Generals };
+        var testInstallation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Retail)
+        {
+            Id = "install-1",
+            AvailableGameClients = [matchedClient],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-1", default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(testInstallation));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(request.GameClient);
+        Assert.Equal(fallbackClientId, request.GameClient.Id);
+        _profileRepositoryMock.Verify(x => x.SaveProfileAsync(It.Is<GameProfile>(p => p.GameClient != null && p.GameClient.Id == fallbackClientId), default), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync propagates OperationCanceledException when cancellation is requested.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_PropagateCancellation_When_CancelledDuringFallbackResolutionAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = null,
+            EnabledContentIds = ["some-client-id"],
+        };
+        var request = new UpdateProfileRequest
+        {
+            GameClient = null,
+            EnabledContentIds = ["some-client-id"],
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, cts.Token))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-1", cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _profileManager.UpdateProfileAsync(profileId, request, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync gracefully handles failure when installation lookup fails during fallback resolution.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_Succeed_When_InstallationLookupFailsAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingClient = new GameClient
+        {
+            Id = "existing-client-id",
+            Name = "Existing Client",
+            Version = "1.0",
+            GameType = GameType.Generals,
+        };
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = existingClient,
+            EnabledContentIds = ["some-client-id"],
+        };
+        var request = new UpdateProfileRequest
+        {
+            Name = "Updated Name",
+            GameClient = null,
+            EnabledContentIds = ["some-client-id"],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-1", default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateFailure("Installation not found"));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Null(request.GameClient);
+        _profileRepositoryMock.Verify(
+            x => x.SaveProfileAsync(
+                It.Is<GameProfile>(p => p.Name == "Updated Name" && p.GameClient == existingClient),
+                default),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync rejects update when game installation changes and no compatible client exists in the new installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_RejectUpdate_When_GameInstallationChangesAndNoCompatibleClientExistsAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "old-client-id", Version = "1.0", GameType = GameType.Generals },
+            EnabledContentIds = ["old-client-id"],
+        };
+        var request = new UpdateProfileRequest
+        {
+            GameInstallationId = "install-2",
+            GameClient = null,
+            EnabledContentIds = ["old-client-id"],
+        };
+
+        var newInstallation = new GameInstallation("C:\\Games\\Generals2", GameInstallationType.Retail)
+        {
+            Id = "install-2",
+            AvailableGameClients = [new GameClient { Id = "new-client-id", Version = "2.0", GameType = GameType.Generals }],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-2", default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(newInstallation));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("No compatible game client found in installation 'install-2'", result.Errors.First());
+        _profileRepositoryMock.Verify(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync resolves game client from new installation when game installation changes and matching client is enabled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_ResolveClientFromNewInstallation_When_GameInstallationChangesAndMatchingClientExistsAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "old-client-id", Version = "1.0", GameType = GameType.Generals },
+            EnabledContentIds = ["old-client-id"],
+        };
+        var request = new UpdateProfileRequest
+        {
+            GameInstallationId = "install-2",
+            GameClient = null,
+            EnabledContentIds = ["new-client-id"],
+        };
+
+        var newClient = new GameClient { Id = "new-client-id", Version = "2.0", GameType = GameType.Generals };
+        var newInstallation = new GameInstallation("C:\\Games\\Generals2", GameInstallationType.Retail)
+        {
+            Id = "install-2",
+            AvailableGameClients = [newClient],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-2", default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(newInstallation));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(request.GameClient);
+        Assert.Equal("new-client-id", request.GameClient.Id);
+        _profileRepositoryMock.Verify(
+            x => x.SaveProfileAsync(
+                It.Is<GameProfile>(p => p.GameInstallationId == "install-2" && p.GameClient != null && p.GameClient.Id == "new-client-id"),
+                default),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync rejects update when game installation changes and explicit client is incompatible.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_RejectUpdate_When_GameInstallationChangesAndExplicitClientIncompatibleAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0", GameType = GameType.Generals },
+            EnabledContentIds = ["client-1"],
+        };
+        var request = new UpdateProfileRequest
+        {
+            GameInstallationId = "install-2",
+            GameClient = new GameClient { Id = "incompatible-client", Version = "1.0", GameType = GameType.Generals },
+            EnabledContentIds = ["incompatible-client"],
+        };
+
+        var newInstallation = new GameInstallation("C:\\Games\\Generals2", GameInstallationType.Retail)
+        {
+            Id = "install-2",
+            AvailableGameClients = [new GameClient { Id = "client-2", Version = "2.0", GameType = GameType.Generals }],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-2", default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(newInstallation));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("is not available in installation 'install-2'", result.Errors.First());
+        _profileRepositoryMock.Verify(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync resolves a client from the new installation when numeric versions match across different formats (e.g. 000104 and 1.04).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_ResolveClientFromNewInstallation_When_NumericVersionMatchesAcrossFormatsAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "old-client-id", Version = "000104", GameType = GameType.Generals, IsEnabled = true },
+            EnabledContentIds = [],
+        };
+        var request = new UpdateProfileRequest
+        {
+            GameInstallationId = "install-2",
+            GameClient = null,
+        };
+
+        var newClient = new GameClient { Id = "new-client-id", Version = "1.04", GameType = GameType.Generals, IsEnabled = true };
+        var newInstallation = new GameInstallation("C:\\Games\\Generals2", GameInstallationType.Retail)
+        {
+            Id = "install-2",
+            AvailableGameClients = [newClient],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-2", default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(newInstallation));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(request.GameClient);
+        Assert.Equal("new-client-id", request.GameClient.Id);
+        Assert.Equal("1.04", request.GameClient.Version);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync rejects update when an alphanumeric version suffix prevents false-positive numeric equivalence.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_RejectUpdate_When_VersionHasAlphanumericSuffixAndDoesNotMatchAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "old-client-id", Version = "1.04b", GameType = GameType.Generals, IsEnabled = true },
+            EnabledContentIds = [],
+        };
+        var request = new UpdateProfileRequest
+        {
+            GameInstallationId = "install-2",
+            GameClient = null,
+        };
+
+        var newClient = new GameClient { Id = "new-client-id", Version = "1.00", GameType = GameType.Generals, IsEnabled = true };
+        var newInstallation = new GameInstallation("C:\\Games\\Generals2", GameInstallationType.Retail)
+        {
+            Id = "install-2",
+            AvailableGameClients = [newClient],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _installationServiceMock.Setup(x => x.GetInstallationAsync("install-2", default))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(newInstallation));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("No compatible game client found in installation 'install-2'", result.Errors.First());
+        _profileRepositoryMock.Verify(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default), Times.Never);
+    }
+
     private static GameInstallation CreateTestInstallation(string clientId)
     {
         return new GameInstallation("C:\\Games\\Generals", GameInstallationType.Retail)

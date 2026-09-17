@@ -943,8 +943,8 @@ public sealed class ProfileContentService(
 
         var filteredIds = enabledContentIds
             .Where(id =>
-                !id.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase) &&
-                !id.Contains(".gameclient.", StringComparison.OrdinalIgnoreCase))
+                !id.Contains(ManifestConstants.GameInstallationManifestSegment, StringComparison.OrdinalIgnoreCase) &&
+                !id.Contains(ManifestConstants.GameClientManifestSegment, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

@@ -706,6 +706,8 @@ public partial class AddLocalContentViewModel(
                     SourceId = SourcePath, // Preserve legacy field for compatibility
                     IsEnabled = false,
                     IsEditable = true,
+                    Manifest = manifest,
+                    GameClient = Services.ProfileContentLoader.CreateGameClientFromManifest(manifest),
                 };
 
                 // CleanupStaging(); // Moved to finally block

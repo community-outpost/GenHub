@@ -207,6 +207,12 @@ public class GameProfileManager(
                 }
             }
 
+            var fallbackResult = await ResolveFallbackGameClientAsync(profile, request, cancellationToken);
+            if (fallbackResult != null)
+            {
+                return fallbackResult;
+            }
+
             if (request.Name != null)
             {
                 var nameValidationResult = ValidateAndApplyProfileName(profile, request.Name);
@@ -221,6 +227,10 @@ public class GameProfileManager(
             GameSettingsMapper.UpdateFromRequest(profile, request);
 
             return await SaveAndNotifyProfileUpdatedAsync(profile, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -380,12 +390,7 @@ public class GameProfileManager(
         }
 
         if (profile.GameClient == null ||
-            !string.Equals(requestedClient.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.ExecutablePath, profile.GameClient.ExecutablePath, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.WorkingDirectory, profile.GameClient.WorkingDirectory, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(requestedClient.InstallationId, profile.GameClient.InstallationId, StringComparison.OrdinalIgnoreCase) ||
-            requestedClient.GameType != profile.GameClient.GameType)
+            !string.Equals(requestedClient.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase))
         {
             return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change game client while profile is running.");
         }
@@ -427,6 +432,120 @@ public class GameProfileManager(
 
         profile.Name = name;
         return null;
+    }
+
+    /// <summary>
+    /// Attempts to resolve a fallback game client from the profile installation when the request omits the game client,
+    /// or validates client compatibility when the profile's installation is changing.
+    /// </summary>
+    private async Task<ProfileOperationResult<GameProfile>?> ResolveFallbackGameClientAsync(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var isInstallationChanging = !string.IsNullOrEmpty(request.GameInstallationId) &&
+            !string.Equals(request.GameInstallationId, profile.GameInstallationId, StringComparison.OrdinalIgnoreCase);
+
+        if (isInstallationChanging)
+        {
+            return await HandleInstallationChangeClientResolutionAsync(profile, request, cancellationToken);
+        }
+
+        await ResolveClientForCurrentInstallationAsync(profile, request, cancellationToken);
+        return null;
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>?> HandleInstallationChangeClientResolutionAsync(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var newInstallationResult = await installationService.GetInstallationAsync(request.GameInstallationId!, cancellationToken);
+        if (newInstallationResult is not { Success: true, Data.AvailableGameClients: not null })
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                newInstallationResult?.Errors?.FirstOrDefault() ?? $"Failed to load installation '{request.GameInstallationId}'.");
+        }
+
+        var availableClients = newInstallationResult.Data.AvailableGameClients;
+        if (request.GameClient != null)
+        {
+            var isCompatible = availableClients.Any(c =>
+                c.IsEnabled &&
+                string.Equals(c.Id, request.GameClient.Id, StringComparison.OrdinalIgnoreCase));
+            if (!isCompatible)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(
+                    $"Game client '{request.GameClient.Id}' is not available in installation '{request.GameInstallationId}'.");
+            }
+
+            request.GameClient = request.GameClient.Clone();
+            return null;
+        }
+
+        var enabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
+        var matchedClient = availableClients.FirstOrDefault(c =>
+            c.IsEnabled && enabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+
+        if (matchedClient == null && profile.GameClient != null)
+        {
+            var hasTargetNumeric = GameVersionHelper.TryParseStrictNumericVersion(profile.GameClient.Version, out var targetNumeric);
+            matchedClient = availableClients.FirstOrDefault(c =>
+                c.IsEnabled &&
+                c.GameType == profile.GameClient.GameType &&
+                (string.Equals(c.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase) ||
+                 (hasTargetNumeric &&
+                  GameVersionHelper.TryParseStrictNumericVersion(c.Version, out var clientNumeric) &&
+                  clientNumeric == targetNumeric)));
+        }
+
+        if (matchedClient == null && profile.GameClient == null && request.EnabledContentIds == null)
+        {
+            matchedClient = availableClients.FirstOrDefault(c => c.IsEnabled);
+        }
+
+        if (matchedClient != null)
+        {
+            request.GameClient = matchedClient.Clone();
+            return null;
+        }
+
+        return ProfileOperationResult<GameProfile>.CreateFailure(
+            $"No compatible game client found in installation '{request.GameInstallationId}' for profile update.");
+    }
+
+    private async Task ResolveClientForCurrentInstallationAsync(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var installationId = profile.GameInstallationId;
+        if (request.GameClient != null || request.EnabledContentIds == null || string.IsNullOrEmpty(installationId))
+        {
+            return;
+        }
+
+        var installationResult = await installationService.GetInstallationAsync(installationId, cancellationToken);
+        if (installationResult is { Success: true, Data.AvailableGameClients: not null })
+        {
+            var availableClients = installationResult.Data.AvailableGameClients;
+            GameClient? matchedClient = null;
+
+            if (profile.GameClient != null &&
+                request.EnabledContentIds.Contains(profile.GameClient.Id, StringComparer.OrdinalIgnoreCase))
+            {
+                matchedClient = availableClients.FirstOrDefault(c =>
+                    c.IsEnabled && string.Equals(c.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase));
+            }
+
+            matchedClient ??= availableClients.FirstOrDefault(c =>
+                c.IsEnabled && request.EnabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+
+            if (matchedClient != null)
+            {
+                request.GameClient = matchedClient.Clone();
+            }
+        }
     }
 
     /// <summary>
@@ -607,7 +726,12 @@ public class GameProfileManager(
     {
         profile.Description = request.Description ?? profile.Description;
         profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
-        profile.GameClient = request.GameClient ?? profile.GameClient;
+
+        if (request.GameClient != null)
+        {
+            profile.GameClient = request.GameClient;
+        }
+
         profile.WorkspaceStrategy = request.ClearWorkspaceStrategy
             ? null
             : request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
