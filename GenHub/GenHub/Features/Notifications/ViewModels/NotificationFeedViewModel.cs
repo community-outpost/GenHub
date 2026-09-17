@@ -3,9 +3,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
@@ -66,14 +68,17 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// <param name="notificationService">The notification service.</param>
     /// <param name="loggerFactory">The logger factory.</param>
     /// <param name="logger">The logger instance.</param>
+    /// <param name="localizationService">The optional localization service.</param>
     public NotificationFeedViewModel(
         INotificationService notificationService,
         ILoggerFactory loggerFactory,
-        ILogger<NotificationFeedViewModel> logger)
+        ILogger<NotificationFeedViewModel> logger,
+        ILocalizationService? localizationService = null)
     {
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = logger;
+        _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
 
         NotificationHistory = [];
         UnreadCount = 0;
@@ -125,7 +130,8 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
                     message,
                     MarkAsRead,
                     DismissNotification,
-                    _loggerFactory.CreateLogger<NotificationFeedItemViewModel>());
+                    _loggerFactory.CreateLogger<NotificationFeedItemViewModel>(),
+                    _localizationService);
 
                 NotificationHistory.Insert(0, feedItem);
 
@@ -164,6 +170,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     private readonly INotificationService _notificationService;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<NotificationFeedViewModel> _logger;
+    private readonly ILocalizationService? _localizationService;
     private readonly IDisposable _historySubscription;
     private readonly object _stateLock = new();
     private bool _disposed;
@@ -269,6 +276,11 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         {
             lock (_stateLock)
             {
+                foreach (var item in NotificationHistory)
+                {
+                    item.Dispose();
+                }
+
                 NotificationHistory.Clear();
                 UnreadCount = 0;
                 BadgeCount = 0;
@@ -296,6 +308,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
                 if (item != null)
                 {
                     NotificationHistory.Remove(item);
+                    item.Dispose();
                     UpdateUnreadCount();
                     OnPropertyChanged(nameof(HasNotifications));
                 }

@@ -2,10 +2,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="using:GenHub.Features.AppUpdate.Views"
         xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
         x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationWindow"
         Width="1200" Height="800"
         MinWidth="700" MinHeight="520"
-        Title="GenHub Updates"
+        Title="{localization:Localize Updates.Window.Title}"
         Icon="/Assets/Icons/generalshub-icon.png"
         WindowStartupLocation="CenterScreen"
         SystemDecorations="Full"
@@ -49,7 +50,7 @@
                     <Image Source="/Assets/Icons/generalshub-icon.png"
                            Width="28" Height="28"
                            Margin="8,0,0,0" />
-                    <TextBlock Text="GenHub Updates"
+                    <TextBlock Text="{localization:Localize Updates.Window.Title}"
                               VerticalAlignment="Center"
                               FontSize="16" FontWeight="SemiBold"
                               Foreground="White" />
@@ -64,7 +65,7 @@
                             Foreground="#CCCCCC"
                             BorderThickness="0"
                             Width="32" Height="32"
-                            ToolTip.Tip="Maximize / Restore"
+                            ToolTip.Tip="{localization:Localize Common.Tooltip.MaximizeRestore}"
                             Click="MaximizeButton_Click">
                         <Viewbox Width="12" Height="12"
                                  HorizontalAlignment="Center"
@@ -91,9 +92,9 @@
                             Foreground="#CCCCCC"
                             BorderThickness="0"
                             Width="32" Height="32"
-                            AutomationProperties.Name="Close"
+                            AutomationProperties.Name="{localization:Localize Window.Close}"
                             AutomationProperties.AccessKey="Alt+F4"
-                            ToolTip.Tip="Close window"
+                            ToolTip.Tip="{localization:Localize Common.Tooltip.CloseWindow}"
                             Click="CloseButton_Click">
                         <Viewbox Width="12" Height="12"
                                  HorizontalAlignment="Center"

@@ -12,6 +12,9 @@ public class UserSettings
     /// <summary>Gets or sets the application theme preference.</summary>
     public string? Theme { get; set; } = GenHub.Core.Constants.AppConstants.DefaultThemeName;
 
+    /// <summary>Gets or sets the preferred UI language code (e.g. "en").</summary>
+    public string? Language { get; set; } = GenHub.Core.Constants.LocalizationConstants.DefaultCultureName;
+
     /// <summary>Gets or sets the main window width in pixels.</summary>
     public double WindowWidth { get; set; } = GenHub.Core.Constants.UiConstants.DefaultWindowWidth;
 
@@ -191,6 +194,7 @@ public class UserSettings
         return new UserSettings
         {
             Theme = Theme,
+            Language = Language,
             WindowWidth = WindowWidth,
             WindowHeight = WindowHeight,
             IsMaximized = IsMaximized,

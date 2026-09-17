@@ -2,10 +2,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,6 +18,7 @@ namespace GenHub.Windows.Features.ActionSets.UI;
 /// <summary>
 /// View model for an individual action set.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ActionSetViewModel accepts operational delegates, installation context, and services for localized action set execution.")]
 public partial class ActionSetViewModel(
     IActionSet actionSet,
     GameInstallation installation,
@@ -23,7 +26,8 @@ public partial class ActionSetViewModel(
     ILogger logger,
     Action? onStatusChanged = null,
     Action? onBusyChanged = null,
-    Func<bool>? isParentBusy = null) : ObservableObject
+    Func<bool>? isParentBusy = null,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     /// <summary>
     /// Gets the underlying action set.
@@ -33,22 +37,38 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets the title of the action set.
     /// </summary>
-    public string Title => ActionSet.Title;
+    public string Title => ResolveString($"Tools.GenPatcher.Fix.{ActionSet.Id}.Title", ActionSet.Title);
 
     /// <summary>
     /// Gets the concise description of the action set.
     /// </summary>
-    public string Description => ActionSet.Description;
+    public string Description => ResolveString($"Tools.GenPatcher.Fix.{ActionSet.Id}.Description", ActionSet.Description);
 
     /// <summary>
     /// Gets the detailed description of what the action set does.
     /// </summary>
-    public string DetailedDescription => ActionSet.DetailedDescription;
+    public string DetailedDescription => ResolveString($"Tools.GenPatcher.Fix.{ActionSet.Id}.DetailedDescription", ActionSet.DetailedDescription);
+
+    /// <summary>
+    /// Gets the invariant raw category of the action set.
+    /// </summary>
+    public string RawCategory => ActionSet.Category;
 
     /// <summary>
     /// Gets the category of the action set.
     /// </summary>
-    public string Category => ActionSet.Category;
+    public string Category => localizationService switch
+    {
+        null => ActionSet.Category,
+        _ => ActionSet.Category switch
+        {
+            ActionSetConstants.Categories.CoreAndStability or "Core & Stability" => localizationService.GetString("Tools.GenPatcher.Category.Core") ?? ActionSet.Category,
+            ActionSetConstants.Categories.Compatibility or "Compatibility" => localizationService.GetString("Tools.GenPatcher.Category.Compatibility") ?? ActionSet.Category,
+            ActionSetConstants.Categories.Multiplayer or "Multiplayer" => localizationService.GetString("Tools.GenPatcher.Category.Multiplayer") ?? ActionSet.Category,
+            ActionSetConstants.Categories.QualityOfLife or "Quality of Life" => localizationService.GetString("Tools.GenPatcher.Category.QualityOfLife") ?? ActionSet.Category,
+            _ => ActionSet.Category,
+        },
+    };
 
     /// <summary>
     /// Gets a value indicating whether this is a core fix.
@@ -63,7 +83,7 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets a value indicating whether this fix has a detailed description available.
     /// </summary>
-    public bool HasDetailedDescription => !string.IsNullOrWhiteSpace(ActionSet.DetailedDescription);
+    public bool HasDetailedDescription => !string.IsNullOrWhiteSpace(DetailedDescription);
 
     [ObservableProperty]
     private bool isExpanded;
@@ -117,9 +137,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusDisplay => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "APPLIED",
-        (false, true) => "NOT APPLIED",
-        (false, false) => "NOT APPLICABLE",
+        (true, _) => localizationService?.GetString("Tools.GenPatcher.Status.Applied") ?? "APPLIED",
+        (false, true) => localizationService?.GetString("Tools.GenPatcher.Status.NotApplied") ?? "NOT APPLIED",
+        (false, false) => localizationService?.GetString("Tools.GenPatcher.Status.NotApplicable") ?? "NOT APPLICABLE",
     };
 
     /// <summary>
@@ -197,6 +217,18 @@ public partial class ActionSetViewModel(
                 ActionSet.Title,
                 ActionSet.Id);
         }
+    }
+
+    /// <summary>
+    /// Refreshes properties that depend on dynamic localization.
+    /// </summary>
+    public void RefreshLocalizedStrings()
+    {
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(DetailedDescription));
+        OnPropertyChanged(nameof(StatusDisplay));
+        OnPropertyChanged(nameof(Category));
     }
 
     /// <summary>
@@ -367,5 +399,16 @@ public partial class ActionSetViewModel(
         notificationService.ShowError(
             $"Fix Failed: {ActionSet.Title}",
             detailsText);
+    }
+
+    private string ResolveString(string key, string fallback)
+    {
+        if (localizationService == null)
+        {
+            return fallback;
+        }
+
+        var val = localizationService.GetString(key);
+        return (!string.IsNullOrEmpty(val) && !string.Equals(val, key, StringComparison.Ordinal)) ? val : fallback;
     }
 }

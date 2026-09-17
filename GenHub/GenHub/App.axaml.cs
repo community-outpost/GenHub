@@ -17,9 +17,11 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -81,6 +83,36 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        try
+        {
+            var configuredLanguage = _userSettingsService.Get()?.Language;
+            if (!string.IsNullOrWhiteSpace(configuredLanguage))
+            {
+                try
+                {
+                    var result = _localizationService.SetCulture(new CultureInfo(configuredLanguage));
+                    if (!result.Success)
+                    {
+                        var logger = _serviceProvider?.GetService<ILogger<App>>();
+                        logger?.LogWarning(
+                            "Failed to apply configured language '{Language}': {Errors}; falling back to default",
+                            configuredLanguage,
+                            string.Join(", ", result.Errors));
+                    }
+                }
+                catch (CultureNotFoundException ex)
+                {
+                    var logger = _serviceProvider?.GetService<ILogger<App>>();
+                    logger?.LogWarning(ex, "Configured language '{Language}' was not recognized; falling back to default", configuredLanguage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            var logger = _serviceProvider?.GetService<ILogger<App>>();
+            logger?.LogWarning(ex, "Failed to load or apply configured language; falling back to default");
+        }
+
         // Make localization available while application XAML resources are loading.
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
@@ -170,7 +202,8 @@ public partial class App : Application
                 subscriptionStore,
                 catalogParser,
                 httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName),
-                vmLogger);
+                vmLogger,
+                _localizationService);
 
             var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);
             if (confirmed)
@@ -481,7 +514,9 @@ public partial class App : Application
 
         logger?.LogInformation("User confirmed subscription to: {Url}", targetUrl);
         var notificationService = _serviceProvider.GetService<INotificationService>();
-        notificationService?.ShowSuccess("Subscribed", "Successfully subscribed to content catalog.");
+        var title = LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Downloads.Subscription.SubscribedNotificationTitle", "Subscribed");
+        var message = LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Downloads.Subscription.SubscribedNotificationMessage", "Successfully subscribed to content catalog.");
+        notificationService?.ShowSuccess(title, message);
     }
 
     private async Task RepairShortcutsAsync()

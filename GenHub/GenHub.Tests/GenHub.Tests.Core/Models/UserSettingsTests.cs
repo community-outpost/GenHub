@@ -75,4 +75,57 @@ public class UserSettingsTests
         // Act & Assert
         Assert.Null(settings.SkippedVersion);
     }
+
+    /// <summary>
+    /// Verifies that Language defaults to the default culture name.
+    /// </summary>
+    [Fact]
+    public void Language_DefaultsToLocalizationConstantsDefaultCultureName()
+    {
+        // Arrange & Act
+        var settings = new UserSettings();
+
+        // Assert
+        Assert.Equal(GenHub.Core.Constants.LocalizationConstants.DefaultCultureName, settings.Language);
+    }
+
+    /// <summary>
+    /// Verifies that Clone copies the Language property.
+    /// </summary>
+    [Fact]
+    public void Clone_CopiesLanguageProperty()
+    {
+        // Arrange
+        var settings = new UserSettings
+        {
+            Language = "ar-SA",
+        };
+
+        // Act
+        var clone = settings.Clone();
+
+        // Assert
+        Assert.Equal("ar-SA", clone.Language);
+    }
+
+    /// <summary>
+    /// Verifies that Language survives JSON serialization round-trip.
+    /// </summary>
+    [Fact]
+    public void Language_SerializesAndDeserializesCorrectly()
+    {
+        // Arrange
+        var settings = new UserSettings
+        {
+            Language = "ru-RU",
+        };
+
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(settings);
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(json);
+
+        // Assert
+        Assert.NotNull(deserialized);
+        Assert.Equal("ru-RU", deserialized.Language);
+    }
 }

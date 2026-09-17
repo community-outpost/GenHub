@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
              x:DataType="vm:GameProfileItemViewModel"
@@ -278,7 +279,7 @@
         <!-- Context Menu (Right Click) -->
         <Border.ContextMenu>
             <ContextMenu>
-                <MenuItem Header="Launch"
+                <MenuItem Header="{localization:Localize Common.Button.Launch}"
                           Command="{Binding LaunchProfileCommand}"
                           IsVisible="{Binding CanLaunch}">
                     <MenuItem.Icon>
@@ -286,26 +287,26 @@
                     </MenuItem.Icon>
                 </MenuItem>
                 <Separator IsVisible="{Binding CanLaunch}" />
-                <MenuItem Header="Edit Profile"
+                <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.EditProfile}"
                           Command="{Binding EditProfileCommand}">
                     <MenuItem.Icon>
                         <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Create Shortcut"
+                <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.CreateShortcut}"
                           Command="{Binding CreateShortcutCommand}">
                     <MenuItem.Icon>
                         <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Copy Profile"
+                <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.CopyProfile}"
                           Command="{Binding CopyProfileCommand}">
                     <MenuItem.Icon>
                         <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <Separator />
-                <MenuItem Header="Delete Profile"
+                <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.DeleteProfile}"
                           Command="{Binding DeleteProfileCommand}"
                           Foreground="#EF4444">
                     <MenuItem.Icon>
@@ -408,7 +409,7 @@
                         </Border>
 
                         <Border Classes="badge" IsVisible="{Binding RunAsAdmin}" BorderBrush="#EF4444" Background="#20EF4444">
-                            <TextBlock Classes="badge-text" Text="ADMIN" Foreground="#EF4444" />
+                            <TextBlock Classes="badge-text" Text="{localization:Localize GameProfiles.Badge.Admin}" Foreground="#EF4444" />
                         </Border>
                     </WrapPanel>
                 </StackPanel>
@@ -423,13 +424,12 @@
 
                     <!-- Launch Button Center -->
                     <Button Classes="launch-button"
-                            Content="LAUNCH"
                             Command="{Binding LaunchProfileCommand}"
                             IsVisible="{Binding CanLaunch}">
                         <Button.Content>
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="14" Height="14" />
-                                <TextBlock Text="LAUNCH" VerticalAlignment="Center" FontWeight="Bold"/>
+                                <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Launch}" VerticalAlignment="Center" FontWeight="Bold"/>
                             </StackPanel>
                         </Button.Content>
                     </Button>
@@ -440,7 +440,7 @@
                         <Grid>
                             <ToggleButton Classes="tool-button steam-toggle"
                                           IsChecked="{Binding UseSteamLaunch}"
-                                          ToolTip.Tip="Toggle Steam Integration"
+                                          ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}"
                                           IsVisible="{Binding IsSteamInstallation}"
                                           Background="Transparent"
                                           Command="{Binding ToggleSteamLaunchCommand}"
@@ -453,7 +453,7 @@
                         <!-- Edit Button -->
                         <Button Classes="tool-button"
                                 Command="{Binding EditProfileCommand}"
-                                ToolTip.Tip="Edit Profile">
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.EditProfile}">
                             <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                                       Width="14" Height="14" />
                         </Button>
@@ -461,7 +461,7 @@
                         <!-- Copy Button -->
                         <Button Classes="tool-button"
                                 Command="{Binding CopyProfileCommand}"
-                                ToolTip.Tip="Copy Profile">
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}">
                             <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
                                       Width="14" Height="14" />
                         </Button>
@@ -470,7 +470,7 @@
                         <Grid>
                             <Button Classes="tool-button"
                                     Command="{Binding CreateShortcutCommand}"
-                                    ToolTip.Tip="Create Desktop Shortcut">
+                                    ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}">
                                 <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"
                                           Width="14" Height="14" />
                             </Button>
@@ -480,7 +480,7 @@
                         <Button Classes="tool-button delete-btn"
                                 Command="{Binding DeleteProfileCommand}"
                                 Foreground="#EF4444"
-                                ToolTip.Tip="Delete Profile">
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}">
                             <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
                                       Width="14" Height="14" />
                         </Button>
@@ -545,7 +545,7 @@
                         </Button.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Data="M18,18H6V6H18V18Z" Width="14" Height="14" Foreground="White" />
-                            <TextBlock Text="STOP" VerticalAlignment="Center" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Stop}" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
                     </Button>
 
@@ -578,7 +578,7 @@
                                      </Style>
                                  </Ellipse.Styles>
                              </Ellipse>
-                             <TextBlock Text="RUNNING" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                             <TextBlock Text="{localization:Localize GameProfiles.Card.Status.Running}" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
 
@@ -587,7 +587,7 @@
                         <!-- Edit Button -->
                         <Button Classes="tool-button"
                                 Command="{Binding EditProfileCommand}"
-                                ToolTip.Tip="Edit Profile (Hotswap Content)">
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.EditProfileHotswap}">
                             <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                                       Width="14" Height="14" />
                         </Button>
@@ -595,7 +595,7 @@
                         <!-- Copy Button -->
                         <Button Classes="tool-button"
                                 Command="{Binding CopyProfileCommand}"
-                                ToolTip.Tip="Copy Profile">
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}">
                             <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
                                       Width="14" Height="14" />
                         </Button>
@@ -603,7 +603,7 @@
                         <!-- Create Shortcut -->
                         <Button Classes="tool-button"
                                 Command="{Binding CreateShortcutCommand}"
-                                ToolTip.Tip="Create Desktop Shortcut">
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}">
                             <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"
                                       Width="14" Height="14" />
                         </Button>

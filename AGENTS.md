@@ -45,11 +45,12 @@ When communicating and reasoning about GenHub, use this language:
 - **workspace** means the active, materialized directory containing linked/deployed game files where the game executable actually runs.
 - **profile** means a player-configured setup of game version, active mods, maps, and configuration settings.
 
-## The three ways to hurt yourself
+## The four ways to hurt yourself
 
 1. **Blind symbol edits.** Never modify core interfaces, storage services, or launcher models without checking caller chains. Modifying a signature in `ICasService`, `IProfileContentService`, or `IContentReconciliationService` can break Windows launch receipts, Linux symlink handlers, and macOS composition roots simultaneously.
 2. **Throwing exceptions for control flow.** Never throw custom exceptions for predictable domain failure states (file missing, validation failure, hash mismatch, network failure). Return `OperationResult<T>.CreateFailure(...)`. Cooperative cancellation (`OperationCanceledException`) and contract invariant violations (`ArgumentNullException`, invalid arguments) should follow standard .NET exception semantics.
 3. **Hardcoding paths and magic strings.** Never hardcode backslashes `\`, magic constants, URLs, or regexes inline. Always use `Path.Combine` and centralized constants from `GenHub.Core.Constants`.
+4. **Hardcoding UI strings.** Never hardcode user-facing strings in XAML views or ViewModels. Always define strings in `GenHub/GenHub/Resources/Localization/Strings.resx` (and maintain strict 1:1 parity with satellite resources: `Strings.ar.resx`, `Strings.ru.resx`, etc.) and reference them via `{localization:Localize ResourceKey}` (namespace `clr-namespace:GenHub.Common.Markup`) in XAML or `ILocalizationService.GetString("ResourceKey")` in C# code. Dynamic lists and view model collections must react to culture change events from `ILocalizationService`.
 
 ## Hit every surface
 
@@ -60,6 +61,7 @@ The most common defect in this repository is a change that works on one platform
 - **Constants:** Adhere strictly to `docs/dev/constants.md`. Put constants in `GenHub.Core.Constants` static classes.
 - **UI & Styling:** Adhere strictly to `docs/dev/ui-styling.md` and `docs/dev/window-styling.md`. All views and controls must bind to semantic theme tokens from `ThemeResources.axaml` via `{DynamicResource ...}` and use shared controls from `GenHub.Common.Controls` (such as `SidebarLayout`). Never use hardcoded color hexes or custom sidebars. When working on UI, views, or styling, use relevant UI, UX, and design skills to verify layout, accessibility, and visual consistency.
 - **User Feedback & Notification Toasts (`INotificationService`):** All user-facing operation results, completion notices (e.g., saves, downloads, deletions, hotkey updates, preset applications, installs), warnings, and error alerts MUST be delivered via `INotificationService` toast notifications (`ShowSuccess`, `ShowInfo`, `ShowWarning`, `ShowError`) with appropriate `NotificationDurations` constants. Never create or rely on ad-hoc status labels, status text blocks, or inline status properties (such as `<TextBlock Text="{Binding StatusMessage}" />` or `StatusText` labels at the bottom of views). Status labels are easily missed and fragment UX; `INotificationService` provides animated, auto-dismissing toasts and archives them into the persistent notification feed.
+- **Localization:** Adhere strictly to `docs/dev/localization.md`. Every user-facing UI string (labels, button text, tooltips, dialog titles/messages, placeholders, status messages, faction names, error messages shown to users) must be cataloged in `GenHub/GenHub/Resources/Localization/Strings.resx` with strict 1:1 parity in `Strings.ar.resx` and `Strings.ru.resx`. In Avalonia views, bind with `{localization:Localize Key}` (`xmlns:localization="clr-namespace:GenHub.Common.Markup"`). In ViewModels/services, inject `ILocalizationService` and call `_localizationService.GetString("Key")`. In navigation/sidebar collections, refresh localized titles on `ILocalizationService.PropertyChanged`. Never hardcode user-facing text strings in XAML or code behind.
 - **Cancellation & Async:** Every long-running I/O, download, hashing, or reconciliation task must accept and propagate a `CancellationToken`. Never block the UI thread.
 - **Reverse states:** If you add a workspace materializer, add its cleanup/reversion path. If you add a cache entry, handle its eviction.
 
@@ -67,6 +69,15 @@ The most common defect in this repository is a change that works on one platform
 
 - **Coding Style Authority:** Follow `coding-style.md` and repository [`.editorconfig`](.editorconfig).
 - **Toast Notifications Over Status Labels:** Never add inline status labels (e.g., `<TextBlock Text="{Binding StatusMessage}" />`) or ViewModel status strings as the primary way to report success, failure, or progress to the user. Always inject `INotificationService` into ViewModels and dispatch modern toast notifications (`ShowSuccess`, `ShowInfo`, `ShowWarning`, `ShowError`) using `NotificationDurations` constants. Ad-hoc status labels in views are an anti-pattern; user feedback belongs in toast notifications.
+- **Localization Standards:** All user-facing UI text (labels, buttons, tooltips, dialogs, validation messages) must be placed in `GenHub/GenHub/Resources/Localization/Strings.resx`.
+  - Maintain strict 1:1 parity across `Strings.resx`, `Strings.ar.resx`, and `Strings.ru.resx`. No keys should be missing from satellite resources.
+  - Use dot-separated hierarchical keys (`<Feature>.<Context>.<Element>` e.g., `Settings.Appearance.Language.Label`, `Navigation.Settings`).
+  - In XAML views: declare `xmlns:localization="clr-namespace:GenHub.Common.Markup"` and bind using `{localization:Localize Key}`.
+  - In C# ViewModels / Services: inject `ILocalizationService` and call `_localizationService.GetString("Key")` or `_localizationService.GetString("Key", args)`.
+  - For dynamic navigation lists (e.g., `SettingsViewModel.Sections`), subscribe to `ILocalizationService.PropertyChanged` on `CurrentCulture` to re-localize sidebar items live upon language switches.
+  - For tool names and plugins, use `LocalizedToolNameConverter` for dynamic translation falling back to the plugin's metadata title.
+  - Avoid duplicate keys differing only by case (MSBuild resource generation is case-insensitive on Windows).
+  - Do NOT localize internal/technical strings: log templates, JSON property names, protocol values, CLI arguments, or exception messages intended for developers.
 - **Primary Constructors:** Always use primary constructors for classes and records when dependencies are injected. Remove redundant private instance fields (e.g., `_logger = logger;`) and use constructor parameters directly in class members.
 - **Collection Types:** Prefer `IReadOnlyList<T>` when callers need indexed access and known count, and `IReadOnlyCollection<T>` when only count and enumeration are needed. Avoid raw `IEnumerable<T>` for public properties and return types to prevent unintended deferred multiple enumerations; materialize eagerly (e.g., `.ToList()`, `.ToArray()`, or `ImmutableArray<T>`) when returning collections from services or queries.
 - **No `this.`:** Never qualify instance members with `this.`.
