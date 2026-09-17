@@ -110,11 +110,11 @@ public static class GameSettingsMapper
     }
 
     /// <summary>
-    /// Populates settings from a CreateProfileRequest into a GameProfile.
+    /// Populates settings from a GameProfileSettingsBase into a GameProfile.
     /// </summary>
     /// <param name="profile">The GameProfile to populate.</param>
     /// <param name="request">The request containing the settings.</param>
-    public static void PopulateGameProfile(GameProfile profile, CreateProfileRequest request)
+    public static void PopulateGameProfile(GameProfile profile, GameProfileSettingsBase request)
     {
         // Video settings
         profile.VideoResolutionWidth = request.VideoResolutionWidth;
@@ -219,113 +219,20 @@ public static class GameSettingsMapper
     }
 
     /// <summary>
+    /// Populates settings from a CreateProfileRequest into a GameProfile.
+    /// </summary>
+    /// <param name="profile">The GameProfile to populate.</param>
+    /// <param name="request">The request containing the settings.</param>
+    public static void PopulateGameProfile(GameProfile profile, CreateProfileRequest request) =>
+        PopulateGameProfile(profile, (GameProfileSettingsBase)request);
+
+    /// <summary>
     /// Populates settings from an UpdateProfileRequest into a GameProfile.
     /// </summary>
     /// <param name="profile">The GameProfile to populate.</param>
     /// <param name="request">The request containing the settings.</param>
-    public static void PopulateGameProfile(GameProfile profile, UpdateProfileRequest request)
-    {
-        // Video settings
-        profile.VideoResolutionWidth = request.VideoResolutionWidth;
-        profile.VideoResolutionHeight = request.VideoResolutionHeight;
-        profile.VideoWindowed = request.VideoWindowed;
-        profile.VideoTextureQuality = request.VideoTextureQuality;
-        profile.EnableVideoShadows = request.EnableVideoShadows;
-        profile.VideoParticleEffects = request.VideoParticleEffects;
-        profile.VideoExtraAnimations = request.VideoExtraAnimations;
-        profile.VideoBuildingAnimations = request.VideoBuildingAnimations;
-        profile.VideoGamma = request.VideoGamma;
-        profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup;
-        profile.VideoHeatEffects = request.VideoHeatEffects;
-        profile.VideoStaticGameLOD = request.VideoStaticGameLOD;
-        profile.VideoIdealStaticGameLOD = request.VideoIdealStaticGameLOD;
-        profile.VideoUseDoubleClickAttackMove = request.VideoUseDoubleClickAttackMove;
-        profile.VideoScrollFactor = request.VideoScrollFactor;
-        profile.VideoRetaliation = request.VideoRetaliation;
-        profile.VideoDynamicLOD = request.VideoDynamicLOD;
-        profile.VideoMaxParticleCount = request.VideoMaxParticleCount;
-        profile.VideoAntiAliasing = request.VideoAntiAliasing;
-        profile.VideoUseLightMap = request.VideoUseLightMap;
-        profile.VideoSkipEALogo = request.VideoSkipEALogo;
-        profile.VideoUseShadowDecals = request.VideoUseShadowDecals;
-        profile.VideoBuildingOcclusion = request.VideoBuildingOcclusion;
-        profile.VideoShowProps = request.VideoShowProps;
-        profile.VideoDrawScrollAnchor = request.VideoDrawScrollAnchor;
-        profile.VideoMoveScrollAnchor = request.VideoMoveScrollAnchor;
-        profile.VideoGameTimeFontSize = request.VideoGameTimeFontSize;
-        profile.GameLanguageFilter = request.GameLanguageFilter;
-        profile.NetworkSendDelay = request.NetworkSendDelay;
-        profile.VideoShowSoftWaterEdge = request.VideoShowSoftWaterEdge;
-        profile.VideoShowTrees = request.VideoShowTrees;
-        profile.VideoUseCloudMap = request.VideoUseCloudMap;
-
-        // Audio settings
-        profile.AudioSoundVolume = request.AudioSoundVolume;
-        profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume;
-        profile.AudioSpeechVolume = request.AudioSpeechVolume;
-        profile.AudioMusicVolume = request.AudioMusicVolume;
-        profile.AudioEnabled = request.AudioEnabled;
-        profile.AudioNumSounds = request.AudioNumSounds;
-
-        // TheSuperHackers settings
-        profile.TshArchiveReplays = request.TshArchiveReplays;
-        profile.TshShowMoneyPerMinute = request.TshShowMoneyPerMinute;
-        profile.TshPlayerObserverEnabled = request.TshPlayerObserverEnabled;
-        profile.TshSystemTimeFontSize = request.TshSystemTimeFontSize;
-        profile.TshNetworkLatencyFontSize = request.TshNetworkLatencyFontSize;
-        profile.TshRenderFpsFontSize = request.TshRenderFpsFontSize;
-        profile.TshResolutionFontAdjustment = request.TshResolutionFontAdjustment;
-        profile.TshCursorCaptureEnabledInFullscreenGame = request.TshCursorCaptureEnabledInFullscreenGame;
-        profile.TshCursorCaptureEnabledInFullscreenMenu = request.TshCursorCaptureEnabledInFullscreenMenu;
-        profile.TshCursorCaptureEnabledInWindowedGame = request.TshCursorCaptureEnabledInWindowedGame;
-        profile.TshCursorCaptureEnabledInWindowedMenu = request.TshCursorCaptureEnabledInWindowedMenu;
-        profile.TshScreenEdgeScrollEnabledInFullscreenApp = request.TshScreenEdgeScrollEnabledInFullscreenApp;
-        profile.TshScreenEdgeScrollEnabledInWindowedApp = request.TshScreenEdgeScrollEnabledInWindowedApp;
-        profile.TshMoneyTransactionVolume = request.TshMoneyTransactionVolume;
-        profile.TshGameWindowTransitionSpeedMultiplier = request.TshGameWindowTransitionSpeedMultiplier;
-
-        // GeneralsOnline settings
-        profile.GoShowFps = request.GoShowFps;
-        profile.GoShowPing = request.GoShowPing;
-        profile.GoShowPlayerRanks = request.GoShowPlayerRanks;
-        profile.GoAutoLogin = request.GoAutoLogin;
-        profile.GoRememberUsername = request.GoRememberUsername;
-        profile.GoEnableNotifications = request.GoEnableNotifications;
-        profile.GoEnableSoundNotifications = request.GoEnableSoundNotifications;
-        profile.GoChatFontSize = request.GoChatFontSize;
-
-        // Camera settings
-        profile.GoCameraMaxHeightOnlyWhenLobbyHost = request.GoCameraMaxHeightOnlyWhenLobbyHost;
-        profile.GoCameraMinHeight = request.GoCameraMinHeight;
-        profile.GoCameraMoveSpeedRatio = request.GoCameraMoveSpeedRatio;
-
-        // Chat settings
-        profile.GoChatDurationSecondsUntilFadeOut = request.GoChatDurationSecondsUntilFadeOut;
-
-        // Debug settings
-        profile.GoDebugVerboseLogging = request.GoDebugVerboseLogging;
-
-        // Render settings
-        profile.GoRenderFpsLimit = request.GoRenderFpsLimit;
-        profile.GoRenderLimitFramerate = request.GoRenderLimitFramerate;
-        profile.GoRenderStatsOverlay = request.GoRenderStatsOverlay;
-
-        // Social notification settings
-        profile.GoSocialNotificationFriendComesOnlineGameplay = request.GoSocialNotificationFriendComesOnlineGameplay;
-        profile.GoSocialNotificationFriendComesOnlineMenus = request.GoSocialNotificationFriendComesOnlineMenus;
-        profile.GoSocialNotificationFriendGoesOfflineGameplay = request.GoSocialNotificationFriendGoesOfflineGameplay;
-        profile.GoSocialNotificationFriendGoesOfflineMenus = request.GoSocialNotificationFriendGoesOfflineMenus;
-        profile.GoSocialNotificationPlayerAcceptsRequestGameplay = request.GoSocialNotificationPlayerAcceptsRequestGameplay;
-        profile.GoSocialNotificationPlayerAcceptsRequestMenus = request.GoSocialNotificationPlayerAcceptsRequestMenus;
-        profile.GoSocialNotificationPlayerSendsRequestGameplay = request.GoSocialNotificationPlayerSendsRequestGameplay;
-        profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus;
-
-        profile.GameSpyIPAddress = request.GameSpyIPAddress;
-        if (request.UseSteamLaunch.HasValue)
-        {
-            profile.UseSteamLaunch = request.UseSteamLaunch.Value;
-        }
-    }
+    public static void PopulateGameProfile(GameProfile profile, UpdateProfileRequest request) =>
+        PopulateGameProfile(profile, (GameProfileSettingsBase)request);
 
     /// <summary>
     /// Patches a GameProfile with non-null values from a CreateProfileRequest.
@@ -534,10 +441,10 @@ public static class GameSettingsMapper
         profile.VideoBuildingOcclusion = options.Video.BuildingOcclusion;
         profile.VideoShowProps = options.Video.ShowProps;
 
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var ba))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.GenHubBuildingAnimationsKey, out var ba))
             profile.VideoBuildingAnimations = ParseBool(ba);
 
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var pe))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.GenHubParticleEffectsKey, out var pe))
             profile.VideoParticleEffects = ParseBool(pe);
 
         profile.VideoExtraAnimations = options.Video.ExtraAnimations;
@@ -546,21 +453,21 @@ public static class GameSettingsMapper
         profile.VideoHeatEffects = options.Video.HeatEffects;
 
         // Load additional video settings from root (Flat format support)
-        if (options.Video.AdditionalProperties.TryGetValue("StaticGameLOD", out var staticLOD))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.StaticGameLODKey, out var staticLOD))
             profile.VideoStaticGameLOD = staticLOD;
-        if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.IdealStaticGameLODKey, out var idealLOD))
             profile.VideoIdealStaticGameLOD = idealLOD;
 
-        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.SkipEALogoKey, out var sel))
             profile.VideoSkipEALogo = ParseBool(sel);
 
-        if (options.Video.AdditionalProperties.TryGetValue("ShowSoftWaterEdge", out var swe))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.ShowSoftWaterEdgeKey, out var swe))
             profile.VideoShowSoftWaterEdge = ParseBool(swe);
-        if (options.Video.AdditionalProperties.TryGetValue("ShowTrees", out var st))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.ShowTreesKey, out var st))
             profile.VideoShowTrees = ParseBool(st);
-        if (options.Video.AdditionalProperties.TryGetValue("UseCloudMap", out var ucm))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.UseCloudMapKey, out var ucm))
             profile.VideoUseCloudMap = ParseBool(ucm);
-        if (options.Video.AdditionalProperties.TryGetValue("UseLightMap", out var ulm))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsIniConstants.UseLightMapKey, out var ulm))
             profile.VideoUseLightMap = ParseBool(ulm);
 
         profile.VideoAntiAliasing ??= options.Video.AntiAliasing;
@@ -833,13 +740,13 @@ public static class GameSettingsMapper
         if (profile.EnableVideoShadows.HasValue)
         {
             options.Video.UseShadowVolumes = profile.EnableVideoShadows.Value;
-            SetAdditionalBool(options, "UseShadowVolumes", profile.EnableVideoShadows);
+            SetAdditionalBool(options, GameSettingsIniConstants.UseShadowVolumesKey, profile.EnableVideoShadows);
         }
 
         if (profile.VideoExtraAnimations.HasValue)
         {
             options.Video.ExtraAnimations = profile.VideoExtraAnimations.Value;
-            SetAdditionalBool(options, "ExtraAnimations", profile.VideoExtraAnimations);
+            SetAdditionalBool(options, GameSettingsIniConstants.ExtraAnimationsKey, profile.VideoExtraAnimations);
         }
 
         ApplyVideoGammaToOptions(profile, options, logger);
@@ -847,23 +754,23 @@ public static class GameSettingsMapper
         if (profile.VideoAlternateMouseSetup.HasValue)
         {
             options.Video.AlternateMouseSetup = profile.VideoAlternateMouseSetup.Value;
-            SetAdditionalBool(options, "UseAlternateMouse", profile.VideoAlternateMouseSetup);
+            SetAdditionalBool(options, GameSettingsIniConstants.UseAlternateMouseKey, profile.VideoAlternateMouseSetup);
         }
 
         if (profile.VideoHeatEffects.HasValue)
             options.Video.HeatEffects = profile.VideoHeatEffects.Value;
 
-        SetAdditionalBool(options, "GenHubBuildingAnimations", profile.VideoBuildingAnimations);
-        SetAdditionalBool(options, "GenHubParticleEffects", profile.VideoParticleEffects);
+        SetAdditionalBool(options, GameSettingsIniConstants.GenHubBuildingAnimationsKey, profile.VideoBuildingAnimations);
+        SetAdditionalBool(options, GameSettingsIniConstants.GenHubParticleEffectsKey, profile.VideoParticleEffects);
     }
 
     private static void ApplyVideoGameplayToOptions(GameProfile profile, IniOptions options)
     {
         if (profile.VideoStaticGameLOD != null)
-            options.Video.AdditionalProperties["StaticGameLOD"] = profile.VideoStaticGameLOD;
+            options.Video.AdditionalProperties[GameSettingsIniConstants.StaticGameLODKey] = profile.VideoStaticGameLOD;
 
         if (profile.VideoIdealStaticGameLOD != null)
-            options.Video.AdditionalProperties["IdealStaticGameLOD"] = profile.VideoIdealStaticGameLOD;
+            options.Video.AdditionalProperties[GameSettingsIniConstants.IdealStaticGameLODKey] = profile.VideoIdealStaticGameLOD;
 
         if (profile.VideoAntiAliasing.HasValue)
             options.Video.AntiAliasing = profile.VideoAntiAliasing.Value;
@@ -878,7 +785,7 @@ public static class GameSettingsMapper
         SetAdditionalBool(options, GameSettingsTheSuperHackersConstants.RetaliationKey, profile.VideoRetaliation);
         SetAdditionalBool(options, GameSettingsTheSuperHackersConstants.DynamicLODKey, profile.VideoDynamicLOD);
         SetAdditionalInt(options, GameSettingsTheSuperHackersConstants.MaxParticleCountKey, profile.VideoMaxParticleCount);
-        SetAdditionalBool(options, "SkipEALogo", profile.VideoSkipEALogo);
+        SetAdditionalBool(options, GameSettingsIniConstants.SkipEALogoKey, profile.VideoSkipEALogo);
         SetAdditionalInt(options, GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey, profile.VideoGameTimeFontSize);
     }
 
@@ -907,10 +814,10 @@ public static class GameSettingsMapper
 
     private static void ApplyVideoMapTogglesToOptions(GameProfile profile, IniOptions options)
     {
-        SetAdditionalBool(options, "ShowSoftWaterEdge", profile.VideoShowSoftWaterEdge);
-        SetAdditionalBool(options, "ShowTrees", profile.VideoShowTrees);
-        SetAdditionalBool(options, "UseCloudMap", profile.VideoUseCloudMap);
-        SetAdditionalBool(options, "UseLightMap", profile.VideoUseLightMap);
+        SetAdditionalBool(options, GameSettingsIniConstants.ShowSoftWaterEdgeKey, profile.VideoShowSoftWaterEdge);
+        SetAdditionalBool(options, GameSettingsIniConstants.ShowTreesKey, profile.VideoShowTrees);
+        SetAdditionalBool(options, GameSettingsIniConstants.UseCloudMapKey, profile.VideoUseCloudMap);
+        SetAdditionalBool(options, GameSettingsIniConstants.UseLightMapKey, profile.VideoUseLightMap);
     }
 
     private static void ApplyAudioToOptions(GameProfile profile, IniOptions options, ILogger? logger)
