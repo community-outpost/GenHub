@@ -519,7 +519,7 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
-        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
+        var activeGameClient = isStandaloneProfile ? null : GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
 
         var createRequest = new CreateProfileRequest
         {
@@ -772,7 +772,7 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
-        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
+        var activeGameClient = isStandaloneProfile ? null : GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
 
         var updateRequest = new UpdateProfileRequest
         {
@@ -792,142 +792,6 @@ public partial class GameProfileSettingsViewModel
 
         PopulateGameSettings(updateRequest, gameSettings);
         return updateRequest;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "StyleCop.CSharp.OrderingRules",
-        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
-        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
-    private static GameClient? ResolveActiveGameClient(
-        IEnumerable<ContentDisplayItem> enabledContent,
-        ContentDisplayItem? selectedInstallation)
-    {
-        var enabledClientItem = enabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
-        GameClient? resolvedClient = enabledClientItem?.GameClient?.Clone();
-
-        if (resolvedClient == null && enabledClientItem?.Manifest != null)
-        {
-            resolvedClient = ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, selectedInstallation?.SourceId);
-        }
-
-        if (resolvedClient == null && enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
-        {
-            resolvedClient = CreateGameClientFromDisplayItem(enabledClientItem, selectedInstallation?.SourceId);
-        }
-
-        if (resolvedClient != null)
-        {
-            HydrateClientPaths(resolvedClient, selectedInstallation?.GameClient);
-            return resolvedClient;
-        }
-
-        return selectedInstallation?.GameClient?.Clone();
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "StyleCop.CSharp.OrderingRules",
-        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
-        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
-    private static void HydrateClientPaths(GameClient target, GameClient? source)
-    {
-        if (source == null)
-        {
-            return;
-        }
-
-        if (string.IsNullOrEmpty(target.ExecutablePath))
-        {
-            target.ExecutablePath = source.ExecutablePath;
-        }
-
-        if (string.IsNullOrEmpty(target.WorkingDirectory))
-        {
-            target.WorkingDirectory = source.WorkingDirectory;
-        }
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "StyleCop.CSharp.OrderingRules",
-        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
-        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
-    private static GameClient CreateGameClientFromDisplayItem(ContentDisplayItem item, string? installationId)
-    {
-        var manifestIdValue = item.ManifestId.Value ?? string.Empty;
-        var segments = manifestIdValue.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
-        var publisherType = ExtractPublisherType(segments, item.Publisher);
-        var version = ExtractClientVersion(item.Version, segments, publisherType);
-
-        return new GameClient
-        {
-            Id = manifestIdValue,
-            Name = !string.IsNullOrWhiteSpace(item.DisplayName) ? item.DisplayName : manifestIdValue,
-            Version = version,
-            GameType = item.GameType,
-            SourceType = ContentType.GameClient,
-            PublisherType = publisherType,
-            InstallationId = installationId,
-        };
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "StyleCop.CSharp.OrderingRules",
-        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
-        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
-    private static string? ExtractPublisherType(string[] segments, string? itemPublisher)
-    {
-        if (segments.Length >= 4)
-        {
-            return segments[2].ToLowerInvariant();
-        }
-
-        if (!string.IsNullOrWhiteSpace(itemPublisher))
-        {
-            return itemPublisher.Trim().ToLowerInvariant().Replace(" ", string.Empty);
-        }
-
-        return null;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "StyleCop.CSharp.OrderingRules",
-        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
-        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
-    private static string ExtractClientVersion(string? currentVersion, string[] segments, string? publisherType)
-    {
-        if (!string.IsNullOrWhiteSpace(currentVersion))
-        {
-            return currentVersion;
-        }
-
-        if (segments.Length < 4 || string.IsNullOrEmpty(segments[1]))
-        {
-            return string.Empty;
-        }
-
-        var versionSegment = segments[1];
-        if (int.TryParse(versionSegment, out var verNum) && verNum > 0)
-        {
-            if (publisherType == PublisherTypeConstants.GeneralsOnline)
-            {
-                return verNum.ToString("D6");
-            }
-
-            if (verNum >= ManifestConstants.DateBasedVersionThreshold)
-            {
-                return versionSegment;
-            }
-
-            if (verNum >= 100)
-            {
-                return $"{verNum / 100}.{verNum % 100:D2}";
-            }
-
-            return verNum.ToString();
-        }
-
-        return !string.Equals(versionSegment, "0", StringComparison.OrdinalIgnoreCase)
-            ? versionSegment
-            : string.Empty;
     }
 
     private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)

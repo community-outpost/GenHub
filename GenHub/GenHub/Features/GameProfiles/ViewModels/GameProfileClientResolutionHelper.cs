@@ -1,0 +1,162 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.Manifest;
+using GenHub.Features.GameProfiles.Services;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace GenHub.Features.GameProfiles.ViewModels;
+
+/// <summary>
+/// Helper methods for resolving and hydrating game clients for profile settings.
+/// </summary>
+internal static class GameProfileClientResolutionHelper
+{
+    /// <summary>
+    /// Resolves the active game client from enabled content items and the selected installation.
+    /// </summary>
+    /// <param name="enabledContent">The enabled content items.</param>
+    /// <param name="selectedInstallation">The selected installation item.</param>
+    /// <returns>The resolved active game client, or null.</returns>
+    internal static GameClient? ResolveActiveGameClient(
+        IEnumerable<ContentDisplayItem> enabledContent,
+        ContentDisplayItem? selectedInstallation)
+    {
+        var enabledClientItem = enabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
+        GameClient? resolvedClient = enabledClientItem?.GameClient?.Clone();
+
+        if (resolvedClient == null && enabledClientItem?.Manifest != null)
+        {
+            resolvedClient = ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, selectedInstallation?.SourceId);
+        }
+
+        if (resolvedClient == null && enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
+        {
+            resolvedClient = CreateGameClientFromDisplayItem(enabledClientItem, selectedInstallation?.SourceId);
+        }
+
+        if (resolvedClient != null)
+        {
+            HydrateClientPaths(resolvedClient, selectedInstallation?.GameClient);
+            return resolvedClient;
+        }
+
+        return selectedInstallation?.GameClient?.Clone();
+    }
+
+    /// <summary>
+    /// Hydrates target client executable and working directory paths from a source client if missing.
+    /// </summary>
+    /// <param name="target">The target game client.</param>
+    /// <param name="source">The source game client.</param>
+    internal static void HydrateClientPaths(GameClient target, GameClient? source)
+    {
+        if (source == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(target.ExecutablePath))
+        {
+            target.ExecutablePath = source.ExecutablePath;
+        }
+
+        if (string.IsNullOrEmpty(target.WorkingDirectory))
+        {
+            target.WorkingDirectory = source.WorkingDirectory;
+        }
+    }
+
+    /// <summary>
+    /// Creates a GameClient model from a ContentDisplayItem.
+    /// </summary>
+    /// <param name="item">The content display item.</param>
+    /// <param name="installationId">The installation ID.</param>
+    /// <returns>A new GameClient instance.</returns>
+    internal static GameClient CreateGameClientFromDisplayItem(ContentDisplayItem item, string? installationId)
+    {
+        var manifestIdValue = item.ManifestId.Value ?? string.Empty;
+        var segments = manifestIdValue.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
+        var publisherType = ExtractPublisherType(segments, item.Publisher);
+        var version = ExtractClientVersion(item.Version, segments, publisherType);
+
+        return new GameClient
+        {
+            Id = manifestIdValue,
+            Name = !string.IsNullOrWhiteSpace(item.DisplayName) ? item.DisplayName : manifestIdValue,
+            Version = version,
+            GameType = item.GameType,
+            SourceType = ContentType.GameClient,
+            PublisherType = publisherType,
+            InstallationId = installationId,
+        };
+    }
+
+    /// <summary>
+    /// Extracts the publisher type from manifest ID segments or publisher string.
+    /// </summary>
+    /// <param name="segments">The manifest ID segments.</param>
+    /// <param name="itemPublisher">The publisher name from the item.</param>
+    /// <returns>The publisher type string, or null.</returns>
+    internal static string? ExtractPublisherType(string[] segments, string? itemPublisher)
+    {
+        if (segments.Length >= 4)
+        {
+            return segments[2].ToLowerInvariant();
+        }
+
+        if (!string.IsNullOrWhiteSpace(itemPublisher))
+        {
+            return itemPublisher.Trim().ToLowerInvariant().Replace(" ", string.Empty);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts the client version string from item version or manifest segments.
+    /// </summary>
+    /// <param name="currentVersion">The current item version.</param>
+    /// <param name="segments">The manifest ID segments.</param>
+    /// <param name="publisherType">The publisher type string.</param>
+    /// <returns>The extracted version string.</returns>
+    internal static string ExtractClientVersion(string? currentVersion, string[] segments, string? publisherType)
+    {
+        if (!string.IsNullOrWhiteSpace(currentVersion))
+        {
+            return currentVersion;
+        }
+
+        if (segments.Length < 4 || string.IsNullOrEmpty(segments[1]))
+        {
+            return string.Empty;
+        }
+
+        var versionSegment = segments[1];
+        if (int.TryParse(versionSegment, out var verNum) && verNum > 0)
+        {
+            if (publisherType == PublisherTypeConstants.GeneralsOnline)
+            {
+                return verNum.ToString("D6");
+            }
+
+            if (verNum >= ManifestConstants.DateBasedVersionThreshold)
+            {
+                return versionSegment;
+            }
+
+            if (verNum >= 100)
+            {
+                return $"{verNum / 100}.{verNum % 100:D2}";
+            }
+
+            return verNum.ToString();
+        }
+
+        return !string.Equals(versionSegment, "0", StringComparison.OrdinalIgnoreCase)
+            ? versionSegment
+            : string.Empty;
+    }
+}
