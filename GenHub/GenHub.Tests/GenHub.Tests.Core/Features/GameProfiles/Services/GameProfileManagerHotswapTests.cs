@@ -18,6 +18,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
+using GameType = GenHub.Core.Models.Enums.GameType;
 using WorkspaceStrategy = GenHub.Core.Models.Enums.WorkspaceStrategy;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.Services;
@@ -234,6 +235,67 @@ public class GameProfileManagerHotswapTests
         Assert.False(result.Success);
         Assert.Contains("game client", result.FirstError, StringComparison.OrdinalIgnoreCase);
         _profileRepositoryMock.Verify(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that updating a running profile with the same game client ID but different metadata succeeds.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenProfileRunning_WithSameClientIdDifferentMetadata_SucceedsAsync()
+    {
+        // Arrange
+        const string profileId = "profile-running-same-client";
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Running Profile",
+            ActiveWorkspaceId = "workspace-live-123",
+            GameClient = new GameClient
+            {
+                Id = "client-steam",
+                Name = "Steam Client",
+                Version = "1.04",
+                ExecutablePath = "C:\\game\\generals.exe",
+                WorkingDirectory = "C:\\game",
+                InstallationId = "install-1",
+                GameType = GameType.Generals,
+            },
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([CreateActiveLaunch(profileId)]);
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        var request = new UpdateProfileRequest
+        {
+            GameClient = new GameClient
+            {
+                Id = "client-steam",
+                Name = "Steam Client Updated",
+                Version = "1.04-manifest",
+                ExecutablePath = "C:\\game\\different.exe",
+                WorkingDirectory = "C:\\game\\diff",
+                InstallationId = "install-diff",
+                GameType = GameType.Generals,
+            },
+        };
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        _profileRepositoryMock.Verify(
+            r => r.SaveProfileAsync(
+                It.Is<GameProfile>(p => p.GameClient != null && p.GameClient.Id == "client-steam"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>

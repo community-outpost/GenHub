@@ -209,7 +209,7 @@ public sealed class ReplayDirectoryService(
         var (resolved, acquiredIds, existingProfiles) = await FetchAcquiredManifestIdsAndProfilesAsync(ct);
         if (crcCalculator != null)
         {
-            await PreloadProfileCrcsAsync(existingProfiles, ct);
+            await PreloadProfileExeCrcsAsync(existingProfiles, ct);
         }
 
         var replayFiles = new ConcurrentBag<ReplayFile>();
@@ -479,7 +479,22 @@ public sealed class ReplayDirectoryService(
             targetProfileId = replay.MatchingProfileId;
         }
 
-        var launchResult = await ExecuteProfileLaunchAsync(targetProfileId ?? string.Empty, replay.FileName, ct);
+        IReadOnlyDictionary<string, string>? additionalArgs = null;
+        using (var scope = scopeFactory.CreateScope())
+        {
+            var profileManager = scope.ServiceProvider.GetService<IGameProfileManager>();
+            var profileResult = profileManager != null ? await profileManager.GetProfileAsync(targetProfileId ?? string.Empty, ct) : null;
+            var clientCapabilities = profileResult?.Data?.GameClient?.Capabilities ?? replay.MatchedClient?.Capabilities ?? GameClientCapabilities.None;
+            if (clientCapabilities.HasFlag(GameClientCapabilities.ReplayCliLaunch))
+            {
+                additionalArgs = new Dictionary<string, string>
+                {
+                    [ReplayManagerConstants.CliReplay] = replay.FileName,
+                };
+            }
+        }
+
+        var launchResult = await ExecuteProfileLaunchAsync(targetProfileId ?? string.Empty, replay.FileName, ct, additionalArgs);
         if (launchResult.Success && isExplicitProfile)
         {
             replay.MatchingProfileId = profileId;
@@ -514,6 +529,107 @@ public sealed class ReplayDirectoryService(
         }
 
         return false;
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<GameProfile> FindCompatibleProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+        if (profiles == null || profiles.Count == 0)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
+        var isRetailClient = IsRetailClient(null, clientManifestId);
+
+        var compatibleCandidates = profiles.Where(p =>
+        {
+            if (p.GameClient?.GameType != replay.GameVersion)
+            {
+                return false;
+            }
+
+            return isRetailClient
+                ? IsProfileMatchingRetail(p, replay.MatchedClient?.DataPatchManifestId)
+                : IsProfileMatchingThirdParty(p, clientManifestId, replay.MatchedClient?.DataPatchManifestId, replay.MatchedClient?.Version);
+        }).ToList();
+
+        if (compatibleCandidates.Count == 0)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        return compatibleCandidates
+            .Select(p => new { Profile = p, Score = ScoreCandidateProfile(p, clientManifestId, replay.MatchedClient?.DataPatchManifestId, replay, logger) })
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.Profile.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Profile.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Profile)
+            .ToList();
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<GameProfile> FindRecoveryProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+        if (profiles == null || profiles.Count == 0)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
+        var replayPublisher = replay.MatchedClient?.Publisher ?? string.Empty;
+        var isRetailReplay = IsRetailClient(replayPublisher, clientManifestId);
+        var isGeneralsOnlineReplay = string.Equals(replayPublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                     clientManifestId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase);
+        var isSuperHackersReplay = string.Equals(replayPublisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(replayPublisher, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                                   clientManifestId.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+
+        var recoveryCandidates = profiles.Where(p =>
+        {
+            if (p.GameClient?.GameType != replay.GameVersion)
+            {
+                return false;
+            }
+
+            if (!HasCheckpointCapability(p))
+            {
+                return false;
+            }
+
+            var profilePublisher = p.GameClient?.PublisherType ?? string.Empty;
+            var profileClientId = p.GameClient?.Id ?? string.Empty;
+            var isProfileGeneralsOnline = string.Equals(profilePublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                          profileClientId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                          p.EnabledContentIds?.Any(id => id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) == true;
+
+            if (isGeneralsOnlineReplay)
+            {
+                return isProfileGeneralsOnline;
+            }
+
+            if (isProfileGeneralsOnline)
+            {
+                return false;
+            }
+
+            return true;
+        }).ToList();
+
+        if (recoveryCandidates.Count == 0)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        return recoveryCandidates
+            .Select(p => new { Profile = p, Score = ScoreRecoveryProfile(p, replay, isRetailReplay, isGeneralsOnlineReplay, isSuperHackersReplay) })
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.Profile.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Profile.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Profile)
+            .ToList();
     }
 
     /// <summary>
@@ -579,7 +695,7 @@ public sealed class ReplayDirectoryService(
     {
         if (crcCalculator != null)
         {
-            await PreloadProfileCrcsAsync(profiles, crcCalculator, logger, ct);
+            await PreloadProfileExeCrcsAsync(profiles, crcCalculator, logger, ct);
         }
 
         var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
@@ -838,7 +954,7 @@ public sealed class ReplayDirectoryService(
     /// <param name="logger">Optional logger instance.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A task representing the preload operation.</returns>
-    internal static async Task PreloadProfileCrcsAsync(
+    internal static async Task PreloadProfileExeCrcsAsync(
         IEnumerable<GameProfile> profiles,
         IGameCrcCalculatorService? crcCalculator,
         ILogger? logger = null,
@@ -887,21 +1003,43 @@ public sealed class ReplayDirectoryService(
         var exeCrcStr = replay.Metadata.FormattedExeCrc;
         var iniCrcStr = replay.Metadata.FormattedIniCrc;
 
-        TrySetMatchedIniPatchName(replay, iniCrcStr);
+        if (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var iniMatch) &&
+            iniMatch != null &&
+            !string.IsNullOrWhiteSpace(iniMatch.DataPatchName))
+        {
+            replay.MatchedIniPatchName = iniMatch.DataPatchName;
+        }
 
         if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
         {
             ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger, crcCalculator);
-            return;
         }
-
-        if (await TryResolveProfileByLiveCalculatedCrcsAsync(replay, profiles, ct) is { } dynamicEntry)
+        else if (await TryResolveProfileByLiveCalculatedCrcsAsync(replay, profiles, ct) is { } dynamicEntry)
         {
             ResolveMatchedClientCompatibility(replay, dynamicEntry, acquiredIds, profiles, logger, crcCalculator);
-            return;
+        }
+        else
+        {
+            ResolveUnmappedClientCompatibility(replay);
         }
 
-        ResolveUnmappedClientCompatibility(replay);
+        var recoveryProfiles = FindRecoveryProfiles(replay, profiles);
+        if (recoveryProfiles.Count > 0)
+        {
+            replay.SupportsCheckpoints = true;
+            replay.RecoveryProfileId = recoveryProfiles[0].Id;
+            replay.RecoveryProfileName = recoveryProfiles[0].Name;
+        }
+        else if (replay.MatchedClient?.SupportsCheckpoints == true)
+        {
+            replay.SupportsCheckpoints = true;
+        }
+        else
+        {
+            replay.SupportsCheckpoints = false;
+            replay.RecoveryProfileId = null;
+            replay.RecoveryProfileName = null;
+        }
     }
 
     private static bool IsProfileCandidateCompatible(
@@ -1083,6 +1221,74 @@ public sealed class ReplayDirectoryService(
         return false;
     }
 
+    private static bool HasCheckpointCapability(GameProfile profile)
+    {
+        return HasClientCheckpointCapability(profile.GameClient) ||
+               HasEnabledContentCheckpointCapability(profile.EnabledContentIds);
+    }
+
+    private static bool HasClientCheckpointCapability(GameClient? client)
+    {
+        if (client == null)
+        {
+            return false;
+        }
+
+        return (client.Capabilities & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures;
+    }
+
+    private static bool HasEnabledContentCheckpointCapability(IEnumerable<string>? contentIds)
+    {
+        return contentIds?.Any(id =>
+            (GameClientCapabilitiesHelper.InferCapabilities(null, id, null) & GameClientCapabilities.AllRecoveryFeatures) == GameClientCapabilities.AllRecoveryFeatures) == true;
+    }
+
+    private static int ScoreRecoveryProfile(
+        GameProfile profile,
+        ReplayFile replay,
+        bool isRetailReplay,
+        bool isGeneralsOnlineReplay,
+        bool isSuperHackersReplay)
+    {
+        var score = 0;
+
+        if (IsDedicatedToThisReplay(profile, replay, null))
+        {
+            score += 1000;
+        }
+        else if (!IsDedicatedToAnotherReplay(profile))
+        {
+            score += 500;
+        }
+
+        if (replay.MatchedClient != null && string.Equals(profile.GameClient?.Id, replay.MatchedClient.ManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 200;
+        }
+
+        var profilePublisher = profile.GameClient?.PublisherType ?? string.Empty;
+        var profileClientId = profile.GameClient?.Id ?? string.Empty;
+
+        var matchesGeneralsOnline = isGeneralsOnlineReplay &&
+            (string.Equals(profilePublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+             profileClientId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
+
+        var matchesSuperHackers = isSuperHackersReplay &&
+            (string.Equals(profilePublisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+             profileClientId.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase));
+
+        if (matchesGeneralsOnline || matchesSuperHackers)
+        {
+            score += 150;
+        }
+        else if (isRetailReplay && (profileClientId.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase) || profile.Name.Contains(ReplayManagerConstants.CapabilityRecoveryKeyword, StringComparison.OrdinalIgnoreCase)))
+        {
+            score += 100;
+        }
+
+        return score;
+    }
+
     private static int ScoreCandidateProfile(
         GameProfile profile,
         string clientManifestId,
@@ -1155,6 +1361,14 @@ public sealed class ReplayDirectoryService(
 
     private static bool MatchesTruncatedReplayMarker(string profileName, string replayBaseName)
     {
+        // Only a name truncated to the length limit can produce a genuine
+        // prefix match; a short name that happens to be a prefix of an
+        // unrelated replay's base name must not match.
+        if (profileName.Length != ProfileConstants.MaxProfileNameLength)
+        {
+            return false;
+        }
+
         // Fallback for truncated replay profile names: if the profile name contains "(Replay: "
         // and the replay segment in the profile name matches the beginning of replayBaseName.
         const string replayMarker = "(Replay: ";
@@ -1173,8 +1387,7 @@ public sealed class ReplayDirectoryService(
 
         var nameReplayPart = profileName[contentStart..closingParenIdx].TrimEnd();
         return nameReplayPart.Length > 0 &&
-               (string.Equals(replayBaseName, nameReplayPart, StringComparison.OrdinalIgnoreCase) ||
-                (profileName.Length >= ProfileConstants.MaxProfileNameLength && replayBaseName.StartsWith(nameReplayPart, StringComparison.OrdinalIgnoreCase)));
+               replayBaseName.StartsWith(nameReplayPart, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsDedicatedToAnotherReplay(GameProfile profile) =>
@@ -1666,7 +1879,8 @@ public sealed class ReplayDirectoryService(
             return IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
         }
 
-        return profile.GameClient.GameType == replay.GameVersion;
+        return profile.GameClient.GameType == replay.GameVersion &&
+               IsDedicatedToThisReplay(profile, replay, null);
     }
 
     private static void ClearReplayProfileReference(ReplayFile replay)
@@ -2601,7 +2815,8 @@ public sealed class ReplayDirectoryService(
     private async Task<ProfileOperationResult<GameLaunchInfo>> ExecuteProfileLaunchAsync(
         string profileId,
         string replayFileName,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string>? additionalArguments = null)
     {
         try
         {
@@ -2620,10 +2835,16 @@ public sealed class ReplayDirectoryService(
                 profileId,
                 replayFileName);
 
-            var launchResult = await launcherFacade.LaunchProfileAsync(
-                profileId,
-                skipUserDataCleanup: true,
-                cancellationToken: ct);
+            var launchResult = additionalArguments != null && additionalArguments.Count > 0
+                ? await launcherFacade.LaunchProfileAsync(
+                    profileId,
+                    skipUserDataCleanup: true,
+                    additionalArguments: additionalArguments,
+                    cancellationToken: ct)
+                : await launcherFacade.LaunchProfileAsync(
+                    profileId,
+                    skipUserDataCleanup: true,
+                    cancellationToken: ct);
 
             if (launchResult.Success)
             {
@@ -2649,17 +2870,6 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private void TrySetMatchedIniPatchName(ReplayFile replay, string? iniCrc)
-    {
-        if (!string.IsNullOrEmpty(iniCrc) &&
-            crcMappingRegistry.TryGetEntryByIniCrc(iniCrc, out var iniMatch) &&
-            iniMatch != null &&
-            !string.IsNullOrWhiteSpace(iniMatch.DataPatchName))
-        {
-            replay.MatchedIniPatchName = iniMatch.DataPatchName;
-        }
-    }
-
     private void EnsureReplayMatch(ReplayFile replay)
     {
         if (replay.MatchedClient != null)
@@ -2670,14 +2880,21 @@ public sealed class ReplayDirectoryService(
         var exeCrc = replay.Metadata?.FormattedExeCrc;
         var iniCrc = replay.Metadata?.FormattedIniCrc;
 
-        TrySetMatchedIniPatchName(replay, iniCrc);
-
-        if (string.IsNullOrEmpty(exeCrc) || string.IsNullOrEmpty(iniCrc))
+        if (string.IsNullOrEmpty(exeCrc))
         {
             return;
         }
 
-        if (crcMappingRegistry.TryGetEntry(exeCrc, iniCrc, out var resolvedMatch) &&
+        if (!string.IsNullOrEmpty(iniCrc) &&
+            crcMappingRegistry.TryGetEntryByIniCrc(iniCrc, out var iniMatch) &&
+            iniMatch != null &&
+            !string.IsNullOrWhiteSpace(iniMatch.DataPatchName))
+        {
+            replay.MatchedIniPatchName = iniMatch.DataPatchName;
+        }
+
+        if (!string.IsNullOrEmpty(iniCrc) &&
+            crcMappingRegistry.TryGetEntry(exeCrc, iniCrc, out var resolvedMatch) &&
             resolvedMatch != null)
         {
             replay.MatchedClient = resolvedMatch;
@@ -2838,8 +3055,8 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private Task PreloadProfileCrcsAsync(IEnumerable<GameProfile> profiles, CancellationToken ct) =>
-        PreloadProfileCrcsAsync(profiles, crcCalculator, logger, ct);
+    private Task PreloadProfileExeCrcsAsync(IEnumerable<GameProfile> profiles, CancellationToken ct) =>
+        PreloadProfileExeCrcsAsync(profiles, crcCalculator, logger, ct);
 
     private Task<string?> GetOrCalculateProfileExeCrcAsync(string exePath, CancellationToken ct)
     {

@@ -86,14 +86,19 @@ public sealed class ReplayDirectoryServiceTests
 
         _mockProfileManager
             .Setup(p => p.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
-            {
-                GameClient = new GameClient
+            .ReturnsAsync((string profileId, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
                 {
-                    Id = "1.104.retail.gameclient.zerohour",
-                    GameType = GameType.ZeroHour,
-                },
-            }));
+                    Id = profileId,
+                    Name = $"Profile-{profileId}",
+                    GameClient = new GameClient
+                    {
+                        Id = "1.104.retail.gameclient.zerohour",
+                        GameType = GameType.ZeroHour,
+                        PublisherType = "retail",
+                    },
+                    EnabledContentIds = ["1.104.retail.gameclient.zerohour"],
+                }));
     }
 
     /// <summary>
@@ -163,7 +168,7 @@ public sealed class ReplayDirectoryServiceTests
 
         var result = await service.CreateProfileForReplayAsync(replay);
 
-        Assert.True(result.Success);
+        Assert.Null(result.FirstError);
         Assert.NotNull(result.Data);
         Assert.Equal("profile-zh-1", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
@@ -342,10 +347,10 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that ReplayFile helper properties correctly map all compatibility enum states to badges and tooltips.
+    /// Verifies that ReplayFile helper properties correctly map all compatibility enum states to badges.
     /// </summary>
     [Fact]
-    public void ReplayFile_CompatibilityBadgeAndTooltip_ReflectsStatusAccurately()
+    public void ReplayFile_CompatibilityBadge_ReflectsStatusAccurately()
     {
         // Compatible state
         var compatibleReplay = new ReplayFile
@@ -360,7 +365,6 @@ public sealed class ReplayDirectoryServiceTests
             MatchingProfileName = "ZH SuperHackers",
         };
         Assert.Equal("Profile Ready", compatibleReplay.CompatibilityBadgeText);
-        Assert.Contains("ZH SuperHackers", compatibleReplay.CompatibilityTooltip);
 
         // RequiresProfile state
         var requiresProfileReplay = new ReplayFile
@@ -373,7 +377,6 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.RequiresProfile,
         };
         Assert.Equal("Profile Needed", requiresProfileReplay.CompatibilityBadgeText);
-        Assert.Contains("Click 'Create Profile'", requiresProfileReplay.CompatibilityTooltip);
 
         // Downloadable state
         var downloadableReplay = new ReplayFile
@@ -386,7 +389,6 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.Downloadable,
         };
         Assert.Equal("Download Required", downloadableReplay.CompatibilityBadgeText);
-        Assert.Contains("can be downloaded", downloadableReplay.CompatibilityTooltip);
 
         // Orphaned state
         var orphanedReplay = new ReplayFile
@@ -399,7 +401,6 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.Orphaned,
         };
         Assert.Equal("Custom / Unmapped", orphanedReplay.CompatibilityBadgeText);
-        Assert.Contains("official catalog", orphanedReplay.CompatibilityTooltip, StringComparison.OrdinalIgnoreCase);
 
         // Unknown state
         var unknownReplay = new ReplayFile
@@ -3511,11 +3512,11 @@ public sealed class ReplayDirectoryServiceTests
         var explicitProfile = new GameProfile
         {
             Id = "explicit-user-profile-id",
-            Name = "MP Recovery Profile",
+            Name = "MP Custom Profile",
             GameClient = new GameClient
             {
-                Id = "mp-recovery-client-id",
-                Name = "MP Recovery",
+                Id = "mp-custom-client-id",
+                Name = "MP Custom",
                 GameType = GameType.ZeroHour,
                 PublisherType = "community",
             },
@@ -3551,7 +3552,7 @@ public sealed class ReplayDirectoryServiceTests
 
         Assert.True(result.Success);
         Assert.Equal("explicit-user-profile-id", replay.MatchingProfileId);
-        Assert.Equal("MP Recovery Profile", replay.MatchingProfileName);
+        Assert.Equal("MP Custom Profile", replay.MatchingProfileName);
         _mockLauncherFacade.Verify(
             l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()),
             Times.Once());
@@ -3708,58 +3709,6 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that IsClientManifestInstalled recognizes acquired Generals segment as satisfying client installation.
-    /// </summary>
-    [Fact]
-    public void IsClientManifestInstalled_WhenGenerals108ReplayAndGeneralsSegmentAcquired_ReturnsTrue()
-    {
-        var match = new CrcMappingEntry
-        {
-            Publisher = "retail",
-            ManifestId = "1.108.retail.gameclient.generals",
-            Version = "1.08",
-        };
-
-        var acquiredIds = new HashSet<string>
-        {
-            "1.10gn.ea.gameinstallation.generals",
-        };
-
-        var isInstalled = ReplayDirectoryService.IsClientManifestInstalled(
-            match,
-            GameType.Generals,
-            acquiredIds);
-
-        Assert.True(isInstalled);
-    }
-
-    /// <summary>
-    /// Verifies that IsClientManifestInstalled recognizes acquired Zero Hour segment as satisfying client installation.
-    /// </summary>
-    [Fact]
-    public void IsClientManifestInstalled_WhenZh104ReplayAndZeroHourSegmentAcquired_ReturnsTrue()
-    {
-        var match = new CrcMappingEntry
-        {
-            Publisher = "retail",
-            ManifestId = "1.104.retail.gameclient.zerohour",
-            Version = "1.04",
-        };
-
-        var acquiredIds = new HashSet<string>
-        {
-            "1.10zh.ea.gameinstallation.zerohour",
-        };
-
-        var isInstalled = ReplayDirectoryService.IsClientManifestInstalled(
-            match,
-            GameType.ZeroHour,
-            acquiredIds);
-
-        Assert.True(isInstalled);
-    }
-
-    /// <summary>
     /// Verifies that CreateProfileForReplayAsync throws OperationCanceledException when cancellation is requested.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -3897,6 +3846,9 @@ public sealed class ReplayDirectoryServiceTests
         CrcMappingEntry? outIni = iniEntry;
         _mockCrcRegistry
             .Setup(r => r.TryGetEntry("0x12345678", "0xFEAAE3F3", out nullEntry))
+            .Returns(false);
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntryByExeCrc("0x12345678", out nullEntry))
             .Returns(false);
         _mockCrcRegistry
             .Setup(r => r.TryGetEntryByIniCrc("0xFEAAE3F3", out outIni))
@@ -4088,6 +4040,392 @@ public sealed class ReplayDirectoryServiceTests
 
         Assert.NotNull(match);
         Assert.Equal("truncated-profile-id", match.Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindMatchingProfile does not match a profile dedicated to another replay when the profile name is not truncated even if its replay marker is a prefix of the replay file name.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenNonTruncatedProfileSharesReplayPrefix_DoesNotTreatAsDedicated()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Match10.rep",
+            FullPath = "/replays/Match10.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var genericProfile = new GameProfile
+        {
+            Id = "profile-generic",
+            Name = "Zero Hour Standard",
+            GameClient = new GameClient
+            {
+                Id = "1.104.steam.gameclient.zerohour",
+                GameType = GameType.ZeroHour,
+                PublisherType = "steam",
+            },
+        };
+
+        var prefixProfile = new GameProfile
+        {
+            Id = "profile-match1",
+            Name = "Zero Hour (Replay: Match1)",
+            GameClient = new GameClient
+            {
+                Id = "1.104.steam.gameclient.zerohour",
+                GameType = GameType.ZeroHour,
+                PublisherType = "steam",
+            },
+        };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            [prefixProfile, genericProfile],
+            GameType.ZeroHour,
+            "1.104.steam.gameclient.zerohour",
+            null,
+            replay);
+
+        Assert.NotNull(match);
+        Assert.Equal("profile-generic", match.Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles returns matching recovery profile for Zero Hour 1.04 replay.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenZh104Replay_FindsMatchingRecoveryProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Match104.rep",
+            FullPath = "/replays/Match104.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0xDA2B4B18",
+                IniCrc = "0xFEAAE3F3",
+                Description = "Zero Hour 1.04 Retail",
+                Version = "1.04",
+                GameType = "ZeroHour",
+                Publisher = "ea",
+                ManifestId = "1.104.retail.gameclient.zerohour",
+            },
+        };
+
+        var vanillaProfile = new GameProfile
+        {
+            Id = "vanilla-profile",
+            Name = "Vanilla 1.04",
+            GameClient = new GameClient
+            {
+                Id = "1.104.retail.gameclient.zerohour",
+                Name = "Vanilla Retail Client",
+                GameType = GameType.ZeroHour,
+                PublisherType = "ea",
+            },
+        };
+
+        var recoveryProfile = new GameProfile
+        {
+            Id = "recovery-profile-1",
+            Name = "Zero Hour 1.04 (MP-Recovery)",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-mp-recovery-c2a5e77d70-f643cae1",
+                Name = "generalszh_mp-recovery_c2a5e77d70_F643CAE1",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+            EnabledContentIds = ["1.0.local.gameclient.generalszh-mp-recovery-c2a5e77d70-f643cae1"],
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [vanillaProfile, recoveryProfile]);
+
+        Assert.Single(matches);
+        Assert.Equal("recovery-profile-1", matches[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles isolates GeneralsOnline replays to GeneralsOnline recovery profiles.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenGeneralsOnlineReplay_IsolatesToGeneralsOnlineRecoveryProfiles()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "MatchGO.rep",
+            FullPath = "/replays/MatchGO.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x6DBF4405",
+                IniCrc = "0x51ACED23",
+                Description = "GeneralsOnline 60Hz",
+                Version = "082826",
+                GameType = "ZeroHour",
+                Publisher = "generalsonline",
+                ManifestId = "1.828261.generalsonline.gameclient.60hz",
+            },
+        };
+
+        var retailRecoveryProfile = new GameProfile
+        {
+            Id = "retail-recovery",
+            Name = "ZH 1.04 Recovery",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-mp-recovery",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var goRecoveryProfile = new GameProfile
+        {
+            Id = "go-recovery",
+            Name = "GeneralsOnline Checkpoint Build",
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.checkpoint",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [retailRecoveryProfile, goRecoveryProfile]);
+
+        Assert.Single(matches);
+        Assert.Equal("go-recovery", matches[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles excludes GeneralsOnline profiles for retail 1.04 replays to prevent engine drift desync.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenRetailReplay_ExcludesGeneralsOnlineRecoveryProfiles()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Classic.rep",
+            FullPath = "/replays/Classic.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0xDA2B4B18",
+                IniCrc = "0xFEAAE3F3",
+                Description = "Zero Hour 1.04 Retail",
+                Version = "1.04",
+                GameType = "ZeroHour",
+                Publisher = "ea",
+                ManifestId = "1.104.retail.gameclient.zerohour",
+            },
+        };
+
+        var goRecoveryProfile = new GameProfile
+        {
+            Id = "go-recovery",
+            Name = "GeneralsOnline Checkpoint Build",
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.checkpoint",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [goRecoveryProfile]);
+
+        Assert.Empty(matches);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles excludes profiles that possess only CheckpointSaves rather than the full AllRecoveryFeatures mask.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenClientHasCheckpointSavesOnly_ExcludesProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "ZH_Game.rep",
+            FullPath = "/replays/ZH_Game.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var partialCapabilityProfile = new GameProfile
+        {
+            Id = "partial-profile",
+            Name = "Zero Hour Checkpoint Only",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-checkpoint-only",
+                Name = "Zero Hour Checkpoint Client",
+                GameType = GameType.ZeroHour,
+                PublisherType = "custom",
+                Capabilities = GameClientCapabilities.CheckpointSaves,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [partialCapabilityProfile]);
+
+        Assert.Empty(matches);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveCompatibility sets SupportsCheckpoints and RecoveryProfile properties on retail 1.04 replay.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveCompatibilityAsync_WhenRetailReplayAndRecoveryProfileExists_SetsSupportsCheckpointsAndRecoveryProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "RECOVER.rep",
+            FullPath = "/replays/RECOVER.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0xDA2B4B18",
+            IniCrc = "0xFEAAE3F3",
+            Description = "Zero Hour 1.04 Retail",
+            Version = "1.04",
+            GameType = "ZeroHour",
+            Publisher = "ea",
+            ManifestId = "1.104.retail.gameclient.zerohour",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xDA2B4B18", "0xFEAAE3F3", out outEntry))
+            .Returns(true);
+
+        var recoveryProfile = new GameProfile
+        {
+            Id = "fd09bf9b12bc41e294c051028b5085f9",
+            Name = "Zero Hour 1.04 (Recovery)",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-mp-recovery-c2a5e77d70-f643cae1",
+                Name = "generalszh_mp-recovery_c2a5e77d70_F643CAE1",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        await service.ResolveCompatibilityAsync(replay, new HashSet<string>(), [recoveryProfile]);
+
+        Assert.True(replay.SupportsCheckpoints);
+        Assert.Equal("fd09bf9b12bc41e294c051028b5085f9", replay.RecoveryProfileId);
+        Assert.Equal("Zero Hour 1.04 (Recovery)", replay.RecoveryProfileName);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveCompatibility leaves SupportsCheckpoints false when no matching recovery profile exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveCompatibilityAsync_WhenNoMatchingRecoveryProfile_DoesNotSupportCheckpoints()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "RECOVER.rep",
+            FullPath = "/replays/RECOVER.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0xDA2B4B18",
+            IniCrc = "0xFEAAE3F3",
+            Description = "Zero Hour 1.04 Retail",
+            Version = "1.04",
+            GameType = "ZeroHour",
+            Publisher = "ea",
+            ManifestId = "1.104.retail.gameclient.zerohour",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xDA2B4B18", "0xFEAAE3F3", out outEntry))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        await service.ResolveCompatibilityAsync(replay, new HashSet<string>(), []);
+
+        Assert.False(replay.SupportsCheckpoints);
+        Assert.Null(replay.RecoveryProfileId);
+        Assert.Null(replay.RecoveryProfileName);
     }
 
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()

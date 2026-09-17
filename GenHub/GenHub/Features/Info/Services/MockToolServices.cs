@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
@@ -200,6 +201,9 @@ public class MockReplayDirectoryService : IReplayDirectoryService
                 SizeInBytes = 1024 * 500,
                 LastModified = DateTime.UtcNow.AddDays(-1),
                 GameVersion = version, // Use requested type so it appears valid
+                SupportsCheckpoints = true,
+                RecoveryProfileId = "demo-recovery-profile",
+                RecoveryProfileName = "Zero Hour 1.04 (Recovery)",
             },
             new()
             {
@@ -282,9 +286,122 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     }
 
     /// <inheritdoc/>
+    public IReadOnlyList<GameProfile> FindCompatibleProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        return profiles;
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<GameProfile> FindRecoveryProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        return profiles;
+    }
+
+    /// <inheritdoc/>
     public Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default)
     {
         return Task.FromResult(false);
+    }
+}
+
+/// <summary>
+/// Mock implementation of <see cref="IReplayCheckpointService"/> for testing and demos.
+/// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
+public class MockReplayCheckpointService : IReplayCheckpointService
+{
+    /// <inheritdoc/>
+    public string GetSaveDirectory(GameType gameType) => @"C:\Mock\Save";
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<ReplayCheckpointInfo>> GetCheckpointsForReplayAsync(ReplayFile replay, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<ReplayCheckpointInfo>>(new List<ReplayCheckpointInfo>
+        {
+            new()
+            {
+                FilePath = @"C:\Mock\Save\cp_12000.sav",
+                FileName = "cp_12000.sav",
+                TargetFrame = 12000,
+                CreatedAt = DateTime.UtcNow,
+                FileSizeBytes = 1048576,
+                AssociatedReplayFileName = replay.FileName,
+            },
+        });
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<ReplayCheckpointInfo>> MintCheckpointAsync(
+        ReplayFile replay,
+        GameProfile profile,
+        int targetFrame,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(new ReplayCheckpointInfo
+        {
+            FilePath = $@"C:\Mock\Save\cp_{targetFrame}.sav",
+            FileName = $"cp_{targetFrame}.sav",
+            TargetFrame = targetFrame,
+            CreatedAt = DateTime.UtcNow,
+            FileSizeBytes = 1048576,
+            AssociatedReplayFileName = replay.FileName,
+        }));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> ResumeReplayAsync(
+        ReplayFile replay,
+        GameProfile profile,
+        ReplayCheckpointInfo checkpoint,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = profile.Id,
+            WorkspaceId = Guid.NewGuid().ToString(),
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = @"C:\Mock\generalszh.exe",
+                CommandLine = $"-loadsave {checkpoint.FileName} -resumereplay {replay.FileName}",
+                WorkingDirectory = @"C:\Mock",
+            },
+        }));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> TakeoverMatchAsync(
+        ReplayFile replay,
+        GameProfile profile,
+        ReplayCheckpointInfo checkpoint,
+        int slotIndex,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = profile.Id,
+            WorkspaceId = Guid.NewGuid().ToString(),
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = @"C:\Mock\generalszh.exe",
+                CommandLine = $"-loadsave {checkpoint.FileName} -resumeas {slotIndex}",
+                WorkingDirectory = @"C:\Mock",
+            },
+        }));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<bool>> DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ProfileOperationResult<bool>.CreateSuccess(true));
+    }
+
+    /// <inheritdoc/>
+    public void CancelActiveMint()
+    {
     }
 }
 
@@ -588,20 +705,30 @@ public class MockLocalContentService : ILocalContentService
 /// <summary>
 /// Mock implementation of <see cref="IGameProfileManager"/>.
 /// </summary>
-public class MockGameProfileManager : IGameProfileManager
+public class MockGameProfileManager(IReadOnlyList<GameProfile>? profiles = null) : IGameProfileManager
 {
+    private readonly IReadOnlyList<GameProfile> _profiles = profiles ?? [];
+
     /// <inheritdoc/>
     public Task<ProfileOperationResult<IReadOnlyList<GameProfile>>> GetAllProfilesAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        => Task.FromResult(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(_profiles));
 
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> GetProfileAsync(string profileId, CancellationToken cancellationToken = default)
-        => Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
+    {
+        var match = _profiles.FirstOrDefault(p => p.Id == profileId);
+        if (match != null)
+        {
+            return Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(match));
+        }
+
+        return Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
         {
             Id = profileId,
             Name = "Demo Profile",
             GameClient = new GameClient { GameType = GameType.ZeroHour },
         }));
+    }
 
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> CreateProfileAsync(CreateProfileRequest request, CancellationToken cancellationToken = default)

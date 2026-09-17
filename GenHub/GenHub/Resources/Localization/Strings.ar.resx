@@ -7494,6 +7494,606 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>فتح مجلد Releases في مستكشف الملفات</value>
   </data>
   <data name="Tools.ModBuilder.View.ButtonOpenReleaseFolder" xml:space="preserve">
-    <value>فتح مجلد الإصدارات</value>
+    <value>فتح مجلد الإصدارات</value>  </data>
+  <data name="Tools.ReplayManager.Action.Recovery" xml:space="preserve">
+    <value>استرداد</value>
   </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Resume" xml:space="preserve">
+    <value>استئناف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Takeover" xml:space="preserve">
+    <value>تولي المباراة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateButton" xml:space="preserve">
+    <value>إنشاء نقطة فحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveSubtitle" xml:space="preserve">
+    <value>سيقوم GenHub بتشغيل اللعبة للتقديم السريع عبر الإعادة حتى النقطة المحددة وحفظ الحالة. بمجرد إنشاء نقطة الفحص، ستقوم اللعبة بالحفظ والإغلاق تلقائيًا.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveTitle" xml:space="preserve">
+    <value>إنشاء نقطة فحص محفوظة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.ExistingTitle" xml:space="preserve">
+    <value>نقاط الفحص الموجودة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.FrameFormat" xml:space="preserve">
+    <value>إطار {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.MinTime" xml:space="preserve">
+    <value>1 ث</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SavesCountFormat" xml:space="preserve">
+    <value>{0} حفظ</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TakeoverPlayer" xml:space="preserve">
+    <value>اللاعب المراد تولي التحكم به</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetPoint" xml:space="preserve">
+    <value>النقطة المستهدفة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfile" xml:space="preserve">
+    <value>الملف الشخصي المستهدف</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfileSubtitle" xml:space="preserve">
+    <value>حدد ملفًا شخصيًا يدعم محرك نقاط الفحص وتولي التحكم.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Title" xml:space="preserve">
+    <value>استرداد الإعادة وتولي التحكم</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave" xml:space="preserve">
+    <value>حذف نقطة الفحص المحفوظة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Resume" xml:space="preserve">
+    <value>استئناف تشغيل الإعادة بدقة من نقطة الفحص المحددة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Takeover" xml:space="preserve">
+    <value>تولي التحكم المباشر بالمباراة من نقطة الفحص هذه كاللاعب المحدد</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointMessage" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف نقطة الفحص '{0}'؟</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointTitle" xml:space="preserve">
+    <value>حذف نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedDesc" xml:space="preserve">
+    <value>تم إنشاء نقطة الفحص {0} عند {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedTitle" xml:space="preserve">
+    <value>تم إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointDeletedDesc" xml:space="preserve">
+    <value>تم حذف نقطة الفحص {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverDesc" xml:space="preserve">
+    <value>بدأ تولي التحكم المباشر بالمباراة كـ {0}!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverTitle" xml:space="preserve">
+    <value>تولي المباراة</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledDesc" xml:space="preserve">
+    <value>تم إلغاء إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledTitle" xml:space="preserve">
+    <value>تم إلغاء إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintErrorTitle" xml:space="preserve">
+    <value>خطأ في إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintFailedTitle" xml:space="preserve">
+    <value>فشل إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointResumeDesc" xml:space="preserve">
+    <value>يرجى تحديد نقطة فحص محفوظة للاستئناف.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointSelectedTitle" xml:space="preserve">
+    <value>لم يتم تحديد نقطة فحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointTakeoverDesc" xml:space="preserve">
+    <value>يرجى تحديد نقطة فحص محفوظة لتولي التحكم.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedDesc" xml:space="preserve">
+    <value>يرجى تحديد خانة لاعب لتولي التحكم بها.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedTitle" xml:space="preserve">
+    <value>لم يتم تحديد لاعب</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileResumeDesc" xml:space="preserve">
+    <value>يرجى تحديد ملف شخصي متوافق للعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedDesc" xml:space="preserve">
+    <value>يرجى تحديد ملف شخصي متوافق للعبة لإنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedTitle" xml:space="preserve">
+    <value>لم يتم تحديد ملف شخصي</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceled" xml:space="preserve">
+    <value>تم إلغاء {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceledDesc" xml:space="preserve">
+    <value>تم إلغاء {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationError" xml:space="preserve">
+    <value>خطأ في {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationFailed" xml:space="preserve">
+    <value>فشل {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningDesc" xml:space="preserve">
+    <value>تعذر تحميل الملفات الشخصية لاسترداد نقاط الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningTitle" xml:space="preserve">
+    <value>تحذير الملفات الشخصية</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorDesc" xml:space="preserve">
+    <value>فشل تحميل بيانات نقاط الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorTitle" xml:space="preserve">
+    <value>خطأ في الاسترداد</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedDesc" xml:space="preserve">
+    <value>تم استئناف التشغيل من الإطار {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedTitle" xml:space="preserve">
+    <value>تم استئناف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CancelingCheckpoint" xml:space="preserve">
+    <value>جارٍ إلغاء إنشاء نقطة الفحص...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CheckpointCreated" xml:space="preserve">
+    <value>تم إنشاء نقطة الفحص {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingCheckpoint" xml:space="preserve">
+    <value>جارٍ إنشاء نقطة الفحص عند {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MatchTakeover" xml:space="preserve">
+    <value>تم تولي التحكم بالمباراة كـ {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintCanceled" xml:space="preserve">
+    <value>تم إلغاء إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintError" xml:space="preserve">
+    <value>خطأ في إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintFailed" xml:space="preserve">
+    <value>فشل إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationCanceled" xml:space="preserve">
+    <value>تم إلغاء {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationError" xml:space="preserve">
+    <value>خطأ في {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationFailed" xml:space="preserve">
+    <value>فشل {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReplayResumed" xml:space="preserve">
+    <value>تم استئناف تشغيل الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ResumingReplay" xml:space="preserve">
+    <value>جارٍ استئناف الإعادة من {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
+    <value>جارٍ تولي التحكم بالمباراة في الخانة {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
+    <value>قم بتكوين أو إنشاء ملف تعريف للعبة لمشاهدة هذه الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
+    <value>استئناف الإعادة من نقطة فحص محفوظة، أو تولي اللعب المباشر بالمباراة كأي لاعب.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithProfile" xml:space="preserve">
+    <value>استئناف الإعادة من نقطة فحص محفوظة، أو تولي اللعب المباشر بالمباراة كأي لاعب باستخدام الملف الشخصي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
+    <value>يتطلب استرداد نقاط الفحص وتولي التحكم بالمباراة عميل لعبة يدعم قدرات نقاط الفحص (مثل MP-Recovery أو محرك مجتمعي حديث).</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
+    <value>شاهد الإعادة باستخدام الملف الشخصي '{0}'.</value>
+  </data>
+  <data name="Common.DeleteError" xml:space="preserve">
+    <value>خطأ في الحذف</value>
+  </data>
+  <data name="Common.DeleteFailed" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="Common.Deleted" xml:space="preserve">
+    <value>تم الحذف</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorTitle" xml:space="preserve">
+    <value>خطأ في التحميل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorDesc" xml:space="preserve">
+    <value>فشل في تحميل الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadError" xml:space="preserve">
+    <value>خطأ أثناء تحميل الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Compatible" xml:space="preserve">
+    <value>الملف التعريفي '{0}' مهيأ بعميل اللعبة وحزمة البيانات المتوافقة. انقر فوق 'تشغيل' لبدء اللعبة، ثم حدد هذا الإعادة داخل اللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresProfile" xml:space="preserve">
+    <value>عميل اللعبة والتصحيح متاحان لـ '{0}'. انقر فوق 'إنشاء ملف تعريفي' لتهيئة ملف تعريفي مخصص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Downloadable" xml:space="preserve">
+    <value>يمكن تنزيل عميل اللعبة وحزمة البيانات لـ '{0}'. انقر فوق 'إعداد' للحصول على هذا الملف التعريفي وتهيئته.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Orphaned" xml:space="preserve">
+    <value>رمز التحقق الدوري Exe CRC {0} / INI CRC {1} غير موجود في الكتالوج الرسمي. انقر فوق 'ملف تعريفي' للتهيئة باستخدام التثبيت الأساسي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
+    <value>بيانات رأس الإعادة غير متوفرة أو تعذر تحليلها.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RecoverySuffix" xml:space="preserve">
+    <value>
+
+محرك الاسترداد: يدعم الملف التعريفي '{0}' حفظ نقاط التفتيش واستئناف الإعادة والاستحواذ المباشر على المباراة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletingReplays" xml:space="preserve">
+    <value>جارٍ حذف الإعادات...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedReplaysFormat" xml:space="preserve">
+    <value>تم حذف {0} من الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletedSuccessfully" xml:space="preserve">
+    <value>تم الحذف بنجاح.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteSelectedFailed" xml:space="preserve">
+    <value>تعذر حذف الإعادات المحددة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeleteError" xml:space="preserve">
+    <value>خطأ أثناء الحذف.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingZip" xml:space="preserve">
+    <value>جارٍ إنشاء ملف ZIP...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedTitle" xml:space="preserve">
+    <value>تم إنشاء ملف Zip</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedDesc" xml:space="preserve">
+    <value>تم إنشاء {0} في مجلد الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipCreated" xml:space="preserve">
+    <value>تم إنشاء ملف ZIP بنجاح.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedTitle" xml:space="preserve">
+    <value>فشل إنشاء Zip</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedDesc" xml:space="preserve">
+    <value>فشل في إنشاء أرشيف ZIP.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipFailed" xml:space="preserve">
+    <value>فشل إنشاء ملف ZIP.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExportErrorTitle" xml:space="preserve">
+    <value>خطأ في التصدير</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ExportError" xml:space="preserve">
+    <value>خطأ أثناء التصدير.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.Uncompressing" xml:space="preserve">
+    <value>جارٍ فك ضغط ملفات ZIP...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteTitle" xml:space="preserve">
+    <value>اكتمل فك الضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteDesc" xml:space="preserve">
+    <value>تم استخراج {0} من الإعادات من ملفات ZIP المحددة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressComplete" xml:space="preserve">
+    <value>تم استخراج {0} من الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressWarningTitle" xml:space="preserve">
+    <value>تحذير فك الضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressErrorTitle" xml:space="preserve">
+    <value>خطأ في فك الضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressError" xml:space="preserve">
+    <value>خطأ أثناء فك الضغط.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlTitle" xml:space="preserve">
+    <value>استيراد من الرابط</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlDesc" xml:space="preserve">
+    <value>تنزيل الإعادات من رابط محدد واستيرادها تلقائيًا إلى مجلد إعادات اللعبة. يدعم ملفات .rep المباشرة وأرشيفات zip.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DownloadingFromUrl" xml:space="preserve">
+    <value>جارٍ التنزيل من الرابط...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteTitle" xml:space="preserve">
+    <value>اكتمل الاستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteDesc" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات) من الرابط.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportComplete" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات) بنجاح.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
+    <value>فشل الاستيراد: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportError" xml:space="preserve">
+    <value>خطأ أثناء الاستيراد.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ConfiguringProfile" xml:space="preserve">
+    <value>جارٍ تهيئة الملف التعريفي لـ {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedTitle" xml:space="preserve">
+    <value>تم إنشاء الملف التعريفي</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedDesc" xml:space="preserve">
+    <value>تم إنشاء الملف التعريفي '{0}' لـ {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreated" xml:space="preserve">
+    <value>تم إنشاء الملف التعريفي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationFailedTitle" xml:space="preserve">
+    <value>فشل إنشاء الملف التعريفي</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationFailed" xml:space="preserve">
+    <value>فشل إنشاء الملف التعريفي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationErrorTitle" xml:space="preserve">
+    <value>خطأ في إنشاء الملف التعريفي</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationError" xml:space="preserve">
+    <value>خطأ أثناء إنشاء الملف التعريفي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchingProfile" xml:space="preserve">
+    <value>جارٍ تشغيل الملف التعريفي لـ {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedTitle" xml:space="preserve">
+    <value>تم التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedDesc" xml:space="preserve">
+    <value>تم تشغيل الملف التعريفي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchedProfile" xml:space="preserve">
+    <value>تم تشغيل الملف التعريفي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchFailedTitle" xml:space="preserve">
+    <value>فشل التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchFailed" xml:space="preserve">
+    <value>فشل التشغيل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchErrorTitle" xml:space="preserve">
+    <value>خطأ في التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchError" xml:space="preserve">
+    <value>خطأ أثناء التشغيل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CopiedTitle" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LinkCopiedDesc" xml:space="preserve">
+    <value>تم نسخ الرابط إلى الحافظة!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteCloudFailed" xml:space="preserve">
+    <value>فشل في حذف الملف من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteHistoryFailed" xml:space="preserve">
+    <value>فشل في حذف عنصر السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedTitle" xml:space="preserve">
+    <value>فشل المسح</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedDesc" xml:space="preserve">
+    <value>فشل في مسح السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.PreparingUpload" xml:space="preserve">
+    <value>جارٍ إعداد الرفع...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadFailed" xml:space="preserve">
+    <value>فشل الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadFailedTitle" xml:space="preserve">
+    <value>فشل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorTitle" xml:space="preserve">
+    <value>خطأ في الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorDesc" xml:space="preserve">
+    <value>فشل في إكمال الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadError" xml:space="preserve">
+    <value>خطأ أثناء الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadTooLarge" xml:space="preserve">
+    <value>حجم الرفع كبير جدًا (الحد الأقصى 10 ميجابايت).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadLimitReached" xml:space="preserve">
+    <value>تم الوصول إلى الحد. يُعاد التعيين في {0:g}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReusedUpload" xml:space="preserve">
+    <value>تم استخدام الرفع الموجود مسبقًا! تم نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExistingLinkCopied" xml:space="preserve">
+    <value>تم نسخ الرابط الحالي إلى الحافظة!</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadedLinkCopied" xml:space="preserve">
+    <value>تم الرفع! تم نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadCompleteTitle" xml:space="preserve">
+    <value>اكتمل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadingReplays" xml:space="preserve">
+    <value>جارٍ تحميل الإعادات...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportingFiles" xml:space="preserve">
+    <value>جارٍ استيراد الملفات...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportedFilesFormat" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportedFilesFormat" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات).</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelFormat" xml:space="preserve">
+    <value>الخانة {0}: {1}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelAiFormat" xml:space="preserve">
+    <value>الخانة {0}: {1} ({2})</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.AiLabel" xml:space="preserve">
+    <value>ذكاء اصطناعي</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedTitle" xml:space="preserve">
+    <value>تم الحذف</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryTitle" xml:space="preserve">
+    <value>مسح سجل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryMessage" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف جميع الإعادات المرفوعة من التخزين السحابي ومسح سجل الرفع؟ لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryConfirm" xml:space="preserve">
+    <value>مسح الكل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedTitle" xml:space="preserve">
+    <value>تم المسح</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedDescFormat" xml:space="preserve">
+    <value>تم حذف جميع الملفات المرفوعة البالغ عددها {0} من التخزين السحابي ومسح السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedTitle" xml:space="preserve">
+    <value>تم المسح جزئيًا</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedDescFormat" xml:space="preserve">
+    <value>تم مسح {0} من عناصر السجل. تعذر حذف {1} عنصر/عناصر من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysTitle" xml:space="preserve">
+    <value>استيراد الإعادات</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysDesc" xml:space="preserve">
+    <value>يقوم باستيراد ملفات الإعادة من الروابط أو بسحب الملفات وإفلاتها في مجلد الإعادات الخاص باللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryTitle" xml:space="preserve">
+    <value>سجل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryDesc" xml:space="preserve">
+    <value>يعرض قائمة بالإعادات التي قمت برفعها مسبقًا، مما يتيح لك إدارتها ونسخ روابط التحميل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkTitle" xml:space="preserve">
+    <value>نسخ الرابط</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkDesc" xml:space="preserve">
+    <value>ينسخ رابط تحميل الملف المرفوع إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadTitle" xml:space="preserve">
+    <value>حذف الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadDesc" xml:space="preserve">
+    <value>يحذف الملف المرفوع نهائيًا من التخزين السحابي ويزيله من السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryTitle" xml:space="preserve">
+    <value>مسح السجل</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryDesc" xml:space="preserve">
+    <value>يحذف نهائيًا جميع الملفات المرفوعة من التخزين السحابي ويمسح سجل الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportTitle" xml:space="preserve">
+    <value>استعراض واستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportDesc" xml:space="preserve">
+    <value>يفتح نافذة لاختيار الملفات تتيح لك تحديد ملفات الإعادة (.rep) أو أرشيفات zip من حاسوبك لاستيرادها إلى اللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysTitle" xml:space="preserve">
+    <value>حذف الإعادات</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysDesc" xml:space="preserve">
+    <value>يحذف نهائيًا الإعادات المحددة من مجلد إعادات اللعبة. لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipTitle" xml:space="preserve">
+    <value>تصدير إلى ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipDesc" xml:space="preserve">
+    <value>ينشئ أرشيف ZIP يحتوي على الإعادات المحددة ويحفظه في مجلد الإعادات. يمكنك بعد ذلك مشاركة ملف ZIP مع الآخرين أو استخدامه للنسخ الاحتياطي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareTitle" xml:space="preserve">
+    <value>رفع ومشاركة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareDesc" xml:space="preserve">
+    <value>يرفع الإعادات المحددة إلى خدمة UploadThing السحابية (بحد أقصى 10 ميجابايت) وينسخ رابط المشاركة إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderTitle" xml:space="preserve">
+    <value>فتح مجلد الإعادات</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderDesc" xml:space="preserve">
+    <value>يفتح مجلد الإعادات الخاص باللعبة في مستكشف الملفات، مما يتيح لك إدارة ملفات الإعادة مباشرة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileTitle" xml:space="preserve">
+    <value>إظهار ملف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileDesc" xml:space="preserve">
+    <value>يفتح مستكشف الملفات ويحدد ملف الإعادة المختار، مما يسهل تحديد موقعه وإدارته.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipTitle" xml:space="preserve">
+    <value>فك ضغط ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipDesc" xml:space="preserve">
+    <value>يستخرج محتويات أرشيفات ZIP المحددة ويستورد أي إعادات بداخلها إلى مجلد إعادات اللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientTitle" xml:space="preserve">
+    <value>تحديد عميل اللعبة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientDesc" xml:space="preserve">
+    <value>اختر من بين عملاء اللعبة المتاحين لتكوين ملف تعريف مخصص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileTitle" xml:space="preserve">
+    <value>إنشاء ملف تعريف للإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileDesc" xml:space="preserve">
+    <value>ينشئ ملف تعريف مخصص للعبة تم تكوينه بدقة وفقًا لعميل اللعبة وإعدادات INI المطلوبة لهذه الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileTitle" xml:space="preserve">
+    <value>تحديد ملف تعريف لتشغيل الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileDesc" xml:space="preserve">
+    <value>اختر ملف تعريف لمشاهدة هذه الإعادة بواسطته.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileTitle" xml:space="preserve">
+    <value>تشغيل ملف تعريف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileDesc" xml:space="preserve">
+    <value>يشغل اللعبة باستخدام ملف التعريف المطابق لهذه الإعادة حتى تتمكن من مشاهدتها دون أخطاء اختلاف الإصدار أو ملفات INI.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningTitle" xml:space="preserve">
+    <value>اللعبة قيد التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningDesc" xml:space="preserve">
+    <value>ملف تعريف اللعبة لهذه الإعادة قيد التشغيل بالفعل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeTitle" xml:space="preserve">
+    <value>الملف كبير جدًا</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeDesc" xml:space="preserve">
+    <value>الملف كبير جدًا. الحد الأقصى لحجم الرفع هو 10 ميجابايت.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededTitle" xml:space="preserve">
+    <value>تم تجاوز حد الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededDesc" xml:space="preserve">
+    <value>تم تجاوز حد الرفع لفترة الـ 3 أيام الحالية. يرجى حذف عناصر من سجل الرفع لتحرير المساحة فورًا.</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.DialogTitleFormat" xml:space="preserve">
+    <value>تحديد ملف تعريف - {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>تحديد ملف تعريف لتشغيل الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>انقر فوق ملف تعريف لتشغيل هذه الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>تشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
+    <value>اختر عميل لعبة متاح لإنشاء ملف تعريف جديد</value>  </data>
 </root>

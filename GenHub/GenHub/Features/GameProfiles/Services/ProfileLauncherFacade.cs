@@ -22,6 +22,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Content.Services.SuperHackers;
+using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
@@ -60,7 +61,20 @@ public class ProfileLauncherFacade(
     IInstallationCasPoolService? installationCasPoolService = null) : IProfileLauncherFacade
 {
     /// <inheritdoc/>
-    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup = false,
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, null, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -106,7 +120,7 @@ public class ProfileLauncherFacade(
                 return await LaunchToolProfileAsync(profile, profileId, cancellationToken);
             }
 
-            return await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, cancellationToken);
+            return await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -279,7 +293,7 @@ public class ProfileLauncherFacade(
             logger.LogDebug("[Workspace] CAS preflight check passed");
 
             // Resolve source paths for all manifests
-            var manifestSourcePaths = await ResolveManifestSourcePathsAsync(manifests, profile, cancellationToken);
+            var manifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(manifests, profile, manifestPool, logger, cancellationToken);
 
             // Create workspace configuration
             if (profile.GameClient == null)
@@ -708,6 +722,7 @@ public class ProfileLauncherFacade(
         GameProfile profile,
         string profileId,
         bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
         CancellationToken cancellationToken)
     {
         try
@@ -783,7 +798,7 @@ public class ProfileLauncherFacade(
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-            var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
+            var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
 
             if (launchResult.Failed)
             {
@@ -1125,57 +1140,6 @@ public class ProfileLauncherFacade(
         }
 
         return (manifests, hasGameInstallationManifest, hasGameClientManifest);
-    }
-
-    private async Task<Dictionary<string, string>> ResolveManifestSourcePathsAsync(
-        List<ContentManifest> manifests,
-        GameProfile profile,
-        CancellationToken cancellationToken)
-    {
-        var manifestSourcePaths = new Dictionary<string, string>();
-        foreach (var manifest in manifests)
-        {
-            if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-            {
-                continue;
-            }
-
-            if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient &&
-                !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
-            {
-                manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
-                logger.LogDebug("[Workspace] Source path for GameClient {ManifestId}: {SourcePath}", manifest.Id.Value, profile.GameClient.WorkingDirectory);
-                continue;
-            }
-
-            var contentDirResult = await manifestPool.GetContentDirectoryAsync(manifest.Id, cancellationToken);
-            if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data))
-            {
-                manifestSourcePaths[manifest.Id.Value] = contentDirResult.Data;
-                logger.LogDebug(
-                    "[Workspace] Source path for content {ManifestId} ({ContentType}): {SourcePath}",
-                    manifest.Id.Value,
-                    manifest.ContentType,
-                    contentDirResult.Data);
-            }
-            else if (contentDirResult.Success)
-            {
-                logger.LogDebug(
-                    "[Workspace] Manifest {ManifestId} ({ContentType}) is CAS-managed (no external source directory required)",
-                    manifest.Id.Value,
-                    manifest.ContentType);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "[Workspace] Could not resolve source path for manifest {ManifestId} ({ContentType}): {Error}",
-                    manifest.Id.Value,
-                    manifest.ContentType,
-                    contentDirResult.FirstError);
-            }
-        }
-
-        return manifestSourcePaths;
     }
 
     /// <summary>
@@ -1886,6 +1850,14 @@ public class ProfileLauncherFacade(
             {
                 profile.GameInstallationId = resolvedInstallation.Id;
                 logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId}", profileId, resolvedInstallation.Id);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Failed to rebind profile {ProfileId} to installation {InstallationId}: {Error}",
+                    profileId,
+                    resolvedInstallation.Id,
+                    updateResult.FirstError);
             }
         }
     }

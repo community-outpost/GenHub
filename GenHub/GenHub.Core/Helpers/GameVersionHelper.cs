@@ -319,6 +319,84 @@ public static partial class GameVersionHelper
         return trimmed;
     }
 
+    /// <summary>
+    /// Formats a numeric manifest version segment into a standard version string.
+    /// Handles Generals Online (D6 formatting), date-based versions (preserving YYYYMMDD),
+    /// and standard major/minor numeric versions (dividing by 100 when &gt;= 100).
+    /// </summary>
+    /// <param name="versionNumber">The parsed integer version number.</param>
+    /// <param name="publisherType">The publisher type identifier.</param>
+    /// <param name="includePrefix">Whether to include the 'v' prefix for semantic versions.</param>
+    /// <returns>The formatted version string, or an empty string if versionNumber &lt;= 0.</returns>
+    public static string FormatNumericManifestVersion(int versionNumber, string? publisherType, bool includePrefix = false)
+    {
+        if (versionNumber <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return versionNumber.ToString("D6");
+        }
+
+        if (versionNumber >= ManifestConstants.DateBasedVersionThreshold)
+        {
+            return versionNumber.ToString();
+        }
+
+        var prefix = includePrefix ? "v" : string.Empty;
+        return versionNumber >= ManifestConstants.NumericVersionDivisorThreshold
+            ? $"{prefix}{versionNumber / ManifestConstants.NumericVersionDivisorThreshold}.{versionNumber % ManifestConstants.NumericVersionDivisorThreshold:D2}"
+            : $"{prefix}{versionNumber}";
+    }
+
+    /// <summary>
+    /// Attempts to parse a version string into a strict numeric version number.
+    /// Handles integer versions (e.g. "000104" -&gt; 104, "104" -&gt; 104, "20260821" -&gt; 20260821)
+    /// and two-part semantic versions (e.g. "1.04" -&gt; 104, "v1.04" -&gt; 104).
+    /// Does not match versions containing alphanumeric suffixes or non-numeric characters (e.g. "1.04b").
+    /// </summary>
+    /// <param name="version">The version string to parse.</param>
+    /// <param name="numericVersion">When this method returns, contains the parsed numeric version if successful, or 0 if parsing failed.</param>
+    /// <returns>True if the version string is strictly numeric and greater than 0; otherwise, false.</returns>
+    public static bool TryParseStrictNumericVersion(string? version, out int numericVersion)
+    {
+        numericVersion = 0;
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return false;
+        }
+
+        var trimmed = version.Trim().TrimStart('v', 'V');
+        if (int.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out var direct) && direct > 0)
+        {
+            numericVersion = direct;
+            return true;
+        }
+
+        if (trimmed.Contains('.'))
+        {
+            var parts = trimmed.Split('.');
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var major) &&
+                int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var minor) &&
+                parts[1].Length <= 2 &&
+                major >= 0 &&
+                minor >= 0)
+            {
+                var computed = (major * ManifestConstants.NumericVersionDivisorThreshold) + minor;
+                if (computed > 0)
+                {
+                    numericVersion = computed;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     [GeneratedRegex(@"\b(\d{4})[-_.]?(\d{2})[-_.]?(\d{2})\b", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex EightDigitDateRegex();
 

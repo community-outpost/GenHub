@@ -3,10 +3,12 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -82,6 +84,8 @@ public partial class GameProfileSettingsViewModel
                     Version = vmItem.Version ?? string.Empty,
                     SourceId = vmItem.SourceId ?? string.Empty,
                     GameClientId = vmItem.GameClientId ?? string.Empty,
+                    GameClient = vmItem.GameClient?.Clone(),
+                    Manifest = vmItem.Manifest,
                     IsEnabled = vmItem.IsEnabled,
                 });
             }
@@ -516,12 +520,15 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
+        var activeGameClient = isStandaloneProfile ? null : GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
+
         var createRequest = new CreateProfileRequest
         {
             Name = Name,
             Description = Description,
             GameInstallationId = isStandaloneProfile ? null : SelectedGameInstallation?.SourceId,
-            GameClientId = isStandaloneProfile ? null : SelectedGameInstallation?.GameClientId,
+            GameClientId = isStandaloneProfile ? null : (activeGameClient?.Id ?? SelectedGameInstallation?.GameClientId),
+            GameClient = activeGameClient,
             WorkspaceStrategy = SelectedWorkspaceStrategy,
             EnabledContentIds = enabledContentIds,
             CommandLineArguments = CommandLineArguments,
@@ -766,6 +773,8 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
+        var activeGameClient = isStandaloneProfile ? null : GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation, _originalProfile?.GameClient);
+
         var updateRequest = new UpdateProfileRequest
         {
             Name = Name,
@@ -779,6 +788,7 @@ public partial class GameProfileSettingsViewModel
             CommandLineArguments = CommandLineArguments,
             IconPath = IconPath,
             CoverPath = CoverPath,
+            GameClient = activeGameClient,
         };
 
         PopulateGameSettings(updateRequest, gameSettings);
