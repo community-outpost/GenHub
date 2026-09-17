@@ -9928,4 +9928,79 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   <data name="Tools.PublisherStudio.Studio.CatalogAlreadyExists" xml:space="preserve">
     <value>A catalog with ID '{0}' already exists.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededTitle" xml:space="preserve">
+    <value>Google Drive Credentials Needed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededMessage" xml:space="preserve">
+    <value>Please enter your Google OAuth Client ID and Secret to connect to Google Drive. Follow the Project Configuration guide above.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedTitle" xml:space="preserve">
+    <value>Project Saved</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedMessage" xml:space="preserve">
+    <value>Your publisher project '{0}' has been saved successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveFailedTitle" xml:space="preserve">
+    <value>Save Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorTitle" xml:space="preserve">
+    <value>Save Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle" xml:space="preserve">
+    <value>Duplicate Catalog ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdTitle" xml:space="preserve">
+    <value>Duplicate Content ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdMessageFormat" xml:space="preserve">
+    <value>A content item with ID '{0}' already exists in this catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentTitle" xml:space="preserve">
+    <value>Delete Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete '{0}' ({1})? This will also remove all its releases and artifacts.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceled" xml:space="preserve">
+    <value>Upload canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishedSuccessfully" xml:space="preserve">
+    <value>Published successfully!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploaded" xml:space="preserve">
+    <value>Provider definition uploaded successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingProviderDefinition" xml:space="preserve">
+    <value>Uploading provider definition...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.EditTitle" xml:space="preserve">
+    <value>Edit Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CreateContent" xml:space="preserve">
+    <value>Create Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.EditTitle" xml:space="preserve">
+    <value>Edit Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.CreateRelease" xml:space="preserve">
+    <value>Create Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.SaveChanges" xml:space="preserve">
+    <value>Save Changes</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.NoFileConfigured" xml:space="preserve">
+    <value>No file configured</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusLocalFile" xml:space="preserve">
+    <value>Local file selected - will be uploaded during publish</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusExternalCdn" xml:space="preserve">
+    <value>Hosted externally on CDN / mirror (will not be uploaded)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSize" xml:space="preserve">
+    <value>Invalid size</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
+    <value>Invalid file size format (e.g., 10 MB, 500 KB, 1.5 GB)</value>
+  </data>
 </root>

@@ -21,7 +21,8 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
 public partial class AddContentDialogViewModel(
     Action<CatalogContentItem> onContentCreated,
-    IPublisherStudioDialogService? dialogService = null) : ObservableValidator, IDisposable
+    IPublisherStudioDialogService? dialogService = null,
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
 {
     private readonly CatalogContentItem? _existingItem;
     private CancellationTokenSource? _computationCts;
@@ -98,6 +99,33 @@ public partial class AddContentDialogViewModel(
     private bool _isComputingHash;
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="AddContentDialogViewModel"/> class in edit mode.
+    /// </summary>
+    /// <param name="existing">The existing content item to edit.</param>
+    /// <param name="onContentSaved">Callback invoked when content is successfully saved.</param>
+    /// <param name="dialogService">Optional dialog service for browsing files.</param>
+    /// <param name="localizationService">Optional localization service.</param>
+    public AddContentDialogViewModel(
+        CatalogContentItem existing,
+        Action<CatalogContentItem> onContentSaved,
+        IPublisherStudioDialogService? dialogService = null,
+        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null)
+        : this(onContentSaved, dialogService, localizationService)
+    {
+        ArgumentNullException.ThrowIfNull(existing);
+
+        _existingItem = existing;
+        IsEditMode = true;
+        ContentId = existing.Id;
+        ContentName = existing.Name;
+        Description = existing.Description;
+        SelectedContentType = existing.ContentType;
+        SelectedTargetGame = existing.TargetGame;
+        TagsInput = string.Join(", ", existing.Tags);
+        ExtendsContentId = existing.ExtendsContentId;
+    }
+
+    /// <summary>
     /// Gets available content types for selection.
     /// </summary>
     public static ContentType[] AvailableContentTypes =>
@@ -131,12 +159,16 @@ public partial class AddContentDialogViewModel(
     /// <summary>
     /// Gets the dialog title based on mode.
     /// </summary>
-    public string DialogTitle => IsEditMode ? "Edit Content Item" : "Add Content Item";
+    public string DialogTitle => IsEditMode
+        ? GetLocalizedString("Tools.PublisherStudio.Content.EditTitle", "Edit Content Item")
+        : GetLocalizedString("Tools.PublisherStudio.Content.AddTitle", "Add Content Item");
 
     /// <summary>
     /// Gets the primary action button text based on mode.
     /// </summary>
-    public string ActionButtonText => IsEditMode ? "Save Changes" : "Create Content";
+    public string ActionButtonText => IsEditMode
+        ? GetLocalizedString("Tools.PublisherStudio.Common.SaveChanges", "Save Changes")
+        : GetLocalizedString("Tools.PublisherStudio.Content.CreateContent", "Create Content");
 
     /// <summary>
     /// Gets the submit button text for view binding.
@@ -157,31 +189,6 @@ public partial class AddContentDialogViewModel(
     /// Gets a value indicating whether the addon parent selection field should be shown.
     /// </summary>
     public bool ShowAddonParentSelection => CanExtend;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AddContentDialogViewModel"/> class in edit mode.
-    /// </summary>
-    /// <param name="existing">The existing content item to edit.</param>
-    /// <param name="onContentSaved">Callback invoked when content is successfully saved.</param>
-    /// <param name="dialogService">Optional dialog service for browsing files.</param>
-    public AddContentDialogViewModel(
-        CatalogContentItem existing,
-        Action<CatalogContentItem> onContentSaved,
-        IPublisherStudioDialogService? dialogService = null)
-        : this(onContentSaved, dialogService)
-    {
-        ArgumentNullException.ThrowIfNull(existing);
-
-        _existingItem = existing;
-        IsEditMode = true;
-        ContentId = existing.Id;
-        ContentName = existing.Name;
-        Description = existing.Description;
-        SelectedContentType = existing.ContentType;
-        SelectedTargetGame = existing.TargetGame;
-        TagsInput = string.Join(", ", existing.Tags);
-        ExtendsContentId = existing.ExtendsContentId;
-    }
 
     /// <summary>
     /// Populates content item fields from a local directory or file path.
@@ -671,5 +678,10 @@ public partial class AddContentDialogViewModel(
         ValidationError = HasErrors
             ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
             : null;
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 }
