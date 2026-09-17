@@ -27,7 +27,7 @@ public static class GenLauncherS3XmlParser
         string s3Host,
         string bucketName)
     {
-        return ParseListBucketResult(xmlContent, folderPrefix, s3Host, bucketName, out _, out _, null, null);
+        return ParseListBucketResult(xmlContent, folderPrefix, s3Host, bucketName, out _, out _, null, null, true);
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public static class GenLauncherS3XmlParser
         out bool isTruncated,
         out string? nextMarker)
     {
-        return ParseListBucketResult(xmlContent, folderPrefix, s3Host, bucketName, out isTruncated, out nextMarker, null, null);
+        return ParseListBucketResult(xmlContent, folderPrefix, s3Host, bucketName, out isTruncated, out nextMarker, null, null, true);
     }
 
     /// <summary>
@@ -62,6 +62,7 @@ public static class GenLauncherS3XmlParser
     /// <param name="nextMarker">Outputs the next marker or continuation token if truncated.</param>
     /// <param name="publicKey">Explicit S3 public key, or null to check defaults.</param>
     /// <param name="secretKey">Explicit S3 secret key, or null to check defaults.</param>
+    /// <param name="useAuth">Whether to sign file download URLs.</param>
     /// <returns>A list of parsed file entries.</returns>
     [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Overload with paging out parameters and explicit credentials")]
     public static List<GenLauncherS3FileEntry> ParseListBucketResult(
@@ -71,8 +72,9 @@ public static class GenLauncherS3XmlParser
         string bucketName,
         out bool isTruncated,
         out string? nextMarker,
-        string? publicKey,
-        string? secretKey)
+        string? publicKey = null,
+        string? secretKey = null,
+        bool useAuth = true)
     {
         isTruncated = false;
         nextMarker = null;
@@ -111,7 +113,7 @@ public static class GenLauncherS3XmlParser
 
         foreach (var contents in doc.Descendants().Where(e => e.Name.LocalName == "Contents"))
         {
-            var entry = TryParseContentEntry(contents, folderPrefix, normalizedFolder, s3Host, bucketName, publicKey, secretKey);
+            var entry = TryParseContentEntry(contents, folderPrefix, normalizedFolder, s3Host, bucketName, publicKey, secretKey, useAuth);
             if (entry != null)
             {
                 entries.Add(entry);
@@ -176,6 +178,7 @@ public static class GenLauncherS3XmlParser
     /// <param name="marker">Optional pagination marker/continuation token.</param>
     /// <param name="publicKey">Explicit S3 public key, or null to check defaults.</param>
     /// <param name="secretKey">Explicit S3 secret key, or null to check defaults.</param>
+    /// <param name="useAuth">Whether to sign the request using AWS4.</param>
     /// <returns>The constructed query URL.</returns>
     public static string BuildS3QueryUrl(
         string? s3Host,
@@ -183,7 +186,8 @@ public static class GenLauncherS3XmlParser
         string? folderPrefix,
         string? marker = null,
         string? publicKey = null,
-        string? secretKey = null)
+        string? secretKey = null,
+        bool useAuth = true)
     {
         if (string.IsNullOrWhiteSpace(s3Host))
         {
@@ -201,13 +205,26 @@ public static class GenLauncherS3XmlParser
             extraParams["marker"] = marker;
         }
 
-        return GenLauncherS3Signer.GeneratePresignedGetUrl(
-            s3Host,
-            bucketName,
-            objectKey: null,
-            publicKey: publicKey,
-            secretKey: secretKey,
-            extraQueryParams: extraParams);
+        if (useAuth)
+        {
+            return GenLauncherS3Signer.GeneratePresignedGetUrl(
+                s3Host,
+                bucketName,
+                objectKey: null,
+                publicKey: publicKey,
+                secretKey: secretKey,
+                extraQueryParams: extraParams);
+        }
+
+        var (scheme, host) = NormalizeHostAndScheme(s3Host);
+        var queryParts = new List<string>();
+        foreach (var (k, v) in extraParams)
+        {
+            queryParts.Add($"{Uri.EscapeDataString(k)}={Uri.EscapeDataString(v)}");
+        }
+
+        var qs = queryParts.Count > 0 ? "?" + string.Join("&", queryParts) : string.Empty;
+        return $"{scheme}://{host}/{Uri.EscapeDataString(bucketName)}{qs}";
     }
 
     private static GenLauncherS3FileEntry? TryParseContentEntry(
@@ -217,7 +234,8 @@ public static class GenLauncherS3XmlParser
         string s3Host,
         string bucketName,
         string? publicKey,
-        string? secretKey)
+        string? secretKey,
+        bool useAuth)
     {
         var key = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "Key")?.Value;
         if (string.IsNullOrWhiteSpace(key) || key.EndsWith('/'))
@@ -247,12 +265,22 @@ public static class GenLauncherS3XmlParser
             }
         }
 
-        var downloadUrl = GenLauncherS3Signer.GeneratePresignedGetUrl(
-            s3Host,
-            bucketName,
-            key,
-            publicKey,
-            secretKey);
+        string downloadUrl;
+        if (useAuth)
+        {
+            downloadUrl = GenLauncherS3Signer.GeneratePresignedGetUrl(
+                s3Host,
+                bucketName,
+                key,
+                publicKey,
+                secretKey);
+        }
+        else
+        {
+            var (scheme, host) = NormalizeHostAndScheme(s3Host);
+            var escapedKey = string.Join("/", key.Split('/', StringSplitOptions.None).Select(Uri.EscapeDataString));
+            downloadUrl = $"{scheme}://{host}/{Uri.EscapeDataString(bucketName)}/{escapedKey}";
+        }
 
         return new GenLauncherS3FileEntry
         {

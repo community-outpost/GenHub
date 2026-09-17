@@ -117,4 +117,27 @@ public sealed class GenLauncherS3XmlParserTests
         Assert.Contains("NoSuchBucket", ex.Message);
         Assert.Contains("The specified bucket does not exist", ex.Message);
     }
+
+    /// <summary>
+    /// Tests that ParseListBucketResult generates direct unsigned URLs when useAuth is false.
+    /// </summary>
+    [Fact]
+    public void ParseListBucketResult_Anonymous_ExtractsUnsignedDownloadUrl()
+    {
+        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+            SampleS3XmlWithNamespace,
+            "Shockwave_1.2/",
+            "gen.insave.ovh:9000",
+            "generals-mods",
+            out var isTruncated,
+            out var nextMarker,
+            useAuth: false);
+
+        Assert.Equal(2, entries.Count);
+        var first = entries[0];
+        Assert.Equal("http://gen.insave.ovh:9000/generals-mods/Shockwave_1.2/Shockwave.big", first.DownloadUrl);
+        Assert.DoesNotContain("X-Amz-Signature=", first.DownloadUrl);
+        Assert.False(isTruncated);
+        Assert.Null(nextMarker);
+    }
 }

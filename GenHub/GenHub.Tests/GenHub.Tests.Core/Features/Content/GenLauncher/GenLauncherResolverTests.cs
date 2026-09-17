@@ -209,4 +209,34 @@ public sealed class GenLauncherResolverTests
             ItExpr.IsAny<HttpRequestMessage>(),
             ItExpr.IsAny<CancellationToken>());
     }
+
+    /// <summary>
+    /// Tests that ResolveAsync ignores YAML URLs as direct download archives to prevent corrupt downloads.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithYamlSourceUrl_DoesNotSetYamlAsDownloadFile()
+    {
+        var factoryMock = new Mock<IHttpClientFactory>();
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
+
+        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "yaml-mod",
+            Name = "YAML Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://raw.githubusercontent.com/test/mod/main/mod.yaml",
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data.Files);
+    }
 }

@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -227,13 +228,38 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(GenLauncherConstants.ProbeTimeout);
-        using var req = new HttpRequestMessage(HttpMethod.Head, uri);
-        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
-        if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
+        try
         {
-            return resp.Content.Headers.ContentLength.Value;
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(GenLauncherConstants.ProbeTimeout);
+
+            var currentUri = uri;
+            for (var redirect = 0; redirect < 5; redirect++)
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Head, currentUri);
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                if (resp.StatusCode is HttpStatusCode.MovedPermanently or HttpStatusCode.Found or HttpStatusCode.SeeOther or HttpStatusCode.TemporaryRedirect)
+                {
+                    if (resp.Headers.Location != null)
+                    {
+                        currentUri = resp.Headers.Location.IsAbsoluteUri
+                            ? resp.Headers.Location
+                            : new Uri(currentUri, resp.Headers.Location);
+                        continue;
+                    }
+                }
+
+                if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
+                {
+                    return resp.Content.Headers.ContentLength.Value;
+                }
+
+                break;
+            }
+        }
+        catch
+        {
+            // Ignore probe failures
         }
 
         return null;
@@ -274,19 +300,43 @@ public class GenLauncherDiscoverer(
             : string.Empty;
     }
 
-    private static string? ResolveFileDownloadUrl(string? simpleDownloadLink, string? modLink)
+    private static string? ResolveFileDownloadUrl(string? simpleDownloadLink, string? fallbackUrl)
     {
-        if (!string.IsNullOrWhiteSpace(simpleDownloadLink) && IsValidHttpUrl(simpleDownloadLink, out _))
+        if (!string.IsNullOrWhiteSpace(simpleDownloadLink) &&
+            IsValidHttpUrl(simpleDownloadLink, out _) &&
+            !simpleDownloadLink.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
+            !simpleDownloadLink.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
         {
             return simpleDownloadLink;
         }
 
-        if (!string.IsNullOrWhiteSpace(modLink) && IsValidHttpUrl(modLink, out _))
+        if (!string.IsNullOrWhiteSpace(fallbackUrl) &&
+            IsValidHttpUrl(fallbackUrl, out _) &&
+            !fallbackUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
+            !fallbackUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
         {
-            return modLink;
+            return fallbackUrl;
         }
 
         return null;
+    }
+
+    private static string ResolveArchiveFileName(GenLauncherVersionManifest manifest, string defaultName)
+    {
+        if (!string.IsNullOrWhiteSpace(manifest.SimpleDownloadLink) &&
+            IsValidHttpUrl(manifest.SimpleDownloadLink, out var uri))
+        {
+            var fn = Path.GetFileName(uri.LocalPath);
+            if (!string.IsNullOrWhiteSpace(fn) &&
+                !fn.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
+                !fn.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            {
+                return Uri.UnescapeDataString(fn);
+            }
+        }
+
+        var safeName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : defaultName;
+        return $"{safeName.Trim()}.zip";
     }
 
     private string GetLocalizedString(string key, string fallback)
@@ -402,6 +452,10 @@ public class GenLauncherDiscoverer(
         if (!string.IsNullOrEmpty(manifest.SimpleDownloadLink))
         {
             result.ResolverMetadata[GenLauncherConstants.SimpleDownloadLinkMetadataKey] = manifest.SimpleDownloadLink;
+            if (IsValidHttpUrl(manifest.SimpleDownloadLink, out _))
+            {
+                result.SelectedDownloadUrl = manifest.SimpleDownloadLink;
+            }
         }
 
         result.ResolverMetadata[GenLauncherConstants.YamlUrlMetadataKey] = manifestUrl;
@@ -599,6 +653,12 @@ public class GenLauncherDiscoverer(
             parentResult.DownloadSize = parentSizeBytes.Value;
         }
 
+        if (!string.IsNullOrWhiteSpace(parentManifest?.SimpleDownloadLink) &&
+            IsValidHttpUrl(parentManifest.SimpleDownloadLink, out _))
+        {
+            parentResult.SelectedDownloadUrl = parentManifest.SimpleDownloadLink;
+        }
+
         context.Variants.Insert(0, new ContentVariantInfo
         {
             Id = context.ModSlug,
@@ -609,14 +669,17 @@ public class GenLauncherDiscoverer(
 
         if (parentManifest != null)
         {
+            var fileName = ResolveArchiveFileName(parentManifest, modEntry.ModName);
+            var fileUrl = ResolveFileDownloadUrl(parentManifest.SimpleDownloadLink, null);
             context.FilesSections.Insert(0, new DownloadableFile(
                 Name: $"{modEntry.ModName} {parentManifest.Version}".Trim(),
                 Version: parentManifest.Version,
                 SizeBytes: parentSizeBytes,
-                DownloadUrl: ResolveFileDownloadUrl(parentManifest.SimpleDownloadLink, modEntry.ModLink),
+                DownloadUrl: fileUrl,
                 FileSectionType: FileSectionType.Downloads,
                 Description: BuildDescription(parentManifest),
-                ThumbnailUrl: ResolveIconUrl(parentManifest.UIImageSourceLink, parentResult.IconUrl)));
+                ThumbnailUrl: ResolveIconUrl(parentManifest.UIImageSourceLink, parentResult.IconUrl),
+                Filename: fileName));
         }
 
         parentResult.Variants = context.Variants;
@@ -770,14 +833,21 @@ public class GenLauncherDiscoverer(
                 IsDefault = false,
             });
 
+            var childManifest = item.Data as GenLauncherVersionManifest;
+            var fileName = childManifest != null
+                ? ResolveArchiveFileName(childManifest, item.Name)
+                : $"{item.Name}.zip";
+            var fileDownloadUrl = item.SelectedDownloadUrl;
+
             context.FilesSections.Add(new DownloadableFile(
                 Name: item.Name,
                 Version: item.Version,
                 SizeBytes: sizeBytes,
-                DownloadUrl: item.SourceUrl,
+                DownloadUrl: fileDownloadUrl,
                 FileSectionType: sectionType,
                 Description: item.Description,
-                ThumbnailUrl: item.IconUrl ?? context.ParentIconUrl));
+                ThumbnailUrl: item.IconUrl ?? context.ParentIconUrl,
+                Filename: fileName));
         }
     }
 
@@ -943,15 +1013,59 @@ public class GenLauncherDiscoverer(
         string? currentMarker,
         CancellationToken cancellationToken)
     {
-        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-            manifest.S3HostLink!,
-            manifest.S3BucketName!,
-            manifest.S3FolderName!,
-            currentMarker,
-            manifest.S3HostPublicKey,
-            manifest.S3HostSecretKey);
+        var hasExplicitKeys = !string.IsNullOrWhiteSpace(manifest.S3HostPublicKey) && !string.IsNullOrWhiteSpace(manifest.S3HostSecretKey);
 
-        var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
+        string? xml = null;
+        var usedAuth = true;
+
+        if (hasExplicitKeys)
+        {
+            var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                manifest.S3HostLink!,
+                manifest.S3BucketName!,
+                manifest.S3FolderName!,
+                currentMarker,
+                manifest.S3HostPublicKey,
+                manifest.S3HostSecretKey,
+                useAuth: true);
+
+            xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
+            usedAuth = true;
+        }
+        else
+        {
+            // Try unsigned query first since ~70% of GenLauncher MinIO buckets (rotr, forgenerals, contra, zhreborn, etc.) are public anonymous
+            var unsignedQueryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                manifest.S3HostLink!,
+                manifest.S3BucketName!,
+                manifest.S3FolderName!,
+                currentMarker,
+                publicKey: null,
+                secretKey: null,
+                useAuth: false);
+
+            xml = await FetchStringWithCacheAsync(client, unsignedQueryUrl, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(xml) && !xml.Contains("<Error>"))
+            {
+                usedAuth = false;
+            }
+            else
+            {
+                // Fallback to signed query using default InSave credentials (for improved-ai, tpotw, cncpowerplay)
+                var signedQueryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                    manifest.S3HostLink!,
+                    manifest.S3BucketName!,
+                    manifest.S3FolderName!,
+                    currentMarker,
+                    manifest.S3HostPublicKey,
+                    manifest.S3HostSecretKey,
+                    useAuth: true);
+
+                xml = await FetchStringWithCacheAsync(client, signedQueryUrl, cancellationToken);
+                usedAuth = true;
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(xml))
         {
             return null;
@@ -967,7 +1081,8 @@ public class GenLauncherDiscoverer(
                 out var isTruncated,
                 out var nextMarker,
                 manifest.S3HostPublicKey,
-                manifest.S3HostSecretKey);
+                manifest.S3HostSecretKey,
+                useAuth: usedAuth);
 
             var pageSize = entries.Sum(e => e.Size);
             return (pageSize, isTruncated, nextMarker);

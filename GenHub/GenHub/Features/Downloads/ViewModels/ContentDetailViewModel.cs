@@ -1053,15 +1053,36 @@ public partial class ContentDetailViewModel(
                 sibling = sr;
             }
 
-            var url = sibling?.SourceUrl ?? searchResult.SourceUrl ?? string.Empty;
-            var size = sibling?.DownloadSize ?? searchResult.DownloadSize;
+            DownloadableFile? matchedFile = null;
+            if (sibling?.ParsedPageData?.Sections != null)
+            {
+                matchedFile = sibling.ParsedPageData.Sections
+                    .OfType<DownloadableFile>()
+                    .FirstOrDefault(f => string.Equals(f.Name, variant.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (matchedFile == null && searchResult.ParsedPageData?.Sections != null)
+            {
+                matchedFile = searchResult.ParsedPageData.Sections
+                    .OfType<DownloadableFile>()
+                    .FirstOrDefault(f => string.Equals(f.Name, variant.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var url = matchedFile?.DownloadUrl ?? sibling?.SelectedDownloadUrl ?? sibling?.SourceUrl ?? searchResult.SourceUrl ?? string.Empty;
+            var size = matchedFile?.SizeBytes ?? (sibling?.DownloadSize > 0 ? sibling.DownloadSize : (searchResult.DownloadSize > 0 ? searchResult.DownloadSize : 0));
             var displayName = variant.Name;
-            var itemVersion = sibling?.Version ?? Version;
+            var itemVersion = matchedFile?.Version ?? sibling?.Version ?? Version;
             var itemAuthor = sibling?.AuthorName ?? searchResult.AuthorName;
-            var itemDescription = sibling?.Description ?? searchResult.Description;
+            var itemDescription = matchedFile?.Description ?? sibling?.Description ?? searchResult.Description;
             var itemContentType = sibling?.ContentType ?? searchResult.ContentType;
             var itemCategory = itemContentType.GetDisplayName();
-            var itemFilename = GetFileNameFromUrl(url) ?? displayName;
+            var itemFilename = matchedFile?.Filename ?? GetFileNameFromUrl(url) ?? displayName;
+
+            if (itemFilename.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
+                itemFilename.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            {
+                itemFilename = $"{displayName}.zip";
+            }
 
             var itemThumbnail = ResolveItemThumbnailUrl(
                 sibling?.IconUrl ?? (sibling != null ? ContentCardBadgeHelper.GetThumbnailUrl(sibling) : null),

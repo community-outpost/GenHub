@@ -167,6 +167,13 @@ public class GenLauncherResolver(
             ?? discoveredItem.SelectedDownloadUrl
             ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey);
 
+        if (!string.IsNullOrWhiteSpace(rawDownloadLink) &&
+            (rawDownloadLink.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
+             rawDownloadLink.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)))
+        {
+            rawDownloadLink = null;
+        }
+
         if (string.IsNullOrWhiteSpace(rawDownloadLink))
         {
             var sourceUrl = discoveredItem.SourceUrl;
@@ -201,18 +208,27 @@ public class GenLauncherResolver(
         });
     }
 
-    private static string GetFileNameFromUrl(string url, string defaultSlug)
+    private static string GetFileNameFromUrl(string url, string defaultName)
     {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        try
         {
-            var name = Path.GetFileName(uri.LocalPath);
-            if (!string.IsNullOrWhiteSpace(name) && name.Contains('.'))
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
             {
-                return name;
+                var fileName = Path.GetFileName(uri.LocalPath);
+                if (!string.IsNullOrWhiteSpace(fileName) &&
+                    !fileName.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Uri.UnescapeDataString(fileName);
+                }
             }
         }
+        catch (Exception)
+        {
+            // Fall back to default
+        }
 
-        return $"{defaultSlug}.zip";
+        return $"{defaultName}.zip";
     }
 
     private static string? GetMetadata(IDictionary<string, string>? dict, string key)
@@ -271,22 +287,82 @@ public class GenLauncherResolver(
         string? currentMarker,
         CancellationToken cancellationToken)
     {
-        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-            query.Host,
-            query.Bucket,
-            query.Folder,
-            currentMarker,
-            query.PublicKey,
-            query.SecretKey);
-        if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
+        var hasExplicitKeys = !string.IsNullOrWhiteSpace(query.PublicKey) && !string.IsNullOrWhiteSpace(query.SecretKey);
+        string? s3Xml = null;
+        bool usedAuth = true;
+
+        if (hasExplicitKeys)
         {
-            logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-            return (null, false, null);
+            var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                query.Host,
+                query.Bucket,
+                query.Folder,
+                currentMarker,
+                query.PublicKey,
+                query.SecretKey,
+                useAuth: true);
+
+            if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
+            {
+                logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+                return (null, false, null);
+            }
+
+            logger.LogInformation("Querying GenLauncher S3 bucket (signed) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+            s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
+            usedAuth = true;
+        }
+        else
+        {
+            // Try unsigned query first since ~70% of GenLauncher MinIO buckets (rotr, forgenerals, contra, zhreborn, etc.) are public anonymous
+            var unsignedUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                query.Host,
+                query.Bucket,
+                query.Folder,
+                currentMarker,
+                publicKey: null,
+                secretKey: null,
+                useAuth: false);
+
+            if (!ImageCacheService.IsSafeRemoteUrl(unsignedUrl, out _))
+            {
+                logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+                return (null, false, null);
+            }
+
+            try
+            {
+                logger.LogInformation("Querying GenLauncher S3 bucket (anonymous) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+                var resp = await client.GetAsync(unsignedUrl, cancellationToken);
+                if (resp.IsSuccessStatusCode)
+                {
+                    s3Xml = await resp.Content.ReadAsStringAsync(cancellationToken);
+                    usedAuth = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Anonymous S3 query failed, will try signed query");
+            }
+
+            if (string.IsNullOrWhiteSpace(s3Xml) || s3Xml.Contains("<Error>"))
+            {
+                // Fallback to signed query using default InSave credentials (for improved-ai, tpotw, cncpowerplay)
+                var signedUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                    query.Host,
+                    query.Bucket,
+                    query.Folder,
+                    currentMarker,
+                    query.PublicKey,
+                    query.SecretKey,
+                    useAuth: true);
+
+                logger.LogInformation("Querying GenLauncher S3 bucket (signed fallback) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+                s3Xml = await client.GetStringAsync(signedUrl, cancellationToken);
+                usedAuth = true;
+            }
         }
 
-        logger.LogInformation("Querying GenLauncher S3 bucket at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-
-        var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
         var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
             s3Xml,
             query.Folder,
@@ -295,7 +371,8 @@ public class GenLauncherResolver(
             out var isTruncated,
             out var nextMarker,
             query.PublicKey,
-            query.SecretKey);
+            query.SecretKey,
+            useAuth: usedAuth);
 
         var files = new List<ManifestFile>();
         foreach (var entry in fileEntries)
