@@ -363,8 +363,22 @@ public class PublisherDefinitionService(
         CancellationToken ct)
     {
         var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(rawUrl);
-        if (string.IsNullOrWhiteSpace(normalizedUrl) ||
-            !Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri))
+        if (string.IsNullOrWhiteSpace(normalizedUrl))
+        {
+            return null;
+        }
+
+        if (!NetworkSecurityHelper.IsSafeUrl(normalizedUrl, out var ssrfReason))
+        {
+            if (!string.IsNullOrEmpty(ssrfReason))
+            {
+                logger.LogWarning("Blocked unsafe catalog URL {Url}: {Reason}", rawUrl, ssrfReason);
+            }
+
+            return null;
+        }
+
+        if (!Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri))
         {
             return null;
         }

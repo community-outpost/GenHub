@@ -1261,7 +1261,7 @@ public partial class PublishShareViewModel(
         return await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: true);
     }
 
-    private async Task<OperationResult<HostingUploadResult>?> ValidateUploadPreconditionsAsync(CancellationToken cancellationToken)
+    private async Task<OperationResult<HostingUploadResult>?> ValidateUploadPreconditionsAsync()
     {
         if (SelectedHostingProvider == null)
         {
@@ -1299,7 +1299,7 @@ public partial class PublishShareViewModel(
         CancellationToken cancellationToken,
         bool manageUploadingState)
     {
-        var preconditionResult = await ValidateUploadPreconditionsAsync(cancellationToken).ConfigureAwait(false);
+        var preconditionResult = await ValidateUploadPreconditionsAsync().ConfigureAwait(false);
         if (preconditionResult != null || SelectedHostingProvider == null)
         {
             return preconditionResult ?? OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
@@ -1431,7 +1431,7 @@ public partial class PublishShareViewModel(
             return await SelectedHostingProvider.UpdateFileAsync(existingCatalogFileId, stream, catalogFileName, progress, cancellationToken);
         }
 
-        return await SelectedHostingProvider.UploadCatalogAsync(CatalogJson, project.Catalog.Publisher.Id, progress, cancellationToken);
+        return await SelectedHostingProvider.UploadCatalogAsync(CatalogJson, project.Catalog.Publisher.Id, catalogFileName, progress, cancellationToken);
     }
 
     private async Task CompletePublishSuccessAsync(HostingUploadResult data, CancellationToken cancellationToken = default)

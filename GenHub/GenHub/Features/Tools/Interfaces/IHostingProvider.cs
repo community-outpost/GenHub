@@ -92,12 +92,14 @@ public interface IHostingProvider
     /// </summary>
     /// <param name="catalogJson">The catalog JSON content.</param>
     /// <param name="publisherId">The publisher ID (used for naming/organizing).</param>
+    /// <param name="catalogFileName">Optional catalog file name (e.g. catalog-main.json). If null, defaults to catalog-{publisherId}.json.</param>
     /// <param name="progress">Optional progress callback (0-100).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result containing the public URL of the catalog.</returns>
     Task<OperationResult<HostingUploadResult>> UploadCatalogAsync(
         string catalogJson,
         string publisherId,
+        string? catalogFileName = null,
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default);
 

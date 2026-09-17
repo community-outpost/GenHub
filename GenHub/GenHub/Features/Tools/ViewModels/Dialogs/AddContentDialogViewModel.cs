@@ -362,6 +362,21 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    partial void OnUseDirectUrlChanged(bool value)
+    {
+        if (value)
+        {
+            LocalFilePath = null;
+            FileSize = 0;
+            FileSizeDisplay = string.Empty;
+            Sha256Hash = null;
+        }
+        else
+        {
+            DownloadUrl = null;
+        }
+    }
+
     partial void OnDownloadUrlChanged(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
@@ -638,10 +653,10 @@ public partial class AddContentDialogViewModel(
         var artifact = new ReleaseArtifact
         {
             Filename = artifactName,
-            DownloadUrl = DownloadUrl?.Trim() ?? string.Empty,
-            LocalFilePath = LocalFilePath,
-            Size = FileSize,
-            Sha256 = Sha256Hash?.Trim() ?? string.Empty,
+            DownloadUrl = UseDirectUrl ? (DownloadUrl?.Trim() ?? string.Empty) : string.Empty,
+            LocalFilePath = UseDirectUrl ? null : LocalFilePath,
+            Size = UseDirectUrl ? 0 : FileSize,
+            Sha256 = UseDirectUrl ? string.Empty : (Sha256Hash?.Trim() ?? string.Empty),
             IsPrimary = true,
         };
 

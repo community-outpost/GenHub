@@ -178,6 +178,10 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         else
         {
             LocalFilePath = null;
+            FileSize = 0;
+            FileSizeDisplay = string.Empty;
+            FileSizeInput = string.Empty;
+            Sha256Hash = string.Empty;
         }
 
         OnPropertyChanged(nameof(UseExistingUrl));
@@ -187,6 +191,14 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 
     partial void OnLocalFilePathChanged(string? value)
     {
+        if (string.IsNullOrEmpty(value))
+        {
+            FileSize = 0;
+            FileSizeDisplay = string.Empty;
+            FileSizeInput = string.Empty;
+            Sha256Hash = string.Empty;
+        }
+
         OnPropertyChanged(nameof(IsLocalFile));
         OnPropertyChanged(nameof(IsHosted));
         UpdateArtifactStatus();

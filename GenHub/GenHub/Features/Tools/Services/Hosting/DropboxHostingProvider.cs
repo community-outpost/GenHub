@@ -284,10 +284,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     public async Task<OperationResult<HostingUploadResult>> UploadCatalogAsync(
         string catalogJson,
         string publisherId,
+        string? catalogFileName = null,
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var fileName = $"catalog-{publisherId}.json";
+        var fileName = string.IsNullOrWhiteSpace(catalogFileName) ? $"catalog-{publisherId}.json" : catalogFileName;
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(catalogJson));
         return await UploadFileAsync(stream, fileName, PublisherFolderPath, progress, cancellationToken);
     }
@@ -442,11 +443,9 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!_disposed)
         {
-            if (disposing)
-            {
-                _httpClient.Dispose();
-            }
-
+            // Note: _httpClient was created by IHttpClientFactory, which manages the lifecycle
+            // and handler pooling. Disposing the factory-managed client is skipped to prevent
+            // ObjectDisposedException on shared handlers.
             _disposed = true;
         }
     }
@@ -491,40 +490,49 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         while (!string.IsNullOrEmpty(cursor))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            cursor = await ProcessRemainingPageAsync(cursor, state, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
-            var continueArgs = new { cursor };
-            using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue")
-            {
-                Content = new StringContent(
-                    JsonSerializer.Serialize(continueArgs),
-                    Encoding.UTF8,
-                    HostingConstants.JsonContentType),
-            };
+    private async Task<string?> ProcessRemainingPageAsync(string cursor, HostingState state, CancellationToken cancellationToken)
+    {
+        var continueArgs = new { cursor };
+        using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue")
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(continueArgs),
+                Encoding.UTF8,
+                HostingConstants.JsonContentType),
+        };
 
-            using var continueResponse = await _httpClient.SendAsync(continueRequest, cancellationToken);
-            if (!continueResponse.IsSuccessStatusCode)
+        using var continueResponse = await _httpClient.SendAsync(continueRequest, cancellationToken).ConfigureAwait(false);
+        if (!continueResponse.IsSuccessStatusCode)
+        {
+            var continueError = await continueResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogWarning("Dropbox list_folder/continue failed: {Error}", continueError);
+            return null;
+        }
+
+        var continueContent = await continueResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var continueDoc = JsonDocument.Parse(continueContent);
+        if (continueDoc.RootElement.TryGetProperty("entries", out var continueEntries))
+        {
+            await ProcessEntriesAsync(continueEntries, state, cancellationToken).ConfigureAwait(false);
+        }
+
+        var hasMore = continueDoc.RootElement.TryGetProperty("has_more", out var nextHasMore) && nextHasMore.GetBoolean();
+        return hasMore && continueDoc.RootElement.TryGetProperty("cursor", out var nextCursor) ? nextCursor.GetString() : null;
+    }
+
+    private async Task ProcessEntriesAsync(JsonElement entries, HostingState state, CancellationToken cancellationToken)
+    {
+        foreach (var entry in entries.EnumerateArray())
+        {
+            var entryResult = await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+            if (!entryResult.Success)
             {
-                var continueError = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogWarning("Dropbox list_folder/continue failed: {Error}", continueError);
-                break;
+                logger.LogWarning("Skipping Dropbox entry during state recovery pagination: {Error}", entryResult.FirstError);
             }
-
-            var continueContent = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
-            using var continueDoc = JsonDocument.Parse(continueContent);
-            if (continueDoc.RootElement.TryGetProperty("entries", out var continueEntries))
-            {
-                foreach (var entry in continueEntries.EnumerateArray())
-                {
-                    var entryResult = await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
-                    if (!entryResult.Success)
-                    {
-                        logger.LogWarning("Skipping Dropbox entry during state recovery pagination: {Error}", entryResult.FirstError);
-                    }
-                }
-            }
-
-            var hasMore = continueDoc.RootElement.TryGetProperty("has_more", out var nextHasMore) && nextHasMore.GetBoolean();
-            cursor = hasMore && continueDoc.RootElement.TryGetProperty("cursor", out var nextCursor) ? nextCursor.GetString() : null;
         }
     }
 
@@ -639,7 +647,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
     }
 
-    private OperationResult<string>? HandleListSharedLinksFailure(string listError)
+    private static OperationResult<string>? HandleListSharedLinksFailure(string listError)
     {
         if (string.IsNullOrEmpty(listError))
         {

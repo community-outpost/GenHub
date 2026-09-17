@@ -243,42 +243,9 @@ public class CrossPublisherDependencyResolver(
     private static OperationResult<bool> ValidateCatalogUrl(string catalogUrl, out string normalizedUrl)
     {
         normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogUrl);
-        if (string.IsNullOrWhiteSpace(normalizedUrl) ||
-            !Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        if (!NetworkSecurityHelper.IsSafeUrl(normalizedUrl, out var failureReason))
         {
-            return OperationResult<bool>.CreateFailure("Catalog URL must be a valid absolute HTTP or HTTPS URL.");
-        }
-
-        if (uri.IsLoopback ||
-            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
-        {
-            return OperationResult<bool>.CreateFailure("Loopback and local addresses are not allowed for catalog sources.");
-        }
-
-        if (IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip))
-        {
-            if (!NetworkSecurityHelper.IsSafeIpAddress(ip))
-            {
-                return OperationResult<bool>.CreateFailure("Loopback, private, and local addresses are not allowed for catalog sources.");
-            }
-        }
-        else
-        {
-            try
-            {
-                var addresses = Dns.GetHostAddresses(uri.DnsSafeHost);
-                if (addresses.Length > 0 && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
-                {
-                    return OperationResult<bool>.CreateFailure("Loopback, private, and local addresses are not allowed for catalog sources.");
-                }
-            }
-            catch (SocketException)
-            {
-                // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
-            }
+            return OperationResult<bool>.CreateFailure(failureReason ?? "Catalog URL must be a valid absolute HTTP or HTTPS URL.");
         }
 
         return OperationResult<bool>.CreateSuccess(true);
