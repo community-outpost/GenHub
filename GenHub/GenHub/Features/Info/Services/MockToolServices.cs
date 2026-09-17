@@ -394,9 +394,9 @@ public class MockReplayCheckpointService : IReplayCheckpointService
     }
 
     /// <inheritdoc/>
-    public Task<bool> DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint, CancellationToken cancellationToken = default)
+    public Task<ProfileOperationResult<bool>> DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(true);
+        return Task.FromResult(ProfileOperationResult<bool>.CreateSuccess(true));
     }
 
     /// <inheritdoc/>

@@ -36,7 +36,7 @@ public interface IReplayCheckpointService
     /// </summary>
     /// <param name="replay">The replay file to mint from.</param>
     /// <param name="profile">The game profile to execute the game client.</param>
-    /// <param name="targetFrame">The frame number at which the checkpoint save is minted.</param>
+    /// <param name="targetFrame">The positive target frame number at which the checkpoint save is minted (must be greater than 0). Returns failure if non-positive.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>An operation result containing the minted checkpoint info.</returns>
     Task<ProfileOperationResult<ReplayCheckpointInfo>> MintCheckpointAsync(
@@ -65,7 +65,7 @@ public interface IReplayCheckpointService
     /// <param name="replay">The original replay file.</param>
     /// <param name="profile">The compatible game profile to launch.</param>
     /// <param name="checkpoint">The checkpoint save to load.</param>
-    /// <param name="slotIndex">The player slot index to take over control of.</param>
+    /// <param name="slotIndex">The 0-based player slot index to take over control of (must be between 0 and 7). Returns failure if out of range.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>An operation result containing game launch info.</returns>
     Task<ProfileOperationResult<GameLaunchInfo>> TakeoverMatchAsync(
@@ -85,6 +85,6 @@ public interface IReplayCheckpointService
     /// </summary>
     /// <param name="checkpoint">The checkpoint to delete.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>True if deleted successfully; otherwise false.</returns>
-    Task<bool> DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint, CancellationToken cancellationToken = default);
+    /// <returns>An operation result indicating whether the checkpoint was successfully deleted from disk.</returns>
+    Task<ProfileOperationResult<bool>> DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint, CancellationToken cancellationToken = default);
 }

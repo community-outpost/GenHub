@@ -266,11 +266,11 @@ public sealed class ReplayHeaderParserTests
     }
 
     /// <summary>
-    /// Verifies that a GeneralsOnline 60Hz replay stream correctly detects 60 FPS tick rate and computes duration accordingly.
+    /// Verifies that a replay stream containing the 60Hz keyword without GeneralsOnline correctly detects 60 FPS tick rate.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseHeaderAsync_GeneralsOnline60HzReplayStream_Extracts60FpsAndDurationAsync()
+    public async Task ParseHeaderAsync_When60HzKeywordPresentWithoutGeneralsOnline_Extracts60FpsAndDurationAsync()
     {
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
@@ -283,9 +283,49 @@ public sealed class ReplayHeaderParserTests
         writer.Write((byte)2);
         writer.Write(new byte[8]);
 
-        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline Match" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Standard Match" + char.MinValue));
         writer.Write(new byte[16]);
-        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline 1.04 (60Hz)" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Version 1.04 (60Hz)" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;H=PlayerOne;" + char.MinValue));
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Equal(6000u, result.Data.TotalFrames);
+        Assert.Equal(60, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(100), result.Data.Duration.Value);
+    }
+
+    /// <summary>
+    /// Verifies that a replay stream containing the GeneralsOnline keyword without 60Hz correctly detects 60 FPS tick rate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_WhenGeneralsOnlineKeywordPresentWithout60Hz_Extracts60FpsAndDurationAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(1000u);
+        writer.Write(1100u);
+        writer.Write(6000u);
+        writer.Write((byte)1);
+        writer.Write((byte)2);
+        writer.Write(new byte[8]);
+
+        writer.Write(Encoding.Unicode.GetBytes("Standard Match" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline 1.04" + char.MinValue));
         writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
         writer.Write(20260821u);
         writer.Write(0x27533BB0u);

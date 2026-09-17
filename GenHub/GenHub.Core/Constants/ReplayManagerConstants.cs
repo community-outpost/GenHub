@@ -8,6 +8,80 @@ namespace GenHub.Core.Constants;
 public static class ReplayManagerConstants
 {
     /// <summary>
+    /// Protocol argument sizes in bytes for replay chunk command parameter types.
+    /// </summary>
+    public static class CommandArgSizes
+    {
+        /// <summary>Size of 32-bit integer argument (4 bytes).</summary>
+        public const int Integer = 4;
+
+        /// <summary>Size of 32-bit floating-point real argument (4 bytes).</summary>
+        public const int Real = 4;
+
+        /// <summary>Size of boolean argument (1 byte).</summary>
+        public const int Boolean = 1;
+
+        /// <summary>Size of object identifier argument (4 bytes).</summary>
+        public const int ObjectId = 4;
+
+        /// <summary>Size of drawable identifier argument (4 bytes).</summary>
+        public const int DrawableId = 4;
+
+        /// <summary>Size of team identifier argument (4 bytes).</summary>
+        public const int TeamId = 4;
+
+        /// <summary>Size of location coordinates argument (12 bytes: 3 * 4-byte floats).</summary>
+        public const int Location = 12;
+
+        /// <summary>Size of pixel coordinate argument (8 bytes: 2 * 4-byte integers).</summary>
+        public const int Pixel = 8;
+
+        /// <summary>Size of pixel region argument (16 bytes: 4 * 4-byte integers).</summary>
+        public const int PixelRegion = 16;
+
+        /// <summary>Size of timestamp argument (4 bytes).</summary>
+        public const int Timestamp = 4;
+
+        /// <summary>Size of wide character argument (2 bytes).</summary>
+        public const int WideChar = 2;
+    }
+
+    /// <summary>
+    /// Frame rate for classic Command &amp; Conquer Generals / Zero Hour matches (30 FPS).
+    /// </summary>
+    public const int ClassicFps = 30;
+
+    /// <summary>
+    /// Frame rate for modern community high-refresh-rate builds such as GeneralsOnline (60 FPS).
+    /// </summary>
+    public const int GeneralsOnlineFps = 60;
+
+    /// <summary>
+    /// Keyword used to detect 60Hz high-refresh-rate replay builds.
+    /// </summary>
+    public const string HighRefreshRateKeyword = "60Hz";
+
+    /// <summary>
+    /// Default maximum checkpoint duration in seconds when replay metadata has no end time or frames (600s / 10 minutes).
+    /// </summary>
+    public const int DefaultMaxCheckpointSeconds = 600;
+
+    /// <summary>
+    /// Default target checkpoint time in seconds when opening the checkpoint drawer (120s / 2 minutes).
+    /// </summary>
+    public const int DefaultTargetCheckpointSeconds = 120;
+
+    /// <summary>
+    /// Display label suffix representing computer AI players in slot displays.
+    /// </summary>
+    public const string AiLabel = "AI";
+
+    /// <summary>
+    /// Minimum valid size in bytes for a Command &amp; Conquer save file (1024 bytes).
+    /// </summary>
+    public const long MinValidSaveFileSizeBytes = 1024;
+
+    /// <summary>
     /// File extension for Command &amp; Conquer Generals replay files.
     /// </summary>
     public const string ReplayFileExtension = FileTypes.ReplayFileExtension;
@@ -267,45 +341,6 @@ public static class ReplayManagerConstants
     /// Size in bytes of a 32-bit unsigned integer field in the replay header (4 bytes).
     /// </summary>
     public const int ReplayHeaderUInt32SizeBytes = 4;
-
-    /// <summary>
-    /// Protocol argument sizes in bytes for replay chunk command parameter types.
-    /// </summary>
-    public static class CommandArgSizes
-    {
-        /// <summary>Size of 32-bit integer argument (4 bytes).</summary>
-        public const int Integer = 4;
-
-        /// <summary>Size of 32-bit floating-point real argument (4 bytes).</summary>
-        public const int Real = 4;
-
-        /// <summary>Size of boolean argument (1 byte).</summary>
-        public const int Boolean = 1;
-
-        /// <summary>Size of object identifier argument (4 bytes).</summary>
-        public const int ObjectId = 4;
-
-        /// <summary>Size of drawable identifier argument (4 bytes).</summary>
-        public const int DrawableId = 4;
-
-        /// <summary>Size of team identifier argument (4 bytes).</summary>
-        public const int TeamId = 4;
-
-        /// <summary>Size of location coordinates argument (12 bytes: 3 * 4-byte floats).</summary>
-        public const int Location = 12;
-
-        /// <summary>Size of pixel coordinate argument (8 bytes: 2 * 4-byte integers).</summary>
-        public const int Pixel = 8;
-
-        /// <summary>Size of pixel region argument (16 bytes: 4 * 4-byte integers).</summary>
-        public const int PixelRegion = 16;
-
-        /// <summary>Size of timestamp argument (4 bytes).</summary>
-        public const int Timestamp = 4;
-
-        /// <summary>Size of wide character argument (2 bytes).</summary>
-        public const int WideChar = 2;
-    }
 
     /// <summary>
     /// The expected schema version of the CRC mapping catalog.

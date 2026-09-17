@@ -128,13 +128,13 @@ public sealed class ReplayFile : IExportableFile
 
             var isGeneralsOnline = (MatchedClient != null && (string.Equals(MatchedClient.Publisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
                                                              MatchedClient.ManifestId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                                                             MatchedClient.Description.Contains("60Hz", StringComparison.OrdinalIgnoreCase))) ||
-                                   (Metadata?.VersionString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
-                                   (Metadata?.VersionString?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true) ||
-                                   (Metadata?.BuildTimeString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
-                                   (Metadata?.Title?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true);
+                                                             MatchedClient.Description.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase))) ||
+                                   (Metadata?.VersionString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true) ||
+                                   (Metadata?.VersionString?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true) ||
+                                   (Metadata?.BuildTimeString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true) ||
+                                   (Metadata?.Title?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true);
 
-            return isGeneralsOnline ? 60 : 30;
+            return isGeneralsOnline ? ReplayManagerConstants.GeneralsOnlineFps : ReplayManagerConstants.ClassicFps;
         }
     }
 

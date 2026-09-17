@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 
 namespace GenHub.Core.Models.Tools.ReplayManager;
@@ -20,7 +21,31 @@ public sealed record ReplaySlotInfo(
     /// <summary>
     /// Gets the formatted display label for the slot in UI dropdowns (using 1-based indexing for user display).
     /// </summary>
-    public string DisplayLabel => IsHuman || PlayerName.Contains("AI", StringComparison.OrdinalIgnoreCase)
-        ? $"Slot {SlotIndex + 1}: {PlayerName}"
-        : $"Slot {SlotIndex + 1}: {PlayerName} (AI)";
+    public string DisplayLabel
+    {
+        get
+        {
+            if (IsHuman || HasAiIndicator(PlayerName))
+            {
+                return $"Slot {SlotIndex + 1}: {PlayerName}";
+            }
+
+            return $"Slot {SlotIndex + 1}: {PlayerName} ({ReplayManagerConstants.AiLabel})";
+        }
+    }
+
+    private static bool HasAiIndicator(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        return name.Equals(ReplayManagerConstants.AiLabel, StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith(ReplayManagerConstants.AiLabel + " ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith(ReplayManagerConstants.AiLabel + ":", StringComparison.OrdinalIgnoreCase) ||
+               name.EndsWith(" " + ReplayManagerConstants.AiLabel, StringComparison.OrdinalIgnoreCase) ||
+               name.Contains($"({ReplayManagerConstants.AiLabel})", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains($"[{ReplayManagerConstants.AiLabel}]", StringComparison.OrdinalIgnoreCase);
+    }
 }

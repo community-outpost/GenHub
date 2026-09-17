@@ -86,7 +86,8 @@ public partial class ReplayManagerView : UserControl
     {
         base.OnKeyDown(e);
 
-        if (e.Key == Key.Escape &&
+        if (!e.Handled &&
+            e.Key == Key.Escape &&
             DataContext is ReplayManagerViewModel vm &&
             vm.IsCheckpointDrawerOpen &&
             vm.CloseCheckpointDrawerCommand.CanExecute(null))

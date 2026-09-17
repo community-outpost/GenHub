@@ -981,25 +981,6 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
-    /// Computes or retrieves from cache the INI CRC for a given game installation root.
-    /// </summary>
-    /// <param name="gameRoot">Path to the game installation root.</param>
-    /// <param name="gameType">The game type.</param>
-    /// <param name="crcCalculator">The game CRC calculator service.</param>
-    /// <param name="logger">Optional logger instance.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The calculated INI CRC string formatted as 0xXXXXXXXX, or null if calculation failed.</returns>
-    internal static async Task<string?> GetOrCalculateProfileIniCrcAsync(
-        string gameRoot,
-        GameType gameType,
-        IGameCrcCalculatorService crcCalculator,
-        ILogger? logger = null,
-        CancellationToken ct = default)
-    {
-        return await ReplayCrcMatchingHelper.GetOrCalculateProfileIniCrcAsync(gameRoot, gameType, crcCalculator, logger, ct);
-    }
-
-    /// <summary>
     /// Asynchronously resolves the compatibility status and matching profile for the specified replay file.
     /// </summary>
     /// <param name="replay">The replay file.</param>

@@ -232,15 +232,7 @@ public class GameLauncher(
         }
     }
 
-    /// <summary>
-    /// Launches a game profile by its ID with optional transient command line arguments.
-    /// </summary>
-    /// <param name="profileId">The ID of the game profile to launch.</param>
-    /// <param name="progress">Optional progress reporter for launch progress.</param>
-    /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
-    /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
-    /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
+    /// <inheritdoc/>
     public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         IProgress<LaunchProgress>? progress = null,
@@ -281,6 +273,17 @@ public class GameLauncher(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
+
+        if (additionalArguments != null)
+        {
+            var validateResult = ValidateAdditionalArguments(additionalArguments);
+            if (!validateResult.Success)
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    validateResult.FirstError ?? "Invalid additional command line arguments.",
+                    profileId: profile.Id);
+            }
+        }
 
         // Use profile-specific semaphore to prevent race conditions
         var semaphore = _profileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
@@ -506,6 +509,8 @@ public class GameLauncher(
                 }
                 else
                 {
+                    // Flags without explicit values (e.g. -quickstart, -win).
+                    // Repeated flags overwrite previous entries (last-wins behavior).
                     arguments[arg] = string.Empty;
                     i++;
                 }
@@ -521,9 +526,7 @@ public class GameLauncher(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static OperationResult<bool> MergeAdditionalArguments(
-        IReadOnlyDictionary<string, string> additionalArguments,
-        Dictionary<string, string> arguments)
+    private static OperationResult<bool> ValidateAdditionalArguments(IReadOnlyDictionary<string, string> additionalArguments)
     {
         foreach (var kvp in additionalArguments)
         {
@@ -542,7 +545,23 @@ public class GameLauncher(
             {
                 return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
             }
+        }
 
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> MergeAdditionalArguments(
+        IReadOnlyDictionary<string, string> additionalArguments,
+        Dictionary<string, string> arguments)
+    {
+        var validation = ValidateAdditionalArguments(additionalArguments);
+        if (!validation.Success)
+        {
+            return validation;
+        }
+
+        foreach (var kvp in additionalArguments)
+        {
             arguments[kvp.Key] = kvp.Value;
         }
 
@@ -800,6 +819,20 @@ public class GameLauncher(
         }
 
         return path.Replace('\\', '/');
+    }
+
+    private static string FormatCommandLineArgument(string key, string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return key;
+        }
+
+        var formattedValue = value.Contains(' ') || value.Contains('\t')
+            ? $"\"{value}\""
+            : value;
+
+        return $"{key} {formattedValue}";
     }
 
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
@@ -1475,7 +1508,7 @@ public class GameLauncher(
         GameProfile profile,
         IReadOnlyDictionary<string, string>? additionalArguments)
     {
-        var arguments = new Dictionary<string, string>();
+        var arguments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrEmpty(profile.CommandLineArguments))
         {
             var parseResult = PopulateCommandLineArguments(profile.CommandLineArguments, arguments);
@@ -1534,7 +1567,7 @@ public class GameLauncher(
                 : SteamConstants.ZeroHourAppId;
         }
 
-        var targetArguments = arguments.Select(kvp => string.IsNullOrEmpty(kvp.Value) ? kvp.Key : $"{kvp.Key} {(kvp.Value.Contains(' ') || kvp.Value.Contains('\t') ? $"\"{kvp.Value}\"" : kvp.Value)}").ToArray();
+        var targetArguments = arguments.Select(kvp => FormatCommandLineArgument(kvp.Key, kvp.Value)).ToArray();
 
         var steamLaunchResult = await steamLauncher.PrepareForProfileAsync(
             actualInstallationPath,

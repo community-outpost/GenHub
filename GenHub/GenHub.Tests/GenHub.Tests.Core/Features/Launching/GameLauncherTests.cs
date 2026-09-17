@@ -1222,6 +1222,37 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that duplicate flags in profile command line arguments follow last-wins semantics.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithDuplicateCommandLineFlags_AppliesLastWinsSemanticsAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.CommandLineArguments = "-loadsave first.sav -loadsave second.sav";
+        ArrangeSuccessfulLaunch(profile);
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(
+            profile.Id,
+            progress: null,
+            skipUserDataCleanup: false,
+            additionalArguments: null,
+            cancellationToken: CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        _processManagerMock.Verify(
+            x => x.StartProcessAsync(
+                It.Is<GameLaunchConfiguration>(cfg =>
+                    cfg.Arguments != null &&
+                    cfg.Arguments["-loadsave"] == "second.sav"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Removes the temporary retail root.
     /// </summary>
     public void Dispose()

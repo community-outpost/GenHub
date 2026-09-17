@@ -273,19 +273,42 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         int bytesRead,
         in ReplayTimingContext ctx)
     {
-        var is60Hz = (ctx.VersionString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
-                     (ctx.VersionString?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true) ||
-                     (ctx.BuildTimeString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
-                     (ctx.TitleString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true);
-        var baseFps = is60Hz ? 60 : 30;
+        var is60Hz = (ctx.VersionString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.VersionString?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.BuildTimeString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.TitleString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true);
+        var baseFps = is60Hz ? ReplayManagerConstants.GeneralsOnlineFps : ReplayManagerConstants.ClassicFps;
 
         uint? totalFrames = ctx.HeaderFrameCount > 0 ? ctx.HeaderFrameCount : null;
-        if (!totalFrames.HasValue)
+        TimeSpan? duration = null;
+        int? fps = null;
+
+        if (totalFrames.HasValue && totalFrames.Value > 0)
+        {
+            fps = baseFps;
+            duration = TimeSpan.FromSeconds((double)totalFrames.Value / baseFps);
+        }
+        else if (ctx.EndTime > ctx.StartTime && ctx.StartTime >= ReplayManagerConstants.MinSanityTimestampEpoch)
+        {
+            var seconds = ctx.EndTime - ctx.StartTime;
+            const long maxSanityDurationSeconds = 86400; // 24 hours
+            if (seconds > 0 && seconds <= maxSanityDurationSeconds)
+            {
+                duration = TimeSpan.FromSeconds(seconds);
+                fps = baseFps;
+                var calculatedFrames = (double)seconds * baseFps;
+                if (calculatedFrames <= uint.MaxValue)
+                {
+                    totalFrames = (uint)Math.Round(calculatedFrames);
+                }
+            }
+        }
+        else
         {
             var scanOffset = offsetAfterInitString;
             if (TryReadNullTerminatedAsciiString(buffer, ref scanOffset, bytesRead, out _))
             {
-                // Engine writes null-terminated local player index string (e.g. "0\0" or "-1\0"),
+                // Engine writes null-terminated local player index string (e.g. "0 " or "-1 "),
                 // followed by a 16-byte fixed trailer before the chunk stream.
                 scanOffset += ReplayManagerConstants.ReplayPlayerIndexFixedTrailerSizeBytes;
             }
@@ -296,24 +319,14 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
             if (scanOffset < bytesRead)
             {
-                totalFrames = TryScanMaxChunkTimecode(buffer, scanOffset, bytesRead);
+                var scannedFrames = TryScanMaxChunkTimecode(buffer, scanOffset, bytesRead);
+                if (scannedFrames.HasValue && scannedFrames.Value > 0)
+                {
+                    totalFrames = scannedFrames;
+                    fps = baseFps;
+                    duration = TimeSpan.FromSeconds((double)scannedFrames.Value / baseFps);
+                }
             }
-        }
-
-        TimeSpan? duration = null;
-        int? fps = null;
-
-        if (totalFrames.HasValue && totalFrames.Value > 0)
-        {
-            fps = baseFps;
-            duration = TimeSpan.FromSeconds((double)totalFrames.Value / baseFps);
-        }
-        else if (ctx.EndTime > ctx.StartTime && ctx.StartTime > 0)
-        {
-            var seconds = ctx.EndTime - ctx.StartTime;
-            duration = TimeSpan.FromSeconds(seconds);
-            fps = baseFps;
-            totalFrames = (uint)Math.Round(seconds * (double)baseFps);
         }
 
         DateTime? gameDate = null;

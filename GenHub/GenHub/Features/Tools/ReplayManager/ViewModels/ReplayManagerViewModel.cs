@@ -45,7 +45,7 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// </summary>
 /// <param name="directoryService">The directory service.</param>
 /// <param name="checkpointService">The replay checkpoint recovery service.</param>
-/// <param name="profileManager">The game profile manager.</param>
+/// <param name="profileManager">Optional game profile manager; resolved via service provider if null.</param>
 /// <param name="importService">The import service.</param>
 /// <param name="exportService">The export service.</param>
 /// <param name="uploadHistoryService">The upload history and rate limit service.</param>
@@ -57,7 +57,7 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
     IReplayCheckpointService checkpointService,
-    IGameProfileManager profileManager,
+    IGameProfileManager? profileManager,
     IReplayImportService importService,
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
@@ -96,7 +96,7 @@ public partial class ReplayManagerViewModel(
     private string importUrl = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanResumeOrTakeover))]
+    [NotifyPropertyChangedFor(nameof(CanMintCheckpoint))]
     [NotifyPropertyChangedFor(nameof(CanResumeFromCheckpoint))]
     [NotifyPropertyChangedFor(nameof(CanTakeoverFromCheckpoint))]
     private bool isBusy;
@@ -149,7 +149,6 @@ public partial class ReplayManagerViewModel(
     /// Gets or sets the selected checkpoint save.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanResumeOrTakeover))]
     [NotifyPropertyChangedFor(nameof(CanResumeFromCheckpoint))]
     [NotifyPropertyChangedFor(nameof(CanTakeoverFromCheckpoint))]
     private ReplayCheckpointInfo? selectedCheckpoint;
@@ -158,19 +157,19 @@ public partial class ReplayManagerViewModel(
     /// Gets a value indicating whether replay resume operations can be executed.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
-    public bool CanResumeFromCheckpoint => SelectedCheckpoint != null && !IsBusy;
+    public bool CanResumeFromCheckpoint => SelectedCheckpoint != null && !IsBusy && !IsMintingCheckpoint;
 
     /// <summary>
     /// Gets a value indicating whether match takeover operations can be executed.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
-    public bool CanTakeoverFromCheckpoint => SelectedCheckpoint != null && SelectedSlot != null && !IsBusy;
+    public bool CanTakeoverFromCheckpoint => SelectedCheckpoint != null && SelectedSlot != null && !IsBusy && !IsMintingCheckpoint;
 
     /// <summary>
-    /// Gets a value indicating whether resume or takeover operations can be executed.
+    /// Gets a value indicating whether a new checkpoint can currently be minted.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
-    public bool CanResumeOrTakeover => SelectedCheckpoint != null && SelectedSlot != null && !IsBusy;
+    public bool CanMintCheckpoint => !IsBusy && !IsMintingCheckpoint;
 
     /// <summary>
     /// Gets the list of player slots parsed from the active replay.
@@ -181,7 +180,6 @@ public partial class ReplayManagerViewModel(
     /// Gets or sets the player slot selected for live match takeover.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanResumeOrTakeover))]
     [NotifyPropertyChangedFor(nameof(CanTakeoverFromCheckpoint))]
     private ReplaySlotInfo? selectedSlot;
 
@@ -189,13 +187,13 @@ public partial class ReplayManagerViewModel(
     /// Gets or sets the target time in seconds for creating a new checkpoint.
     /// </summary>
     [ObservableProperty]
-    private double targetCheckpointTimeSeconds = 60;
+    private double targetCheckpointTimeSeconds = ReplayManagerConstants.DefaultTargetCheckpointSeconds;
 
     /// <summary>
     /// Gets or sets the maximum time in seconds for the active replay.
     /// </summary>
     [ObservableProperty]
-    private double maxCheckpointSeconds = 600;
+    private double maxCheckpointSeconds = ReplayManagerConstants.DefaultMaxCheckpointSeconds;
 
     /// <summary>
     /// Gets or sets the maximum frame number for the active replay.
@@ -225,6 +223,9 @@ public partial class ReplayManagerViewModel(
     /// Gets or sets a value indicating whether a checkpoint is currently being created.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanMintCheckpoint))]
+    [NotifyPropertyChangedFor(nameof(CanResumeFromCheckpoint))]
+    [NotifyPropertyChangedFor(nameof(CanTakeoverFromCheckpoint))]
     private bool isMintingCheckpoint;
 
     partial void OnTargetCheckpointTimeSecondsChanged(double value)
@@ -1703,7 +1704,21 @@ public partial class ReplayManagerViewModel(
 
     private async Task PopulateCompatibleProfilesAsync(ReplayFile replay)
     {
-        var allProfilesResult = await profileManager.GetAllProfilesAsync();
+        IGameProfileManager? manager = profileManager;
+        if (manager == null && serviceProvider != null)
+        {
+            using var scope = serviceProvider.CreateScope();
+            manager = scope.ServiceProvider.GetService<IGameProfileManager>();
+        }
+
+        if (manager == null)
+        {
+            logger.LogWarning("Failed to resolve profile manager for replay compatibility.");
+            notificationService.ShowWarning("Profiles Warning", "Could not load profiles for checkpoint recovery.");
+            return;
+        }
+
+        var allProfilesResult = await manager.GetAllProfilesAsync();
         if (!allProfilesResult.Success || allProfilesResult.Data == null)
         {
             var error = allProfilesResult.FirstError ?? "Failed to load profiles.";
@@ -1873,8 +1888,8 @@ public partial class ReplayManagerViewModel(
         }
         else
         {
-            MaxCheckpointSeconds = 600;
-            MaxCheckpointFrames = 600 * fps;
+            MaxCheckpointSeconds = ReplayManagerConstants.DefaultMaxCheckpointSeconds;
+            MaxCheckpointFrames = ReplayManagerConstants.DefaultMaxCheckpointSeconds * fps;
         }
 
         var maxTs = TimeSpan.FromSeconds(MaxCheckpointSeconds);
@@ -1883,7 +1898,7 @@ public partial class ReplayManagerViewModel(
 
         if (TargetCheckpointTimeSeconds > MaxCheckpointSeconds || TargetCheckpointTimeSeconds <= 0)
         {
-            TargetCheckpointTimeSeconds = Math.Min(120, Math.Max(1, Math.Round(MaxCheckpointSeconds * 0.5)));
+            TargetCheckpointTimeSeconds = Math.Min(ReplayManagerConstants.DefaultTargetCheckpointSeconds, Math.Max(1, Math.Round(MaxCheckpointSeconds * 0.5)));
         }
 
         UpdateCheckpointTimingDisplay();
@@ -2041,10 +2056,24 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        if (DialogService != null)
+        {
+            var confirmed = await DialogService.ShowConfirmationAsync(
+                "Delete Checkpoint",
+                $"Are you sure you want to delete checkpoint '{checkpoint.FileName}'?",
+                "Delete",
+                "Cancel");
+
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
         try
         {
-            var deleted = await checkpointService.DeleteCheckpointAsync(checkpoint, CancellationToken.None);
-            if (deleted)
+            var result = await checkpointService.DeleteCheckpointAsync(checkpoint, CancellationToken.None);
+            if (result.Success)
             {
                 AvailableCheckpoints.Remove(checkpoint);
                 if (SelectedCheckpoint == checkpoint)
@@ -2056,7 +2085,7 @@ public partial class ReplayManagerViewModel(
             }
             else
             {
-                notificationService.ShowWarning("Delete Failed", $"Failed to delete checkpoint {checkpoint.FileName}.");
+                notificationService.ShowWarning("Delete Failed", result.FirstError ?? $"Failed to delete checkpoint {checkpoint.FileName}.");
             }
         }
         catch (Exception ex)

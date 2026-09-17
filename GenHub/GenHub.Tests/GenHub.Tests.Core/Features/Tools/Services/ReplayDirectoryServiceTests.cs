@@ -4382,6 +4382,56 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("Zero Hour 1.04 (Recovery)", replay.RecoveryProfileName);
     }
 
+    /// <summary>
+    /// Verifies that ResolveCompatibility leaves SupportsCheckpoints false when no matching recovery profile exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveCompatibilityAsync_WhenNoMatchingRecoveryProfile_DoesNotSupportCheckpoints()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "RECOVER.rep",
+            FullPath = "/replays/RECOVER.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0xDA2B4B18",
+            IniCrc = "0xFEAAE3F3",
+            Description = "Zero Hour 1.04 Retail",
+            Version = "1.04",
+            GameType = "ZeroHour",
+            Publisher = "ea",
+            ManifestId = "1.104.retail.gameclient.zerohour",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xDA2B4B18", "0xFEAAE3F3", out outEntry))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        await service.ResolveCompatibilityAsync(replay, new HashSet<string>(), []);
+
+        Assert.False(replay.SupportsCheckpoints);
+        Assert.Null(replay.RecoveryProfileId);
+        Assert.Null(replay.RecoveryProfileName);
+    }
+
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
     {
         FileName = "Test.rep",

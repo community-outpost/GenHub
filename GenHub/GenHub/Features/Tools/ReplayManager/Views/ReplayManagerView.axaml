@@ -537,7 +537,7 @@
                         Value="{Binding TargetCheckpointTimeSeconds}"
                         TickFrequency="1"
                         IsSnapToTickEnabled="False"
-                        IsEnabled="{Binding !IsMintingCheckpoint}"
+                        IsEnabled="{Binding CanMintCheckpoint}"
                         Margin="0,2,0,2"/>
 
                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
@@ -556,7 +556,7 @@
                 <Button Grid.Column="1"
                         Classes="Secondary"
                         Command="{Binding CreateCheckpointCommand}"
-                        IsEnabled="{Binding !IsMintingCheckpoint}"
+                        IsEnabled="{Binding CanMintCheckpoint}"
                         IsVisible="{Binding !IsMintingCheckpoint}"
                         Padding="14,6">
                   <StackPanel Orientation="Horizontal" Spacing="6">
