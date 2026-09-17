@@ -1,6 +1,8 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
+using System;
 
 namespace GenHub.Core.Models.GameClients;
 
@@ -9,6 +11,8 @@ namespace GenHub.Core.Models.GameClients;
 /// </summary>
 public class GameClient
 {
+    private GameClientCapabilities? _capabilities;
+
     /// <summary>Gets or sets the display name for this game client.</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -39,7 +43,7 @@ public class GameClient
     {
         get
         {
-            // If ExecutablePath is not set, not valid
+            // If ExecutablePath is not set, consider it not valid
             if (string.IsNullOrEmpty(ExecutablePath))
             {
                 return false;
@@ -75,6 +79,16 @@ public class GameClient
 
     /// <summary>Gets or sets additional command line arguments.</summary>
     public string CommandLineArgs { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the capability flags supported by this game client.
+    /// Infers capabilities if not explicitly configured (e.g. for modern recovery clients or TheSuperHackers).
+    /// </summary>
+    public GameClientCapabilities Capabilities
+    {
+        get => _capabilities ?? GameClientCapabilitiesHelper.InferCapabilities(PublisherType, Id, Name);
+        set => _capabilities = value;
+    }
 
     /// <summary>Gets or sets a value indicating whether this version is enabled.</summary>
     public bool IsEnabled { get; set; } = true;

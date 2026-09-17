@@ -6704,4 +6704,606 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
     <value>Доступный контент</value>
   </data>
+  <data name="Tools.ReplayManager.Action.Recovery" xml:space="preserve">
+    <value>Восстановление</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Resume" xml:space="preserve">
+    <value>Возобновить реплей</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Takeover" xml:space="preserve">
+    <value>Перехватить матч</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateButton" xml:space="preserve">
+    <value>Создать точку</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveSubtitle" xml:space="preserve">
+    <value>GenHub запустит игру для быстрой перемотки реплея до выбранного момента и создания снимка состояния. После создания контрольной точки игра автоматически сохранится и закроется.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveTitle" xml:space="preserve">
+    <value>Создать сохранение контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.ExistingTitle" xml:space="preserve">
+    <value>Существующие контрольные точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.FrameFormat" xml:space="preserve">
+    <value>Кадр {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.MinTime" xml:space="preserve">
+    <value>1 с</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SavesCountFormat" xml:space="preserve">
+    <value>{0} сохр.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TakeoverPlayer" xml:space="preserve">
+    <value>Игрок для перехвата</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetPoint" xml:space="preserve">
+    <value>Целевая точка</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfile" xml:space="preserve">
+    <value>Целевой профиль</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfileSubtitle" xml:space="preserve">
+    <value>Выберите профиль с поддержкой контрольных точек и перехвата управления.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Title" xml:space="preserve">
+    <value>Восстановление реплея и перехват управления</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave" xml:space="preserve">
+    <value>Удалить сохранение контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Resume" xml:space="preserve">
+    <value>Возобновить детерминированное воспроизведение реплея с выбранной контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Takeover" xml:space="preserve">
+    <value>Перехватить управление матчем с этой контрольной точки за выбранного игрока</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить контрольную точку «{0}»?</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointTitle" xml:space="preserve">
+    <value>Удалить контрольную точку</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedDesc" xml:space="preserve">
+    <value>Создана контрольная точка {0} на {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedTitle" xml:space="preserve">
+    <value>Контрольная точка создана</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointDeletedDesc" xml:space="preserve">
+    <value>Контрольная точка {0} удалена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverDesc" xml:space="preserve">
+    <value>Запущен перехват живого матча за {0}!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverTitle" xml:space="preserve">
+    <value>Перехват матча</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledDesc" xml:space="preserve">
+    <value>Создание контрольной точки было отменено.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledTitle" xml:space="preserve">
+    <value>Создание контрольной точки отменено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintErrorTitle" xml:space="preserve">
+    <value>Ошибка при создании контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintFailedTitle" xml:space="preserve">
+    <value>Ошибка создания контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointResumeDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите сохранение контрольной точки для возобновления.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointSelectedTitle" xml:space="preserve">
+    <value>Контрольная точка не выбрана</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointTakeoverDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите сохранение контрольной точки для перехвата.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите слот игрока для перехвата управления.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedTitle" xml:space="preserve">
+    <value>Игрок не выбран</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileResumeDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите совместимый профиль игры.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите совместимый профиль игры для создания контрольной точки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedTitle" xml:space="preserve">
+    <value>Профиль не выбран</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceled" xml:space="preserve">
+    <value>Отменено: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceledDesc" xml:space="preserve">
+    <value>Операция {0} была отменена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationError" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationFailed" xml:space="preserve">
+    <value>Сбой: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningDesc" xml:space="preserve">
+    <value>Не удалось загрузить профили для восстановления контрольных точек.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningTitle" xml:space="preserve">
+    <value>Предупреждение о профилях</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorDesc" xml:space="preserve">
+    <value>Не удалось загрузить данные контрольных точек.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorTitle" xml:space="preserve">
+    <value>Ошибка восстановления</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedDesc" xml:space="preserve">
+    <value>Возобновлено воспроизведение с кадра {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedTitle" xml:space="preserve">
+    <value>Воспроизведение возобновлено</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CancelingCheckpoint" xml:space="preserve">
+    <value>Отмена создания контрольной точки...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CheckpointCreated" xml:space="preserve">
+    <value>Контрольная точка {0} создана.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingCheckpoint" xml:space="preserve">
+    <value>Создание контрольной точки на {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MatchTakeover" xml:space="preserve">
+    <value>Матч перехвачен за {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintCanceled" xml:space="preserve">
+    <value>Создание контрольной точки отменено.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintError" xml:space="preserve">
+    <value>Ошибка создания контрольной точки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintFailed" xml:space="preserve">
+    <value>Создание контрольной точки не удалось.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationCanceled" xml:space="preserve">
+    <value>Операция {0} отменена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationError" xml:space="preserve">
+    <value>Ошибка операции {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationFailed" xml:space="preserve">
+    <value>Сбой операции {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReplayResumed" xml:space="preserve">
+    <value>Воспроизведение реплея возобновлено.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ResumingReplay" xml:space="preserve">
+    <value>Возобновление реплея из {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
+    <value>Перехват матча за слот {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
+    <value>Настройте или создайте профиль игры для просмотра этого реплея.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
+    <value>Возобновите реплей из сохранения контрольной точки или перехватите живой матч за любого игрока.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithProfile" xml:space="preserve">
+    <value>Возобновите реплей из контрольной точки или перехватите живой матч за любого игрока, используя профиль «{0}».</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
+    <value>Восстановление контрольных точек и перехват управления требуют игрового клиента с поддержкой контрольных точек (например, MP-Recovery или современного движка сообщества).</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
+    <value>Смотреть реплей с использованием профиля «{0}».</value>
+  </data>
+  <data name="Common.DeleteError" xml:space="preserve">
+    <value>Ошибка при удалении</value>
+  </data>
+  <data name="Common.DeleteFailed" xml:space="preserve">
+    <value>Ошибка удаления</value>
+  </data>
+  <data name="Common.Deleted" xml:space="preserve">
+    <value>Удалено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorTitle" xml:space="preserve">
+    <value>Ошибка загрузки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorDesc" xml:space="preserve">
+    <value>Не удалось загрузить реплеи.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadError" xml:space="preserve">
+    <value>Ошибка при загрузке реплеев.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Compatible" xml:space="preserve">
+    <value>Профиль '{0}' настроен с подходящим клиентом и патчем данных. Нажмите 'Запустить', чтобы запустить игру, затем выберите этот реплей в игре.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresProfile" xml:space="preserve">
+    <value>Клиент игры и патч для '{0}' доступны. Нажмите 'Создать профиль', чтобы настроить выделенный профиль.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Downloadable" xml:space="preserve">
+    <value>Клиент игры и патч данных для '{0}' можно загрузить. Нажмите 'Настроить', чтобы получить и настроить этот профиль.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Orphaned" xml:space="preserve">
+    <value>Exe CRC {0} / INI CRC {1} отсутствует в официальном каталоге. Нажмите 'Профиль', чтобы настроить с использованием базовой установки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
+    <value>Метаданные заголовка реплея недоступны или их не удалось проанализировать.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RecoverySuffix" xml:space="preserve">
+    <value>
+
+Движок восстановления: Профиль '{0}' поддерживает контрольные точки, возобновление реплея и живой перехват матча.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletingReplays" xml:space="preserve">
+    <value>Удаление реплеев...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedReplaysFormat" xml:space="preserve">
+    <value>Удалено {0} реплеев.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletedSuccessfully" xml:space="preserve">
+    <value>Успешно удалено.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteSelectedFailed" xml:space="preserve">
+    <value>Не удалось удалить выбранные реплеи.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeleteError" xml:space="preserve">
+    <value>Ошибка удаления.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingZip" xml:space="preserve">
+    <value>Создание ZIP...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedTitle" xml:space="preserve">
+    <value>Архив ZIP создан</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedDesc" xml:space="preserve">
+    <value>Создан {0} в папке реплеев.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipCreated" xml:space="preserve">
+    <value>Архив ZIP успешно создан.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedTitle" xml:space="preserve">
+    <value>Ошибка ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedDesc" xml:space="preserve">
+    <value>Не удалось создать ZIP-архив.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipFailed" xml:space="preserve">
+    <value>Сбой создания ZIP.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExportErrorTitle" xml:space="preserve">
+    <value>Ошибка экспорта</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ExportError" xml:space="preserve">
+    <value>Ошибка экспорта.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.Uncompressing" xml:space="preserve">
+    <value>Распаковка ZIP...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteTitle" xml:space="preserve">
+    <value>Распаковка завершена</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteDesc" xml:space="preserve">
+    <value>Извлечено {0} реплеев из выбранных ZIP-архивов.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressComplete" xml:space="preserve">
+    <value>Извлечено реплеев: {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressWarningTitle" xml:space="preserve">
+    <value>Предупреждение распаковки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressErrorTitle" xml:space="preserve">
+    <value>Ошибка распаковки</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressError" xml:space="preserve">
+    <value>Ошибка распаковки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlTitle" xml:space="preserve">
+    <value>Импорт по URL</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlDesc" xml:space="preserve">
+    <value>Загружает реплеи по указанному URL и автоматически импортирует их в каталог реплеев игры. Поддерживает прямые файлы .rep и архивы zip.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DownloadingFromUrl" xml:space="preserve">
+    <value>Загрузка по URL...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteTitle" xml:space="preserve">
+    <value>Импорт завершен</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteDesc" xml:space="preserve">
+    <value>Импортировано файлов по URL: {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportComplete" xml:space="preserve">
+    <value>Успешно импортировано файлов: {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>Сбой импорта</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
+    <value>Сбой импорта: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportError" xml:space="preserve">
+    <value>Ошибка импорта.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ConfiguringProfile" xml:space="preserve">
+    <value>Настройка профиля для {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedTitle" xml:space="preserve">
+    <value>Профиль создан</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedDesc" xml:space="preserve">
+    <value>Создан профиль '{0}' для {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreated" xml:space="preserve">
+    <value>Создан профиль '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationFailedTitle" xml:space="preserve">
+    <value>Сбой создания профиля</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationFailed" xml:space="preserve">
+    <value>Сбой создания профиля.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationErrorTitle" xml:space="preserve">
+    <value>Ошибка создания профиля</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationError" xml:space="preserve">
+    <value>Ошибка создания профиля.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchingProfile" xml:space="preserve">
+    <value>Запуск профиля для {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedTitle" xml:space="preserve">
+    <value>Запущено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedDesc" xml:space="preserve">
+    <value>Запущен профиль '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchedProfile" xml:space="preserve">
+    <value>Запущен профиль '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchFailedTitle" xml:space="preserve">
+    <value>Сбой запуска</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchFailed" xml:space="preserve">
+    <value>Сбой запуска.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchErrorTitle" xml:space="preserve">
+    <value>Ошибка запуска</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchError" xml:space="preserve">
+    <value>Ошибка запуска.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CopiedTitle" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LinkCopiedDesc" xml:space="preserve">
+    <value>Ссылка скопирована в буфер обмена!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteCloudFailed" xml:space="preserve">
+    <value>Не удалось удалить файл из облачного хранилища.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteHistoryFailed" xml:space="preserve">
+    <value>Не удалось удалить элемент журнала.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedTitle" xml:space="preserve">
+    <value>Сбой очистки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedDesc" xml:space="preserve">
+    <value>Не удалось очистить журнал.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.PreparingUpload" xml:space="preserve">
+    <value>Подготовка к загрузке...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadFailed" xml:space="preserve">
+    <value>Сбой загрузки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadFailedTitle" xml:space="preserve">
+    <value>Сбой загрузки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorTitle" xml:space="preserve">
+    <value>Ошибка загрузки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorDesc" xml:space="preserve">
+    <value>Не удалось завершить загрузку.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadError" xml:space="preserve">
+    <value>Ошибка загрузки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadTooLarge" xml:space="preserve">
+    <value>Слишком большой размер загрузки (макс. 10 МБ).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadLimitReached" xml:space="preserve">
+    <value>Достигнут лимит. Сброс {0:g}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReusedUpload" xml:space="preserve">
+    <value>Использована существующая загрузка! Ссылка скопирована в буфер обмена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExistingLinkCopied" xml:space="preserve">
+    <value>Существующая ссылка скопирована в буфер обмена!</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadedLinkCopied" xml:space="preserve">
+    <value>Загружено! Ссылка скопирована в буфер обмена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadCompleteTitle" xml:space="preserve">
+    <value>Загрузка завершена</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadingReplays" xml:space="preserve">
+    <value>Загрузка реплеев...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportingFiles" xml:space="preserve">
+    <value>Импорт файлов...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportedFilesFormat" xml:space="preserve">
+    <value>Импортировано файлов: {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportedFilesFormat" xml:space="preserve">
+    <value>Импортировано файлов: {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelFormat" xml:space="preserve">
+    <value>Слот {0}: {1}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelAiFormat" xml:space="preserve">
+    <value>Слот {0}: {1} ({2})</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.AiLabel" xml:space="preserve">
+    <value>ИИ</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedTitle" xml:space="preserve">
+    <value>Удалено</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryTitle" xml:space="preserve">
+    <value>Очистить историю загрузок</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить все загруженные повторы из облачного хранилища и очистить историю? Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryConfirm" xml:space="preserve">
+    <value>Очистить всё</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedTitle" xml:space="preserve">
+    <value>Очищено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedDescFormat" xml:space="preserve">
+    <value>Все загруженные файлы ({0}) удалены из облачного хранилища, история очищена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedTitle" xml:space="preserve">
+    <value>Частично очищено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedDescFormat" xml:space="preserve">
+    <value>Очищено элементов истории: {0}. Не удалось удалить из облачного хранилища: {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysTitle" xml:space="preserve">
+    <value>Импорт повторов</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysDesc" xml:space="preserve">
+    <value>Импортирует повторы по ссылкам или перетаскиванием файлов в каталог повторов игры.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryTitle" xml:space="preserve">
+    <value>История загрузок</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryDesc" xml:space="preserve">
+    <value>Показывает список ранее загруженных повторов, позволяя управлять ими и копировать ссылки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkTitle" xml:space="preserve">
+    <value>Скопировать ссылку</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkDesc" xml:space="preserve">
+    <value>Копирует ссылку на скачивание загруженного файла в буфер обмена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadTitle" xml:space="preserve">
+    <value>Удалить загрузку</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadDesc" xml:space="preserve">
+    <value>Навсегда удаляет загруженный файл из облачного хранилища и убирает его из истории.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryTitle" xml:space="preserve">
+    <value>Очистить историю</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryDesc" xml:space="preserve">
+    <value>Навсегда удаляет все загруженные файлы из облака и очищает историю загрузок.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportTitle" xml:space="preserve">
+    <value>Обзор и импорт</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportDesc" xml:space="preserve">
+    <value>Открывает диалог выбора файлов (.rep или zip) на компьютере для импорта в игру.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysTitle" xml:space="preserve">
+    <value>Удалить повторы</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysDesc" xml:space="preserve">
+    <value>Навсегда удаляет выбранные повторы из папки повторов игры. Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipTitle" xml:space="preserve">
+    <value>Экспорт в ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipDesc" xml:space="preserve">
+    <value>Создает ZIP-архив с выбранными повторами в папке повторов. Вы можете поделиться им или использовать для резервной копии.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareTitle" xml:space="preserve">
+    <value>Загрузить и поделиться</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareDesc" xml:space="preserve">
+    <value>Загружает выбранные повторы в облачный сервис UploadThing (до 10 МБ) и копирует ссылку на общий доступ в буфер обмена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderTitle" xml:space="preserve">
+    <value>Открыть папку повторов</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderDesc" xml:space="preserve">
+    <value>Открывает папку повторов игры в проводнике, позволяя управлять файлами напрямую.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileTitle" xml:space="preserve">
+    <value>Показать файл повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileDesc" xml:space="preserve">
+    <value>Открывает проводник и выделяет выбранный файл повтора, упрощая его поиск и управление.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipTitle" xml:space="preserve">
+    <value>Распаковать ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipDesc" xml:space="preserve">
+    <value>Распаковывает содержимое выбранных ZIP-архивов и импортирует найденные повторы в папку повторов игры.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientTitle" xml:space="preserve">
+    <value>Выбрать клиент игры</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientDesc" xml:space="preserve">
+    <value>Выберите из доступных игровых клиентов для настройки выделенного профиля.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileTitle" xml:space="preserve">
+    <value>Создать профиль для повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileDesc" xml:space="preserve">
+    <value>Создает отдельный профиль игры, настроенный с точным клиентом и конфигурацией INI для этого повтора.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileTitle" xml:space="preserve">
+    <value>Выбрать профиль для запуска повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileDesc" xml:space="preserve">
+    <value>Выберите профиль для просмотра этого повтора.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileTitle" xml:space="preserve">
+    <value>Запустить профиль повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileDesc" xml:space="preserve">
+    <value>Запускает игру с профилем, соответствующим этому повтору, чтобы избежать ошибок несоответствия версий или INI.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningTitle" xml:space="preserve">
+    <value>Игра запущена</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningDesc" xml:space="preserve">
+    <value>Игровой профиль для этого повтора уже запущен.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeTitle" xml:space="preserve">
+    <value>Файл слишком большой</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeDesc" xml:space="preserve">
+    <value>Файл слишком большой. Максимальный размер загрузки составляет 10 МБ.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededTitle" xml:space="preserve">
+    <value>Превышен лимит</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededDesc" xml:space="preserve">
+    <value>Превышен лимит загрузки за текущий 3-дневный период. Удалите элементы из истории загрузок, чтобы освободить место.</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.DialogTitleFormat" xml:space="preserve">
+    <value>Выбор профиля - {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Выбор профиля для запуска повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Нажмите на профиль для запуска повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>Играть</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
+    <value>Выберите доступный клиент игры для создания нового профиля</value>
+  </data>
 </root>

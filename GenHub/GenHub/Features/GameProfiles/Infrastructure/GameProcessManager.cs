@@ -255,7 +255,7 @@ public class GameProcessManager(
                 if (process.HasExited)
                 {
                     _managedProcesses.TryRemove(processId, out _);
-                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
                 }
 
                 var processInfo = new GameProcessInfo
@@ -276,7 +276,7 @@ public class GameProcessManager(
                 process = Process.GetProcessById(processId);
                 if (process == null || process.HasExited)
                 {
-                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
                 }
 
                 var processInfo = new GameProcessInfo
@@ -292,13 +292,13 @@ public class GameProcessManager(
             }
             catch (ArgumentException)
             {
-                return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get process info for {ProcessId}", processId);
-            return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+            return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure($"Failed to get process info for {processId}: {ex.Message}"));
         }
     }
 
@@ -754,7 +754,7 @@ public class GameProcessManager(
                     argList.Add(arg.Key);
                     if (!string.IsNullOrEmpty(arg.Value))
                     {
-                        var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                        var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
                         argList.Add(quotedValue);
                     }
 
@@ -762,13 +762,13 @@ public class GameProcessManager(
                 }
                 else if (arg.Key.StartsWith("_pos") || string.IsNullOrEmpty(arg.Key))
                 {
-                    var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                    var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
                     argList.Add(quotedValue);
                     logger.LogDebug("Added positional argument: {Value}", quotedValue);
                 }
                 else
                 {
-                    var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                    var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
                     argList.Add($"{arg.Key}={quotedValue}");
                     logger.LogDebug("Added key-value argument: {Key}={Value}", arg.Key, quotedValue);
                 }

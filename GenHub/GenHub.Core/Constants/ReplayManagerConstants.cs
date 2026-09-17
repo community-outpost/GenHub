@@ -8,6 +8,100 @@ namespace GenHub.Core.Constants;
 public static class ReplayManagerConstants
 {
     /// <summary>
+    /// Protocol argument sizes in bytes for replay chunk command parameter types.
+    /// </summary>
+    public static class CommandArgSizes
+    {
+        /// <summary>Size of 32-bit integer argument (4 bytes).</summary>
+        public const int Integer = 4;
+
+        /// <summary>Size of 32-bit floating-point real argument (4 bytes).</summary>
+        public const int Real = 4;
+
+        /// <summary>Size of boolean argument (1 byte).</summary>
+        public const int Boolean = 1;
+
+        /// <summary>Size of object identifier argument (4 bytes).</summary>
+        public const int ObjectId = 4;
+
+        /// <summary>Size of drawable identifier argument (4 bytes).</summary>
+        public const int DrawableId = 4;
+
+        /// <summary>Size of team identifier argument (4 bytes).</summary>
+        public const int TeamId = 4;
+
+        /// <summary>Size of location coordinates argument (12 bytes: 3 * 4-byte floats).</summary>
+        public const int Location = 12;
+
+        /// <summary>Size of pixel coordinate argument (8 bytes: 2 * 4-byte integers).</summary>
+        public const int Pixel = 8;
+
+        /// <summary>Size of pixel region argument (16 bytes: 4 * 4-byte integers).</summary>
+        public const int PixelRegion = 16;
+
+        /// <summary>Size of timestamp argument (4 bytes).</summary>
+        public const int Timestamp = 4;
+
+        /// <summary>Size of wide character argument (2 bytes).</summary>
+        public const int WideChar = 2;
+    }
+
+    /// <summary>
+    /// Frame rate for classic Command &amp; Conquer Generals / Zero Hour matches (30 FPS).
+    /// </summary>
+    public const int ClassicFps = 30;
+
+    /// <summary>
+    /// Frame rate for modern community high-refresh-rate builds such as GeneralsOnline (60 FPS).
+    /// </summary>
+    public const int GeneralsOnlineFps = 60;
+
+    /// <summary>
+    /// Keyword used to detect 60Hz high-refresh-rate replay builds.
+    /// </summary>
+    public const string HighRefreshRateKeyword = "60Hz";
+
+    /// <summary>
+    /// Default maximum checkpoint duration in seconds when replay metadata has no end time or frames (600s / 10 minutes).
+    /// </summary>
+    public const int DefaultMaxCheckpointSeconds = 600;
+
+    /// <summary>
+    /// Default maximum checkpoint frames when replay frame count is unavailable (18000 frames / 10 minutes at 30 FPS).
+    /// </summary>
+    public const int DefaultMaxCheckpointFrames = 18000;
+
+    /// <summary>
+    /// Default target checkpoint time in seconds when opening the checkpoint drawer (120s / 2 minutes).
+    /// </summary>
+    public const int DefaultTargetCheckpointSeconds = 120;
+
+    /// <summary>
+    /// Minimum valid player slot index for multiplayer matches (0-based).
+    /// </summary>
+    public const int MinPlayerSlotIndex = 0;
+
+    /// <summary>
+    /// Maximum valid player slot index for multiplayer matches (0-based, supports up to 8 players).
+    /// </summary>
+    public const int MaxPlayerSlotIndex = 7;
+
+    /// <summary>
+    /// Maximum sanity cap for replay match duration in seconds (24 hours).
+    /// </summary>
+    public const int MaxSaneReplayDurationSeconds = 86400;
+
+    /// <summary>
+    /// Display label suffix representing computer AI players in slot displays.
+    /// </summary>
+    public const string AiLabel = "AI";
+
+    /// <summary>
+    /// Minimum valid size in bytes for a Command &amp; Conquer save file (1024 bytes).
+    /// </summary>
+    public const long MinValidSaveFileSizeBytes = 1024;
+
+    /// <summary>
     /// File extension for Command &amp; Conquer Generals replay files.
     /// </summary>
     public const string ReplayFileExtension = FileTypes.ReplayFileExtension;
@@ -16,6 +110,101 @@ public static class ReplayManagerConstants
     /// File extension for ZIP archive files.
     /// </summary>
     public const string ZipFileExtension = FileTypes.ZipFileExtension;
+
+    /// <summary>
+    /// File extension for Command &amp; Conquer save files.
+    /// </summary>
+    public const string SaveFileExtension = ".sav";
+
+    /// <summary>
+    /// Default folder name for game save files within user data.
+    /// </summary>
+    public const string SaveFolderName = "Save";
+
+    /// <summary>
+    /// Command line argument flag to skip intro cinematic sequences and menus.
+    /// </summary>
+    public const string CliQuickStart = "-quickstart";
+
+    /// <summary>
+    /// Command line argument flag to specify the replay file to play or scrub through.
+    /// </summary>
+    public const string CliReplay = "-replay";
+
+    /// <summary>
+    /// Command line argument flag to mint a checkpoint save at a target frame or comma-separated list of frames.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.CheckpointSaves.
+    /// </summary>
+    public const string CliSaveAtFrame = "-saveatframe";
+
+    /// <summary>
+    /// Command line argument flag to specify the output checkpoint save file name.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.CheckpointSaves.
+    /// </summary>
+    public const string CliSaveTo = "-saveto";
+
+    /// <summary>
+    /// Command line argument flag to quit the game cleanly after reaching a target frame.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.CheckpointSaves.
+    /// </summary>
+    public const string CliQuitAtFrame = "-quitatframe";
+
+    /// <summary>
+    /// Command line argument flag to load a save file.
+    /// </summary>
+    public const string CliLoadSave = "-loadsave";
+
+    /// <summary>
+    /// Command line argument flag to resume playback of a replay file deterministically from a checkpoint save.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.ReplayResumption.
+    /// </summary>
+    public const string CliResumeReplay = "-resumereplay";
+
+    /// <summary>
+    /// Command line argument flag to take over live control of a specified player slot index from a save.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.PlayerTakeover.
+    /// </summary>
+    public const string CliResumeAs = "-resumeas";
+
+    /// <summary>
+    /// Keyword substring identifying recovery engine builds or capabilities.
+    /// </summary>
+    public const string CapabilityRecoveryKeyword = "recovery";
+
+    /// <summary>
+    /// Keyword substring identifying checkpoint save capabilities.
+    /// </summary>
+    public const string CapabilityCheckpointKeyword = "checkpoint";
+
+    /// <summary>
+    /// Keyword substring identifying player takeover capabilities.
+    /// </summary>
+    public const string CapabilityTakeoverKeyword = "takeover";
+
+    /// <summary>
+    /// Prefix prepended to generated checkpoint save files.
+    /// </summary>
+    public const string CheckpointFilePrefix = "cp_";
+
+    /// <summary>
+    /// File search pattern used to discover checkpoint save files.
+    /// </summary>
+    public const string CheckpointFileSearchPattern = "*.sav";
+
+    /// <summary>
+    /// Default polling interval in milliseconds when waiting for checkpoint process exits.
+    /// </summary>
+    public const int DefaultCheckpointPollIntervalMs = 500;
+
+    /// <summary>
+    /// Maximum consecutive retry attempts allowed during process status inspection.
+    /// </summary>
+    public const int MaxProcessExitRetries = 3;
+
+    /// <summary>
+    /// Sanity floor Unix epoch timestamp (2000-01-01 00:00:00 UTC) below which header timestamps are treated as invalid.
+    /// </summary>
+    public const uint MinSanityTimestampEpoch = 946684800u;
 
     /// <summary>
     /// Environment variable name to override the default community CRC mapping catalog endpoint.
@@ -63,6 +252,11 @@ public static class ReplayManagerConstants
     public const string DefaultImportedReplayFileName = "imported_replay.rep";
 
     /// <summary>
+    /// Error message returned when a checkpoint minting operation is canceled by the user.
+    /// </summary>
+    public const string CheckpointMintingCanceledErrorMessage = "Checkpoint minting canceled by user.";
+
+    /// <summary>
     /// File pattern for replay ZIP archives.
     /// </summary>
     public const string ZipFilePattern = "*.zip";
@@ -103,14 +297,55 @@ public static class ReplayManagerConstants
     public const int ReplayHeaderBufferSize = 16384;
 
     /// <summary>
+    /// Maximum buffer size in bytes for reading replay headers (16 KB).
+    /// </summary>
+    public const int MaxHeaderReadBytes = ReplayHeaderBufferSize;
+
+    /// <summary>
     /// Minimum size in bytes required for a valid replay header (28 bytes).
     /// </summary>
     public const int MinReplayHeaderSizeBytes = 28;
 
     /// <summary>
+    /// Minimum size in bytes required for reading a replay header (28 bytes).
+    /// </summary>
+    public const int MinHeaderReadBytes = MinReplayHeaderSizeBytes;
+
+    /// <summary>
     /// Fixed offset in bytes to skip the replay magic header and initial fixed metadata fields.
     /// </summary>
     public const int ReplayHeaderInitialOffsetBytes = 28;
+
+    /// <summary>
+    /// Offset in bytes from the start of the replay file to the StartTime field (6 bytes).
+    /// </summary>
+    public const int StartTimeOffsetBytes = 6;
+
+    /// <summary>
+    /// Offset in bytes from the start of the replay file to the EndTime field (10 bytes).
+    /// </summary>
+    public const int EndTimeOffsetBytes = 10;
+
+    /// <summary>
+    /// Offset in bytes from the start of the replay file to the HeaderFrameCount field (14 bytes).
+    /// </summary>
+    public const int HeaderFrameCountOffsetBytes = 14;
+
+    /// <summary>
+    /// Stride in bytes between consecutive chunk header timecode markers when scanning replay chunks (13 bytes).
+    /// </summary>
+    public const int MaxChunkTimecodeStrideBytes = 13;
+
+    /// <summary>
+    /// Nominal size in bytes of the post-header trailer structure following the initial setup string
+    /// (consisting of a variable-length null-terminated local player index string plus 16 fixed trailer bytes before the chunk stream; typically 18 bytes for single-digit index "0\0").
+    /// </summary>
+    public const int ReplayPostHeaderTrailerSizeBytes = 18;
+
+    /// <summary>
+    /// Fixed size in bytes of the trailer following the null-terminated player index string before the chunk stream (16 bytes).
+    /// </summary>
+    public const int ReplayPlayerIndexFixedTrailerSizeBytes = 16;
 
     /// <summary>
     /// Size in bytes of the SYSTEMTIME timestamp structure embedded in the replay header (16 bytes).

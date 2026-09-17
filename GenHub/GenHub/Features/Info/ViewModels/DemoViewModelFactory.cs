@@ -232,8 +232,14 @@ public static class DemoViewModelFactory
             var mockNotify = notificationService ?? new MockNotificationService();
             var mockLogger = new MockLogger<ReplayManagerViewModel>();
 
+            var mockCheckpoint = new MockReplayCheckpointService();
+            var demoRecoveryProfile = CreateDemoRecoveryProfile();
+            var mockProfileManager = new MockGameProfileManager([demoRecoveryProfile]);
+
             var vm = new ReplayManagerViewModel(
                 mockDir,
+                mockCheckpoint,
+                mockProfileManager,
                 mockImport,
                 mockExport,
                 mockHistory,
@@ -249,8 +255,12 @@ public static class DemoViewModelFactory
             System.Diagnostics.Debug.WriteLine($"Failed to create full demo replay manager: {ex}");
 
             // Fail safe with minimal mocks
+            var demoRecoveryProfile = CreateDemoRecoveryProfile();
+
             return new ReplayManagerViewModel(
                 new MockReplayDirectoryService(),
+                new MockReplayCheckpointService(),
+                new MockGameProfileManager([demoRecoveryProfile]),
                 new MockReplayImportService(),
                 new MockReplayExportService(),
                 new MockUploadHistoryService(),
@@ -351,42 +361,7 @@ public static class DemoViewModelFactory
     /// <returns>A configured demo profile settings view model for the Content tab demo.</returns>
     public static GameProfileSettingsViewModel CreateDemoProfileSettingsViewModel_ContentTab()
     {
-        var mockProfileManager = new MockGameProfileManager();
-        var mockGameSettings = new MockGameSettingsService();
-        var mockConfig = new MockConfigurationProviderService();
-        var mockLoader = new MockProfileContentLoader();
-        var mockNotify = new MockNotificationService();
-        var mockManifests = new MockContentManifestPool();
-        var mockStorage = new MockContentStorageService();
-        var mockLocalContent = new MockLocalContentService();
-        var mockLogger = new MockLogger<GameProfileSettingsViewModel>();
-        var mockSettingsLogger = new MockLogger<GameSettingsViewModel>();
-
-        // Use the dedicated Demo subclass that overrides content loading logic
-        // This guarantees mock data appears regardless of service state or race conditions
-        DemoGameProfileSettingsViewModel vm = new(
-            mockProfileManager,
-            mockGameSettings,
-            mockConfig,
-            mockLoader,
-            null, // profileResourceService
-            mockNotify,
-            mockManifests,
-            mockStorage,
-            mockLocalContent,
-            null, // genLauncherNormalizationService
-            null, // dialogService
-            mockLogger,
-            mockSettingsLogger)
-        {
-            // Set the Content tab as selected (index 0)
-            SelectedTabIndex = 0,
-
-            // Ensure dialog is closed immediately
-            IsAddLocalContentDialogOpen = false,
-        };
-
-        return vm;
+        return CreateBaseDemoProfileSettingsViewModel(0);
     }
 
     /// <summary>
@@ -395,42 +370,7 @@ public static class DemoViewModelFactory
     /// <returns>A configured demo profile settings view model for the Settings tab demo.</returns>
     public static GameProfileSettingsViewModel CreateDemoProfileSettingsViewModel_SettingsTab()
     {
-        var mockProfileManager = new MockGameProfileManager();
-        var mockGameSettings = new MockGameSettingsService();
-        var mockConfig = new MockConfigurationProviderService();
-        var mockLoader = new MockProfileContentLoader();
-        var mockNotify = new MockNotificationService();
-        var mockManifests = new MockContentManifestPool();
-        var mockStorage = new MockContentStorageService();
-        var mockLocalContent = new MockLocalContentService();
-        var mockLogger = new MockLogger<GameProfileSettingsViewModel>();
-        var mockSettingsLogger = new MockLogger<GameSettingsViewModel>();
-
-        // Use the dedicated Demo subclass that overrides content loading logic
-        // This guarantees mock data appears regardless of service state or race conditions
-        DemoGameProfileSettingsViewModel vm = new(
-            mockProfileManager,
-            mockGameSettings,
-            mockConfig,
-            mockLoader,
-            null, // profileResourceService
-            mockNotify,
-            mockManifests,
-            mockStorage,
-            mockLocalContent,
-            null, // genLauncherNormalizationService
-            null, // dialogService
-            mockLogger,
-            mockSettingsLogger)
-        {
-            // Set the Game Settings tab as selected (index 2)
-            SelectedTabIndex = 2,
-
-            // Ensure dialog is closed immediately
-            IsAddLocalContentDialogOpen = false,
-        };
-
-        return vm;
+        return CreateBaseDemoProfileSettingsViewModel(2);
     }
 
     /// <summary>
@@ -442,43 +382,7 @@ public static class DemoViewModelFactory
     {
         try
         {
-            var mockProfileManager = new MockGameProfileManager();
-            var mockGameSettings = new MockGameSettingsService();
-            var mockConfig = new MockConfigurationProviderService();
-            var mockLoader = new MockProfileContentLoader();
-            var mockNotify = new MockNotificationService();
-            var mockManifests = new MockContentManifestPool();
-            var mockStorage = new MockContentStorageService();
-            var mockLocalContent = new MockLocalContentService();
-            var mockLogger = new MockLogger<GameProfileSettingsViewModel>();
-            var mockSettingsLogger = new MockLogger<GameSettingsViewModel>();
-
-            // Use the dedicated Demo subclass that overrides content loading logic
-            // This guarantees mock data appears regardless of service state or race conditions
-            DemoGameProfileSettingsViewModel vm = new(
-                mockProfileManager,
-                mockGameSettings,
-                mockConfig,
-                mockLoader,
-                null, // profileResourceService
-                mockNotify,
-                mockManifests,
-                mockStorage,
-                mockLocalContent,
-                null, // genLauncherNormalizationService
-                null, // dialogService
-                mockLogger,
-                mockSettingsLogger)
-            {
-                // The Demo subclass handles its own initialization in the constructor
-                // and overrides RefreshVisibleFiltersAsync and LoadAvailableContentAsync
-                // to provide instant mock data without service calls.
-
-                // Ensure dialog is closed immediately
-                IsAddLocalContentDialogOpen = false,
-            };
-
-            return vm;
+            return CreateBaseDemoProfileSettingsViewModel(0);
         }
         catch
         {
@@ -520,4 +424,51 @@ public static class DemoViewModelFactory
     {
         return new ScanWizardDemoViewModel(notificationService, scanDelayMs, delayProvider);
     }
+
+    private static DemoGameProfileSettingsViewModel CreateBaseDemoProfileSettingsViewModel(int selectedTabIndex)
+    {
+        var mockProfileManager = new MockGameProfileManager();
+        var mockGameSettings = new MockGameSettingsService();
+        var mockConfig = new MockConfigurationProviderService();
+        var mockLoader = new MockProfileContentLoader();
+        var mockNotify = new MockNotificationService();
+        var mockManifests = new MockContentManifestPool();
+        var mockStorage = new MockContentStorageService();
+        var mockLocalContent = new MockLocalContentService();
+        var mockLogger = new MockLogger<GameProfileSettingsViewModel>();
+        var mockSettingsLogger = new MockLogger<GameSettingsViewModel>();
+
+        return new DemoGameProfileSettingsViewModel(
+            mockProfileManager,
+            mockGameSettings,
+            mockConfig,
+            mockLoader,
+            null, // profileResourceService
+            mockNotify,
+            mockManifests,
+            mockStorage,
+            mockLocalContent,
+            null, // genLauncherNormalizationService
+            null, // dialogService
+            mockLogger,
+            mockSettingsLogger)
+        {
+            SelectedTabIndex = selectedTabIndex,
+            IsAddLocalContentDialogOpen = false,
+        };
+    }
+
+    private static GameProfile CreateDemoRecoveryProfile() => new()
+    {
+        Id = "demo-recovery-profile",
+        Name = "Zero Hour 1.04 (Recovery)",
+        GameClient = new GameClient
+        {
+            Id = "1.0.local.gameclient.generalszh-recovery",
+            Name = "Zero Hour Recovery Client",
+            GameType = GameType.ZeroHour,
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+            Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+        },
+    };
 }

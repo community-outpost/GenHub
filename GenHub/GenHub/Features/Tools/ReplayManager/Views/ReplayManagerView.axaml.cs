@@ -81,6 +81,22 @@ public partial class ReplayManagerView : UserControl
         }
     }
 
+    /// <inheritdoc/>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (!e.Handled &&
+            e.Key == Key.Escape &&
+            DataContext is ReplayManagerViewModel vm &&
+            vm.IsCheckpointDrawerOpen &&
+            vm.CloseCheckpointDrawerCommand.CanExecute(null))
+        {
+            vm.CloseCheckpointDrawerCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
