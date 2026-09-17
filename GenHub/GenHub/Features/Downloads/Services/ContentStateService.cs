@@ -1483,6 +1483,12 @@ public sealed partial class ContentStateService(
             }
         }
 
+        // Fallback for parent-scoped synthetic file rows where the stored manifest lacks release-level metadata (both Name and Version are blank).
+        if (string.IsNullOrWhiteSpace(manifest.Name) && string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -1634,7 +1640,7 @@ public sealed partial class ContentStateService(
         }
         else if (IsGenLauncherPublisher(providerName))
         {
-            var gameToken = item.TargetGame == GameType.Generals ? "generals" : "zerohour";
+            var gameToken = item.TargetGame == GameType.ZeroHour ? "zerohour" : "generals";
             providerName = $"{GenLauncherConstants.PublisherId}{gameToken}";
         }
 

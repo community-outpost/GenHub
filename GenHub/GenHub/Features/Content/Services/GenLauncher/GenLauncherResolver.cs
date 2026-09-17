@@ -216,16 +216,15 @@ public class GenLauncherResolver(
             {
                 var fileName = Path.GetFileName(uri.LocalPath);
                 if (!string.IsNullOrWhiteSpace(fileName) &&
-                    !fileName.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
-                    !fileName.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                    !GenLauncherConstants.IsYamlDescriptorPath(fileName))
                 {
                     return Uri.UnescapeDataString(fileName);
                 }
             }
         }
-        catch (Exception)
+        catch (ArgumentException)
         {
-            // Fall back to default
+            // Fall back to default on invalid URI path formatting
         }
 
         return $"{defaultName}.zip";
@@ -340,7 +339,11 @@ public class GenLauncherResolver(
                     usedAuth = false;
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (HttpRequestException ex)
             {
                 logger.LogDebug(ex, "Anonymous S3 query failed, will try signed query");
             }

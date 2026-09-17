@@ -99,7 +99,7 @@ Publishers with fixed identity (e.g., CommunityOutpost, GeneralsOnline, TheSuper
 | CommunityOutpost | `genpatcher-dat` | `GenPatcherContentRegistry` |
 | GeneralsOnline | `json-api` | Parsed from JSON response |
 | TheSuperHackers | `github-releases` | Parsed from GitHub API |
-| GenLauncher | `genlauncher-xml` | Parsed from S3 root XML & version manifests |
+| GenLauncher | `genlauncher-yaml` | Parsed from YAML catalog & version manifests |
 
 ### Dynamic Publishers
 

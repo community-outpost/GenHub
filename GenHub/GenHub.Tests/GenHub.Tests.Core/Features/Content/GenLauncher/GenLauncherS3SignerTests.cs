@@ -109,4 +109,18 @@ public sealed class GenLauncherS3SignerTests
 
         Assert.Equal("https://s3.wasabisys.com/public-bucket/folder/file.big", url);
     }
+
+    /// <summary>
+    /// Tests that ResolveCredentials rejects lookalike domains trying to spoof the InSave host.
+    /// </summary>
+    [Fact]
+    public void ResolveCredentials_WithLookalikeHostAndNoKeys_ReturnsFalse()
+    {
+        var (shouldSign, pub, sec) = GenLauncherS3Signer.ResolveCredentials(
+            "insave.ovh.attacker.com", null, null);
+
+        Assert.False(shouldSign);
+        Assert.Empty(pub);
+        Assert.Empty(sec);
+    }
 }

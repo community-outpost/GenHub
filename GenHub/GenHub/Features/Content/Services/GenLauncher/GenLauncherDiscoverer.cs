@@ -233,33 +233,20 @@ public class GenLauncherDiscoverer(
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(GenLauncherConstants.ProbeTimeout);
 
-            var currentUri = uri;
-            for (var redirect = 0; redirect < 5; redirect++)
+            using var req = new HttpRequestMessage(HttpMethod.Head, uri);
+            using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
             {
-                using var req = new HttpRequestMessage(HttpMethod.Head, currentUri);
-                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
-                if (resp.StatusCode is HttpStatusCode.MovedPermanently or HttpStatusCode.Found or HttpStatusCode.SeeOther or HttpStatusCode.TemporaryRedirect)
-                {
-                    if (resp.Headers.Location != null)
-                    {
-                        currentUri = resp.Headers.Location.IsAbsoluteUri
-                            ? resp.Headers.Location
-                            : new Uri(currentUri, resp.Headers.Location);
-                        continue;
-                    }
-                }
-
-                if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
-                {
-                    return resp.Content.Headers.ContentLength.Value;
-                }
-
-                break;
+                return resp.Content.Headers.ContentLength.Value;
             }
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Ignore probe failures
+            throw;
+        }
+        catch (Exception)
+        {
+            // Ignore probe failures or probe timeouts
         }
 
         return null;
@@ -304,16 +291,14 @@ public class GenLauncherDiscoverer(
     {
         if (!string.IsNullOrWhiteSpace(simpleDownloadLink) &&
             IsValidHttpUrl(simpleDownloadLink, out _) &&
-            !simpleDownloadLink.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
-            !simpleDownloadLink.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            !GenLauncherConstants.IsYamlDescriptorPath(simpleDownloadLink))
         {
             return simpleDownloadLink;
         }
 
         if (!string.IsNullOrWhiteSpace(fallbackUrl) &&
             IsValidHttpUrl(fallbackUrl, out _) &&
-            !fallbackUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
-            !fallbackUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            !GenLauncherConstants.IsYamlDescriptorPath(fallbackUrl))
         {
             return fallbackUrl;
         }
@@ -328,8 +313,7 @@ public class GenLauncherDiscoverer(
         {
             var fn = Path.GetFileName(uri.LocalPath);
             if (!string.IsNullOrWhiteSpace(fn) &&
-                !fn.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
-                !fn.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                !GenLauncherConstants.IsYamlDescriptorPath(fn))
             {
                 return Uri.UnescapeDataString(fn);
             }

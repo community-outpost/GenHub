@@ -42,6 +42,7 @@ public sealed class GenLauncherChecksumValidatorTests
         Assert.Equal("abcdef123456", GenLauncherChecksumValidator.CleanETag("\"abcdef123456\""));
         Assert.Equal("abcdef123456", GenLauncherChecksumValidator.CleanETag("&quot;abcdef123456&quot;"));
         Assert.Equal("abcdef123456", GenLauncherChecksumValidator.CleanETag("  \"abcdef123456\"  "));
+        Assert.Equal("&quot;", GenLauncherChecksumValidator.CleanETag("&quot;"));
     }
 
     /// <summary>

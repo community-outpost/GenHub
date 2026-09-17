@@ -1813,8 +1813,8 @@ Constants for GenLauncher file normalization, content publisher operations, and 
 | `ProviderDescription`   | `"Community mods, patches, and addons from the GenLauncher repository"`       |
 | `DiscovererDescription` | `"Discovers mods and addons from the GenLauncher YAML repository"`            |
 | `CatalogFormat`         | `"genlauncher-yaml"`                                                          |
-| `WebsiteUrl`            | `"https://github.com/GenTool/GenLauncher"`                                    |
-| `SupportUrl`            | `"https://github.com/GenTool/GenLauncher/issues"`                             |
+| `WebsiteUrl`            | `"https://github.com/p0ls3r/GenLauncher"`                                     |
+| `SupportUrl`            | `"https://github.com/p0ls3r/GenLauncher/issues"`                              |
 
 ---
 

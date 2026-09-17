@@ -84,6 +84,7 @@ public class GenLauncherManifestFactory(
 
             var expectedEtags = originalManifest.Files
                 .Where(f => !string.IsNullOrWhiteSpace(f.Hash))
+                .DistinctBy(f => f.RelativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(f => f.RelativePath.Replace('\\', '/'), f => f.Hash, StringComparer.OrdinalIgnoreCase);
 
             var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
@@ -103,12 +104,9 @@ public class GenLauncherManifestFactory(
                 }
 
                 // Compute SHA256 for CAS
-                string sha256Hash;
-                using (var stream = File.OpenRead(filePath))
-                {
-                    var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
-                    sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-                }
+                using var stream = File.OpenRead(filePath);
+                var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
+                var sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
                 var fileInfo = new FileInfo(filePath);
                 manifest.Files.Add(new ManifestFile

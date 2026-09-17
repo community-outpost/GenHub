@@ -112,7 +112,7 @@ public abstract class BaseContentProvider : IContentProvider
 | **Community Outpost** | `CommunityOutpostDiscoverer` | `GenPatcherDatCatalogParser` | `.dat` catalog format |
 | **GitHub** | `GitHubDiscoverer` | GitHub API JSON | Release assets |
 | **Generals Online** | `GeneralsOnlineDiscoverer` | GitHub API | Multi-variant releases |
-| **GenLauncher** | `GenLauncherDiscoverer` | `GenLauncherCatalogParser` | S3 XML catalog and version manifests |
+| **GenLauncher** | `GenLauncherDiscoverer` | `GenLauncherCatalogParser` | YAML catalog and version manifests |
 | **File System** | `FileSystemDiscoverer` | Direct scan | Local manifests |
 
 ---

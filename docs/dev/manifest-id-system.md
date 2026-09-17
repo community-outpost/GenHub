@@ -130,7 +130,7 @@ This fallback hierarchy ensures that content always has a valid version componen
 
 **Key Points**:
 
-- **Game-differentiated publisher ID**: Concatentates game token to isolate Zero Hour and Generals content into distinct publisher namespaces
+- **Game-differentiated publisher ID**: Concatenates game token to isolate Zero Hour and Generals content into distinct publisher namespaces
 - **Multi-release synthetic rows**: Sibling releases and files use `file:...` synthetic rows disambiguated by URL, version, and slug matching
 - **Cold-restart recovery**: Reconstructed reliably by `ContentStateService.DetermineProspectiveManifestId` without requiring an active session cache
 

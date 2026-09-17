@@ -1069,7 +1069,20 @@ public partial class ContentDetailViewModel(
             }
 
             var url = matchedFile?.DownloadUrl ?? sibling?.SelectedDownloadUrl ?? sibling?.SourceUrl ?? searchResult.SourceUrl ?? string.Empty;
-            var size = matchedFile?.SizeBytes ?? (sibling?.DownloadSize > 0 ? sibling.DownloadSize : (searchResult.DownloadSize > 0 ? searchResult.DownloadSize : 0));
+            long size = 0;
+            if (matchedFile?.SizeBytes is > 0)
+            {
+                size = matchedFile.SizeBytes.Value;
+            }
+            else if (sibling?.DownloadSize > 0)
+            {
+                size = sibling.DownloadSize;
+            }
+            else if (searchResult.DownloadSize > 0)
+            {
+                size = searchResult.DownloadSize;
+            }
+
             var displayName = variant.Name;
             var itemVersion = matchedFile?.Version ?? sibling?.Version ?? Version;
             var itemAuthor = sibling?.AuthorName ?? searchResult.AuthorName;
@@ -1078,8 +1091,7 @@ public partial class ContentDetailViewModel(
             var itemCategory = itemContentType.GetDisplayName();
             var itemFilename = matchedFile?.Filename ?? GetFileNameFromUrl(url) ?? displayName;
 
-            if (itemFilename.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                itemFilename.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            if (GenLauncherConstants.IsYamlDescriptorPath(itemFilename))
             {
                 itemFilename = $"{displayName}.zip";
             }
@@ -1797,13 +1809,13 @@ public partial class ContentDetailViewModel(
         if (!string.IsNullOrEmpty(name1) && !string.IsNullOrEmpty(name2))
         {
             if (name1.StartsWith(name2, StringComparison.OrdinalIgnoreCase) &&
-                (name1.Length == name2.Length || name1[name2.Length] == '-' || name1[name2.Length] == '_' || (name1[name2.Length] == 'v' && name1.Length > name2.Length + 1 && char.IsDigit(name1[name2.Length + 1]))))
+                (name1.Length == name2.Length || (name1[name2.Length] == 'v' && name1.Length > name2.Length + 1 && char.IsDigit(name1[name2.Length + 1]))))
             {
                 return true;
             }
 
             if (name2.StartsWith(name1, StringComparison.OrdinalIgnoreCase) &&
-                (name2.Length == name1.Length || name2[name1.Length] == '-' || name2[name1.Length] == '_' || (name2[name1.Length] == 'v' && name2.Length > name1.Length + 1 && char.IsDigit(name2[name1.Length + 1]))))
+                (name2.Length == name1.Length || (name2[name1.Length] == 'v' && name2.Length > name1.Length + 1 && char.IsDigit(name2[name1.Length + 1]))))
             {
                 return true;
             }
@@ -2102,15 +2114,18 @@ public partial class ContentDetailViewModel(
         if (value != null && Releases.Count > 0)
         {
             var match = Releases.FirstOrDefault(r =>
+                !string.IsNullOrEmpty(value.ManifestId) &&
                 string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase) &&
                 r.Name != null && !string.IsNullOrEmpty(value.Name) &&
                 (string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase) ||
                  r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
                  value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)))
+                ?? (!string.IsNullOrEmpty(value.ManifestId)
+                    ? Releases.FirstOrDefault(r =>
+                        string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase))
+                    : null)
                 ?? Releases.FirstOrDefault(r =>
                     string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase))
-                ?? Releases.FirstOrDefault(r =>
-                    string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase))
                 ?? Releases.FirstOrDefault(r =>
                     !string.IsNullOrEmpty(value.Name) && r.Name != null &&
                     (r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
@@ -3789,7 +3804,7 @@ public partial class ContentDetailViewModel(
                 {
                     failed = true;
                     var errorMsg = result.FirstError ?? ContentConstants.DownloadFailedStatusMessage;
-                    notificationService.ShowError("Download Failed", errorMsg);
+                    notificationService.ShowError(GetLocalizedString("Downloads.ContentDetail.DownloadFailed", "Download failed"), errorMsg);
                     if (!_disposed)
                     {
                         DownloadStatusMessage = errorMsg;
@@ -4174,7 +4189,7 @@ public partial class ContentDetailViewModel(
         return rowSearchResult;
     }
 
-    private bool IsUpdateTarget(DownloadableFile file)
+    private bool IsUpdateTarget(DownloadableFile file, ReleaseItemViewModel? releaseItem = null)
     {
         if (_updateTargetSearchResult != null)
         {
@@ -4189,7 +4204,12 @@ public partial class ContentDetailViewModel(
             if (!string.IsNullOrWhiteSpace(file.Name) &&
                 string.Equals(file.Name, _updateTargetSearchResult.Name, StringComparison.OrdinalIgnoreCase))
             {
-                return true;
+                if (releaseItem == null ||
+                    string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version) ||
+                    string.Equals(releaseItem.Version, _updateTargetSearchResult.Version, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
             }
         }
 
@@ -4203,7 +4223,12 @@ public partial class ContentDetailViewModel(
         if (!string.IsNullOrWhiteSpace(file.Name) &&
             string.Equals(file.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase))
         {
-            return true;
+            if (releaseItem == null ||
+                string.IsNullOrWhiteSpace(searchResult.Version) ||
+                string.Equals(releaseItem.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
         }
 
         return false;
@@ -4234,7 +4259,7 @@ public partial class ContentDetailViewModel(
                     releaseItem.DownloadedManifestId = manifest.Id.Value;
                     releaseItem.IsDownloaded = true;
                     releaseItem.IsUpdateAvailable = false;
-                    if (IsUpdateTarget(file))
+                    if (IsUpdateTarget(file, releaseItem))
                     {
                         IsUpdateAvailable = false;
                         _initialIsUpdateAvailable = false;

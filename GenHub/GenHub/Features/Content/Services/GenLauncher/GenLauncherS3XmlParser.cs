@@ -103,7 +103,7 @@ public static class GenLauncherS3XmlParser
             isTruncated = truncated;
         }
 
-        var nextMarkerEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NextMarker" || e.Name.LocalName == "NextContinuationToken")?.Value;
+        var nextMarkerEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NextMarker")?.Value;
         if (!string.IsNullOrWhiteSpace(nextMarkerEl))
         {
             nextMarker = nextMarkerEl;

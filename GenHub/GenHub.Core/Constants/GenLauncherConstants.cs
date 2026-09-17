@@ -126,11 +126,6 @@ public static class GenLauncherConstants
     public const string S3HostSecretKeyMetadataKey = "s3HostSecretKey";
 
     /// <summary>
-    /// Default public access key for GenLauncher's InSave MinIO server (gen.insave.ovh:9000).
-    /// </summary>
-    public const string DefaultGenInsavePublicKey = "S58TYR9ISEZV8PBP8QG1";
-
-    /// <summary>
     /// Default S3 region used for AWS Signature V4 request signing.
     /// </summary>
     public const string DefaultS3Region = "us-east-1";
@@ -251,11 +246,22 @@ public static class GenLauncherConstants
     public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
 
     /// <summary>
+    /// Default public access key for GenLauncher's InSave MinIO server (gen.insave.ovh:9000).
+    /// May be overridden via the GENLAUNCHER_INSAVE_PUBLIC_KEY environment variable.
+    /// </summary>
+    public static readonly string DefaultGenInsavePublicKey =
+        Environment.GetEnvironmentVariable("GENLAUNCHER_INSAVE_PUBLIC_KEY")
+        ?? "S58TYR9ISEZV8PBP8QG1";
+
+    /// <summary>
     /// Default secret access key for GenLauncher's InSave MinIO server (gen.insave.ovh:9000).
+    /// May be overridden via the GENLAUNCHER_INSAVE_SECRET_KEY environment variable.
     /// </summary>
     [SuppressMessage("Security", "S6418:Strings should not contain all capital secret keys or credentials", Justification = "Public read-only GenInsave S3 key distributed in the open-source GenLauncher client for community mod downloads")]
-    public static readonly string DefaultGenInsaveSecretKey = Encoding.UTF8.GetString(
-        Convert.FromBase64String("YjJSVTFvcVZVNXRvSlJuYjRnT0RyWFg4c0JTZ29MY0hUWDZxUFd4ag==")); // NOSONAR
+    public static readonly string DefaultGenInsaveSecretKey =
+        Environment.GetEnvironmentVariable("GENLAUNCHER_INSAVE_SECRET_KEY")
+        ?? Encoding.UTF8.GetString(
+            Convert.FromBase64String("YjJSVTFvcVZVNXRvSlJuYjRnT0RyWFg4c0JTZ29MY0hSWDZxUFd4ag==")); // NOSONAR
 
     /// <summary>
     /// Probe timeout TimeSpan for GenLauncher size and availability probes.
@@ -299,4 +305,20 @@ public static class GenLauncherConstants
         CtrExtension,
         SkwExtension,
     ];
+
+    /// <summary>
+    /// Determines whether the specified filename or path corresponds to a GenLauncher catalog or version YAML descriptor.
+    /// </summary>
+    /// <param name="path">The file path or URL to check.</param>
+    /// <returns>True if the path has a .yaml or .yml extension; otherwise false.</returns>
+    public static bool IsYamlDescriptorPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        return path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
+               path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase);
+    }
 }

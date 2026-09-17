@@ -192,16 +192,17 @@ public class GenLauncherDeliverer(
                 return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: {file.DownloadUrl}");
             }
 
+            var fileIndex = i;
             IProgress<DownloadProgress>? fileProgress = progress == null ? null : new Progress<DownloadProgress>(p =>
             {
-                var basePercent = (i / (double)totalFiles) * 80.0;
+                var basePercent = (fileIndex / (double)totalFiles) * 80.0;
                 var sliceWidth = (1.0 / totalFiles) * 80.0;
                 var weightedPercent = basePercent + ((p.Percentage / 100.0) * sliceWidth);
                 progress.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Downloading,
                     ProgressPercentage = Math.Min(80.0, Math.Max(0.0, weightedPercent)),
-                    CurrentOperation = $"Downloading {file.RelativePath} ({i + 1}/{totalFiles})",
+                    CurrentOperation = $"Downloading {file.RelativePath} ({fileIndex + 1}/{totalFiles})",
                     BytesProcessed = p.BytesReceived,
                     TotalBytes = p.TotalBytes,
                 });

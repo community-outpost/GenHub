@@ -38,12 +38,36 @@ public static class GenLauncherS3Signer
         }
 
         var normalizedHost = NormalizeHostHeader(s3Host);
-        if (normalizedHost.Contains("insave.ovh", StringComparison.OrdinalIgnoreCase))
+        if (IsInsaveHost(normalizedHost))
         {
             return (true, GenLauncherConstants.DefaultGenInsavePublicKey, GenLauncherConstants.DefaultGenInsaveSecretKey);
         }
 
         return (false, string.Empty, string.Empty);
+    }
+
+    /// <summary>
+    /// Checks whether the normalized host header belongs to the InSave domain.
+    /// Prevents lookalike host bypasses (e.g. insave.ovh.attacker.com).
+    /// </summary>
+    /// <param name="normalizedHost">The normalized host string (with or without port).</param>
+    /// <returns>True if the host matches insave.ovh or a subdomain; otherwise false.</returns>
+    public static bool IsInsaveHost(string normalizedHost)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedHost))
+        {
+            return false;
+        }
+
+        var hostOnly = normalizedHost;
+        var colonIdx = hostOnly.IndexOf(':');
+        if (colonIdx >= 0)
+        {
+            hostOnly = hostOnly[..colonIdx];
+        }
+
+        return string.Equals(hostOnly, "insave.ovh", StringComparison.OrdinalIgnoreCase) ||
+               hostOnly.EndsWith(".insave.ovh", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

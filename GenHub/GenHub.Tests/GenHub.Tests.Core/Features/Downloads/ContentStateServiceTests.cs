@@ -2024,13 +2024,13 @@ public class ContentStateServiceTests
 
         var rotrRow = new ContentSearchResult
         {
-            Id = "file:https://onedrive.live.com/embed?cid=AFB01C08E053A64E&resid=AFB01C08E053A64E%21593&authkey=AMJHOwXKTTTErrI:Rise Of The Reds 1.87 Public Build 2.0",
+            Id = "file:https://example.com/downloads/rotr187.zip:Rise Of The Reds 1.87 Public Build 2.0",
             Name = "Rise Of The Reds 1.87 Public Build 2.0",
             Version = "1.87 Public Build 2.0",
             ProviderName = PublisherTypeConstants.GenLauncher,
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
-            SelectedDownloadUrl = "https://onedrive.live.com/embed?cid=AFB01C08E053A64E&resid=AFB01C08E053A64E%21593&authkey=AMJHOwXKTTTErrI",
+            SelectedDownloadUrl = "https://example.com/downloads/rotr187.zip",
         };
         rotrRow.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = "genlauncher-zerohour-riseofthereds";
 

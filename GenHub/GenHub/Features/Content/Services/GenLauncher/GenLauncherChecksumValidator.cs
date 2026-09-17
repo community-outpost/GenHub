@@ -48,7 +48,7 @@ public static partial class GenLauncherChecksumValidator
         }
 
         var cleaned = etag.Trim();
-        if (cleaned.StartsWith("&quot;", StringComparison.OrdinalIgnoreCase) && cleaned.EndsWith("&quot;", StringComparison.OrdinalIgnoreCase))
+        if (cleaned.Length >= 12 && cleaned.StartsWith("&quot;", StringComparison.OrdinalIgnoreCase) && cleaned.EndsWith("&quot;", StringComparison.OrdinalIgnoreCase))
         {
             cleaned = cleaned[6..^6];
         }
