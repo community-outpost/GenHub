@@ -26,14 +26,19 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
     /// <param name="workspaceInfo">Existing workspace information (null if new workspace).</param>
     /// <param name="configuration">Target workspace configuration with manifests.</param>
     /// <param name="forceFullVerification">If true, forces full verification of all files including hashes.</param>
+    /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
     /// <returns>List of delta operations needed to reconcile the workspace.</returns>
     public async Task<List<WorkspaceDelta>> AnalyzeWorkspaceDeltaAsync(
         WorkspaceInfo? workspaceInfo,
         WorkspaceConfiguration configuration,
-        bool forceFullVerification = false)
+        bool forceFullVerification = false,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var deltas = new List<WorkspaceDelta>();
-        var workspacePath = Path.Combine(configuration.WorkspaceRootPath, configuration.Id);
+        var workspacePath = !string.IsNullOrEmpty(workspaceInfo?.WorkspacePath)
+            ? workspaceInfo.WorkspacePath
+            : Path.Combine(configuration.WorkspaceRootPath ?? string.Empty, configuration.Id);
 
         // Build a dictionary tracking ALL occurrences of each file for conflict resolution
         // Key: relative file path, Value: list of (file, contentType, manifestId) tuples
@@ -124,10 +129,24 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         // Determine operations for expected files
         foreach (var (relativePath, manifestFile) in expectedFiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var fullPath = Path.Combine(workspacePath, relativePath);
 
             if (!existingFiles.Contains(relativePath))
             {
+                if (IsOptionalOrSkippedFile(relativePath))
+                {
+                    // Optional media skipped or removed by launcher settings is not a missing file defect
+                    deltas.Add(new WorkspaceDelta
+                    {
+                        Operation = WorkspaceDeltaOperation.Skip,
+                        File = manifestFile,
+                        WorkspacePath = fullPath,
+                        Reason = WorkspaceConstants.OptionalFileSkippedReason,
+                    });
+                    continue;
+                }
+
                 // File missing from workspace - needs to be added
                 deltas.Add(new WorkspaceDelta
                 {
@@ -140,7 +159,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             else
             {
                 // File exists - check if it needs updating
-                var needsUpdate = await FileNeedsUpdateAsync(fullPath, manifestFile, forceFullVerification);
+                var needsUpdate = await FileNeedsUpdateAsync(fullPath, manifestFile, forceFullVerification, cancellationToken);
                 if (needsUpdate)
                 {
                     deltas.Add(new WorkspaceDelta
@@ -168,8 +187,22 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         // Determine files to remove (exist in workspace but not in manifests)
         foreach (var relativePath in existingFiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!expectedFiles.ContainsKey(relativePath))
             {
+                if (IsRuntimeOrIgnoredWorkspaceFile(relativePath))
+                {
+                    continue;
+                }
+
+                // If this is generals.exe and generals.exe is not explicitly in manifests, check if it was created
+                // as a compatibility alias for another custom executable/entrypoint, so it is not treated as an orphan.
+                if (string.Equals(relativePath, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var fullPath = Path.Combine(workspacePath, relativePath);
                 deltas.Add(new WorkspaceDelta
                 {
@@ -194,13 +227,31 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         return deltas;
     }
 
+    private static bool IsOptionalOrSkippedFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return string.Equals(fileName, WorkspaceConstants.EaLogoBik, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, WorkspaceConstants.EaLogo640Bik, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRuntimeOrIgnoredWorkspaceFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return fileName.StartsWith(WorkspaceConstants.RuntimeArtifactPrefix, StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(WorkspaceConstants.LogFileExtension, StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(WorkspaceConstants.TmpFileExtension, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, WorkspaceConstants.LaunchReceiptFile, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, WorkspaceConstants.ReleaseCrashInfoFile, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Determines if a file needs to be updated based on hash or symlink validity.
     /// </summary>
     private async Task<bool> FileNeedsUpdateAsync(
         string filePath,
         ManifestFile manifestFile,
-        bool forceFullVerification = false)
+        bool forceFullVerification = false,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -241,7 +292,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
                 if (forceFullVerification && !string.IsNullOrEmpty(manifestFile.Hash))
                 {
-                    var hashMatches = await fileOperations.VerifyFileHashAsync(targetPath, manifestFile.Hash, CancellationToken.None);
+                    var hashMatches = await fileOperations.VerifyFileHashAsync(targetPath, manifestFile.Hash, cancellationToken);
                     if (!hashMatches)
                     {
                         logger.LogDebug("Symlink target hash mismatch for {FilePath}: expected {Expected}", filePath, manifestFile.Hash);
@@ -266,7 +317,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
             if (!string.IsNullOrEmpty(manifestFile.Hash) && (forceFullVerification || fileInfo.Length < SmallFileThreshold))
             {
-                var hashMatches = await fileOperations.VerifyFileHashAsync(filePath, manifestFile.Hash, CancellationToken.None);
+                var hashMatches = await fileOperations.VerifyFileHashAsync(filePath, manifestFile.Hash, cancellationToken);
 
                 if (!hashMatches)
                 {
