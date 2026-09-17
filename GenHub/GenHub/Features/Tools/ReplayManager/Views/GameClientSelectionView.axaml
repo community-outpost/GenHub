@@ -3,11 +3,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
         mc:Ignorable="d"
         d:DesignWidth="820" d:DesignHeight="640"
         x:Class="GenHub.Features.Tools.ReplayManager.Views.GameClientSelectionView"
         x:DataType="vm:GameClientSelectionViewModel"
-        Title="Select Game Client"
+        Title="{localization:Localize Tools.ReplayManager.ClientSelection.Title}"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="820" Height="640"
         MinWidth="600" MinHeight="460"
@@ -29,7 +30,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="14,0,0,0">
                 <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
                        Width="22" Height="22" />
-                <TextBlock Text="Select Game Client"
+                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.Title}"
                            VerticalAlignment="Center"
                            FontSize="13" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimary}" />
@@ -119,7 +120,7 @@
             <Border Grid.Row="0" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="28,16">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Text="Select Compatible Game Client" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.Header}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                         <TextBlock Text="{Binding ReplayFileName}" FontSize="13" Foreground="{DynamicResource AccentBrush}" TextTrimming="CharacterEllipsis"
                                    IsVisible="{Binding ReplayFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0" IsVisible="{Binding HasCrcInfo}">
@@ -139,14 +140,14 @@
                                 CornerRadius="6"
                                 HorizontalAlignment="Right">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Show All Clients" IsVisible="{Binding !ShowAllClients}" FontSize="11" FontWeight="Medium" />
-                                <TextBlock Text="Show CRC Compatible Only" IsVisible="{Binding ShowAllClients}" FontSize="11" FontWeight="Medium" />
+                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.ShowAll}" IsVisible="{Binding !ShowAllClients}" FontSize="11" FontWeight="Medium" />
+                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.ShowCrcOnly}" IsVisible="{Binding ShowAllClients}" FontSize="11" FontWeight="Medium" />
                             </StackPanel>
                         </Button>
                         <TextBlock Text="{Binding CompatibleCount, StringFormat='{}{0} compatible client(s) found'}"
                                    FontSize="11" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"
                                    IsVisible="{Binding HasCompatibleCrcClients}" />
-                        <TextBlock Text="0 compatible clients found"
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.NoCompatibleCount}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right"
                                    IsVisible="{Binding !HasCompatibleCrcClients}" />
                     </StackPanel>
@@ -156,7 +157,7 @@
             <!-- Search Filter Bar -->
             <Border Grid.Row="1" Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="28,12">
                 <TextBox Text="{Binding SearchText, Mode=TwoWay}"
-                         Watermark="Filter game clients by name, publisher, or version..."
+                         Watermark="{localization:Localize Tools.ReplayManager.ClientSelection.SearchWatermark}"
                          FontSize="13"
                          Padding="10,8"
                          CornerRadius="6" />
@@ -168,7 +169,7 @@
                     <!-- Loading Indicator -->
                     <StackPanel IsVisible="{Binding IsLoading}" HorizontalAlignment="Center" Margin="0,64" Spacing="10">
                         <ProgressBar IsIndeterminate="True" Width="220" Foreground="{DynamicResource AccentBrush}" />
-                        <TextBlock Text="Discovering compatible game clients&#x2026;" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" />
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.Discovering}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" />
                     </StackPanel>
 
                     <!-- Empty State -->
@@ -180,15 +181,15 @@
                                 CornerRadius="8"
                                 Padding="24,32">
                             <StackPanel HorizontalAlignment="Center" Spacing="10">
-                                <TextBlock Text="No compatible game clients found" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.NoCompatibleFound}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding ReplayExeCrc, StringFormat='No game client matches the replay executable CRC ({0}).'}"
                                            Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center"
                                            IsVisible="{Binding HasCrcInfo}" />
-                                <TextBlock Text="No game clients match the current filter criteria."
+                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.NoClientsMatchFilter}"
                                            Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center"
                                            IsVisible="{Binding !HasCrcInfo}" />
                                 <Button Command="{Binding ToggleShowAllCommand}"
-                                        Content="Show All Game Clients Anyway"
+                                        Content="{localization:Localize Tools.ReplayManager.ClientSelection.ShowAllAnyway}"
                                         HorizontalAlignment="Center"
                                         Padding="14,6"
                                         CornerRadius="6"
@@ -211,7 +212,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,16,4">
                                                 <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                                                 <Border CornerRadius="10" Background="{DynamicResource SurfaceElevatedBrush}" Padding="8,2" VerticalAlignment="Center" IsVisible="{Binding IsCrcMatch}">
-                                                    <TextBlock Text="CRC Compatible" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
+                                                    <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.CrcCompatible}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
                                                 </Border>
                                                 <Border CornerRadius="10" Background="{DynamicResource SurfaceElevatedBrush}" Padding="8,2" VerticalAlignment="Center" IsVisible="{Binding !IsCrcMatch}">
                                                     <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" />
@@ -238,7 +239,7 @@
                                                     VerticalAlignment="Center"
                                                     Padding="16,9"
                                                     CornerRadius="6">
-                                                <TextBlock Text="Select &amp; Create Profile" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.SelectAndCreate}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
                                             </Button>
                                         </Grid>
                                     </Border>

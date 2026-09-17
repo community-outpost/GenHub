@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.GitHub.ViewModels"
         xmlns:const="using:GenHub.Core.Constants"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
         x:Class="GenHub.Features.GitHub.Views.GitHubTokenDialogView"
         x:DataType="vm:GitHubTokenDialogViewModel"
@@ -81,7 +82,7 @@
 
                 <!-- Token Input -->
                 <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,16">
-                    <TextBlock Text="Personal Access Token:"
+                    <TextBlock Text="{localization:Localize GitHub.TokenDialog.TokenLabel}"
                               FontWeight="Medium"
                               Foreground="White"
                               FontSize="13"/>
@@ -94,17 +95,17 @@
 
                 <!-- Create PAT Link -->
                 <StackPanel Grid.Row="3" Spacing="8" Margin="0,0,0,16">
-                    <TextBlock Text="Don't have a Personal Access Token?"
+                    <TextBlock Text="{localization:Localize GitHub.TokenDialog.NoTokenPrompt}"
                               Foreground="#AAAAAA"
                               FontSize="12"/>
-                    <Button Content="Create a GitHub Personal Access Token →"
+                    <Button Content="{localization:Localize GitHub.TokenDialog.CreatePatLink}"
                             Command="{Binding OpenPatCreationCommand}"
                             Background="Transparent"
                             BorderThickness="0"
                             Padding="0"
                             HorizontalAlignment="Left"
                             Cursor="Hand"
-                            ToolTip.Tip="Click to open GitHub PAT creation page">
+                            ToolTip.Tip="{localization:Localize GitHub.TokenDialog.CreatePatTooltip}">
                         <Button.Styles>
                             <Style Selector="Button">
                                 <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
@@ -132,7 +133,7 @@
                            Margin="0,0,0,8"
                            IsVisible="{Binding IsValidating}">
                     <ProgressBar IsIndeterminate="True" Width="14" Height="14" VerticalAlignment="Center"/>
-                    <TextBlock Text="Validating token..."
+                    <TextBlock Text="{localization:Localize GitHub.TokenDialog.ValidatingToken}"
                               Foreground="#AAAAAA"
                               FontSize="12"/>
                 </StackPanel>

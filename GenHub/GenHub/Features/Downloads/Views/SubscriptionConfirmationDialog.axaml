@@ -5,10 +5,12 @@
         xmlns:vm="clr-namespace:GenHub.Features.Content.ViewModels.Catalog"
         xmlns:models="clr-namespace:GenHub.Core.Models.Providers;assembly=GenHub.Core"
         xmlns:infraControls="clr-namespace:GenHub.Infrastructure.Controls"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+        xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="760"
         x:Class="GenHub.Features.Downloads.Views.SubscriptionConfirmationDialog"
         x:DataType="vm:SubscriptionConfirmationViewModel"
-        Title="Subscribe to Publisher Catalog"
+        Title="{localization:Localize Downloads.Subscription.Title}"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="780" Height="760"
         MinWidth="660" MinHeight="580"
@@ -20,6 +22,10 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
         SystemDecorations="Full">
+
+    <Window.Resources>
+        <converters:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />
+    </Window.Resources>
 
     <Window.Styles>
         <!-- Link button style for header badges -->
@@ -66,7 +72,7 @@
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,0,6,4"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
@@ -102,7 +108,7 @@
                     <StackPanel Grid.Column="0" Spacing="3">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png" Width="22" Height="22" VerticalAlignment="Center" />
-                            <TextBlock Text="Subscribe to Publisher Catalog"
+                            <TextBlock Text="{localization:Localize Downloads.Subscription.Title}"
                                        FontSize="20"
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource TextPrimary}"
@@ -118,7 +124,7 @@
                                     IsVisible="{Binding IsAlreadySubscribed}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="✓" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="Bold" />
-                                    <TextBlock Text="Already in Library" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{localization:Localize Downloads.Subscription.AlreadyInLibrary}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
                                 </StackPanel>
                             </Border>
 
@@ -129,10 +135,10 @@
                                     Padding="8,2"
                                     VerticalAlignment="Center"
                                     IsVisible="{Binding !IsAlreadySubscribed}">
-                                <TextBlock Text="+ New Catalog" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
+                                <TextBlock Text="{localization:Localize Downloads.Subscription.NewCatalogBadge}" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="Review publisher identity and offered content before adding to your library"
+                        <TextBlock Text="{localization:Localize Downloads.Subscription.Subtitle}"
                                    FontSize="12"
                                    Foreground="{DynamicResource TextSecondary}" />
                     </StackPanel>
@@ -156,7 +162,7 @@
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
                                 <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
@@ -172,7 +178,7 @@
                                      Width="280"
                                      Height="6"
                                      CornerRadius="3" />
-                        <TextBlock Text="Fetching publisher catalog &amp; verifying content..."
+                        <TextBlock Text="{localization:Localize Downloads.Subscription.Fetching}"
                                    Foreground="{DynamicResource TextSecondary}"
                                    FontSize="14"
                                    HorizontalAlignment="Center" />
@@ -202,14 +208,14 @@
                                        FontSize="13"
                                        LineHeight="18" />
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="0,8,0,0">
-                                <Button Content="Retry"
+                                <Button Content="{localization:Localize Downloads.Subscription.Retry}"
                                         Command="{Binding InitializeCommand}"
                                         Background="{DynamicResource AccentBrush}"
-                                        Foreground="White"
+                                        Foreground="{DynamicResource TextPrimary}"
                                         FontWeight="Bold"
                                         Padding="20,8"
                                         CornerRadius="8" />
-                                <Button Content="Close"
+                                <Button Content="{localization:Localize Downloads.Subscription.Close}"
                                         Command="{Binding CancelCommand}"
                                         Background="{DynamicResource SurfaceElevatedBrush}"
                                         Foreground="{DynamicResource TextPrimary}"
@@ -274,7 +280,7 @@
                                                 IsVisible="{Binding PublisherWebsite, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <TextBlock Text="🌐" FontSize="11" />
-                                                <TextBlock Text="Website" FontWeight="SemiBold" />
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Website}" FontWeight="SemiBold" />
                                             </StackPanel>
                                         </Button>
 
@@ -286,7 +292,7 @@
                                                 IsVisible="{Binding PublisherSupportUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <TextBlock Text="💬" FontSize="11" />
-                                                <TextBlock Text="Support &amp; Issues" FontWeight="SemiBold" />
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.SupportIssues}" FontWeight="SemiBold" />
                                             </StackPanel>
                                         </Button>
 
@@ -298,7 +304,7 @@
                                                 IsVisible="{Binding PublisherContactEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <TextBlock Text="✉" FontSize="11" />
-                                                <TextBlock Text="Contact" FontWeight="SemiBold" />
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Contact}" FontWeight="SemiBold" />
                                             </StackPanel>
                                         </Button>
                                     </WrapPanel>
@@ -312,7 +318,7 @@
                                             CornerRadius="10" Padding="8,3" Margin="0,0,6,4">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="📦" FontSize="10" />
-                                            <TextBlock Text="{Binding ContentCount, StringFormat='{}{0} Offered Items'}"
+                                            <TextBlock Text="{Binding ContentCount, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.Subscription.OfferedItemsCountFormat'}"
                                                        FontSize="11"
                                                        FontWeight="Bold"
                                                        Foreground="{DynamicResource TextPrimary}" />
@@ -334,7 +340,7 @@
                                             BorderThickness="1"
                                             CornerRadius="10" Padding="8,3" Margin="0,0,6,4"
                                             IsVisible="{Binding LastUpdated, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                        <TextBlock Text="{Binding LastUpdated, StringFormat='Updated {0:yyyy-MM-dd}'}"
+                                        <TextBlock Text="{Binding LastUpdated, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.Subscription.UpdatedDateFormat'}"
                                                    FontSize="11"
                                                    Foreground="{DynamicResource TextMuted}" />
                                     </Border>
@@ -346,7 +352,7 @@
                         <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,8">
                             <Grid ColumnDefinitions="*, Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="Offered Content"
+                                    <TextBlock Text="{localization:Localize Downloads.Subscription.OfferedContent}"
                                                FontSize="14"
                                                FontWeight="Bold"
                                                Foreground="{DynamicResource TextPrimary}"
@@ -355,7 +361,7 @@
                                             BorderBrush="{DynamicResource AccentBrush}"
                                             BorderThickness="1"
                                             CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding FilteredContentItems.Count, StringFormat='Showing {0} items'}"
+                                        <TextBlock Text="{Binding FilteredContentItems.Count, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.Subscription.ShowingItemsCountFormat'}"
                                                    FontSize="11"
                                                    FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextPrimary}" />
@@ -416,7 +422,7 @@
                                                                     BorderBrush="{DynamicResource AccentBrush}"
                                                                     BorderThickness="1"
                                                                     CornerRadius="8" Padding="8,3">
-                                                                <TextBlock Text="{Binding ContentType}"
+                                                                <TextBlock Text="{Binding ContentType, Converter={x:Static converters:ContentTypeDisplayConverter.Instance}}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"
                                                                            Foreground="{DynamicResource AccentBrush}" />
@@ -427,7 +433,7 @@
                                                                     BorderBrush="{DynamicResource BorderHighlightBrush}"
                                                                     BorderThickness="1"
                                                                     CornerRadius="8" Padding="8,3">
-                                                                <TextBlock Text="{Binding TargetGame}"
+                                                                <TextBlock Text="{Binding TargetGame, Converter={x:Static converters:GameTypeDisplayConverter.Instance}}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"
                                                                            Foreground="{DynamicResource TextSecondary}" />
@@ -448,7 +454,7 @@
                                                     <!-- Row 2: Id & Meta -->
                                                     <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,6,0,0">
                                                         <TextBlock Grid.Column="0"
-                                                                   Text="{Binding Id, StringFormat='ID: {0}'}"
+                                                                   Text="{Binding Id, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Downloads.Subscription.ContentIdFormat'}"
                                                                    FontSize="11"
                                                                    Foreground="{DynamicResource TextMuted}"
                                                                    VerticalAlignment="Center" />
@@ -472,7 +478,7 @@
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                     <TextBlock Text="⚠" Foreground="{DynamicResource WarningBrush}" FontSize="13" VerticalAlignment="Center" />
-                                    <TextBlock Text="Community Source: Only subscribe to publishers you trust."
+                                    <TextBlock Text="{localization:Localize Downloads.Subscription.CommunityWarning}"
                                                Foreground="{DynamicResource TextPrimary}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
@@ -494,7 +500,7 @@
 
                 <!-- Row 2: Inline Action Error Alert Banner (When catalog is loaded but an action/confirmation fails) -->
                 <Border Grid.Row="2"
-                        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        IsVisible="{Binding ShowActionError}"
                         Background="{DynamicResource CardBackground}"
                         BorderBrush="{DynamicResource ErrorBrush}"
                         BorderThickness="1"
@@ -524,7 +530,7 @@
                 <!-- Row 3: Footer Action Buttons -->
                 <Grid Grid.Row="3" ColumnDefinitions="*, Auto" Margin="0,14,0,0">
                     <Button Grid.Column="0"
-                            Content="Cancel"
+                            Content="{localization:Localize Downloads.Subscription.Cancel}"
                             Command="{Binding CancelCommand}"
                             Background="{DynamicResource SurfaceElevatedBrush}"
                             Foreground="{DynamicResource TextPrimary}"
@@ -539,7 +545,7 @@
                             Command="{Binding ConfirmCommand}"
                             IsEnabled="{Binding CanConfirm}"
                             Background="{DynamicResource AccentBrush}"
-                            Foreground="White"
+                            Foreground="{DynamicResource TextPrimary}"
                             FontWeight="Bold"
                             Padding="28,9"
                             CornerRadius="8" />

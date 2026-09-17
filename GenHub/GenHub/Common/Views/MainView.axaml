@@ -19,6 +19,7 @@
              xmlns:infoViews="clr-namespace:GenHub.Features.Info.Views"
              xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
              xmlns:system="clr-namespace:System;assembly=System.Runtime"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Common.Views.MainView"
              x:DataType="vm:MainViewModel"
@@ -195,19 +196,19 @@
                                 Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.GameProfiles}}"
                                 Command="{Binding SelectTabCommand}"
                                 CommandParameter="{x:Static enums:NavigationTab.GameProfiles}"
-                                Content="Game Profiles"
+                                Content="{localization:Localize Navigation.GameProfiles}"
                                 Name="Tab0Button" />
                         <Button Classes="pill-tab"
                                 Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Downloads}}"
                                 Command="{Binding SelectTabCommand}"
                                 CommandParameter="{x:Static enums:NavigationTab.Downloads}"
-                                Content="Downloads"
+                                Content="{localization:Localize Navigation.Downloads}"
                                 Name="Tab1Button" />
                         <Button Classes="pill-tab"
                                 Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Tools}}"
                                 Command="{Binding SelectTabCommand}"
                                 CommandParameter="{x:Static enums:NavigationTab.Tools}"
-                                Content="Tools"
+                                Content="{localization:Localize Navigation.Tools}"
                                 Name="Tab2Button" />
                     </StackPanel>
                 </Border>
@@ -222,7 +223,7 @@
                            Width="90" Height="34"
                            Stretch="Uniform"
                            HorizontalAlignment="Center" />
-                    <TextBlock Text="C&amp;C Generals Launcher"
+                    <TextBlock Text="{localization:Localize Navigation.App.Tagline}"
                                FontSize="9"
                                Foreground="#A0A0A0"
                                FontWeight="Normal"
@@ -247,7 +248,7 @@
                     Background="Transparent"
                     BorderThickness="0"
                     Cursor="Hand"
-                    ToolTip.Tip="Click to copy full version (including git hash) to clipboard">
+                    ToolTip.Tip="{localization:Localize Tooltips.CopyVersionToClipboard}">
                 <Button.Styles>
                     <Style Selector="Button:pointerover /template/ ContentPresenter">
                         <Setter Property="Background" Value="Transparent" />

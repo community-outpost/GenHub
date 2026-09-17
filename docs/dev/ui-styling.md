@@ -15,6 +15,7 @@ This document defines the mandatory UI standards and design patterns for Avaloni
 4. **Theme support.** Colors must adapt dynamically when switching between factions, profiles, or themes.
 5. **No Unicode Emojis.** Never use emojis in UI views, button labels, badges, dialogs, tooltips, or notifications. Use clean semantic text, theme brush indicators, or vector SVG StreamGeometry `PathIcon` controls from application resources.
 6. **Toast notifications for user feedback.** Never create ad-hoc status labels, status bars, or inline `StatusMessage` TextBlocks to report success, failure, or action completion. All user feedback, operation completions, warnings, and errors must be dispatched through `INotificationService` as toast notifications.
+7. **No hardcoded text strings (Mandatory Localization).** Views and controls must never include raw hardcoded English text in `Text`, `Content`, `Header`, `Title`, `Watermark`, or `ToolTip.Tip` attributes. All user-facing strings must be defined in `GenHub/GenHub/Resources/Localization/Strings.resx` and bound via `{localization:Localize ResourceKey}`.
 
 ## Semantic theme tokens
 
@@ -299,3 +300,67 @@ Always use constants from `GenHub.Core.Constants.NotificationDurations`:
 - [ ] Buttons use standard action or icon classes.
 - [ ] User action feedback, completions, warnings, and errors use `INotificationService` toasts (no inline `StatusMessage` labels).
 - [ ] Tested on dark theme and resizable window layouts.
+
+## Localization in views (LocalizeExtension)
+
+All user-facing strings must be bound using the `LocalizeExtension` markup extension. This ensures strings update dynamically when the active language changes at runtime, without recreating views or restarting the application.
+
+### XAML Namespace Declaration
+
+Declare the localization markup namespace on the root `<UserControl>` or `<Window>`:
+
+```xml
+<UserControl xmlns="https://github.com/avaloniaui"
+             ...
+             xmlns:localization="clr-namespace:GenHub.Common.Markup">
+```
+
+### Usage Patterns
+
+#### Text and Labels
+```xml
+<TextBlock Text="{localization:Localize Settings.Appearance.Title}"
+           Classes="SectionTitle" />
+```
+
+#### Buttons and Controls
+```xml
+<Button Content="{localization:Localize Common.Button.Close}"
+        Command="{Binding SaveCommand}" />
+```
+
+#### Expanders and Section Headers
+```xml
+<Expander Header="{localization:Localize Settings.Appearance.Title}">
+    ...
+</Expander>
+```
+
+#### TextBoxes and Search Fields (Watermarks)
+```xml
+<TextBox Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
+         Text="{Binding SearchQuery, Mode=TwoWay}" />
+```
+
+#### ToolTips
+```xml
+<Button ToolTip.Tip="{localization:Localize Navigation.Settings}">
+    <material:MaterialIcon Kind="Cog" />
+</Button>
+```
+
+#### Selection Controls (e.g. Language Selector)
+```xml
+<ComboBox ItemsSource="{Binding AvailableLanguages}"
+          SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
+          HorizontalAlignment="Stretch">
+    <ComboBox.ItemTemplate>
+        <DataTemplate DataType="settingsModels:LanguageOption">
+            <TextBlock Text="{Binding DisplayName}" />
+        </DataTemplate>
+    </ComboBox.ItemTemplate>
+</ComboBox>
+```
+
+> [!IMPORTANT]
+> **Never hardcode string literals in XAML.** If you add a new UI element, always add its resource entry to `GenHub/GenHub/Resources/Localization/Strings.resx` using a hierarchical dot-separated key (`<Feature>.<Context>.<Element>`), and test that it renders correctly in Avalonia views.

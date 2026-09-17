@@ -36,8 +36,14 @@ public class ContentDependency
     /// <summary>Gets or sets the minimum version required.</summary>
     public string? MinVersion { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether the minimum version bound is inclusive.</summary>
+    public bool MinInclusive { get; set; } = true;
+
     /// <summary>Gets or sets the maximum version allowed.</summary>
     public string? MaxVersion { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the maximum version bound is inclusive.</summary>
+    public bool MaxInclusive { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the exact version required (optional, overrides min/max if specified).

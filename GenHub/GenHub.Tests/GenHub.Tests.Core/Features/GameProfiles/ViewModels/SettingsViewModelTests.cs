@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -14,6 +15,7 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
@@ -24,6 +26,7 @@ using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Globalization;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -1288,23 +1291,282 @@ public class SettingsViewModelTests
         mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
     }
 
-    private void SetupDeletableData()
+    /// <summary>
+    /// Verifies that TestPatAsync clears authentication token and marks PAT invalid when rollback fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TestPatAsync_WhenValidationFailsAndRestoreThrows_ClearsTokenAndSetsInvalidAsync()
     {
-        _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
-        _mockWorkspaceManager
-            .Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([new WorkspaceInfo { Id = "workspace-to-delete" }]));
-        _mockManifestPool
-            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
+        // Arrange
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockApiClient = new Mock<IGitHubApiClient>();
+        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ThrowsAsync(new System.IO.IOException("Disk error"));
+
+        mockApiClient
+            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubUser?)null);
+
+        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
+        viewModel.GitHubPatInput = "ghp_invalidToken12345";
+
+        // Act
+        await viewModel.TestPatCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsPatValid);
+        mockApiClient.Verify(x => x.ClearAuthenticationToken(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that available languages are loaded from localization service and selected language matches settings.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithLocalizationService_PopulatesAvailableLanguagesAndSelectedLanguage()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var settings = new UserSettings { Language = "ar-SA" };
+        _mockConfigService.Setup(x => x.Get()).Returns(settings);
+
+        // Act
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+
+        // Assert
+        Assert.Equal(2, viewModel.AvailableLanguages.Count);
+        Assert.Equal("ar-SA", viewModel.SelectedLanguage?.Culture.Name);
+    }
+
+    /// <summary>
+    /// Verifies that changing SelectedLanguage updates the culture on the localization service.
+    /// </summary>
+    [Fact]
+    public void SelectedLanguage_Change_CallsSetCultureOnLocalizationService()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+        var targetOption = viewModel.AvailableLanguages.First(l => l.Culture.Name == "ar-SA");
+
+        // Act
+        viewModel.SelectedLanguage = targetOption;
+
+        // Assert
+        mockLocService.Verify(x => x.SetCulture(arabicCulture), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that SaveSettingsCommand persists the selected language to UserSettings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SaveSettingsCommand_PersistsSelectedLanguageAsync()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+        var targetOption = viewModel.AvailableLanguages.First(l => l.Culture.Name == "ar-SA");
+        viewModel.SelectedLanguage = targetOption;
+
+        UserSettings? capturedSettings = null;
+        _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action =>
+            {
+                var s = new UserSettings();
+                action(s);
+                capturedSettings = s;
+            });
+
+        // Act
+        await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
+
+        // Assert
+        Assert.NotNull(capturedSettings);
+        Assert.Equal("ar-SA", capturedSettings.Language);
+    }
+
+    /// <summary>
+    /// Verifies that LoadSubscriptionsCommand populates subscriptions from the store.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task LoadSubscriptionsCommand_PopulatesSubscriptionsFromStoreAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var subs = new List<PublisherSubscription>
+        {
+            new() { PublisherId = "p2", PublisherName = "Beta Publisher", CatalogUrl = "https://example.com/2" },
+            new() { PublisherId = "p1", PublisherName = "Alpha Publisher", CatalogUrl = "https://example.com/1" },
+        };
+        mockSubStore.Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(subs));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        // Act
+        await viewModel.LoadSubscriptionsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(2, viewModel.Subscriptions.Count);
+        Assert.Equal("Alpha Publisher", viewModel.Subscriptions[0].PublisherName);
+        Assert.Equal("Beta Publisher", viewModel.Subscriptions[1].PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveSubscriptionCommand removes the subscription and shows notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_RemovesSubscriptionAndNotifiesAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
+        mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        viewModel.Subscriptions.Add(sub);
+
+        // Act
+        await viewModel.RemoveSubscriptionCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.DoesNotContain(sub, viewModel.Subscriptions);
+        _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ToggleSubscriptionTrustCommand toggles trust level and saves to store.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ToggleSubscriptionTrustCommand_TogglesTrustLevelAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher", TrustLevel = TrustLevel.Trusted };
+        mockSubStore.Setup(s => s.UpdateTrustLevelAsync("pub1", TrustLevel.Untrusted, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        viewModel.Subscriptions.Add(sub);
+
+        // Act
+        await viewModel.ToggleSubscriptionTrustCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.Equal(TrustLevel.Untrusted, sub.TrustLevel);
+        mockSubStore.Verify(s => s.UpdateTrustLevelAsync("pub1", TrustLevel.Untrusted, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ToggleSubscriptionTrustCommand ignores verified publishers and prevents execution.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ToggleSubscriptionTrustCommand_VerifiedSubscription_CannotExecuteAndDoesNotModifyAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub_verified", PublisherName = "Verified Pub", TrustLevel = TrustLevel.Verified };
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+        viewModel.Subscriptions.Add(sub);
+
+        // Act & Assert CanExecute
+        Assert.False(viewModel.ToggleSubscriptionTrustCommand.CanExecute(sub));
+
+        await viewModel.ToggleSubscriptionTrustCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.Equal(TrustLevel.Verified, sub.TrustLevel);
+        mockSubStore.Verify(s => s.UpdateTrustLevelAsync(It.IsAny<string>(), It.IsAny<TrustLevel>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that ShowNoSubscriptions accurately reflects subscription list and loading status.
+    /// </summary>
+    [Fact]
+    public void ShowNoSubscriptions_ReflectsLoadingAndCollectionState()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Initially empty and not loading
+        Assert.True(viewModel.ShowNoSubscriptions);
+
+        // While loading, empty message is suppressed
+        viewModel.IsLoadingSubscriptions = true;
+        Assert.False(viewModel.ShowNoSubscriptions);
+
+        viewModel.IsLoadingSubscriptions = false;
+        Assert.True(viewModel.ShowNoSubscriptions);
+
+        // Adding subscription hides message
+        var sub = new PublisherSubscription { PublisherId = "p1", PublisherName = "Publisher 1" };
+        viewModel.Subscriptions.Add(sub);
+        Assert.False(viewModel.ShowNoSubscriptions);
+
+        // Removing subscription restores message
+        viewModel.Subscriptions.Remove(sub);
+        Assert.True(viewModel.ShowNoSubscriptions);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshAllCatalogsCommand invokes catalog refresh service.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RefreshAllCatalogsCommand_InvokesRefreshServiceAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        mockSubStore.Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(new List<PublisherSubscription>()));
+
+        var mockRefresh = new Mock<IPublisherCatalogRefreshService>();
+        mockRefresh.Setup(r => r.RefreshAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object, catalogRefreshService: mockRefresh.Object);
+
+        // Act
+        await viewModel.RefreshAllCatalogsCommand.ExecuteAsync(null);
+
+        // Assert
+        mockRefresh.Verify(r => r.RefreshAllAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     private SettingsViewModel CreateViewModel(
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
-        IGitHubApiClient? gitHubApiClient = null) => new(
+        IGitHubApiClient? gitHubApiClient = null,
+        IPublisherSubscriptionStore? subscriptionStore = null,
+        IPublisherCatalogRefreshService? catalogRefreshService = null,
+        ILocalizationService? localizationService = null) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
@@ -1321,5 +1583,21 @@ public class SettingsViewModelTests
         _mockStorageMigrationService.Object,
         themeService,
         gitHubTokenStorage,
-        gitHubApiClient);
+        gitHubApiClient,
+        subscriptionStore: subscriptionStore,
+        catalogRefreshService: catalogRefreshService,
+        localizationService: localizationService);
+
+    private void SetupDeletableData()
+    {
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
+        _mockWorkspaceManager
+            .Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([new WorkspaceInfo { Id = "workspace-to-delete" }]));
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
+    }
 }

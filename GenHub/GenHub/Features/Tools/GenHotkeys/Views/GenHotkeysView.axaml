@@ -7,6 +7,7 @@
              xmlns:hotkeyModels="using:GenHub.Core.Models.Tools.GenHotkeys"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
              xmlns:hotkeyConverters="using:GenHub.Features.Tools.GenHotkeys.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="750"
              x:Class="GenHub.Features.Tools.GenHotkeys.Views.GenHotkeysView"
              x:DataType="vm:GenHotkeysViewModel"
@@ -123,7 +124,7 @@
           <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
             <!-- Game Switcher -->
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
-              <TextBlock Text="Game:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+              <TextBlock Text="{localization:Localize Tools.GenHotkeys.GameLabel}" VerticalAlignment="Center" FontWeight="SemiBold"/>
               <ComboBox ItemsSource="{Binding AvailableGames}"
                         SelectedItem="{Binding SelectedGame}"
                         Width="110"/>
@@ -131,7 +132,7 @@
 
             <!-- Profile Switcher & Actions -->
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
-              <TextBlock Text="Profile:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+              <TextBlock Text="{localization:Localize Tools.GenHotkeys.ProfileLabel}" VerticalAlignment="Center" FontWeight="SemiBold"/>
               <ComboBox ItemsSource="{Binding Profiles}"
                         SelectedItem="{Binding SelectedProfile}"
                         Width="150">
@@ -148,7 +149,7 @@
               </ComboBox>
 
               <!-- Compact New Profile Button + Flyout -->
-              <Button x:Name="NewProfileButton" Classes="Secondary" Padding="8,6" ToolTip.Tip="Create New Profile" AutomationProperties.Name="New Profile">
+              <Button x:Name="NewProfileButton" Classes="Secondary" Padding="8,6" ToolTip.Tip="{localization:Localize Tools.GenHotkeys.CreateNewProfileTooltip}" AutomationProperties.Name="{localization:Localize Tools.GenHotkeys.NewProfile}">
                 <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
                   <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
@@ -160,14 +161,14 @@
                             <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="13" Height="13" Foreground="{DynamicResource PrimaryButtonForeground}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                           </Border>
                           <StackPanel Spacing="1">
-                            <TextBlock Text="New Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock Text="Create a custom hotkey set" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.GenHotkeys.NewProfile}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.GenHotkeys.CreateCustomHotkeySubtext}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
                           </StackPanel>
                         </StackPanel>
 
                         <TextBox x:Name="NewProfileTextBox"
                                  Text="{Binding NewProfileName, Mode=TwoWay}"
-                                 Watermark="Profile name..."
+                                 Watermark="{localization:Localize Tools.GenHotkeys.ProfileNameWatermark}"
                                  Tag="Create"
                                  KeyDown="OnFlyoutTextBoxKeyDown"
                                  CornerRadius="6"
@@ -176,7 +177,7 @@
 
                         <Grid ColumnDefinitions="*,Auto">
                           <Button Grid.Column="1"
-                                  Content="Create"
+                                  Content="{localization:Localize Tools.GenHotkeys.CreateButton}"
                                   Click="OnCreateProfileClick"
                                   Classes="Primary"
                                   Padding="16,6"
@@ -189,7 +190,7 @@
               </Button>
 
               <!-- Rename Profile Button + Flyout -->
-              <Button x:Name="RenameProfileButton" Classes="Secondary" Padding="8,6" ToolTip.Tip="Rename Current Profile" AutomationProperties.Name="Rename Profile">
+              <Button x:Name="RenameProfileButton" Classes="Secondary" Padding="8,6" ToolTip.Tip="{localization:Localize Tools.GenHotkeys.RenameProfileTooltip}" AutomationProperties.Name="{localization:Localize Tools.GenHotkeys.RenameProfile}">
                 <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
                 <Button.Flyout>
                   <Flyout FlyoutPresenterClasses="ModernFlyout" Placement="Bottom">
@@ -201,14 +202,14 @@
                             <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="13" Height="13" Foreground="{DynamicResource PrimaryButtonForeground}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                           </Border>
                           <StackPanel Spacing="1">
-                            <TextBlock Text="Rename Profile" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock Text="Update profile display name" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.GenHotkeys.RenameProfile}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.GenHotkeys.RenameProfileSubtext}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
                           </StackPanel>
                         </StackPanel>
 
                         <TextBox x:Name="RenameProfileTextBox"
                                  Text="{Binding RenameProfileText, Mode=TwoWay}"
-                                 Watermark="New profile name..."
+                                 Watermark="{localization:Localize Tools.GenHotkeys.NewProfileNameWatermark}"
                                  Tag="Rename"
                                  KeyDown="OnFlyoutTextBoxKeyDown"
                                  CornerRadius="6"
@@ -217,7 +218,7 @@
 
                         <Grid ColumnDefinitions="*,Auto">
                           <Button Grid.Column="1"
-                                  Content="Save"
+                                  Content="{localization:Localize Common.Save}"
                                   Click="OnSaveRenameProfileClick"
                                   Classes="Primary"
                                   Padding="16,6"
@@ -230,7 +231,7 @@
               </Button>
 
               <!-- Delete Profile Button -->
-              <Button Command="{Binding DeleteCurrentProfileCommand}" Classes="Secondary" Padding="8,6" ToolTip.Tip="Delete Profile" AutomationProperties.Name="Delete Profile">
+              <Button Command="{Binding DeleteCurrentProfileCommand}" Classes="Secondary" Padding="8,6" ToolTip.Tip="{localization:Localize Tools.GenHotkeys.DeleteProfileTooltip}" AutomationProperties.Name="{localization:Localize Tools.GenHotkeys.DeleteProfileTooltip}">
                 <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
               </Button>
             </StackPanel>
@@ -239,34 +240,34 @@
 
             <!-- Compact Presets Dropdown Menu -->
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
-              <Button Classes="Secondary" Padding="10,6" ToolTip.Tip="Apply Hotkey Presets">
+              <Button Classes="Secondary" Padding="10,6" ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ApplyHotkeyPresetsTooltip}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="13" Height="13" VerticalAlignment="Center"/>
-                  <TextBlock Text="Presets" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.Presets}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                   <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="9" Height="9" VerticalAlignment="Center" Opacity="0.7"/>
                 </StackPanel>
                 <Button.Flyout>
                   <MenuFlyout Placement="Bottom">
-                    <MenuItem Header="Default (Vanilla Retail)"
+                    <MenuItem Header="{localization:Localize Tools.GenHotkeys.PresetVanilla}"
                               Command="{Binding ApplyPresetCommand}"
                               CommandParameter="Vanilla"
-                              ToolTip.Tip="Reset to default game hotkeys">
+                              ToolTip.Tip="{localization:Localize Tools.GenHotkeys.PresetVanillaTooltip}">
                       <MenuItem.Icon>
                         <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="14" Height="14"/>
                       </MenuItem.Icon>
                     </MenuItem>
-                    <MenuItem Header="Leikeze Layout"
+                    <MenuItem Header="{localization:Localize Tools.GenHotkeys.PresetLeikeze}"
                               Command="{Binding ApplyPresetCommand}"
                               CommandParameter="Leikeze"
-                              ToolTip.Tip="Apply Leikeze's reference layout hotkeys">
+                              ToolTip.Tip="{localization:Localize Tools.GenHotkeys.PresetLeikezeTooltip}">
                       <MenuItem.Icon>
                         <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="14" Height="14"/>
                       </MenuItem.Icon>
                     </MenuItem>
-                    <MenuItem Header="Legionnaire QWERTY Grid"
+                    <MenuItem Header="{localization:Localize Tools.GenHotkeys.PresetLegionnaire}"
                               Command="{Binding ApplyPresetCommand}"
                               CommandParameter="Legionnaire"
-                              ToolTip.Tip="Apply Legionnaire's standard QWERTY grid hotkeys">
+                              ToolTip.Tip="{localization:Localize Tools.GenHotkeys.PresetLegionnaireTooltip}">
                       <MenuItem.Icon>
                         <PathIcon Data="{StaticResource ToolIcon.KeyboardOutline}" Width="14" Height="14"/>
                       </MenuItem.Icon>
@@ -295,13 +296,13 @@
                     Padding="6,7"
                     IsVisible="{Binding HasExistingAddon}"
                     IsEnabled="{Binding !IsBusy}"
-                    ToolTip.Tip="Add to Game Profile">
+                    ToolTip.Tip="{localization:Localize Tools.GenHotkeys.AddToGameProfile}">
               <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="10" Height="10" VerticalAlignment="Center"/>
               <Button.Flyout>
                 <MenuFlyout Placement="Bottom">
-                  <MenuItem Header="Add to Game Profile..."
+                  <MenuItem Header="{localization:Localize Tools.GenHotkeys.AddToGameProfileEllipsis}"
                             Command="{Binding OpenProfileSelectionCommand}"
-                            ToolTip.Tip="Add this hotkey addon to a game profile">
+                            ToolTip.Tip="{localization:Localize Tools.GenHotkeys.AddToGameProfileTooltip}">
                     <MenuItem.Icon>
                       <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="14" Height="14"/>
                     </MenuItem.Icon>
@@ -317,10 +318,10 @@
           <!-- Icon Overlay Options -->
           <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
             <CheckBox IsChecked="{Binding OverlayEnabled}"
-                      Content="Overlay Hotkey Badge on Icons (TGA)"
+                      Content="{localization:Localize Tools.GenHotkeys.OverlayBadgeLabel}"
                       FontWeight="SemiBold"
-                      ToolTip.Tip="Generates in-game icon textures with the hotkey stamped directly on them (similar to Legionnaire &amp; Leikeze indicators)"/>
-            <TextBlock Text="Position:" VerticalAlignment="Center" IsVisible="{Binding OverlayEnabled}"/>
+                      ToolTip.Tip="{localization:Localize Tools.GenHotkeys.OverlayBadgeTooltip}"/>
+            <TextBlock Text="{localization:Localize Tools.GenHotkeys.PositionLabel}" VerticalAlignment="Center" IsVisible="{Binding OverlayEnabled}"/>
             <ComboBox ItemsSource="{Binding AvailableCorners}"
                       SelectedItem="{Binding SelectedCorner}"
                       IsVisible="{Binding OverlayEnabled}"
@@ -329,7 +330,7 @@
 
           <!-- Faction & Category Filters -->
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <TextBlock Text="Category:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,4,0"/>
+            <TextBlock Text="{localization:Localize Tools.GenHotkeys.CategoryLabel}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,4,0"/>
             <ComboBox ItemsSource="{Binding AvailableCategories}"
                       SelectedItem="{Binding SelectedCategory}"
                       Width="120"/>
@@ -446,8 +447,8 @@
                           Padding="4,2"
                           Margin="4,0,0,0"
                           VerticalAlignment="Center"
-                          ToolTip.Tip="This unit/building contains overlapping hotkeys!">
-                    <TextBlock Text="⚠️" FontSize="10" Foreground="{DynamicResource ErrorBrush}" FontWeight="Bold"/>
+                          ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ConflictsTooltip}">
+                    <PathIcon Data="{StaticResource ToolIcon.AlertTriangle}" Width="12" Height="12" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                   </Border>
                   <Image DockPanel.Dock="Left" Source="{Binding IconBitmap}" Width="46" Height="36" Stretch="Uniform" Margin="0,0,8,0"/>
                   <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -470,7 +471,7 @@
                        MaxWidth="300"
                        VerticalAlignment="Center"/>
             <TextBlock Grid.Column="2"
-                       Text="Click an action button to assign or customize its hotkey"
+                       Text="{localization:Localize Tools.GenHotkeys.ClickActionHint}"
                        FontSize="11" Opacity="0.6"
                        TextTrimming="CharacterEllipsis"
                        VerticalAlignment="Center"
@@ -517,7 +518,7 @@
                                           Padding="5,1"
                                           Margin="3">
                                     <StackPanel Orientation="Horizontal" Spacing="2">
-                                      <TextBlock Text="⚠️" FontSize="10" IsVisible="{Binding IsConflict}" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                                      <PathIcon Data="{StaticResource ToolIcon.AlertTriangle}" Width="11" Height="11" IsVisible="{Binding IsConflict}" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                                       <TextBlock Text="{Binding HotkeyBadge}" FontSize="12" FontWeight="ExtraBold" Foreground="{DynamicResource GeneralsAccentBrush}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                   </Border>
@@ -542,7 +543,7 @@
       <!-- RIGHT: Interactive Virtual Keyboard & Hotkey Assignment Bar -->
       <Border Grid.Column="2" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="12">
         <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
-          <TextBlock Grid.Row="0" Text="Hotkey Assignment" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+          <TextBlock Grid.Row="0" Text="{localization:Localize Tools.GenHotkeys.HotkeyAssignmentTitle}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
 
           <!-- Selected Action Summary Box with Larger Cameo -->
           <Border Grid.Row="1" Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="8" Margin="0,0,0,12"
@@ -567,7 +568,10 @@
               <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <TextBlock Text="{Binding SelectedAction.DisplayName}" FontWeight="Bold" FontSize="13" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Text="{Binding SelectedAction.HotkeyString}" FontSize="10" Opacity="0.5" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="{Binding SelectedAction.DefaultHotkey, StringFormat='Default: {0}'}" FontSize="10" Opacity="0.6"/>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.DefaultLabel}" FontSize="10" Opacity="0.6"/>
+                  <TextBlock Text="{Binding SelectedAction.DefaultHotkey}" FontSize="10" Opacity="0.6"/>
+                </StackPanel>
               </StackPanel>
 
               <!-- Current Key Indicator -->
@@ -585,7 +589,7 @@
           </Border>
 
           <!-- Instructions -->
-          <TextBlock Grid.Row="2" Text="Type on your physical keyboard, or click a key below:" FontSize="11" Opacity="0.7" Margin="0,0,0,8" TextWrapping="Wrap"/>
+          <TextBlock Grid.Row="2" Text="{localization:Localize Tools.GenHotkeys.KeyboardInstructions}" FontSize="11" Opacity="0.7" Margin="0,0,0,8" TextWrapping="Wrap"/>
 
           <!-- Virtual Keyboard Layout (QWERTY) -->
           <StackPanel Grid.Row="3" Spacing="4" VerticalAlignment="Top">
@@ -631,23 +635,23 @@
             <StackPanel Spacing="6" HorizontalAlignment="Stretch" Margin="0,8,0,0">
               <Grid ColumnDefinitions="*,*">
                 <Button Grid.Column="0"
-                        Content="Reset to Default"
+                        Content="{localization:Localize Tools.GenHotkeys.ResetToDefaultButton}"
                         Command="{Binding ResetKeyToDefaultCommand}"
                         Classes="Secondary"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
                         Height="28"
                         Margin="0,0,3,0"
-                        ToolTip.Tip="Reset this action to its original default hotkey"/>
+                        ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ResetToDefaultTooltip}"/>
                 <Button Grid.Column="1"
-                        Content="Clear Key [-]"
+                        Content="{localization:Localize Tools.GenHotkeys.ClearKeyButton}"
                         Command="{Binding ClearHotkeyCommand}"
                         Classes="Secondary"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
                         Height="28"
                         Margin="3,0,0,0"
-                        ToolTip.Tip="Clear hotkey assignment for this action"/>
+                        ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ClearKeyTooltip}"/>
               </Grid>
 
               <Button Command="{Binding ApplyToAllMatchingActionsCommand}"
@@ -658,7 +662,7 @@
                       MinHeight="38"
                       Margin="0,6,0,0"
                       Padding="10,6"
-                      ToolTip.Tip="Apply this hotkey to all matching actions across all armies">
+                      ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ApplyToAllTooltip}">
                 <TextBlock Text="{Binding ApplyToAllButtonText}"
                            TextWrapping="Wrap"
                            TextAlignment="Center"
@@ -689,9 +693,9 @@
                       Command="{Binding SelectNextConflictCommand}"
                       Classes="Secondary"
                       Padding="8,4"
-                      ToolTip.Tip="Navigate to next conflicting hotkey">
+                      ToolTip.Tip="{localization:Localize Tools.GenHotkeys.NextConflictTooltip}">
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                  <TextBlock Text="Next Conflict" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.NextConflictButton}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                   <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -704,7 +708,7 @@
     <!-- STATUS BAR -->
     <Border Grid.Row="2" Background="{DynamicResource CardBackground}" CornerRadius="6" Padding="10,6" Margin="0,4,0,0">
       <DockPanel LastChildFill="False">
-        <TextBlock DockPanel.Dock="Right" Text="Changes auto-saved to profile" VerticalAlignment="Center" FontSize="10" Opacity="0.5"/>
+        <TextBlock DockPanel.Dock="Right" Text="{localization:Localize Tools.GenHotkeys.AutoSavedStatus}" VerticalAlignment="Center" FontSize="10" Opacity="0.5"/>
       </DockPanel>
     </Border>
   </Grid>

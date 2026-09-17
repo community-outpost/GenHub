@@ -2,11 +2,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="clr-namespace:GenHub.Features.Tools.ReplayManager.ViewModels;assembly=GenHub"
-             xmlns:vm_tools="clr-namespace:GenHub.Features.Tools.ViewModels;assembly=GenHub"
-             xmlns:models="clr-namespace:GenHub.Core.Models.Tools.ReplayManager;assembly=GenHub.Core"
-             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
-             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
+             xmlns:vm_tools="using:GenHub.Features.Tools.ViewModels"
+             xmlns:models="using:GenHub.Core.Models.Tools.ReplayManager"
+             xmlns:enums="using:GenHub.Core.Models.Enums"
+             xmlns:converters="using:GenHub.Infrastructure.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Tools.ReplayManager.Views.ReplayManagerView"
              x:DataType="vm:ReplayManagerViewModel"
@@ -30,11 +31,11 @@
       <Grid ColumnDefinitions="Auto,*,Auto,Auto">
         <!-- Game Tabs -->
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-          <RadioButton Content="Generals"
+          <RadioButton Content="{localization:Localize Common.Game.Generals}"
                        IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.Generals}}"
                        GroupName="GameTabs"
                        Classes="TabButton"/>
-          <RadioButton Content="Zero Hour"
+          <RadioButton Content="{localization:Localize Common.Game.ZeroHour}"
                        IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.ZeroHour}}"
                        GroupName="GameTabs"
                        Classes="TabButton"/>
@@ -42,29 +43,29 @@
 
         <!-- Import Bar Integrated -->
         <Grid Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="16,0">
-          <TextBox Grid.Column="0" Watermark="Paste Replay URL or Match ID..."
+          <TextBox Grid.Column="0" Watermark="{localization:Localize Tools.ReplayManager.Watermark.ImportUrl}"
                    Text="{Binding ImportUrl}" Margin="0,0,8,0" VerticalContentAlignment="Center"
                    HorizontalAlignment="Stretch"
-                   ToolTip.Tip="Supported formats:&#x0a;• Generals Online URL or Match ID (e.g. 151553)&#x0a;• GenTool Replay URL&#x0a;• GenHub / UploadThing Link&#x0a;• Direct download link (.rep/.zip)"/>
+                   ToolTip.Tip="{localization:Localize Replays.Tooltip.ImportUrlFormats}"/>
           <Button Grid.Column="1" Command="{Binding ImportFromUrlCommand}"
                   Classes="Primary" Margin="0,0,4,0" IsEnabled="{Binding !IsBusy}"
                   Padding="10,6"
-                  ToolTip.Tip="Import from URL">
+                  ToolTip.Tip="{localization:Localize Replays.Tooltip.ImportFromUrl}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="16" Height="16"/>
-              <TextBlock Text="Import" VerticalAlignment="Center" FontSize="12"/>
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Import}" VerticalAlignment="Center" FontSize="12"/>
             </StackPanel>
           </Button>
           <Button Grid.Column="2" Command="{Binding BrowseAndImportCommand}"
                   Classes="Secondary" IsEnabled="{Binding !IsBusy}"
                   Padding="10,6"
-                  ToolTip.Tip="Browse for files">
+                  ToolTip.Tip="{localization:Localize Replays.Tooltip.BrowseFiles}">
             <PathIcon Data="{StaticResource ToolIcon.Paperclip}" Width="16" Height="16"/>
           </Button>
         </Grid>
 
         <!-- Search Bar -->
-        <TextBox Grid.Column="2" Watermark="Search replays..."
+        <TextBox Grid.Column="2" Watermark="{localization:Localize Tools.ReplayManager.Watermark.SearchReplays}"
                  Text="{Binding SearchText}"
                  Width="170"
                  VerticalAlignment="Center">
@@ -77,10 +78,10 @@
 
         <!-- Utilities -->
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
-          <Button Command="{Binding LoadReplaysCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Refresh list" Padding="8">
+          <Button Command="{Binding LoadReplaysCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Replays.Tooltip.RefreshList}" Padding="8">
             <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="16" Height="16"/>
           </Button>
-          <Button Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Open folder" Padding="8">
+          <Button Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Replays.Tooltip.OpenFolder}" Padding="8">
             <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
           </Button>
         </StackPanel>
@@ -100,7 +101,7 @@
                   BorderThickness="0"
                   RowHeight="42">
           <DataGrid.Columns>
-            <DataGridTemplateColumn Header="Filename" Width="180" MaxWidth="210">
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Filename}" Width="180" MaxWidth="210">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding FileName}"
@@ -118,7 +119,7 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellEditingTemplate>
             </DataGridTemplateColumn>
-            <DataGridTemplateColumn Header="Map" Width="120" MaxWidth="160">
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Map}" Width="120" MaxWidth="160">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding Metadata.MapName}"
@@ -129,20 +130,20 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTemplateColumn Header="Client / Build" Width="*" MinWidth="130">
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.ClientBuild}" Width="*" MinWidth="130">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding ClientAndPatchDisplay}"
+                  <TextBlock Text="{Binding ClientAndPatchDisplay, Converter={x:Static converters:LocalizedReplayBuildConverter.Instance}}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
-                             ToolTip.Tip="{Binding ClientAndPatchDisplay}"
+                             ToolTip.Tip="{Binding ClientAndPatchDisplay, Converter={x:Static converters:LocalizedReplayBuildConverter.Instance}}"
                              Margin="4,0"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="Exe CRC" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
-            <DataGridTextColumn Header="INI CRC" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
-            <DataGridTemplateColumn Header="Compatibility" Width="Auto" MinWidth="120">
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.ExeCrc}" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.IniCrc}" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Compatibility}" Width="Auto" MinWidth="120">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
@@ -158,15 +159,15 @@
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"/>
                       <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"/>
-                      <TextBlock Text="{Binding CompatibilityBadgeText}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding CompatibilityBadgeText, Converter={x:Static converters:LocalizedReplayBadgeConverter.Instance}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Border>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="65" IsReadOnly="True" />
-            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="115" IsReadOnly="True" />
-            <DataGridTemplateColumn Width="Auto" MinWidth="165" CanUserResize="False" Header="Actions">
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Size}" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="65" IsReadOnly="True" />
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Modified}" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="115" IsReadOnly="True" />
+            <DataGridTemplateColumn Width="Auto" MinWidth="165" CanUserResize="False" Header="{localization:Localize Tools.ReplayManager.Column.Actions}">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -179,17 +180,17 @@
                             ToolTip.Tip="{Binding PlayButtonTooltip}">
                       <Button.ContextFlyout>
                         <MenuFlyout>
-                          <MenuItem Header="Select Profile to Run..."
+                          <MenuItem Header="{localization:Localize Tools.ReplayManager.Action.SelectProfile}"
                                     Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).SelectProfileAndLaunchReplayCommand}"
                                     CommandParameter="{Binding}" />
-                          <MenuItem Header="Select Game Client &amp; Create Profile..."
+                          <MenuItem Header="{localization:Localize Tools.ReplayManager.Action.SelectClient}"
                                     Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).SelectClientAndCreateProfileCommand}"
                                     CommandParameter="{Binding}" />
                         </MenuFlyout>
                       </Button.ContextFlyout>
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Play}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="Launch" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Launch}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
@@ -199,10 +200,10 @@
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding IsDownloadRequired}"
-                            ToolTip.Tip="Download required game client and data patch, then create profile">
+                            ToolTip.Tip="{localization:Localize Tools.ReplayManager.Tooltip.DownloadAndSetup}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Download}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="Setup" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Setup}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
@@ -212,10 +213,10 @@
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding !IsDownloadRequired}"
-                            ToolTip.Tip="View available game clients and create a profile for this replay">
+                            ToolTip.Tip="{localization:Localize Tools.ReplayManager.Tooltip.ViewClientsAndCreate}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Profile}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
                   </StackPanel>
@@ -231,8 +232,8 @@
                   IsVisible="{Binding !CurrentReplays.Count}"
                   IsHitTestVisible="False">
         <PathIcon Data="{StaticResource ToolIcon.MoviePlayOutline}" Width="52" Height="52" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
-        <TextBlock Text="No replays found" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
-        <TextBlock Text="Drag and drop .rep or .zip files here, or paste a replay URL above" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{localization:Localize Tools.ReplayManager.Empty.Title}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{localization:Localize Tools.ReplayManager.Empty.Subtitle}" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
       </StackPanel>
 
       <!-- Drag & Drop Overlay -->
@@ -251,8 +252,8 @@
         </Border.Transitions>
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
           <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="64" Height="64" Foreground="{DynamicResource AccentLightBrush}" HorizontalAlignment="Center"/>
-          <TextBlock Text="Drop replays or ZIPs to import" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
-          <TextBlock Text="Single .rep files or ZIP archives only" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.ReplayManager.DragDrop.Title}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.ReplayManager.DragDrop.Subtitle}" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
         </StackPanel>
       </Border>
 
@@ -283,15 +284,15 @@
       <Grid ColumnDefinitions="Auto,*,Auto" MinWidth="400">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            <TextBlock Text="Selected:" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBlock Text="{localization:Localize Tools.ReplayManager.Label.Selected}" Foreground="{DynamicResource TextSecondary}"/>
             <TextBlock Text="{Binding SelectedReplays.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
                   Classes="Danger ActionBarBtn" IsEnabled="{Binding SelectedReplays.Count}"
-                  ToolTip.Tip="Permanently delete the selected replay files from your computer.">
+                  ToolTip.Tip="{localization:Localize Replays.Tooltip.DeleteSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
-              <TextBlock Text="Delete" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </StackPanel>
@@ -303,34 +304,34 @@
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
           <Button Command="{Binding UncompressSelectedCommand}"
                   Classes="Secondary ActionBarBtn" IsEnabled="{Binding HasSelectedZips}"
-                  ToolTip.Tip="Extract replay files from the selected ZIP archives.">
+                  ToolTip.Tip="{localization:Localize Replays.Tooltip.UncompressSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
-              <TextBlock Text="Uncompress" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Uncompress}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <TextBox MinWidth="110" MaxWidth="160" Watermark="ZIP Name" Text="{Binding ZipName}" Height="32" VerticalAlignment="Center" ToolTip.Tip="Filename for the new ZIP archive"/>
+          <TextBox MinWidth="110" MaxWidth="160" Watermark="{localization:Localize Tools.ReplayManager.Watermark.ZipName}" Text="{Binding ZipName}" Height="32" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Replays.Tooltip.ZipName}"/>
           <Button Command="{Binding ExportToZipCommand}"
                   Classes="Secondary ActionBarBtn" IsEnabled="{Binding SelectedReplays.Count}"
-                  ToolTip.Tip="Create a new ZIP archive containing the selected replay files.">
+                  ToolTip.Tip="{localization:Localize Replays.Tooltip.ZipSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.ArchiveOutline}" Width="16" Height="16"/>
-              <TextBlock Text="Zip" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Zip}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
                     Classes="Primary SplitLeft ActionBarBtn"
-                    ToolTip.Tip="Upload selected replays to cloud and copy share link.">
+                    ToolTip.Tip="{localization:Localize Replays.Tooltip.UploadAndShare}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
-                <TextBlock Text="Upload" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Upload}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <ToggleButton
                     IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
                     Classes="Primary SplitRight ActionBarBtn"
-                    ToolTip.Tip="View the history of your uploaded replays.">
+                    ToolTip.Tip="{localization:Localize Tools.ReplayManager.Tooltip.UploadHistory}">
               <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
@@ -353,9 +354,9 @@
                                     <TextBlock Text="{Binding SizeDisplay}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
                                     <Border Background="Transparent" BorderBrush="{Binding StatusColor}" BorderThickness="1" CornerRadius="4" Padding="4,0" Margin="4,0,0,0">
                                       <Panel>
-                                        <TextBlock Text="Active" FontSize="10" Foreground="{Binding StatusColor}"
+                                        <TextBlock Text="{localization:Localize Replays.Label.Active}" FontSize="10" Foreground="{Binding StatusColor}"
                                                    IsVisible="{Binding IsActive}"/>
-                                        <TextBlock Text="Expired" FontSize="10" Foreground="{Binding StatusColor}"
+                                        <TextBlock Text="{localization:Localize Replays.Label.Expired}" FontSize="10" Foreground="{Binding StatusColor}"
                                                    IsVisible="{Binding !IsActive}"/>
                                       </Panel>
                                     </Border>
@@ -366,7 +367,7 @@
                                         Command="{Binding #Root.((vm:ReplayManagerViewModel)DataContext).CopyUrlCommand}"
                                         CommandParameter="{Binding Url}"
                                         Padding="6,4" Margin="8,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="Copy the download link for this replay.">
+                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.CopyLink}">
                                   <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
                                 </Button>
 
@@ -374,7 +375,7 @@
                                         Command="{Binding #Root.((vm:ReplayManagerViewModel)DataContext).RemoveHistoryItemCommand}"
                                         CommandParameter="{Binding}"
                                         Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="Delete this file from cloud storage and remove from history.">
+                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.DeleteHistoryItem}">
                                   <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
                                 </Button>
                               </Grid>
@@ -384,7 +385,7 @@
                       </ItemsControl>
                     </ScrollViewer>
 
-                    <TextBlock Text="No history yet" IsVisible="{Binding !UploadHistory.Count}"
+                    <TextBlock Text="{localization:Localize Replays.Empty.NoHistory}" IsVisible="{Binding !UploadHistory.Count}"
                                HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" Margin="0,20"/>
                   </Grid>
 
@@ -394,10 +395,10 @@
                           HorizontalAlignment="Stretch"
                           Margin="0,10,0,0"
                           IsVisible="{Binding UploadHistory.Count}"
-                          ToolTip.Tip="Delete all uploaded files from cloud storage and clear history.">
+                          ToolTip.Tip="{localization:Localize Replays.Tooltip.ClearHistory}">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                       <PathIcon Data="{StaticResource ToolIcon.DeleteSweepOutline}" Width="16" Height="16"/>
-                      <TextBlock Text="Clear All History" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Replays.Button.ClearAllHistory}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -409,7 +410,7 @@
     </Border>
 
     <!-- Footer Storage Notice -->
-    <TextBlock Grid.Row="3" Text="Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit). Duplicate files are automatically deduplicated."
+    <TextBlock Grid.Row="3" Text="{localization:Localize Replays.Notice.StorageQuota}"
                FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Left" Margin="0,8,0,0" TextWrapping="Wrap" MaxWidth="600"/>
   </Grid>
 

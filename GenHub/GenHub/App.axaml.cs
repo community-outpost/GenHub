@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -10,14 +11,20 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Features.Downloads.Views;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace GenHub;
@@ -27,6 +34,29 @@ namespace GenHub;
 /// </summary>
 public partial class App : Application
 {
+    /// <summary>
+    /// Gets or sets the delegate used to display the subscription confirmation dialog.
+    /// Can be overridden in integration tests to simulate user actions headlessly.
+    /// </summary>
+    internal Func<SubscriptionConfirmationViewModel, Window?, Task<bool>> ShowSubscriptionDialogAsync { get; set; } =
+        async (vm, owner) =>
+        {
+            var dialog = new SubscriptionConfirmationDialog
+            {
+                DataContext = vm,
+            };
+
+            if (owner != null)
+            {
+                return await dialog.ShowDialog<bool>(owner);
+            }
+
+            var tcs = new TaskCompletionSource<bool>();
+            dialog.Closed += (_, _) => tcs.TrySetResult(dialog.DialogResult);
+            dialog.Show();
+            return await tcs.Task;
+        };
+
     private readonly IServiceProvider _serviceProvider;
     private readonly IUserSettingsService _userSettingsService;
     private readonly IConfigurationProviderService _configurationProvider;
@@ -53,6 +83,36 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        try
+        {
+            var configuredLanguage = _userSettingsService.Get()?.Language;
+            if (!string.IsNullOrWhiteSpace(configuredLanguage))
+            {
+                try
+                {
+                    var result = _localizationService.SetCulture(new CultureInfo(configuredLanguage));
+                    if (!result.Success)
+                    {
+                        var logger = _serviceProvider?.GetService<ILogger<App>>();
+                        logger?.LogWarning(
+                            "Failed to apply configured language '{Language}': {Errors}; falling back to default",
+                            configuredLanguage,
+                            string.Join(", ", result.Errors));
+                    }
+                }
+                catch (CultureNotFoundException ex)
+                {
+                    var logger = _serviceProvider?.GetService<ILogger<App>>();
+                    logger?.LogWarning(ex, "Configured language '{Language}' was not recognized; falling back to default", configuredLanguage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            var logger = _serviceProvider?.GetService<ILogger<App>>();
+            logger?.LogWarning(ex, "Failed to load or apply configured language; falling back to default");
+        }
+
         // Make localization available while application XAML resources are loading.
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
@@ -97,6 +157,68 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Handles a catalog subscription URL by prompting the user for confirmation.
+    /// </summary>
+    /// <param name="subscriptionUrl">The subscription URL to handle.</param>
+    /// <param name="mainWindow">The optional main window for modal presentation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    internal async Task HandleSubscriptionUrlAsync(string subscriptionUrl, MainWindow? mainWindow = null)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(subscriptionUrl))
+            {
+                return;
+            }
+
+            var targetUrl = ResolveTargetSubscriptionUrl(subscriptionUrl);
+            if (string.IsNullOrWhiteSpace(targetUrl))
+            {
+                logger?.LogWarning("Invalid or unsafe subscription URL: {Url}", subscriptionUrl);
+                return;
+            }
+
+            logger?.LogInformation("Handling subscription URL: {Url}", targetUrl);
+
+            var subscriptionStore = _serviceProvider.GetService<IPublisherSubscriptionStore>();
+            var catalogParser = _serviceProvider.GetService<IPublisherCatalogParser>();
+            var httpClientFactory = _serviceProvider.GetService<IHttpClientFactory>();
+            var loggerFactory = _serviceProvider.GetService<ILoggerFactory>();
+
+            if (subscriptionStore == null || catalogParser == null || httpClientFactory == null || loggerFactory == null)
+            {
+                logger?.LogError("Required services for catalog subscription are not registered");
+                return;
+            }
+
+            var vmLogger = loggerFactory.CreateLogger<SubscriptionConfirmationViewModel>();
+            var confirmationVm = new SubscriptionConfirmationViewModel(
+                targetUrl,
+                subscriptionStore,
+                catalogParser,
+                httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName),
+                vmLogger,
+                _localizationService);
+
+            var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);
+            if (confirmed)
+            {
+                await HandleConfirmedSubscriptionAsync(mainWindow, targetUrl, logger);
+            }
+            else
+            {
+                logger?.LogInformation("Subscription was cancelled or not confirmed for URL: {Url}", targetUrl);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
+        }
     }
 
     private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
@@ -154,6 +276,29 @@ public partial class App : Application
                 }
             }
         }
+    }
+
+    private static string? ResolveTargetSubscriptionUrl(string subscriptionUrl)
+    {
+        var targetUrl = CommandLineParser.ExtractSubscriptionUrl([subscriptionUrl]);
+        if (!string.IsNullOrWhiteSpace(targetUrl))
+        {
+            return targetUrl;
+        }
+
+        var sanitized = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
+        if (Uri.TryCreate(sanitized, UriKind.Absolute, out var directUri) && IsAllowedSubscriptionScheme(directUri))
+        {
+            return sanitized;
+        }
+
+        return null;
+    }
+
+    private static bool IsAllowedSubscriptionScheme(Uri uri)
+    {
+        return uri.Scheme == Uri.UriSchemeHttps ||
+               (uri.IsFile && !uri.IsUnc && string.IsNullOrEmpty(uri.Host));
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)
@@ -356,48 +501,22 @@ public partial class App : Application
         }
     }
 
-    private async Task HandleSubscriptionUrlAsync(string subscriptionUrl, MainWindow mainWindow)
+    private async Task HandleConfirmedSubscriptionAsync(MainWindow? mainWindow, string targetUrl, ILogger<App>? logger)
     {
-        var logger = _serviceProvider.GetService<ILogger<App>>();
-
-        try
+        if (mainWindow?.DataContext is MainViewModel mainViewModel)
         {
-            var sanitizedUrl = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
-            if (!Uri.TryCreate(sanitizedUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            mainViewModel.SelectTab(NavigationTab.Downloads);
+            if (mainViewModel.DownloadsBrowserViewModel != null)
             {
-                logger?.LogWarning("Invalid or unsafe subscription URL: {Url}", subscriptionUrl);
-                return;
-            }
-
-            logger?.LogInformation("Handling subscription URL: {Url}", uri.AbsoluteUri);
-
-            var dialogService = _serviceProvider.GetService<IDialogService>();
-            if (dialogService != null)
-            {
-                var confirmed = await dialogService.ShowConfirmationAsync(
-                    "Subscribe to Catalog",
-                    $"Do you want to subscribe to content from:\n{uri.AbsoluteUri}",
-                    "Subscribe",
-                    "Cancel");
-
-                if (confirmed)
-                {
-                    if (mainWindow?.DataContext is MainViewModel mainViewModel)
-                    {
-                        mainViewModel.SelectTab(NavigationTab.Downloads);
-                    }
-
-                    logger?.LogInformation("User confirmed subscription to: {Url}", uri.AbsoluteUri);
-                    var notificationService = _serviceProvider.GetService<INotificationService>();
-                    notificationService?.ShowSuccess("Subscribed", $"Successfully subscribed to: {uri.AbsoluteUri}");
-                }
+                await mainViewModel.DownloadsBrowserViewModel.InitializeAsync();
             }
         }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
-        }
+
+        logger?.LogInformation("User confirmed subscription to: {Url}", targetUrl);
+        var notificationService = _serviceProvider.GetService<INotificationService>();
+        var title = LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Downloads.Subscription.SubscribedNotificationTitle", "Subscribed");
+        var message = LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Downloads.Subscription.SubscribedNotificationMessage", "Successfully subscribed to content catalog.");
+        notificationService?.ShowSuccess(title, message);
     }
 
     private async Task RepairShortcutsAsync()

@@ -170,6 +170,39 @@ public class ContentManifestBuilderTests
         Assert.True(dependency.IsExclusive);
         Assert.Equal([ManifestId.Create("1.0.genhub.mod.conflict")], dependency.ConflictsWith);
         Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
+        Assert.True(dependency.MinInclusive);
+        Assert.True(dependency.MaxInclusive);
+    }
+
+    /// <summary>
+    /// Tests that AddDependency sets inclusivity flags correctly when specified.
+    /// </summary>
+    [Fact]
+    public void AddDependency_WithInclusivityFlags_SetsFlagsCorrectly()
+    {
+        // Act
+        var result = _builder
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
+            .AddDependency(
+                id: ManifestId.Create("1.0.genhub.mod.exclusivebound"),
+                name: "Exclusive Bound Dependency",
+                dependencyType: ContentType.GameInstallation,
+                installBehavior: DependencyInstallBehavior.AutoInstall,
+                minVersion: "1.0",
+                maxVersion: "2.0",
+                compatibleVersions: null,
+                isExclusive: false,
+                conflictsWith: null,
+                compatibleGameTypes: null,
+                minInclusive: false,
+                maxInclusive: false)
+            .Build();
+
+        // Assert
+        Assert.Single(result.Dependencies);
+        var dependency = result.Dependencies[0];
+        Assert.False(dependency.MinInclusive);
+        Assert.False(dependency.MaxInclusive);
     }
 
     /// <summary>

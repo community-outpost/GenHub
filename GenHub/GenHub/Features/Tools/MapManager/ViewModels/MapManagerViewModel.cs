@@ -22,6 +22,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -35,7 +36,8 @@ namespace GenHub.Features.Tools.MapManager.ViewModels;
 /// <summary>
 /// ViewModel for Map Manager tool.
 /// </summary>
-public partial class MapManagerViewModel : ObservableObject
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "MapManagerViewModel coordinates map directory management, import/export, map packs, upload history, notifications, image parsing, logging, dialogs, and localization.")]
+public partial class MapManagerViewModel : ObservableObject, IDisposable
 {
     private readonly IMapDirectoryService _directoryService;
     private readonly IMapImportService _importService;
@@ -46,6 +48,7 @@ public partial class MapManagerViewModel : ObservableObject
     private readonly TgaImageParser _tgaImageParser;
     private readonly ILogger<MapManagerViewModel> _logger;
     private readonly IDialogService? _dialogService;
+    private readonly ILocalizationService? _localizationService;
     private readonly DispatcherTimer _searchTimer;
 
     /// <summary>
@@ -60,6 +63,7 @@ public partial class MapManagerViewModel : ObservableObject
     /// <param name="tgaImageParser">The TGA image parser.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="dialogService">Optional dialog service for user confirmations.</param>
+    /// <param name="localizationService">The optional localization service.</param>
     public MapManagerViewModel(
         IMapDirectoryService directoryService,
         IMapImportService importService,
@@ -69,7 +73,8 @@ public partial class MapManagerViewModel : ObservableObject
         INotificationService notificationService,
         TgaImageParser tgaImageParser,
         ILogger<MapManagerViewModel> logger,
-        IDialogService? dialogService = null)
+        IDialogService? dialogService = null,
+        ILocalizationService? localizationService = null)
     {
         _directoryService = directoryService;
         _importService = importService;
@@ -80,6 +85,11 @@ public partial class MapManagerViewModel : ObservableObject
         _tgaImageParser = tgaImageParser;
         _logger = logger;
         _dialogService = dialogService;
+        _localizationService = localizationService;
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
 
         _searchTimer = new DispatcherTimer
         {
@@ -280,7 +290,9 @@ public partial class MapManagerViewModel : ObservableObject
                 ApplyFilter();
             });
 
-            StatusMessage = $"Loaded {maps.Count} maps.";
+            StatusMessage = _localizationService != null
+                ? string.Format(_localizationService.GetString("Tools.MapManager.Status.Loaded") ?? "Loaded {0} maps.", maps.Count)
+                : $"Loaded {maps.Count} maps.";
 
             // Load thumbnails in background to avoid UI hang
             _ = Task.Run(() =>
@@ -366,6 +378,35 @@ public partial class MapManagerViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            if (_localizationService != null)
+            {
+                _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+            }
+
+            foreach (var item in UploadHistory)
+            {
+                item.Dispose();
+            }
+
+            UploadHistory.Clear();
         }
     }
 
@@ -1075,7 +1116,12 @@ public partial class MapManagerViewModel : ObservableObject
         try
         {
             var history = await _uploadHistoryService.GetUploadHistoryAsync(MapManagerConstants.UploadCategory);
-            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item)).ToList();
+            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item, _localizationService)).ToList();
+
+            foreach (var existing in UploadHistory)
+            {
+                existing.Dispose();
+            }
 
             UploadHistory.Clear();
             foreach (var vm in viewModels)
@@ -1262,6 +1308,24 @@ public partial class MapManagerViewModel : ObservableObject
         {
             IsMapPackPanelOpen = true;
             _notificationService.ShowInfo("Create MapPack", "Enter a name and description in the panel, then click Create.");
+        }
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ILocalizationService.CurrentCulture) && e.PropertyName != LocalizationConstants.IndexerPropertyName)
+        {
+            return;
+        }
+
+        if (MapPacks.Count > 0)
+        {
+            var packs = MapPacks.ToList();
+            MapPacks.Clear();
+            foreach (var pack in packs)
+            {
+                MapPacks.Add(pack);
+            }
         }
     }
 }

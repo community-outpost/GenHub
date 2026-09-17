@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              x:Class="GenHub.Features.Info.Views.DemoContainerView"
              x:Name="DemoControl">
 
@@ -40,10 +41,10 @@
             <TextBlock Text="{Binding Title, ElementName=DemoControl}"
                        FontSize="18"
                        FontWeight="SemiBold"
-                       Foreground="White"/>
+                       Foreground="{DynamicResource TextPrimary}"/>
             <TextBlock Text="{Binding Description, ElementName=DemoControl}"
                        FontSize="13"
-                       Foreground="#AAAAAA"
+                       Foreground="{DynamicResource TextSecondary}"
                        TextWrapping="Wrap"/>
           </StackPanel>
 
@@ -53,10 +54,10 @@
                   Padding="8,4"
                   Background="#30FFFFFF"
                   VerticalAlignment="Top">
-            <TextBlock Text="INTERACTIVE DEMO"
+            <TextBlock Text="{localization:Localize Info.Demo.InteractiveDemo}"
                        FontSize="10"
                        FontWeight="Bold"
-                       Foreground="#888888"/>
+                       Foreground="{DynamicResource TextSecondary}"/>
           </Border>
         </Grid>
       </Border>

@@ -6,6 +6,7 @@
              xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileContentEditorView"
              x:DataType="vm:GameProfileSettingsViewModel">
@@ -154,7 +155,7 @@
                             CommandParameter="{x:Static vm:ContentEditorCategory.EnabledContent}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <material:MaterialIcon Kind="CheckCircleOutline" Width="18" Height="18" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text="Enabled" VerticalAlignment="Center" FontSize="13.5"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.Content.TabEnabled}" VerticalAlignment="Center" FontSize="13.5"/>
                         </StackPanel>
                     </Button>
 
@@ -164,7 +165,7 @@
                             CommandParameter="{x:Static vm:ContentEditorCategory.AvailableContent}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <material:MaterialIcon Kind="PlusCircleOutline" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text="Available" VerticalAlignment="Center" FontSize="13.5"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.Content.TabAvailable}" VerticalAlignment="Center" FontSize="13.5"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -188,17 +189,17 @@
                         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <material:MaterialIcon Kind="CheckDecagramOutline" Width="20" Height="20" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Classes="section-title" Text="Enabled Content" Margin="0" VerticalAlignment="Center"/>
+                                <TextBlock Classes="section-title" Text="{localization:Localize GameProfiles.Content.EnabledContentTitle}" Margin="0" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Button Grid.Column="1"
                                     Command="{Binding LoadAvailableContentCommand}"
                                     Classes="sidebar-btn"
                                     Padding="10,6"
-                                    ToolTip.Tip="Refresh installed content"
+                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.RefreshInstalledTip}"
                                     VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
-                                    <TextBlock Text="Refresh" VerticalAlignment="Center" FontSize="12"/>
+                                    <TextBlock Text="{localization:Localize Common.Refresh}" VerticalAlignment="Center" FontSize="12"/>
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -211,7 +212,7 @@
                                 IsVisible="{Binding EnabledContent.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <material:MaterialIcon Kind="AlertCircleOutline" Width="20" Height="20" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="No content enabled. Add at least one Game Client (Executable) to launch this profile."
+                                <TextBlock Text="{localization:Localize GameProfiles.Content.NoContentWarning}"
                                            FontSize="12.5" Foreground="{DynamicResource TextPrimary}" Opacity="0.9" TextWrapping="Wrap" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
@@ -253,8 +254,8 @@
                                                 IsVisible="{Binding IsEditable}"
                                                 Padding="8" Margin="0,0,12,0"
                                                 VerticalAlignment="Center"
-                                                AutomationProperties.Name="Edit Content"
-                                                ToolTip.Tip="Edit Content">
+                                                AutomationProperties.Name="{localization:Localize GameProfiles.Content.EditContentToolTip}"
+                                                ToolTip.Tip="{localization:Localize GameProfiles.Content.EditContentToolTip}">
                                             <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
                                         </Button>
                                     </Grid>
@@ -270,7 +271,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
                             <material:MaterialIcon Kind="FolderPlusOutline" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Classes="section-title" Text="Add Content" Margin="0" VerticalAlignment="Center"/>
+                            <TextBlock Classes="section-title" Text="{localization:Localize GameProfiles.Content.AddContentTitle}" Margin="0" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <!-- Content type filter pills -->
@@ -293,7 +294,7 @@
                                         </Classes.selected>
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{Binding IconData}" Width="16" Height="16" />
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="12.5" />
+                                            <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="12.5" />
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -304,21 +305,21 @@
                         <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,12">
                             <Button Grid.Column="0" Classes="filter-pill"
                                     Command="{Binding AddLocalContentCommand}"
-                                    AutomationProperties.Name="Add Local"
-                                    ToolTip.Tip="Import content from disk">
+                                    AutomationProperties.Name="{localization:Localize GameProfiles.Content.AddLocalButton}"
+                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <material:MaterialIcon Kind="FolderPlusOutline" Width="16" Height="16"/>
-                                    <TextBlock Text="Add Local" VerticalAlignment="Center" FontSize="12.5"/>
+                                    <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center" FontSize="12.5"/>
                                 </StackPanel>
                             </Button>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
-                                <TextBlock Text="Filter Game:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}" FontSize="12" />
-                                <Button Classes="filter-pill" Content="Generals"
+                                <TextBlock Text="{localization:Localize GameProfiles.Content.FilterGameLabel}" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}" FontSize="12" />
+                                <Button Classes="filter-pill" Content="{localization:Localize Common.Game.Generals}"
                                         Classes.selected="{Binding GameTypeFilter, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:GameType.Generals}}"
                                         Command="{Binding SelectGameTypeFilterCommand}"
                                         CommandParameter="{x:Static models:GameType.Generals}" />
-                                <Button Classes="filter-pill" Content="Zero Hour"
+                                <Button Classes="filter-pill" Content="{localization:Localize Common.Game.ZeroHour}"
                                         Classes.selected="{Binding GameTypeFilter, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:GameType.ZeroHour}}"
                                         Command="{Binding SelectGameTypeFilterCommand}"
                                         CommandParameter="{x:Static models:GameType.ZeroHour}" />
@@ -362,8 +363,8 @@
                                                 IsVisible="{Binding IsEditable}"
                                                 Padding="8" Margin="0,0,12,0"
                                                 VerticalAlignment="Center"
-                                                AutomationProperties.Name="Edit Content"
-                                                ToolTip.Tip="Edit Content">
+                                                AutomationProperties.Name="{localization:Localize GameProfiles.Content.EditContentToolTip}"
+                                                ToolTip.Tip="{localization:Localize GameProfiles.Content.EditContentToolTip}">
                                             <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
                                         </Button>
                                     </Grid>

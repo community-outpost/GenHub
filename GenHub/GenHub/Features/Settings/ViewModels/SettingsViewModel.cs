@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -19,6 +20,7 @@ using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
@@ -29,7 +31,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -52,6 +56,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private const string ErrorTitle = "Error";
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
+    private string SubscriptionErrorTitle => _localizationService?.GetString("Settings.Subscriptions.ErrorTitle") ?? ErrorTitle;
+
     private readonly IUserSettingsService _userSettingsService;
     private readonly ICasService _casService;
     private readonly IGameProfileManager _profileManager;
@@ -62,6 +68,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
     private readonly IGitHubApiClient? _gitHubApiClient;
+    private readonly IPublisherSubscriptionStore? _subscriptionStore;
+    private readonly IPublisherCatalogRefreshService? _catalogRefreshService;
     private readonly Timer _memoryUpdateTimer;
     private readonly Timer _dangerZoneUpdateTimer;
     private readonly IConfigurationProviderService _configurationProvider;
@@ -71,6 +79,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IDialogService _dialogService;
     private readonly IStorageMigrationService _storageMigrationService;
     private readonly IThemeService? _themeService;
+    private readonly ILocalizationService? _localizationService;
 
     private bool _isViewVisible;
     private bool _disposed;
@@ -79,6 +88,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private int _maxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
     private double _downloadBufferSizeKB = DownloadDefaults.BufferSizeKB;
     private int _downloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
+
+    /// <summary>
+    /// Gets or sets the list of available settings sections for sidebar navigation.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<SettingsSectionItem> _sections = [];
 
     [ObservableProperty]
     private SettingsSectionItem? _selectedSection;
@@ -231,6 +246,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private double _migrationProgressPercentage;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
+    private ObservableCollection<PublisherSubscription> _subscriptions = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
+    private bool _isLoadingSubscriptions;
+
+    /// <summary>
+    /// Gets or sets the currently selected language option.
+    /// </summary>
+    [ObservableProperty]
+    private LanguageOption? _selectedLanguage;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -251,6 +280,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     /// <param name="gitHubApiClient">GitHub API client.</param>
+    /// <param name="subscriptionStore">The publisher subscription store.</param>
+    /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
+    /// <param name="localizationService">The localization service for language management.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -268,7 +300,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
-        IGitHubApiClient? gitHubApiClient = null)
+        IGitHubApiClient? gitHubApiClient = null,
+        IPublisherSubscriptionStore? subscriptionStore = null,
+        IPublisherCatalogRefreshService? catalogRefreshService = null,
+        ILocalizationService? localizationService = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -287,6 +322,28 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
         _gitHubApiClient = gitHubApiClient;
+        _subscriptionStore = subscriptionStore;
+        _catalogRefreshService = catalogRefreshService;
+
+        _subscriptions.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
+        _localizationService = localizationService;
+
+        InitializeSections();
+
+        var cultures = _localizationService?.AvailableCultures;
+        if (cultures == null || cultures.Count == 0)
+        {
+            cultures = [new CultureInfo(LocalizationConstants.DefaultCultureName)];
+        }
+
+        AvailableLanguages = cultures
+            .Select(c => new LanguageOption(c, GetCultureDisplayName(c)))
+            .ToList();
+
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
 
         LoadSettings();
         _ = LoadPatStatusAsync();
@@ -330,32 +387,24 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public IReadOnlyList<ColorTheme> AvailableThemes => _themeService?.AvailableThemes ?? ThemeConstants.AllThemes;
 
     /// <summary>
-    /// Gets the list of available settings sections for sidebar navigation.
+    /// Gets the status color for the PAT indicator.
     /// </summary>
-    public IReadOnlyList<SettingsSectionItem> Sections { get; } =
-    [
-        new(SettingsConstants.SectionGameConfig, "Game Configuration", "M7,5V19H17V5H7M7,3H17A2,2 0 0,1 19,5V19A2,2 0 0,1 17,21H7A2,2 0 0,1 5,19V5A2,2 0 0,1 7,3M9,7H15V9H9V7M9,11H15V13H9V11M9,15H15V17H9V15Z"),
-        new(SettingsConstants.SectionDownloads, "Downloads", "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"),
-        new(SettingsConstants.SectionAppearance, "Appearance", "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"),
-        new(SettingsConstants.SectionDataDirectories, "Data Directories", "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"),
-        new(SettingsConstants.SectionMigrateInstallation, "Migrate Installation", "M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"),
-        new(SettingsConstants.SectionLogs, "Logs", "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"),
-        new(SettingsConstants.SectionPerformance, "Performance", "M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"),
-        new(SettingsConstants.SectionCas, "CAS Storage", "M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"),
-        new(SettingsConstants.SectionLocalContent, "Local Content", "M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"),
-        new(SettingsConstants.SectionGitHubDiscovery, "GitHub Discovery", "M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"),
-        new(SettingsConstants.SectionUpdates, "Updates", "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"),
-        new(SettingsConstants.SectionDangerZone, "Danger Zone", "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"),
-    ];
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
+    public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
 
     /// <summary>
-    /// Gets the status color for the PAT indicator.
+    /// Gets a value indicating whether to display the empty subscriptions state message.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "csharpsquid",
         "S2325:Methods and properties that don't access instance data should be static",
         Justification = "Instance property bound to Avalonia UI data binding and notified by ObservableProperty.")]
-    public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+    public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
+
+    /// <summary>
+    /// Gets the list of available languages.
+    /// </summary>
+    public IReadOnlyList<LanguageOption> AvailableLanguages { get; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the settings view is currently visible.
@@ -479,7 +528,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Disposes the ViewModel and its resources.
+    /// Disposes the ViewModel and its managed resources.
     /// </summary>
     /// <param name="disposing">True if disposing managed resources.</param>
     protected virtual void Dispose(bool disposing)
@@ -488,12 +537,33 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             if (disposing)
             {
+                if (_localizationService != null)
+                {
+                    _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+                }
+
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
             }
 
             _disposed = true;
         }
+    }
+
+    /// <summary>
+    /// Formats a culture into a user-friendly display name with native and English representations.
+    /// </summary>
+    /// <param name="culture">The culture to format.</param>
+    /// <returns>A formatted display name string.</returns>
+    private static string GetCultureDisplayName(CultureInfo culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture.NativeName) ||
+            culture.NativeName.Equals(culture.EnglishName, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{culture.EnglishName} ({culture.Name})";
+        }
+
+        return $"{culture.NativeName} ({culture.EnglishName})";
     }
 
     private static (int DeletedCount, int LockedCount, long FreedBytes) ClearLogFiles(
@@ -600,6 +670,87 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         using var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
         stream.SetLength(0);
         stream.Flush();
+    }
+
+    /// <summary>
+    /// Handles changes to the selected language option.
+    /// </summary>
+    /// <param name="value">The newly selected language option.</param>
+    partial void OnSelectedLanguageChanged(LanguageOption? value)
+    {
+        if (value != null && _localizationService != null &&
+            !string.Equals(_localizationService.CurrentCulture.Name, value.Culture.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            var result = _localizationService.SetCulture(value.Culture);
+            if (result != null && !result.Success)
+            {
+                _logger.LogWarning("Failed to set culture to {Culture}: {Errors}", value.Culture.Name, string.Join(", ", result.Errors));
+                SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                    string.Equals(l.Culture.Name, _localizationService.CurrentCulture.Name, StringComparison.OrdinalIgnoreCase));
+                return;
+            }
+
+            InitializeSections();
+            _ = LoadPatStatusAsync();
+        }
+    }
+
+    /// <summary>
+    /// Synchronizes the selected language option when the current culture changes externally.
+    /// </summary>
+    /// <param name="sender">The event sender.</param>
+    /// <param name="e">The event arguments containing the changed property name.</param>
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if ((e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName) && _localizationService != null)
+        {
+            var activeCultureName = _localizationService.CurrentCulture.Name;
+            if (SelectedLanguage?.Culture.Name != activeCultureName)
+            {
+                SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                    string.Equals(l.Culture.Name, activeCultureName, StringComparison.OrdinalIgnoreCase))
+                    ?? AvailableLanguages.FirstOrDefault();
+            }
+
+            InitializeSections();
+        }
+    }
+
+    private void InitializeSections()
+    {
+        var currentSelectedId = SelectedSection?.Id;
+        Sections =
+        [
+            new(SettingsConstants.SectionGameConfig, GetLocalizedSectionTitle("Settings.Section.GameConfiguration", "Game Configuration"), "M7,5V19H17V5H7M7,3H17A2,2 0 0,1 19,5V19A2,2 0 0,1 17,21H7A2,2 0 0,1 5,19V5A2,2 0 0,1 7,3M9,7H15V9H9V7M9,11H15V13H9V11M9,15H15V17H9V15Z"),
+            new(SettingsConstants.SectionDownloads, GetLocalizedSectionTitle("Settings.Section.Downloads", "Downloads"), "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"),
+            new(SettingsConstants.SectionAppearance, GetLocalizedSectionTitle("Settings.Section.Appearance", "Appearance"), "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"),
+            new(SettingsConstants.SectionDataDirectories, GetLocalizedSectionTitle("Settings.Section.DataDirectories", "Data Directories"), "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"),
+            new(SettingsConstants.SectionMigrateInstallation, GetLocalizedSectionTitle("Settings.Section.MigrateInstallation", "Migrate Installation"), "M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"),
+            new(SettingsConstants.SectionLogs, GetLocalizedSectionTitle("Settings.Section.Logs", "Logs"), "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"),
+            new(SettingsConstants.SectionPerformance, GetLocalizedSectionTitle("Settings.Section.Performance", "Performance"), "M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"),
+            new(SettingsConstants.SectionCas, GetLocalizedSectionTitle("Settings.Section.CAS", "CAS Storage"), "M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"),
+            new(SettingsConstants.SectionLocalContent, GetLocalizedSectionTitle("Settings.Section.LocalContent", "Local Content"), "M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"),
+            new(SettingsConstants.SectionGitHubDiscovery, GetLocalizedSectionTitle("Settings.Section.GitHubDiscovery", "GitHub Discovery"), "M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"),
+            new(SettingsConstants.SectionUpdates, GetLocalizedSectionTitle("Settings.Section.Updates", "Updates"), "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"),
+            new(SettingsConstants.SectionSubscriptions, GetLocalizedSectionTitle("Settings.Section.CatalogSubscriptions", "Catalog Subscriptions"), "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z"),
+            new(SettingsConstants.SectionDangerZone, GetLocalizedSectionTitle("Settings.Section.DangerZone", "Danger Zone"), "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"),
+        ];
+
+        SelectedSection = Sections.FirstOrDefault(s => s.Id == currentSelectedId) ?? Sections.FirstOrDefault();
+    }
+
+    private string GetLocalizedSectionTitle(string key, string fallback)
+    {
+        if (_localizationService != null)
+        {
+            var val = _localizationService[key];
+            if (!string.IsNullOrEmpty(val) && !string.Equals(val, key, StringComparison.Ordinal))
+            {
+                return val;
+            }
+        }
+
+        return fallback;
     }
 
     // Handle text property changes with validation
@@ -719,6 +870,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 string.Equals(t.DisplayName, currentThemeId, StringComparison.OrdinalIgnoreCase))
                 ?? ThemeConstants.DefaultTheme;
             Theme = SelectedTheme.Id;
+            var currentCultureName = settings.Language ?? LocalizationConstants.DefaultCultureName;
+            SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                string.Equals(l.Culture.Name, currentCultureName, StringComparison.OrdinalIgnoreCase))
+                ?? AvailableLanguages.FirstOrDefault();
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = settings.AutoCheckForUpdatesOnStartup;
@@ -775,6 +930,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _userSettingsService.Update(settings =>
             {
                 settings.Theme = Theme;
+                settings.Language = SelectedLanguage?.Culture.Name ?? LocalizationConstants.DefaultCultureName;
                 settings.WorkspacePath = WorkspacePath;
                 settings.MaxConcurrentDownloads = MaxConcurrentDownloads;
                 settings.AutoCheckForUpdatesOnStartup = AutoCheckForUpdatesOnStartup;
@@ -842,6 +998,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             Theme = ThemeConstants.DefaultTheme.Id;
+            SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
+                string.Equals(l.Culture.Name, LocalizationConstants.DefaultCultureName, StringComparison.OrdinalIgnoreCase))
+                ?? AvailableLanguages.FirstOrDefault();
             WorkspacePath = string.Empty;
             MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = true;
@@ -1271,7 +1430,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             HasGitHubPat = _gitHubTokenStorage?.HasToken() == true;
             if (HasGitHubPat)
             {
-                PatStatusMessage = "GitHub PAT configured ✓";
+                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Configured") ?? "GitHub PAT configured ✓";
                 IsPatValid = true;
             }
             else
@@ -1279,12 +1438,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var isAuth = _gitHubApiClient != null && await _gitHubApiClient.EnsureAuthenticatedAsync();
                 if (isAuth)
                 {
-                    PatStatusMessage = "Configured via environment variable";
+                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.EnvConfigured") ?? "Configured via environment variable";
                     IsPatValid = true;
                 }
                 else
                 {
-                    PatStatusMessage = "No GitHub PAT configured";
+                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.NotConfigured") ?? "No GitHub PAT configured";
                     IsPatValid = false;
                 }
             }
@@ -1292,7 +1451,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load PAT status");
-            PatStatusMessage = "Error checking PAT status";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.CheckError") ?? "Error checking PAT status";
             HasGitHubPat = false;
             IsPatValid = false;
         }
@@ -1424,18 +1583,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrWhiteSpace(GitHubPatInput))
         {
-            PatStatusMessage = "Please enter a GitHub PAT";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.PleaseEnter") ?? "Please enter a GitHub PAT";
             return;
         }
 
         if (_gitHubTokenStorage == null)
         {
-            PatStatusMessage = "Token storage not available";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.StorageNotAvailable") ?? "Token storage not available";
             return;
         }
 
         IsTestingPat = true;
-        PatStatusMessage = "Testing PAT...";
+        PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Testing") ?? "Testing PAT...";
 
         try
         {
@@ -1453,22 +1612,40 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 if (user == null)
                 {
                     await RestoreExistingTokenAsync();
-                    PatStatusMessage = "GitHub authentication failed. Please verify that your token is valid.";
+                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.AuthFailed") ?? "GitHub authentication failed. Please verify that your token is valid.";
                     IsPatValid = false;
                     return;
                 }
             }
-            else if (_updateManager != null)
+            else
             {
-                _ = await _updateManager.CheckForArtifactUpdatesAsync(cancellationToken);
+                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ClientNotAvailable") ?? "GitHub API client not available";
+                IsPatValid = false;
+                return;
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
-            PatStatusMessage = "PAT validated successfully ✓";
+            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓";
             IsPatValid = true;
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await RestoreExistingTokenAsync();
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after cancellation");
+                _gitHubApiClient?.ClearAuthenticationToken();
+                IsPatValid = false;
+            }
+
+            _logger.LogInformation(ex, "PAT validation was cancelled");
+            PatStatusMessage = string.Empty;
         }
         catch (Exception ex)
         {
@@ -1479,10 +1656,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             catch (Exception rollbackEx)
             {
                 _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after validation failure");
+                _gitHubApiClient?.ClearAuthenticationToken();
+                IsPatValid = false;
             }
 
             _logger.LogError(ex, "PAT validation failed");
-            PatStatusMessage = $"Invalid PAT: {ex.Message}";
+            var invalidFormat = _localizationService?.GetString("Settings.GitHubPat.Status.InvalidFormat") ?? "Invalid PAT: {0}";
+            PatStatusMessage = string.Format(CultureInfo.InvariantCulture, invalidFormat, ex.Message);
             IsPatValid = false;
         }
         finally
@@ -1531,13 +1711,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(GitHubConstants.GitHubTokenEnvVar));
 
             PatStatusMessage = hasEnvToken
-                ? "GitHub PAT removed (env var deactivated for this session)"
-                : "GitHub PAT removed";
+                ? (_localizationService?.GetString("Settings.GitHubPat.Status.RemovedWithEnv") ?? "GitHub PAT removed (env var deactivated for this session)")
+                : (_localizationService?.GetString("Settings.GitHubPat.Status.Removed") ?? "GitHub PAT removed");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete PAT");
-            PatStatusMessage = $"Error: {ex.Message}";
+            var errorFormat = _localizationService?.GetString("Settings.GitHubPat.Status.ErrorFormat") ?? "Error: {0}";
+            PatStatusMessage = string.Format(CultureInfo.InvariantCulture, errorFormat, ex.Message);
         }
     }
 
@@ -2545,5 +2726,217 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var skippedText = lockedCount > 0 ? $", {lockedCount} file(s) skipped (in use)" : string.Empty;
         _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", 3000);
         _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
+    }
+
+    partial void OnSubscriptionsChanged(ObservableCollection<PublisherSubscription> value)
+    {
+        value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with subscription commands for cohesion.")]
+    private static bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
+    {
+        return subscription is { TrustLevel: not TrustLevel.Verified };
+    }
+
+    /// <summary>
+    /// Loads all active publisher subscriptions.
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadSubscriptionsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_subscriptionStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoadingSubscriptions = true;
+            await LoadSubscriptionsCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
+        }
+    }
+
+    private async Task LoadSubscriptionsCoreAsync(CancellationToken cancellationToken = default)
+    {
+        if (_subscriptionStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await _subscriptionStore.GetSubscriptionsAsync(cancellationToken);
+            if (result.Success && result.Data != null)
+            {
+                Subscriptions.Clear();
+                foreach (var sub in result.Data.OrderBy(s => s.PublisherName))
+                {
+                    Subscriptions.Add(sub);
+                }
+            }
+            else if (!result.Success)
+            {
+                var loadFailedMessage = _localizationService?.GetString("Settings.Subscriptions.LoadFailedMessage") ?? "Failed to load subscriptions: {0}";
+                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, loadFailedMessage, result.FirstError));
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Loading subscriptions was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load subscriptions");
+            var loadFailedFallback = _localizationService?.GetString("Settings.Subscriptions.LoadFailedFallback") ?? CatalogConstants.LoadSubscriptionsFailedTitle;
+            _notificationService.ShowError(SubscriptionErrorTitle, loadFailedFallback);
+        }
+    }
+
+    /// <summary>
+    /// Removes a publisher subscription.
+    /// </summary>
+    [RelayCommand]
+    private async Task RemoveSubscriptionAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
+    {
+        if (subscription == null || _subscriptionStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var dialogTitle = _localizationService?.GetString("Settings.Subscriptions.RemoveDialog.Title") ?? "Remove Subscription";
+            var dialogMessageFormat = _localizationService?.GetString("Settings.Subscriptions.RemoveDialog.Message") ?? "Are you sure you want to unsubscribe from '{0}'? Content from this publisher will no longer appear in downloads.";
+            var dialogConfirm = _localizationService?.GetString("Settings.Subscriptions.RemoveDialog.Confirm") ?? "Remove";
+            var dialogCancel = _localizationService?.GetString("Common.Cancel") ?? "Cancel";
+
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                dialogTitle,
+                string.Format(CultureInfo.InvariantCulture, dialogMessageFormat, subscription.PublisherName),
+                dialogConfirm,
+                dialogCancel);
+
+            if (!confirmed)
+            {
+                return;
+            }
+
+            var result = await _subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId, cancellationToken);
+            if (result.Success)
+            {
+                Subscriptions.Remove(subscription);
+                var removedTitle = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationTitle") ?? CatalogConstants.SubscriptionRemovedNotificationTitle;
+                var removedMessageFormat = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationMessage") ?? "Unsubscribed from {0}";
+                _notificationService.ShowSuccess(removedTitle, string.Format(CultureInfo.InvariantCulture, removedMessageFormat, subscription.PublisherName));
+            }
+            else
+            {
+                var removeFailedMessage = _localizationService?.GetString("Settings.Subscriptions.RemoveFailedMessage") ?? "Failed to remove subscription: {0}";
+                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, removeFailedMessage, result.FirstError));
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Removing subscription was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove subscription");
+            var removeFailedFallback = _localizationService?.GetString("Settings.Subscriptions.RemoveFailedFallback") ?? "Failed to remove subscription";
+            _notificationService.ShowError(SubscriptionErrorTitle, removeFailedFallback);
+        }
+    }
+
+    /// <summary>
+    /// Toggles the trust level for a publisher subscription.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanToggleSubscriptionTrust))]
+    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
+    {
+        if (subscription == null || _subscriptionStore == null || subscription.TrustLevel == TrustLevel.Verified)
+        {
+            return;
+        }
+
+        try
+        {
+            var newTrust = subscription.TrustLevel == TrustLevel.Trusted
+                ? TrustLevel.Untrusted
+                : TrustLevel.Trusted;
+
+            var result = await _subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust, cancellationToken);
+            if (result.Success)
+            {
+                subscription.TrustLevel = newTrust;
+                ToggleSubscriptionTrustCommand.NotifyCanExecuteChanged();
+            }
+            else
+            {
+                var updateTrustFailedMessage = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedMessage") ?? "Failed to update trust level: {0}";
+                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, updateTrustFailedMessage, result.FirstError));
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Toggling trust level was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update trust level");
+            var updateTrustFailedFallback = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedFallback") ?? "Failed to update trust level";
+            _notificationService.ShowError(SubscriptionErrorTitle, updateTrustFailedFallback);
+        }
+    }
+
+    /// <summary>
+    /// Refreshes all subscribed catalogs.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshAllCatalogsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_catalogRefreshService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoadingSubscriptions = true;
+            var result = await _catalogRefreshService.RefreshAllAsync(cancellationToken);
+            await LoadSubscriptionsCoreAsync(cancellationToken);
+            if (result.Success)
+            {
+                var refreshedTitle = _localizationService?.GetString("Settings.Subscriptions.RefreshedNotificationTitle") ?? CatalogConstants.CatalogsRefreshedNotificationTitle;
+                var refreshedMessage = _localizationService?.GetString("Settings.Subscriptions.RefreshedNotificationMessage") ?? "Successfully updated all subscribed catalogs.";
+                _notificationService.ShowSuccess(refreshedTitle, refreshedMessage);
+            }
+            else
+            {
+                var unknownError = _localizationService?.GetString("Common.UnknownError") ?? "Unknown error";
+                _notificationService.ShowError(SubscriptionErrorTitle, result.FirstError ?? unknownError);
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Refreshing catalogs was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh catalogs");
+            var refreshFailedFallback = _localizationService?.GetString("Settings.Subscriptions.RefreshFailedFallback") ?? "An unexpected error occurred during refresh.";
+            _notificationService.ShowError(SubscriptionErrorTitle, refreshFailedFallback);
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
+        }
     }
 }

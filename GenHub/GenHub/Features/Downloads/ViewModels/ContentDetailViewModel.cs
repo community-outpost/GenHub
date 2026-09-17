@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -56,6 +57,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="updateAction">Optional callback executing an update workflow.</param>
 /// <param name="isUpdateAvailable">Optional flag indicating if an update is available on open.</param>
 /// <param name="initialVariantManifestId">Optional manifest ID or identifier of the variant to select on initialization.</param>
+/// <param name="localizationService">Optional localization service for dynamic string localization.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -76,7 +78,8 @@ public partial class ContentDetailViewModel(
     ContentSearchResult? updateTargetSearchResult = null,
     Func<CancellationToken, Task>? updateAction = null,
     bool? isUpdateAvailable = null,
-    string? initialVariantManifestId = null) : ObservableObject, IDisposable
+    string? initialVariantManifestId = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -782,8 +785,8 @@ public partial class ContentDetailViewModel(
     /// Gets the publisher category or role badge text.
     /// </summary>
     public string PublisherTypeBadge => searchResult.ResolverId == CatalogConstants.GenericCatalogResolverId
-        ? CatalogConstants.SubscribedCatalogPublisherBadge
-        : CatalogConstants.OfficialProviderBadge;
+        ? (localizationService?.GetString("Downloads.Publisher.SubscribedCatalogPublisher") ?? CatalogConstants.SubscribedCatalogPublisherBadge)
+        : (localizationService?.GetString("Downloads.Publisher.OfficialProvider") ?? CatalogConstants.OfficialProviderBadge);
 
     /// <summary>
     /// Gets a value indicating whether there are custom tabs to display.
@@ -853,7 +856,7 @@ public partial class ContentDetailViewModel(
 
         // Hydrate bundle members before reading install state so an empty ContentBundle
         // recipe is never treated as "already downloaded".
-        if (BundleComponents.Count == 0)
+        if (BundleComponents.Count == 0 && searchResult.ContentType == ContentType.ContentBundle)
         {
             AttachBundleComponents(BundleComponentViewModel.CreateFromSearchResult(searchResult));
         }

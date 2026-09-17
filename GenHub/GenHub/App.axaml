@@ -24,6 +24,11 @@
             <local:BoolToColorConverter x:Key="BoolToColorConverter" />
             <local:BoolToTextConverter x:Key="BoolToTextConverter" />
             <local:BoolToTextConverter x:Key="BoolToStringConverter" />
+            <local:LocalizedToolNameConverter x:Key="LocalizedToolNameConverter" />
+            <local:LocalizedToolDescriptionConverter x:Key="LocalizedToolDescriptionConverter" />
+            <local:LocalizedUpdateSortOptionConverter x:Key="LocalizedUpdateSortOptionConverter" />
+            <local:LocalizedInfoModuleNameConverter x:Key="LocalizedInfoModuleNameConverter" />
+            <local:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />
         </ResourceDictionary>
     </Application.Resources>
 

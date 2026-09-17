@@ -26,7 +26,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -49,7 +51,8 @@ public partial class GenHotkeysViewModel(
     IProfileContentService? profileContentService = null,
     IContentManifestPool? manifestPool = null,
     ILoggerFactory? loggerFactory = null,
-    IDialogService? dialogService = null) : ObservableObject, IDisposable
+    IDialogService? dialogService = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private readonly record struct HotkeyConflictTarget(
         HotkeyFaction Faction,
@@ -63,6 +66,9 @@ public partial class GenHotkeysViewModel(
     private const string AddToProfileText = GenHotkeysConstants.UiText.AddToProfileText;
     private const string DefaultApplyToAllText = GenHotkeysConstants.UiText.DefaultApplyToAllText;
     private const string CreateAddonToolTip = GenHotkeysConstants.UiText.CreateAddonToolTip;
+    private const string LocalizationKeyCreateAddon = "Tools.GenHotkeys.CreateAddon";
+    private const string LocalizationKeyCreateAddonTooltip = "Tools.GenHotkeys.CreateAddonTooltip";
+    private const string LocalizationKeyDefaultApplyToAll = "Tools.GenHotkeys.DefaultApplyToAllText";
 
     private static readonly HashSet<string> GeneralsPowersActions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -140,10 +146,13 @@ public partial class GenHotkeysViewModel(
     private int _totalConflictsCount;
 
     [ObservableProperty]
+    private int _totalActionsAffectedCount;
+
+    [ObservableProperty]
     private string _conflictStatusText = string.Empty;
 
     [ObservableProperty]
-    private string _applyToAllButtonText = DefaultApplyToAllText;
+    private string _applyToAllButtonText = localizationService?[LocalizationKeyDefaultApplyToAll] is { Length: > 0 } text && text != LocalizationKeyDefaultApplyToAll ? text : DefaultApplyToAllText;
 
     [ObservableProperty]
     private string _newProfileName = string.Empty;
@@ -160,10 +169,10 @@ public partial class GenHotkeysViewModel(
 #pragma warning restore CS0414
 
     [ObservableProperty]
-    private string _addonButtonText = CreateAddonText;
+    private string _addonButtonText = localizationService?[LocalizationKeyCreateAddon] is { Length: > 0 } createText && createText != LocalizationKeyCreateAddon ? createText : CreateAddonText;
 
     [ObservableProperty]
-    private string _addonButtonToolTip = CreateAddonToolTip;
+    private string _addonButtonToolTip = localizationService?[LocalizationKeyCreateAddonTooltip] is { Length: > 0 } tipText && tipText != LocalizationKeyCreateAddonTooltip ? tipText : CreateAddonToolTip;
 
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
@@ -254,6 +263,12 @@ public partial class GenHotkeysViewModel(
         if (_isInitializing)
         {
             return;
+        }
+
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+            localizationService.PropertyChanged += OnLocalizationPropertyChanged;
         }
 
         _isInitializing = true;
@@ -826,8 +841,8 @@ public partial class GenHotkeysViewModel(
                 ExistingAddonManifest = result.Data;
                 HasExistingAddon = true;
                 SelectedProfile.AddonManifestId = result.Data.Id.Value;
-                AddonButtonText = UpdateAddonText;
-                AddonButtonToolTip = $"Update the existing Addon '{result.Data.Name}' with current hotkey settings.";
+                AddonButtonText = GetLocalizedString("Tools.GenHotkeys.UpdateAddon", UpdateAddonText);
+                AddonButtonToolTip = GetLocalizedString("Tools.GenHotkeys.UpdateAddonTooltip", "Update the existing Addon '{0}' with current hotkey settings.", result.Data.Name);
                 StatusMessage = isUpdate
                     ? $"Success! Addon '{result.Data.Name}' updated in GenHub!"
                     : $"Success! Addon '{result.Data.Name}' registered in GenHub!";
@@ -956,6 +971,11 @@ public partial class GenHotkeysViewModel(
                     }
 
                     addonCheckCts.Dispose();
+                }
+
+                if (localizationService != null)
+                {
+                    localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
                 }
 
                 _saveSemaphore.Dispose();
@@ -1472,13 +1492,13 @@ public partial class GenHotkeysViewModel(
                     vm.SelectedProfile.AddonManifestId = match.Id.Value;
                 }
 
-                vm.AddonButtonText = UpdateAddonText;
-                vm.AddonButtonToolTip = $"Update the existing Addon '{match.Name}' with current hotkey settings.";
+                vm.AddonButtonText = vm.GetLocalizedString("Tools.GenHotkeys.UpdateAddon", UpdateAddonText);
+                vm.AddonButtonToolTip = vm.GetLocalizedString("Tools.GenHotkeys.UpdateAddonTooltip", "Update the existing Addon '{0}' with current hotkey settings.", match.Name);
             }
             else
             {
-                vm.AddonButtonText = CreateAddonText;
-                vm.AddonButtonToolTip = CreateAddonToolTip;
+                vm.AddonButtonText = vm.GetLocalizedString(LocalizationKeyCreateAddon, CreateAddonText);
+                vm.AddonButtonToolTip = vm.GetLocalizedString(LocalizationKeyCreateAddonTooltip, CreateAddonToolTip);
             }
         }
 
@@ -1820,8 +1840,8 @@ public partial class GenHotkeysViewModel(
 
             HasExistingAddon = false;
             ExistingAddonManifest = null;
-            AddonButtonText = CreateAddonText;
-            AddonButtonToolTip = CreateAddonToolTip;
+            AddonButtonText = GetLocalizedString(LocalizationKeyCreateAddon, CreateAddonText);
+            AddonButtonToolTip = GetLocalizedString(LocalizationKeyCreateAddonTooltip, CreateAddonToolTip);
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
             _addonCheckCts = new CancellationTokenSource();
@@ -1833,8 +1853,8 @@ public partial class GenHotkeysViewModel(
             RenameProfileText = string.Empty;
             HasExistingAddon = false;
             ExistingAddonManifest = null;
-            AddonButtonText = CreateAddonText;
-            AddonButtonToolTip = CreateAddonToolTip;
+            AddonButtonText = GetLocalizedString(LocalizationKeyCreateAddon, CreateAddonText);
+            AddonButtonToolTip = GetLocalizedString(LocalizationKeyCreateAddonTooltip, CreateAddonToolTip);
         }
     }
 
@@ -1889,8 +1909,8 @@ public partial class GenHotkeysViewModel(
     partial void OnSelectedActionChanged(HotkeyActionViewModel? value)
     {
         ApplyToAllButtonText = value != null && !string.IsNullOrWhiteSpace(value.DisplayName)
-            ? $"Apply to all {value.DisplayName}"
-            : DefaultApplyToAllText;
+            ? GetLocalizedString("Tools.GenHotkeys.ApplyToAllMatching", "Apply to all {0}", value.DisplayName)
+            : GetLocalizedString(LocalizationKeyDefaultApplyToAll, DefaultApplyToAllText);
     }
 
     private async Task SafeReloadAllAsync(CancellationToken cancellationToken)
@@ -1898,7 +1918,7 @@ public partial class GenHotkeysViewModel(
         try
         {
             IsBusy = true;
-            BusyMessage = "Loading hotkey profiles and tech tree...";
+            BusyMessage = GetLocalizedString("Tools.GenHotkeys.LoadingProfiles", "Loading hotkey profiles and tech tree...");
             await ReloadAllAsync(cancellationToken);
         }
         catch (OperationCanceledException)
@@ -2188,11 +2208,14 @@ public partial class GenHotkeysViewModel(
 
         var allConflicts = CollectAllGlobalConflicts();
         TotalConflictsCount = allConflicts.Count;
+        TotalActionsAffectedCount = allConflicts.Select(c => (c.Faction?.ShortName ?? string.Empty, c.GameObjectName, c.HotkeyString)).Distinct().Count();
         HasConflicts = allConflicts.Count > 0;
 
         if (allConflicts.Count > 0)
         {
-            ConflictStatusText = $"{allConflicts.Count} Conflict{(allConflicts.Count == 1 ? string.Empty : "s")} Detected";
+            ConflictStatusText = allConflicts.Count == 1
+                ? GetLocalizedString("Tools.GenHotkeys.ConflictsCountSingle", "1 conflict detected ({0} total actions affected)", TotalActionsAffectedCount)
+                : GetLocalizedString("Tools.GenHotkeys.ConflictsCountMultiple", "{0} conflicts detected across {1} actions", allConflicts.Count, TotalActionsAffectedCount);
         }
         else
         {
@@ -2245,6 +2268,65 @@ public partial class GenHotkeysViewModel(
         if (profileToSelect != null)
         {
             SelectedProfile = profileToSelect;
+        }
+    }
+
+    private string GetLocalizedString(string key, string fallback) =>
+        localizationService?[key] is { Length: > 0 } localized && localized != key ? localized : fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object?[] args)
+    {
+        if (localizationService != null)
+        {
+            var localized = localizationService.GetString(key);
+            if (!string.IsNullOrEmpty(localized) && !string.Equals(localized, key, StringComparison.Ordinal))
+            {
+                try
+                {
+                    return string.Format(localizationService.CurrentCulture, localized, args);
+                }
+                catch (FormatException)
+                {
+                    // Fall back to formatted fallback string below
+                }
+            }
+        }
+
+        return string.Format(CultureInfo.InvariantCulture, fallback, args);
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ILocalizationService.CurrentCulture) && e.PropertyName != LocalizationConstants.IndexerPropertyName)
+        {
+            return;
+        }
+
+        RefreshLocalizedUiStrings();
+    }
+
+    private void RefreshLocalizedUiStrings()
+    {
+        ApplyToAllButtonText = SelectedAction != null && !string.IsNullOrWhiteSpace(SelectedAction.DisplayName)
+            ? GetLocalizedString("Tools.GenHotkeys.ApplyToAllMatching", "Apply to all {0}", SelectedAction.DisplayName)
+            : GetLocalizedString(LocalizationKeyDefaultApplyToAll, DefaultApplyToAllText);
+
+        if (HasExistingAddon && ExistingAddonManifest != null)
+        {
+            AddonButtonText = GetLocalizedString("Tools.GenHotkeys.UpdateAddon", UpdateAddonText);
+            AddonButtonToolTip = GetLocalizedString("Tools.GenHotkeys.UpdateAddonTooltip", "Update the existing Addon '{0}' with current hotkey settings.", ExistingAddonManifest.Name);
+        }
+        else
+        {
+            AddonButtonText = GetLocalizedString(LocalizationKeyCreateAddon, CreateAddonText);
+            AddonButtonToolTip = GetLocalizedString(LocalizationKeyCreateAddonTooltip, CreateAddonToolTip);
+        }
+
+        if (HasConflicts)
+        {
+            ConflictStatusText = TotalConflictsCount == 1
+                ? GetLocalizedString("Tools.GenHotkeys.ConflictsCountSingle", "1 conflict detected ({0} total actions affected)", TotalActionsAffectedCount)
+                : GetLocalizedString("Tools.GenHotkeys.ConflictsCountMultiple", "{0} conflicts detected across {1} actions", TotalConflictsCount, TotalActionsAffectedCount);
         }
     }
 }

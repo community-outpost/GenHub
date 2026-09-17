@@ -3,11 +3,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows.Input;
 
@@ -22,6 +26,7 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     private readonly Action<Guid> _onMarkAsRead;
     private readonly Action<Guid> _onDismiss;
     private readonly ILogger<NotificationFeedItemViewModel> _logger;
+    private readonly ILocalizationService? _localizationService;
     [ObservableProperty]
     private bool _isRead;
 
@@ -53,7 +58,7 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Gets the formatted time string for display.
     /// </summary>
-    public string FormattedTime => FormatTimestamp(Timestamp);
+    public string FormattedTime => FormatTimestamp(Timestamp, _localizationService);
 
     /// <summary>
     /// Gets a value indicating whether this notification should be shown in the badge count.
@@ -107,16 +112,23 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     /// <param name="onMarkAsRead">Callback to invoke when the notification is marked as read.</param>
     /// <param name="onDismiss">Callback to invoke when the notification is dismissed.</param>
     /// <param name="logger">The logger instance.</param>
+    /// <param name="localizationService">Optional localization service.</param>
     public NotificationFeedItemViewModel(
         NotificationMessage message,
         Action<Guid> onMarkAsRead,
         Action<Guid> onDismiss,
-        ILogger<NotificationFeedItemViewModel> logger)
+        ILogger<NotificationFeedItemViewModel> logger,
+        ILocalizationService? localizationService = null)
     {
         _message = message ?? throw new ArgumentNullException(nameof(message));
         _onMarkAsRead = onMarkAsRead ?? throw new ArgumentNullException(nameof(onMarkAsRead));
         _onDismiss = onDismiss ?? throw new ArgumentNullException(nameof(onDismiss));
         _logger = logger;
+        _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
 
         Id = message.Id;
         Type = message.Type;
@@ -138,6 +150,11 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+        }
+
         GC.SuppressFinalize(this);
     }
 
@@ -145,34 +162,50 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     /// Formats a timestamp for display.
     /// </summary>
     /// <param name="timestamp">The timestamp to format.</param>
+    /// <param name="localizationService">The localization service.</param>
     /// <returns>The formatted time string.</returns>
-    private static string FormatTimestamp(DateTime timestamp)
+    private static string FormatTimestamp(DateTime timestamp, ILocalizationService? localizationService = null)
     {
+        localizationService ??= LocalizationConverterHelper.ResolveLocalizationService();
         var now = DateTime.UtcNow;
         var utcTimestamp = timestamp.ToUniversalTime();
         var diff = now - utcTimestamp;
 
         if (diff.TotalMinutes < 1)
         {
-            return "Just now";
+            return localizationService?.GetString("Common.Time.JustNow") ?? "Just now";
         }
 
         if (diff.TotalMinutes < 60)
         {
-            return $"{diff.Minutes}m ago";
+            var minutes = Math.Max(1, (int)diff.TotalMinutes);
+            return localizationService != null
+                ? string.Format(CultureInfo.CurrentCulture, localizationService.GetString("Common.Time.MinutesAgo") ?? "{0}m ago", minutes)
+                : $"{minutes}m ago";
         }
 
         if (diff.TotalHours < 24)
         {
-            return $"{diff.Hours}h ago";
+            var hours = Math.Max(1, (int)diff.TotalHours);
+            return localizationService != null
+                ? string.Format(CultureInfo.CurrentCulture, localizationService.GetString("Common.Time.HoursAgo") ?? "{0}h ago", hours)
+                : $"{hours}h ago";
         }
 
         if (diff.TotalDays < 7)
         {
-            return $"{diff.Days}d ago";
+            var days = Math.Max(1, (int)diff.TotalDays);
+            return localizationService != null
+                ? string.Format(CultureInfo.CurrentCulture, localizationService.GetString("Common.Time.DaysAgo") ?? "{0}d ago", days)
+                : $"{days}d ago";
         }
 
-        return timestamp.ToLocalTime().ToString("MMM dd");
+        return timestamp.ToLocalTime().ToString("MMM dd", CultureInfo.CurrentCulture);
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(FormattedTime));
     }
 
     /// <summary>

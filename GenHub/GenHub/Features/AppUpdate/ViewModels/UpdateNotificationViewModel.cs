@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -74,6 +75,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private readonly IVelopackUpdateManager _velopackUpdateManager;
     private readonly ILogger<UpdateNotificationViewModel> _logger;
     private readonly IUserSettingsService _userSettingsService;
+    private readonly ILocalizationService? _localizationService;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly List<PullRequestInfo> _allPullRequests = [];
     private CancellationTokenSource? _loadArtifactsCts;
@@ -175,7 +177,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the list of available sort options for pull requests.
     /// </summary>
-    public IReadOnlyList<string> AvailableSortOptions { get; } =
+    [ObservableProperty]
+    private IReadOnlyList<string> _availableSortOptions =
     [
         AppUpdateConstants.SortOptionLastUpdated,
         AppUpdateConstants.SortOptionPrNumberDesc,
@@ -267,12 +270,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             if (IsLoadingVersions)
             {
-                return AppUpdateConstants.LoadingVersionsMessage;
+                return _localizationService?.GetString("Updates.Placeholder.LoadingVersions") ?? AppUpdateConstants.LoadingVersionsMessage;
             }
 
             return AvailableVersions.Count > 0
-                ? AppUpdateConstants.SelectVersionMessage
-                : AppUpdateConstants.NoVersionsFoundMessage;
+                ? (_localizationService?.GetString("Updates.Placeholder.SelectVersion") ?? AppUpdateConstants.SelectVersionMessage)
+                : (_localizationService?.GetString("Updates.Placeholder.NoVersionsFound") ?? AppUpdateConstants.NoVersionsFoundMessage);
         }
     }
 
@@ -331,16 +334,24 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <param name="logger">The logger.</param>
     /// <param name="userSettingsService">The user settings service.</param>
     /// <param name="gitHubTokenStorage">The GitHub token storage.</param>
+    /// <param name="localizationService">The optional localization service.</param>
     public UpdateNotificationViewModel(
         IVelopackUpdateManager velopackUpdateManager,
         ILogger<UpdateNotificationViewModel> logger,
         IUserSettingsService userSettingsService,
-        IGitHubTokenStorage? gitHubTokenStorage = null)
+        IGitHubTokenStorage? gitHubTokenStorage = null,
+        ILocalizationService? localizationService = null)
     {
         _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
+        _localizationService = localizationService;
         _cancellationTokenSource = new CancellationTokenSource();
+
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
 
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync, () => !IsChecking);
         ManualRefreshCommand = new AsyncRelayCommand(ManualRefreshAsync, () => !IsChecking);
@@ -583,15 +594,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             if (IsInstalling)
             {
-                return AppUpdateConstants.InstallingMessage;
+                return _localizationService?.GetString("Updates.Button.Installing") ?? AppUpdateConstants.InstallingMessage;
             }
 
             if (IsChecking || IsLoadingVersions)
             {
-                return AppUpdateConstants.LoadingMessage;
+                return _localizationService?.GetString("Tools.Status.Loading") ?? AppUpdateConstants.LoadingMessage;
             }
 
-            return AppUpdateConstants.InstallUpdateAction;
+            return _localizationService?.GetString("Updates.Button.InstallUpdate") ?? AppUpdateConstants.InstallUpdateAction;
         }
     }
 
@@ -644,6 +655,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         _disposed = true;
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+        }
+
         _loadArtifactsCts?.Cancel();
         _loadArtifactsCts?.Dispose();
         _loadArtifactsCts = null;
@@ -651,6 +667,22 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         _cancellationTokenSource.Cancel();
         _cancellationTokenSource.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return _localizationService?.GetString(key) ?? fallback;
+    }
+
+    private string FormatLocalizedString(string key, string fallbackFormat, params object[] args)
+    {
+        var pattern = _localizationService?.GetString(key);
+        if (string.IsNullOrEmpty(pattern))
+        {
+            return string.Format(fallbackFormat, args);
+        }
+
+        return string.Format(pattern, args);
     }
 
     private void ProcessPrArtifactUpdate(ArtifactUpdateInfo artifact, int prNumber)
@@ -666,17 +698,17 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 IsUpdateAvailable = true;
                 LatestVersion = prVersionBase;
                 ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{prNumber}";
-                StatusMessage = $"New PR build available: {artifact.DisplayVersion}";
+                StatusMessage = FormatLocalizedString("Updates.Status.NewPrBuild", "New PR build available: {0}", artifact.DisplayVersion);
                 _logger.LogInformation("Subscribed to PR #{PrNumber}, new build available: {Version}", prNumber, artifact.DisplayVersion);
                 return;
             }
 
-            StatusMessage = $"You dismissed the update for PR #{prNumber}";
+            StatusMessage = FormatLocalizedString("Updates.Status.PrDismissed", "You dismissed the update for PR #{0}", prNumber);
             return;
         }
 
         IsUpdateAvailable = false;
-        StatusMessage = $"You are on the latest build for PR #{prNumber}";
+        StatusMessage = FormatLocalizedString("Updates.Status.PrLatest", "You are on the latest build for PR #{0}", prNumber);
     }
 
     private void ProcessBranchArtifactUpdate(ArtifactUpdateInfo artifact, string branch)
@@ -692,17 +724,17 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 IsUpdateAvailable = true;
                 LatestVersion = branchVersionBase;
                 ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/tree/{branch}";
-                StatusMessage = $"New {branch} build available: {artifact.DisplayVersion}";
+                StatusMessage = FormatLocalizedString("Updates.Status.NewBranchBuild", "New {0} build available: {1}", branch, artifact.DisplayVersion);
                 _logger.LogInformation("Branch '{Branch}' has new build: {Version}", branch, LatestVersion);
                 return;
             }
 
-            StatusMessage = $"You dismissed the update for branch '{branch}'";
+            StatusMessage = FormatLocalizedString("Updates.Status.BranchDismissed", "You dismissed the update for branch '{0}'", branch);
             return;
         }
 
         IsUpdateAvailable = false;
-        StatusMessage = $"You are on the latest build for {branch}";
+        StatusMessage = FormatLocalizedString("Updates.Status.BranchLatest", "You are on the latest build for {0}", branch);
     }
 
     partial void OnSelectedVersionChanged(ArtifactUpdateInfo? value)
@@ -727,16 +759,16 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 if (!string.IsNullOrEmpty(SubscribedBranch))
                 {
                     ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/tree/{SubscribedBranch}";
-                    StatusMessage = $"New {SubscribedBranch} build available: {value.DisplayVersion}";
+                    StatusMessage = FormatLocalizedString("Updates.Status.NewBranchBuild", "New {0} build available: {1}", SubscribedBranch, value.DisplayVersion);
                 }
                 else if (value.PullRequestNumber.HasValue)
                 {
                     ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{value.PullRequestNumber.Value}";
-                    StatusMessage = $"New PR build available: {value.DisplayVersion}";
+                    StatusMessage = FormatLocalizedString("Updates.Status.NewPrBuild", "New PR build available: {0}", value.DisplayVersion);
                 }
                 else
                 {
-                    StatusMessage = $"New build available: {value.DisplayVersion}";
+                    StatusMessage = FormatLocalizedString("Updates.Status.NewBuild", "New build available: {0}", value.DisplayVersion);
                 }
 
                 return;
@@ -745,7 +777,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             IsUpdateAvailable = false;
             LatestVersion = string.Empty;
             ReleaseNotesUrl = string.Empty;
-            StatusMessage = $"You dismissed update {value.DisplayVersion}";
+            StatusMessage = FormatLocalizedString("Updates.Status.BuildDismissed", "You dismissed update {0}", value.DisplayVersion);
             return;
         }
 
@@ -757,15 +789,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             IsUpdateAvailable = false;
             if (value.PullRequestNumber.HasValue)
             {
-                StatusMessage = $"You are on the latest build for PR #{value.PullRequestNumber.Value}";
+                StatusMessage = FormatLocalizedString("Updates.Status.PrLatest", "You are on the latest build for PR #{0}", value.PullRequestNumber.Value);
             }
             else if (!string.IsNullOrEmpty(SubscribedBranch))
             {
-                StatusMessage = $"You are on the latest build for {SubscribedBranch}";
+                StatusMessage = FormatLocalizedString("Updates.Status.BranchLatest", "You are on the latest build for {0}", SubscribedBranch);
             }
             else
             {
-                StatusMessage = $"You are on the latest build ({value.DisplayVersion})";
+                StatusMessage = FormatLocalizedString("Updates.Status.BuildLatest", "You are on the latest build ({0})", value.DisplayVersion);
             }
         }
         else
@@ -791,7 +823,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             IsChecking = true;
             HasError = false;
             ErrorMessage = string.Empty;
-            StatusMessage = "Checking for updates...";
+            StatusMessage = GetLocalizedString("Updates.Status.CheckingForUpdates", "Checking for updates...");
             IsUpdateAvailable = false;
             ShowPrMergedWarning = false;
 
@@ -898,12 +930,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     IsUpdateAvailable = true;
                     LatestVersion = version;
                     ReleaseNotesUrl = AppConstants.GitHubRepositoryUrl + "/releases/tag/v" + LatestVersion;
-                    StatusMessage = $"Update available: v{LatestVersion}";
+                    StatusMessage = FormatLocalizedString("Updates.Status.UpdateAvailable", "Update available: {0}", $"v{LatestVersion}");
                     _logger.LogInformation("Update available from UpdateManager: {Version}", LatestVersion);
                 }
                 else
                 {
-                    StatusMessage = "You're up to date!";
+                    StatusMessage = GetLocalizedString("Updates.Status.UpToDate", "You're up to date!");
                 }
             }
             else if (_velopackUpdateManager.HasUpdateAvailableFromGitHub)
@@ -915,19 +947,19 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     IsUpdateAvailable = true;
                     LatestVersion = githubVersion ?? GameClientConstants.UnknownVersion;
                     ReleaseNotesUrl = AppConstants.GitHubRepositoryUrl + "/releases/tag/v" + LatestVersion;
-                    StatusMessage = $"Update available: v{LatestVersion}";
+                    StatusMessage = FormatLocalizedString("Updates.Status.UpdateAvailable", "Update available: {0}", $"v{LatestVersion}");
                     _logger.LogInformation("Update available from GitHub API: {Version}", LatestVersion);
                 }
                 else
                 {
-                    StatusMessage = "You're up to date!";
+                    StatusMessage = GetLocalizedString("Updates.Status.UpToDate", "You're up to date!");
                 }
             }
             else
             {
                 IsUpdateAvailable = false;
                 LatestVersion = string.Empty;
-                StatusMessage = "You're up to date!";
+                StatusMessage = GetLocalizedString("Updates.Status.UpToDate", "You're up to date!");
             }
         }
         catch (Exception ex)
@@ -935,7 +967,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Update check failed");
             HasError = true;
             ErrorMessage = $"Failed to check for updates: {ex.Message}";
-            StatusMessage = "Update check failed";
+            StatusMessage = GetLocalizedString("Updates.Status.UpdateCheckFailed", "Update check failed");
             IsUpdateAvailable = false;
         }
         finally
@@ -1636,4 +1668,35 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void UnsubscribeFromPr() => Unsubscribe();
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ILocalizationService.CurrentCulture) && e.PropertyName != LocalizationConstants.IndexerPropertyName)
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(InstallButtonText));
+        OnPropertyChanged(nameof(VersionPlaceholderText));
+        OnPropertyChanged(nameof(DisplayLatestVersion));
+        OnPropertyChanged(nameof(InstalledVersionDisplay));
+
+        if (AvailablePullRequests.Count > 0)
+        {
+            var prs = AvailablePullRequests.ToList();
+            AvailablePullRequests.Clear();
+            foreach (var pr in prs)
+            {
+                AvailablePullRequests.Add(pr);
+            }
+        }
+
+        AvailableSortOptions =
+        [
+            AppUpdateConstants.SortOptionLastUpdated,
+            AppUpdateConstants.SortOptionPrNumberDesc,
+            AppUpdateConstants.SortOptionPrNumberAsc,
+        ];
+        OnPropertyChanged(nameof(SelectedSortOption));
+    }
 }

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
@@ -214,8 +215,11 @@ public static class DemoViewModelFactory
     /// Creates a demo ReplayManagerViewModel with mock data.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
     /// <returns>A configured demo replay manager view model.</returns>
-    public static ReplayManagerViewModel CreateDemoReplayManager(INotificationService? notificationService = null)
+    public static ReplayManagerViewModel CreateDemoReplayManager(
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
     {
         try
         {
@@ -234,7 +238,8 @@ public static class DemoViewModelFactory
                 mockExport,
                 mockHistory,
                 mockNotify,
-                mockLogger);
+                mockLogger,
+                localizationService: localizationService);
 
             _ = Task.Run(() => vm.InitializeAsync());
             return vm;
@@ -250,7 +255,8 @@ public static class DemoViewModelFactory
                 new MockReplayExportService(),
                 new MockUploadHistoryService(),
                 new MockNotificationService(),
-                new MockLogger<ReplayManagerViewModel>());
+                new MockLogger<ReplayManagerViewModel>(),
+                localizationService: localizationService);
         }
     }
 
@@ -258,8 +264,11 @@ public static class DemoViewModelFactory
     /// Creates a demo MapManagerViewModel with mock data.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
     /// <returns>A configured demo map manager view model.</returns>
-    public static MapManagerViewModel CreateDemoMapManager(INotificationService? notificationService = null)
+    public static MapManagerViewModel CreateDemoMapManager(
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
     {
         try
         {
@@ -285,7 +294,8 @@ public static class DemoViewModelFactory
                 mockHistory,
                 mockNotify,
                 parser,
-                mockLogger)
+                mockLogger,
+                localizationService: localizationService)
             {
                 IsMapPackPanelOpen = false,
                 IsHistoryOpen = false,
@@ -307,7 +317,8 @@ public static class DemoViewModelFactory
                 new MockUploadHistoryService(),
                 new MockNotificationService(),
                 new TgaImageParser(new MockLogger<TgaImageParser>()),
-                new MockLogger<MapManagerViewModel>());
+                new MockLogger<MapManagerViewModel>(),
+                localizationService: localizationService);
         }
     }
 

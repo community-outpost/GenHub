@@ -1,17 +1,21 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Catalog;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Mail;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,11 +43,24 @@ public partial class SubscriptionConfirmationViewModel(
     IPublisherSubscriptionStore subscriptionStore,
     IPublisherCatalogParser catalogParser,
     HttpClient httpClient,
-    ILogger<SubscriptionConfirmationViewModel> logger) : ObservableObject
+    ILogger<SubscriptionConfirmationViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     private const string DefaultCategoryKey = "All";
     private const string DefaultPublisherName = "Loading...";
     private const string FallbackPublisherInitial = "P";
+    private PublisherCatalog? _parsedCatalog;
+
+    private string GetLocalizedString(string key, string fallback) =>
+        localizationService?.GetString(key) ?? fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object[] args)
+    {
+        var format = localizationService?.GetString(key);
+        return string.IsNullOrEmpty(format) || string.Equals(format, key, StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, args)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, format, args);
+    }
 
     /// <summary>
     /// Gets or sets an action that occurs when a request is made to close the dialog.
@@ -53,7 +70,7 @@ public partial class SubscriptionConfirmationViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PublisherInitial))]
-    private string _publisherName = DefaultPublisherName;
+    private string _publisherName = localizationService?.GetString("Downloads.Subscription.LoadingPublisher") ?? DefaultPublisherName;
 
     [ObservableProperty]
     private string? _publisherAvatarUrl;
@@ -101,13 +118,15 @@ public partial class SubscriptionConfirmationViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowInitialError))]
     [NotifyPropertyChangedFor(nameof(ShowDetails))]
+    [NotifyPropertyChangedFor(nameof(ShowActionError))]
     private bool _isCatalogLoaded;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowActionError))]
     private string? _errorMessage;
 
     [ObservableProperty]
-    private string _errorTitle = "Failed to Load Catalog";
+    private string _errorTitle = localizationService?.GetString("Downloads.Subscription.ErrorTitle.FailedToLoad") ?? "Failed to Load Catalog";
 
     [ObservableProperty]
     private bool _canConfirm;
@@ -119,7 +138,7 @@ public partial class SubscriptionConfirmationViewModel(
     /// <summary>
     /// Gets the text to display on the confirmation button.
     /// </summary>
-    public string ConfirmButtonText => IsAlreadySubscribed ? "Update Subscription" : "Subscribe to Library";
+    public string ConfirmButtonText => IsAlreadySubscribed ? GetLocalizedString("Downloads.Subscription.UpdateSubscription", "Update Subscription") : GetLocalizedString("Downloads.Subscription.SubscribeToLibrary", "Subscribe to Library");
 
     /// <summary>
     /// Gets a value indicating whether the initial catalog fetch error should be shown.
@@ -132,13 +151,16 @@ public partial class SubscriptionConfirmationViewModel(
     public bool ShowDetails => !IsLoading && IsCatalogLoaded;
 
     /// <summary>
+    /// Gets a value indicating whether an inline action error (like confirm failure) should be shown when catalog is loaded.
+    /// </summary>
+    public bool ShowActionError => IsCatalogLoaded && !string.IsNullOrEmpty(ErrorMessage);
+
+    /// <summary>
     /// Gets the single-letter initial for fallback publisher avatar display.
     /// </summary>
     public string PublisherInitial => !string.IsNullOrWhiteSpace(PublisherName) && !string.Equals(PublisherName, DefaultPublisherName, StringComparison.Ordinal)
         ? PublisherName[..1].ToUpperInvariant()
         : FallbackPublisherInitial;
-
-    private PublisherCatalog? _parsedCatalog;
 
     /// <summary>
     /// Fetches and validates the remote catalog so the user can confirm identity before saving.
@@ -158,7 +180,7 @@ public partial class SubscriptionConfirmationViewModel(
 
             // catalog-direct path: treat the shared URL as PublisherCatalog JSON.
             // future: sniff Provider Definition and branch before this parse.
-            logger.LogInformation("Fetching catalog from {Url}", catalogUrl);
+            logger.LogInformation("Fetching catalog subscription");
             var response = await CatalogDocumentReader.ReadAsync(httpClient, catalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
 
             var result = await catalogParser.ParseCatalogAsync(response, cancellationToken);
@@ -166,7 +188,7 @@ public partial class SubscriptionConfirmationViewModel(
             {
                 _parsedCatalog = result.Data;
                 PublisherName = _parsedCatalog.Publisher.Name;
-                PublisherAvatarUrl = _parsedCatalog.Publisher.AvatarUrl;
+                PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(_parsedCatalog.Publisher.AvatarUrl);
                 PublisherWebsite = _parsedCatalog.Publisher.Website;
                 PublisherSupportUrl = _parsedCatalog.Publisher.SupportUrl ?? string.Empty;
                 PublisherContactEmail = _parsedCatalog.Publisher.ContactEmail ?? string.Empty;
@@ -183,7 +205,15 @@ public partial class SubscriptionConfirmationViewModel(
 
                     var typeGroups = _parsedCatalog.Content
                         .GroupBy(item => item.ContentType)
-                        .Select(group => $"{group.Count()} {group.Key}");
+                        .Select(group =>
+                        {
+                            var typeKey = $"ContentType.{group.Key}";
+                            var localizedType = localizationService?.GetString(typeKey);
+                            var typeDisplay = (!string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal))
+                                ? localizedType
+                                : group.Key.GetDisplayName();
+                            return $"{group.Count()} {typeDisplay}";
+                        });
                     ContentSummary = string.Join(" • ", typeGroups);
 
                     BuildCategoryFilters(DefaultCategoryKey);
@@ -203,7 +233,7 @@ public partial class SubscriptionConfirmationViewModel(
             }
             else
             {
-                ErrorTitle = "Failed to Load Catalog";
+                ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToLoad", "Failed to Load Catalog");
                 ErrorMessage = string.Join(Environment.NewLine, result.Errors);
                 logger.LogWarning("Failed to parse catalog: {Errors}", ErrorMessage);
             }
@@ -215,8 +245,8 @@ public partial class SubscriptionConfirmationViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error initializing subscription confirmation");
-            ErrorTitle = "Failed to Fetch Catalog";
-            ErrorMessage = $"Failed to fetch catalog: {ex.Message}";
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToFetch", "Failed to Fetch Catalog");
+            ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetchFormat", "Failed to fetch catalog: {0}", ex.Message);
         }
         finally
         {
@@ -251,7 +281,7 @@ public partial class SubscriptionConfirmationViewModel(
         try
         {
             if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                uri.Scheme == Uri.UriSchemeHttps)
             {
                 Process.Start(new ProcessStartInfo
                 {
@@ -261,28 +291,37 @@ public partial class SubscriptionConfirmationViewModel(
             }
             else if (url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
             {
-                Process.Start(new ProcessStartInfo
+                var rawAddress = url["mailto:".Length..].Split('?')[0];
+                if (MailAddress.TryCreate(rawAddress, out var mailAddress))
                 {
-                    FileName = url,
-                    UseShellExecute = true,
-                });
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = $"mailto:{mailAddress.Address}",
+                        UseShellExecute = true,
+                    });
+                }
+                else
+                {
+                    logger.LogWarning("Rejected invalid mailto address");
+                }
             }
-            else if (url.Contains('@', StringComparison.Ordinal) && !url.Contains("://", StringComparison.Ordinal))
+            else if (MailAddress.TryCreate(url, out var mailAddress))
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = $"mailto:{url}",
+                    FileName = $"mailto:{mailAddress.Address}",
                     UseShellExecute = true,
                 });
             }
             else
             {
-                logger.LogWarning("Rejected opening unsafe or invalid URL: {Url}", url);
+                logger.LogWarning("Rejected opening unsafe or invalid URL: scheme must be HTTPS or valid email");
+                ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly", "Only secure HTTPS links or valid email addresses can be opened.");
             }
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to open URL in browser: {Url}", url);
+            logger.LogWarning(ex, "Failed to open URL in browser");
         }
     }
 
@@ -296,7 +335,7 @@ public partial class SubscriptionConfirmationViewModel(
     }
 
     [RelayCommand]
-    private async Task ConfirmAsync()
+    private async Task ConfirmAsync(CancellationToken cancellationToken = default)
     {
         if (_parsedCatalog == null) return;
 
@@ -305,13 +344,15 @@ public partial class SubscriptionConfirmationViewModel(
             ErrorMessage = null;
             logger.LogInformation("Confirming subscription for {Publisher}", _parsedCatalog.Publisher.Id);
 
-            var existingTask = subscriptionStore.GetSubscriptionAsync(_parsedCatalog.Publisher.Id);
-            PublisherSubscription? existingSub = null;
-            if (existingTask != null)
+            var existingResult = await subscriptionStore.GetSubscriptionAsync(_parsedCatalog.Publisher.Id, cancellationToken);
+            if (!existingResult.Success)
             {
-                var existingResult = await existingTask;
-                existingSub = existingResult is { Success: true } ? existingResult.Data : null;
+                ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
+                ErrorMessage = string.Join(Environment.NewLine, existingResult.Errors);
+                return;
             }
+
+            var existingSub = existingResult.Data;
 
             var subscription = new PublisherSubscription
             {
@@ -321,12 +362,16 @@ public partial class SubscriptionConfirmationViewModel(
                 DefinitionUrl = existingSub?.DefinitionUrl, // preserve definition URL if already set
                 Added = existingSub?.Added ?? DateTime.UtcNow,
                 TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
-                AvatarUrl = _parsedCatalog.Publisher.AvatarUrl,
+                AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(_parsedCatalog.Publisher.AvatarUrl),
+                AutoUpdate = existingSub?.AutoUpdate ?? true,
+                NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
+                CachedCatalogHash = existingSub?.CachedCatalogHash,
+                LastFetched = existingSub?.LastFetched,
             };
 
             var result = (IsAlreadySubscribed || existingSub != null)
-                ? await subscriptionStore.UpdateSubscriptionAsync(subscription)
-                : await subscriptionStore.AddSubscriptionAsync(subscription);
+                ? await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken)
+                : await subscriptionStore.AddSubscriptionAsync(subscription, cancellationToken);
 
             if (result.Success)
             {
@@ -335,15 +380,19 @@ public partial class SubscriptionConfirmationViewModel(
             }
             else
             {
-                ErrorTitle = IsAlreadySubscribed ? "Failed to Update Subscription" : "Failed to Subscribe";
+                ErrorTitle = IsAlreadySubscribed ? GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription") : GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToSubscribe", "Failed to Subscribe");
                 ErrorMessage = string.Join(Environment.NewLine, result.Errors);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error confirming subscription");
-            ErrorTitle = "Subscription Error";
-            ErrorMessage = $"Failed to save subscription: {ex.Message}";
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
+            ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToSaveFormat", "Failed to save subscription: {0}", ex.Message);
         }
     }
 
@@ -357,17 +406,23 @@ public partial class SubscriptionConfirmationViewModel(
     {
         var filters = new List<CatalogCategoryFilter>
         {
-            new(DefaultCategoryKey, "All", ContentItems.Count, string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase)),
+            new(DefaultCategoryKey, GetLocalizedString("Downloads.Subscription.Category.All", "All"), ContentItems.Count, string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase)),
         };
 
         var groups = ContentItems
-            .GroupBy(item => item.ContentType.ToString())
-            .OrderBy(g => g.Key);
+            .GroupBy(item => item.ContentType)
+            .OrderBy(g => g.Key.ToString());
 
         foreach (var group in groups)
         {
-            var isSelected = string.Equals(activeKey, group.Key, StringComparison.OrdinalIgnoreCase);
-            filters.Add(new CatalogCategoryFilter(group.Key, group.Key, group.Count(), isSelected));
+            var key = group.Key.ToString();
+            var typeKey = $"ContentType.{group.Key}";
+            var localizedType = localizationService?.GetString(typeKey);
+            var typeDisplay = (!string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal))
+                ? localizedType
+                : group.Key.GetDisplayName();
+            var isSelected = string.Equals(activeKey, key, StringComparison.OrdinalIgnoreCase);
+            filters.Add(new CatalogCategoryFilter(key, typeDisplay, group.Count(), isSelected));
         }
 
         CategoryFilters = filters.AsReadOnly();

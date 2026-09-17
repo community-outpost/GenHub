@@ -980,7 +980,7 @@ public sealed partial class ContentGridItemViewModel(
     /// </summary>
     public void LoadBundleComponents()
     {
-        if (BundleComponents.Count > 0)
+        if (BundleComponents.Count > 0 || SearchResult.ContentType != ContentType.ContentBundle)
         {
             return;
         }
