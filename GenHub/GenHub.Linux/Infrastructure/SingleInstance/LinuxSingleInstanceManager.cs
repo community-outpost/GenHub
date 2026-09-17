@@ -4,6 +4,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.SingleInstance;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -87,7 +88,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
     }
 
     [LibraryImport("libc", EntryPoint = "getsockopt", SetLastError = true)]
-    private static partial int getsockopt(int sockfd, int level, int optname, out UCred optval, ref int optlen);
+    private static partial int getsockopt(SafePipeHandle sockfd, int level, int optname, out UCred optval, ref int optlen);
 
     [LibraryImport("libc", EntryPoint = "geteuid")]
     private static partial uint geteuid();
@@ -373,12 +374,10 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         try
         {
             var safeHandle = pipeServer.SafePipeHandle;
-            int fd = safeHandle.DangerousGetHandle().ToInt32();
-
             var ucred = default(UCred);
             int len = Marshal.SizeOf<UCred>();
 
-            int result = getsockopt(fd, SolSocket, SoPeerCred, out ucred, ref len);
+            int result = getsockopt(safeHandle, SolSocket, SoPeerCred, out ucred, ref len);
             if (result != 0)
             {
                 _logger.LogWarning("getsockopt SO_PEERCRED failed with error {Errno}", Marshal.GetLastPInvokeError());

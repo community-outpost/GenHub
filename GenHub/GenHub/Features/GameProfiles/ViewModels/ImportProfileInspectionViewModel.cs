@@ -384,6 +384,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     {
         ErrorMessage = message;
         HasError = true;
-        notificationService?.ShowError("Profile Import Failed", message);
+        var errorTitle = localizationService?.GetString("GameProfiles.ImportInspection.Notification.ImportFailedTitle") ?? "Profile Import Failed";
+        notificationService?.ShowError(errorTitle, message);
     }
 }
