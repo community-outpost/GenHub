@@ -3,8 +3,8 @@
   "contentType": "Patch",
   "version": "2.0.0",
   "author": "TheSuperHackers & Community Outpost",
-  "targetGame": "Generals",
-  "description": "Comprehensive community game patch for Command & Conquer: Generals including balance, scripts, textures, and audio fixes",
+  "targetGame": "ZeroHour",
+  "description": "Comprehensive community game patch for Command & Conquer Generals Zero Hour including balance, scripts, textures, and audio fixes",
   "directories": {
     "configs": "config",
     "gameFilesEdited": "GameFilesEdited",

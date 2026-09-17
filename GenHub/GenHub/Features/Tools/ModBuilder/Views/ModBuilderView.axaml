@@ -164,7 +164,7 @@
             <Border Width="38" Height="38" Background="{DynamicResource AccentBadgeBackgroundBrush}"
                     BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
                     CornerRadius="8" VerticalAlignment="Center">
-              <Path Width="18" Height="18" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}"
+              <Path Width="18" Height="18" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconModBuilder}"
                     HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform"/>
             </Border>
             <StackPanel VerticalAlignment="Center">
@@ -172,80 +172,16 @@
               <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             </StackPanel>
             <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
-                     Watermark="{localization:Localize Tools.ModBuilder.View.NoProjectLoadedWatermark}" Width="200" MaxWidth="240"
+                     Watermark="{localization:Localize Tools.ModBuilder.View.NoProjectLoadedWatermark}" MinWidth="260" MaxWidth="440"
                      Background="{DynamicResource SurfaceElevatedBrush}"
                      BorderBrush="{DynamicResource BorderBrush}"
                      CornerRadius="8" Padding="10,6"
                      VerticalAlignment="Center" VerticalContentAlignment="Center"
                      Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="8,0,0,0"/>
-
-            <!-- Target Game Selector -->
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0"
-                        IsVisible="{Binding IsProjectLoaded}">
-              <TextBlock Text="{localization:Localize Tools.ModBuilder.View.LabelTarget}" FontSize="11" Foreground="{DynamicResource TextSecondary}"
-                         VerticalAlignment="Center" FontWeight="SemiBold"/>
-              <ComboBox ItemsSource="{Binding AvailableTargetGames}"
-                        SelectedItem="{Binding SelectedTargetGame}"
-                        Padding="8,4" CornerRadius="6" FontSize="11.5"
-                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipTargetGame}">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="{Binding Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" />
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-            </StackPanel>
-
-            <!-- Content Type Selector -->
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="6,0,0,0"
-                        IsVisible="{Binding IsProjectLoaded}">
-              <TextBlock Text="{localization:Localize Tools.ModBuilder.View.LabelType}" FontSize="11" Foreground="{DynamicResource TextSecondary}"
-                         VerticalAlignment="Center" FontWeight="SemiBold"/>
-              <ComboBox ItemsSource="{Binding AvailableContentTypes}"
-                        SelectedItem="{Binding SelectedContentType}"
-                        Padding="8,4" CornerRadius="6" FontSize="11.5"
-                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipContentType}">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-            </StackPanel>
           </StackPanel>
 
           <!-- Quick Actions -->
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <Button Command="{Binding NewProjectCommand}" Classes="header-action-btn"
-                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipNewProject}">
-              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconNewProject}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonNew}" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
-            <Button Command="{Binding LoadProjectCommand}" Classes="header-action-btn"
-                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenProject}">
-              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpen}" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
-            <Button Command="{Binding OpenFileManagerCommand}" Classes="header-action-btn"
-                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
-                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipAssetManager}">
-              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="13" Height="13" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonAssetManager}" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
-            <Button Command="{Binding ImportBigFilesCommand}" Classes="header-action-btn"
-                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
-                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipImportBig}">
-              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="13" Height="13" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchive}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonImportBig}" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
             <Button Command="{Binding SaveProjectCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipSaveProject}">
@@ -330,6 +266,12 @@
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonGameAssetManager}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding ImportBigFilesCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipImportBig}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchive}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonImportBig}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
                 <Button Command="{Binding OpenConfigEditorCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipEditConfiguration}">
