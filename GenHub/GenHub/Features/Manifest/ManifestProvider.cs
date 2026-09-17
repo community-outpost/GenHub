@@ -226,61 +226,12 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             return embedded;
         }
 
-        // 3. Generate fallback (optional)
-        if (options.GenerateFallbackManifests)
+        if (!options.GenerateFallbackManifests)
         {
-            logger.LogInformation("Generating fallback manifest for installation {Id}", gameInstallation.Id);
-
-            // Determine the correct source path based on the game type
-            var manifestGameType = gameType;
-            var sourcePath = manifestGameType == GameType.ZeroHour
-                ? (!string.IsNullOrEmpty(gameInstallation.ZeroHourPath) ? gameInstallation.ZeroHourPath : gameInstallation.InstallationPath)
-                : (!string.IsNullOrEmpty(gameInstallation.GeneralsPath) ? gameInstallation.GeneralsPath : gameInstallation.InstallationPath);
-
-            var publisherName = gameInstallation.InstallationType.GetDisplayName();
-
-            var builder = manifestBuilder
-                .WithBasicInfo(gameInstallation.InstallationType, manifestGameType, manifestVersion)
-                .WithContentType(ContentType.GameInstallation, manifestGameType)
-                .WithPublisher(publisherName, string.Empty)
-                .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
-                .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
-
-            // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
-            // to dramatically improve scan performance. This is acceptable because:
-            // 1. Future implementation will use CSV-based authority from GitHub
-            // 2. CSV will contain file lists specific to EA/Steam installation types and languages
-            // 3. Users don't modify game installation files, so integrity checking via hashes is unnecessary
-            // 4. Hash computation for thousands of files takes significant time during game scanning
-            //
-            // The CSV authority system will be implemented in a future PR and will:
-            // - Download CSV from GitHub based on installation type (EA/Steam), language, and version
-            // - Generate manifest directly from CSV without filesystem scanning
-            // - Only scan filesystem to verify installation completeness
-            //
-            // For now: Manifest files will have Hash=null for GameInstallation source type
-            if (!string.IsNullOrEmpty(sourcePath) && Directory.Exists(sourcePath))
-            {
-                await builder.AddFilesFromDirectoryAsync(sourcePath, ContentSourceType.GameInstallation);
-            }
-
-            var generated = builder.Build();
-
-            // Validate ID before adding to pool
-            ManifestIdValidator.EnsureValid(generated.Id.Value);
-            EnsureManifestAccepted(generated, deterministicId);
-            var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, null, cancellationToken);
-            if (addRes2?.Success != true)
-            {
-                logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? []));
-            }
-
-            return generated;
+            return null;
         }
 
-        // If fallback generation is disabled (e.g., tests), return null to preserve legacy behavior
-        return null;
+        return await GenerateInstallationManifestAsync(gameInstallation, gameType, manifestVersion, deterministicId, cancellationToken);
     }
 
     private static void ValidateManifestSecurity(ContentManifest manifest)
@@ -316,6 +267,64 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
         {
             throw new ManifestValidationException(requestedId, rejectionReason!);
         }
+    }
+
+    private async Task<ContentManifest> GenerateInstallationManifestAsync(
+        GameInstallation gameInstallation,
+        GameType gameType,
+        string manifestVersion,
+        string deterministicId,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Generating fallback manifest for installation {Id}", gameInstallation.Id);
+
+        // Determine the correct source path based on the game type
+        var manifestGameType = gameType;
+        var gamePath = manifestGameType == GameType.ZeroHour
+            ? gameInstallation.ZeroHourPath
+            : gameInstallation.GeneralsPath;
+        var sourcePath = string.IsNullOrEmpty(gamePath) ? gameInstallation.InstallationPath : gamePath;
+
+        var publisherName = gameInstallation.InstallationType.GetDisplayName();
+
+        var builder = manifestBuilder
+            .WithBasicInfo(gameInstallation.InstallationType, manifestGameType, manifestVersion)
+            .WithContentType(ContentType.GameInstallation, manifestGameType)
+            .WithPublisher(publisherName, string.Empty)
+            .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
+            .AddRequiredDirectories("Data", "Maps")
+            .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
+
+        // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
+        // to dramatically improve scan performance. This is acceptable because:
+        // 1. Future implementation will use CSV-based authority from GitHub
+        // 2. CSV will contain file lists specific to EA/Steam installation types and languages
+        // 3. Users don't modify game installation files, so integrity checking via hashes is unnecessary
+        // 4. Hash computation for thousands of files takes significant time during game scanning
+        //
+        // The CSV authority system will be implemented in a future PR and will:
+        // - Download CSV from GitHub based on installation type (EA/Steam), language, and version
+        // - Generate manifest directly from CSV without filesystem scanning
+        // - Only scan filesystem to verify installation completeness
+        //
+        // For now: Manifest files will have Hash=null for GameInstallation source type
+        if (!string.IsNullOrEmpty(sourcePath) && Directory.Exists(sourcePath))
+        {
+            await builder.AddFilesFromDirectoryAsync(sourcePath, ContentSourceType.GameInstallation);
+        }
+
+        var generated = builder.Build();
+
+        // Validate ID before adding to pool
+        ManifestIdValidator.EnsureValid(generated.Id.Value);
+        EnsureManifestAccepted(generated, deterministicId);
+        var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, null, cancellationToken);
+        if (addRes2?.Success != true)
+        {
+            logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? []));
+        }
+
+        return generated;
     }
 
     /// <summary>Loads and caches an embedded installation manifest when available.</summary>
