@@ -158,8 +158,6 @@ public partial class AddContentDialogViewModel(
     /// </summary>
     public bool ShowAddonParentSelection => CanExtend;
 
-
-
     /// <summary>
     /// Initializes a new instance of the <see cref="AddContentDialogViewModel"/> class in edit mode.
     /// </summary>

@@ -46,8 +46,7 @@ public class PublisherStudioConfirmationAndAuthTests
         var vm = new PublisherStudioViewModel(
             _mockStudioLogger.Object,
             _mockStudioService.Object,
-            _mockDialogService.Object,
-            autoInitialize: false);
+            _mockDialogService.Object);
 
         var project = new PublisherStudioProject { ProjectPath = "test/project.json" };
         var cat1 = new NamedCatalog { Id = "cat1", Name = "Catalog 1" };
@@ -98,8 +97,7 @@ public class PublisherStudioConfirmationAndAuthTests
         var vm = new PublisherStudioViewModel(
             _mockStudioLogger.Object,
             _mockStudioService.Object,
-            _mockDialogService.Object,
-            autoInitialize: false);
+            _mockDialogService.Object);
 
         var project = new PublisherStudioProject { ProjectPath = "test/project.json" };
         var cat1 = new NamedCatalog { Id = "cat1", Name = "Catalog 1" };

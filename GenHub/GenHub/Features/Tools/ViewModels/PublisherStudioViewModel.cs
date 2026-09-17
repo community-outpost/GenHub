@@ -23,6 +23,8 @@ namespace GenHub.Features.Tools.ViewModels;
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies for Publisher Studio operations.")]
+[method: System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies for Publisher Studio operations.")]
 public partial class PublisherStudioViewModel(
     ILogger<PublisherStudioViewModel> logger,
     IPublisherStudioService publisherStudioService,
@@ -49,7 +51,7 @@ public partial class PublisherStudioViewModel(
     /// <summary>Tab index for the Publish &amp; Share tab.</summary>
     public const int TabPublishShare = 4;
 
-    private const string StudioNotificationTitle = "Publisher Studio";
+    private string StudioNotificationTitle => localizationService?.GetString("Tools.PublisherStudio.Title") ?? "Publisher Studio";
 
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
@@ -211,6 +213,41 @@ public partial class PublisherStudioViewModel(
         }
     }
 
+    /// <summary>
+    /// Initializes the view model by loading the last used or default project.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task InitializeAsync()
+    {
+        try
+        {
+            var lastPath = await LoadLastProjectPathAsync();
+            if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath))
+            {
+                await LoadProjectFromPathAsync(lastPath);
+                return;
+            }
+
+            var defaultPath = GetDefaultProjectPath();
+            if (File.Exists(defaultPath))
+            {
+                await LoadProjectFromPathAsync(defaultPath);
+                return;
+            }
+
+            await CreateNewProjectInternalAsync(showWizard: false);
+            if (CurrentProject != null)
+            {
+                CurrentProject.ProjectPath = defaultPath;
+                await SaveProjectAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to initialize PublisherStudioViewModel");
+        }
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -304,37 +341,6 @@ public partial class PublisherStudioViewModel(
         }
 
         return Path.Combine(projectDir, "default-publisher.json");
-    }
-
-    private async Task InitializeAsync()
-    {
-        try
-        {
-            var lastPath = await LoadLastProjectPathAsync();
-            if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath))
-            {
-                await LoadProjectFromPathAsync(lastPath);
-                return;
-            }
-
-            var defaultPath = GetDefaultProjectPath();
-            if (File.Exists(defaultPath))
-            {
-                await LoadProjectFromPathAsync(defaultPath);
-                return;
-            }
-
-            await CreateNewProjectInternalAsync(showWizard: false);
-            if (CurrentProject != null)
-            {
-                CurrentProject.ProjectPath = defaultPath;
-                await SaveProjectAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to initialize PublisherStudioViewModel");
-        }
     }
 
     [RelayCommand]
@@ -628,7 +634,7 @@ public partial class PublisherStudioViewModel(
             return;
 
         // Check if hosting state file exists
-        if (!hostingStateManager.StateFileExists(CurrentProject.ProjectPath))
+        if (hostingStateManager == null || !hostingStateManager.StateFileExists(CurrentProject.ProjectPath))
         {
             CurrentProject.Catalogs ??= [];
 
@@ -700,7 +706,7 @@ public partial class PublisherStudioViewModel(
         PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger);
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService);
         PublishShareViewModel?.Dispose();
-        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService);
+        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService);
 
         // Check for hosting state recovery

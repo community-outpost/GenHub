@@ -450,6 +450,15 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     /// Closes the dialog without saving.
     /// </summary>
     [RelayCommand]
+    private void Close()
+    {
+        // Dialog window will be closed by view binding
+    }
+
+    /// <summary>
+    /// Cancels the dialog without saving.
+    /// </summary>
+    [RelayCommand]
     private void Cancel()
     {
         // Dialog window will be closed by view binding

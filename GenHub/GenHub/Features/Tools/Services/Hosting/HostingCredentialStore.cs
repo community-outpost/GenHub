@@ -84,8 +84,7 @@ public class HostingCredentialStore(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to securely save credential for provider {ProviderId}", providerId);
-            throw;
+            throw new InvalidOperationException($"Failed to securely save credential for provider {providerId}", ex);
         }
     }
 

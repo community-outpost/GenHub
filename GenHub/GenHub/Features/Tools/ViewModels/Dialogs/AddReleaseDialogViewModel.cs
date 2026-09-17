@@ -22,7 +22,6 @@ public partial class AddReleaseDialogViewModel(
     Action<ContentRelease> onReleaseCreated,
     IPublisherStudioDialogService dialogService) : ObservableValidator
 {
-    private readonly ContentRelease? _existingRelease;
     private readonly string? _originalVersion;
 
     [ObservableProperty]
@@ -152,7 +151,6 @@ public partial class AddReleaseDialogViewModel(
     {
         ArgumentNullException.ThrowIfNull(existing);
 
-        _existingRelease = existing;
         IsEditMode = true;
         _originalVersion = existing.Version;
         Version = existing.Version;
@@ -178,10 +176,10 @@ public partial class AddReleaseDialogViewModel(
     partial void OnVersionChanged(string value) => Validate();
 
     /// <summary>
-    /// Suggests the next version based on existing releases.
+    /// Applies the suggested next version based on existing releases.
     /// </summary>
     [RelayCommand]
-    private void SuggestVersion()
+    private void ApplySuggestedVersion()
     {
         Version = SuggestedVersion;
     }
@@ -263,6 +261,15 @@ public partial class AddReleaseDialogViewModel(
 
     /// <summary>
     /// Closes the dialog without saving.
+    /// </summary>
+    [RelayCommand]
+    private void Close()
+    {
+        // Dialog window will be closed by view binding
+    }
+
+    /// <summary>
+    /// Cancels the dialog without saving.
     /// </summary>
     [RelayCommand]
     private void Cancel()

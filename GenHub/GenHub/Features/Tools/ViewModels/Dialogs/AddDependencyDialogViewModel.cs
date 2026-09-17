@@ -94,7 +94,7 @@ public partial class AddDependencyDialogViewModel(
     /// <summary>
     /// Gets display text for a content item in the dropdown.
     /// </summary>
-    /// <param name=\"content\">The content item.</param>
+    /// <param name="content">The content item.</param>
     /// <returns>Display text showing name and latest version.</returns>
     public static string GetContentDisplayText(CatalogContentItem content)
     {
@@ -121,7 +121,7 @@ public partial class AddDependencyDialogViewModel(
     /// <summary>
     /// Releases unmanaged and - optionally - managed resources.
     /// </summary>
-    /// <param name=\"disposing\"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (disposing)
@@ -142,7 +142,7 @@ public partial class AddDependencyDialogViewModel(
     /// <summary>
     /// Applies an example version constraint.
     /// </summary>
-    /// <param name=\"example\">The example constraint to apply.</param>
+    /// <param name="example">The example constraint to apply.</param>
     [RelayCommand]
     private void ApplyVersionConstraintExample(string? example)
     {

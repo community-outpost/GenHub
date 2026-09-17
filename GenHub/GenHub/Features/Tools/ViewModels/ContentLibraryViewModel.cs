@@ -15,6 +15,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// ViewModel for the Content Library tab in Publisher Studio.
 /// Scoped to the currently active catalog.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
 public partial class ContentLibraryViewModel(
     PublisherStudioProject project,
     NamedCatalog activeCatalog,
@@ -32,6 +33,11 @@ public partial class ContentLibraryViewModel(
 
     [ObservableProperty]
     private string _searchText = string.Empty;
+
+    /// <summary>
+    /// Gets the publisher studio project.
+    /// </summary>
+    public PublisherStudioProject Project => project;
 
     /// <summary>
     /// Gets the name of the active catalog.
@@ -231,7 +237,7 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var confirmed = await dialogService.ShowConfirmationDialogAsync(
+        var confirmed = await dialogService.ShowConfirmationAsync(
             "Delete Content Item",
             $"Are you sure you want to delete '{SelectedContent.Name}' ({SelectedContent.Id})? This will also remove all its releases and artifacts.");
 
@@ -336,10 +342,10 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
-    /// Removes a release from the selected content item.
+    /// Deletes a release from the selected content item.
     /// </summary>
     [RelayCommand]
-    private async Task RemoveReleaseAsync(ContentRelease? release)
+    private async Task DeleteReleaseAsync(ContentRelease? release)
     {
         if (SelectedContent == null || release == null)
         {

@@ -70,7 +70,16 @@ public static class NetworkSecurityHelper
             return false;
         }
 
-        // Loopback ::1 (0...01)
+        if (IsLoopbackOrUnspecified(b) || IsPrivateOrLocalIpv6(b))
+        {
+            return false;
+        }
+
+        return IsEmbeddedIpv4Safe(b);
+    }
+
+    private static bool IsLoopbackOrUnspecified(ReadOnlySpan<byte> b)
+    {
         var allZeroExceptLast = true;
         for (var i = 0; i < 15; i++)
         {
@@ -81,89 +90,59 @@ public static class NetworkSecurityHelper
             }
         }
 
-        if (allZeroExceptLast && b[15] == 1)
-        {
-            return false;
-        }
+        return allZeroExceptLast && (b[15] == 0 || b[15] == 1);
+    }
 
-        // Unspecified :: (all zeros)
-        var allZero = true;
-        for (var i = 0; i < 16; i++)
-        {
-            if (b[i] != 0)
-            {
-                allZero = false;
-                break;
-            }
-        }
-
-        if (allZero)
-        {
-            return false;
-        }
-
+    private static bool IsPrivateOrLocalIpv6(ReadOnlySpan<byte> b)
+    {
         // Unique Local Addresses (fc00::/7 -> fc00:: to fdff::)
         if ((b[0] & 0xfe) == 0xfc)
         {
-            return false;
+            return true;
         }
 
         // Link-Local Unicast (fe80::/10 -> fe80:: to febf::)
         if (b[0] == 0xfe && (b[1] & 0xc0) == 0x80)
         {
-            return false;
+            return true;
         }
 
         // Multicast (ff00::/8)
         if (b[0] == 0xff)
         {
-            return false;
+            return true;
         }
 
-        // IPv4-mapped IPv6 (::ffff:0:0/96, e.g. ::ffff:169.254.169.254)
-        // b[0..9] == 0, b[10] == 0xff, b[11] == 0xff, b[12..15] is IPv4
-        var isIpv4Mapped = true;
-        for (var i = 0; i < 10; i++)
+        // Local-Use NAT64 prefix (64:ff9b:1::/48)
+        if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0x00 && b[5] == 0x01)
         {
-            if (b[i] != 0)
-            {
-                isIpv4Mapped = false;
-                break;
-            }
+            return true;
         }
 
-        if (isIpv4Mapped && b[10] == 0xff && b[11] == 0xff)
+        return false;
+    }
+
+    private static bool IsEmbeddedIpv4Safe(ReadOnlySpan<byte> b)
+    {
+        // IPv4-mapped IPv6 (::ffff:0:0/96)
+        if (IsIpv4MappedPrefix(b))
         {
             return IsSafeIPv4(b.Slice(12, 4));
         }
 
         // IPv4-compatible IPv6 (deprecated, ::0:0/96)
-        // b[0..11] == 0, b[12..15] is IPv4
-        var isIpv4Compatible = true;
-        for (var i = 0; i < 12; i++)
-        {
-            if (b[i] != 0)
-            {
-                isIpv4Compatible = false;
-                break;
-            }
-        }
-
-        if (isIpv4Compatible)
+        if (IsIpv4CompatiblePrefix(b))
         {
             return IsSafeIPv4(b.Slice(12, 4));
         }
 
         // 6to4 translation (2002::/16)
-        // b[0] == 0x20 && b[1] == 0x02, bytes 2..5 embed the IPv4 address
         if (b[0] == 0x20 && b[1] == 0x02)
         {
             return IsSafeIPv4(b.Slice(2, 4));
         }
 
         // Teredo tunneling (2001:0000::/32)
-        // b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x00 && b[3] == 0x00
-        // bytes 12..15 are the XOR'd client IPv4 address (^ 0xFF)
         if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x00 && b[3] == 0x00)
         {
             Span<byte> xoredIpv4 = stackalloc byte[4];
@@ -174,34 +153,50 @@ public static class NetworkSecurityHelper
             return IsSafeIPv4(xoredIpv4);
         }
 
-        // Well-Known NAT64 prefix (64:ff9b::/96)
-        // b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b
-        // bytes 4..11 == 0, bytes 12..15 embed the IPv4 address
-        var isNat64WellKnown = b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b;
-        if (isNat64WellKnown)
-        {
-            for (var i = 4; i < 12; i++)
-            {
-                if (b[i] != 0)
-                {
-                    isNat64WellKnown = false;
-                    break;
-                }
-            }
+        return IsNat64WellKnownSafe(b);
+    }
 
-            if (isNat64WellKnown)
+    private static bool IsIpv4MappedPrefix(ReadOnlySpan<byte> b)
+    {
+        for (var i = 0; i < 10; i++)
+        {
+            if (b[i] != 0)
             {
-                return IsSafeIPv4(b.Slice(12, 4));
+                return false;
             }
         }
 
-        // Local-Use NAT64 prefix (64:ff9b:1::/48)
-        // b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0x00 && b[5] == 0x01
-        if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0x00 && b[5] == 0x01)
+        return b[10] == 0xff && b[11] == 0xff;
+    }
+
+    private static bool IsIpv4CompatiblePrefix(ReadOnlySpan<byte> b)
+    {
+        for (var i = 0; i < 12; i++)
         {
-            return false; // Local NAT64 networks are private/local
+            if (b[i] != 0)
+            {
+                return false;
+            }
         }
 
         return true;
+    }
+
+    private static bool IsNat64WellKnownSafe(ReadOnlySpan<byte> b)
+    {
+        if (b[0] != 0x00 || b[1] != 0x64 || b[2] != 0xff || b[3] != 0x9b)
+        {
+            return true;
+        }
+
+        for (var i = 4; i < 12; i++)
+        {
+            if (b[i] != 0)
+            {
+                return true;
+            }
+        }
+
+        return IsSafeIPv4(b.Slice(12, 4));
     }
 }
