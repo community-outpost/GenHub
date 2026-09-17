@@ -988,7 +988,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
     }
 
-    private string FormatDisplayVersion(string? publisherType, string version)
+    private static string FormatDisplayVersion(string? publisherType, string version)
     {
         var pub = publisherType?.ToLowerInvariant() ?? string.Empty;
         if (pub == PublisherTypeConstants.GeneralsOnline)

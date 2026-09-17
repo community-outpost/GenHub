@@ -818,7 +818,7 @@ public partial class GameProfileSettingsViewModel
         return SelectedGameInstallation?.GameClient?.Clone();
     }
 
-    private void HydrateClientPaths(GameClient target, GameClient? source)
+    private static void HydrateClientPaths(GameClient target, GameClient? source)
     {
         if (source == null)
         {
@@ -836,47 +836,12 @@ public partial class GameProfileSettingsViewModel
         }
     }
 
-    private GameClient CreateGameClientFromDisplayItem(ContentDisplayItem item, string? installationId)
+    private static GameClient CreateGameClientFromDisplayItem(ContentDisplayItem item, string? installationId)
     {
-        string? publisherType = null;
-        var version = !string.IsNullOrWhiteSpace(item.Version) ? item.Version : string.Empty;
-
         var manifestIdValue = item.ManifestId.Value ?? string.Empty;
         var segments = manifestIdValue.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
-        if (segments.Length >= 4)
-        {
-            publisherType = segments[2].ToLowerInvariant();
-            if (string.IsNullOrEmpty(version) && !string.IsNullOrEmpty(segments[1]))
-            {
-                if (int.TryParse(segments[1], out var verNum) && verNum > 0)
-                {
-                    if (publisherType == PublisherTypeConstants.GeneralsOnline)
-                    {
-                        version = verNum.ToString("D6");
-                    }
-                    else if (verNum >= ManifestConstants.DateBasedVersionThreshold)
-                    {
-                        version = segments[1];
-                    }
-                    else if (verNum >= 100)
-                    {
-                        version = $"{verNum / 100}.{verNum % 100:D2}";
-                    }
-                    else
-                    {
-                        version = verNum.ToString();
-                    }
-                }
-                else if (!string.Equals(segments[1], "0", StringComparison.OrdinalIgnoreCase))
-                {
-                    version = segments[1];
-                }
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(item.Publisher))
-        {
-            publisherType = item.Publisher.Trim().ToLowerInvariant().Replace(" ", string.Empty);
-        }
+        var publisherType = ExtractPublisherType(segments, item.Publisher);
+        var version = ExtractClientVersion(item.Version, segments, publisherType);
 
         return new GameClient
         {
@@ -888,6 +853,59 @@ public partial class GameProfileSettingsViewModel
             PublisherType = publisherType,
             InstallationId = installationId,
         };
+    }
+
+    private static string? ExtractPublisherType(string[] segments, string? itemPublisher)
+    {
+        if (segments.Length >= 4)
+        {
+            return segments[2].ToLowerInvariant();
+        }
+
+        if (!string.IsNullOrWhiteSpace(itemPublisher))
+        {
+            return itemPublisher.Trim().ToLowerInvariant().Replace(" ", string.Empty);
+        }
+
+        return null;
+    }
+
+    private static string ExtractClientVersion(string? currentVersion, string[] segments, string? publisherType)
+    {
+        if (!string.IsNullOrWhiteSpace(currentVersion))
+        {
+            return currentVersion;
+        }
+
+        if (segments.Length < 4 || string.IsNullOrEmpty(segments[1]))
+        {
+            return string.Empty;
+        }
+
+        var versionSegment = segments[1];
+        if (int.TryParse(versionSegment, out var verNum) && verNum > 0)
+        {
+            if (publisherType == PublisherTypeConstants.GeneralsOnline)
+            {
+                return verNum.ToString("D6");
+            }
+
+            if (verNum >= ManifestConstants.DateBasedVersionThreshold)
+            {
+                return versionSegment;
+            }
+
+            if (verNum >= 100)
+            {
+                return $"{verNum / 100}.{verNum % 100:D2}";
+            }
+
+            return verNum.ToString();
+        }
+
+        return !string.Equals(versionSegment, "0", StringComparison.OrdinalIgnoreCase)
+            ? versionSegment
+            : string.Empty;
     }
 
     private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)
