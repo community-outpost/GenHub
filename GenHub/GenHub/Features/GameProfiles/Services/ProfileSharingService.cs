@@ -3246,12 +3246,17 @@ public class ProfileSharingService(
             baseName = ProfileSharingConstants.DefaultSharedProfileName;
         }
 
-        if (baseName.Length > 100)
+        if (baseName.Length > ProfileSharingConstants.MaxProfileNameLength)
         {
-            baseName = baseName[..100].Trim();
+            baseName = baseName[..ProfileSharingConstants.MaxProfileNameLength].Trim();
         }
 
-        string suggestedName = profileName;
+        string suggestedName = profileName.Trim();
+        if (suggestedName.Length > ProfileSharingConstants.MaxProfileNameLength)
+        {
+            suggestedName = baseName;
+        }
+
         bool hasNameConflict = false;
 
         var allProfilesResult = await profileRepository.LoadAllProfilesAsync(cancellationToken);
@@ -3262,10 +3267,17 @@ public class ProfileSharingService(
             {
                 hasNameConflict = true;
                 int counter = 1;
-                suggestedName = $"{baseName} ({counter})";
+                string suffix = $" ({counter})";
+                int maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
+                string truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
+                suggestedName = $"{truncatedBase}{suffix}";
                 while (existingNames.Contains(suggestedName))
                 {
-                    suggestedName = $"{baseName} ({++counter})";
+                    counter++;
+                    suffix = $" ({counter})";
+                    maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
+                    truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
+                    suggestedName = $"{truncatedBase}{suffix}";
                 }
             }
         }

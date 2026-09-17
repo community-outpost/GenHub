@@ -2796,6 +2796,76 @@ public class ProfileSharingServiceTests
         Assert.Equal("GitHub", dep.Publisher);
     }
 
+    /// <summary>
+    /// Verifies that inspecting a package with a name exceeding the maximum profile name length truncates the suggested name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InspectSharedProfileAsync_Should_TruncateSuggestedName_WhenProfileNameExceedsMaxLengthAsync()
+    {
+        // Arrange
+        var longName = new string('A', 120);
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = longName,
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests = [],
+        };
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
+
+        // Act
+        var result = await _service.InspectSharedProfileAsync(json);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data.SuggestedProfileName.Length <= ProfileSharingConstants.MaxProfileNameLength);
+        Assert.Equal(ProfileSharingConstants.MaxProfileNameLength, result.Data.SuggestedProfileName.Length);
+        Assert.False(result.Data.HasNameConflict);
+    }
+
+    /// <summary>
+    /// Verifies that when a long profile name conflicts with an existing profile, the counter suffix is appended without exceeding max length.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InspectSharedProfileAsync_Should_AppendConflictCounterWithoutExceedingMaxLengthAsync()
+    {
+        // Arrange
+        var longName = new string('B', ProfileSharingConstants.MaxProfileNameLength);
+        var existingProfile = CreateTestProfile("prof-conflict", longName);
+        _profileRepositoryMock.Setup(r => r.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([existingProfile]));
+
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata
+            {
+                Name = longName,
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests = [],
+        };
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
+
+        // Act
+        var result = await _service.InspectSharedProfileAsync(json);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data.HasNameConflict);
+        Assert.True(result.Data.SuggestedProfileName.Length <= ProfileSharingConstants.MaxProfileNameLength);
+        Assert.EndsWith(" (1)", result.Data.SuggestedProfileName);
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile

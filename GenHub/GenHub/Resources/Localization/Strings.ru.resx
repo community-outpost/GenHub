@@ -7671,6 +7671,7 @@ GenHub передает официальный идентификатор AppID 
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Обновление {0}: {1:0}% ({2}/{3} файлов)</value>
   </data>
+  >>>>>>> theirs
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>Требуется проверка ModDB</value>
   </data>
@@ -7871,6 +7872,67 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>Не удалось инициализировать рабочую область для «{0}».</value>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
+    <value>Загрузка удалена</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Message" xml:space="preserve">
+    <value>Файл {0} удален из истории загрузок.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoveError" xml:space="preserve">
+    <value>Не удалось удалить запись из истории загрузок.</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Title" xml:space="preserve">
+    <value>Очистить историю загрузок</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Message" xml:space="preserve">
+    <value>Вы уверены, что хотите очистить всю историю загрузок и удалить загруженные файлы из облачного хранилища?</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Confirm" xml:space="preserve">
+    <value>Очистить все</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Title" xml:space="preserve">
+    <value>Загрузки очищены</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Message" xml:space="preserve">
+    <value>Все активные записи о загрузках удалены.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.ClearUploadsError" xml:space="preserve">
+    <value>Не удалось очистить загрузки.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Title" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
+    <value>URL загрузки скопирован в буфер обмена.</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
+    <value>Загрузить удаленный профиль?</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Message" xml:space="preserve">
+    <value>Ссылка запрашивает импорт общего игрового профиля с узла &#x27;{0}&#x27;.
+
+Вы хотите загрузить и проверить этот пакет профиля?</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Confirm" xml:space="preserve">
+    <value>Загрузить и проверить</value>
+  </data>
+  <data name="GameProfiles.Import.FilePicker.Title" xml:space="preserve">
+    <value>Выберите пакет игрового профиля для импорта</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.GenerateLinkFailed" xml:space="preserve">
+    <value>Не удалось создать ссылку.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailedDefault" xml:space="preserve">
+    <value>Не удалось импортировать профиль.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
+    <value>Сбой импорта: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
+    <value>Сбой отправки</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить сведения о профиле.</value>
   </data>
   <data name="GitHub.TokenDialog.Title" xml:space="preserve">
     <value>Аутентификация GitHub</value>

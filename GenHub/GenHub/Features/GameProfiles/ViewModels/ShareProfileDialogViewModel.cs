@@ -31,7 +31,8 @@ public partial class ShareProfileDialogViewModel(
     ILogger logger,
     IUploadHistoryService? uploadHistoryService,
     string? initialShareUri,
-    INotificationService? notificationService) : ViewModelBase, IDisposable
+    INotificationService? notificationService,
+    ILocalizationService? localizationService = null) : ViewModelBase, IDisposable
 {
     private readonly bool _guardsChecked = ValidateArguments(profileId, profile, profileSharingService, logger);
     private readonly System.Threading.CancellationTokenSource _cts = new();
@@ -51,6 +52,7 @@ public partial class ShareProfileDialogViewModel(
     /// <param name="initialShareUri">Optional pre-generated share URI.</param>
     /// <param name="autoInitialize">Flag indicating whether background quota and share link initialization should execute.</param>
     /// <param name="notificationService">Optional notification service instance for toast messages.</param>
+    /// <param name="localizationService">Optional localization service instance for toast and status messages.</param>
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
@@ -59,8 +61,9 @@ public partial class ShareProfileDialogViewModel(
         IUploadHistoryService? uploadHistoryService = null,
         string? initialShareUri = null,
         bool autoInitialize = true,
-        INotificationService? notificationService = null)
-        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, initialShareUri, notificationService)
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
+        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, initialShareUri, notificationService, localizationService)
     {
         if (autoInitialize)
         {
@@ -78,6 +81,7 @@ public partial class ShareProfileDialogViewModel(
     /// <param name="logger">The logger instance.</param>
     /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
     /// <param name="notificationService">Optional notification service instance for toast messages.</param>
+    /// <param name="localizationService">Optional localization service instance for toast and status messages.</param>
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
@@ -85,8 +89,9 @@ public partial class ShareProfileDialogViewModel(
         IProfileSharingService profileSharingService,
         ILogger logger,
         IUploadHistoryService? uploadHistoryService = null,
-        INotificationService? notificationService = null)
-        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, shareUri, notificationService)
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
+        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, shareUri, notificationService, localizationService)
     {
         InitializeStartupTasks();
     }
@@ -292,12 +297,14 @@ public partial class ShareProfileDialogViewModel(
             {
                 ShareUri = result.Data;
                 IsShareUriGenerated = true;
-                ShowStatus("Share link generated!");
+                var successMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.LinkGenerated") ?? "Share link generated!";
+                ShowStatus(successMsg);
                 logger.LogInformation("Generated share link for profile {ProfileName}", ProfileName);
             }
             else
             {
-                ShowStatus($"Generation failed: {result.FirstError}", isError: true);
+                var format = localizationService?.GetString("GameProfiles.ShareDialog.Status.LinkGenerationFailed") ?? "Generation failed: {0}";
+                ShowStatus(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, result.FirstError), isError: true);
                 logger.LogWarning("Failed to generate share link for profile {ProfileId}: {Error}", profileId, result.FirstError);
             }
         }
@@ -308,7 +315,8 @@ public partial class ShareProfileDialogViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to generate profile share link for profile {ProfileId}", profileId);
-            ShowStatus("Failed to generate link.", isError: true);
+            var failMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.GenerateLinkFailed") ?? "Failed to generate link.";
+            ShowStatus(failMsg, isError: true);
         }
         finally
         {
@@ -331,17 +339,20 @@ public partial class ShareProfileDialogViewModel(
             if (topLevel?.Clipboard != null)
             {
                 await topLevel.Clipboard.SetTextAsync(ShareUri);
-                ShowStatus("Copied to clipboard!");
+                var copiedMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.CopiedToClipboard") ?? "Copied to clipboard!";
+                ShowStatus(copiedMsg);
             }
             else
             {
-                ShowStatus("Clipboard unavailable.", isError: true);
+                var unavailMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.ClipboardUnavailable") ?? "Clipboard unavailable.";
+                ShowStatus(unavailMsg, isError: true);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to copy share URI to clipboard.");
-            ShowStatus("Failed to copy link.", isError: true);
+            var copyFailMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.FailedToCopy") ?? "Failed to copy link.";
+            ShowStatus(copyFailMsg, isError: true);
         }
     }
 
@@ -378,12 +389,14 @@ public partial class ShareProfileDialogViewModel(
             var result = await profileSharingService.ExportProfileToFileAsync(profileId, destination, _cts.Token);
             if (result.Success)
             {
-                ShowStatus("Profile package exported successfully!");
+                var exportSuccessMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.ExportSuccess") ?? "Profile package exported successfully!";
+                ShowStatus(exportSuccessMsg);
                 logger.LogInformation("Exported profile {ProfileName} to {Path}", ProfileName, destination);
             }
             else
             {
-                ShowStatus($"Export failed: {result.FirstError}", isError: true);
+                var format = localizationService?.GetString("GameProfiles.ShareDialog.Status.ExportFailed") ?? "Export failed: {0}";
+                ShowStatus(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, result.FirstError), isError: true);
             }
         }
         catch (OperationCanceledException ex)
@@ -393,7 +406,8 @@ public partial class ShareProfileDialogViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to export profile file.");
-            ShowStatus("Failed to export profile file.", isError: true);
+            var exportFailMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.FailedToExport") ?? "Failed to export profile file.";
+            ShowStatus(exportFailMsg, isError: true);
         }
         finally
         {
@@ -415,13 +429,14 @@ public partial class ShareProfileDialogViewModel(
 
         if (notificationService != null)
         {
+            var notifTitle = localizationService?.GetString("GameProfiles.ShareDialog.Title.Notification") ?? "Profile Sharing";
             if (isError)
             {
-                notificationService.ShowError("Profile Sharing", message);
+                notificationService.ShowError(notifTitle, message);
             }
             else
             {
-                notificationService.ShowSuccess("Profile Sharing", message);
+                notificationService.ShowSuccess(notifTitle, message);
             }
         }
     }

@@ -29,6 +29,7 @@ public static class ProfileSharingDialogHelper
     /// <param name="loggerFactory">Optional logger factory for creating view model loggers.</param>
     /// <param name="uploadHistoryService">Optional upload history service.</param>
     /// <param name="logger">Optional logger for logging diagnostic messages.</param>
+    /// <param name="localizationService">Optional localization service for user-facing notifications.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler prevents unhandled exceptions from crashing the application.")]
     public static async Task OpenShareDialogAsync(
@@ -38,7 +39,8 @@ public static class ProfileSharingDialogHelper
         INotificationService notificationService,
         ILoggerFactory? loggerFactory = null,
         IUploadHistoryService? uploadHistoryService = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        ILocalizationService? localizationService = null)
     {
         ArgumentNullException.ThrowIfNull(gameProfileManager);
         ArgumentNullException.ThrowIfNull(sharingService);
@@ -54,7 +56,9 @@ public static class ProfileSharingDialogHelper
             var profileResult = await gameProfileManager.GetProfileAsync(profileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
-                notificationService.ShowError("Share Failed", "Failed to load profile details.");
+                var errorTitle = localizationService?.GetString("GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title") ?? "Share Failed";
+                var errorMessage = localizationService?.GetString("GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message") ?? "Failed to load profile details.";
+                notificationService.ShowError(errorTitle, errorMessage);
                 return;
             }
 
@@ -64,7 +68,8 @@ public static class ProfileSharingDialogHelper
                 sharingService,
                 loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? NullLogger<ShareProfileDialogViewModel>.Instance,
                 uploadHistoryService,
-                notificationService: notificationService);
+                notificationService: notificationService,
+                localizationService: localizationService);
 
             var dialog = new ShareProfileDialogWindow
             {

@@ -7671,6 +7671,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>جارٍ تحديث {0}: {1:0}% ({2}/{3} ملفات)</value>
   </data>
+  >>>>>>> theirs
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>مطلوب التحقق من ModDB</value>
   </data>
@@ -7871,6 +7872,67 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>فشلت تهيئة مساحة العمل لـ '{0}'.</value>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
+    <value>تم حذف الرفع</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Message" xml:space="preserve">
+    <value>تم حذف {0} من سجل الرفع.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoveError" xml:space="preserve">
+    <value>فشل حذف سجل الرفع.</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Title" xml:space="preserve">
+    <value>مسح سجل الرفع</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Message" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في مسح كل سجل الرفع وإزالة الملفات المرفوعة من التخزين السحابي؟</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Confirm" xml:space="preserve">
+    <value>مسح الكل</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Title" xml:space="preserve">
+    <value>تم مسح الرفوعات</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Message" xml:space="preserve">
+    <value>تم مسح جميع سجلات الرفع النشطة.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.ClearUploadsError" xml:space="preserve">
+    <value>فشل مسح الرفوعات.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Title" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
+    <value>تم نسخ رابط الرفع إلى الحافظة.</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
+    <value>تنزيل ملف التعريف البعيد؟</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Message" xml:space="preserve">
+    <value>طلب رابط استيراد ملف تعريف لعبة مشترك من المضيف &#x27;{0}&#x27;.
+
+هل ترغب في تنزيل حزمة ملف التعريف هذه وفحصها؟</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Confirm" xml:space="preserve">
+    <value>تنزيل وفحص</value>
+  </data>
+  <data name="GameProfiles.Import.FilePicker.Title" xml:space="preserve">
+    <value>حدد حزمة ملف تعريف اللعبة للاستيراد</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.GenerateLinkFailed" xml:space="preserve">
+    <value>فشل إنشاء الرابط.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailedDefault" xml:space="preserve">
+    <value>فشل استيراد ملف التعريف.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
+    <value>فشل الاستيراد: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
+    <value>فشل المشاركة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
+    <value>فشل تحميل تفاصيل ملف التعريف.</value>
   </data>
   <data name="GitHub.TokenDialog.Title" xml:space="preserve">
     <value>مصادقة GitHub</value>

@@ -27,7 +27,8 @@ public sealed partial class ImportProfileInspectionViewModel(
     SharedProfileInspectionResult inspectionResult,
     IProfileSharingService profileSharingService,
     INotificationService? notificationService,
-    ILogger<ImportProfileInspectionViewModel> logger) : ObservableObject, IDisposable
+    ILogger<ImportProfileInspectionViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private readonly bool _guardsChecked = ValidateArguments(inspectionResult, profileSharingService, logger);
     private CancellationTokenSource? _importCts;
@@ -119,21 +120,23 @@ public sealed partial class ImportProfileInspectionViewModel(
     private int _cachedManifestCount = inspectionResult?.CachedManifestCount ?? 0;
 
     [ObservableProperty]
-    private string _actionButtonText = DetermineInitialActionButtonText(inspectionResult);
+    private string _actionButtonText = DetermineInitialActionButtonText(inspectionResult, localizationService);
 
-    private static string DetermineInitialActionButtonText(SharedProfileInspectionResult? result)
+    private static string DetermineInitialActionButtonText(SharedProfileInspectionResult? result, ILocalizationService? locService = null)
     {
         if ((result?.TotalDownloadBytesRequired ?? 0) > 0)
         {
-            return $"Import & Download ({ByteFormatHelper.FormatBytes(result!.TotalDownloadBytesRequired)})";
+            var formattedBytes = ByteFormatHelper.FormatBytes(result!.TotalDownloadBytesRequired);
+            var format = locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownloadSize") ?? "Import & Download ({0})";
+            return string.Format(System.Globalization.CultureInfo.CurrentCulture, format, formattedBytes);
         }
 
         if ((result?.MissingManifestCount ?? 0) > 0)
         {
-            return "Import & Download";
+            return locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownload") ?? "Import & Download";
         }
 
-        return "Import Profile";
+        return locService?.GetString("GameProfiles.ImportInspection.Button.ImportProfile") ?? "Import Profile";
     }
 
     private static bool ValidateArguments(
@@ -287,19 +290,22 @@ public sealed partial class ImportProfileInspectionViewModel(
 
         if (string.IsNullOrWhiteSpace(ProfileName))
         {
-            SetError("Profile name cannot be empty.");
+            var errorMsg = localizationService?.GetString("GameProfiles.ImportInspection.Error.EmptyName") ?? "Profile name cannot be empty.";
+            SetError(errorMsg);
             return;
         }
 
         if (ProfileName.Trim().Length > ProfileSharingConstants.MaxProfileNameLength)
         {
-            SetError($"Profile name cannot exceed {ProfileSharingConstants.MaxProfileNameLength} characters.");
+            var errorFormat = localizationService?.GetString("GameProfiles.ImportInspection.Error.NameTooLong") ?? "Profile name cannot exceed {0} characters.";
+            SetError(string.Format(System.Globalization.CultureInfo.CurrentCulture, errorFormat, ProfileSharingConstants.MaxProfileNameLength));
             return;
         }
 
         if (SelectedInstallation == null)
         {
-            SetError("Please select a valid game installation.");
+            var errorMsg = localizationService?.GetString("GameProfiles.ImportInspection.Error.SelectInstallation") ?? "Please select a valid game installation.";
+            SetError(errorMsg);
             return;
         }
 
@@ -308,16 +314,17 @@ public sealed partial class ImportProfileInspectionViewModel(
             IsImporting = true;
             HasError = false;
             ErrorMessage = string.Empty;
-            CurrentOperationName = "Starting import...";
+            CurrentOperationName = localizationService?.GetString("GameProfiles.ImportInspection.Status.StartingImport") ?? "Starting import...";
             ImportProgressPercentage = 0;
 
             _importCts = new CancellationTokenSource();
             var cts = _importCts;
 
+            var defaultProcessing = localizationService?.GetString("GameProfiles.ImportInspection.Status.ProcessingContent") ?? "Processing content...";
             var progress = new Progress<ContentAcquisitionProgress>(p =>
             {
                 ImportProgressPercentage = (int)Math.Round(p.ProgressPercentage);
-                CurrentOperationName = p.CurrentOperation ?? "Processing content...";
+                CurrentOperationName = p.CurrentOperation ?? defaultProcessing;
             });
 
             var request = new SharedProfileImportRequest
@@ -336,12 +343,15 @@ public sealed partial class ImportProfileInspectionViewModel(
             if (result.Success && result.Data != null)
             {
                 logger.LogInformation("Profile {ProfileName} imported successfully.", ProfileName);
-                notificationService?.ShowSuccess("Profile Imported", $"Successfully imported '{ProfileName}'.");
+                var successTitle = localizationService?.GetString("GameProfiles.ImportInspection.Notification.ImportSuccessTitle") ?? "Profile Imported";
+                var successMessageFormat = localizationService?.GetString("GameProfiles.ImportInspection.Notification.ImportSuccess") ?? "Successfully imported '{0}'.";
+                notificationService?.ShowSuccess(successTitle, string.Format(System.Globalization.CultureInfo.CurrentCulture, successMessageFormat, ProfileName));
                 CloseRequested?.Invoke(this, EventArgs.Empty);
             }
             else
             {
-                SetError(result.FirstError ?? "Failed to import profile.");
+                var fallbackError = localizationService?.GetString("GameProfiles.ImportInspection.Error.ImportFailedDefault") ?? "Failed to import profile.";
+                SetError(result.FirstError ?? fallbackError);
             }
         }
         catch (OperationCanceledException ex)
@@ -351,7 +361,8 @@ public sealed partial class ImportProfileInspectionViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error during shared profile import.");
-            SetError($"Import failed: {ex.Message}");
+            var errorFormat = localizationService?.GetString("GameProfiles.ImportInspection.Error.ImportFailed") ?? "Import failed: {0}";
+            SetError(string.Format(System.Globalization.CultureInfo.CurrentCulture, errorFormat, ex.Message));
         }
         finally
         {

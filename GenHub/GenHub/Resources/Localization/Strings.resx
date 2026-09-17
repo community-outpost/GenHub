@@ -7765,6 +7765,7 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Updating {0}: {1:0}% ({2}/{3} files)</value>
   </data>
+  >>>>>>> theirs
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>ModDB verification required</value>
   </data>
@@ -7965,6 +7966,67 @@ This will:
   </data>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>Workspace initialization failed for '{0}'.</value>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
+    <value>Upload Removed</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Message" xml:space="preserve">
+    <value>Removed {0} from upload history.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoveError" xml:space="preserve">
+    <value>Failed to remove upload history record.</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Title" xml:space="preserve">
+    <value>Clear Upload History</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Message" xml:space="preserve">
+    <value>Are you sure you want to clear all upload history and remove uploaded files from cloud storage?</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Confirm" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Title" xml:space="preserve">
+    <value>Uploads Cleared</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Message" xml:space="preserve">
+    <value>Purged all active upload records.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.ClearUploadsError" xml:space="preserve">
+    <value>Failed to clear uploads.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Title" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
+    <value>Upload URL copied to clipboard.</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
+    <value>Download Remote Profile?</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Message" xml:space="preserve">
+    <value>A link requested to import a shared game profile from host &#x27;{0}&#x27;.
+
+Do you want to download and inspect this profile package?</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Confirm" xml:space="preserve">
+    <value>Download &amp; Inspect</value>
+  </data>
+  <data name="GameProfiles.Import.FilePicker.Title" xml:space="preserve">
+    <value>Select Game Profile Package to Import</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.GenerateLinkFailed" xml:space="preserve">
+    <value>Failed to generate link.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailedDefault" xml:space="preserve">
+    <value>Failed to import profile.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
+    <value>Import failed: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
+    <value>Share Failed</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
+    <value>Failed to load profile details.</value>
   </data>
   <data name="GitHub.TokenDialog.Title" xml:space="preserve">
     <value>GitHub Authentication</value>

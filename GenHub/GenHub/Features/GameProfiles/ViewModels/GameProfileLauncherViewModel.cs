@@ -514,7 +514,8 @@ public partial class GameProfileLauncherViewModel(
                 inspectResult.Data,
                 service,
                 notificationService,
-                loggerFactory?.CreateLogger<ImportProfileInspectionViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance);
+                loggerFactory?.CreateLogger<ImportProfileInspectionViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance,
+                localizationService);
 
             await ShowImportProfileInspectionDialogAsync(inspectionViewModel);
         }
@@ -2016,16 +2017,22 @@ public partial class GameProfileLauncherViewModel(
             notificationService,
             loggerFactory,
             uploadHistoryService,
-            logger);
+            logger,
+            localizationService);
     }
 
     private async Task<bool> PromptRemoteDownloadConsentAsync(string host)
     {
+        var title = localizationService?.GetString("GameProfiles.RemoteDownload.Dialog.Title") ?? "Download Remote Profile?";
+        var messageFormat = localizationService?.GetString("GameProfiles.RemoteDownload.Dialog.Message") ?? "A link requested to import a shared game profile from host '{0}'.\n\nDo you want to download and inspect this profile package?";
+        var confirmText = localizationService?.GetString("GameProfiles.RemoteDownload.Dialog.Confirm") ?? "Download & Inspect";
+        var cancelText = localizationService?.GetString("Common.Cancel") ?? "Cancel";
+
         var confirmed = await dialogService.ShowConfirmationAsync(
-            "Download Remote Profile?",
-            $"A link requested to import a shared game profile from host '{host}'.\n\nDo you want to download and inspect this profile package?",
-            confirmText: "Download & Inspect",
-            cancelText: "Cancel");
+            title,
+            string.Format(System.Globalization.CultureInfo.CurrentCulture, messageFormat, host),
+            confirmText: confirmText,
+            cancelText: cancelText);
 
         if (!confirmed)
         {
@@ -2058,9 +2065,10 @@ public partial class GameProfileLauncherViewModel(
                 return;
             }
 
+            var pickerTitle = localizationService?.GetString("GameProfiles.Import.FilePicker.Title") ?? "Select Game Profile Package to Import";
             var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
             {
-                Title = "Select Game Profile Package to Import",
+                Title = pickerTitle,
                 AllowMultiple = false,
                 FileTypeFilter =
                 [

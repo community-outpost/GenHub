@@ -2815,7 +2815,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, true, cancellationToken);
-            _notificationService.ShowSuccess("Upload Removed", $"Removed {item.FileName} from upload history.");
+            var title = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadRemoved.Title") ?? "Upload Removed";
+            var messageFormat = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadRemoved.Message") ?? "Removed {0} from upload history.";
+            _notificationService.ShowSuccess(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, messageFormat, item.FileName));
             await RefreshUploadsAsync(cancellationToken);
         }
         catch (OperationCanceledException)
@@ -2825,7 +2827,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete upload {Url}", item.Url);
-            _notificationService.ShowError(ErrorTitle, "Failed to remove upload history record.");
+            var errorMessage = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadRemoveError") ?? "Failed to remove upload history record.";
+            _notificationService.ShowError(ErrorTitle, errorMessage);
         }
     }
 
@@ -2841,11 +2844,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var dialogTitle = _localizationService?.GetString("Settings.CloudStorage.Dialog.ClearAll.Title") ?? "Clear Upload History";
+        var dialogMessage = _localizationService?.GetString("Settings.CloudStorage.Dialog.ClearAll.Message") ?? "Are you sure you want to clear all upload history and remove uploaded files from cloud storage?";
+        var confirmText = _localizationService?.GetString("Settings.CloudStorage.Dialog.ClearAll.Confirm") ?? "Clear All";
+        var cancelText = _localizationService?.GetString("Common.Cancel") ?? SettingsConstants.CancelButtonText;
+
         var confirmed = await _dialogService.ShowConfirmationAsync(
-            "Clear Upload History",
-            "Are you sure you want to clear all upload history and remove uploaded files from cloud storage?",
-            "Clear All",
-            SettingsConstants.CancelButtonText);
+            dialogTitle,
+            dialogMessage,
+            confirmText,
+            cancelText);
 
         if (!confirmed)
         {
@@ -2855,7 +2863,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             await _uploadHistoryService.ClearHistoryAsync(true, null, cancellationToken);
-            _notificationService.ShowSuccess("Uploads Cleared", "Purged all active upload records.");
+            var title = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadsCleared.Title") ?? "Uploads Cleared";
+            var message = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadsCleared.Message") ?? "Purged all active upload records.";
+            _notificationService.ShowSuccess(title, message);
             await RefreshUploadsAsync(cancellationToken);
         }
         catch (OperationCanceledException)
@@ -2865,7 +2875,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear upload records");
-            _notificationService.ShowError(ErrorTitle, "Failed to clear uploads.");
+            var errorMessage = _localizationService?.GetString("Settings.CloudStorage.Notification.ClearUploadsError") ?? "Failed to clear uploads.";
+            _notificationService.ShowError(ErrorTitle, errorMessage);
         }
     }
 
@@ -2890,7 +2901,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (topLevel?.Clipboard != null)
             {
                 await topLevel.Clipboard.SetTextAsync(url);
-                _notificationService.ShowSuccess("Copied", "Upload URL copied to clipboard.");
+                var title = _localizationService?.GetString("Settings.CloudStorage.Notification.Copied.Title") ?? "Copied";
+                var message = _localizationService?.GetString("Settings.CloudStorage.Notification.Copied.Message") ?? "Upload URL copied to clipboard.";
+                _notificationService.ShowSuccess(title, message);
             }
         }
         catch (Exception ex)
