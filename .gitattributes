@@ -6,6 +6,3 @@ GenHub/GenHub/Assets/GenHotkeys/**/*.png export-ignore
 
 # Ensure CSV files retain LF line endings across all platforms
 *.csv text eol=lf
-
-# Ensure C# source files retain LF line endings across all platforms
-*.cs text eol=lf

@@ -38,6 +38,7 @@
 
         <Style Selector="ProgressBar">
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
         </Style>
 
         <Style Selector="FlyoutPresenter.ModernFlyout">
