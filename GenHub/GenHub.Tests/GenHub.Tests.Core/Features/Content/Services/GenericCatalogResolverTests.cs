@@ -773,8 +773,8 @@ public sealed class GenericCatalogResolverTests
         var searchResult = CreateSearchResult(contentItem, release, publisher, id);
         searchResult.Name = "Control Bar Pro Lemon Edition ZH (1080p)";
 
-        var builtManifest = CreateDefaultManifest(contentItem, manifestId: id, version: "1.3", contentType: ContentType.Addon, publisherType: "github");
-        builtManifest.Name = "Control Bar Pro Lemon Edition ZH (1080p)";
+        var builtManifest = CreateDefaultManifest(contentItem, manifestId: "1.103.neutral.addon.placeholder", version: "1.3", contentType: ContentType.Addon, publisherType: "github");
+        builtManifest.Name = "Placeholder Name";
         builtManifest.Files = [new ManifestFile { RelativePath = "LemonControlBar1080p.zip" }];
         builtManifest.Metadata = new ContentMetadata { Tags = ["addon", "controlbar"] };
 
@@ -784,6 +784,9 @@ public sealed class GenericCatalogResolverTests
         var result = await resolver.ResolveAsync(searchResult);
 
         Assert.True(result.Success);
+        builderMock.Verify(b => b.WithBasicInfo("github", "lemon-controlbar-1080p", "1.3"), Times.Once);
+        builderMock.Verify(b => b.WithName("Control Bar Pro Lemon Edition ZH (1080p)"), Times.Once);
+
         var manifest = result.Data!;
         Assert.Equal(id, manifest.Id.Value);
         Assert.Equal("Control Bar Pro Lemon Edition ZH (1080p)", manifest.Name);
