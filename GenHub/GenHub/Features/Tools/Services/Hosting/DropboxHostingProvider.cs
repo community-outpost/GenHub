@@ -117,9 +117,38 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
             if (response.IsSuccessStatusCode)
             {
-                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 using var doc = JsonDocument.Parse(content);
                 var name = doc.RootElement.GetProperty("name").GetProperty("display_name").GetString();
+
+                // Test sharing permissions (required for publishing and sharing links)
+                var sharingCheckBody = new { direct_only = true };
+                using var sharingRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/sharing/list_shared_links")
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(sharingCheckBody), Encoding.UTF8, HostingConstants.JsonContentType),
+                };
+
+                using var sharingResponse = await _httpClient.SendAsync(sharingRequest, cancellationToken).ConfigureAwait(false);
+                if (!sharingResponse.IsSuccessStatusCode)
+                {
+                    var sharingError = await sharingResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                    logger.LogWarning("Dropbox permissions check failed: {StatusCode} {Error}", sharingResponse.StatusCode, sharingError);
+
+                    _accessToken = null;
+                    _httpClient.DefaultRequestHeaders.Authorization = null;
+
+                    if (sharingError.Contains("sharing.read", StringComparison.OrdinalIgnoreCase) ||
+                        sharingError.Contains("missing_scope", StringComparison.OrdinalIgnoreCase) ||
+                        sharingError.Contains("not permitted", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OperationResult<bool>.CreateFailure(
+                            "Dropbox app is missing the required 'sharing.read' scope. " +
+                            "In your Dropbox Developer App Console, go to your app -> 'Permissions' tab, enable 'account_info.read', 'files.content.write', 'files.content.read', 'sharing.read', and 'sharing.write', click 'Submit' at the bottom, and then generate a new token under 'Settings'.");
+                    }
+
+                    return OperationResult<bool>.CreateFailure($"Dropbox permissions check failed: {sharingResponse.StatusCode}. Ensure your app has all required permissions.");
+                }
+
                 logger.LogInformation("Successfully authenticated with Dropbox as {UserName}", name);
                 return OperationResult<bool>.CreateSuccess(true);
             }
@@ -509,6 +538,12 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         // Check for existing shared link without creating a new public link for unshared files during scan/recovery
         var linkResult = await TryGetExistingSharedLinkAsync(pathLower, cancellationToken).ConfigureAwait(false);
+        if (linkResult is { Success: false })
+        {
+            logger.LogWarning("Failed to query shared link for {Path}: {Error}", pathLower, linkResult.FirstError);
+            throw new InvalidOperationException(linkResult.FirstError ?? "Failed to query Dropbox shared link due to missing permissions.");
+        }
+
         var directUrl = (linkResult is { Success: true, Data: not null }) ? ConvertToDirectDownloadUrl(linkResult.Data) : string.Empty;
 
         if (fileName.Equals("publisher.json", StringComparison.OrdinalIgnoreCase))
@@ -583,6 +618,35 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             var listError = listResponse != null ? await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false) : "No response";
             logger.LogWarning("Dropbox list_shared_links returned {Status}: {Error}", listResponse?.StatusCode, listError);
             listResponse?.Dispose();
+
+            if (!string.IsNullOrEmpty(listError))
+            {
+                try
+                {
+                    using var errDoc = JsonDocument.Parse(listError);
+                    if (errDoc.RootElement.TryGetProperty("error", out var errObj))
+                    {
+                        var scopeErr = TryExtractMissingScopeError(errObj);
+                        if (scopeErr != null)
+                        {
+                            return scopeErr;
+                        }
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Fallback to substring matching
+                }
+
+                if (listError.Contains("sharing.read", StringComparison.OrdinalIgnoreCase) ||
+                    listError.Contains("missing_scope", StringComparison.OrdinalIgnoreCase) ||
+                    listError.Contains("not permitted", StringComparison.OrdinalIgnoreCase))
+                {
+                    return OperationResult<string>.CreateFailure(
+                        "Dropbox access token is missing the 'sharing.read' permission. In your Dropbox App Console, navigate to the 'Permissions' tab, check 'account_info.read', 'files.content.write', 'files.content.read', 'sharing.write', and 'sharing.read', click 'Submit', and regenerate your token under the 'Settings' tab.");
+                }
+            }
+
             return null;
         }
 

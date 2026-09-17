@@ -224,4 +224,59 @@ public class PublisherStudioConfirmationAndAuthTests
                 "SessionKey"),
             Times.Once);
     }
+
+    /// <summary>
+    /// Tests that PublishAllCatalogsCommand warns the user with notification when no hosting provider is selected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task PublishAllCatalogsCommand_WhenNoProvider_ShowsWarningNotificationAsync()
+    {
+        var project = new PublisherStudioProject();
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        vm.SelectedHostingProvider = null;
+
+        // Act
+        await vm.PublishAllCatalogsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal("Please select a hosting provider", vm.UploadStatusMessage);
+        _mockNotificationService.Verify(
+            n => n.ShowWarning("Provider Required", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that CopySubscriptionUrlCommand shows warning notification when subscription link is not available.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task CopySubscriptionUrlCommand_WhenEmptyOrPlaceholder_ShowsWarningNotificationAsync()
+    {
+        var project = new PublisherStudioProject();
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        vm.SubscriptionUrl = "Please publish to generate subscription URL";
+
+        // Act
+        await vm.CopySubscriptionUrlCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            n => n.ShowWarning("Subscription Link Unavailable", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
 }

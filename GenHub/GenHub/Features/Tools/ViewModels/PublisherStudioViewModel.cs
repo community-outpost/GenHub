@@ -51,7 +51,10 @@ public partial class PublisherStudioViewModel(
     /// <summary>Tab index for the Publish &amp; Share tab.</summary>
     public const int TabPublishShare = 4;
 
-    private string StudioNotificationTitle => localizationService?.GetString("Tools.PublisherStudio.Title") ?? "Publisher Studio";
+    private string StudioNotificationTitle =>
+        localizationService?.GetString("Tools.PublisherStudio.Title")
+        ?? localizationService?.GetString("Tools.PublisherStudio.Studio.Title")
+        ?? "Publisher Studio";
 
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
@@ -707,6 +710,7 @@ public partial class PublisherStudioViewModel(
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService);
         PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);
+        await PublishShareViewModel.InitializeAsync().ConfigureAwait(false);
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService);
 
         // Check for hosting state recovery
