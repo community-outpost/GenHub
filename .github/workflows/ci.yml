@@ -73,6 +73,7 @@ jobs:
               - 'GenHub/GenHub/**'
             windows:
               - 'GenHub/GenHub.Windows/**'
+              - 'GenHub/GenHub.ProxyLauncher/**'
             linux:
               - 'GenHub/GenHub.Linux/**'
             macos:
@@ -113,6 +114,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -252,6 +255,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -379,6 +384,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -420,6 +427,7 @@ jobs:
           echo "SHORT_HASH=$SHORT_HASH" >> $GITHUB_OUTPUT
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_OUTPUT
 
       - name: Build Projects
         run: |
@@ -466,7 +474,7 @@ jobs:
             if ! kill -0 "$APP_PID" 2>/dev/null; then
               break
             fi
-            SURVIVED=$((SURVIVED + 1 ))
+            SURVIVED=$((SURVIVED + 1))
           done
 
           if kill -0 "$APP_PID" 2>/dev/null; then

@@ -359,7 +359,7 @@ jobs:
             if ! kill -0 "$APP_PID" 2>/dev/null; then
               break
             fi
-            SURVIVED=$((SURVIVED + 1 ))
+            SURVIVED=$((SURVIVED + 1))
           done
 
           if kill -0 "$APP_PID" 2>/dev/null; then

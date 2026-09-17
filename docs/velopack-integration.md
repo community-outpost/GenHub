@@ -249,7 +249,6 @@ Runs on every push and PR:
 - `genhub-setup-windows-{VERSION}` - Standalone setup installer (`*-Setup.exe`)
 - `genhub-setup-linux-{VERSION}` - AppImage setup installer (`*.AppImage`)
 - `genhub-setup-macos-{VERSION}` - macOS installer package (`*.pkg`)
-- `genhub-macos-app-{VERSION}` - macOS application bundle (`GenHub.app`)
 - `genhub-velopack-windows-{VERSION}` - Velopack update packages (`*.nupkg`)
 - `genhub-velopack-linux-{VERSION}` - Velopack update packages (`*.nupkg`)
 - `genhub-velopack-macos-{VERSION}` - Velopack update packages (`*.nupkg`)
@@ -289,14 +288,14 @@ After packaging, Velopack generates:
 
 - **GenHub.AppImage** - Standalone AppImage installer
 - **GenHub-{Version}-linux-full.nupkg** - Full release package
-- **GenHub-{Version}-linux-delta.nupkg** - Delta update package
+- **GenHub-{Version}-linux-delta.nupkg** - Delta update package (if previous version exists)
 - **releases.linux.json** - Update feed manifest (JSON format)
 
 ### macOS
 
 - **GenHub-osx-Setup.pkg** - Standalone macOS PKG installer
 - **GenHub-{Version}-osx-full.nupkg** - Full release package
-- **GenHub-{Version}-osx-delta.nupkg** - Delta update package
+- **GenHub-{Version}-osx-delta.nupkg** - Delta update package (if previous version exists)
 - **releases.osx.json** - Update feed manifest (JSON format)
 
 **Note**: Velopack v0.0.942+ uses JSON format (`releases.*.json`) instead of the legacy `RELEASES` file.
