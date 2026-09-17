@@ -4,13 +4,19 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Collections.ObjectModel;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 using CoreContentDisplayItem = GenHub.Core.Models.Content.ContentDisplayItem;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
@@ -244,5 +250,93 @@ public class GameProfileSettingsViewModelTests
         var item = vm.EnabledContent.FirstOrDefault(c => c.ManifestId.Value == newId);
         Assert.NotNull(item);
         Assert.True(item.IsEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that saving a new profile with a fallback GameClient item preserves date-based versions without decimal conversion.
+    /// </summary>
+    /// <param name="manifestId">The manifest ID of the game client item.</param>
+    /// <param name="expectedVersion">The expected version string on the created GameClient.</param>
+    /// <param name="expectedPublisher">The expected publisher string on the created GameClient.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("1.20260821.thesuperhackers.gameclient.zerohour", "20260821", "thesuperhackers")]
+    [InlineData("1.104.steam.gameclient.zerohour", "1.04", "steam")]
+    [InlineData("1.104.generalsonline.gameclient.zerohour", "000104", "generalsonline")]
+    public async Task SaveCommand_ForNewProfile_WithFallbackGameClientItem_ResolvesExpectedVersionAsync(
+        string manifestId,
+        string expectedVersion,
+        string expectedPublisher)
+    {
+        // Arrange
+        var mockProfileManager = new Mock<IGameProfileManager>();
+        var mockGameSettingsService = new Mock<IGameSettingsService>();
+        var mockContentLoader = new Mock<IProfileContentLoader>();
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+
+        mockProfileManager
+            .Setup(m => m.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "new-profile" }));
+
+        var vm = new GameProfileSettingsViewModel(
+            mockProfileManager.Object,
+            mockGameSettingsService.Object,
+            mockConfigProvider.Object,
+            mockContentLoader.Object,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            NullLogger<GameProfileSettingsViewModel>.Instance,
+            NullLogger<GameSettingsViewModel>.Instance);
+
+        vm.Name = "Test Profile";
+        vm.SelectedGameInstallation = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
+        {
+            Id = "1.108.steam.gameinstallation.zh",
+            ManifestId = GenHub.Core.Models.Manifest.ManifestId.Create("1.108.steam.gameinstallation.zh"),
+            DisplayName = "Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            SourceId = "steam-zh",
+            GameClient = new GameClient
+            {
+                Id = "client-zh",
+                Name = "Zero Hour Client",
+                GameType = GameType.ZeroHour,
+                ExecutablePath = "generals.exe",
+                WorkingDirectory = "C:\\Games\\ZH",
+            },
+        };
+
+        var clientItem = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
+        {
+            ManifestId = GenHub.Core.Models.Manifest.ManifestId.Create(manifestId),
+            DisplayName = "Test Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+        vm.EnabledContent.Add(clientItem);
+
+        // Act
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        mockProfileManager.Verify(
+            m => m.CreateProfileAsync(
+                It.Is<CreateProfileRequest>(r =>
+                    r.GameClient != null &&
+                    r.GameClient.Version == expectedVersion &&
+                    r.GameClient.PublisherType == expectedPublisher &&
+                    r.GameClient.ExecutablePath == "generals.exe" &&
+                    r.GameClient.WorkingDirectory == "C:\\Games\\ZH"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

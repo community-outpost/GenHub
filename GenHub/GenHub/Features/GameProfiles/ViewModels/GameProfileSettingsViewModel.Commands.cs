@@ -850,9 +850,22 @@ public partial class GameProfileSettingsViewModel
             {
                 if (int.TryParse(segments[1], out var verNum) && verNum > 0)
                 {
-                    version = verNum >= 100
-                        ? $"{verNum / 100}.{verNum % 100:D2}"
-                        : verNum.ToString();
+                    if (publisherType == PublisherTypeConstants.GeneralsOnline)
+                    {
+                        version = verNum.ToString("D6");
+                    }
+                    else if (verNum >= ManifestConstants.DateBasedVersionThreshold)
+                    {
+                        version = segments[1];
+                    }
+                    else if (verNum >= 100)
+                    {
+                        version = $"{verNum / 100}.{verNum % 100:D2}";
+                    }
+                    else
+                    {
+                        version = verNum.ToString();
+                    }
                 }
                 else if (!string.Equals(segments[1], "0", StringComparison.OrdinalIgnoreCase))
                 {
