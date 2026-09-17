@@ -1,6 +1,6 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
+             xmlns:vm="clr-namespace:GenHub.Features.AppUpdate.ViewModels;assembly=GenHub"
              xmlns:views="using:GenHub.Features.AppUpdate.Views"
              xmlns:models="using:GenHub.Core.Models.AppUpdate"
              xmlns:cv="using:GenHub.Infrastructure.Converters"
