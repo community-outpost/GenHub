@@ -104,16 +104,19 @@
         <Setter Property="Background" Value="{DynamicResource ScrollbarThumbBrush}" />
         <Setter Property="CornerRadius" Value="99" />
         <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
                         CornerRadius="{TemplateBinding CornerRadius}"
-                        Opacity="{TemplateBinding Opacity}"
                         Margin="{TemplateBinding Padding}">
                     <Border.Transitions>
                         <Transitions>
                             <BrushTransition Property="Background" Duration="0:0:0.15" />
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
                         </Transitions>
                     </Border.Transitions>
                 </Border>
