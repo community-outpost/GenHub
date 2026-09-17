@@ -444,20 +444,25 @@ public partial class ReplayManagerViewModel(
 
         IsBusy = true;
         IsIndeterminate = true;
-        StatusMessage = "Importing files...";
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportingFiles") ?? "Importing files...";
         try
         {
             var result = await importService.ImportFromFilesAsync(filePaths, SelectedTab);
             if (result.Success)
             {
-                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s).");
-                StatusMessage = $"Imported {result.FilesImported} file(s).";
+                var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportCompleteTitle") ?? "Import Complete";
+                var descFormat = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportedFilesFormat") ?? "Imported {0} file(s).";
+                var statusFormat = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportedFilesFormat") ?? "Imported {0} file(s).";
+                notificationService.ShowSuccess(title, string.Format(descFormat, result.FilesImported));
+                StatusMessage = string.Format(statusFormat, result.FilesImported);
             }
             else
             {
                 var errorMsg = result.Errors.Any() ? string.Join("\n", result.Errors) : "No files were imported.";
-                notificationService.ShowError("Import Failed", errorMsg);
-                StatusMessage = "Import failed.";
+                var errorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportFailedTitle") ?? "Import Failed";
+                var errorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportFailed") ?? "Import failed: {0}";
+                notificationService.ShowError(errorTitle, errorMsg);
+                StatusMessage = string.Format(errorStatus, errorMsg);
             }
 
             await LoadReplaysAsync();
@@ -465,8 +470,10 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Import from files failed");
-            notificationService.ShowError("Import Error", ex.Message);
-            StatusMessage = "Import error.";
+            var errorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportErrorTitle") ?? "Import Error";
+            var errorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportError") ?? "Import error.";
+            notificationService.ShowError(errorTitle, ex.Message);
+            StatusMessage = errorStatus;
         }
         finally
         {
@@ -638,7 +645,9 @@ public partial class ReplayManagerViewModel(
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(url);
-                notificationService.ShowSuccess("Copied", "Link copied to clipboard!");
+                var copiedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.CopiedTitle") ?? "Copied";
+                var copiedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.LinkCopiedDesc") ?? "Link copied to clipboard!";
+                notificationService.ShowSuccess(copiedTitle, copiedDesc);
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
@@ -689,13 +698,15 @@ public partial class ReplayManagerViewModel(
             }
             else
             {
-                notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
+                var deleteCloudFailed = LocalizationService?.GetString("Tools.ReplayManager.Notify.DeleteCloudFailed") ?? "Failed to delete file from cloud storage.";
+                notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, deleteCloudFailed);
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to remove history item");
-            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
+            var deleteHistoryFailed = LocalizationService?.GetString("Tools.ReplayManager.Notify.DeleteHistoryFailed") ?? "Failed to delete history item.";
+            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, deleteHistoryFailed);
         }
     }
 
@@ -748,7 +759,9 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to clear history");
-            notificationService.ShowError("Clear Failed", "Failed to clear history.");
+            var clearTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ClearHistoryFailedTitle") ?? "Clear Failed";
+            var clearDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ClearHistoryFailedDesc") ?? "Failed to clear history.";
+            notificationService.ShowError(clearTitle, clearDesc);
         }
     }
 
@@ -765,38 +778,44 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Import from URL",
-                "Downloads replays from a provided URL and automatically imports them into your game's replay directory. Supports direct .rep files and zip archives.");
+            var infoTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportFromUrlTitle") ?? "Import from URL";
+            var infoDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportFromUrlDesc") ?? "Downloads replays from a provided URL and automatically imports them into your game's replay directory. Supports direct .rep files and zip archives.";
+            notificationService.ShowInfo(infoTitle, infoDesc);
             return;
         }
 
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Downloading from URL...";
+        var downloadingStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.DownloadingFromUrl") ?? "Downloading from URL...";
+        StatusMessage = downloadingStatus;
 
         try
         {
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
-                StatusMessage = "Downloading from URL...";
+                StatusMessage = downloadingStatus;
             });
 
             var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
             if (result.Success)
             {
-                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
-                StatusMessage = $"Successfully imported {result.FilesImported} file(s).";
+                var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportCompleteTitle") ?? "Import Complete";
+                var descFormat = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportCompleteDesc") ?? "Imported {0} file(s) from URL.";
+                var statusFormat = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportComplete") ?? "Successfully imported {0} file(s).";
+                notificationService.ShowSuccess(title, string.Format(descFormat, result.FilesImported));
+                StatusMessage = string.Format(statusFormat, result.FilesImported);
                 ImportUrl = string.Empty;
                 await LoadReplaysAsync();
             }
             else
             {
                 var errorMsg = string.Join(" ", result.Errors);
-                notificationService.ShowError("Import Failed", errorMsg);
-                StatusMessage = $"Import failed: {errorMsg}";
+                var errorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportFailedTitle") ?? "Import Failed";
+                var errorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportFailed") ?? "Import failed: {0}";
+                notificationService.ShowError(errorTitle, errorMsg);
+                StatusMessage = string.Format(errorStatus, errorMsg);
             }
         }
         catch (Exception ex)
@@ -870,18 +889,22 @@ public partial class ReplayManagerViewModel(
 
         IsBusy = true;
         IsIndeterminate = true;
-        StatusMessage = "Deleting replays...";
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.DeletingReplays") ?? "Deleting replays...";
         int count = SelectedReplays.Count;
         var result = await directoryService.DeleteReplaysAsync([.. SelectedReplays], CancellationToken.None);
         if (result)
         {
-            notificationService.ShowSuccess("Deleted", $"Deleted {count} replays.");
-            StatusMessage = "Deleted successfully.";
+            var deletedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.DeletedReplaysFormat") ?? "Deleted {0} replays.";
+            var deletedStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.DeletedSuccessfully") ?? "Deleted successfully.";
+            notificationService.ShowSuccess("Deleted", string.Format(deletedDesc, count));
+            StatusMessage = deletedStatus;
         }
         else
         {
-            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Could not delete selected replays.");
-            StatusMessage = "Deletion error.";
+            var deleteErrorDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.DeleteSelectedFailed") ?? "Could not delete selected replays.";
+            var deleteErrorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.DeleteError") ?? "Deletion error.";
+            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, deleteErrorDesc);
+            StatusMessage = deleteErrorStatus;
         }
 
         SelectedReplays.Clear();
@@ -912,7 +935,8 @@ public partial class ReplayManagerViewModel(
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Creating ZIP...";
+        var zipStatusMsg = LocalizationService?.GetString("Tools.ReplayManager.Status.CreatingZip") ?? "Creating ZIP...";
+        StatusMessage = zipStatusMsg;
 
         try
         {
@@ -922,14 +946,17 @@ public partial class ReplayManagerViewModel(
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
-                StatusMessage = "Creating ZIP...";
+                StatusMessage = zipStatusMsg;
             });
 
             var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
             if (result != null)
             {
-                notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in replay folder.");
-                StatusMessage = "ZIP created successfully.";
+                var zipTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedTitle") ?? "Zip Created";
+                var zipDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedDesc") ?? "Created {0} in replay folder.";
+                var zipStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipCreated") ?? "ZIP created successfully.";
+                notificationService.ShowSuccess(zipTitle, string.Format(zipDesc, Path.GetFileName(result)));
+                StatusMessage = zipStatus;
 
                 // Reload replays to show the new ZIP
                 await LoadReplaysAsync();
@@ -939,15 +966,20 @@ public partial class ReplayManagerViewModel(
             }
             else
             {
-                notificationService.ShowError("Zip Failed", "Failed to create ZIP archive.");
-                StatusMessage = "ZIP creation failed.";
+                var zipFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedTitle") ?? "Zip Failed";
+                var zipFailDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedDesc") ?? "Failed to create ZIP archive.";
+                var zipFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipFailed") ?? "ZIP creation failed.";
+                notificationService.ShowError(zipFailTitle, zipFailDesc);
+                StatusMessage = zipFailStatus;
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to export ZIP directly");
-            notificationService.ShowError("Export Error", ex.Message);
-            StatusMessage = "Export error.";
+            var exportErrorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ExportErrorTitle") ?? "Export Error";
+            var exportErrorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ExportError") ?? "Export error.";
+            notificationService.ShowError(exportErrorTitle, ex.Message);
+            StatusMessage = exportErrorStatus;
         }
         finally
         {
@@ -991,7 +1023,7 @@ public partial class ReplayManagerViewModel(
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Preparing upload...";
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.PreparingUpload") ?? "Preparing upload...";
 
         try
         {
@@ -1010,16 +1042,21 @@ public partial class ReplayManagerViewModel(
             }
             else
             {
-                StatusMessage = "Upload failed.";
+                var uploadFailedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UploadFailedTitle") ?? "Upload Failed";
+                var uploadFailedStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.UploadFailed") ?? "Upload failed.";
+                StatusMessage = uploadFailedStatus;
                 var error = uploadResult.FirstError ?? "Upload failed. Please check your internet connection.";
-                notificationService.ShowError("Upload Failed", error);
+                notificationService.ShowError(uploadFailedTitle, error);
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Upload failed");
-            notificationService.ShowError("Upload Error", "Failed to complete upload.");
-            StatusMessage = "Upload error.";
+            var uploadErrorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UploadErrorTitle") ?? "Upload Error";
+            var uploadErrorDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.UploadErrorDesc") ?? "Failed to complete upload.";
+            var uploadErrorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.UploadError") ?? "Upload error.";
+            notificationService.ShowError(uploadErrorTitle, uploadErrorDesc);
+            StatusMessage = uploadErrorStatus;
         }
         finally
         {
@@ -1049,7 +1086,7 @@ public partial class ReplayManagerViewModel(
             notificationService.ShowError(
                "File Too Large",
                "File too large. Maximum upload size is 10MB.");
-            StatusMessage = "Upload too large (Max 10MB).";
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.UploadTooLarge") ?? "Upload too large (Max 10MB).";
             return false;
         }
 
@@ -1061,7 +1098,8 @@ public partial class ReplayManagerViewModel(
             notificationService.ShowError(
                 "Rate Limit Exceeded",
                 "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
-            StatusMessage = $"Limit reached. Resets {resetDateLocal:g}.";
+            var limitStatusFormat = LocalizationService?.GetString("Tools.ReplayManager.Status.UploadLimitReached") ?? "Limit reached. Resets {0:g}.";
+            StatusMessage = string.Format(limitStatusFormat, resetDateLocal);
             return false;
         }
 
@@ -1086,8 +1124,10 @@ public partial class ReplayManagerViewModel(
                 await clipboard.SetTextAsync(existingUpload.Url);
             }
 
-            StatusMessage = "Reused existing upload! Link copied to clipboard.";
-            notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.ReusedUpload") ?? "Reused existing upload! Link copied to clipboard.";
+            var uploadCompleteTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UploadCompleteTitle") ?? "Upload Complete";
+            var existingLinkCopied = LocalizationService?.GetString("Tools.ReplayManager.Notify.ExistingLinkCopied") ?? "Existing link copied to clipboard!";
+            notificationService.ShowSuccess(uploadCompleteTitle, existingLinkCopied);
             return (true, fileHash);
         }
 
@@ -1111,8 +1151,10 @@ public partial class ReplayManagerViewModel(
             await LoadHistoryAsync();
         }
 
-        StatusMessage = "Uploaded! Link copied to clipboard.";
-        notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.UploadedLinkCopied") ?? "Uploaded! Link copied to clipboard.";
+        var uploadCompleteTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UploadCompleteTitle") ?? "Upload Complete";
+        var linkCopiedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.LinkCopiedDesc") ?? "Link copied to clipboard!";
+        notificationService.ShowSuccess(uploadCompleteTitle, linkCopiedDesc);
     }
 
     [RelayCommand]
@@ -1170,7 +1212,7 @@ public partial class ReplayManagerViewModel(
 
         IsBusy = true;
         IsIndeterminate = true;
-        StatusMessage = "Uncompressing ZIP(s)...";
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.Uncompressing") ?? "Uncompressing ZIP(s)...";
         int totalImported = 0;
 
         try
@@ -1192,13 +1234,17 @@ public partial class ReplayManagerViewModel(
 
             if (totalImported > 0)
             {
-                notificationService.ShowSuccess("Uncompress Complete", $"Extracted {totalImported} replays from selected ZIP(s).");
-                StatusMessage = $"Extracted {totalImported} replay(s).";
+                var uncompressTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UncompressCompleteTitle") ?? "Uncompress Complete";
+                var uncompressDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.UncompressCompleteDesc") ?? "Extracted {0} replays from selected ZIP(s).";
+                var uncompressStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.UncompressComplete") ?? "Extracted {0} replay(s).";
+                notificationService.ShowSuccess(uncompressTitle, string.Format(uncompressDesc, totalImported));
+                StatusMessage = string.Format(uncompressStatus, totalImported);
             }
 
             if (errorMessages.Count > 0)
             {
-                notificationService.ShowWarning("Uncompress Warning", string.Join("\n", errorMessages.Take(5)));
+                var uncompressWarnTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UncompressWarningTitle") ?? "Uncompress Warning";
+                notificationService.ShowWarning(uncompressWarnTitle, string.Join("\n", errorMessages.Take(5)));
             }
 
             await LoadReplaysAsync();
@@ -1206,8 +1252,10 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to uncompress selected ZIP files");
-            notificationService.ShowError("Uncompress Error", ex.Message);
-            StatusMessage = "Uncompress error.";
+            var uncompressErrTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UncompressErrorTitle") ?? "Uncompress Error";
+            var uncompressErrStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.UncompressError") ?? "Uncompress error.";
+            notificationService.ShowError(uncompressErrTitle, ex.Message);
+            StatusMessage = uncompressErrStatus;
         }
         finally
         {
@@ -1289,7 +1337,8 @@ public partial class ReplayManagerViewModel(
 
         IsBusy = true;
         IsIndeterminate = true;
-        StatusMessage = $"Configuring profile for {replay.FileName}...";
+        var configProfileStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ConfiguringProfile") ?? "Configuring profile for {0}...";
+        StatusMessage = string.Format(configProfileStatus, replay.FileName);
 
         try
         {
@@ -1300,24 +1349,29 @@ public partial class ReplayManagerViewModel(
 
             if (result.Success && result.Data != null)
             {
-                notificationService.ShowSuccess(
-                    "Profile Created",
-                    $"Created profile '{result.Data.Name}' with {clientVm.SelectedClient.Name}.");
-                StatusMessage = $"Created profile '{result.Data.Name}'.";
+                var profCreatedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreatedTitle") ?? "Profile Created";
+                var profCreatedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreatedDesc") ?? "Created profile '{0}' with {1}.";
+                var profCreatedStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ProfileCreated") ?? "Created profile '{0}'.";
+                notificationService.ShowSuccess(profCreatedTitle, string.Format(profCreatedDesc, result.Data.Name, clientVm.SelectedClient.Name));
+                StatusMessage = string.Format(profCreatedStatus, result.Data.Name);
                 await LoadReplaysAsync();
                 return result.Data.Id;
             }
 
             var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
-            notificationService.ShowError("Profile Creation Failed", errorMsg);
-            StatusMessage = "Profile creation failed.";
+            var profFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreationFailedTitle") ?? "Profile Creation Failed";
+            var profFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ProfileCreationFailed") ?? "Profile creation failed.";
+            notificationService.ShowError(profFailTitle, errorMsg);
+            StatusMessage = profFailStatus;
             return null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
-            notificationService.ShowError("Profile Creation Error", ex.Message);
-            StatusMessage = "Profile creation error.";
+            var profErrTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreationErrorTitle") ?? "Profile Creation Error";
+            var profErrStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ProfileCreationError") ?? "Profile creation error.";
+            notificationService.ShowError(profErrTitle, ex.Message);
+            StatusMessage = profErrStatus;
             return null;
         }
         finally
@@ -1339,30 +1393,37 @@ public partial class ReplayManagerViewModel(
 
         IsBusy = true;
         IsIndeterminate = true;
-        StatusMessage = $"Configuring profile for {replay.FileName}...";
+        var configProfileStatus2 = LocalizationService?.GetString("Tools.ReplayManager.Status.ConfiguringProfile") ?? "Configuring profile for {0}...";
+        StatusMessage = string.Format(configProfileStatus2, replay.FileName);
 
         try
         {
             var result = await directoryService.CreateProfileForReplayAsync(replay);
             if (result.Success && result.Data != null)
             {
-                notificationService.ShowSuccess(
-                    "Profile Created", $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
-                StatusMessage = $"Created profile '{result.Data.Name}'.";
+                var profCreatedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreatedTitle") ?? "Profile Created";
+                var profCreatedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreatedDesc") ?? "Created profile '{0}' for {1}.";
+                var profCreatedStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ProfileCreated") ?? "Created profile '{0}'.";
+                notificationService.ShowSuccess(profCreatedTitle, string.Format(profCreatedDesc, result.Data.Name, replay.ClientAndPatchDisplay));
+                StatusMessage = string.Format(profCreatedStatus, result.Data.Name);
                 await LoadReplaysAsync();
             }
             else
             {
                 var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
-                notificationService.ShowError("Profile Creation Failed", errorMsg);
-                StatusMessage = "Profile creation failed.";
+                var profFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreationFailedTitle") ?? "Profile Creation Failed";
+                var profFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ProfileCreationFailed") ?? "Profile creation failed.";
+                notificationService.ShowError(profFailTitle, errorMsg);
+                StatusMessage = profFailStatus;
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
-            notificationService.ShowError("Profile Creation Error", ex.Message);
-            StatusMessage = "Profile creation error.";
+            var profErrTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfileCreationErrorTitle") ?? "Profile Creation Error";
+            var profErrStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ProfileCreationError") ?? "Profile creation error.";
+            notificationService.ShowError(profErrTitle, ex.Message);
+            StatusMessage = profErrStatus;
         }
         finally
         {
@@ -1553,7 +1614,8 @@ public partial class ReplayManagerViewModel(
 
         IsBusy = true;
         IsIndeterminate = true;
-        StatusMessage = $"Launching profile for {replay.FileName}...";
+        var launchStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.LaunchingProfile") ?? "Launching profile for {0}...";
+        StatusMessage = string.Format(launchStatus, replay.FileName);
 
         try
         {
@@ -1563,22 +1625,28 @@ public partial class ReplayManagerViewModel(
                 var profileName = !string.IsNullOrEmpty(replay.MatchingProfileName)
                     ? replay.MatchingProfileName
                     : (replay.MatchedClient?.Description ?? "Matching Profile");
-                notificationService.ShowSuccess(
-                    "Game Launched", $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
-                StatusMessage = $"Launched profile '{profileName}'.";
+                var launchedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.LaunchedTitle") ?? "Game Launched";
+                var launchedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.LaunchedDesc") ?? "Launched profile '{0}' for replay '{1}'.";
+                var launchedStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.LaunchedProfile") ?? "Launched profile '{0}'.";
+                notificationService.ShowSuccess(launchedTitle, string.Format(launchedDesc, profileName, replay.FileName));
+                StatusMessage = string.Format(launchedStatus, profileName);
             }
             else
             {
                 var errorMsg = result.FirstError ?? "Failed to launch game profile.";
-                notificationService.ShowError("Launch Failed", errorMsg);
-                StatusMessage = "Launch failed.";
+                var launchFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.LaunchFailedTitle") ?? "Launch Failed";
+                var launchFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.LaunchFailed") ?? "Launch failed.";
+                notificationService.ShowError(launchFailTitle, errorMsg);
+                StatusMessage = launchFailStatus;
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to launch replay profile for {FileName}", replay.FileName);
-            notificationService.ShowError("Launch Error", ex.Message);
-            StatusMessage = "Launch error.";
+            var launchErrTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.LaunchErrorTitle") ?? "Launch Error";
+            var launchErrStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.LaunchError") ?? "Launch error.";
+            notificationService.ShowError(launchErrTitle, ex.Message);
+            StatusMessage = launchErrStatus;
         }
         finally
         {
@@ -1612,7 +1680,7 @@ public partial class ReplayManagerViewModel(
         EnsureMessengerRegistered();
         IsBusy = true;
         IsIndeterminate = true;
-        StatusMessage = "Loading replays...";
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.LoadingReplays") ?? "Loading replays...";
         try
         {
             var replays = await directoryService.GetReplaysAsync(SelectedTab);
@@ -1649,8 +1717,11 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load replays");
-            notificationService.ShowError("Load Error", "Failed to load replays.");
-            StatusMessage = "Error loading replays.";
+            var errorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.LoadErrorTitle") ?? "Load Error";
+            var errorDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.LoadErrorDesc") ?? "Failed to load replays.";
+            var errorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.LoadError") ?? "Error loading replays.";
+            notificationService.ShowError(errorTitle, errorDesc);
+            StatusMessage = errorStatus;
         }
         finally
         {
@@ -1706,44 +1777,61 @@ public partial class ReplayManagerViewModel(
 
     private async Task PopulateCompatibleProfilesAsync(ReplayFile replay)
     {
-        IGameProfileManager? manager = profileManager;
-        if (manager == null && serviceProvider != null)
+        var (manager, scope) = ResolveProfileManager();
+        try
         {
-            using var scope = serviceProvider.CreateScope();
-            manager = scope.ServiceProvider.GetService<IGameProfileManager>();
+            if (manager == null)
+            {
+                logger.LogWarning("Failed to resolve profile manager for replay compatibility.");
+                var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningTitle") ?? "Profiles Warning";
+                var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningDesc") ?? "Could not load profiles for checkpoint recovery.";
+                notificationService.ShowWarning(title, desc);
+                return;
+            }
+
+            var allProfilesResult = await manager.GetAllProfilesAsync();
+            if (!allProfilesResult.Success || allProfilesResult.Data == null)
+            {
+                var error = allProfilesResult.FirstError ?? "Failed to load profiles.";
+                logger.LogWarning("Failed to load profiles for replay compatibility: {Error}", error);
+                var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningTitle") ?? "Profiles Warning";
+                var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningDesc") ?? "Could not load profiles for checkpoint recovery.";
+                notificationService.ShowWarning(title, desc);
+                return;
+            }
+
+            var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfilesResult.Data);
+            var profilesToAdd = recoveryProfiles.Count > 0
+                ? recoveryProfiles
+                : directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
+
+            foreach (var profile in profilesToAdd)
+            {
+                CompatibleProfiles.Add(profile);
+            }
+
+            SelectedCompatibleProfile = SelectInitialCompatibleProfile(replay);
+        }
+        finally
+        {
+            scope?.Dispose();
+        }
+    }
+
+    private (IGameProfileManager? Manager, IServiceScope? Scope) ResolveProfileManager()
+    {
+        if (profileManager != null)
+        {
+            return (profileManager, null);
         }
 
-        if (manager == null)
+        if (serviceProvider != null)
         {
-            logger.LogWarning("Failed to resolve profile manager for replay compatibility.");
-            var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningTitle") ?? "Profiles Warning";
-            var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningDesc") ?? "Could not load profiles for checkpoint recovery.";
-            notificationService.ShowWarning(title, desc);
-            return;
+            var scope = serviceProvider.CreateScope();
+            return (scope.ServiceProvider.GetService<IGameProfileManager>(), scope);
         }
 
-        var allProfilesResult = await manager.GetAllProfilesAsync();
-        if (!allProfilesResult.Success || allProfilesResult.Data == null)
-        {
-            var error = allProfilesResult.FirstError ?? "Failed to load profiles.";
-            logger.LogWarning("Failed to load profiles for replay compatibility: {Error}", error);
-            var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningTitle") ?? "Profiles Warning";
-            var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningDesc") ?? "Could not load profiles for checkpoint recovery.";
-            notificationService.ShowWarning(title, desc);
-            return;
-        }
-
-        var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfilesResult.Data);
-        var profilesToAdd = recoveryProfiles.Count > 0
-            ? recoveryProfiles
-            : directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
-
-        foreach (var profile in profilesToAdd)
-        {
-            CompatibleProfiles.Add(profile);
-        }
-
-        SelectedCompatibleProfile = SelectInitialCompatibleProfile(replay);
+        return (null, null);
     }
 
     private GameProfile? SelectInitialCompatibleProfile(ReplayFile replay)

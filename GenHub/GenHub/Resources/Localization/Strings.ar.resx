@@ -6917,4 +6917,240 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Common.Deleted" xml:space="preserve">
     <value>تم الحذف</value>
   </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorTitle" xml:space="preserve">
+    <value>خطأ في التحميل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorDesc" xml:space="preserve">
+    <value>فشل في تحميل الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadError" xml:space="preserve">
+    <value>خطأ أثناء تحميل الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Compatible" xml:space="preserve">
+    <value>الملف التعريفي '{0}' مهيأ بعميل اللعبة وحزمة البيانات المتوافقة. انقر فوق 'تشغيل' لبدء اللعبة، ثم حدد هذا الإعادة داخل اللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresProfile" xml:space="preserve">
+    <value>عميل اللعبة والتصحيح متاحان لـ '{0}'. انقر فوق 'إنشاء ملف تعريفي' لتهيئة ملف تعريفي مخصص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Downloadable" xml:space="preserve">
+    <value>يمكن تنزيل عميل اللعبة وحزمة البيانات لـ '{0}'. انقر فوق 'إعداد' للحصول على هذا الملف التعريفي وتهيئته.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Orphaned" xml:space="preserve">
+    <value>رمز التحقق الدوري Exe CRC {0} / INI CRC {1} غير موجود في الكتالوج الرسمي. انقر فوق 'ملف تعريفي' للتهيئة باستخدام التثبيت الأساسي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
+    <value>بيانات رأس الإعادة غير متوفرة أو تعذر تحليلها.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RecoverySuffix" xml:space="preserve">
+    <value>
+
+محرك الاسترداد: يدعم الملف التعريفي '{0}' حفظ نقاط التفتيش واستئناف الإعادة والاستحواذ المباشر على المباراة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletingReplays" xml:space="preserve">
+    <value>جارٍ حذف الإعادات...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedReplaysFormat" xml:space="preserve">
+    <value>تم حذف {0} من الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletedSuccessfully" xml:space="preserve">
+    <value>تم الحذف بنجاح.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteSelectedFailed" xml:space="preserve">
+    <value>تعذر حذف الإعادات المحددة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeleteError" xml:space="preserve">
+    <value>خطأ أثناء الحذف.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingZip" xml:space="preserve">
+    <value>جارٍ إنشاء ملف ZIP...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedTitle" xml:space="preserve">
+    <value>تم إنشاء ملف Zip</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedDesc" xml:space="preserve">
+    <value>تم إنشاء {0} في مجلد الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipCreated" xml:space="preserve">
+    <value>تم إنشاء ملف ZIP بنجاح.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedTitle" xml:space="preserve">
+    <value>فشل إنشاء Zip</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedDesc" xml:space="preserve">
+    <value>فشل في إنشاء أرشيف ZIP.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipFailed" xml:space="preserve">
+    <value>فشل إنشاء ملف ZIP.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExportErrorTitle" xml:space="preserve">
+    <value>خطأ في التصدير</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ExportError" xml:space="preserve">
+    <value>خطأ أثناء التصدير.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.Uncompressing" xml:space="preserve">
+    <value>جارٍ فك ضغط ملفات ZIP...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteTitle" xml:space="preserve">
+    <value>اكتمل فك الضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteDesc" xml:space="preserve">
+    <value>تم استخراج {0} من الإعادات من ملفات ZIP المحددة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressComplete" xml:space="preserve">
+    <value>تم استخراج {0} من الإعادات.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressWarningTitle" xml:space="preserve">
+    <value>تحذير فك الضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressErrorTitle" xml:space="preserve">
+    <value>خطأ في فك الضغط</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressError" xml:space="preserve">
+    <value>خطأ أثناء فك الضغط.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlTitle" xml:space="preserve">
+    <value>استيراد من الرابط</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlDesc" xml:space="preserve">
+    <value>تنزيل الإعادات من رابط محدد واستيرادها تلقائيًا إلى مجلد إعادات اللعبة. يدعم ملفات .rep المباشرة وأرشيفات zip.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DownloadingFromUrl" xml:space="preserve">
+    <value>جارٍ التنزيل من الرابط...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteTitle" xml:space="preserve">
+    <value>اكتمل الاستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteDesc" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات) من الرابط.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportComplete" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات) بنجاح.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
+    <value>فشل الاستيراد: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportError" xml:space="preserve">
+    <value>خطأ أثناء الاستيراد.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ConfiguringProfile" xml:space="preserve">
+    <value>جارٍ تهيئة الملف التعريفي لـ {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedTitle" xml:space="preserve">
+    <value>تم إنشاء الملف التعريفي</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedDesc" xml:space="preserve">
+    <value>تم إنشاء الملف التعريفي '{0}' لـ {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreated" xml:space="preserve">
+    <value>تم إنشاء الملف التعريفي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationFailedTitle" xml:space="preserve">
+    <value>فشل إنشاء الملف التعريفي</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationFailed" xml:space="preserve">
+    <value>فشل إنشاء الملف التعريفي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationErrorTitle" xml:space="preserve">
+    <value>خطأ في إنشاء الملف التعريفي</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationError" xml:space="preserve">
+    <value>خطأ أثناء إنشاء الملف التعريفي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchingProfile" xml:space="preserve">
+    <value>جارٍ تشغيل الملف التعريفي لـ {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedTitle" xml:space="preserve">
+    <value>تم التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedDesc" xml:space="preserve">
+    <value>تم تشغيل الملف التعريفي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchedProfile" xml:space="preserve">
+    <value>تم تشغيل الملف التعريفي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchFailedTitle" xml:space="preserve">
+    <value>فشل التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchFailed" xml:space="preserve">
+    <value>فشل التشغيل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchErrorTitle" xml:space="preserve">
+    <value>خطأ في التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchError" xml:space="preserve">
+    <value>خطأ أثناء التشغيل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CopiedTitle" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LinkCopiedDesc" xml:space="preserve">
+    <value>تم نسخ الرابط إلى الحافظة!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteCloudFailed" xml:space="preserve">
+    <value>فشل في حذف الملف من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteHistoryFailed" xml:space="preserve">
+    <value>فشل في حذف عنصر السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedTitle" xml:space="preserve">
+    <value>فشل المسح</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedDesc" xml:space="preserve">
+    <value>فشل في مسح السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.PreparingUpload" xml:space="preserve">
+    <value>جارٍ إعداد الرفع...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadFailed" xml:space="preserve">
+    <value>فشل الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadFailedTitle" xml:space="preserve">
+    <value>فشل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorTitle" xml:space="preserve">
+    <value>خطأ في الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorDesc" xml:space="preserve">
+    <value>فشل في إكمال الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadError" xml:space="preserve">
+    <value>خطأ أثناء الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadTooLarge" xml:space="preserve">
+    <value>حجم الرفع كبير جدًا (الحد الأقصى 10 ميجابايت).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadLimitReached" xml:space="preserve">
+    <value>تم الوصول إلى الحد. يُعاد التعيين في {0:g}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReusedUpload" xml:space="preserve">
+    <value>تم استخدام الرفع الموجود مسبقًا! تم نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExistingLinkCopied" xml:space="preserve">
+    <value>تم نسخ الرابط الحالي إلى الحافظة!</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadedLinkCopied" xml:space="preserve">
+    <value>تم الرفع! تم نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadCompleteTitle" xml:space="preserve">
+    <value>اكتمل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadingReplays" xml:space="preserve">
+    <value>جارٍ تحميل الإعادات...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportingFiles" xml:space="preserve">
+    <value>جارٍ استيراد الملفات...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportedFilesFormat" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportedFilesFormat" xml:space="preserve">
+    <value>تم استيراد {0} ملف(ملفات).</value>
+  </data>
 </root>

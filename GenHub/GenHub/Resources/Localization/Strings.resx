@@ -7011,4 +7011,240 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Common.Deleted" xml:space="preserve">
     <value>Deleted</value>
   </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorTitle" xml:space="preserve">
+    <value>Load Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LoadErrorDesc" xml:space="preserve">
+    <value>Failed to load replays.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadError" xml:space="preserve">
+    <value>Error loading replays.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Compatible" xml:space="preserve">
+    <value>Profile '{0}' is configured with matching client and data patch. Click 'Launch' to start the game, then select this replay in-game.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresProfile" xml:space="preserve">
+    <value>Game client and patch for '{0}' are available. Click 'Create Profile' to configure a dedicated profile.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Downloadable" xml:space="preserve">
+    <value>Game client and data patch for '{0}' can be downloaded. Click 'Setup' to acquire and configure this profile.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Orphaned" xml:space="preserve">
+    <value>Exe CRC {0} / INI CRC {1} is not in the official catalog. Click 'Profile' to configure using your base installation.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
+    <value>Replay header metadata is not available or could not be parsed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RecoverySuffix" xml:space="preserve">
+    <value>
+
+Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and live match takeover.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletingReplays" xml:space="preserve">
+    <value>Deleting replays...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedReplaysFormat" xml:space="preserve">
+    <value>Deleted {0} replays.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeletedSuccessfully" xml:space="preserve">
+    <value>Deleted successfully.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteSelectedFailed" xml:space="preserve">
+    <value>Could not delete selected replays.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DeleteError" xml:space="preserve">
+    <value>Deletion error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingZip" xml:space="preserve">
+    <value>Creating ZIP...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedTitle" xml:space="preserve">
+    <value>Zip Created</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipCreatedDesc" xml:space="preserve">
+    <value>Created {0} in replay folder.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipCreated" xml:space="preserve">
+    <value>ZIP created successfully.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedTitle" xml:space="preserve">
+    <value>Zip Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ZipFailedDesc" xml:space="preserve">
+    <value>Failed to create ZIP archive.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ZipFailed" xml:space="preserve">
+    <value>ZIP creation failed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExportErrorTitle" xml:space="preserve">
+    <value>Export Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ExportError" xml:space="preserve">
+    <value>Export error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.Uncompressing" xml:space="preserve">
+    <value>Uncompressing ZIP(s)...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteTitle" xml:space="preserve">
+    <value>Uncompress Complete</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressCompleteDesc" xml:space="preserve">
+    <value>Extracted {0} replays from selected ZIP(s).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressComplete" xml:space="preserve">
+    <value>Extracted {0} replay(s).</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressWarningTitle" xml:space="preserve">
+    <value>Uncompress Warning</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UncompressErrorTitle" xml:space="preserve">
+    <value>Uncompress Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UncompressError" xml:space="preserve">
+    <value>Uncompress error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlTitle" xml:space="preserve">
+    <value>Import from URL</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFromUrlDesc" xml:space="preserve">
+    <value>Downloads replays from a provided URL and automatically imports them into your game's replay directory. Supports direct .rep files and zip archives.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.DownloadingFromUrl" xml:space="preserve">
+    <value>Downloading from URL...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteTitle" xml:space="preserve">
+    <value>Import Complete</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportCompleteDesc" xml:space="preserve">
+    <value>Imported {0} file(s) from URL.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportComplete" xml:space="preserve">
+    <value>Successfully imported {0} file(s).</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
+    <value>Import failed: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>Import Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportError" xml:space="preserve">
+    <value>Import error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ConfiguringProfile" xml:space="preserve">
+    <value>Configuring profile for {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedTitle" xml:space="preserve">
+    <value>Profile Created</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreatedDesc" xml:space="preserve">
+    <value>Created profile '{0}' for {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreated" xml:space="preserve">
+    <value>Created profile '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationFailedTitle" xml:space="preserve">
+    <value>Profile Creation Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationFailed" xml:space="preserve">
+    <value>Profile creation failed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfileCreationErrorTitle" xml:space="preserve">
+    <value>Profile Creation Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ProfileCreationError" xml:space="preserve">
+    <value>Profile creation error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchingProfile" xml:space="preserve">
+    <value>Launching profile for {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedTitle" xml:space="preserve">
+    <value>Launched</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchedDesc" xml:space="preserve">
+    <value>Launched profile '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchedProfile" xml:space="preserve">
+    <value>Launched profile '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchFailedTitle" xml:space="preserve">
+    <value>Launch Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchFailed" xml:space="preserve">
+    <value>Launch failed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LaunchErrorTitle" xml:space="preserve">
+    <value>Launch Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LaunchError" xml:space="preserve">
+    <value>Launch error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CopiedTitle" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.LinkCopiedDesc" xml:space="preserve">
+    <value>Link copied to clipboard!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteCloudFailed" xml:space="preserve">
+    <value>Failed to delete file from cloud storage.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeleteHistoryFailed" xml:space="preserve">
+    <value>Failed to delete history item.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedTitle" xml:space="preserve">
+    <value>Clear Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearHistoryFailedDesc" xml:space="preserve">
+    <value>Failed to clear history.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.PreparingUpload" xml:space="preserve">
+    <value>Preparing upload...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadFailed" xml:space="preserve">
+    <value>Upload failed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadFailedTitle" xml:space="preserve">
+    <value>Upload Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorTitle" xml:space="preserve">
+    <value>Upload Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadErrorDesc" xml:space="preserve">
+    <value>Failed to complete upload.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadError" xml:space="preserve">
+    <value>Upload error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadTooLarge" xml:space="preserve">
+    <value>Upload too large (Max 10MB).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadLimitReached" xml:space="preserve">
+    <value>Limit reached. Resets {0:g}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReusedUpload" xml:space="preserve">
+    <value>Reused existing upload! Link copied to clipboard.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ExistingLinkCopied" xml:space="preserve">
+    <value>Existing link copied to clipboard!</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.UploadedLinkCopied" xml:space="preserve">
+    <value>Uploaded! Link copied to clipboard.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.UploadCompleteTitle" xml:space="preserve">
+    <value>Upload Complete</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.LoadingReplays" xml:space="preserve">
+    <value>Loading replays...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportingFiles" xml:space="preserve">
+    <value>Importing files...</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ImportedFilesFormat" xml:space="preserve">
+    <value>Imported {0} file(s).</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportedFilesFormat" xml:space="preserve">
+    <value>Imported {0} file(s).</value>
+  </data>
 </root>

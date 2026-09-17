@@ -223,8 +223,8 @@ public sealed class ReplayFile : IExportableFile
     /// Gets the user-friendly tooltip for the Launch Replay button showing which profile will be launched.
     /// </summary>
     public string PlayButtonTooltip => CompatibilityStatus == ReplayCompatibilityStatus.Compatible && !string.IsNullOrEmpty(MatchingProfileName)
-        ? $"Launch profile '{MatchingProfileName}' configured for this replay (select replay in-game)"
-        : "Select or configure a profile to launch this replay";
+        ? $"Watch replay using profile '{MatchingProfileName}'."
+        : "Configure or create a game profile to watch this replay.";
 
     /// <summary>
     /// Gets or sets a value indicating whether this replay has a compatible client or recovery profile supporting checkpoint saves, replay resumption, and live player takeover.

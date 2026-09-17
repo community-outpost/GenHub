@@ -191,7 +191,14 @@ public sealed partial class ReplayCheckpointService : IReplayCheckpointService, 
         }
         finally
         {
-            _mintLock.Release();
+            try
+            {
+                _mintLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Tolerated if service was disposed concurrently while minting completed.
+            }
         }
     }
 
@@ -396,7 +403,6 @@ public sealed partial class ReplayCheckpointService : IReplayCheckpointService, 
 
         _disposed = true;
         CancelActiveMint();
-        _mintLock.Dispose();
     }
 
     private static bool TryParseCheckpointFile(

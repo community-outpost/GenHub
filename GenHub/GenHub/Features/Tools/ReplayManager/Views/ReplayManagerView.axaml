@@ -147,7 +147,7 @@
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
-                          ToolTip.Tip="{Binding CompatibilityTooltip}">
+                          ToolTip.Tip="{Binding CompatibilityTooltip, Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource SuccessBrush}"
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"/>

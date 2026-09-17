@@ -1059,4 +1059,49 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         Assert.False(result.Success);
         Assert.Contains("Failed to create or access checkpoint save directory", result.FirstError);
     }
+
+    /// <summary>
+    /// Verifies that disposing ReplayCheckpointService while minting is in-flight does not throw ObjectDisposedException on semaphore release.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Dispose_WhileMintInFlight_DoesNotThrowObjectDisposedException()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "DisposeInFlight.rep",
+            FullPath = @"C:\Games\Replays\DisposeInFlight.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-dispose-inflight", Name = "Dispose In Flight Profile" };
+
+        var localService = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            NullLogger<ReplayCheckpointService>.Instance,
+            customSaveDirectory: _tempSaveDir);
+
+        var launchTcs = new TaskCompletionSource<ProfileOperationResult<GameLaunchInfo>>();
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(
+                profile.Id,
+                false,
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(launchTcs.Task);
+
+        var mintTask = localService.MintCheckpointAsync(replay, profile, 200);
+
+        // While mint is in-flight waiting on launcher facade, dispose the service
+        localService.Dispose();
+
+        // Release the launcher task
+        launchTcs.SetResult(ProfileOperationResult<GameLaunchInfo>.CreateFailure("Aborted"));
+
+        var result = await mintTask;
+        Assert.False(result.Success);
+    }
 }
