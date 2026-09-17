@@ -220,19 +220,19 @@ public class SuperHackersManifestFactory(
         foreach (var filePath in allFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!ExecutableFileClassifier.IsLegacyLaunchCandidate(filePath, filePath))
+            var matchesGenerals = SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersGeneralsExecutable);
+            var matchesZeroHour = SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersZeroHourExecutable);
+            if ((!matchesGenerals && !matchesZeroHour) || !ExecutableFileClassifier.IsLegacyLaunchCandidate(filePath, filePath))
             {
                 continue;
             }
 
             // Prefer the platform's executable form, with stable path ordering for ties.
-            if (SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersGeneralsExecutable)
-                && result.TryAdd(GameType.Generals, filePath))
+            if (matchesGenerals && result.TryAdd(GameType.Generals, filePath))
             {
                 logger.LogInformation("Detected SuperHackers Generals executable: {Path}", filePath);
             }
-            else if (SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersZeroHourExecutable)
-                && result.TryAdd(GameType.ZeroHour, filePath))
+            else if (matchesZeroHour && result.TryAdd(GameType.ZeroHour, filePath))
             {
                 logger.LogInformation("Detected SuperHackers Zero Hour executable: {Path}", filePath);
             }

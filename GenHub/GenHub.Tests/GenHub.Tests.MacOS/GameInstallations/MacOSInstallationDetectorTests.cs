@@ -10,6 +10,15 @@ namespace GenHub.Tests.MacOS.GameInstallations;
 /// </summary>
 public class MacOSInstallationDetectorTests
 {
+    /// <summary>A cancelled root scan stops before enumerating the filesystem.</summary>
+    [Fact]
+    public void InspectRoot_Cancelled_ThrowsBeforeFilesystemAccess()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() => MacOSInstallationDetector.InspectRoot("invalid\0root", cancellation.Token));
+    }
+
     /// <summary>Unexpected path errors propagate to the logging detection boundary.</summary>
     [Fact]
     public void InspectRoot_InvalidPath_DoesNotHideFailure()

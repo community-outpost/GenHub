@@ -1,4 +1,6 @@
 using GenHub.Core.Helpers;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -20,6 +22,48 @@ public class RetailArchiveClassifierTests : IDisposable
     public RetailArchiveClassifierTests()
     {
         _tempDir = Directory.CreateTempSubdirectory("GenHub.ClassifierTests.").FullName;
+    }
+
+    /// <summary>The safe classifier preserves readable archive classification.</summary>
+    [Fact]
+    public void ClassifyArchivesSafely_ReadableDirectory_PreservesClassification()
+    {
+        var directory = CreateDirectoryWithArchives("safe", "INI.big", "INIZH.big");
+        Assert.Equal(RetailArchiveClassifier.ClassifyArchives(directory), RetailArchiveClassifier.ClassifyArchivesSafely(directory));
+    }
+
+    /// <summary>Unreadable roots return no games and retain a diagnostic warning.</summary>
+    [Fact]
+    public void ClassifyArchivesSafely_UnreadableDirectory_LogsAndReturnsEmpty()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var directory = CreateDirectoryWithArchives("denied", "INI.big");
+        var originalMode = File.GetUnixFileMode(directory);
+        var logger = new Mock<ILogger>();
+        try
+        {
+            File.SetUnixFileMode(directory, UnixFileMode.None);
+            Assert.Throws<UnauthorizedAccessException>(() => RetailArchiveClassifier.ClassifyArchives(directory));
+            var result = RetailArchiveClassifier.ClassifyArchivesSafely(directory, logger.Object);
+            Assert.False(result.HasGeneralsArchives);
+            Assert.False(result.HasZeroHourArchives);
+            logger.Verify(
+                x => x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<UnauthorizedAccessException>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+        finally
+        {
+            File.SetUnixFileMode(directory, originalMode);
+        }
     }
 
     /// <summary>

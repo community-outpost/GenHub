@@ -121,6 +121,30 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         return Task.FromResult(result);
     }
 
+    /// <summary>Transfers known combined-root coverage to higher-priority partial sources.</summary>
+    /// <param name="installations">All detected sources, before deduplication.</param>
+    private static void CompletePartialDetections(List<GameInstallation> installations)
+    {
+        var combinedPaths = installations.Where(i => i.IsCombinedDirectory)
+            .Select(i => Path.GetFullPath(i.GeneralsPath)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var installation in installations)
+        {
+            if (installation.HasGenerals == installation.HasZeroHour)
+            {
+                continue;
+            }
+
+            var path = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+            if (!string.IsNullOrEmpty(path) && combinedPaths.Contains(Path.GetFullPath(path)))
+            {
+                installation.GeneralsPath = path;
+                installation.ZeroHourPath = path;
+                installation.HasGenerals = true;
+                installation.HasZeroHour = true;
+            }
+        }
+    }
+
     private List<GameInstallation> DetectRetailInstallations()
     {
         var retailInstalls = new List<GameInstallation>();
@@ -188,18 +212,21 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
     /// <summary>
     /// Deduplicates installations that point to the same actual game directories.
-    /// Prioritizes installations in this order: Steam > EA App > Retail.
+    /// Keeps complete combined roots ahead of partial detections, then prefers Steam > EA App > Retail.
     /// </summary>
     /// <param name="installations">The list of installations to deduplicate.</param>
     /// <returns>A deduplicated list of installations.</returns>
     private List<GameInstallation> DeduplicateInstallations(List<GameInstallation> installations)
     {
+        CompletePartialDetections(installations);
         var seenGeneralsPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenZeroHourPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var deduplicated = new List<GameInstallation>();
 
-        // Define priority order: Steam > EA App > CDISO > Retail
-        var orderedInstallations = installations.OrderBy(i => Array.IndexOf(PriorityOrder, i.InstallationType)).ToList();
+        // Claim complete combined roots first so a partial source cannot own the same
+        // directory separately. Source priority breaks ties between complete detections.
+        var orderedInstallations = installations.OrderByDescending(i => i.IsCombinedDirectory)
+            .ThenBy(i => Array.IndexOf(PriorityOrder, i.InstallationType)).ToList();
 
         foreach (var installation in orderedInstallations)
         {

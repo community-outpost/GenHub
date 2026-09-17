@@ -81,7 +81,7 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var (installation, accessDenied) = InspectRoot(root);
+                var (installation, accessDenied) = InspectRoot(root, cancellationToken);
 
                 if (accessDenied)
                 {
@@ -160,6 +160,7 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     /// Inspects one candidate root: first the directory itself, then name-matched children.
     /// </summary>
     /// <param name="root">Directory to inspect.</param>
+    /// <param name="cancellationToken">Cancellation for this root and its child scan.</param>
     /// <returns>
     /// The installation found under <paramref name="root"/>, or null, and whether access
     /// was denied.
@@ -169,14 +170,15 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     /// When no valid child is found, archive classification also supports flat native
     /// deployments whose directory names do not match a retail layout.
     /// </remarks>
-    internal static (GameInstallation? Installation, bool AccessDenied) InspectRoot(string root)
+    internal static (GameInstallation? Installation, bool AccessDenied) InspectRoot(string root, CancellationToken cancellationToken = default)
     {
-        string? generalsPath;
-        string? zeroHourPath;
+        cancellationToken.ThrowIfCancellationRequested();
+        string? generalsPath = null;
+        string? zeroHourPath = null;
 
         try
         {
-            (generalsPath, zeroHourPath) = FindGameDirectories(root);
+            (generalsPath, zeroHourPath) = FindGameDirectories(root, cancellationToken);
             if (generalsPath is null && zeroHourPath is null)
             {
                 var rootClassification = RetailArchiveClassifier.ClassifyArchives(root);
@@ -320,18 +322,20 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     /// Generals and Zero Hour directory names.
     /// </summary>
     /// <param name="root">Directory to search within.</param>
+    /// <param name="cancellationToken">Cancellation between child directories.</param>
     /// <returns>
     /// The matching paths. Matching is case-insensitive because macOS volumes can be
     /// case-sensitive while retail trees are Windows-cased. Filesystem errors propagate
     /// to the caller, which distinguishes denied access from a vanished directory.
     /// </returns>
-    private static (string? GeneralsPath, string? ZeroHourPath) FindGameDirectories(string root)
+    private static (string? GeneralsPath, string? ZeroHourPath) FindGameDirectories(string root, CancellationToken cancellationToken)
     {
         string? generalsPath = null;
         string? zeroHourPath = null;
 
         foreach (var directory in Directory.EnumerateDirectories(root))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var directoryName = Path.GetFileName(directory);
             if (generalsPath is null &&
                 GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)

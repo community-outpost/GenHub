@@ -65,8 +65,32 @@ public class WindowsInstallationDetectorTests
         var detector = new WindowsInstallationDetector(NullLogger<WindowsInstallationDetector>.Instance);
         var method = typeof(WindowsInstallationDetector).GetMethod("DeduplicateInstallations", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var result = (List<GameInstallation>)method.Invoke(detector, [new List<GameInstallation> { partial, combined }])!;
-        Assert.Contains(combined, result);
-        Assert.True(combined.HasGenerals);
-        Assert.True(combined.HasZeroHour);
+        Assert.Same(partial, Assert.Single(result));
+        Assert.True(partial.HasGenerals);
+        Assert.True(partial.HasZeroHour);
+    }
+
+    /// <summary>Retaining a combined root must not discard a distinct game directory.</summary>
+    [Fact]
+    public void DeduplicateInstallations_SharedRootWithDistinctSibling_PreservesSibling()
+    {
+        var directory = Path.GetFullPath("combined-installation");
+        var siblingDirectory = Path.GetFullPath("other-zero-hour");
+        var split = new GameInstallation(directory, GameInstallationType.Steam)
+        {
+            HasGenerals = true, HasZeroHour = true,
+            GeneralsPath = directory, ZeroHourPath = siblingDirectory,
+        };
+        var combined = new GameInstallation(directory, GameInstallationType.Retail)
+        {
+            HasGenerals = true, HasZeroHour = true, GeneralsPath = directory, ZeroHourPath = directory,
+        };
+        var detector = new WindowsInstallationDetector(NullLogger<WindowsInstallationDetector>.Instance);
+        var method = typeof(WindowsInstallationDetector).GetMethod("DeduplicateInstallations", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var result = (List<GameInstallation>)method.Invoke(detector, [new List<GameInstallation> { split, combined }])!;
+        Assert.Equal(2, result.Count);
+        Assert.Same(combined, Assert.Single(result, i => i.HasGenerals));
+        Assert.False(split.HasGenerals);
+        Assert.Equal(siblingDirectory, split.ZeroHourPath);
     }
 }
