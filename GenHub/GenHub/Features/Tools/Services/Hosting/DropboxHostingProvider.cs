@@ -31,6 +31,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private const string DropboxApiUrl = HostingConstants.DropboxApiUrl;
     private const string DropboxContentUrl = HostingConstants.DropboxContentUrl;
     private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
+    private const string MissingScopeTag = "missing_scope";
 
     private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);
 
@@ -138,7 +139,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                     _httpClient.DefaultRequestHeaders.Authorization = null;
 
                     if (sharingError.Contains("sharing.read", StringComparison.OrdinalIgnoreCase) ||
-                        sharingError.Contains("missing_scope", StringComparison.OrdinalIgnoreCase) ||
+                        sharingError.Contains(MissingScopeTag, StringComparison.OrdinalIgnoreCase) ||
                         sharingError.Contains("not permitted", StringComparison.OrdinalIgnoreCase))
                     {
                         return OperationResult<bool>.CreateFailure(
@@ -158,7 +159,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             _accessToken = null;
             _httpClient.DefaultRequestHeaders.Authorization = null;
 
-            if (error.Contains("missing_scope", StringComparison.OrdinalIgnoreCase))
+            if (error.Contains(MissingScopeTag, StringComparison.OrdinalIgnoreCase))
             {
                 return OperationResult<bool>.CreateFailure(
                     "Dropbox token is missing required scopes. Please ensure your Dropbox app has 'account_info.read', 'files.content.write', 'files.content.read', 'sharing.write', and 'sharing.read' enabled under Permissions tab in Dropbox App Console, and regenerate your token.");
@@ -469,7 +470,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
     private static OperationResult<string>? TryExtractMissingScopeError(JsonElement errObj)
     {
-        if (errObj.TryGetProperty(".tag", out var tagScope) && tagScope.GetString() == "missing_scope")
+        if (errObj.TryGetProperty(".tag", out var tagScope) && tagScope.GetString() == MissingScopeTag)
         {
             var reqScope = errObj.TryGetProperty("required_scope", out var rs) ? rs.GetString() : "sharing.write";
             return OperationResult<string>.CreateFailure(
@@ -618,64 +619,75 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             var listError = listResponse != null ? await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false) : "No response";
             logger.LogWarning("Dropbox list_shared_links returned {Status}: {Error}", listResponse?.StatusCode, listError);
             listResponse?.Dispose();
-
-            if (!string.IsNullOrEmpty(listError))
-            {
-                try
-                {
-                    using var errDoc = JsonDocument.Parse(listError);
-                    if (errDoc.RootElement.TryGetProperty("error", out var errObj))
-                    {
-                        var scopeErr = TryExtractMissingScopeError(errObj);
-                        if (scopeErr != null)
-                        {
-                            return scopeErr;
-                        }
-                    }
-                }
-                catch (JsonException)
-                {
-                    // Fallback to substring matching
-                }
-
-                if (listError.Contains("sharing.read", StringComparison.OrdinalIgnoreCase) ||
-                    listError.Contains("missing_scope", StringComparison.OrdinalIgnoreCase) ||
-                    listError.Contains("not permitted", StringComparison.OrdinalIgnoreCase))
-                {
-                    return OperationResult<string>.CreateFailure(
-                        "Dropbox access token is missing the 'sharing.read' permission. In your Dropbox App Console, navigate to the 'Permissions' tab, check 'account_info.read', 'files.content.write', 'files.content.read', 'sharing.write', and 'sharing.read', click 'Submit', and regenerate your token under the 'Settings' tab.");
-                }
-            }
-
-            return null;
+            return HandleListSharedLinksFailure(listError);
         }
 
         using (listResponse)
         {
-            try
-            {
-                var listContent = await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                using var listDoc = JsonDocument.Parse(listContent);
-                if (listDoc.RootElement.TryGetProperty("links", out var links) &&
-                    links.ValueKind == JsonValueKind.Array &&
-                    links.GetArrayLength() > 0 &&
-                    links[0].TryGetProperty("url", out var urlProp))
-                {
-                    var existingUrl = urlProp.GetString();
-                    if (!string.IsNullOrEmpty(existingUrl))
-                    {
-                        logger.LogInformation("Found existing Dropbox shared link: {Url}", existingUrl);
-                        return OperationResult<string>.CreateSuccess(existingUrl);
-                    }
-                }
-            }
-            catch (JsonException ex)
-            {
-                logger.LogWarning(ex, "Failed to parse Dropbox shared link response for {Path}", path);
-            }
+            var listContent = await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            return ExtractExistingUrlFromResponse(listContent, path);
+        }
+    }
 
+    private OperationResult<string>? HandleListSharedLinksFailure(string listError)
+    {
+        if (string.IsNullOrEmpty(listError))
+        {
             return null;
         }
+
+        try
+        {
+            using var errDoc = JsonDocument.Parse(listError);
+            if (errDoc.RootElement.TryGetProperty("error", out var errObj))
+            {
+                var scopeErr = TryExtractMissingScopeError(errObj);
+                if (scopeErr != null)
+                {
+                    return scopeErr;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Fallback to substring matching
+        }
+
+        if (listError.Contains("sharing.read", StringComparison.OrdinalIgnoreCase) ||
+            listError.Contains(MissingScopeTag, StringComparison.OrdinalIgnoreCase) ||
+            listError.Contains("not permitted", StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<string>.CreateFailure(
+                "Dropbox access token is missing the 'sharing.read' permission. In your Dropbox App Console, navigate to the 'Permissions' tab, check 'account_info.read', 'files.content.write', 'files.content.read', 'sharing.write', and 'sharing.read', click 'Submit', and regenerate your token under the 'Settings' tab.");
+        }
+
+        return null;
+    }
+
+    private OperationResult<string>? ExtractExistingUrlFromResponse(string listContent, string path)
+    {
+        try
+        {
+            using var listDoc = JsonDocument.Parse(listContent);
+            if (listDoc.RootElement.TryGetProperty("links", out var links) &&
+                links.ValueKind == JsonValueKind.Array &&
+                links.GetArrayLength() > 0 &&
+                links[0].TryGetProperty("url", out var urlProp))
+            {
+                var existingUrl = urlProp.GetString();
+                if (!string.IsNullOrEmpty(existingUrl))
+                {
+                    logger.LogInformation("Found existing Dropbox shared link: {Url}", existingUrl);
+                    return OperationResult<string>.CreateSuccess(existingUrl);
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to parse Dropbox shared link response for {Path}", path);
+        }
+
+        return null;
     }
 
     private async Task<HttpResponseMessage?> SendListSharedLinksWithRetryAsync(string path, CancellationToken cancellationToken)
