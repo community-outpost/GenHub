@@ -27,6 +27,11 @@ public static class CloudUrlHelper
         RegexOptions.Compiled | RegexOptions.IgnoreCase,
         RegexTimeout);
 
+    private static readonly Regex DropboxDl1Regex = new(
+        @"(?<=[?&])dl=1(?=[&#]|$)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexTimeout);
+
     /// <summary>
     /// Normalizes a given URL so that it points directly to the raw content stream rather than an interactive HTML viewer page.
     /// </summary>
@@ -61,7 +66,7 @@ public static class CloudUrlHelper
                 return DropboxDlRegex.Replace(trimmed, "dl=1");
             }
 
-            if (!trimmed.Contains("dl=1", StringComparison.OrdinalIgnoreCase))
+            if (!DropboxDl1Regex.IsMatch(trimmed))
             {
                 return trimmed + (trimmed.Contains('?') ? "&dl=1" : "?dl=1");
             }

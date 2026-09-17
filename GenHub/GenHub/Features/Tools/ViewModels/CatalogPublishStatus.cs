@@ -59,15 +59,15 @@ public partial class CatalogPublishStatus : ObservableObject
         {
             if (!IsPublished)
             {
-                return UiConstants.StatusInactiveColor;
+                return CatalogConstants.CatalogStatusNotPublishedColor;
             }
 
             if (HasChanges)
             {
-                return UiConstants.StatusUpdateAvailableColor;
+                return CatalogConstants.CatalogStatusPendingColor;
             }
 
-            return UiConstants.StatusSuccessColor;
+            return CatalogConstants.CatalogStatusPublishedColor;
         }
     }
 

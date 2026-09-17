@@ -528,6 +528,7 @@
                                                 <Button Grid.Column="3"
                                                         Command="{Binding #RootView.((vm:PublishShareViewModel)DataContext).PublishCatalogByIdCommand}"
                                                         CommandParameter="{Binding Id}"
+                                                        IsEnabled="{Binding !#RootView.((vm:PublishShareViewModel)DataContext).IsUploading}"
                                                         Classes="glass-btn"
                                                         Padding="12,6"
                                                         VerticalAlignment="Center">
@@ -684,10 +685,17 @@
                                 <Button Grid.Column="2" Command="{Binding ValidateCatalogCommand}" Content="Revalidate" Classes="glass-btn" Padding="10,6" FontSize="11"/>
                             </Grid>
 
-                            <!-- Progress Bar -->
-                            <ProgressBar Value="{Binding UploadProgress}"
-                                         Maximum="100"
-                                         IsVisible="{Binding IsUploading}"/>
+                            <!-- Progress Bar & Cancel -->
+                            <StackPanel Spacing="6" IsVisible="{Binding IsUploading}">
+                                <ProgressBar Value="{Binding UploadProgress}"
+                                             Maximum="100"/>
+                                <Button Command="{Binding CancelUploadCommand}"
+                                        Content="Cancel Upload"
+                                        Classes="glass-btn"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        HorizontalAlignment="Right"/>
+                            </StackPanel>
 
                             <TextBlock Text="{Binding UploadStatusMessage}"
                                        FontSize="12"

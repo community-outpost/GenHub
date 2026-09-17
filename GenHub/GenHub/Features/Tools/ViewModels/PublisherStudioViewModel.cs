@@ -23,7 +23,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
-public partial class PublisherStudioViewModel : ObservableObject
+public partial class PublisherStudioViewModel : ObservableObject, IDisposable
 {
     /// <summary>Tab index for the Profile tab.</summary>
     public const int TabProfile = 0;
@@ -267,6 +267,14 @@ public partial class PublisherStudioViewModel : ObservableObject
         }
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        PublishShareViewModel?.Dispose();
+        PublishShareViewModel = null;
+        GC.SuppressFinalize(this);
+    }
+
     private static string Slugify(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return "catalog";
@@ -344,25 +352,32 @@ public partial class PublisherStudioViewModel : ObservableObject
 
     private async Task InitializeAsync()
     {
-        var lastPath = await LoadLastProjectPathAsync();
-        if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath))
+        try
         {
-            await LoadProjectFromPathAsync(lastPath);
-            return;
-        }
+            var lastPath = await LoadLastProjectPathAsync();
+            if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath))
+            {
+                await LoadProjectFromPathAsync(lastPath);
+                return;
+            }
 
-        var defaultPath = GetDefaultProjectPath();
-        if (File.Exists(defaultPath))
-        {
-            await LoadProjectFromPathAsync(defaultPath);
-            return;
-        }
+            var defaultPath = GetDefaultProjectPath();
+            if (File.Exists(defaultPath))
+            {
+                await LoadProjectFromPathAsync(defaultPath);
+                return;
+            }
 
-        await CreateNewProjectInternalAsync(showWizard: false);
-        if (CurrentProject != null)
+            await CreateNewProjectInternalAsync(showWizard: false);
+            if (CurrentProject != null)
+            {
+                CurrentProject.ProjectPath = defaultPath;
+                await SaveProjectAsync();
+            }
+        }
+        catch (Exception ex)
         {
-            CurrentProject.ProjectPath = defaultPath;
-            await SaveProjectAsync();
+            _logger.LogError(ex, "Failed to initialize PublisherStudioViewModel");
         }
     }
 
@@ -718,6 +733,7 @@ public partial class PublisherStudioViewModel : ObservableObject
 
         PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, _logger);
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, _logger, _dialogService);
+        PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, _publisherStudioService, _logger, _hostingProviderFactory, _hostingStateManager, _notificationService);
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, _logger, _dialogService);
 

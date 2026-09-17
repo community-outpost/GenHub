@@ -37,16 +37,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private static HttpClient InitializeHttpClient(IHttpClientFactory factory)
     {
         var client = factory.CreateClient();
-        client.Timeout = Timeout.InfiniteTimeSpan;
+        client.Timeout = TimeSpan.FromMinutes(5);
         return client;
     }
 
     private string? _accessToken;
     private bool _disposed;
 
-    /// <summary>
-    /// Gets the maximum file size supported by Dropbox.
-    /// </summary>
     /// <summary>
     /// Gets the maximum file size supported by the Dropbox simple upload endpoint (150 MB).
     /// </summary>
@@ -592,16 +589,26 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         using (listResponse)
         {
-            var listContent = await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            using var listDoc = JsonDocument.Parse(listContent);
-            if (listDoc.RootElement.TryGetProperty("links", out var links) && links.GetArrayLength() > 0)
+            try
             {
-                var existingUrl = links[0].GetProperty("url").GetString();
-                if (!string.IsNullOrEmpty(existingUrl))
+                var listContent = await listResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var listDoc = JsonDocument.Parse(listContent);
+                if (listDoc.RootElement.TryGetProperty("links", out var links) &&
+                    links.ValueKind == JsonValueKind.Array &&
+                    links.GetArrayLength() > 0 &&
+                    links[0].TryGetProperty("url", out var urlProp))
                 {
-                    logger.LogInformation("Found existing Dropbox shared link: {Url}", existingUrl);
-                    return OperationResult<string>.CreateSuccess(existingUrl);
+                    var existingUrl = urlProp.GetString();
+                    if (!string.IsNullOrEmpty(existingUrl))
+                    {
+                        logger.LogInformation("Found existing Dropbox shared link: {Url}", existingUrl);
+                        return OperationResult<string>.CreateSuccess(existingUrl);
+                    }
                 }
+            }
+            catch (JsonException ex)
+            {
+                logger.LogWarning(ex, "Failed to parse Dropbox shared link response for {Path}", path);
             }
 
             return null;

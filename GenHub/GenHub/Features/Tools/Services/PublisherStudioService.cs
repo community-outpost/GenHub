@@ -105,6 +105,10 @@ public class PublisherStudioService(
             logger.LogInformation("Loaded publisher project from: {Path}", path);
             return OperationResult<PublisherStudioProject>.CreateSuccess(project);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load publisher project from {Path}", path);
@@ -117,6 +121,7 @@ public class PublisherStudioService(
         PublisherStudioProject project,
         CancellationToken cancellationToken = default)
     {
+        string? tempFile = null;
         try
         {
             if (string.IsNullOrWhiteSpace(project.ProjectPath))
@@ -127,17 +132,47 @@ public class PublisherStudioService(
             project.LastModified = DateTime.UtcNow;
 
             var json = JsonSerializer.Serialize(project, JsonOptions);
-            await File.WriteAllTextAsync(project.ProjectPath, json, cancellationToken);
+            var directory = Path.GetDirectoryName(project.ProjectPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            tempFile = Path.Combine(
+                directory ?? Path.GetTempPath(),
+                $"{Path.GetFileName(project.ProjectPath)}.{Guid.NewGuid():N}.tmp");
+
+            await File.WriteAllTextAsync(tempFile, json, cancellationToken);
+            File.Move(tempFile, project.ProjectPath, overwrite: true);
+            tempFile = null;
 
             project.IsDirty = false;
 
             logger.LogInformation("Saved publisher project to: {Path}", project.ProjectPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to save publisher project to {Path}", project.ProjectPath);
             return OperationResult<bool>.CreateFailure($"Failed to save project: {ex.Message}");
+        }
+        finally
+        {
+            if (tempFile != null && File.Exists(tempFile))
+            {
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch
+                {
+                    // Best effort cleanup
+                }
+            }
         }
     }
 

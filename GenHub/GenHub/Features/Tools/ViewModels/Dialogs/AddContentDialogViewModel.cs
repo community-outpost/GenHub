@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
@@ -18,11 +19,12 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for adding or editing a content item in the catalog.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
-public partial class AddContentDialogViewModel : ObservableValidator
+public partial class AddContentDialogViewModel : ObservableValidator, IDisposable
 {
     private readonly Action<CatalogContentItem> _onContentCreated;
     private readonly IPublisherStudioDialogService? _dialogService;
     private readonly CatalogContentItem? _existingItem;
+    private CancellationTokenSource? _computationCts;
 
     [ObservableProperty]
     private bool _isEditMode;
@@ -250,6 +252,15 @@ public partial class AddContentDialogViewModel : ObservableValidator
         Validate();
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _computationCts?.Cancel();
+        _computationCts?.Dispose();
+        _computationCts = null;
+        GC.SuppressFinalize(this);
+    }
+
     private static string FormatBytes(long bytes)
     {
         string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
@@ -376,6 +387,11 @@ public partial class AddContentDialogViewModel : ObservableValidator
 
     private bool PopulateFileSystemInfo(string path, out string baseName)
     {
+        _computationCts?.Cancel();
+        _computationCts?.Dispose();
+        _computationCts = new CancellationTokenSource();
+        var ct = _computationCts.Token;
+
         if (Directory.Exists(path))
         {
             var dirInfo = new DirectoryInfo(path);
@@ -386,7 +402,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
             FileSizeDisplay = "Folder (calculating size...)";
             Sha256Hash = string.Empty;
 
-            _ = ComputeFolderSizeAsync(path);
+            _ = ComputeFolderSizeAsync(path, ct);
             return true;
         }
 
@@ -397,7 +413,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
             PackageFilename = fileInfo.Name;
             FileSize = fileInfo.Length;
             FileSizeDisplay = FormatBytes(fileInfo.Length);
-            _ = ComputeSha256Async(path);
+            _ = ComputeSha256Async(path, ct);
             return true;
         }
 
@@ -435,25 +451,38 @@ public partial class AddContentDialogViewModel : ObservableValidator
         }
     }
 
-    private async Task ComputeFolderSizeAsync(string folderPath)
+    private async Task ComputeFolderSizeAsync(string folderPath, CancellationToken ct)
     {
         try
         {
-            var totalBytes = await Task.Run(() =>
-            {
-                var dirInfo = new DirectoryInfo(folderPath);
-                return dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
-            });
+            var totalBytes = await Task.Run(
+                () =>
+                {
+                    var dirInfo = new DirectoryInfo(folderPath);
+                    long sum = 0;
+                    foreach (var file in dirInfo.EnumerateFiles("*", SearchOption.AllDirectories))
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        sum += file.Length;
+                    }
 
-            if (string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
+                    return sum;
+                },
+                ct);
+
+            if (!ct.IsCancellationRequested && string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
             {
                 FileSize = totalBytes;
                 FileSizeDisplay = $"{FormatBytes(totalBytes)} (folder)";
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Calculation canceled
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            if (string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
+            if (!ct.IsCancellationRequested && string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
             {
                 FileSize = 0;
                 FileSizeDisplay = "Folder (size unavailable)";
@@ -461,19 +490,29 @@ public partial class AddContentDialogViewModel : ObservableValidator
         }
     }
 
-    private async Task ComputeSha256Async(string filePath)
+    private async Task ComputeSha256Async(string filePath, CancellationToken ct)
     {
         try
         {
             IsComputingHash = true;
             using var stream = File.OpenRead(filePath);
             using var sha256 = SHA256.Create();
-            var hashBytes = await sha256.ComputeHashAsync(stream);
-            Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            var hashBytes = await sha256.ComputeHashAsync(stream, ct);
+            if (!ct.IsCancellationRequested)
+            {
+                Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Calculation canceled
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Sha256Hash = string.Empty;
+            if (!ct.IsCancellationRequested)
+            {
+                Sha256Hash = string.Empty;
+            }
         }
         finally
         {

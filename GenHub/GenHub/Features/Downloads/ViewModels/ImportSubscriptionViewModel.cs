@@ -1,12 +1,14 @@
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.ViewModels;
@@ -43,38 +45,13 @@ public partial class ImportSubscriptionViewModel : ObservableObject
 
     private static string ResolveTargetUrl(string raw)
     {
-        var targetUrl = CommandLineParser.ExtractSubscriptionUrl(new[] { raw });
+        var targetUrl = CommandLineParser.ExtractSubscriptionUrl([raw]);
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
-            if (raw.StartsWith("genhub://", StringComparison.OrdinalIgnoreCase))
-            {
-                targetUrl = ExtractFromGenHubUri(raw);
-            }
-
-            if (string.IsNullOrWhiteSpace(targetUrl))
-            {
-                targetUrl = raw;
-            }
+            targetUrl = raw;
         }
 
         return CloudUrlHelper.NormalizeDirectDownloadUrl(targetUrl);
-    }
-
-    private static string? ExtractFromGenHubUri(string raw)
-    {
-        var queryIndex = raw.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
-        if (queryIndex != -1)
-        {
-            var extracted = raw[(queryIndex + 4)..].Trim().Trim('"', '\'');
-            var decoded = Uri.UnescapeDataString(extracted);
-            if (Uri.TryCreate(decoded, UriKind.Absolute, out var parsedUri) &&
-                (parsedUri.Scheme == Uri.UriSchemeHttp || parsedUri.Scheme == Uri.UriSchemeHttps))
-            {
-                return decoded;
-            }
-        }
-
-        return null;
     }
 
     private async Task LaunchConfirmationDialogAsync(string targetUrl)
@@ -82,7 +59,9 @@ public partial class ImportSubscriptionViewModel : ObservableObject
         var desktop = Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var parent = desktop?.MainWindow;
 
-        var confirmVm = ActivatorUtilities.CreateInstance<SubscriptionConfirmationViewModel>(_serviceProvider, targetUrl);
+        var httpClientFactory = _serviceProvider.GetRequiredService<IHttpClientFactory>();
+        var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
+        var confirmVm = ActivatorUtilities.CreateInstance<SubscriptionConfirmationViewModel>(_serviceProvider, targetUrl, client);
         var confirmDialog = new SubscriptionConfirmationDialog
         {
             DataContext = confirmVm,

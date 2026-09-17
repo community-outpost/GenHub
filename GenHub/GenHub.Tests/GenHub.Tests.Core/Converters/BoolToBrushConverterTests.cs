@@ -42,7 +42,7 @@ public class BoolToBrushConverterTests
     /// Verifies that Convert returns a transparent brush when the value is not a boolean.
     /// </summary>
     [Fact]
-    public void Convert_ReturnsTransparent_WhenValueValueIsNotBool()
+    public void Convert_ReturnsTransparent_WhenValueIsNotBool()
     {
         // Act
         var result = _converter.Convert("not a bool", typeof(IBrush), "#FF0000|#00FF00", CultureInfo.InvariantCulture);

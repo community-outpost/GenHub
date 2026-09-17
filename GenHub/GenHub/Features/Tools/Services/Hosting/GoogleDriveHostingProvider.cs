@@ -336,6 +336,15 @@ public class GoogleDriveHostingProvider(
             var updatedFile = updateRequest.ResponseBody;
             logger.LogInformation("Updated file {FileId} on Google Drive", fileId);
 
+            // Ensure public permissions
+            var permResult = await MakePublicAsync(fileId, cancellationToken);
+            if (!permResult.Success)
+            {
+                logger.LogWarning("File {FileId} updated but failed to make public: {Error}", fileId, permResult.FirstError);
+                return OperationResult<HostingUploadResult>.CreateFailure(
+                    $"File '{fileName}' was updated on Google Drive, but setting public permissions failed: {permResult.FirstError}");
+            }
+
             var directDownloadUrl = string.Format(
                 HostingConstants.GoogleDriveDownloadUrlTemplate,
                 updatedFile.Id);
