@@ -1130,12 +1130,18 @@ public sealed class BuildEngineServiceTests : IDisposable
             },
         };
 
+        var reportedProgress = new List<BuildProgress>();
+        var progressMock = new Mock<IProgress<BuildProgress>>();
+        progressMock.Setup(p => p.Report(It.IsAny<BuildProgress>()))
+            .Callback<BuildProgress>(reportedProgress.Add);
+
         // Act
         var result = await _service.ExecuteBuildAsync(
             project,
             configuration,
             new List<string>(),
-            BuildStep.Clean);
+            BuildStep.Clean,
+            progressMock.Object);
 
         // Assert
         result.Success.Should().BeTrue(result.FirstError);
