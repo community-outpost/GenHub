@@ -1,0 +1,109 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="600"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectItemPickerDialog"
+        x:DataType="vm:ProjectItemPickerViewModel"
+        Title="Select Project Files &amp; Directories"
+        Icon="/Assets/Icons/generalshub-icon.png"
+        Width="650" Height="600"
+        MinWidth="500" MinHeight="450"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="{DynamicResource WindowBackground}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="18">
+    <!-- Header -->
+    <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
+      <TextBlock Text="Add Files &amp; Directories to Bundle Item"
+                 FontSize="17" FontWeight="Bold"
+                 Foreground="{DynamicResource TextPrimary}"/>
+      <TextBlock Text="Select folders to generate recursive wildcards or pick specific files to link."
+                 FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+    </StackPanel>
+
+    <!-- Project Tree View -->
+    <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="8" Padding="6">
+      <TreeView ItemsSource="{Binding Nodes}">
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+              <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                        VerticalAlignment="Center" Margin="0,0,2,0"/>
+              <!-- Icon -->
+              <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"
+                    Fill="{DynamicResource AccentBrush}"
+                    Data="{StaticResource IconOpenFolder}"
+                    IsVisible="{Binding IsDirectory}"/>
+              <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"
+                    Fill="{DynamicResource TextSecondary}"
+                    Data="{StaticResource IconTextFile}"
+                    IsVisible="{Binding !IsDirectory}"/>
+              <!-- Label -->
+              <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                         FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+              <!-- Relative path hint -->
+              <TextBlock Text="{Binding RelativePath}" VerticalAlignment="Center"
+                         FontSize="10.5" Foreground="{DynamicResource TextTertiary}"
+                         Margin="8,0,0,0"/>
+            </StackPanel>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+    </Border>
+
+    <!-- Folder Glob Options -->
+    <Border Grid.Row="2" Background="{DynamicResource SurfaceElevatedBrush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="8" Padding="12" Margin="0,12,0,12">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="Folder Glob Pattern:"
+                   FontWeight="SemiBold" FontSize="12"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <ComboBox Grid.Column="1" SelectedIndex="{Binding GlobOption, Mode=TwoWay}"
+                  HorizontalAlignment="Stretch">
+          <ComboBoxItem Content="All Files in Directory (/**/*.*)"/>
+          <ComboBoxItem Content="INI Config Files only (/**/*.ini)"/>
+          <ComboBoxItem Content="TGA Texture Files only (/**/*.tga)"/>
+          <ComboBoxItem Content="Window UI Files only (/**/*.wnd)"/>
+          <ComboBoxItem Content="CSF String Tables only (/**/*.csf)"/>
+          <ComboBoxItem Content="Audio WAV Files only (/**/*.wav)"/>
+        </ComboBox>
+      </Grid>
+    </Border>
+
+    <!-- Footer Controls -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto">
+      <TextBlock Grid.Column="0" Text="{Binding SelectionSummary}"
+                 FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                 VerticalAlignment="Center"/>
+
+      <Button Grid.Column="1" Content="Cancel" Click="OnCancelClick"
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              Padding="16,8" CornerRadius="8" Margin="0,0,8,0" Cursor="Hand"/>
+
+      <Button Grid.Column="2" Content="Add to Bundle Item" Click="OnConfirmClick"
+              IsEnabled="{Binding HasSelection}"
+              Background="{DynamicResource AccentBrush}" Foreground="White"
+              FontWeight="SemiBold"
+              Padding="16,8" CornerRadius="8" Cursor="Hand"/>
+    </Grid>
+  </Grid>
+</Window>

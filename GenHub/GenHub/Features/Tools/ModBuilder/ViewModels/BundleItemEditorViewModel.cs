@@ -1,4 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
+using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -8,6 +14,8 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound in XAML data templates")]
 public partial class BundleItemEditorViewModel : ObservableObject
 {
+    private bool _isUpdatingInternally;
+
     /// <summary>
     /// Gets or sets the name of the bundle item.
     /// </summary>
@@ -60,7 +68,190 @@ public partial class BundleItemEditorViewModel : ObservableObject
     private string _sourcePattern = string.Empty;
 
     /// <summary>
+    /// Gets the list of individual source patterns and paths.
+    /// </summary>
+    public ObservableCollection<SourcePathItemViewModel> SourcePatternsList { get; } = [];
+
+    /// <summary>
+    /// Gets the list of bundle pack links.
+    /// </summary>
+    public ObservableCollection<BundlePackLinkItemViewModel> PackLinks { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the total number of matched files in the workspace.
+    /// </summary>
+    [ObservableProperty]
+    private int _matchingFilesCount;
+
+    /// <summary>
+    /// Gets or sets the matching files summary label.
+    /// </summary>
+    [ObservableProperty]
+    private string _matchingFilesSummary = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether manual/advanced raw pattern mode is enabled.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isAdvancedPatternMode;
+
+    /// <summary>
+    /// Gets or sets custom pattern input text.
+    /// </summary>
+    [ObservableProperty]
+    private string _customPatternInput = string.Empty;
+
+    /// <summary>
     /// Gets the display name for the bundle item.
     /// </summary>
     public string DisplayName => $"{NamePrefix}{Name}{NameSuffix}";
+
+    partial void OnSourcePatternChanged(string value)
+    {
+        if (_isUpdatingInternally)
+        {
+            return;
+        }
+
+        SyncListFromText(value);
+    }
+
+    /// <summary>
+    /// Adds a pattern to this bundle item.
+    /// </summary>
+    /// <param name="pattern">The pattern or relative file path to add.</param>
+    /// <param name="projectDir">Optional project root directory to recalculate matches.</param>
+    public void AddPattern(string pattern, string? projectDir = null)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            return;
+        }
+
+        var normalized = pattern.Trim().Replace('\\', '/');
+
+        // If the list only contains the generic default wildcard, replace it with specific pattern
+        if (SourcePatternsList.Count == 1 &&
+            (SourcePatternsList[0].Pattern.Equals("GameFilesEdited/**/*.*", StringComparison.OrdinalIgnoreCase) ||
+             SourcePatternsList[0].Pattern.Equals("**/*.*", StringComparison.OrdinalIgnoreCase)))
+        {
+            SourcePatternsList.Clear();
+        }
+
+        if (!SourcePatternsList.Any(p => p.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+        {
+            SourcePatternsList.Add(new SourcePathItemViewModel(normalized));
+            SyncTextFromList();
+            RecalculateMatches(projectDir);
+        }
+    }
+
+    /// <summary>
+    /// Removes a pattern from this bundle item.
+    /// </summary>
+    /// <param name="item">The pattern item to remove.</param>
+    /// <param name="projectDir">Optional project directory to recalculate matches.</param>
+    public void RemovePattern(SourcePathItemViewModel item, string? projectDir = null)
+    {
+        if (SourcePatternsList.Remove(item))
+        {
+            SyncTextFromList();
+            RecalculateMatches(projectDir);
+        }
+    }
+
+    /// <summary>
+    /// Clears all patterns.
+    /// </summary>
+    /// <param name="projectDir">Optional project directory.</param>
+    public void ClearPatterns(string? projectDir = null)
+    {
+        SourcePatternsList.Clear();
+        SyncTextFromList();
+        RecalculateMatches(projectDir);
+    }
+
+    /// <summary>
+    /// Recalculates the number of files matching all current patterns against the project directory.
+    /// </summary>
+    /// <param name="projectDir">The project directory.</param>
+    public void RecalculateMatches(string? projectDir)
+    {
+        if (string.IsNullOrWhiteSpace(projectDir) || !Directory.Exists(projectDir) || SourcePatternsList.Count == 0)
+        {
+            MatchingFilesCount = 0;
+            MatchingFilesSummary = SourcePatternsList.Count == 0
+                ? "No patterns defined"
+                : "Project files directory not found";
+            return;
+        }
+
+        try
+        {
+            var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
+            foreach (var item in SourcePatternsList)
+            {
+                var p = item.Pattern.TrimStart('/', '\\').Replace('\\', '/');
+                matcher.AddInclude(p);
+
+                // If pattern does not start with GameFilesEdited/, also match within GameFilesEdited
+                if (!p.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase))
+                {
+                    matcher.AddInclude($"GameFilesEdited/{p}");
+                }
+            }
+
+            var dirInfo = new DirectoryInfo(projectDir);
+            var result = matcher.Execute(new DirectoryInfoWrapper(dirInfo));
+            var count = result.Files.Count();
+
+            MatchingFilesCount = count;
+            MatchingFilesSummary = count == 0
+                ? "Warning: 0 files currently match these patterns"
+                : $"✓ {count} {(count == 1 ? "file matches" : "files match")} in project";
+        }
+        catch (Exception ex)
+        {
+            MatchingFilesSummary = $"Match check: {ex.Message}";
+        }
+    }
+
+    private void SyncListFromText(string text)
+    {
+        _isUpdatingInternally = true;
+        try
+        {
+            SourcePatternsList.Clear();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return;
+            }
+
+            var entries = text.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var entry in entries)
+            {
+                if (!string.IsNullOrWhiteSpace(entry))
+                {
+                    SourcePatternsList.Add(new SourcePathItemViewModel(entry));
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingInternally = false;
+        }
+    }
+
+    private void SyncTextFromList()
+    {
+        _isUpdatingInternally = true;
+        try
+        {
+            SourcePattern = string.Join("; ", SourcePatternsList.Select(p => p.Pattern.Trim()));
+        }
+        finally
+        {
+            _isUpdatingInternally = false;
+        }
+    }
 }

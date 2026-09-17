@@ -6,7 +6,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -104,11 +106,14 @@ public partial class ConfigEditorViewModel(
     partial void OnSelectedBundlePackChanged(BundlePackConfigViewModel? value)
     {
         UpdatePackItemSelections();
+        UpdateBundleItemPackLinks();
         RemoveBundlePackCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedBundleItemChanged(BundleItemEditorViewModel? value)
     {
+        UpdateBundleItemPackLinks();
+        value?.RecalculateMatches(CurrentProject?.ProjectDir);
         RemoveBundleItemCommand.NotifyCanExecuteChanged();
     }
 
@@ -132,6 +137,39 @@ public partial class ConfigEditorViewModel(
         }
     }
 
+    private void UpdateBundleItemPackLinks()
+    {
+        if (SelectedBundleItem == null)
+        {
+            return;
+        }
+
+        SelectedBundleItem.PackLinks.Clear();
+        foreach (var pack in BundlePacks)
+        {
+            var isLinked = pack.ItemNames.Contains(SelectedBundleItem.Name, StringComparer.OrdinalIgnoreCase);
+            var packLink = new BundlePackLinkItemViewModel(pack.Name, isLinked, (packName, linked) =>
+            {
+                var targetPack = BundlePacks.FirstOrDefault(p => p.Name.Equals(packName, StringComparison.OrdinalIgnoreCase));
+                if (targetPack != null)
+                {
+                    if (linked)
+                    {
+                        AddPackItem(targetPack.ItemNames, SelectedBundleItem.Name);
+                    }
+                    else
+                    {
+                        RemovePackItem(targetPack.ItemNames, SelectedBundleItem.Name);
+                    }
+
+                    HasChanges = true;
+                    UpdatePackItemSelections();
+                }
+            });
+            SelectedBundleItem.PackLinks.Add(packLink);
+        }
+    }
+
     private static void OnPackItemSelectedChanged(ConfigEditorViewModel vm, string itemName, bool selected)
     {
         if (vm.SelectedBundlePack == null)
@@ -149,6 +187,7 @@ public partial class ConfigEditorViewModel(
         }
 
         vm.HasChanges = true;
+        vm.UpdateBundleItemPackLinks();
     }
 
     private static void AddPackItem(IList<string> itemNames, string itemName)
@@ -189,6 +228,8 @@ public partial class ConfigEditorViewModel(
             SelectedBundleItem = BundleItems.FirstOrDefault();
             SelectedBundlePack = BundlePacks.FirstOrDefault();
 
+            UpdateBundleItemPackLinks();
+
             HasChanges = false;
         }
 
@@ -210,7 +251,7 @@ public partial class ConfigEditorViewModel(
                 ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
                 : "GameFilesEdited/**/*.*";
 
-            BundleItems.Add(new BundleItemEditorViewModel
+            var itemVm = new BundleItemEditorViewModel
             {
                 Name = item.Name,
                 NamePrefix = item.NamePrefix,
@@ -220,7 +261,10 @@ public partial class ConfigEditorViewModel(
                 SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
                 FileCount = item.Files.Count,
                 SourcePattern = pattern,
-            });
+            };
+
+            itemVm.RecalculateMatches(CurrentProject?.ProjectDir);
+            BundleItems.Add(itemVm);
         }
     }
 
@@ -257,9 +301,214 @@ public partial class ConfigEditorViewModel(
     {
         if (SelectedBundleItem != null && !string.IsNullOrEmpty(pattern))
         {
-            SelectedBundleItem.SourcePattern = pattern;
+            SelectedBundleItem.ClearPatterns();
+            SelectedBundleItem.AddPattern(pattern, CurrentProject?.ProjectDir);
             HasChanges = true;
         }
+    }
+
+    /// <summary>
+    /// Adds one or more files from the project to the selected bundle item.
+    /// </summary>
+    /// <param name="owner">Optional owner window.</param>
+    [RelayCommand]
+    private async Task AddFilesAsync(Window? owner)
+    {
+        if (SelectedBundleItem == null || CurrentProject == null)
+        {
+            return;
+        }
+
+        var topLevel = GetTopLevelWindow(owner);
+        if (topLevel?.StorageProvider == null)
+        {
+            return;
+        }
+
+        var startFolder = await ResolveStartFolderAsync(topLevel).ConfigureAwait(false);
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select files to add to bundle item",
+            AllowMultiple = true,
+            SuggestedStartLocation = startFolder,
+        }).ConfigureAwait(false);
+
+        if (files == null || files.Count == 0)
+        {
+            return;
+        }
+
+        var projectDir = CurrentProject.ProjectDir;
+        foreach (var file in files)
+        {
+            var localPath = file.TryGetLocalPath();
+            if (string.IsNullOrEmpty(localPath))
+            {
+                continue;
+            }
+
+            var rel = Path.GetRelativePath(projectDir, localPath).Replace('\\', '/');
+            SelectedBundleItem.AddPattern(rel, projectDir);
+        }
+
+        HasChanges = true;
+    }
+
+    /// <summary>
+    /// Adds a directory from the project to the selected bundle item as a recursive glob.
+    /// </summary>
+    /// <param name="owner">Optional owner window.</param>
+    [RelayCommand]
+    private async Task AddFolderAsync(Window? owner)
+    {
+        if (SelectedBundleItem == null || CurrentProject == null)
+        {
+            return;
+        }
+
+        var topLevel = GetTopLevelWindow(owner);
+        if (topLevel?.StorageProvider == null)
+        {
+            return;
+        }
+
+        var startFolder = await ResolveStartFolderAsync(topLevel).ConfigureAwait(false);
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select directory to add to bundle item",
+            AllowMultiple = false,
+            SuggestedStartLocation = startFolder,
+        }).ConfigureAwait(false);
+
+        if (folders == null || folders.Count == 0)
+        {
+            return;
+        }
+
+        var projectDir = CurrentProject.ProjectDir;
+        var folder = folders[0];
+        var localPath = folder.TryGetLocalPath();
+        if (string.IsNullOrEmpty(localPath))
+        {
+            return;
+        }
+
+        var rel = Path.GetRelativePath(projectDir, localPath).Trim('/').Replace('\\', '/');
+        var glob = $"{rel}/**/*.*";
+        SelectedBundleItem.AddPattern(glob, projectDir);
+        HasChanges = true;
+    }
+
+    /// <summary>
+    /// Opens the interactive project tree selector dialog.
+    /// </summary>
+    /// <param name="owner">Optional owner window.</param>
+    [RelayCommand]
+    private async Task OpenProjectTreeSelectorAsync(Window? owner)
+    {
+        if (SelectedBundleItem == null || CurrentProject == null)
+        {
+            return;
+        }
+
+        var pickerVm = new ProjectItemPickerViewModel(CurrentProject.ProjectDir);
+        var dialog = new Views.ProjectItemPickerDialog(pickerVm);
+        var parentWindow = owner ?? GetActiveWindow();
+
+        var confirmed = parentWindow != null
+            ? await dialog.ShowDialog<bool>(parentWindow).ConfigureAwait(false)
+            : false;
+
+        if (confirmed && dialog.ResultPatterns.Count > 0)
+        {
+            foreach (var pattern in dialog.ResultPatterns)
+            {
+                SelectedBundleItem.AddPattern(pattern, CurrentProject.ProjectDir);
+            }
+
+            HasChanges = true;
+        }
+    }
+
+    /// <summary>
+    /// Adds a custom pattern from the input field.
+    /// </summary>
+    [RelayCommand]
+    private void AddCustomPattern()
+    {
+        if (SelectedBundleItem == null || string.IsNullOrWhiteSpace(SelectedBundleItem.CustomPatternInput))
+        {
+            return;
+        }
+
+        SelectedBundleItem.AddPattern(SelectedBundleItem.CustomPatternInput, CurrentProject?.ProjectDir);
+        SelectedBundleItem.CustomPatternInput = string.Empty;
+        HasChanges = true;
+    }
+
+    /// <summary>
+    /// Removes a pattern item from the selected bundle item.
+    /// </summary>
+    /// <param name="item">The pattern item to remove.</param>
+    [RelayCommand]
+    private void RemoveSourcePattern(SourcePathItemViewModel? item)
+    {
+        if (SelectedBundleItem == null || item == null)
+        {
+            return;
+        }
+
+        SelectedBundleItem.RemovePattern(item, CurrentProject?.ProjectDir);
+        HasChanges = true;
+    }
+
+    /// <summary>
+    /// Clears all patterns on the selected bundle item.
+    /// </summary>
+    [RelayCommand]
+    private void ClearSourcePatterns()
+    {
+        if (SelectedBundleItem == null)
+        {
+            return;
+        }
+
+        SelectedBundleItem.ClearPatterns(CurrentProject?.ProjectDir);
+        HasChanges = true;
+    }
+
+    private static Window? GetActiveWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+        {
+            return lifetime.Windows.FirstOrDefault(w => w is Views.ConfigEditorDialog) ?? lifetime.MainWindow;
+        }
+
+        return null;
+    }
+
+    private static TopLevel? GetTopLevelWindow(Window? owner = null)
+    {
+        var targetWindow = owner ?? GetActiveWindow();
+        return targetWindow != null ? TopLevel.GetTopLevel(targetWindow) : null;
+    }
+
+    private async Task<IStorageFolder?> ResolveStartFolderAsync(TopLevel topLevel)
+    {
+        if (CurrentProject == null)
+        {
+            return null;
+        }
+
+        var gameFilesDir = Path.Combine(CurrentProject.ProjectDir, ModBuilderConstants.GameFilesEditedDir);
+        var targetDir = Directory.Exists(gameFilesDir) ? gameFilesDir : CurrentProject.ProjectDir;
+
+        if (Directory.Exists(targetDir))
+        {
+            return await topLevel.StorageProvider.TryGetFolderFromPathAsync(targetDir).ConfigureAwait(false);
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -280,10 +529,12 @@ public partial class ConfigEditorViewModel(
             SourcePattern = "GameFilesEdited/**/*.*",
         };
 
+        newItem.RecalculateMatches(CurrentProject?.ProjectDir);
         BundleItems.Add(newItem);
         SelectedBundleItem = newItem;
         HasChanges = true;
         UpdatePackItemSelections();
+        UpdateBundleItemPackLinks();
     }
 
     /// <summary>
@@ -332,6 +583,7 @@ public partial class ConfigEditorViewModel(
         BundlePacks.Add(newPack);
         SelectedBundlePack = newPack;
         HasChanges = true;
+        UpdateBundleItemPackLinks();
     }
 
     /// <summary>
@@ -348,6 +600,7 @@ public partial class ConfigEditorViewModel(
         BundlePacks.Remove(SelectedBundlePack);
         SelectedBundlePack = null;
         HasChanges = true;
+        UpdateBundleItemPackLinks();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
@@ -461,283 +714,72 @@ public partial class ConfigEditorViewModel(
         return files;
     }
 
-    private async Task PersistConfigurationToDiskAsync(string? projectDir, CancellationToken cancellationToken = default)
+    private async Task PersistConfigurationToDiskAsync(string projectDir, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(projectDir) || Configuration == null)
+        if (Configuration == null)
         {
             return;
         }
 
-        var jsonOptions = new System.Text.Json.JsonSerializerOptions
+        var configDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
+        Directory.CreateDirectory(configDir);
+
+        var itemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
+        var packsPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
+
+        var itemsDto = new
+        {
+            BundleItems = Configuration.Items.Select(item => new
+            {
+                Name = item.Name,
+                NamePrefix = string.IsNullOrEmpty(item.NamePrefix) ? null : item.NamePrefix,
+                NameSuffix = string.IsNullOrEmpty(item.NameSuffix) ? null : item.NameSuffix,
+                IsBig = item.IsBig ? (bool?)true : null,
+                BigSuffix = string.IsNullOrEmpty(item.BigSuffix) ? null : item.BigSuffix,
+                SetGameLanguageOnInstall = string.IsNullOrEmpty(item.SetGameLanguageOnInstall) ? null : item.SetGameLanguageOnInstall,
+                SourceFiles = item.Files.Select(f => f.AbsSourceFile).ToArray(),
+            }).ToArray(),
+        };
+
+        var packsDto = new
+        {
+            BundlePacks = Configuration.Packs.Select(pack => new
+            {
+                Name = pack.Name,
+                NamePrefix = string.IsNullOrEmpty(pack.NamePrefix) ? null : pack.NamePrefix,
+                NameSuffix = string.IsNullOrEmpty(pack.NameSuffix) ? null : pack.NameSuffix,
+                Big = pack.Big == true ? (bool?)true : null,
+                OutputFile = string.IsNullOrEmpty(pack.OutputFile) ? null : pack.OutputFile,
+                SetGameLanguageOnInstall = string.IsNullOrEmpty(pack.SetGameLanguageOnInstall) ? null : pack.SetGameLanguageOnInstall,
+                AllowBuild = pack.AllowBuild ? (bool?)true : null,
+                AllowInstall = pack.AllowInstall ? (bool?)true : null,
+                Items = pack.ItemNames.ToArray(),
+            }).ToArray(),
+        };
+
+        var serializerOptions = new System.Text.Json.JsonSerializerOptions
         {
             WriteIndented = true,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         };
 
-        var (packsPath, itemsPath, configDir) = ResolveConfigPaths(projectDir, Configuration, CurrentProject);
+        var itemsJson = System.Text.Json.JsonSerializer.Serialize(itemsDto, serializerOptions);
+        var packsJson = System.Text.Json.JsonSerializer.Serialize(packsDto, serializerOptions);
 
-        EnsureDirectoryExistsForFile(packsPath);
-        EnsureDirectoryExistsForFile(itemsPath);
+        await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
 
-        await SaveBundlePacksAsync(packsPath, jsonOptions, cancellationToken).ConfigureAwait(false);
-        await SaveBundleItemsAsync(itemsPath, jsonOptions, cancellationToken).ConfigureAwait(false);
-
-        SyncAlternateConfigDirectory(projectDir, configDir, packsPath, itemsPath);
-    }
-
-    private static (string PacksPath, string ItemsPath, string ConfigDir) ResolveConfigPaths(
-        string projectDir,
-        BuildConfiguration? configuration,
-        ModBuilderProject? currentProject)
-    {
-        string? packsPath = configuration?.LoadedConfigFiles.FirstOrDefault(f =>
-            string.Equals(Path.GetFileName(f), ModBuilderConstants.BundlePacksConfigFileName, StringComparison.OrdinalIgnoreCase));
-        string? itemsPath = configuration?.LoadedConfigFiles.FirstOrDefault(f =>
-            string.Equals(Path.GetFileName(f), ModBuilderConstants.BundleItemsConfigFileName, StringComparison.OrdinalIgnoreCase));
-
-        if (currentProject?.BundleConfigs != null)
-        {
-            (packsPath, itemsPath) = ResolveFromBundleConfigs(currentProject, projectDir, packsPath, itemsPath);
-        }
-
-        var configDir = DetermineConfigDirectory(currentProject, projectDir);
-        packsPath ??= Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
-        itemsPath ??= Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
-
-        return (packsPath, itemsPath, configDir);
-    }
-
-    private static (string? PacksPath, string? ItemsPath) ResolveFromBundleConfigs(ModBuilderProject? currentProject, string projectDir, string? packsPath, string? itemsPath)
-    {
-        if (currentProject?.BundleConfigs == null)
-        {
-            return (packsPath, itemsPath);
-        }
-
-        foreach (var cfgRel in currentProject.BundleConfigs)
-        {
-            var candidate = Path.IsPathRooted(cfgRel) ? cfgRel : Path.Combine(projectDir, cfgRel);
-            var fileName = Path.GetFileName(candidate);
-            if (packsPath == null && string.Equals(fileName, ModBuilderConstants.BundlePacksConfigFileName, StringComparison.OrdinalIgnoreCase))
-            {
-                packsPath = candidate;
-            }
-            else if (itemsPath == null && string.Equals(fileName, ModBuilderConstants.BundleItemsConfigFileName, StringComparison.OrdinalIgnoreCase))
-            {
-                itemsPath = candidate;
-            }
-        }
-
-        return (packsPath, itemsPath);
-    }
-
-    private static string DetermineConfigDirectory(ModBuilderProject? currentProject, string projectDir)
-    {
-        var configDirName = currentProject?.Directories?.Configs;
-        if (!string.IsNullOrWhiteSpace(configDirName) && Directory.Exists(Path.Combine(projectDir, configDirName)))
-        {
-            return Path.Combine(projectDir, configDirName);
-        }
-
-        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
-        {
-            return Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
-        }
-
-        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
-        {
-            return Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
-        }
-
-        var fallbackDir = Path.Combine(projectDir, !string.IsNullOrWhiteSpace(configDirName) ? configDirName : ModBuilderConstants.ConfigDir);
-        Directory.CreateDirectory(fallbackDir);
-        return fallbackDir;
-    }
-
-    private static void EnsureDirectoryExistsForFile(string filePath)
-    {
-        var dir = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-    }
-
-    private static async Task AtomicWriteFileAsync(string filePath, string content, CancellationToken cancellationToken)
-    {
-        var dir = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-
-        var tempFile = Path.Combine(dir ?? string.Empty, $"{Path.GetFileName(filePath)}.{Guid.NewGuid():N}.tmp");
-        try
-        {
-            await using (var stream = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true))
-            await using (var writer = new StreamWriter(stream))
-            {
-                await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
-                await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                stream.Flush(true);
-            }
-
-            File.Move(tempFile, filePath, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                try
-                {
-                    File.Delete(tempFile);
-                }
-                catch
-                {
-                    // Best effort cleanup
-                }
-            }
-        }
-    }
-
-    private async Task SaveBundlePacksAsync(string packsPath, System.Text.Json.JsonSerializerOptions jsonOptions, CancellationToken cancellationToken = default)
-    {
-        if (Configuration == null)
-        {
-            return;
-        }
-
-        var existingPacksText = File.Exists(packsPath) ? await File.ReadAllTextAsync(packsPath, cancellationToken).ConfigureAwait(false) : null;
-        if (existingPacksText?.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            var simplifiedPacks = Configuration.Packs.Select(p => new
-            {
-                p.Name,
-                Items = p.ItemNames,
-                p.OutputFile,
-                p.Big,
-                p.AllowBuild,
-                p.AllowInstall,
-            }).ToList();
-            var packsData = new Dictionary<string, object>
-            {
-                ["BundlePacks"] = simplifiedPacks,
-            };
-            await AtomicWriteFileAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsData, jsonOptions), cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var packsConfig = new BuildConfiguration { Packs = Configuration.Packs };
-            await AtomicWriteFileAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions), cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private async Task SaveBundleItemsAsync(string itemsPath, System.Text.Json.JsonSerializerOptions jsonOptions, CancellationToken cancellationToken = default)
-    {
-        if (Configuration == null)
-        {
-            return;
-        }
-
-        var existingItemsText = File.Exists(itemsPath) ? await File.ReadAllTextAsync(itemsPath, cancellationToken).ConfigureAwait(false) : null;
-        if (existingItemsText?.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            var simplifiedItems = BuildSimplifiedBundleItems(existingItemsText, itemsPath);
-            var itemsData = new Dictionary<string, object>
-            {
-                ["BundleItems"] = simplifiedItems,
-            };
-            await AtomicWriteFileAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsData, jsonOptions), cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
-            await AtomicWriteFileAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions), cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private List<SimplifiedBundleItem> BuildSimplifiedBundleItems(string existingItemsText, string itemsPath)
-    {
-        var existingMap = new Dictionary<string, SimplifiedBundleItem>(StringComparer.OrdinalIgnoreCase);
-        List<SimplifiedBundleItem>? existingList = null;
-        try
-        {
-            var existingSimplified = System.Text.Json.JsonSerializer.Deserialize<SimplifiedConfigRoot>(existingItemsText);
-            if (existingSimplified?.BundleItems != null)
-            {
-                existingList = existingSimplified.BundleItems;
-                foreach (var item in existingSimplified.BundleItems.Where(i => !string.IsNullOrWhiteSpace(i.Name)))
-                {
-                    existingMap[item.Name!] = item;
-                }
-            }
-        }
-        catch (System.Text.Json.JsonException ex)
-        {
-            logger.LogWarning(ex, "Could not parse existing ModBundleItems.json at {Path} for preserving custom fields", itemsPath);
-        }
-
-        var canFallbackByIndex = existingList != null && Configuration != null && existingList.Count == Configuration.Items.Count;
-        return Configuration?.Items.Select((item, index) =>
-        {
-            if (!existingMap.TryGetValue(item.Name, out var existing) && canFallbackByIndex)
-            {
-                logger.LogInformation("Falling back to index matching for bundle item {Name} at index {Index}", item.Name, index);
-                existing = existingList![index];
-            }
-
-            return new SimplifiedBundleItem
-            {
-                Name = item.Name,
-                SourceFiles = item.Files.Select(f => f.AbsSourceFile).ToList(),
-                Big = item.IsBig,
-                OutputFormat = existing?.OutputFormat,
-                Compression = existing?.Compression,
-                GenerateMipmaps = existing?.GenerateMipmaps == true,
-                BaseDir = existing?.BaseDir,
-                TargetDir = existing?.TargetDir,
-                Description = existing?.Description,
-                NoConvert = existing?.NoConvert == true,
-            };
-        }).ToList() ?? new List<SimplifiedBundleItem>();
-    }
-
-    private static void SyncAlternateConfigDirectory(string projectDir, string configDir, string packsPath, string itemsPath)
-    {
-        var dirName = Path.GetFileName(configDir);
-        var altDirName = dirName.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
-            ? ModBuilderConstants.ConfigDir
-            : ModBuilderConstants.LowercaseConfigDir;
-        var altDir = Path.Combine(projectDir, altDirName);
-        if (!Directory.Exists(altDir))
-        {
-            return;
-        }
-
-        SyncFile(packsPath, Path.Combine(altDir, ModBuilderConstants.BundlePacksConfigFileName), wasSourceJustWritten: true);
-        SyncFile(itemsPath, Path.Combine(altDir, ModBuilderConstants.BundleItemsConfigFileName), wasSourceJustWritten: true);
-    }
-
-    private static void SyncFile(string sourceFile, string targetFile, bool wasSourceJustWritten = false)
-    {
-        if (File.Exists(sourceFile) &&
-            !string.Equals(targetFile, sourceFile, StringComparison.OrdinalIgnoreCase) &&
-            (File.Exists(targetFile) || wasSourceJustWritten))
-        {
-            File.Copy(sourceFile, targetFile, true);
-        }
+        logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
     }
 
     /// <summary>
-    /// Cancels the configuration changes.
+    /// Cancels changes and closes the dialog.
     /// </summary>
     [RelayCommand]
     private async Task CancelAsync()
     {
-        if (HasChanges && !string.IsNullOrEmpty(CurrentProject?.ProjectDir))
+        if (HasChanges && CurrentProject != null)
         {
-            // Revert unsaved modifications by reloading current configuration state from disk
             try
             {
                 var loaded = await configurationLoaderService.LoadProjectConfigurationAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
