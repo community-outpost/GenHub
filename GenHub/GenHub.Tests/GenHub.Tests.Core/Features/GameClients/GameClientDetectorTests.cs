@@ -1,4 +1,3 @@
-using System.Reflection;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
@@ -13,6 +12,7 @@ using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.GameClients;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Reflection;
 using System.Text;
 
 namespace GenHub.Tests.Core.Features.GameClients;

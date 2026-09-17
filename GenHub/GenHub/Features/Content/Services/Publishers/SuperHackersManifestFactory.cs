@@ -195,6 +195,9 @@ public class SuperHackersManifestFactory(
     /// either the Windows executable name or its extensionless form. The classifier
     /// verifies native executable signatures for extensionless candidates.
     /// </remarks>
+    /// <param name="directory">The extracted content directory.</param>
+    /// <param name="cancellationToken">Cancellation for discovery and classification.</param>
+    /// <returns>The preferred executable path for each detected game.</returns>
     internal Dictionary<GameType, string> DetectGameExecutables(string directory, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
