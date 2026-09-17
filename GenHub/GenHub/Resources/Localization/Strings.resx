@@ -9225,6 +9225,102 @@ Install location:
   <data name="Tools.ModBuilder.ConfigEditor.ButtonClose" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Header" xml:space="preserve">
+    <value>Add Files &amp; Directories to Bundle Item</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
+    <value>Select folders to generate recursive wildcards or pick specific files to link.</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
+    <value>Folder Glob Pattern:</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobAllFiles" xml:space="preserve">
+    <value>All Files in Directory (/**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobIniFiles" xml:space="preserve">
+    <value>INI Config Files only (/**/*.ini)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobTgaFiles" xml:space="preserve">
+    <value>TGA Texture Files only (/**/*.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWndFiles" xml:space="preserve">
+    <value>Window UI Files only (/**/*.wnd)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobCsfFiles" xml:space="preserve">
+    <value>CSF String Tables only (/**/*.csf)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWavFiles" xml:space="preserve">
+    <value>Audio WAV Files only (/**/*.wav)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
+    <value>Add to Bundle Item</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
+    <value>Clear all source patterns</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFolder" xml:space="preserve">
+    <value>Browse and select an entire directory from the project (adds recursive glob)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFolder" xml:space="preserve">
+    <value>Add Folder...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFiles" xml:space="preserve">
+    <value>Select one or more specific files from the project</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFiles" xml:space="preserve">
+    <value>Add Files...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipProjectTree" xml:space="preserve">
+    <value>Interactively check folders or files from the project tree</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonProjectTree" xml:space="preserve">
+    <value>Project Tree...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelConfiguredSources" xml:space="preserve">
+    <value>Configured Sources:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePattern" xml:space="preserve">
+    <value>Remove pattern</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkAddPattern" xml:space="preserve">
+    <value>Add custom glob (e.g. GameFilesEdited/Data/**/*.ini)...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPattern" xml:space="preserve">
+    <value>Add Pattern</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPattern" xml:space="preserve">
+    <value>Add custom pattern to this bundle item</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetWindowUi" xml:space="preserve">
+    <value>Window UI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetWindowUi" xml:space="preserve">
+    <value>Match all .wnd layout files</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetCsfStrings" xml:space="preserve">
+    <value>CSF Strings</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetCsfStrings" xml:space="preserve">
+    <value>Match all .csf string files</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderRawGlobString" xml:space="preserve">
+    <value>Advanced: Raw Glob String</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelRawGlobString" xml:space="preserve">
+    <value>Semicolon-separated raw globs:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderLinkedBundlePacks" xml:space="preserve">
+    <value>Linked to Bundle Packs</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedBundlePacks" xml:space="preserve">
+    <value>Select which bundle packs include this item when built:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeNoBundlePacks" xml:space="preserve">
+    <value>No bundle packs created yet. Create a pack in the Bundle Packs tab.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescOutputFile" xml:space="preserve">
+    <value>Specify custom filename for the output archive</value>
+  </data>
   <data name="Tools.ModBuilder.View.CurrentProjectHeader" xml:space="preserve">
     <value>CURRENT PROJECT</value>
   </data>

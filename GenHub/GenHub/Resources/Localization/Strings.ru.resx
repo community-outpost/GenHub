@@ -9132,6 +9132,102 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.ConfigEditor.ButtonClose" xml:space="preserve">
     <value>Закрыть</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Header" xml:space="preserve">
+    <value>Добавление файлов и каталогов в элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
+    <value>Выберите папки для создания рекурсивных шаблонов или укажите конкретные файлы.</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
+    <value>Шаблон поиска папки:</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobAllFiles" xml:space="preserve">
+    <value>Все файлы в каталоге (/**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobIniFiles" xml:space="preserve">
+    <value>Только файлы конфигурации INI (/**/*.ini)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobTgaFiles" xml:space="preserve">
+    <value>Только файлы текстур TGA (/**/*.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWndFiles" xml:space="preserve">
+    <value>Только файлы интерфейса Window UI (/**/*.wnd)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobCsfFiles" xml:space="preserve">
+    <value>Только таблицы строк CSF (/**/*.csf)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWavFiles" xml:space="preserve">
+    <value>Только аудиофайлы WAV (/**/*.wav)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
+    <value>Добавить в элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
+    <value>Очистить все шаблоны источников</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFolder" xml:space="preserve">
+    <value>Выбрать весь каталог из проекта (добавляет рекурсивный шаблон)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFolder" xml:space="preserve">
+    <value>Добавить папку...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFiles" xml:space="preserve">
+    <value>Выбрать один или несколько файлов из проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFiles" xml:space="preserve">
+    <value>Добавить файлы...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipProjectTree" xml:space="preserve">
+    <value>Интерактивный выбор папок или файлов из дерева проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonProjectTree" xml:space="preserve">
+    <value>Дерево проекта...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelConfiguredSources" xml:space="preserve">
+    <value>Настроенные источники:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePattern" xml:space="preserve">
+    <value>Удалить шаблон</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkAddPattern" xml:space="preserve">
+    <value>Добавить шаблон (например GameFilesEdited/Data/**/*.ini)...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPattern" xml:space="preserve">
+    <value>Добавить шаблон</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPattern" xml:space="preserve">
+    <value>Добавить пользовательский шаблон в этот элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetWindowUi" xml:space="preserve">
+    <value>Окна интерфейса</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetWindowUi" xml:space="preserve">
+    <value>Сопоставить все файлы разметки .wnd</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetCsfStrings" xml:space="preserve">
+    <value>Строки CSF</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetCsfStrings" xml:space="preserve">
+    <value>Сопоставить все файлы строк .csf</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderRawGlobString" xml:space="preserve">
+    <value>Дополнительно: строка шаблонов поиска</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelRawGlobString" xml:space="preserve">
+    <value>Шаблоны, разделенные точкой с запятой:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderLinkedBundlePacks" xml:space="preserve">
+    <value>Связано с пакетами сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedBundlePacks" xml:space="preserve">
+    <value>Выберите пакеты сборок, которые включают этот элемент при создании:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeNoBundlePacks" xml:space="preserve">
+    <value>Пакеты сборок еще не созданы. Создайте пакет на вкладке 'Пакеты сборок'.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescOutputFile" xml:space="preserve">
+    <value>Укажите пользовательское имя файла для выходного архива</value>
+  </data>
   <data name="Tools.ModBuilder.View.CurrentProjectHeader" xml:space="preserve">
     <value>ТЕКУЩИЙ ПРОЕКТ</value>
   </data>

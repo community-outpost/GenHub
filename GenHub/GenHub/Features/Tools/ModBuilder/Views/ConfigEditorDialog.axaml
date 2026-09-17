@@ -44,7 +44,7 @@
       <Border Grid.Column="1" Background="{DynamicResource WarningBrush}"
               CornerRadius="6" Padding="10,4" VerticalAlignment="Center"
               IsVisible="{Binding HasChanges}">
-        <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.UnsavedChangesIndicator}"
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.UnsavedChangesBadge}"
                    FontSize="11" FontWeight="SemiBold"
                    Foreground="White"/>
       </Border>
@@ -99,7 +99,7 @@
                         <Border Grid.Column="0" Background="{DynamicResource AccentBrush}"
                                 CornerRadius="4" Padding="5,2" Margin="0,0,10,0"
                                 IsVisible="{Binding IsBig}" VerticalAlignment="Center">
-                          <TextBlock Text="BIG" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.TagBig}" FontSize="10" FontWeight="Bold" Foreground="White"/>
                         </Border>
 
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
@@ -152,18 +152,18 @@
                     <StackPanel Spacing="12">
                       <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="2">
-                          <TextBlock Text="Source Files &amp; Directories" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
-                          <TextBlock Text="Add folders, individual files, or globs to link to this bundle item" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelSourceFiles}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescSourceFiles}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
 
                         <!-- Clear All Button -->
                         <Button Grid.Column="1" Command="{Binding ClearSourcePatternsCommand}"
                                 Background="Transparent" BorderThickness="0"
                                 Padding="8,4" CornerRadius="6" Cursor="Hand"
-                                ToolTip.Tip="Clear all source patterns">
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipClearPatterns}">
                           <StackPanel Orientation="Horizontal" Spacing="4">
                             <Path Data="{StaticResource IconClear}" Fill="{DynamicResource TextSecondary}" Width="11" Height="11" Stretch="Uniform"/>
-                            <TextBlock Text="Clear" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Text="{localization:Localize Common.Action.Clear}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                           </StackPanel>
                         </Button>
                       </Grid>
@@ -174,10 +174,10 @@
                         <Button Command="{Binding AddFolderCommand}" CommandParameter="{Binding $parent[Window]}"
                                 Background="{DynamicResource AccentBrush}" Foreground="White"
                                 Padding="12,7" CornerRadius="6" Margin="0,0,8,8" Cursor="Hand"
-                                ToolTip.Tip="Browse and select an entire directory from the project (adds recursive glob)">
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddFolder}">
                           <StackPanel Orientation="Horizontal" Spacing="6">
                             <Path Data="{StaticResource IconOpenFolder}" Fill="White" Width="12" Height="12" Stretch="Uniform"/>
-                            <TextBlock Text="Add Folder..." FontWeight="SemiBold" FontSize="11.5"/>
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddFolder}" FontWeight="SemiBold" FontSize="11.5"/>
                           </StackPanel>
                         </Button>
 
@@ -186,10 +186,10 @@
                                 Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                 Foreground="{DynamicResource TextPrimary}"
                                 Padding="12,7" CornerRadius="6" Margin="0,0,8,8" Cursor="Hand"
-                                ToolTip.Tip="Select one or more specific files from the project">
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddFiles}">
                           <StackPanel Orientation="Horizontal" Spacing="6">
                             <Path Data="{StaticResource IconTextFile}" Fill="{DynamicResource AccentBrush}" Width="12" Height="12" Stretch="Uniform"/>
-                            <TextBlock Text="Add Files..." FontWeight="SemiBold" FontSize="11.5"/>
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddFiles}" FontWeight="SemiBold" FontSize="11.5"/>
                           </StackPanel>
                         </Button>
 
@@ -198,16 +198,16 @@
                                 Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                 Foreground="{DynamicResource TextPrimary}"
                                 Padding="12,7" CornerRadius="6" Margin="0,0,8,8" Cursor="Hand"
-                                ToolTip.Tip="Interactively check folders or files from the project tree">
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipProjectTree}">
                           <StackPanel Orientation="Horizontal" Spacing="6">
                             <Path Data="{StaticResource IconSearch}" Fill="{DynamicResource AccentBrush}" Width="12" Height="12" Stretch="Uniform"/>
-                            <TextBlock Text="Project Tree..." FontWeight="SemiBold" FontSize="11.5"/>
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonProjectTree}" FontWeight="SemiBold" FontSize="11.5"/>
                           </StackPanel>
                         </Button>
                       </WrapPanel>
 
                       <!-- Configured Source Items List -->
-                      <TextBlock Text="Configured Sources:" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelConfiguredSources}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
 
                       <ItemsControl ItemsSource="{Binding SelectedBundleItem.SourcePatternsList}">
                         <ItemsControl.ItemTemplate>
@@ -249,7 +249,7 @@
                                         Background="Transparent" BorderThickness="0"
                                         Padding="6,4" CornerRadius="4" Cursor="Hand"
                                         VerticalAlignment="Center"
-                                        ToolTip.Tip="Remove pattern">
+                                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemovePattern}">
                                   <Path Width="10" Height="10" Stretch="Uniform"
                                         Fill="{DynamicResource TextSecondary}"
                                         Data="{StaticResource IconClear}"/>
@@ -263,13 +263,13 @@
                       <!-- Add Custom Pattern Field -->
                       <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
                         <TextBox Grid.Column="0" Text="{Binding SelectedBundleItem.CustomPatternInput, Mode=TwoWay}"
-                                 Watermark="Add custom glob (e.g. GameFilesEdited/Data/**/*.ini)..."
+                                 Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkAddPattern}"
                                  Margin="0,0,8,0"/>
                         <Button Grid.Column="1" Command="{Binding AddCustomPatternCommand}"
                                 Background="{DynamicResource SurfaceCardBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                Content="Add Pattern" Padding="12,6" CornerRadius="6" Cursor="Hand"
-                                ToolTip.Tip="Add custom pattern to this bundle item"/>
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddPattern}" Padding="12,6" CornerRadius="6" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddPattern}"/>
                       </Grid>
 
                       <!-- Quick Presets -->
@@ -293,13 +293,13 @@
                         <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/window/**/*.wnd"
                                 Padding="8,4" FontSize="11" CornerRadius="6"
                                 Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                Content="Window UI" Cursor="Hand"
-                                ToolTip.Tip="Match all .wnd layout files"/>
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetWindowUi}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetWindowUi}"/>
                         <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/**/*.csf"
                                 Padding="8,4" FontSize="11" CornerRadius="6"
                                 Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                Content="CSF Strings" Cursor="Hand"
-                                ToolTip.Tip="Match all .csf string files"/>
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetCsfStrings}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetCsfStrings}"/>
                         <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Data/Audio/**/*.*"
                                 Padding="8,4" FontSize="11" CornerRadius="6"
                                 Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -308,10 +308,10 @@
                       </StackPanel>
 
                       <!-- Advanced: Manual Semicolon Glob String Expander -->
-                      <Expander Header="Advanced: Raw Glob String"
+                      <Expander Header="{localization:Localize Tools.ModBuilder.ConfigEditor.HeaderRawGlobString}"
                                 Background="Transparent" BorderThickness="0" Margin="0,2,0,0">
                         <StackPanel Spacing="4" Margin="0,4,0,0">
-                          <TextBlock Text="Semicolon-separated raw globs:" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelRawGlobString}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                           <TextBox Text="{Binding SelectedBundleItem.SourcePattern, Mode=TwoWay}"
                                    Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkSourceFiles}"/>
                         </StackPanel>
@@ -324,8 +324,8 @@
                           BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                           CornerRadius="8" Padding="14">
                     <StackPanel Spacing="10">
-                      <TextBlock Text="Linked to Bundle Packs" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
-                      <TextBlock Text="Select which bundle packs include this item when built:" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.HeaderLinkedBundlePacks}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescLinkedBundlePacks}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
 
                       <ItemsControl ItemsSource="{Binding SelectedBundleItem.PackLinks}">
                         <ItemsControl.ItemTemplate>
@@ -339,7 +339,7 @@
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
 
-                      <TextBlock Text="No bundle packs created yet. Create a pack in the Bundle Packs tab."
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.NoticeNoBundlePacks}"
                                  FontSize="11" FontStyle="Italic" Foreground="{DynamicResource TextSecondary}"
                                  IsVisible="{Binding !SelectedBundleItem.PackLinks.Count}"/>
                     </StackPanel>
@@ -421,7 +421,7 @@
                         <Border Grid.Column="0" Background="{DynamicResource AccentBrush}"
                                 CornerRadius="4" Padding="5,2" Margin="0,0,10,0"
                                 IsVisible="{Binding Big}" VerticalAlignment="Center">
-                          <TextBlock Text="BIG" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.TagBig}" FontSize="10" FontWeight="Bold" Foreground="White"/>
                         </Border>
 
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
@@ -462,9 +462,9 @@
 
                   <!-- Output File -->
                   <StackPanel Spacing="6">
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelOutputFile}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelCustomOutputFile}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescOutputFile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
-                    <TextBox Text="{Binding SelectedBundlePack.OutputFile, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkOutputFile}" />
+                    <TextBox Text="{Binding SelectedBundlePack.OutputFile, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkCustomOutputFile}" />
                   </StackPanel>
 
                   <!-- Included Items Checklist -->
@@ -493,7 +493,7 @@
                           BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                           CornerRadius="8" Padding="14">
                     <StackPanel Spacing="12">
-                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.BuildInstallOptionsHeader}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelActionsTargets}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
 
                       <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckAllowBuild}"
                                 IsChecked="{Binding SelectedBundlePack.AllowBuild, Mode=TwoWay}"
@@ -501,7 +501,7 @@
                       <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckAllowInstall}"
                                 IsChecked="{Binding SelectedBundlePack.AllowInstall, Mode=TwoWay}"
                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                      <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckOutputBig}"
+                      <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckPackIntoOneBig}"
                                 IsChecked="{Binding SelectedBundlePack.Big, Mode=TwoWay}"
                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                     </StackPanel>
@@ -523,7 +523,7 @@
     <!-- Footer Actions -->
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,20,0,0">
       <Button Grid.Column="1" Command="{Binding CancelCommand}"
-              Content="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonCancel}"
+              Content="{localization:Localize Common.Button.Cancel}"
               Background="{DynamicResource SurfaceElevatedBrush}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               Padding="20,10" CornerRadius="8" Margin="0,0,10,0" Cursor="Hand"/>

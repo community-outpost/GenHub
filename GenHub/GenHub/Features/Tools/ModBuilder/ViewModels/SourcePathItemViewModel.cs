@@ -108,6 +108,9 @@ public partial class SourcePathItemViewModel : ObservableObject
 
     private void ApplyTypeAndIcon()
     {
-        (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(Pattern);
+        var (typeLabel, iconKey, isDirectoryGlob) = DetermineTypeAndIcon(Pattern);
+        TypeLabel = typeLabel;
+        IconKey = iconKey;
+        IsDirectoryGlob = isDirectoryGlob;
     }
 }

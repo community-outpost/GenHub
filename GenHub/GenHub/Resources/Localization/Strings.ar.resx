@@ -9132,6 +9132,102 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.ConfigEditor.ButtonClose" xml:space="preserve">
     <value>إغلاق</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Header" xml:space="preserve">
+    <value>إضافة ملفات ومجلدات إلى عنصر الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
+    <value>حدد المجلدات لإنشاء أحرف بدل متكررة أو اختر ملفات محددة للربط.</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
+    <value>نمط تطابق المجلد:</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobAllFiles" xml:space="preserve">
+    <value>جميع الملفات في الدليل (/**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobIniFiles" xml:space="preserve">
+    <value>ملفات تكوين INI فقط (/**/*.ini)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobTgaFiles" xml:space="preserve">
+    <value>ملفات قوام TGA فقط (/**/*.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWndFiles" xml:space="preserve">
+    <value>ملفات واجهة Window UI فقط (/**/*.wnd)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobCsfFiles" xml:space="preserve">
+    <value>جداول نصوص CSF فقط (/**/*.csf)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWavFiles" xml:space="preserve">
+    <value>ملفات صوت WAV فقط (/**/*.wav)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
+    <value>إضافة إلى عنصر الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
+    <value>مسح جميع أنماط المصدر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFolder" xml:space="preserve">
+    <value>استعرض وحدد دليلاً كاملاً من المشروع (يضيف نمطًا متكررًا)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFolder" xml:space="preserve">
+    <value>إضافة مجلد...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFiles" xml:space="preserve">
+    <value>حدد ملفًا أو أكثر من المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFiles" xml:space="preserve">
+    <value>إضافة ملفات...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipProjectTree" xml:space="preserve">
+    <value>فحص المجلدات أو الملفات تفاعليًا من شجرة المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonProjectTree" xml:space="preserve">
+    <value>شجرة المشروع...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelConfiguredSources" xml:space="preserve">
+    <value>المصادر المكونة:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePattern" xml:space="preserve">
+    <value>إزالة النمط</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkAddPattern" xml:space="preserve">
+    <value>إضافة نمط مخصص (مثال: GameFilesEdited/Data/**/*.ini)...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPattern" xml:space="preserve">
+    <value>إضافة نمط</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPattern" xml:space="preserve">
+    <value>إضافة نمط مخصص لعنصر الحزمة هذا</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetWindowUi" xml:space="preserve">
+    <value>واجهة Window UI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetWindowUi" xml:space="preserve">
+    <value>تطابق جميع ملفات تخطيط .wnd</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetCsfStrings" xml:space="preserve">
+    <value>نصوص CSF</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetCsfStrings" xml:space="preserve">
+    <value>تطابق جميع ملفات نصوص .csf</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderRawGlobString" xml:space="preserve">
+    <value>متقدم: نص الأنماط المباشر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelRawGlobString" xml:space="preserve">
+    <value>أنماط مفصولة بفواصل منقوطة:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderLinkedBundlePacks" xml:space="preserve">
+    <value>مرتبط بحزم الحزم</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedBundlePacks" xml:space="preserve">
+    <value>حدد حزم الحزم التي تتضمن هذا العنصر عند الإنشاء:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeNoBundlePacks" xml:space="preserve">
+    <value>لم يتم إنشاء أي حزم بعد. قم بإنشاء حزمة في علامة تبويب حزم الحزم.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescOutputFile" xml:space="preserve">
+    <value>حدد اسم ملف مخصص للأرشيف الناتج</value>
+  </data>
   <data name="Tools.ModBuilder.View.CurrentProjectHeader" xml:space="preserve">
     <value>المشروع الحالي</value>
   </data>
