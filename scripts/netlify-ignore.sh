@@ -12,11 +12,9 @@ echo "PULL_REQUEST: $PULL_REQUEST"
 echo "REVIEW_ID: $REVIEW_ID"
 
 # 1. Branch deploys: only deploy the main branch; cancel other branches
-if [[ "$CONTEXT" == "branch-deploy" ]]; then
-  if [[ "$BRANCH" != "main" ]]; then
-    echo "Branch deploy for non-main branch '$BRANCH'. Cancelling Netlify build."
-    exit 0
-  fi
+if [[ "$CONTEXT" == "branch-deploy" && "$BRANCH" != "main" ]]; then
+  echo "Branch deploy for non-main branch '$BRANCH'. Cancelling Netlify build."
+  exit 0
 fi
 
 # 2. Pull Requests / Deploy Previews:
