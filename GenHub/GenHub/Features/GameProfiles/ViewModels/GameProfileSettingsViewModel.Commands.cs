@@ -519,7 +519,7 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
-        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient();
+        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
 
         var createRequest = new CreateProfileRequest
         {
@@ -772,7 +772,7 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
-        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient();
+        var activeGameClient = isStandaloneProfile ? null : ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
 
         var updateRequest = new UpdateProfileRequest
         {
@@ -794,28 +794,34 @@ public partial class GameProfileSettingsViewModel
         return updateRequest;
     }
 
-    private GameClient? ResolveActiveGameClient()
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
+    private static GameClient? ResolveActiveGameClient(
+        IEnumerable<ContentDisplayItem> enabledContent,
+        ContentDisplayItem? selectedInstallation)
     {
-        var enabledClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
+        var enabledClientItem = enabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
         GameClient? resolvedClient = enabledClientItem?.GameClient?.Clone();
 
         if (resolvedClient == null && enabledClientItem?.Manifest != null)
         {
-            resolvedClient = ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, SelectedGameInstallation?.SourceId);
+            resolvedClient = ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, selectedInstallation?.SourceId);
         }
 
         if (resolvedClient == null && enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
         {
-            resolvedClient = CreateGameClientFromDisplayItem(enabledClientItem, SelectedGameInstallation?.SourceId);
+            resolvedClient = CreateGameClientFromDisplayItem(enabledClientItem, selectedInstallation?.SourceId);
         }
 
         if (resolvedClient != null)
         {
-            HydrateClientPaths(resolvedClient, SelectedGameInstallation?.GameClient);
+            HydrateClientPaths(resolvedClient, selectedInstallation?.GameClient);
             return resolvedClient;
         }
 
-        return SelectedGameInstallation?.GameClient?.Clone();
+        return selectedInstallation?.GameClient?.Clone();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
