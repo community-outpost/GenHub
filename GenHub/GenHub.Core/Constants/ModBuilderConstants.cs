@@ -221,6 +221,31 @@ public static class ModBuilderConstants
     public const string SampleCacheDirName = "ModBuilderSampleCache";
 
     /// <summary>
+    /// Sample name for Generals Game Patch 2.
+    /// </summary>
+    public const string GeneralsGamePatch2SampleName = "GeneralsGamePatch2";
+
+    /// <summary>
+    /// Sample name for Improved Menus.
+    /// </summary>
+    public const string ImprovedMenusSampleName = "ImprovedMenus";
+
+    /// <summary>
+    /// Sample name for Lemon Control Bar.
+    /// </summary>
+    public const string LemonControlBarSampleName = "LemonControlBar";
+
+    /// <summary>
+    /// Sample name for Leikeze Hotkeys.
+    /// </summary>
+    public const string LeikezeHotkeysSampleName = "LeikezeHotkeys";
+
+    /// <summary>
+    /// Sample name for Hotkeys.
+    /// </summary>
+    public const string HotkeysSampleName = "Hotkeys";
+
+    /// <summary>
     /// File name for ModFolders configuration.
     /// </summary>
     public const string ModFoldersFileName = "ModFolders.json";
@@ -427,11 +452,11 @@ public static class ModBuilderConstants
     /// </summary>
     public static readonly IReadOnlyList<string> AllowedSampleTemplateNames =
     [
-        "GeneralsGamePatch2",
-        "ImprovedMenus",
-        "LemonControlBar",
-        "LeikezeHotkeys",
-        "Hotkeys"
+        GeneralsGamePatch2SampleName,
+        ImprovedMenusSampleName,
+        LemonControlBarSampleName,
+        LeikezeHotkeysSampleName,
+        HotkeysSampleName
     ];
 
     /// <summary>

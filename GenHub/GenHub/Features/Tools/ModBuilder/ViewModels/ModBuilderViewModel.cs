@@ -1317,6 +1317,49 @@ public partial class ModBuilderViewModel(
         return await FindDiscoveredSampleProjectAsync(sampleId).ConfigureAwait(false);
     }
 
+    private static bool ShouldUpdateSampleConfigFile(string sampleId, string targetFile)
+    {
+        if (!File.Exists(targetFile))
+        {
+            return true;
+        }
+
+        try
+        {
+            var content = File.ReadAllText(targetFile);
+
+            if (sampleId.Equals(ModBuilderConstants.ImprovedMenusSampleName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!content.Contains("ImprovedMenus_English", StringComparison.OrdinalIgnoreCase) ||
+                    !content.Contains("ImprovedMenus_Russian", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            else if (sampleId.Equals(ModBuilderConstants.LeikezeHotkeysSampleName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!content.Contains("LeikezeHotkeys_ZH_EN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            else if (sampleId.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!content.Contains("GeneralsGamePatch2", StringComparison.OrdinalIgnoreCase) ||
+                    content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore read errors
+        }
+
+        return false;
+    }
+
     private async Task SyncSampleTemplateConfigsAsync(string sampleId, string projectDir, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -1334,9 +1377,9 @@ public partial class ModBuilderViewModel(
             foreach (var configFile in Directory.GetFiles(templateConfigDir, "*.json"))
             {
                 var targetFile = Path.Combine(userConfigDir, Path.GetFileName(configFile));
-                if (!File.Exists(targetFile))
+                if (ShouldUpdateSampleConfigFile(sampleId, targetFile))
                 {
-                    File.Copy(configFile, targetFile, overwrite: false);
+                    File.Copy(configFile, targetFile, overwrite: true);
                 }
             }
         }

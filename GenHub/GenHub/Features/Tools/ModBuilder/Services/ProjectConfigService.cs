@@ -1499,15 +1499,50 @@ public sealed class ProjectConfigService(
             var configsDir = Path.Combine(projectDir, directories.Configs);
             Directory.CreateDirectory(configsDir);
 
-            if (template?.Name == ProjectTemplate.Hotkeys.Name || template?.Name == ModBuilderConstants.CustomIconsAlias)
+            string? sampleId = null;
+            if (template?.Name == ProjectTemplate.Hotkeys.Name || template?.Name == ModBuilderConstants.CustomIconsAlias || template?.Name == ModBuilderConstants.HotkeysSampleName)
+            {
+                sampleId = ModBuilderConstants.HotkeysSampleName;
+            }
+            else if (template?.Name == ProjectTemplate.ImprovedMenus.Name || template?.Name == ModBuilderConstants.ImprovedMenusSampleName)
+            {
+                sampleId = ModBuilderConstants.ImprovedMenusSampleName;
+            }
+            else if (template?.Name == ProjectTemplate.GeneralsGamePatch2.Name || template?.Name == ModBuilderConstants.GeneralsGamePatch2SampleName)
+            {
+                sampleId = ModBuilderConstants.GeneralsGamePatch2SampleName;
+            }
+            else if (template?.Name == ProjectTemplate.LeikezeHotkeys.Name || template?.Name == ModBuilderConstants.LeikezeHotkeysSampleName)
+            {
+                sampleId = ModBuilderConstants.LeikezeHotkeysSampleName;
+            }
+            else if (template?.Name == ProjectTemplate.LemonControlBar.Name || template?.Name == LemonControlBarSampleName || template?.Name == ModBuilderConstants.ControlBarAlias)
+            {
+                sampleId = LemonControlBarSampleName;
+            }
+
+            if (!string.IsNullOrEmpty(sampleId) && TryCopyTemplateConfigs(sampleId, configsDir))
+            {
+                return;
+            }
+
+            if (sampleId == ModBuilderConstants.HotkeysSampleName)
             {
                 await CreateCustomIconsSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
-            else if (template?.Name == ProjectTemplate.ImprovedMenus.Name)
+            else if (sampleId == ModBuilderConstants.ImprovedMenusSampleName)
             {
                 await CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
-            else if (template?.Name == ProjectTemplate.LemonControlBar.Name || template?.Name == LemonControlBarSampleName || template?.Name == ModBuilderConstants.ControlBarAlias)
+            else if (sampleId == ModBuilderConstants.GeneralsGamePatch2SampleName)
+            {
+                await CreateGeneralsGamePatch2SampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
+            }
+            else if (sampleId == ModBuilderConstants.LeikezeHotkeysSampleName)
+            {
+                await CreateLeikezeHotkeysSampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
+            }
+            else if (sampleId == LemonControlBarSampleName)
             {
                 await CreateLemonControlBarSampleFilesAsync(directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
@@ -1523,6 +1558,181 @@ public sealed class ProjectConfigService(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to create sample files");
+        }
+    }
+
+    private static bool TryCopyTemplateConfigs(string sampleId, string configsDir)
+    {
+        var baseTemplateDirs = ModBuilderConstants.GetSampleBaseDirectories()
+            .Select(dir => Path.Combine(dir, sampleId));
+
+        var foundTemplateDir = baseTemplateDirs.FirstOrDefault(Directory.Exists);
+        if (string.IsNullOrEmpty(foundTemplateDir))
+        {
+            return false;
+        }
+
+        var templateConfigs = Path.Combine(foundTemplateDir, ModBuilderConstants.LowercaseConfigDir);
+        if (!Directory.Exists(templateConfigs))
+        {
+            return false;
+        }
+
+        var jsonFiles = Directory.GetFiles(templateConfigs, "*.json");
+        if (jsonFiles.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var configFile in jsonFiles)
+        {
+            var dest = Path.Combine(configsDir, Path.GetFileName(configFile));
+            File.Copy(configFile, dest, overwrite: true);
+        }
+
+        return true;
+    }
+
+    private async Task CreateGeneralsGamePatch2SampleFilesAsync(
+        ProjectDirectories directories,
+        string configsDir,
+        CancellationToken cancellationToken)
+    {
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        if (!File.Exists(itemsPath))
+        {
+            var bundleItemsConfig = new
+            {
+                BundleItems = new object[]
+                {
+                    new
+                    {
+                        Name = "PatchINI",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
+                        OutputFormat = "INI",
+                        Description = "Community Patch 2.0 balance and bugfix INI rules and overrides",
+                    },
+                },
+            };
+
+            var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+            await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+        }
+
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+        if (!File.Exists(packsPath))
+        {
+            var bundlePacksConfig = new
+            {
+                BundlePacks = new[]
+                {
+                    new
+                    {
+                        Name = "GeneralsGamePatch2",
+                        Items = new[] { "PatchINI" },
+                        OutputFile = $"{directories.Release}/500_900_CommunityPatch_CoreINI.big",
+                        ManifestFile = "config/500_900_CommunityPatch_CoreINI.big.manifest.json",
+                        Big = true,
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        Description = "Complete Generals Community Patch 2.0 Core INI release single BIG archive",
+                    },
+                },
+            };
+
+            var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+            await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task CreateLeikezeHotkeysSampleFilesAsync(
+        ProjectDirectories directories,
+        string configsDir,
+        CancellationToken cancellationToken)
+    {
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        if (!File.Exists(itemsPath))
+        {
+            var bundleItemsConfig = new
+            {
+                BundleItems = new object[]
+                {
+                    new
+                    {
+                        Name = "Hotkeys_ZH_English",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/ZeroHour/English/**/*.csf" },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        Description = "Leikeze Zero Hour English hotkey string table",
+                    },
+                    new
+                    {
+                        Name = "Hotkeys_Generals_English",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Generals/English/**/*.csf" },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        Description = "Leikeze Generals English hotkey string table",
+                    },
+                    new
+                    {
+                        Name = "Hotkeys_ZH_German",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/ZeroHour/German/**/*.csf" },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        Description = "Leikeze Zero Hour German hotkey string table",
+                    },
+                },
+            };
+
+            var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+            await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+        }
+
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+        if (!File.Exists(packsPath))
+        {
+            var bundlePacksConfig = new
+            {
+                BundlePacks = new[]
+                {
+                    new
+                    {
+                        Name = "LeikezeHotkeys_ZH_EN",
+                        Items = new[] { "Hotkeys_ZH_English" },
+                        OutputFile = $"{directories.Release}/!HotkeysLeikezeENZH.big",
+                        ManifestFile = "config/!HotkeysLeikezeENZH.big.manifest.json",
+                        Big = true,
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        Description = "Leikeze competitive hotkeys for Zero Hour (English)",
+                    },
+                    new
+                    {
+                        Name = "LeikezeHotkeys_Generals_EN",
+                        Items = new[] { "Hotkeys_Generals_English" },
+                        OutputFile = $"{directories.Release}/!HotkeysLeikezeEN.big",
+                        ManifestFile = "config/!HotkeysLeikezeEN.big.manifest.json",
+                        Big = true,
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        Description = "Leikeze competitive hotkeys for Generals (English)",
+                    },
+                    new
+                    {
+                        Name = "LeikezeHotkeys_ZH_DE",
+                        Items = new[] { "Hotkeys_ZH_German" },
+                        OutputFile = $"{directories.Release}/!HotkeysLeikezeDEZH.big",
+                        ManifestFile = "config/!HotkeysLeikezeDEZH.big.manifest.json",
+                        Big = true,
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        Description = "Leikeze competitive hotkeys for Zero Hour (German)",
+                    },
+                },
+            };
+
+            var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+            await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -1624,26 +1834,24 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "CustomIconTextures",
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Art/Textures/**/*.tga" },
-                        OutputFormat = "DDS",
-                        Compression = "DXT5",
-                        GenerateMipmaps = true,
-                        Description = "Custom unit cameo icons and hotkey overlay textures",
+                        Name = "HotkeyIndicators",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/**/Art/Textures/**/*.tga" },
+                        OutputFormat = "TGA",
+                        Description = "Control bar indicator overlay textures for QWERTY hotkeys",
                     },
                     new
                     {
-                        Name = "CustomIconINIs",
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
+                        Name = "HotkeyINIs",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini", $"{directories.GameFilesEdited}/Data/INI/**/*.INI" },
                         OutputFormat = "INI",
-                        Description = "Command button assignments, command sets, and mapped image coordinates",
+                        Description = "Command button assignments and mapped image coordinates",
                     },
                     new
                     {
-                        Name = "CustomIconStrings",
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/**/*.str" },
-                        OutputFormat = "STR",
-                        Description = "Tooltip string overrides showing hotkey keybindings",
+                        Name = "HotkeyStrings",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/**/*.csf", $"{directories.GameFilesEdited}/Data/English/**/*.str" },
+                        OutputFormat = "CSF",
+                        Description = "String table with hotkey annotations (&Key)",
                     },
                 },
             };
@@ -1655,20 +1863,20 @@ public sealed class ProjectConfigService(
         var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
         if (!File.Exists(packsPath))
         {
-            var projectName = Path.GetFileNameWithoutExtension(projectDir) ?? "CustomIcons";
             var bundlePacksConfig = new
             {
                 BundlePacks = new[]
                 {
                     new
                     {
-                        Name = projectName,
-                        Items = new[] { "CustomIconTextures", "CustomIconINIs", "CustomIconStrings" },
-                        ItemNames = new[] { "CustomIconTextures", "CustomIconINIs", "CustomIconStrings" },
+                        Name = "Hotkeys",
+                        Items = new[] { "HotkeyIndicators", "HotkeyINIs", "HotkeyStrings" },
+                        ItemNames = new[] { "HotkeyIndicators", "HotkeyINIs", "HotkeyStrings" },
+                        OutputFile = $"{directories.Release}/!HotkeysLegionnaireZH.big",
+                        Big = true,
                         AllowBuild = true,
                         AllowInstall = true,
-                        OutputFile = $"{directories.Release}/!{projectName}.big",
-                        Description = "Addon package containing custom cameo icons and Legionnaire hotkeys",
+                        Description = "Complete Legionnaire Hotkeys and Overlay Indicators single BIG archive",
                     },
                 },
             };
@@ -1874,23 +2082,38 @@ public sealed class ProjectConfigService(
                         Name = "MenuWindows",
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/window/Menus/**/*.wnd" },
                         OutputFormat = "WINDOW",
-                        Description = "Widescreen adapted .wnd menu layout definitions",
+                        Description = "Widescreen adapted .wnd menu layout definitions (Common)",
                     },
                     new
                     {
                         Name = "MenuMappedImages",
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/MappedImages/**/*.ini" },
                         OutputFormat = "INI",
-                        Description = "MappedImage coordinate definitions for widescreen menu textures",
+                        Description = "MappedImage coordinate definitions for widescreen menu textures (Common)",
                     },
                     new
                     {
-                        Name = "MenuTextures",
+                        Name = "MenuTexturesEnglish",
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga" },
-                        OutputFormat = "DDS",
-                        Compression = "DXT5",
-                        GenerateMipmaps = false,
-                        Description = "High resolution menu backdrops and UI frame textures",
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        Description = "English high resolution menu backdrops and UI frame textures",
+                    },
+                    new
+                    {
+                        Name = "MenuTexturesRussian",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga" },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        Description = "Russian high resolution menu backdrops and UI frame textures",
+                    },
+                    new
+                    {
+                        Name = "MenuTexturesSpanish",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga" },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        Description = "Spanish high resolution menu backdrops and UI frame textures",
                     },
                 },
             };
@@ -1902,20 +2125,42 @@ public sealed class ProjectConfigService(
         var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
         if (!File.Exists(packsPath))
         {
-            var projectName = Path.GetFileNameWithoutExtension(projectDir) ?? "ImprovedMenus";
             var bundlePacksConfig = new
             {
                 BundlePacks = new[]
                 {
                     new
                     {
-                        Name = projectName,
-                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTextures" },
-                        ItemNames = new[] { "MenuWindows", "MenuMappedImages", "MenuTextures" },
+                        Name = "ImprovedMenus_English",
+                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTexturesEnglish" },
+                        OutputFile = $"{directories.Release}/0_ImprovedMenusEnglish.big",
+                        ManifestFile = "config/0_ImprovedMenusEnglish.big.manifest.json",
+                        Big = true,
                         AllowBuild = true,
                         AllowInstall = true,
-                        OutputFile = $"{directories.Release}/!{projectName}.big",
-                        Description = "Widescreen 16:9 menu overhaul package",
+                        Description = "Complete 16:9 widescreen menu overhaul (English variant)",
+                    },
+                    new
+                    {
+                        Name = "ImprovedMenus_Russian",
+                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTexturesRussian" },
+                        OutputFile = $"{directories.Release}/0_ImprovedMenusRussian.big",
+                        ManifestFile = "config/0_ImprovedMenusRussian.big.manifest.json",
+                        Big = true,
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        Description = "Complete 16:9 widescreen menu overhaul (Russian variant)",
+                    },
+                    new
+                    {
+                        Name = "ImprovedMenus_Spanish",
+                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTexturesSpanish" },
+                        OutputFile = $"{directories.Release}/0_ImprovedMenusSpanish.big",
+                        ManifestFile = "config/0_ImprovedMenusSpanish.big.manifest.json",
+                        Big = true,
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        Description = "Complete 16:9 widescreen menu overhaul (Spanish variant)",
                     },
                 },
             };

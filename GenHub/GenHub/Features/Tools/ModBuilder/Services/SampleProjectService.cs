@@ -119,6 +119,7 @@ public class SampleProjectService(
             ImprovedMenusName => HasImprovedMenusAssets(gameFilesDir),
             GeneralsGamePatch2Name => HasGeneralsGamePatch2Assets(gameFilesDir),
             LeikezeHotkeysName => HasLeikezeHotkeysAssets(gameFilesDir),
+            HotkeysName or CustomIconsName => HasHotkeysAssets(gameFilesDir),
             _ => HasGenericSampleAssets(gameFilesDir),
         };
     }
@@ -140,11 +141,20 @@ public class SampleProjectService(
     private static bool HasImprovedMenusAssets(string gameFilesDir)
     {
         var wndDir = Path.Combine(gameFilesDir, WindowDirectoryName);
-        var artDir = Path.Combine(gameFilesDir, ArtDirectoryName);
-        return Directory.Exists(wndDir) &&
-               Directory.EnumerateFiles(wndDir, ModBuilderConstants.FileNames.WndSearchPattern, SearchOption.AllDirectories).Any() &&
-               Directory.Exists(artDir) &&
-               Directory.EnumerateFiles(artDir, "*.*", SearchOption.AllDirectories).Any();
+        var hasWnd = Directory.Exists(wndDir) &&
+                     Directory.EnumerateFiles(wndDir, ModBuilderConstants.FileNames.WndSearchPattern, SearchOption.AllDirectories).Any();
+
+        var hasTextures = Directory.EnumerateFiles(gameFilesDir, "*.tga", SearchOption.AllDirectories).Any() ||
+                          Directory.EnumerateFiles(gameFilesDir, "*.dds", SearchOption.AllDirectories).Any();
+
+        return hasWnd && hasTextures;
+    }
+
+    private static bool HasHotkeysAssets(string gameFilesDir)
+    {
+        return Directory.EnumerateFiles(gameFilesDir, "*.tga", SearchOption.AllDirectories).Any() ||
+               Directory.EnumerateFiles(gameFilesDir, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories).Any() ||
+               Directory.EnumerateFiles(gameFilesDir, ModBuilderConstants.FileNames.CsfSearchPattern, SearchOption.AllDirectories).Any();
     }
 
     private static bool HasGeneralsGamePatch2Assets(string gameFilesDir)
@@ -750,6 +760,7 @@ public class SampleProjectService(
         try
         {
             progress?.Report($"Downloading {spec.AssetLabel}...");
+            logger.LogInformation("Downloading {Label} asset from {Url}", spec.AssetLabel, spec.ZipUrl);
             var result = await EnsureAssetDownloadedAsync(
                 spec.ZipUrl,
                 spec.ZipPath,
@@ -793,6 +804,7 @@ public class SampleProjectService(
                     {
                         var targetDir = Path.Combine(gameFilesDir, ModBuilderConstants.DirectoryNames.Data, spec.LanguageSubDir, ModBuilderConstants.DirectoryNames.Art, ModBuilderConstants.DirectoryNames.Textures);
                         CopyDirectoryContents(sourceTexDir, targetDir, cancellationToken);
+                        logger.LogInformation("Successfully unpacked {Label} textures into {Dir}", spec.AssetLabel, targetDir);
                     }
 
                     if (!string.IsNullOrEmpty(releaseDir))
