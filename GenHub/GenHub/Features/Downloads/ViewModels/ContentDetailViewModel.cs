@@ -1,4 +1,4 @@
-﻿using Avalonia.Threading;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -1611,8 +1611,8 @@ public partial class ContentDetailViewModel(
             string.Equals(v.Id, key, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(v.ManifestId, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(v.ManifestId, key, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
-            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
+            (!string.IsNullOrEmpty(v.Id) && sibling.Id != null && sibling.Id.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(v.Id) && sibling.Id != null && sibling.Id.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(v.Id) && key.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(v.Id) && key.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase)));
 
@@ -2508,7 +2508,7 @@ public partial class ContentDetailViewModel(
                         : Releases.FirstOrDefault(r =>
                             (!string.IsNullOrEmpty(localManifestId) && string.Equals(r.DownloadedManifestId, localManifestId, StringComparison.OrdinalIgnoreCase)) ||
                             (!string.IsNullOrEmpty(searchResult.Version) && string.Equals(r.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase)) ||
-                            (!string.IsNullOrEmpty(searchResult.Name) && (string.Equals(r.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase) || r.Name?.Contains(searchResult.Name, StringComparison.OrdinalIgnoreCase) == true)));
+                            (!string.IsNullOrEmpty(searchResult.Name) && (string.Equals(r.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase) || (r.Name != null && r.Name.Contains(searchResult.Name, StringComparison.OrdinalIgnoreCase)))));
 
                     if (matchingRelease != null)
                     {
@@ -2956,7 +2956,7 @@ public partial class ContentDetailViewModel(
                 SelectedContentType = detectedType;
             }
         }
-        else if (searchResult.SourceUrl?.Contains(ModDBConstants.ModsPathFragment, StringComparison.OrdinalIgnoreCase) == true &&
+        else if (searchResult.SourceUrl != null && searchResult.SourceUrl.Contains(ModDBConstants.ModsPathFragment, StringComparison.OrdinalIgnoreCase) &&
                  !searchResult.SourceUrl.Contains(ModDBConstants.AddonsPathFragment, StringComparison.OrdinalIgnoreCase) &&
                  (SelectedContentType == ContentType.Addon || SelectedContentType == ContentType.UnknownContentType))
         {
@@ -4202,14 +4202,12 @@ public partial class ContentDetailViewModel(
             }
 
             if (!string.IsNullOrWhiteSpace(file.Name) &&
-                string.Equals(file.Name, _updateTargetSearchResult.Name, StringComparison.OrdinalIgnoreCase))
+                string.Equals(file.Name, _updateTargetSearchResult.Name, StringComparison.OrdinalIgnoreCase) &&
+                (releaseItem == null ||
+                 string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version) ||
+                 string.Equals(releaseItem.Version, _updateTargetSearchResult.Version, StringComparison.OrdinalIgnoreCase)))
             {
-                if (releaseItem == null ||
-                    string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version) ||
-                    string.Equals(releaseItem.Version, _updateTargetSearchResult.Version, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                return true;
             }
         }
 
@@ -4221,14 +4219,12 @@ public partial class ContentDetailViewModel(
         }
 
         if (!string.IsNullOrWhiteSpace(file.Name) &&
-            string.Equals(file.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase))
+            string.Equals(file.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase) &&
+            (releaseItem == null ||
+             string.IsNullOrWhiteSpace(searchResult.Version) ||
+             string.Equals(releaseItem.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase)))
         {
-            if (releaseItem == null ||
-                string.IsNullOrWhiteSpace(searchResult.Version) ||
-                string.Equals(releaseItem.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -5016,7 +5012,7 @@ public partial class ContentDetailViewModel(
             if (SelectedVariant?.CurrentState == ContentState.Downloaded &&
                 (string.Equals(preferredRelease.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(preferredRelease.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase) ||
-                 (!string.IsNullOrEmpty(SelectedVariant.Name) && preferredRelease.Name?.Contains(SelectedVariant.Name, StringComparison.OrdinalIgnoreCase) == true)))
+                 (!string.IsNullOrEmpty(SelectedVariant.Name) && preferredRelease.Name != null && preferredRelease.Name.Contains(SelectedVariant.Name, StringComparison.OrdinalIgnoreCase))))
             {
                 preferredRelease.IsDownloaded = true;
                 if (!string.IsNullOrEmpty(SelectedVariant.ManifestId) && ManifestIdValidator.IsValid(SelectedVariant.ManifestId, out _))

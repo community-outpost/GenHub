@@ -52,6 +52,29 @@ public static class GenLauncherS3XmlParser
     }
 
     /// <summary>
+    /// Parses an S3 ListBucketResult XML document, specifying whether to sign download URLs.
+    /// </summary>
+    /// <param name="xmlContent">The XML content returned from the S3 bucket list query.</param>
+    /// <param name="folderPrefix">The folder prefix within the bucket.</param>
+    /// <param name="s3Host">The S3 host (e.g. gen.insave.ovh:9000 or wasabi host).</param>
+    /// <param name="bucketName">The bucket name.</param>
+    /// <param name="isTruncated">Outputs whether more pages exist.</param>
+    /// <param name="nextMarker">Outputs the next marker or continuation token if truncated.</param>
+    /// <param name="useAuth">Whether to sign file download URLs.</param>
+    /// <returns>A list of parsed file entries.</returns>
+    public static List<GenLauncherS3FileEntry> ParseListBucketResult(
+        string xmlContent,
+        string folderPrefix,
+        string s3Host,
+        string bucketName,
+        out bool isTruncated,
+        out string? nextMarker,
+        bool useAuth)
+    {
+        return ParseListBucketResult(xmlContent, folderPrefix, s3Host, bucketName, out isTruncated, out nextMarker, null, null, useAuth);
+    }
+
+    /// <summary>
     /// Parses an S3 ListBucketResult XML document, including pagination markers and S3 credentials for presigned download URLs.
     /// </summary>
     /// <param name="xmlContent">The XML content returned from the S3 bucket list query.</param>
@@ -72,8 +95,8 @@ public static class GenLauncherS3XmlParser
         string bucketName,
         out bool isTruncated,
         out string? nextMarker,
-        string? publicKey = null,
-        string? secretKey = null,
+        string? publicKey,
+        string? secretKey,
         bool useAuth = true)
     {
         isTruncated = false;
@@ -110,10 +133,18 @@ public static class GenLauncherS3XmlParser
         }
 
         var normalizedFolder = (folderPrefix ?? string.Empty).TrimEnd('/') + "/";
+        var context = new S3ParseContext(
+            folderPrefix,
+            normalizedFolder,
+            s3Host,
+            bucketName,
+            publicKey,
+            secretKey,
+            useAuth);
 
         foreach (var contents in doc.Descendants().Where(e => e.Name.LocalName == "Contents"))
         {
-            var entry = TryParseContentEntry(contents, folderPrefix, normalizedFolder, s3Host, bucketName, publicKey, secretKey, useAuth);
+            var entry = TryParseContentEntry(contents, context);
             if (entry != null)
             {
                 entries.Add(entry);
@@ -229,13 +260,7 @@ public static class GenLauncherS3XmlParser
 
     private static GenLauncherS3FileEntry? TryParseContentEntry(
         XElement contents,
-        string? folderPrefix,
-        string normalizedFolder,
-        string s3Host,
-        string bucketName,
-        string? publicKey,
-        string? secretKey,
-        bool useAuth)
+        S3ParseContext context)
     {
         var key = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "Key")?.Value;
         if (string.IsNullOrWhiteSpace(key) || key.EndsWith('/'))
@@ -253,33 +278,33 @@ public static class GenLauncherS3XmlParser
         long.TryParse(sizeStr, out var size);
 
         var relativePath = key;
-        if (!string.IsNullOrEmpty(folderPrefix))
+        if (!string.IsNullOrEmpty(context.FolderPrefix))
         {
-            if (key.StartsWith(normalizedFolder, StringComparison.OrdinalIgnoreCase))
+            if (key.StartsWith(context.NormalizedFolder, StringComparison.OrdinalIgnoreCase))
             {
-                relativePath = key[normalizedFolder.Length..];
+                relativePath = key[context.NormalizedFolder.Length..];
             }
-            else if (key.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
+            else if (key.StartsWith(context.FolderPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                relativePath = key[folderPrefix.Length..].TrimStart('/');
+                relativePath = key[context.FolderPrefix.Length..].TrimStart('/');
             }
         }
 
         string downloadUrl;
-        if (useAuth)
+        if (context.UseAuth)
         {
             downloadUrl = GenLauncherS3Signer.GeneratePresignedGetUrl(
-                s3Host,
-                bucketName,
+                context.S3Host,
+                context.BucketName,
                 key,
-                publicKey,
-                secretKey);
+                context.PublicKey,
+                context.SecretKey);
         }
         else
         {
-            var (scheme, host) = NormalizeHostAndScheme(s3Host);
+            var (scheme, host) = NormalizeHostAndScheme(context.S3Host);
             var escapedKey = string.Join("/", key.Split('/', StringSplitOptions.None).Select(Uri.EscapeDataString));
-            downloadUrl = $"{scheme}://{host}/{Uri.EscapeDataString(bucketName)}/{escapedKey}";
+            downloadUrl = $"{scheme}://{host}/{Uri.EscapeDataString(context.BucketName)}/{escapedKey}";
         }
 
         return new GenLauncherS3FileEntry
@@ -291,4 +316,13 @@ public static class GenLauncherS3XmlParser
             DownloadUrl = downloadUrl,
         };
     }
+
+    private readonly record struct S3ParseContext(
+        string? FolderPrefix,
+        string NormalizedFolder,
+        string S3Host,
+        string BucketName,
+        string? PublicKey,
+        string? SecretKey,
+        bool UseAuth);
 }

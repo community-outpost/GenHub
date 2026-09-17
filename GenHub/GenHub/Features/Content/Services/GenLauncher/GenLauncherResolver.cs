@@ -286,84 +286,10 @@ public class GenLauncherResolver(
         string? currentMarker,
         CancellationToken cancellationToken)
     {
-        var hasExplicitKeys = !string.IsNullOrWhiteSpace(query.PublicKey) && !string.IsNullOrWhiteSpace(query.SecretKey);
-        string? s3Xml = null;
-        bool usedAuth = true;
-
-        if (hasExplicitKeys)
+        var (s3Xml, usedAuth) = await FetchS3PageXmlAsync(client, query, currentMarker, cancellationToken);
+        if (string.IsNullOrWhiteSpace(s3Xml))
         {
-            var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-                query.Host,
-                query.Bucket,
-                query.Folder,
-                currentMarker,
-                query.PublicKey,
-                query.SecretKey,
-                useAuth: true);
-
-            if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
-            {
-                logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-                return (null, false, null);
-            }
-
-            logger.LogInformation("Querying GenLauncher S3 bucket (signed) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-            s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
-            usedAuth = true;
-        }
-        else
-        {
-            // Try unsigned query first since ~70% of GenLauncher MinIO buckets (rotr, forgenerals, contra, zhreborn, etc.) are public anonymous
-            var unsignedUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-                query.Host,
-                query.Bucket,
-                query.Folder,
-                currentMarker,
-                publicKey: null,
-                secretKey: null,
-                useAuth: false);
-
-            if (!ImageCacheService.IsSafeRemoteUrl(unsignedUrl, out _))
-            {
-                logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-                return (null, false, null);
-            }
-
-            try
-            {
-                logger.LogInformation("Querying GenLauncher S3 bucket (anonymous) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-                var resp = await client.GetAsync(unsignedUrl, cancellationToken);
-                if (resp.IsSuccessStatusCode)
-                {
-                    s3Xml = await resp.Content.ReadAsStringAsync(cancellationToken);
-                    usedAuth = false;
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (HttpRequestException ex)
-            {
-                logger.LogDebug(ex, "Anonymous S3 query failed, will try signed query");
-            }
-
-            if (string.IsNullOrWhiteSpace(s3Xml) || s3Xml.Contains("<Error>"))
-            {
-                // Fallback to signed query using default InSave credentials (for improved-ai, tpotw, cncpowerplay)
-                var signedUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-                    query.Host,
-                    query.Bucket,
-                    query.Folder,
-                    currentMarker,
-                    query.PublicKey,
-                    query.SecretKey,
-                    useAuth: true);
-
-                logger.LogInformation("Querying GenLauncher S3 bucket (signed fallback) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-                s3Xml = await client.GetStringAsync(signedUrl, cancellationToken);
-                usedAuth = true;
-            }
+            return (null, false, null);
         }
 
         var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
@@ -392,6 +318,98 @@ public class GenLauncherResolver(
         }
 
         return (files, isTruncated, nextMarker);
+    }
+
+    private async Task<(string? Xml, bool UsedAuth)> FetchS3PageXmlAsync(
+        HttpClient client,
+        S3BucketQuery query,
+        string? currentMarker,
+        CancellationToken cancellationToken)
+    {
+        var hasExplicitKeys = !string.IsNullOrWhiteSpace(query.PublicKey) && !string.IsNullOrWhiteSpace(query.SecretKey);
+        if (hasExplicitKeys)
+        {
+            return await FetchSignedS3PageXmlAsync(client, query, currentMarker, cancellationToken);
+        }
+
+        return await FetchAnonymousWithSignedFallbackXmlAsync(client, query, currentMarker, cancellationToken);
+    }
+
+    private async Task<(string? Xml, bool UsedAuth)> FetchSignedS3PageXmlAsync(
+        HttpClient client,
+        S3BucketQuery query,
+        string? currentMarker,
+        CancellationToken cancellationToken)
+    {
+        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+            query.Host,
+            query.Bucket,
+            query.Folder,
+            currentMarker,
+            query.PublicKey,
+            query.SecretKey,
+            useAuth: true);
+
+        if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
+        {
+            logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+            return (null, true);
+        }
+
+        logger.LogInformation("Querying GenLauncher S3 bucket (signed) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+        var xml = await client.GetStringAsync(queryUrl, cancellationToken);
+        return (xml, true);
+    }
+
+    private async Task<(string? Xml, bool UsedAuth)> FetchAnonymousWithSignedFallbackXmlAsync(
+        HttpClient client,
+        S3BucketQuery query,
+        string? currentMarker,
+        CancellationToken cancellationToken)
+    {
+        // Try unsigned query first since ~70% of GenLauncher MinIO buckets (rotr, forgenerals, contra, zhreborn, etc.) are public anonymous
+        var unsignedUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+            query.Host,
+            query.Bucket,
+            query.Folder,
+            currentMarker,
+            publicKey: null,
+            secretKey: null,
+            useAuth: false);
+
+        if (!ImageCacheService.IsSafeRemoteUrl(unsignedUrl, out _))
+        {
+            logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+            return (null, false);
+        }
+
+        string? s3Xml = null;
+        try
+        {
+            logger.LogInformation("Querying GenLauncher S3 bucket (anonymous) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+            var resp = await client.GetAsync(unsignedUrl, cancellationToken);
+            if (resp.IsSuccessStatusCode)
+            {
+                s3Xml = await resp.Content.ReadAsStringAsync(cancellationToken);
+                return (s3Xml, false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogDebug(ex, "Anonymous S3 query failed, will try signed query");
+        }
+
+        if (string.IsNullOrWhiteSpace(s3Xml) || s3Xml.Contains("<Error>"))
+        {
+            // Fallback to signed query using default InSave credentials (for improved-ai, tpotw, cncpowerplay)
+            return await FetchSignedS3PageXmlAsync(client, query, currentMarker, cancellationToken);
+        }
+
+        return (s3Xml, false);
     }
 
     private async Task<bool> TryResolveS3StoragePayloadAsync(
