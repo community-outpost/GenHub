@@ -818,6 +818,10 @@ public partial class GameProfileSettingsViewModel
         return SelectedGameInstallation?.GameClient?.Clone();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
     private static void HydrateClientPaths(GameClient target, GameClient? source)
     {
         if (source == null)
@@ -836,6 +840,10 @@ public partial class GameProfileSettingsViewModel
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
     private static GameClient CreateGameClientFromDisplayItem(ContentDisplayItem item, string? installationId)
     {
         var manifestIdValue = item.ManifestId.Value ?? string.Empty;
@@ -855,6 +863,10 @@ public partial class GameProfileSettingsViewModel
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
     private static string? ExtractPublisherType(string[] segments, string? itemPublisher)
     {
         if (segments.Length >= 4)
@@ -870,6 +882,10 @@ public partial class GameProfileSettingsViewModel
         return null;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "StyleCop.CSharp.OrderingRules",
+        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
+        Justification = "Co-located with profile save and game client resolution commands for cohesion.")]
     private static string ExtractClientVersion(string? currentVersion, string[] segments, string? publisherType)
     {
         if (!string.IsNullOrWhiteSpace(currentVersion))

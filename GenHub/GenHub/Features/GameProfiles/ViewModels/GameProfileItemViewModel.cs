@@ -776,6 +776,27 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
+    private static string FormatDisplayVersion(string? publisherType, string version)
+    {
+        var pub = publisherType?.ToLowerInvariant() ?? string.Empty;
+        if (pub == PublisherTypeConstants.GeneralsOnline)
+        {
+            return version;
+        }
+
+        if (int.TryParse(version, out var num) && num >= ManifestConstants.DateBasedVersionThreshold)
+        {
+            return version;
+        }
+
+        if (version.StartsWith('v') || version.StartsWith('V'))
+        {
+            return version;
+        }
+
+        return $"v{version}";
+    }
+
     private void UpdateDescription(GameProfile gameProfile)
     {
         // Use actual profile description if available
@@ -988,26 +1009,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
     }
 
-    private static string FormatDisplayVersion(string? publisherType, string version)
-    {
-        var pub = publisherType?.ToLowerInvariant() ?? string.Empty;
-        if (pub == PublisherTypeConstants.GeneralsOnline)
-        {
-            return version;
-        }
-
-        if (int.TryParse(version, out var num) && num >= ManifestConstants.DateBasedVersionThreshold)
-        {
-            return version;
-        }
-
-        if (version.StartsWith('v') || version.StartsWith('V'))
-        {
-            return version;
-        }
-
-        return $"v{version}";
-    }
 
     private void ResolvePublisherFromGameClient(GameClient gameClient)
     {
