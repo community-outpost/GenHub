@@ -16,27 +16,19 @@ public class LocalizedReplayTooltipConverterTests
     private readonly CultureInfo _culture = CultureInfo.InvariantCulture;
 
     /// <summary>
-    /// Verifies that null or empty input returns an empty string or the input representation without crashing.
+    /// Verifies that null, empty, or non-ReplayFile input returns an empty string without crashing.
     /// </summary>
-    [Fact]
-    public void Convert_WithNullOrEmpty_ReturnsExpected()
+    /// <param name="input">The invalid or null input object.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("non-model text")]
+    [InlineData(12345)]
+    public void Convert_WithNullOrInvalidInput_ReturnsEmptyString(object? input)
     {
-        var resultNull = _converter.Convert(null, typeof(string), null, _culture);
-        Assert.Equal(string.Empty, resultNull);
-
-        var resultEmpty = _converter.Convert(string.Empty, typeof(string), null, _culture);
-        Assert.Equal(string.Empty, resultEmpty);
-    }
-
-    /// <summary>
-    /// Verifies that when localization is not initialized, fallback strings are preserved.
-    /// </summary>
-    [Fact]
-    public void Convert_WithoutLocalization_ReturnsOriginalString()
-    {
-        const string text = "Checkpoint recovery and match takeover require a game client with checkpoint capabilities (e.g. MP-Recovery or modern community engine).";
-        var result = _converter.Convert(text, typeof(string), null, _culture);
-        Assert.Equal(text, result);
+        var result = _converter.Convert(input, typeof(string), null, _culture);
+        Assert.Equal(string.Empty, result);
     }
 
     /// <summary>
@@ -69,32 +61,108 @@ public class LocalizedReplayTooltipConverterTests
     }
 
     /// <summary>
-    /// Verifies that Convert with compatibility formatted strings preserves the prefix and CRC values.
-    /// </summary>
-    /// <param name="input">The prefixed compatibility string.</param>
-    [Theory]
-    [InlineData("[OK] Compatible client detected.")]
-    [InlineData("[WARN] Profile mismatch.")]
-    [InlineData("[FAIL] No client found.")]
-    public void Convert_WithPrefixedCompatibilityString_PreservesOrTranslates(string input)
-    {
-        var result = _converter.Convert(input, typeof(string), null, _culture) as string;
-        Assert.NotNull(result);
-        Assert.StartsWith("[", result);
-    }
-
-    /// <summary>
-    /// Verifies that CRC mismatches extract and preserve real hex CRC tokens.
+    /// Verifies that an Orphaned ReplayFile extracts and formats distinct Exe and INI CRC values.
     /// </summary>
     [Fact]
-    public void Convert_WithCrcMismatch_PreservesHexCrcTokens()
+    public void Convert_WithOrphanedReplay_PreservesDistinctHexCrcTokens()
     {
-        const string input = "[FAIL] INI CRC mismatch. Replay: 0x12345678, Profile: 0x87654321.";
-        var result = _converter.Convert(input, typeof(string), null, _culture) as string;
+        var replay = new ReplayFile
+        {
+            FileName = "Orphaned.rep",
+            FullPath = @"C:\Games\Replays\Orphaned.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Orphaned,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x12345678,
+                IniCrc = 0x87654321,
+            },
+        };
+
+        var result = _converter.Convert(replay, typeof(string), null, _culture) as string;
 
         Assert.NotNull(result);
         Assert.Contains("0x12345678", result);
         Assert.Contains("0x87654321", result);
+        Assert.Contains("official catalog", result);
+    }
+
+    /// <summary>
+    /// Verifies that RequiresProfile, Downloadable, and Unknown compatibility statuses resolve expected text.
+    /// </summary>
+    /// <param name="status">The compatibility status to test.</param>
+    /// <param name="expectedSubstring">The substring expected in the fallback text.</param>
+    [Theory]
+    [InlineData(ReplayCompatibilityStatus.RequiresProfile, "Create Profile")]
+    [InlineData(ReplayCompatibilityStatus.Downloadable, "Setup")]
+    [InlineData(ReplayCompatibilityStatus.Unknown, "Replay header metadata is not available")]
+    public void Convert_WithDifferentCompatibilityStatuses_ResolvesExpectedText(
+        ReplayCompatibilityStatus status,
+        string expectedSubstring)
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Test.rep",
+            FullPath = @"C:\Games\Test.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = status,
+        };
+
+        var result = _converter.Convert(replay, typeof(string), null, _culture) as string;
+
+        Assert.NotNull(result);
+        Assert.Contains(expectedSubstring, result);
+    }
+
+    /// <summary>
+    /// Verifies that recovery engine suffix is appended when checkpoint support and recovery profile are present.
+    /// </summary>
+    [Fact]
+    public void Convert_WithRecoveryEngine_AppendsRecoverySuffix()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Recovery.rep",
+            FullPath = @"C:\Games\Recovery.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Compatible,
+            MatchingProfileName = "ZH Standard",
+            SupportsCheckpoints = true,
+            RecoveryProfileName = "ZH Recovery Build",
+        };
+
+        var result = _converter.Convert(replay, typeof(string), null, _culture) as string;
+
+        Assert.NotNull(result);
+        Assert.Contains("Recovery Engine: Profile 'ZH Recovery Build'", result);
+    }
+
+    /// <summary>
+    /// Verifies that Takeover tooltip explains requirement when checkpoint support is absent.
+    /// </summary>
+    [Fact]
+    public void Convert_WithTakeoverWithoutCheckpointSupport_ExplainsRequirement()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "NoRecovery.rep",
+            FullPath = @"C:\Games\NoRecovery.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            SupportsCheckpoints = false,
+        };
+
+        var result = _converter.Convert(replay, typeof(string), "Takeover", _culture) as string;
+
+        Assert.NotNull(result);
+        Assert.Contains("require a game client with checkpoint capabilities", result);
     }
 
     /// <summary>

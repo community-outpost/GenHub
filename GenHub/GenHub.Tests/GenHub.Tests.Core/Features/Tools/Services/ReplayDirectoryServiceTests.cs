@@ -347,10 +347,10 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that ReplayFile helper properties correctly map all compatibility enum states to badges and tooltips.
+    /// Verifies that ReplayFile helper properties correctly map all compatibility enum states to badges.
     /// </summary>
     [Fact]
-    public void ReplayFile_CompatibilityBadgeAndTooltip_ReflectsStatusAccurately()
+    public void ReplayFile_CompatibilityBadge_ReflectsStatusAccurately()
     {
         // Compatible state
         var compatibleReplay = new ReplayFile
@@ -365,7 +365,6 @@ public sealed class ReplayDirectoryServiceTests
             MatchingProfileName = "ZH SuperHackers",
         };
         Assert.Equal("Profile Ready", compatibleReplay.CompatibilityBadgeText);
-        Assert.Contains("ZH SuperHackers", compatibleReplay.CompatibilityTooltip);
 
         // RequiresProfile state
         var requiresProfileReplay = new ReplayFile
@@ -378,7 +377,6 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.RequiresProfile,
         };
         Assert.Equal("Profile Needed", requiresProfileReplay.CompatibilityBadgeText);
-        Assert.Contains("Click 'Create Profile'", requiresProfileReplay.CompatibilityTooltip);
 
         // Downloadable state
         var downloadableReplay = new ReplayFile
@@ -391,7 +389,6 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.Downloadable,
         };
         Assert.Equal("Download Required", downloadableReplay.CompatibilityBadgeText);
-        Assert.Contains("can be downloaded", downloadableReplay.CompatibilityTooltip);
 
         // Orphaned state
         var orphanedReplay = new ReplayFile
@@ -404,7 +401,6 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.Orphaned,
         };
         Assert.Equal("Custom / Unmapped", orphanedReplay.CompatibilityBadgeText);
-        Assert.Contains("official catalog", orphanedReplay.CompatibilityTooltip, StringComparison.OrdinalIgnoreCase);
 
         // Unknown state
         var unknownReplay = new ReplayFile
