@@ -41,6 +41,11 @@ public static class AppUpdateConstants
     public const string ArtifactPrefixLinux = "genhub-velopack-linux-";
 
     /// <summary>
+    /// Artifact name prefix for macOS builds.
+    /// </summary>
+    public const string ArtifactPrefixMacOS = "genhub-velopack-macos-";
+
+    /// <summary>
     /// Artifact name for release builds.
     /// </summary>
     public const string ArtifactNameRelease = "GenHub-Release";
@@ -54,6 +59,11 @@ public static class AppUpdateConstants
     /// Platform string for Linux.
     /// </summary>
     public const string PlatformLinux = "linux";
+
+    /// <summary>
+    /// Platform string for macOS.
+    /// </summary>
+    public const string PlatformMacOS = "macos";
 
     /// <summary>
     /// Update checking message.

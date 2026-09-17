@@ -31,7 +31,7 @@ git push origin v1.0.0
 
 The CI/CD workflow (`.github/workflows/release.yml`) will automatically:
 
-- Build Windows and Linux releases
+- Build Windows, Linux, and macOS releases
 - Create Velopack packages with all required files
 - Verify critical files are present (including `releases.win.json`)
 - Publish to GitHub Releases
@@ -448,10 +448,15 @@ The automated release workflow (`.github/workflows/release.yml`) provides the fo
 
 2. **Linux Build Job:**
    - Same process as Windows but for Linux platform
-   - Creates Linux-specific Velopack packages
+   - Creates Linux-specific Velopack packages (.AppImage, .nupkg, metadata)
    - Verifies Linux release files
 
-3. **Create Release Job:**
+3. **macOS Build Job:**
+   - Same process for macOS (osx-arm64)
+   - Creates macOS-specific Velopack packages (.pkg installer, .nupkg, metadata)
+   - Verifies macOS release files and launch survivability
+
+4. **Create Release Job:**
    - Downloads all build artifacts
    - Detects if version is prerelease (alpha/beta/rc)
    - Generates release notes

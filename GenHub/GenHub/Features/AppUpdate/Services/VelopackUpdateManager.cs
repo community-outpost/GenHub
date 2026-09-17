@@ -1134,7 +1134,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// </summary>
     private static string? ExtractVersionFromArtifactName(string artifactName)
     {
-        var prefixes = new[] { AppUpdateConstants.ArtifactPrefixWindows, AppUpdateConstants.ArtifactPrefixLinux };
+        var prefixes = new[]
+        {
+            AppUpdateConstants.ArtifactPrefixWindows,
+            AppUpdateConstants.ArtifactPrefixLinux,
+            AppUpdateConstants.ArtifactPrefixMacOS,
+        };
 
         foreach (var prefix in prefixes)
         {
@@ -1152,12 +1157,17 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return "windows";
+            return AppUpdateConstants.PlatformWindows;
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return "linux";
+            return AppUpdateConstants.PlatformLinux;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return AppUpdateConstants.PlatformMacOS;
         }
 
         return null;

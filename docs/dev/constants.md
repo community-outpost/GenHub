@@ -103,9 +103,11 @@ Constants related to application updates and Velopack.
 | `VelopackDirectory`                          | `"velopack"`                | Velopack directory name                                                           |
 | `ArtifactPrefixWindows`                       | `"genhub-velopack-windows-"`| Artifact name prefix for Windows builds                                           |
 | `ArtifactPrefixLinux`                         | `"genhub-velopack-linux-"`  | Artifact name prefix for Linux builds                                             |
+| `ArtifactPrefixMacOS`                         | `"genhub-velopack-macos-"`  | Artifact name prefix for macOS builds                                             |
 | `ArtifactNameRelease`                         | `"GenHub-Release"`          | Artifact name for release builds                                                  |
 | `PlatformWindows`                             | `"windows"`                 | Platform string for Windows                                                       |
 | `PlatformLinux`                               | `"linux"`                   | Platform string for Linux                                                         |
+| `PlatformMacOS`                               | `"macos"`                   | Platform string for macOS                                                         |
 | `CheckingForUpdatesMessage`                   | `"Checking..."`             | Update checking message                                                           |
 | `UpdateAvailableTitleFormat`                  | `"Update available: v{0}"`  | Update available title format string                                              |
 | `UpdateUpToDateMessage`                       | `"You're up to date!"`      | Update up to date message                                                         |

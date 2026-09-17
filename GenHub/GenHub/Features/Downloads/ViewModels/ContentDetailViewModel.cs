@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -28,6 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -2562,12 +2563,12 @@ public partial class ContentDetailViewModel(
         catch (TimeoutException ex)
         {
             logger.LogWarning(ex, "Timed out waiting for verified ModDB details from {Url}", searchResult.SourceUrl);
-            notificationService.ShowWarning("ModDB verification required", ex.Message);
+            notificationService.ShowWarning(GetLocalizedString("Downloads.ContentDetail.ModDbVerificationRequired", "ModDB verification required"), ex.Message);
         }
         catch (Exception ex) when (ex is InvalidOperationException && (ex.Message.Contains("Chromium", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Playwright", StringComparison.OrdinalIgnoreCase)))
         {
             logger.LogError(ex, "Managed Chromium setup failed while parsing ModDB details from {Url}", searchResult.SourceUrl);
-            notificationService.ShowError("Chromium setup failed", ex.Message);
+            notificationService.ShowError(GetLocalizedString("Downloads.ContentDetail.ChromiumSetupFailed", "Chromium setup failed"), ex.Message);
         }
         catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
         {
@@ -2598,8 +2599,10 @@ public partial class ContentDetailViewModel(
         if (isModDb)
         {
             notificationService.ShowInfo(
-                "Loading ModDB details",
-                "A browser window is opening to read this ModDB page. If it asks for verification, complete it there. Otherwise wait and do not click anything in that window — details will fill in automatically.",
+                GetLocalizedString("Downloads.ContentDetail.LoadingModDbDetailsTitle", "Loading ModDB details"),
+                GetLocalizedString(
+                    "Downloads.ContentDetail.LoadingModDbDetailsMessage",
+                    "A browser window is opening to read this ModDB page. If it asks for verification, complete it there. Otherwise wait and do not click anything in that window — details will fill in automatically."),
                 autoDismissMs: NotificationDurations.VeryLong);
 
             // PlaywrightService actively waits for a real ModDB document (or reports an
@@ -3717,8 +3720,10 @@ public partial class ContentDetailViewModel(
             if (ContentCardBadgeHelper.IsModDb(targetContent))
             {
                 notificationService.ShowInfo(
-                    "ModDB download starting",
-                    "A browser window will open to fetch this file. Wait for the download to finish and do not click anything in that window.",
+                    GetLocalizedString("Downloads.ContentDetail.ModDbDownloadStartingTitle", "ModDB download starting"),
+                    GetLocalizedString(
+                        "Downloads.ContentDetail.ModDbDownloadStartingMessage",
+                        "A browser window will open to fetch this file. Wait for the download to finish and do not click anything in that window."),
                     autoDismissMs: NotificationDurations.VeryLong);
             }
 
@@ -3802,7 +3807,7 @@ public partial class ContentDetailViewModel(
 
             // Surface the failure as a toast so the user sees actionable text (e.g. the ModDB
             // WAF block message) instead of only the inline status label.
-            notificationService.ShowError("Download failed", errorMsg);
+            notificationService.ShowError(GetLocalizedString("Downloads.ContentDetail.DownloadFailed", "Download failed"), errorMsg);
             return false;
         }
         catch (OperationCanceledException ex)
@@ -4174,7 +4179,7 @@ public partial class ContentDetailViewModel(
         else if (item is string url && !string.IsNullOrWhiteSpace(url))
         {
             FullScreenMediaUrl = url;
-            FullScreenMediaTitle = "Image Preview";
+            FullScreenMediaTitle = GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview");
             IsFullScreenMediaOpen = true;
         }
     }
@@ -4327,8 +4332,8 @@ public partial class ContentDetailViewModel(
                     manifestId,
                     saveResult.FirstError);
                 notificationService.ShowError(
-                    "Content Type Not Saved",
-                    saveResult.FirstError ?? "Could not update the stored manifest type.");
+                    GetLocalizedString("Downloads.ContentDetail.ContentTypeNotSaved", "Content Type Not Saved"),
+                    saveResult.FirstError ?? GetLocalizedString("Downloads.ContentDetail.CouldNotUpdateStoredManifestType", "Could not update the stored manifest type."));
                 return;
             }
 
@@ -4338,15 +4343,19 @@ public partial class ContentDetailViewModel(
                 manifestId,
                 newType);
             notificationService.ShowSuccess(
-                "Content Type Updated",
-                $"'{manifest.Name}' is now classified as {newType.GetDisplayName()}.");
+                GetLocalizedString("Downloads.ContentDetail.ContentTypeUpdated", "Content Type Updated"),
+                FormatLocalizedString(
+                    "Downloads.ContentDetail.ContentTypeUpdatedMessageFormat",
+                    "'{0}' is now classified as {1}.",
+                    manifest.Name,
+                    newType.GetDisplayName()));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to persist content type change for {Name}", Name);
             notificationService.ShowError(
-                "Content Type Not Saved",
-                "Could not update the stored manifest type. Please try again.");
+                GetLocalizedString("Downloads.ContentDetail.ContentTypeNotSaved", "Content Type Not Saved"),
+                GetLocalizedString("Downloads.ContentDetail.CouldNotUpdateStoredManifestTypeRetry", "Could not update the stored manifest type. Please try again."));
         }
     }
 
@@ -4376,8 +4385,10 @@ public partial class ContentDetailViewModel(
             {
                 logger.LogWarning("Cannot add to profile: bundle members are not all downloaded");
                 notificationService.ShowWarning(
-                    ContentConstants.ContentNotDownloadedTitle,
-                    "Download every selected bundle item (including the chosen variants) before adding them to a profile.");
+                    GetLocalizedString("Downloads.ContentDetail.ContentNotDownloadedTitle", ContentConstants.ContentNotDownloadedTitle),
+                    GetLocalizedString(
+                        "Downloads.ContentDetail.BundleMembersNotDownloadedMessage",
+                        "Download every selected bundle item (including the chosen variants) before adding them to a profile."));
                 return;
             }
 
@@ -4391,7 +4402,9 @@ public partial class ContentDetailViewModel(
             if (!SelectedDownloadableItem.IsDownloaded || string.IsNullOrWhiteSpace(SelectedDownloadableItem.DownloadedManifestId))
             {
                 logger.LogWarning("Cannot add to profile: selected downloadable item not downloaded yet");
-                notificationService.ShowWarning(ContentConstants.ContentNotDownloadedTitle, "Please download this item before adding it to a profile.");
+                notificationService.ShowWarning(
+                    GetLocalizedString("Downloads.ContentDetail.ContentNotDownloadedTitle", ContentConstants.ContentNotDownloadedTitle),
+                    GetLocalizedString("Downloads.ContentDetail.DownloadItemBeforeAdding", "Please download this item before adding it to a profile."));
                 return;
             }
 
@@ -4414,7 +4427,9 @@ public partial class ContentDetailViewModel(
         if (string.IsNullOrWhiteSpace(resolvedManifestId))
         {
             logger.LogWarning("Cannot add to profile: content not downloaded yet");
-            notificationService.ShowWarning(ContentConstants.ContentNotDownloadedTitle, "Please download the content before adding it to a profile.");
+            notificationService.ShowWarning(
+                GetLocalizedString("Downloads.ContentDetail.ContentNotDownloadedTitle", ContentConstants.ContentNotDownloadedTitle),
+                GetLocalizedString("Downloads.ContentDetail.DownloadContentBeforeAdding", "Please download the content before adding it to a profile."));
             return;
         }
 
@@ -4441,7 +4456,9 @@ public partial class ContentDetailViewModel(
 
         if (string.IsNullOrWhiteSpace(manifestId) || !ManifestIdValidator.IsValid(manifestId, out _))
         {
-            notificationService.ShowWarning(ContentConstants.ContentNotDownloadedTitle, "Please download this file before adding it to a profile.");
+            notificationService.ShowWarning(
+                GetLocalizedString("Downloads.ContentDetail.ContentNotDownloadedTitle", ContentConstants.ContentNotDownloadedTitle),
+                GetLocalizedString("Downloads.ContentDetail.DownloadFileBeforeAdding", "Please download this file before adding it to a profile."));
             return;
         }
 
@@ -4478,8 +4495,8 @@ public partial class ContentDetailViewModel(
                 if (bundleIds.Count == 0)
                 {
                     notificationService.ShowWarning(
-                        ContentConstants.ContentNotDownloadedTitle,
-                        "Please download the content before adding it to a profile.");
+                        GetLocalizedString("Downloads.ContentDetail.ContentNotDownloadedTitle", ContentConstants.ContentNotDownloadedTitle),
+                        GetLocalizedString("Downloads.ContentDetail.DownloadContentBeforeAdding", "Please download the content before adding it to a profile."));
                     return;
                 }
 
@@ -4512,8 +4529,8 @@ public partial class ContentDetailViewModel(
                 if (string.IsNullOrEmpty(contentManifestId))
                 {
                     notificationService.ShowWarning(
-                        ContentConstants.ContentNotDownloadedTitle,
-                        "Please download the content before adding it to a profile.");
+                        GetLocalizedString("Downloads.ContentDetail.ContentNotDownloadedTitle", ContentConstants.ContentNotDownloadedTitle),
+                        GetLocalizedString("Downloads.ContentDetail.DownloadContentBeforeAdding", "Please download the content before adding it to a profile."));
                     return;
                 }
             }
@@ -4554,7 +4571,9 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error showing profile selection dialog: {Message}", ex.Message);
-            notificationService.ShowError("Error", $"Failed to show profile selection dialog: {ex.Message}");
+            notificationService.ShowError(
+                GetLocalizedString("Common.Status.Error", "Error"),
+                FormatLocalizedString("Downloads.ContentDetail.FailedToShowProfileSelectionDialogFormat", "Failed to show profile selection dialog: {0}", ex.Message));
         }
     }
 
@@ -5020,5 +5039,30 @@ public partial class ContentDetailViewModel(
                 !string.IsNullOrWhiteSpace(a.Name) &&
                 (trimmedSearchName.Contains(a.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
                  a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private string GetLocalizedString(string key, string fallback) =>
+        localizationService?.GetString(key) is { Length: > 0 } localized &&
+        !string.Equals(localized, key, StringComparison.Ordinal)
+            ? localized
+            : fallback;
+
+    private string FormatLocalizedString(string key, string fallbackFormat, params object[] args)
+    {
+        var localizedFormat = localizationService?.GetString(key);
+        if (!string.IsNullOrEmpty(localizedFormat) &&
+            !string.Equals(localizedFormat, key, StringComparison.Ordinal))
+        {
+            try
+            {
+                return string.Format(CultureInfo.CurrentCulture, localizedFormat, args);
+            }
+            catch (FormatException)
+            {
+                // Fall back to fallbackFormat on error
+            }
+        }
+
+        return string.Format(CultureInfo.CurrentCulture, fallbackFormat, args);
     }
 }

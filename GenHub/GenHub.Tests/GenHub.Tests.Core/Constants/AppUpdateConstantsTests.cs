@@ -29,9 +29,11 @@ public class AppUpdateConstantsTests
         Assert.Equal("velopack", AppUpdateConstants.VelopackDirectory);
         Assert.Equal("genhub-velopack-windows-", AppUpdateConstants.ArtifactPrefixWindows);
         Assert.Equal("genhub-velopack-linux-", AppUpdateConstants.ArtifactPrefixLinux);
+        Assert.Equal("genhub-velopack-macos-", AppUpdateConstants.ArtifactPrefixMacOS);
         Assert.Equal("GenHub-Release", AppUpdateConstants.ArtifactNameRelease);
         Assert.Equal("windows", AppUpdateConstants.PlatformWindows);
         Assert.Equal("linux", AppUpdateConstants.PlatformLinux);
+        Assert.Equal("macos", AppUpdateConstants.PlatformMacOS);
     }
 
     /// <summary>
