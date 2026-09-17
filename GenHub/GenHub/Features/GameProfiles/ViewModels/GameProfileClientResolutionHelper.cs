@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
@@ -19,10 +20,12 @@ internal static class GameProfileClientResolutionHelper
     /// </summary>
     /// <param name="enabledContent">The enabled content items.</param>
     /// <param name="selectedInstallation">The selected installation item.</param>
+    /// <param name="existingClient">Optional existing client from the profile being updated, to preserve metadata.</param>
     /// <returns>The resolved active game client, or null.</returns>
     internal static GameClient? ResolveActiveGameClient(
         IEnumerable<ContentDisplayItem> enabledContent,
-        ContentDisplayItem? selectedInstallation)
+        ContentDisplayItem? selectedInstallation,
+        GameClient? existingClient = null)
     {
         var enabledClientItem = enabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
         GameClient? resolvedClient = enabledClientItem?.GameClient?.Clone();
@@ -39,11 +42,24 @@ internal static class GameProfileClientResolutionHelper
 
         if (resolvedClient != null)
         {
+            var installationSourceId = selectedInstallation?.SourceId ?? selectedInstallation?.GameClient?.InstallationId;
+            if (!string.IsNullOrEmpty(installationSourceId))
+            {
+                resolvedClient.InstallationId = installationSourceId;
+            }
+
             HydrateClientPaths(resolvedClient, selectedInstallation?.GameClient);
+            HydrateClientMetadata(resolvedClient, existingClient);
             return resolvedClient;
         }
 
-        return selectedInstallation?.GameClient?.Clone();
+        var baseClient = selectedInstallation?.GameClient?.Clone();
+        if (baseClient != null)
+        {
+            HydrateClientMetadata(baseClient, existingClient);
+        }
+
+        return baseClient;
     }
 
     /// <summary>
@@ -53,7 +69,7 @@ internal static class GameProfileClientResolutionHelper
     /// <param name="source">The source game client.</param>
     internal static void HydrateClientPaths(GameClient target, GameClient? source)
     {
-        if (source == null)
+        if (source == null || target.GameType != source.GameType)
         {
             return;
         }
@@ -66,6 +82,36 @@ internal static class GameProfileClientResolutionHelper
         if (string.IsNullOrEmpty(target.WorkingDirectory))
         {
             target.WorkingDirectory = source.WorkingDirectory;
+        }
+    }
+
+    /// <summary>
+    /// Preserves client metadata from an existing client when saving or updating a profile.
+    /// </summary>
+    /// <param name="target">The target game client being resolved.</param>
+    /// <param name="existing">The existing client stored on the profile.</param>
+    internal static void HydrateClientMetadata(GameClient target, GameClient? existing)
+    {
+        if (existing == null)
+        {
+            return;
+        }
+
+        if (string.Equals(target.Id, existing.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(target.CommandLineArgs))
+            {
+                target.CommandLineArgs = existing.CommandLineArgs;
+            }
+
+            if (target.BuildDate == default)
+            {
+                target.BuildDate = existing.BuildDate;
+            }
+
+            target.CreatedAt = existing.CreatedAt;
+            target.LastDetected = existing.LastDetected;
+            target.IsEnabled = existing.IsEnabled;
         }
     }
 
@@ -137,22 +183,7 @@ internal static class GameProfileClientResolutionHelper
         var versionSegment = segments[1];
         if (int.TryParse(versionSegment, out var verNum) && verNum > 0)
         {
-            if (publisherType == PublisherTypeConstants.GeneralsOnline)
-            {
-                return verNum.ToString("D6");
-            }
-
-            if (verNum >= ManifestConstants.DateBasedVersionThreshold)
-            {
-                return versionSegment;
-            }
-
-            if (verNum >= 100)
-            {
-                return $"{verNum / 100}.{verNum % 100:D2}";
-            }
-
-            return verNum.ToString();
+            return GameVersionHelper.FormatNumericManifestVersion(verNum, publisherType, includePrefix: false);
         }
 
         return !string.Equals(versionSegment, "0", StringComparison.OrdinalIgnoreCase)

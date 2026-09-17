@@ -319,6 +319,38 @@ public static partial class GameVersionHelper
         return trimmed;
     }
 
+    /// <summary>
+    /// Formats a numeric manifest version segment into a standard version string.
+    /// Handles Generals Online (D6 formatting), date-based versions (preserving YYYYMMDD),
+    /// and standard major/minor numeric versions (dividing by 100 when &gt;= 100).
+    /// </summary>
+    /// <param name="versionNumber">The parsed integer version number.</param>
+    /// <param name="publisherType">The publisher type identifier.</param>
+    /// <param name="includePrefix">Whether to include the 'v' prefix for semantic versions.</param>
+    /// <returns>The formatted version string, or an empty string if versionNumber &lt;= 0.</returns>
+    public static string FormatNumericManifestVersion(int versionNumber, string? publisherType, bool includePrefix = false)
+    {
+        if (versionNumber <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return versionNumber.ToString("D6");
+        }
+
+        if (versionNumber >= ManifestConstants.DateBasedVersionThreshold)
+        {
+            return versionNumber.ToString();
+        }
+
+        var prefix = includePrefix ? "v" : string.Empty;
+        return versionNumber >= ManifestConstants.NumericVersionDivisorThreshold
+            ? $"{prefix}{versionNumber / ManifestConstants.NumericVersionDivisorThreshold}.{versionNumber % ManifestConstants.NumericVersionDivisorThreshold:D2}"
+            : $"{prefix}{versionNumber}";
+    }
+
     [GeneratedRegex(@"\b(\d{4})[-_.]?(\d{2})[-_.]?(\d{2})\b", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex EightDigitDateRegex();
 

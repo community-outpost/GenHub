@@ -471,6 +471,7 @@ public class GameProfileManager(
         if (request.GameClient != null)
         {
             var isCompatible = availableClients.Any(c =>
+                c.IsEnabled &&
                 string.Equals(c.Id, request.GameClient.Id, StringComparison.OrdinalIgnoreCase));
             if (!isCompatible)
             {
@@ -488,10 +489,12 @@ public class GameProfileManager(
 
         if (matchedClient == null && profile.GameClient != null)
         {
+            var targetNormalized = GameVersionHelper.NormalizeVersion(profile.GameClient.Version);
             matchedClient = availableClients.FirstOrDefault(c =>
                 c.IsEnabled &&
                 c.GameType == profile.GameClient.GameType &&
-                string.Equals(c.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase));
+                (string.Equals(c.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase) ||
+                 (targetNormalized > 0 && GameVersionHelper.NormalizeVersion(c.Version) == targetNormalized)));
         }
 
         if (matchedClient == null && profile.GameClient == null && request.EnabledContentIds == null)
@@ -725,11 +728,6 @@ public class GameProfileManager(
         if (request.GameClient != null)
         {
             profile.GameClient = request.GameClient;
-        }
-        else if (request.GameInstallationId != null &&
-                 !string.Equals(request.GameInstallationId, profile.GameInstallationId, StringComparison.OrdinalIgnoreCase))
-        {
-            profile.GameClient = null;
         }
 
         profile.WorkspaceStrategy = request.ClearWorkspaceStrategy

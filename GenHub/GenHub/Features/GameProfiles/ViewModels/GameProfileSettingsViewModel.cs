@@ -1192,6 +1192,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 GameClientId = x.GameClientId ?? string.Empty,
                 GameClient = x.GameClient?.Clone(),
                 Manifest = x.Manifest,
+                IsEditable = x.IsEditable,
+                SourcePath = x.SourcePath,
             })),
             EnabledContent.Select(x => x.ManifestId.Value));
 

@@ -761,7 +761,7 @@ public class ProfileContentLoader(
                 Publisher = publisher,
                 SourceId = gameInstallation.Id,
                 GameClientId = gameClient.Id,
-                GameClient = gameClient,
+                GameClient = gameClient.Clone(),
                 IsEnabled = true,
                 IsEditable = false,
             };

@@ -727,19 +727,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
         if (int.TryParse(versionSegment, out var versionNumber) && versionNumber > 0)
         {
-            if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-            {
-                return versionNumber.ToString("D6");
-            }
-
-            if (versionNumber >= ManifestConstants.DateBasedVersionThreshold)
-            {
-                return versionNumber.ToString();
-            }
-
-            return versionNumber >= 100
-                ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
-                : $"v{versionNumber}";
+            return GameVersionHelper.FormatNumericManifestVersion(versionNumber, publisherSegment, includePrefix: true);
         }
 
         if (!IsZeroOrPlaceholderVersion(versionSegment))
@@ -977,7 +965,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         {
             GameVersion = patchVer;
 
-            if (!isPublisherClient || string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
+            if (!isPublisherClient || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
             {
                 Publisher = ParsePublisherName(patchPub, patchSegments[2]);
                 ApplyPublisherBranding(patchPub);

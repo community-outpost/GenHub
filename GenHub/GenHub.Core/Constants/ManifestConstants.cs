@@ -359,4 +359,9 @@ public static class ManifestConstants
     /// Integer versions greater than or equal to this threshold represent release dates rather than divided version numbers.
     /// </summary>
     public const int DateBasedVersionThreshold = 19900000;
+
+    /// <summary>
+    /// Divisor threshold for separating major and minor numeric version numbers (e.g. 104 -> 1.04).
+    /// </summary>
+    public const int NumericVersionDivisorThreshold = 100;
 }

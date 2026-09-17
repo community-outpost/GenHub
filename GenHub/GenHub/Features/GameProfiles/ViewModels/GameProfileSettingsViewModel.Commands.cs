@@ -772,7 +772,7 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
-        var activeGameClient = isStandaloneProfile ? null : GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation);
+        var activeGameClient = isStandaloneProfile ? null : GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation, _originalProfile?.GameClient);
 
         var updateRequest = new UpdateProfileRequest
         {
