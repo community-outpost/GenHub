@@ -1,4 +1,3 @@
-using System.Text.Json;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
@@ -6,6 +5,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text.Json;
 
 namespace GenHub.Tests.Core.Features.Launching;
 
@@ -535,10 +535,12 @@ public class LaunchReceiptServiceTests : IDisposable
     public async Task RevalidateAsync_LegacyReceipt_DropsEnvironmentFingerprintsAsync()
     {
         var path = Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName);
-        await File.WriteAllTextAsync(path,
+        await File.WriteAllTextAsync(
+            path,
             """{"SchemaVersion":1,"EnvironmentHashSalt":"legacy-key","EnvironmentVariableHashes":{"TOKEN":"legacy-digest"}}""");
         var result = await _service.RevalidateAsync(_workspacePath);
         Assert.True(result.Success);
+
         // Schema-level guard against adding legacy fingerprint properties back.
         var serialized = System.Text.Json.JsonSerializer.Serialize(result.Data!.Receipt);
         Assert.DoesNotContain("legacy-key", serialized);
@@ -666,6 +668,7 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>Unsupported schemas are reported rather than compared as current receipts.</summary>
+    /// <param name="version">The unsupported schema version.</param>
     /// <returns>The async task.</returns>
     [Theory]
     [InlineData(0)]
