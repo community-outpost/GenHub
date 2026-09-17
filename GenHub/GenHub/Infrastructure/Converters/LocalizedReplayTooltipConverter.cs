@@ -26,6 +26,7 @@ public class LocalizedReplayTooltipConverter : IValueConverter
     private const string CompatibilityDownloadableMarker = "can be downloaded. Click 'Setup'";
     private const string CompatibilityOrphanedMarker = "is not in the official catalog";
     private const string RecoveryEngineMarker = "Recovery Engine: Profile '";
+    private const string UnknownValue = "Unknown";
 
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -58,7 +59,7 @@ public class LocalizedReplayTooltipConverter : IValueConverter
         }
         catch
         {
-            return value?.ToString() ?? string.Empty;
+            return value.ToString() ?? string.Empty;
         }
     }
 
@@ -103,7 +104,7 @@ public class LocalizedReplayTooltipConverter : IValueConverter
 
     private static string ConvertCompatibilityModel(ReplayFile replay, ILocalizationService? loc)
     {
-        var targetName = replay.MatchingProfileName ?? replay.MatchedClient?.Description ?? "Unknown";
+        var targetName = replay.MatchingProfileName ?? replay.MatchedClient?.Description ?? UnknownValue;
         string baseTooltip = replay.CompatibilityStatus switch
         {
             ReplayCompatibilityStatus.Compatible =>
@@ -188,17 +189,17 @@ public class LocalizedReplayTooltipConverter : IValueConverter
         if (text.Contains(CompatibilityCompatibleMarker, StringComparison.Ordinal))
         {
             var profile = ExtractQuotedToken(text, "Profile '");
-            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.Compatible", profile ?? "Unknown") ?? text;
+            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.Compatible", profile ?? UnknownValue) ?? text;
         }
         else if (text.Contains(CompatibilityRequiresMarker, StringComparison.Ordinal))
         {
             var client = ExtractQuotedToken(text, "Game client and patch for '");
-            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.RequiresProfile", client ?? "Unknown") ?? text;
+            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.RequiresProfile", client ?? UnknownValue) ?? text;
         }
         else if (text.Contains(CompatibilityDownloadableMarker, StringComparison.Ordinal))
         {
             var client = ExtractQuotedToken(text, "Game client and data patch for '");
-            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.Downloadable", client ?? "Unknown") ?? text;
+            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.Downloadable", client ?? UnknownValue) ?? text;
         }
         else if (text.Contains(CompatibilityOrphanedMarker, StringComparison.Ordinal))
         {
@@ -214,7 +215,7 @@ public class LocalizedReplayTooltipConverter : IValueConverter
         if (baseResult != null && text.Contains(RecoveryEngineMarker, StringComparison.Ordinal))
         {
             var recoveryProfile = ExtractQuotedToken(text, RecoveryEngineMarker);
-            var suffix = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.RecoverySuffix", recoveryProfile ?? "Unknown")
+            var suffix = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.RecoverySuffix", recoveryProfile ?? UnknownValue)
                 ?? $"\n\nRecovery Engine: Profile '{recoveryProfile}' supports checkpoint saves, replay resumption, and live match takeover.";
             return baseResult + suffix;
         }

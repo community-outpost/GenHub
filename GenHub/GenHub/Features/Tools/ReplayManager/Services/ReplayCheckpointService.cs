@@ -28,9 +28,9 @@ public sealed partial class ReplayCheckpointService(
     IServiceScopeFactory? scopeFactory,
     IGameProcessManager processManager,
     ILogger<ReplayCheckpointService> logger,
-    string? customSaveDirectory = null,
-    TimeSpan? mintTimeout = null,
-    IProfileLauncherFacade? directLauncherFacade = null) : IReplayCheckpointService, IDisposable
+    string? customSaveDirectory,
+    TimeSpan? mintTimeout,
+    IProfileLauncherFacade? directLauncherFacade) : IReplayCheckpointService, IDisposable
 {
     private static readonly TimeSpan DefaultMintTimeout = TimeSpan.FromMinutes(2);
     private readonly TimeSpan _mintTimeout = mintTimeout ?? DefaultMintTimeout;

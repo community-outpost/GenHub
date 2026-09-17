@@ -129,7 +129,7 @@ public partial class ReplayManagerViewModel(
     [ObservableProperty]
     private ReplayFile? activeCheckpointReplay;
 
-    private CancellationTokenSource? _drawerOpenCts;
+    private int _drawerSessionId;
 
     /// <summary>
     /// Gets the list of compatible game profiles available for the active replay.
@@ -497,10 +497,7 @@ public partial class ReplayManagerViewModel(
                 LocalizationService.PropertyChanged -= OnLocalizationChanged;
             }
 
-            _drawerOpenCts?.Cancel();
-            _drawerOpenCts?.Dispose();
-            _drawerOpenCts = null;
-
+            Interlocked.Increment(ref _drawerSessionId);
             checkpointService.CancelActiveMint();
             WeakReferenceMessenger.Default.UnregisterAll(this);
             _reloadLock.Dispose();
@@ -1764,12 +1761,7 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        _drawerOpenCts?.Cancel();
-        _drawerOpenCts?.Dispose();
-        var cts = new CancellationTokenSource();
-        _drawerOpenCts = cts;
-        var token = cts.Token;
-
+        var sessionId = Interlocked.Increment(ref _drawerSessionId);
         ActiveCheckpointReplay = replay;
         CompatibleProfiles.Clear();
         AvailableCheckpoints.Clear();
@@ -1777,24 +1769,20 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            await PopulateCompatibleProfilesAsync(replay, token);
-            if (token.IsCancellationRequested || ActiveCheckpointReplay != replay)
+            await PopulateCompatibleProfilesAsync(replay, sessionId);
+            if (sessionId != _drawerSessionId || ActiveCheckpointReplay != replay)
             {
                 return;
             }
 
-            await PopulateCheckpointsAndSlotsAsync(replay, token);
-            if (token.IsCancellationRequested || ActiveCheckpointReplay != replay)
+            await PopulateCheckpointsAndSlotsAsync(replay, sessionId);
+            if (sessionId != _drawerSessionId || ActiveCheckpointReplay != replay)
             {
                 return;
             }
 
             UpdateReplayTimingBounds();
             IsCheckpointDrawerOpen = true;
-        }
-        catch (OperationCanceledException)
-        {
-            // Drawer operation superseded
         }
         catch (Exception ex)
         {
@@ -1805,7 +1793,7 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private async Task PopulateCompatibleProfilesAsync(ReplayFile replay, CancellationToken cancellationToken = default)
+    private async Task PopulateCompatibleProfilesAsync(ReplayFile replay, int sessionId)
     {
         var (manager, scope) = ResolveProfileManager();
         try
@@ -1819,8 +1807,8 @@ public partial class ReplayManagerViewModel(
                 return;
             }
 
-            var allProfilesResult = await manager.GetAllProfilesAsync(cancellationToken);
-            if (cancellationToken.IsCancellationRequested || ActiveCheckpointReplay != replay)
+            var allProfilesResult = await manager.GetAllProfilesAsync();
+            if (sessionId != _drawerSessionId || ActiveCheckpointReplay != replay)
             {
                 return;
             }
@@ -1840,7 +1828,7 @@ public partial class ReplayManagerViewModel(
                 ? recoveryProfiles
                 : directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
 
-            if (cancellationToken.IsCancellationRequested || ActiveCheckpointReplay != replay)
+            if (sessionId != _drawerSessionId || ActiveCheckpointReplay != replay)
             {
                 return;
             }
@@ -1890,10 +1878,10 @@ public partial class ReplayManagerViewModel(
             ?? CompatibleProfiles.FirstOrDefault();
     }
 
-    private async Task PopulateCheckpointsAndSlotsAsync(ReplayFile replay, CancellationToken cancellationToken = default)
+    private async Task PopulateCheckpointsAndSlotsAsync(ReplayFile replay, int sessionId)
     {
-        var checkpoints = await checkpointService.GetCheckpointsForReplayAsync(replay, cancellationToken);
-        if (cancellationToken.IsCancellationRequested || ActiveCheckpointReplay != replay)
+        var checkpoints = await checkpointService.GetCheckpointsForReplayAsync(replay);
+        if (sessionId != _drawerSessionId || ActiveCheckpointReplay != replay)
         {
             return;
         }
@@ -1924,9 +1912,7 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private void CloseCheckpointDrawer()
     {
-        _drawerOpenCts?.Cancel();
-        _drawerOpenCts?.Dispose();
-        _drawerOpenCts = null;
+        Interlocked.Increment(ref _drawerSessionId);
         checkpointService.CancelActiveMint();
         IsCheckpointDrawerOpen = false;
         ActiveCheckpointReplay = null;

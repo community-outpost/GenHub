@@ -1,7 +1,7 @@
-using System;
-using System.Globalization;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Infrastructure.Converters;
+using System;
+using System.Globalization;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
@@ -40,7 +40,7 @@ public class LocalizedReplaySlotConverterTests
     [Fact]
     public void Convert_WithHumanSlot_ReturnsExpectedLabel()
     {
-        var slot = new ReplaySlotInfo(0, "GeneralZh", isHuman: true, factionIndex: 1, colorIndex: 2);
+        var slot = new ReplaySlotInfo(0, "GeneralZh", true, 1, 2);
         var result = _converter.Convert(slot, typeof(string), null, _culture) as string;
 
         Assert.NotNull(result);
@@ -48,17 +48,30 @@ public class LocalizedReplaySlotConverterTests
     }
 
     /// <summary>
-    /// Verifies that AI slots append the AI indicator and format correctly.
+    /// Verifies that AI slots without existing AI indicator append the AI indicator and format correctly.
     /// </summary>
     [Fact]
     public void Convert_WithAiSlot_ReturnsExpectedLabelWithAiTag()
     {
-        var slot = new ReplaySlotInfo(2, "AI (Hard)", isHuman: false, factionIndex: 0, colorIndex: 1);
+        var slot = new ReplaySlotInfo(2, "Easy Bot", false, 0, 1);
         var result = _converter.Convert(slot, typeof(string), null, _culture) as string;
 
         Assert.NotNull(result);
-        Assert.Contains("Slot 3: AI (Hard)", result);
-        Assert.Contains("[AI]", result);
+        Assert.Contains("Slot 3: Easy Bot", result);
+        Assert.Contains("(AI)", result);
+    }
+
+    /// <summary>
+    /// Verifies that AI slots already having an AI prefix/tag do not duplicate the AI indicator.
+    /// </summary>
+    [Fact]
+    public void Convert_WithPreTaggedAiSlot_DoesNotDuplicateAiTag()
+    {
+        var slot = new ReplaySlotInfo(2, "AI (Hard)", false, 0, 1);
+        var result = _converter.Convert(slot, typeof(string), null, _culture) as string;
+
+        Assert.NotNull(result);
+        Assert.Equal("Slot 3: AI (Hard)", result);
     }
 
     /// <summary>
