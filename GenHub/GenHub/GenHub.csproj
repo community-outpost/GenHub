@@ -63,6 +63,7 @@
              Other platforms (win-arm64, linux-arm64, osx) are not yet supported for AVIF conversion. -->
         <PackageReference Include="LibHeif.Native" />
         <PackageReference Include="StyleCop.Analyzers" />
+        <PackageReference Include="System.Security.Cryptography.ProtectedData" />
         <PackageReference Include="Velopack" />
     </ItemGroup>
 

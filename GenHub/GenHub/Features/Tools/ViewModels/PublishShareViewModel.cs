@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Providers;
@@ -34,22 +35,24 @@ namespace GenHub.Features.Tools.ViewModels;
 /// 4. Generate subscription links for users.
 /// </remarks>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
-public partial class PublishShareViewModel : ObservableObject, IDisposable
+public partial class PublishShareViewModel(
+    PublisherStudioProject project,
+    IPublisherStudioService publisherStudioService,
+    ILogger logger,
+    IHostingProviderFactory? hostingProviderFactory = null,
+    IHostingStateManager? hostingStateManager = null,
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null,
+    IHostingCredentialStore? credentialStore = null) : ObservableObject, IDisposable
 {
     private const string PleaseSelectHostingProviderMessage = "Please select a hosting provider";
     private const string StatusLiveOnline = "Live Online";
     private const string StatusPendingUpload = "Pending Upload";
     private const string StatusExternalCdn = "External CDN";
-    private readonly PublisherStudioProject _project;
-    private readonly IPublisherStudioService _publisherStudioService;
-    private readonly IHostingProviderFactory? _hostingProviderFactory;
-    private readonly IHostingStateManager _hostingStateManager;
-    private readonly ILogger _logger;
-    private readonly INotificationService? _notificationService;
     private HostingState? _currentHostingState;
 
     [ObservableProperty]
-    private IHostingProvider? _selectedHostingProvider;
+    private IHostingProvider? _selectedHostingProvider = hostingProviderFactory?.GetCatalogHostingProviders().FirstOrDefault();
 
     [ObservableProperty]
     private string _catalogJson = string.Empty;
@@ -178,7 +181,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the collection of catalog publish statuses.
     /// </summary>
-    public ObservableCollection<CatalogPublishStatus> CatalogStatuses { get; } = new();
+    public ObservableCollection<CatalogPublishStatus> CatalogStatuses { get; } = project?.Catalogs != null ? new ObservableCollection<CatalogPublishStatus>(project.Catalogs.Select(c => new CatalogPublishStatus(c))) : [];
 
     /// <summary>
     /// Gets a value indicating whether the selected provider requires authentication.
@@ -214,15 +217,15 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     /// Gets the text to display on the primary connect button.
     /// </summary>
     public string ConnectButtonText => SelectedHostingProvider != null
-        ? $"Connect to {SelectedHostingProvider.DisplayName}"
-        : "Connect Provider";
+        ? FormatLocalizedString("Tools.PublisherStudio.Publish.ConnectToProvider", "Connect to {0}", SelectedHostingProvider.DisplayName)
+        : GetLocalizedString("Tools.PublisherStudio.Publish.ConnectProvider", "Connect Provider");
 
     /// <summary>
     /// Gets the text to display on the primary publish button.
     /// </summary>
     public string PublishButtonText => SelectedHostingProvider != null
-        ? $"Publish to {SelectedHostingProvider.DisplayName}"
-        : "Publish All Catalogs & Update Definition";
+        ? FormatLocalizedString("Tools.PublisherStudio.Publish.PublishToProvider", "Publish to {0}", SelectedHostingProvider.DisplayName)
+        : GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllCatalogs", "Publish All Catalogs & Update Definition");
 
     /// <summary>
     /// Gets the human-readable description of where files will be uploaded.
@@ -233,14 +236,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             if (SelectedHostingProvider == null)
             {
-                return "No hosting provider selected";
+                return GetLocalizedString("Tools.PublisherStudio.Publish.NoProviderSelected", "No hosting provider selected");
             }
 
             return SelectedHostingProvider.ProviderId switch
             {
-                HostingConstants.GoogleDrive => $"Your Google Drive (inside '{HostingConstants.GoogleDriveDefaultPublisherFolder}' folder)",
-                HostingConstants.Dropbox => "Your Dropbox account (inside '/Apps/GenHub/' app folder)",
-                HostingConstants.GitHub => "Your GitHub Gists (manifests & definitions only; binaries require CDN URLs)",
+                HostingConstants.GoogleDrive => GetLocalizedString("Tools.PublisherStudio.Publish.DestinationGoogleDrive", $"Your Google Drive (inside '{HostingConstants.GoogleDriveDefaultPublisherFolder}' folder)"),
+                HostingConstants.Dropbox => GetLocalizedString("Tools.PublisherStudio.Publish.DestinationDropbox", "Your Dropbox account (inside '/Apps/GenHub/' app folder)"),
+                HostingConstants.GitHub => GetLocalizedString("Tools.PublisherStudio.Publish.DestinationGitHub", "Your GitHub Gists (manifests & definitions only; binaries require CDN URLs)"),
                 _ => SelectedHostingProvider.DisplayName,
             };
         }
@@ -249,7 +252,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the count of pending local artifacts awaiting upload.
     /// </summary>
-    public int PendingArtifactsCount => _project.Catalogs
+    public int PendingArtifactsCount => project.Catalogs
         .SelectMany(c => c.Catalog.Content)
         .SelectMany(c => c.Releases)
         .SelectMany(r => r.Artifacts)
@@ -258,7 +261,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the count of artifacts served via external CDN or direct download links.
     /// </summary>
-    public int ExternalCdnArtifactsCount => _project.Catalogs
+    public int ExternalCdnArtifactsCount => project.Catalogs
         .SelectMany(c => c.Catalog.Content)
         .SelectMany(c => c.Releases)
         .SelectMany(r => r.Artifacts)
@@ -304,10 +307,10 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         string newFileName,
         CancellationToken cancellationToken = default)
     {
-        if (_currentHostingState == null && !string.IsNullOrEmpty(_project.ProjectPath))
+        if (_currentHostingState == null && !string.IsNullOrEmpty(project.ProjectPath))
         {
-            var loadResult = await _hostingStateManager.LoadStateAsync(_project.ProjectPath, cancellationToken).ConfigureAwait(false);
-            if (loadResult.Success && loadResult.Data != null)
+            var loadResult = hostingStateManager != null ? await hostingStateManager.LoadStateAsync(project.ProjectPath, cancellationToken).ConfigureAwait(false) : null;
+            if (loadResult?.Success == true && loadResult.Data != null)
             {
                 _currentHostingState = loadResult.Data;
             }
@@ -325,9 +328,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             entry.CatalogName = newCatalogName;
             entry.FileName = newFileName;
 
-            if (!string.IsNullOrEmpty(_project.ProjectPath))
+            if (!string.IsNullOrEmpty(project.ProjectPath))
             {
-                await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, cancellationToken);
+                if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
             }
         }
     }
@@ -338,12 +341,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     public void SyncAvailableCatalogs()
     {
         AvailableCatalogs.Clear();
-        foreach (var catalog in _project.Catalogs)
+        foreach (var catalog in project.Catalogs)
         {
             AvailableCatalogs.Add(catalog);
         }
 
-        if (ActiveCatalog == null || !_project.Catalogs.Contains(ActiveCatalog))
+        if (ActiveCatalog == null || !project.Catalogs.Contains(ActiveCatalog))
         {
             ActiveCatalog = AvailableCatalogs.FirstOrDefault();
         }
@@ -363,10 +366,10 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the available catalogs in the project.
     /// </summary>
-    public ObservableCollection<NamedCatalog> AvailableCatalogs { get; } = new();
+    public ObservableCollection<NamedCatalog> AvailableCatalogs { get; } = project?.Catalogs != null ? new ObservableCollection<NamedCatalog>(project.Catalogs) : [];
 
     [ObservableProperty]
-    private NamedCatalog? _activeCatalog;
+    private NamedCatalog? _activeCatalog = project?.Catalogs.FirstOrDefault();
 
     /// <summary>
     /// Gets the list of artifact URL statuses.
@@ -391,64 +394,19 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the available hosting providers.
     /// </summary>
-    public ObservableCollection<IHostingProvider> HostingProviders { get; } = new();
+    public ObservableCollection<IHostingProvider> HostingProviders { get; } = hostingProviderFactory != null ? new ObservableCollection<IHostingProvider>(hostingProviderFactory.GetCatalogHostingProviders()) : [];
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PublishShareViewModel"/> class.
+    /// Asynchronously initializes hosting state, upload hierarchy, and validates catalogs.
     /// </summary>
-    /// <param name="project">The publisher studio project.</param>
-    /// <param name="publisherStudioService">The publisher studio service.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="hostingProviderFactory">Optional hosting provider factory.</param>
-    /// <param name="hostingStateManager">The hosting state manager.</param>
-    /// <param name="notificationService">The notification service.</param>
-    public PublishShareViewModel(
-        PublisherStudioProject project,
-        IPublisherStudioService publisherStudioService,
-        ILogger logger,
-        IHostingProviderFactory? hostingProviderFactory = null,
-        IHostingStateManager? hostingStateManager = null,
-        INotificationService? notificationService = null)
+    public async Task InitializeAsync()
     {
-        _project = project;
-        _publisherStudioService = publisherStudioService;
-        _hostingProviderFactory = hostingProviderFactory;
-        _hostingStateManager = hostingStateManager ?? new HostingStateManager(Microsoft.Extensions.Logging.LoggerFactory.Create(b => { }).CreateLogger<HostingStateManager>());
-        _logger = logger;
-        _notificationService = notificationService;
-
-        // Load hosting providers
-        if (_hostingProviderFactory != null)
-        {
-            foreach (var provider in _hostingProviderFactory.GetCatalogHostingProviders())
-            {
-                HostingProviders.Add(provider);
-            }
-
-            // Select first provider by default
-            SelectedHostingProvider = HostingProviders.FirstOrDefault();
-        }
-
-        // Load available catalogs
-        foreach (var catalog in _project.Catalogs)
-        {
-            AvailableCatalogs.Add(catalog);
-        }
-
-        // Select the first catalog by default
-        ActiveCatalog = AvailableCatalogs.FirstOrDefault();
-
-        // Initialize catalog statuses
         InitializeCatalogStatuses();
         RefreshUploadHierarchy();
         RefreshHostedAssets();
-
-        // Load existing hosting state if available
-        _ = LoadHostingStateAsync();
-
-        // Validate on load
         RefreshArtifactStatuses();
-        _ = ValidateCatalogAsync();
+        await LoadHostingStateAsync().ConfigureAwait(false);
+        await ValidateCatalogAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -456,12 +414,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     /// </summary>
     public void ReloadHostingProviders()
     {
-        if (_hostingProviderFactory == null) return;
+        if (hostingProviderFactory == null) return;
 
         var existingSelectedId = SelectedHostingProvider?.ProviderId;
         HostingProviders.Clear();
 
-        foreach (var provider in _hostingProviderFactory.GetCatalogHostingProviders())
+        foreach (var provider in hostingProviderFactory.GetCatalogHostingProviders())
         {
             HostingProviders.Add(provider);
         }
@@ -486,14 +444,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             PopulateUploadHierarchyHeader();
             UploadHierarchy.Catalogs.Clear();
-            foreach (var namedCat in _project.Catalogs)
+            foreach (var namedCat in project.Catalogs)
             {
                 UploadHierarchy.Catalogs.Add(BuildCatalogNode(namedCat));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to refresh upload hierarchy");
+            logger.LogWarning(ex, "Failed to refresh upload hierarchy");
         }
     }
 
@@ -580,6 +538,27 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
     }
 
+    private string GetLocalizedString(string key, string defaultValue) =>
+        localizationService?.GetString(key) ?? defaultValue;
+
+    private string FormatLocalizedString(string key, string defaultValueFormat, params object[] args)
+    {
+        var template = localizationService?.GetString(key);
+        if (!string.IsNullOrEmpty(template))
+        {
+            try
+            {
+                return string.Format(template, args);
+            }
+            catch (FormatException)
+            {
+                // Fallback on format failure
+            }
+        }
+
+        return string.Format(defaultValueFormat, args);
+    }
+
     private void PopulatePublisherDefinitionAsset(string providerName, ref long totalBytes, ref int defCount)
     {
         var defUrl = ProviderDefinitionUrl;
@@ -600,7 +579,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
         HostedAssets.Add(new HostedAssetItemViewModel
         {
-            Name = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
+            Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = "Publisher Definition",
             Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
             FileSize = defSize,
@@ -614,7 +593,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
     private void PopulateCatalogAssets(string providerName, ref long totalBytes, ref int catCount)
     {
-        foreach (var catalog in _project.Catalogs)
+        foreach (var catalog in project.Catalogs)
         {
             var catHosting = _currentHostingState?.Catalogs.FirstOrDefault(c => c.CatalogId == catalog.Id || c.FileName == catalog.FileName);
             var isCatHosted = catHosting != null && !string.IsNullOrWhiteSpace(catHosting.Url);
@@ -645,7 +624,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
     private void PopulateArtifactAssets(string providerName, ref long totalBytes, ref int artCount, ref int cdnCount)
     {
-        var allArtifacts = _project.Catalogs
+        var allArtifacts = project.Catalogs
             .SelectMany(c => c.Catalog.Content)
             .SelectMany(content => content.Releases.SelectMany(release => release.Artifacts.Select(artifact => (content.Name, release.Version, artifact))));
 
@@ -857,13 +836,13 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException ex)
         {
             AuthenticationStatusMessage = "Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.";
-            _logger.LogInformation(ex, "Authentication canceled or timed out for {Provider}", SelectedHostingProvider.DisplayName);
-            _notificationService?.ShowWarning("Authentication Canceled", "Authentication timed out or was canceled.");
+            logger.LogInformation(ex, "Authentication canceled or timed out for {Provider}", SelectedHostingProvider.DisplayName);
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTitle", "Authentication Canceled"), GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTimeout", "Authentication timed out or was canceled."));
         }
         catch (Exception ex)
         {
             AuthenticationStatusMessage = $"Authentication error: {ex.Message}";
-            _logger.LogError(ex, "Authentication error for {Provider}", SelectedHostingProvider.DisplayName);
+            logger.LogError(ex, "Authentication error for {Provider}", SelectedHostingProvider.DisplayName);
         }
         finally
         {
@@ -892,7 +871,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             IsAuthenticating = false;
             AuthenticationStatusMessage = "Authentication canceled.";
             NotifyAuthenticationStateChanged();
-            _notificationService?.ShowInfo("Authentication Canceled", "Hosting provider connection was aborted.");
+            notificationService?.ShowInfo(GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTitle", "Authentication Canceled"), GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledAborted", "Hosting provider connection was aborted."));
         }
     }
 
@@ -937,7 +916,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         if (!hasCredentials)
         {
             AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Client Secret above.";
-            _notificationService?.ShowWarning(
+            notificationService?.ShowWarning(
                 "Google Drive Credentials Needed",
                 "Please enter your Google OAuth Client ID and Secret to connect to Google Drive. Follow the Project Configuration guide above.");
             return false;
@@ -950,8 +929,8 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
     private async Task HandleAuthenticationSuccessAsync()
     {
-        AuthenticationStatusMessage = "Authenticated successfully";
-        _logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider?.DisplayName ?? "Provider");
+        AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.AuthenticatedSuccess", "Authenticated successfully");
+        logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider?.DisplayName ?? "Provider");
 
         // Save token to hosting state for persistence
         await SaveAuthTokenAsync();
@@ -962,20 +941,15 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(PublishButtonText));
         OnPropertyChanged(nameof(TargetDestinationDescription));
 
-        _notificationService?.ShowSuccess(
-            "Connected",
-            $"Successfully connected to {SelectedHostingProvider?.DisplayName ?? "Provider"}. You can now publish your catalog.",
-            autoDismissMs: 4000);
+        notificationService?.ShowSuccess(GetLocalizedString("Tools.PublisherStudio.Publish.ConnectedTitle", "Connected"), FormatLocalizedString("Tools.PublisherStudio.Publish.ConnectedMessage", "Successfully connected to {0}. You can now publish your catalog.", SelectedHostingProvider?.DisplayName ?? "Provider"), autoDismissMs: 4000);
     }
 
     private void HandleAuthenticationFailure(OperationResult<bool> result)
     {
-        AuthenticationStatusMessage = $"Authentication failed: {result.FirstError}";
-        _logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider?.DisplayName ?? "Provider", result.FirstError);
+        AuthenticationStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.AuthFailed", "Authentication failed: {0}", result.FirstError);
+        logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider?.DisplayName ?? "Provider", result.FirstError);
 
-        _notificationService?.ShowError(
-            "Connection Failed",
-            result.FirstError ?? "Failed to authenticate with the hosting provider.");
+        notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.AuthError", "Authentication Error"), result.FirstError ?? "Failed to authenticate with the hosting provider.");
     }
 
     private void NotifyAuthenticationStateChanged()
@@ -1006,7 +980,11 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         try
         {
             await SelectedHostingProvider.SignOutAsync();
-            AuthenticationStatusMessage = "Signed out";
+            if (credentialStore != null)
+            {
+                await credentialStore.DeleteCredentialAsync(SelectedHostingProvider.ProviderId).ConfigureAwait(false);
+            }
+            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.SignedOut", "Signed out");
             GitHubPersonalAccessToken = string.Empty;
             DropboxAccessToken = string.Empty;
 
@@ -1020,12 +998,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(PublishButtonText));
             OnPropertyChanged(nameof(TargetDestinationDescription));
 
-            _logger.LogInformation("Signed out from {Provider}", SelectedHostingProvider.DisplayName);
+            logger.LogInformation("Signed out from {Provider}", SelectedHostingProvider.DisplayName);
         }
         catch (Exception ex)
         {
             AuthenticationStatusMessage = $"Sign out error: {ex.Message}";
-            _logger.LogError(ex, "Sign out error for {Provider}", SelectedHostingProvider.DisplayName);
+            logger.LogError(ex, "Sign out error for {Provider}", SelectedHostingProvider.DisplayName);
         }
     }
 
@@ -1057,13 +1035,13 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
     private async Task LoadHostingStateAsync()
     {
-        if (string.IsNullOrEmpty(_project.ProjectPath))
+        if (string.IsNullOrEmpty(project.ProjectPath))
             return;
 
         try
         {
-            var result = await _hostingStateManager.LoadStateAsync(_project.ProjectPath, CancellationToken.None);
-            if (result.Success && result.Data != null)
+            var result = hostingStateManager != null ? await hostingStateManager.LoadStateAsync(project.ProjectPath, CancellationToken.None) : null;
+            if (result?.Success == true && result.Data != null)
             {
                 _currentHostingState = result.Data;
                 HasPreviouslyPublished = true;
@@ -1084,7 +1062,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
                 InitializeCatalogStatuses();
                 RefreshUploadHierarchy();
                 RefreshHostedAssets();
-                _logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
+                logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
 
                 // After loading state, try to restore authentication
                 if (!string.IsNullOrEmpty(_currentHostingState.AuthToken))
@@ -1095,20 +1073,20 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogInformation(ex, "Hosting state loading was canceled");
+            logger.LogInformation(ex, "Hosting state loading was canceled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load hosting state");
+            logger.LogError(ex, "Failed to load hosting state");
         }
     }
 
     private void PopulateUploadHierarchyHeader()
     {
-        UploadHierarchy.PublisherName = _project.Catalog.Publisher?.Name ?? "Publisher";
-        UploadHierarchy.PublisherId = _project.Catalog.Publisher?.Id ?? "publisher";
-        UploadHierarchy.AvatarUrl = _project.Catalog.Publisher?.AvatarUrl;
-        UploadHierarchy.Website = _project.Catalog.Publisher?.Website;
+        UploadHierarchy.PublisherName = project.Catalog.Publisher?.Name ?? "Publisher";
+        UploadHierarchy.PublisherId = project.Catalog.Publisher?.Id ?? "publisher";
+        UploadHierarchy.AvatarUrl = project.Catalog.Publisher?.AvatarUrl;
+        UploadHierarchy.Website = project.Catalog.Publisher?.Website;
         UploadHierarchy.DefinitionUrl = ProviderDefinitionUrl;
         UploadHierarchy.SubscriptionUrl = SubscriptionUrl;
         UploadHierarchy.IsUploaded = !string.IsNullOrWhiteSpace(ProviderDefinitionUrl);
@@ -1238,17 +1216,17 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var result = await _publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog, allowPendingArtifacts: true, cancellationToken: CancellationToken.None);
+            var result = await publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog, allowPendingArtifacts: true, cancellationToken: CancellationToken.None);
             IsValid = result.Success;
             ValidationMessage = result.Success ? $"Catalog '{ActiveCatalog.Name}' is valid" : $"Validation failed: {result.FirstError}";
 
-            _logger.LogInformation("Catalog '{CatalogName}' validation: {IsValid}", ActiveCatalog.Name, IsValid);
+            logger.LogInformation("Catalog '{CatalogName}' validation: {IsValid}", ActiveCatalog.Name, IsValid);
         }
         catch (Exception ex)
         {
             IsValid = false;
             ValidationMessage = $"Validation error: {ex.Message}";
-            _logger.LogError(ex, "Error validating catalog");
+            logger.LogError(ex, "Error validating catalog");
         }
     }
 
@@ -1262,24 +1240,24 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             if (ActiveCatalog == null)
             {
-                _logger.LogWarning("Cannot export catalog: no active catalog selected");
+                logger.LogWarning("Cannot export catalog: no active catalog selected");
                 return;
             }
 
-            var result = await _publisherStudioService.ExportCatalogAsync(_project, ActiveCatalog, cancellationToken: CancellationToken.None);
+            var result = await publisherStudioService.ExportCatalogAsync(project, ActiveCatalog, cancellationToken: CancellationToken.None);
             if (result.Success && result.Data != null)
             {
                 CatalogJson = result.Data;
-                _logger.LogInformation("Exported catalog '{CatalogName}' JSON", ActiveCatalog.Name);
+                logger.LogInformation("Exported catalog '{CatalogName}' JSON", ActiveCatalog.Name);
             }
             else
             {
-                _logger.LogError("Failed to export catalog '{CatalogName}': {Error}", ActiveCatalog.Name, result.FirstError);
+                logger.LogError("Failed to export catalog '{CatalogName}': {Error}", ActiveCatalog.Name, result.FirstError);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error exporting catalog");
+            logger.LogError(ex, "Error exporting catalog");
         }
     }
 
@@ -1315,7 +1293,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             var warningMsg = $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
             UploadStatusMessage = warningMsg;
-            _notificationService?.ShowError("Incompatible Provider", warningMsg);
+            notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
             return OperationResult<HostingUploadResult>.CreateFailure(warningMsg);
         }
 
@@ -1360,7 +1338,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             }
 
             UploadStatusMessage = $"Generating catalog '{ActiveCatalog.Name}'...";
-            var exportResult = await _publisherStudioService.ExportCatalogAsync(_project, ActiveCatalog, cancellationToken: cancellationToken);
+            var exportResult = await publisherStudioService.ExportCatalogAsync(project, ActiveCatalog, cancellationToken: cancellationToken);
             if (!exportResult.Success || string.IsNullOrEmpty(exportResult.Data))
             {
                 UploadStatusMessage = $"Failed to export catalog: {exportResult.FirstError}";
@@ -1393,13 +1371,13 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException ex)
         {
             UploadStatusMessage = "Upload canceled.";
-            _logger.LogInformation(ex, "Catalog upload was canceled.");
+            logger.LogInformation(ex, "Catalog upload was canceled.");
             return OperationResult<HostingUploadResult>.CreateFailure("Upload canceled");
         }
         catch (Exception ex)
         {
             UploadStatusMessage = $"Error: {ex.Message}";
-            _logger.LogError(ex, "Error uploading catalog");
+            logger.LogError(ex, "Error uploading catalog");
             return OperationResult<HostingUploadResult>.CreateFailure($"Error uploading catalog: {ex.Message}");
         }
         finally
@@ -1452,7 +1430,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             return await SelectedHostingProvider.UpdateFileAsync(existingCatalogFileId, stream, catalogFileName, progress, cancellationToken);
         }
 
-        return await SelectedHostingProvider.UploadCatalogAsync(CatalogJson, _project.Catalog.Publisher.Id, progress, cancellationToken);
+        return await SelectedHostingProvider.UploadCatalogAsync(CatalogJson, project.Catalog.Publisher.Id, progress, cancellationToken);
     }
 
     private async Task CompletePublishSuccessAsync(HostingUploadResult data, CancellationToken cancellationToken = default)
@@ -1468,7 +1446,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         SubscriptionUrl = SelectedHostingProvider.GetSubscriptionLink(CatalogUrl);
         UploadProgress = 100;
         UploadStatusMessage = "Published successfully!";
-        _logger.LogInformation("Catalog and artifacts uploaded to {Provider}: {Url}", SelectedHostingProvider.ProviderId, CatalogUrl);
+        logger.LogInformation("Catalog and artifacts uploaded to {Provider}: {Url}", SelectedHostingProvider.ProviderId, CatalogUrl);
 
         await SaveHostingStateAsync(data.FileId, data.DirectDownloadUrl, data.FileSize, cancellationToken);
 
@@ -1488,7 +1466,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         if (defResult != null && !defResult.Success)
         {
             UploadStatusMessage = $"Catalog published, but provider definition upload failed: {defResult.FirstError}";
-            _notificationService?.ShowWarning("Publish Warning", UploadStatusMessage);
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
         }
         else
         {
@@ -1505,7 +1483,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
         CurrentPublishStep = 5;
         UploadStatusMessage = "Uploading provider definition...";
-        var defFileName = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
+        var defFileName = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
         var existingDefFileId = _currentHostingState?.Definition?.FileId;
 
         using var defStream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
@@ -1516,7 +1494,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         if (defUploadResult.Success && defUploadResult.Data != null)
         {
             ProviderDefinitionUrl = defUploadResult.Data.DirectDownloadUrl;
-            if (_currentHostingState != null && !string.IsNullOrEmpty(_project.ProjectPath))
+            if (_currentHostingState != null && !string.IsNullOrEmpty(project.ProjectPath))
             {
                 _currentHostingState.Definition = new HostedFileInfo
                 {
@@ -1525,14 +1503,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
                     FileSize = defUploadResult.Data.FileSize,
                     LastUpdated = DateTime.UtcNow,
                 };
-                await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, cancellationToken);
+                if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
             }
 
             RefreshHostedAssets();
             return defUploadResult;
         }
 
-        _logger.LogWarning("Provider definition upload failed: {Error}", defUploadResult.FirstError);
+        logger.LogWarning("Provider definition upload failed: {Error}", defUploadResult.FirstError);
         return defUploadResult;
     }
 
@@ -1663,7 +1641,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         task.Artifact.DownloadUrl = uploadData.DirectDownloadUrl;
         task.Status = UploadStatus.Uploaded;
         task.Progress = 100;
-        _logger.LogInformation("Uploaded artifact {File} to {Url}", task.Artifact.Filename, task.Artifact.DownloadUrl);
+        logger.LogInformation("Uploaded artifact {File} to {Url}", task.Artifact.Filename, task.Artifact.DownloadUrl);
 
         if (_currentHostingState == null)
         {
@@ -1693,9 +1671,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             });
         }
 
-        if (!string.IsNullOrEmpty(_project.ProjectPath))
+        if (!string.IsNullOrEmpty(project.ProjectPath))
         {
-            await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, cancellationToken);
+            if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
         }
 
         RefreshHostedAssets();
@@ -1761,14 +1739,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             task.Status = UploadStatus.Failed;
             task.ErrorMessage = ex.Message;
             UploadStatusMessage = $"Error uploading {task.Artifact.Filename}: {ex.Message}";
-            _logger.LogError(ex, "Error uploading artifact {Filename}", task.Artifact.Filename);
+            logger.LogError(ex, "Error uploading artifact {Filename}", task.Artifact.Filename);
             return false;
         }
     }
 
     private async Task SaveHostingStateAsync(string catalogFileId, string catalogUrl, long catalogFileSize = 0, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(_project.ProjectPath))
+        if (string.IsNullOrEmpty(project.ProjectPath))
             return;
 
         _currentHostingState ??= new HostingState
@@ -1794,11 +1772,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
         _currentHostingState.LastPublished = DateTime.UtcNow;
 
-        var result = await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, cancellationToken);
-        if (result.Success)
+        if (hostingStateManager != null)
         {
-            HasPreviouslyPublished = true;
-            _logger.LogInformation("Saved hosting state");
+            var result = await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
+            if (result.Success)
+            {
+                HasPreviouslyPublished = true;
+                logger.LogInformation("Saved hosting state");
+            }
         }
 
         RefreshHostedAssets();
@@ -1806,52 +1787,99 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
     private async Task SaveAuthTokenAsync()
     {
-        if (string.IsNullOrEmpty(_project.ProjectPath) || SelectedHostingProvider == null)
+        if (string.IsNullOrEmpty(project?.ProjectPath) || SelectedHostingProvider == null)
+        {
             return;
+        }
 
         _currentHostingState ??= new HostingState { ProviderId = SelectedHostingProvider.ProviderId };
         _currentHostingState.ProviderId = SelectedHostingProvider.ProviderId;
+        _currentHostingState.AuthToken = null;
 
-        // Store the token
+        string? tokenToStore = null;
         if (SelectedHostingProvider.ProviderId == HostingConstants.GitHub)
-            _currentHostingState.AuthToken = GitHubPersonalAccessToken;
+        {
+            tokenToStore = GitHubPersonalAccessToken;
+        }
         else if (SelectedHostingProvider.ProviderId == HostingConstants.Dropbox)
-            _currentHostingState.AuthToken = DropboxAccessToken;
+        {
+            tokenToStore = DropboxAccessToken;
+        }
 
-        await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+        if (credentialStore != null && !string.IsNullOrEmpty(tokenToStore))
+        {
+            await credentialStore.SaveCredentialAsync(SelectedHostingProvider.ProviderId, tokenToStore).ConfigureAwait(false);
+        }
+
+        if (hostingStateManager != null)
+        {
+            await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None).ConfigureAwait(false);
+        }
     }
 
     private async Task RestoreAuthenticationAsync()
     {
-        if (_currentHostingState == null || string.IsNullOrEmpty(_currentHostingState.AuthToken))
+        if (_currentHostingState == null)
+        {
             return;
+        }
 
         // Find the matching provider
         var provider = HostingProviders.FirstOrDefault(p => p.ProviderId == _currentHostingState.ProviderId);
-        if (provider == null) return;
+        if (provider == null)
+        {
+            return;
+        }
 
         SelectedHostingProvider = provider;
+
+        string? token = null;
+        if (credentialStore != null)
+        {
+            token = await credentialStore.GetCredentialAsync(provider.ProviderId).ConfigureAwait(false);
+        }
+
+        // Migrate legacy token if found in hosting state
+        if (string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(_currentHostingState.AuthToken))
+        {
+            token = _currentHostingState.AuthToken;
+            if (credentialStore != null)
+            {
+                await credentialStore.SaveCredentialAsync(provider.ProviderId, token).ConfigureAwait(false);
+            }
+
+            _currentHostingState.AuthToken = null;
+            if (hostingStateManager != null && !string.IsNullOrEmpty(project?.ProjectPath))
+            {
+                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        if (string.IsNullOrEmpty(token))
+        {
+            return;
+        }
 
         try
         {
             if (provider.ProviderId == HostingConstants.GitHub && provider is GitHubHostingProvider githubProvider)
             {
-                GitHubPersonalAccessToken = _currentHostingState.AuthToken;
-                var result = await githubProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken, CancellationToken.None);
+                GitHubPersonalAccessToken = token;
+                var result = await githubProvider.AuthenticateWithTokenAsync(token, CancellationToken.None).ConfigureAwait(false);
                 if (result.Success)
                 {
-                    AuthenticationStatusMessage = "Restored connection";
-                    _logger.LogInformation("Restored GitHub authentication from hosting state");
+                    AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+                    logger.LogInformation("Restored GitHub authentication from secure credential store");
                 }
             }
             else if (provider.ProviderId == HostingConstants.Dropbox && provider is DropboxHostingProvider dropboxProvider)
             {
-                DropboxAccessToken = _currentHostingState.AuthToken;
-                var result = await dropboxProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken, CancellationToken.None);
+                DropboxAccessToken = token;
+                var result = await dropboxProvider.AuthenticateWithTokenAsync(token, CancellationToken.None).ConfigureAwait(false);
                 if (result.Success)
                 {
-                    AuthenticationStatusMessage = "Restored connection";
-                    _logger.LogInformation("Restored Dropbox authentication from hosting state");
+                    AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+                    logger.LogInformation("Restored Dropbox authentication from secure credential store");
                 }
             }
 
@@ -1867,7 +1895,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to restore authentication");
+            logger.LogWarning(ex, "Failed to restore authentication");
         }
     }
 
@@ -1897,8 +1925,8 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var result = await _publisherStudioService.ExportProviderDefinitionAsync(
-                _project,
+            var result = await publisherStudioService.ExportProviderDefinitionAsync(
+                project,
                 catalogHostingInfo,
                 ProviderDefinitionUrl,
                 cancellationToken: CancellationToken.None);
@@ -1906,17 +1934,17 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (result.Success && result.Data != null)
             {
                 ProviderDefinitionJson = result.Data;
-                _logger.LogInformation("Generated provider definition JSON with {CatalogCount} catalogs", catalogHostingInfo.Count);
+                logger.LogInformation("Generated provider definition JSON with {CatalogCount} catalogs", catalogHostingInfo.Count);
             }
             else
             {
-                _logger.LogError("Failed to generate provider definition: {Error}", result.FirstError);
+                logger.LogError("Failed to generate provider definition: {Error}", result.FirstError);
                 UploadStatusMessage = $"Failed to generate definition: {result.FirstError}";
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating provider definition");
+            logger.LogError(ex, "Error generating provider definition");
             UploadStatusMessage = $"Error: {ex.Message}";
         }
     }
@@ -1955,7 +1983,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             _uploadCts = new CancellationTokenSource();
             var ct = _uploadCts.Token;
 
-            var fileName = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
+            var fileName = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
             var existingDefFileId = _currentHostingState?.Definition?.FileId;
 
             // Upload or update as a file
@@ -1967,7 +1995,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (result.Success && result.Data != null)
             {
                 ProviderDefinitionUrl = result.Data.DirectDownloadUrl;
-                if (_currentHostingState != null && !string.IsNullOrEmpty(_project.ProjectPath))
+                if (_currentHostingState != null && !string.IsNullOrEmpty(project.ProjectPath))
                 {
                     _currentHostingState.Definition = new HostedFileInfo
                     {
@@ -1976,14 +2004,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
                         FileSize = result.Data.FileSize,
                         LastUpdated = DateTime.UtcNow,
                     };
-                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, ct);
+                    if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
                 }
 
                 GenerateSubscriptionUrl(); // Regenerate based on new definition URL
                 RefreshUploadHierarchy();
                 RefreshHostedAssets();
                 UploadStatusMessage = "Provider definition uploaded successfully.";
-                _logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
+                logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
                 return result;
             }
             else
@@ -1995,7 +2023,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             UploadStatusMessage = $"Error uploading definition: {ex.Message}";
-            _logger.LogError(ex, "Error uploading provider definition");
+            logger.LogError(ex, "Error uploading provider definition");
             return OperationResult<HostingUploadResult>.CreateFailure($"Error uploading definition: {ex.Message}");
         }
         finally
@@ -2028,14 +2056,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         // Always prefer Provider Definition URL (Tier 1)
         if (!string.IsNullOrWhiteSpace(ProviderDefinitionUrl))
         {
-            SubscriptionUrl = _publisherStudioService.GenerateSubscriptionUrl(ProviderDefinitionUrl);
-            _logger.LogInformation("Generated subscription URL using definition URL");
+            SubscriptionUrl = publisherStudioService.GenerateSubscriptionUrl(ProviderDefinitionUrl);
+            logger.LogInformation("Generated subscription URL using definition URL");
         }
         else
         {
             // No definition URL available - this should not happen in normal flow
             SubscriptionUrl = "Please publish to generate subscription URL";
-            _logger.LogWarning("Cannot generate subscription URL: definition URL not available");
+            logger.LogWarning("Cannot generate subscription URL: definition URL not available");
         }
     }
 
@@ -2057,12 +2085,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(SubscriptionUrl);
-                _logger.LogInformation("Copied subscription URL to clipboard");
+                logger.LogInformation("Copied subscription URL to clipboard");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy to clipboard");
+            logger.LogError(ex, "Failed to copy to clipboard");
         }
     }
 
@@ -2090,12 +2118,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(CatalogJson);
-                _logger.LogInformation("Copied catalog JSON to clipboard");
+                logger.LogInformation("Copied catalog JSON to clipboard");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy catalog to clipboard");
+            logger.LogError(ex, "Failed to copy catalog to clipboard");
         }
     }
 
@@ -2123,12 +2151,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(ProviderDefinitionJson);
-                _logger.LogInformation("Copied provider definition JSON to clipboard");
+                logger.LogInformation("Copied provider definition JSON to clipboard");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy provider definition to clipboard");
+            logger.LogError(ex, "Failed to copy provider definition to clipboard");
         }
     }
 
@@ -2150,12 +2178,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(ProviderDefinitionUrl);
-                _logger.LogInformation("Copied provider definition URL to clipboard");
+                logger.LogInformation("Copied provider definition URL to clipboard");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy provider definition URL to clipboard");
+            logger.LogError(ex, "Failed to copy provider definition URL to clipboard");
         }
     }
 
@@ -2177,12 +2205,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(CatalogUrl);
-                _logger.LogInformation("Copied catalog URL to clipboard");
+                logger.LogInformation("Copied catalog URL to clipboard");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy catalog URL to clipboard");
+            logger.LogError(ex, "Failed to copy catalog URL to clipboard");
         }
     }
 
@@ -2193,7 +2221,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     {
         var existingStatuses = CatalogStatuses.ToDictionary(s => s.Catalog.Id);
 
-        foreach (var catalog in _project.Catalogs)
+        foreach (var catalog in project.Catalogs)
         {
             if (!existingStatuses.TryGetValue(catalog.Id, out var status))
             {
@@ -2213,7 +2241,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             }
         }
 
-        var projectCatalogIds = new HashSet<string>(_project.Catalogs.Select(c => c.Id));
+        var projectCatalogIds = new HashSet<string>(project.Catalogs.Select(c => c.Id));
         for (var i = CatalogStatuses.Count - 1; i >= 0; i--)
         {
             if (!projectCatalogIds.Contains(CatalogStatuses[i].Catalog.Id))
@@ -2229,7 +2257,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task PublishCatalogByIdAsync(string catalogId)
     {
-        var catalog = _project.Catalogs.FirstOrDefault(c => c.Id == catalogId);
+        var catalog = project.Catalogs.FirstOrDefault(c => c.Id == catalogId);
         if (catalog != null)
         {
             await PublishCatalogAsync(catalog);
@@ -2295,10 +2323,10 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
         try
         {
-            var totalCatalogs = _project.Catalogs.Count;
+            var totalCatalogs = project.Catalogs.Count;
             var currentCatalog = 0;
 
-            foreach (var catalog in _project.Catalogs)
+            foreach (var catalog in project.Catalogs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 currentCatalog++;
@@ -2316,7 +2344,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             else
             {
                 UploadStatusMessage = "Publishing all catalogs failed.";
-                _notificationService?.ShowError("Publish Failed", UploadStatusMessage);
+                notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.PublishFailed", "Publish Failed"), UploadStatusMessage);
             }
         }
         catch (OperationCanceledException)
@@ -2325,7 +2353,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to publish all catalogs");
+            logger.LogError(ex, "Failed to publish all catalogs");
             UploadStatusMessage = $"Error: {ex.Message}";
         }
         finally
@@ -2347,7 +2375,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             var warningMsg = $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
             UploadStatusMessage = warningMsg;
-            _notificationService?.ShowError("Incompatible Provider", warningMsg);
+            notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
             return false;
         }
 
@@ -2398,7 +2426,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
                 UploadStatusMessage = succeededCount == totalCatalogs
                     ? $"Successfully published all {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}"
                     : $"Published {succeededCount} of {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}";
-                _notificationService?.ShowWarning("Publish Warning", UploadStatusMessage);
+                notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
             }
         }
 
@@ -2425,12 +2453,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(url);
-                _notificationService?.ShowSuccess("Copied", "Link copied to clipboard.");
+                notificationService?.ShowSuccess(GetLocalizedString("Tools.PublisherStudio.Publish.Copied", "Copied"), GetLocalizedString("Tools.PublisherStudio.Publish.LinkCopied", "Link copied to clipboard."));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy URL to clipboard");
+            logger.LogError(ex, "Failed to copy URL to clipboard");
         }
     }
 
@@ -2485,19 +2513,19 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            _logger.LogWarning("Refusing to open non-HTTP/HTTPS URL in browser: {Url}", url);
+            logger.LogWarning("Refusing to open non-HTTP/HTTPS URL in browser: {Url}", url);
             return;
         }
 
         try
         {
             Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
-            _logger.LogInformation("Opened URL in browser: {Url}", uri.AbsoluteUri);
+            logger.LogInformation("Opened URL in browser: {Url}", uri.AbsoluteUri);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to open URL in browser: {Url}", url);
-            _notificationService?.ShowWarning("Browser Error", $"Could not open URL: {url}");
+            logger.LogWarning(ex, "Failed to open URL in browser: {Url}", url);
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.BrowserError", "Browser Error"), FormatLocalizedString("Tools.PublisherStudio.Publish.CouldNotOpenUrl", "Could not open URL: {0}", url));
         }
     }
 
@@ -2567,7 +2595,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         if (!IsProviderAuthenticated)
         {
             StorageScanStatusMessage = "Please connect to your hosting provider first.";
-            _notificationService?.ShowWarning("Provider Not Connected", "Connect to your hosting provider before scanning storage.");
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected"), GetLocalizedString("Tools.PublisherStudio.Publish.ConnectBeforeScan", "Connect to your hosting provider before scanning storage."));
             return;
         }
 
@@ -2590,9 +2618,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             {
                 MergeCloudHostingState(result.Data);
 
-                if (!string.IsNullOrEmpty(_project.ProjectPath) && _currentHostingState != null)
+                if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null)
                 {
-                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, ct);
+                    if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
                 }
 
                 InitializeCatalogStatuses();
@@ -2602,7 +2630,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
                 var foundCount = (_currentHostingState?.Catalogs.Count ?? 0) + (_currentHostingState?.Artifacts.Count ?? 0) + (_currentHostingState?.Definition != null ? 1 : 0);
                 StorageScanStatusMessage = $"Sync complete! Discovered {foundCount} file(s) in {SelectedHostingProvider.DisplayName}.";
-                _notificationService?.ShowSuccess("Storage Synced", StorageScanStatusMessage, autoDismissMs: 4000);
+                notificationService?.ShowSuccess(GetLocalizedString("Tools.PublisherStudio.Publish.StorageSynced", "Storage Synced"), StorageScanStatusMessage, autoDismissMs: 4000);
             }
             else
             {
@@ -2611,9 +2639,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to scan cloud storage");
+            logger.LogError(ex, "Failed to scan cloud storage");
             StorageScanStatusMessage = $"Scan error: {ex.Message}";
-            _notificationService?.ShowError("Scan Error", ex.Message);
+            notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.ScanError", "Scan Error"), ex.Message);
         }
         finally
         {
@@ -2634,9 +2662,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (result.Success && result.Data != null)
             {
                 MergeCloudHostingState(result.Data);
-                if (!string.IsNullOrEmpty(_project.ProjectPath) && _currentHostingState != null)
+                if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null)
                 {
-                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+                    if (hostingStateManager != null) await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None);
                 }
 
                 InitializeCatalogStatuses();
@@ -2647,7 +2675,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Silent cloud state recovery encountered an issue");
+            logger.LogWarning(ex, "Silent cloud state recovery encountered an issue");
         }
     }
 
@@ -2719,12 +2747,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(url);
-                _notificationService?.ShowSuccess("Copied to Clipboard", "Direct download URL copied.", autoDismissMs: 2500);
+                notificationService?.ShowSuccess(GetLocalizedString("Tools.PublisherStudio.Publish.CopiedToClipboard", "Copied to Clipboard"), GetLocalizedString("Tools.PublisherStudio.Publish.DirectDownloadUrlCopied", "Direct download URL copied."), autoDismissMs: 2500);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to copy URL to clipboard");
+            logger.LogWarning(ex, "Failed to copy URL to clipboard");
         }
     }
 

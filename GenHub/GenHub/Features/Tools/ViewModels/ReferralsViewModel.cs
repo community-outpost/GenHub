@@ -15,15 +15,16 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// ViewModel for managing publisher referrals (recommendations).
 /// </summary>
-public partial class ReferralsViewModel : ObservableObject
+public partial class ReferralsViewModel(
+    PublisherStudioProject project,
+    PublisherStudioViewModel parentViewModel,
+    ILogger logger,
+    IPublisherStudioDialogService dialogService) : ObservableObject
 {
-    private readonly PublisherStudioProject _project;
-    private readonly PublisherStudioViewModel _parentViewModel;
-    private readonly ILogger _logger;
-    private readonly IPublisherStudioDialogService _dialogService;
-
     [ObservableProperty]
-    private ObservableCollection<PublisherReferral> _referrals = [];
+    private ObservableCollection<PublisherReferral> _referrals = project?.Catalog?.Referrals != null
+        ? [.. project.Catalog.Referrals]
+        : [];
 
     [ObservableProperty]
     private PublisherReferral? _selectedReferral;
@@ -40,27 +41,6 @@ public partial class ReferralsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isEditing;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ReferralsViewModel"/> class.
-    /// </summary>
-    /// <param name="project">The publisher studio project.</param>
-    /// <param name="parentViewModel">The parent view model.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="dialogService">The dialog service.</param>
-    public ReferralsViewModel(
-        PublisherStudioProject project,
-        PublisherStudioViewModel parentViewModel,
-        ILogger logger,
-        IPublisherStudioDialogService dialogService)
-    {
-        _project = project;
-        _parentViewModel = parentViewModel;
-        _logger = logger;
-        _dialogService = dialogService;
-
-        LoadReferrals();
-    }
 
     partial void OnSelectedReferralChanged(PublisherReferral? value)
     {
@@ -80,15 +60,6 @@ public partial class ReferralsViewModel : ObservableObject
         }
     }
 
-    private void LoadReferrals()
-    {
-        Referrals.Clear();
-        foreach (var referral in _project.Catalog.Referrals)
-        {
-            Referrals.Add(referral);
-        }
-    }
-
     /// <summary>
     /// Saves the edited referral back to the project.
     /// </summary>
@@ -102,7 +73,7 @@ public partial class ReferralsViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(EditPublisherId))
         {
-            _logger.LogWarning("Cannot save referral with empty publisher ID");
+            logger.LogWarning("Cannot save referral with empty publisher ID");
             return;
         }
 
@@ -111,7 +82,7 @@ public partial class ReferralsViewModel : ObservableObject
             !Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            _logger.LogWarning("Cannot save referral with invalid catalog URL: {Url}", EditCatalogUrl);
+            logger.LogWarning("Cannot save referral with invalid catalog URL: {Url}", EditCatalogUrl);
             return;
         }
 
@@ -119,9 +90,13 @@ public partial class ReferralsViewModel : ObservableObject
         SelectedReferral.CatalogUrl = trimmedUrl;
         SelectedReferral.Note = string.IsNullOrWhiteSpace(EditNote) ? null : EditNote.Trim();
 
-        _parentViewModel.MarkDirty();
-        await _parentViewModel.SaveProjectAsync();
-        _logger.LogInformation("Updated referral: {PublisherId}", SelectedReferral.PublisherId);
+        parentViewModel?.MarkDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectAsync();
+        }
+
+        logger.LogInformation("Updated referral: {PublisherId}", SelectedReferral.PublisherId);
     }
 
     /// <summary>
@@ -130,16 +105,20 @@ public partial class ReferralsViewModel : ObservableObject
     [RelayCommand]
     private async Task AddReferralAsync()
     {
-        var referral = await _dialogService.ShowAddReferralDialogAsync();
+        var referral = await dialogService.ShowAddReferralDialogAsync();
         if (referral != null)
         {
-            _project.Catalog.Referrals.Add(referral);
+            project?.Catalog?.Referrals.Add(referral);
             Referrals.Add(referral);
             SelectedReferral = referral;
 
-            _parentViewModel.MarkDirty();
-            await _parentViewModel.SaveProjectAsync();
-            _logger.LogInformation("Added referral to publisher: {PublisherId}", referral.PublisherId);
+            parentViewModel?.MarkDirty();
+            if (parentViewModel != null)
+            {
+                await parentViewModel.SaveProjectAsync();
+            }
+
+            logger.LogInformation("Added referral to publisher: {PublisherId}", referral.PublisherId);
         }
     }
 
@@ -156,12 +135,16 @@ public partial class ReferralsViewModel : ObservableObject
 
         var publisherId = SelectedReferral.PublisherId;
 
-        _project.Catalog.Referrals.Remove(SelectedReferral);
+        project?.Catalog?.Referrals.Remove(SelectedReferral);
         Referrals.Remove(SelectedReferral);
 
-        _parentViewModel.MarkDirty();
-        await _parentViewModel.SaveProjectAsync();
-        _logger.LogInformation("Deleted referral: {PublisherId}", publisherId);
+        parentViewModel?.MarkDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectAsync();
+        }
+
+        logger.LogInformation("Deleted referral: {PublisherId}", publisherId);
 
         SelectedReferral = Referrals.FirstOrDefault();
     }

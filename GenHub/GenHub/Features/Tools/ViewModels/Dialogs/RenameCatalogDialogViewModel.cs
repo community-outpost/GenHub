@@ -11,15 +11,13 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for renaming a catalog.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class RenameCatalogDialogViewModel : ObservableValidator
+public partial class RenameCatalogDialogViewModel(string currentName, Action<string?> onComplete) : ObservableValidator
 {
-    private readonly Action<string?> _onComplete;
-
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Catalog name is required")]
     [MinLength(1, ErrorMessage = "Catalog name cannot be empty")]
-    private string _catalogName;
+    private string _catalogName = currentName ?? string.Empty;
 
     [ObservableProperty]
     private string? _validationError;
@@ -27,24 +25,8 @@ public partial class RenameCatalogDialogViewModel : ObservableValidator
     [ObservableProperty]
     private bool _isValid;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="RenameCatalogDialogViewModel"/> class.
-    /// </summary>
-    /// <param name="currentName">The current name of the catalog.</param>
-    /// <param name="onComplete">Callback invoked with the new name or null if canceled.</param>
-    public RenameCatalogDialogViewModel(string currentName, Action<string?> onComplete)
+    partial void OnCatalogNameChanged(string value)
     {
-        _onComplete = onComplete ?? throw new ArgumentNullException(nameof(onComplete));
-        _catalogName = currentName ?? string.Empty;
-
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(CatalogName))
-            {
-                Validate();
-            }
-        };
-
         Validate();
     }
 
@@ -62,12 +44,12 @@ public partial class RenameCatalogDialogViewModel : ObservableValidator
     {
         Validate();
         if (HasErrors) return;
-        _onComplete(CatalogName.Trim());
+        onComplete(CatalogName.Trim());
     }
 
     [RelayCommand]
     private void Cancel()
     {
-        _onComplete(null);
+        onComplete(null);
     }
 }

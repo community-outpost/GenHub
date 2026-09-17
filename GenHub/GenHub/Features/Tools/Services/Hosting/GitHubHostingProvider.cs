@@ -460,7 +460,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     /// <inheritdoc/>
     public string GetSubscriptionLink(string catalogUrl)
     {
-        return $"genhub://subscribe?url={Uri.EscapeDataString(catalogUrl)}";
+        return CommandLineConstants.BuildSubscriptionUrl(catalogUrl);
     }
 
     /// <inheritdoc/>

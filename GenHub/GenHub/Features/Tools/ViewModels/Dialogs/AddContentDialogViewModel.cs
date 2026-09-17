@@ -19,10 +19,10 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for adding or editing a content item in the catalog.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
-public partial class AddContentDialogViewModel : ObservableValidator, IDisposable
+public partial class AddContentDialogViewModel(
+    Action<CatalogContentItem> onContentCreated,
+    IPublisherStudioDialogService? dialogService = null) : ObservableValidator, IDisposable
 {
-    private readonly Action<CatalogContentItem> _onContentCreated;
-    private readonly IPublisherStudioDialogService? _dialogService;
     private readonly CatalogContentItem? _existingItem;
     private CancellationTokenSource? _computationCts;
 
@@ -158,27 +158,7 @@ public partial class AddContentDialogViewModel : ObservableValidator, IDisposabl
     /// </summary>
     public bool ShowAddonParentSelection => CanExtend;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AddContentDialogViewModel"/> class.
-    /// </summary>
-    /// <param name="onContentCreated">Callback invoked when content is created or saved.</param>
-    /// <param name="dialogService">Optional dialog service for browsing files.</param>
-    public AddContentDialogViewModel(
-        Action<CatalogContentItem> onContentCreated,
-        IPublisherStudioDialogService? dialogService = null)
-    {
-        _onContentCreated = onContentCreated ?? throw new ArgumentNullException(nameof(onContentCreated));
-        _dialogService = dialogService;
 
-        // Re-validate when properties change
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(ContentId) or nameof(ContentName) or nameof(Description))
-            {
-                Validate();
-            }
-        };
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AddContentDialogViewModel"/> class in edit mode.
@@ -439,9 +419,9 @@ public partial class AddContentDialogViewModel : ObservableValidator, IDisposabl
     [RelayCommand]
     private async Task BrowseLocalFileAsync()
     {
-        if (_dialogService == null) return;
+        if (dialogService == null) return;
 
-        var filePath = await _dialogService.ShowFilePickerAsync("Select Content Archive File");
+        var filePath = await dialogService.ShowFilePickerAsync("Select Content Archive File");
         if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
         {
             PopulateFromPath(filePath);
@@ -454,9 +434,9 @@ public partial class AddContentDialogViewModel : ObservableValidator, IDisposabl
     [RelayCommand]
     private async Task BrowseLocalFolderAsync()
     {
-        if (_dialogService == null) return;
+        if (dialogService == null) return;
 
-        var folderPath = await _dialogService.ShowFolderPickerAsync("Select Content Folder");
+        var folderPath = await dialogService.ShowFolderPickerAsync("Select Content Folder");
         if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
         {
             PopulateFromPath(folderPath);
@@ -550,7 +530,7 @@ public partial class AddContentDialogViewModel : ObservableValidator, IDisposabl
     [RelayCommand]
     private void Close()
     {
-        _onContentCreated(null!);
+        onContentCreated(null!);
     }
 
     /// <summary>
@@ -595,7 +575,7 @@ public partial class AddContentDialogViewModel : ObservableValidator, IDisposabl
             CopyFromExistingItem(contentItem);
         }
 
-        _onContentCreated(contentItem);
+        onContentCreated(contentItem);
     }
 
     private string DetermineArtifactName(string contentId, string version)
@@ -679,6 +659,12 @@ public partial class AddContentDialogViewModel : ObservableValidator, IDisposabl
             contentItem.BundledItems.Add(dep);
         }
     }
+
+    partial void OnContentIdChanged(string value) => Validate();
+
+    partial void OnContentNameChanged(string value) => Validate();
+
+    partial void OnDescriptionChanged(string value) => Validate();
 
     private void Validate()
     {

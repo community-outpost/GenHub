@@ -12,49 +12,48 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// ViewModel for the Publisher Profile tab.
 /// </summary>
-public partial class PublisherProfileViewModel : ObservableValidator
+public partial class PublisherProfileViewModel(
+    PublisherStudioProject project,
+    PublisherStudioViewModel parentViewModel,
+    ILogger logger) : ObservableValidator
 {
-    private readonly PublisherStudioProject _project;
-    private readonly PublisherStudioViewModel _parentViewModel;
-    private readonly ILogger _logger;
-
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Publisher ID is required")]
     [RegularExpression("^[a-z0-9-]+$", ErrorMessage = "Publisher ID must use lowercase letters, numbers, and hyphens only (no spaces or special characters)")]
-    private string _publisherId = string.Empty;
+    private string _publisherId = project?.Catalog?.Publisher?.Id ?? string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Publisher Name is required")]
     [MinLength(2, ErrorMessage = "Publisher Name must be at least 2 characters")]
-    private string _publisherName = string.Empty;
+    private string _publisherName = project?.Catalog?.Publisher?.Name ?? string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateUrl))]
-    private string _avatarUrl = string.Empty;
+    private string _avatarUrl = project?.Catalog?.Publisher?.AvatarUrl ?? string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateUrl))]
-    private string _websiteUrl = string.Empty;
+    private string _websiteUrl = project?.Catalog?.Publisher?.WebsiteUrl ?? string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateUrl))]
-    private string _supportUrl = string.Empty;
+    private string _supportUrl = project?.Catalog?.Publisher?.SupportUrl ?? string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [CustomValidation(typeof(PublisherProfileViewModel), nameof(ValidateEmail))]
-    private string _contactEmail = string.Empty;
+    private string _contactEmail = project?.Catalog?.Publisher?.ContactEmail ?? string.Empty;
 
     [ObservableProperty]
-    private string _description = string.Empty;
+    private string _description = project?.Catalog?.Publisher?.Description ?? string.Empty;
 
     [ObservableProperty]
-    private string _tagsString = string.Empty;
+    private string _tagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
 
     [ObservableProperty]
     private bool _isSavedSuccessfully;
@@ -62,55 +61,19 @@ public partial class PublisherProfileViewModel : ObservableValidator
     [ObservableProperty]
     private string? _statusMessage;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PublisherProfileViewModel"/> class.
-    /// </summary>
-    /// <param name="project">The publisher studio project.</param>
-    /// <param name="parentViewModel">The parent view model.</param>
-    /// <param name="logger">The logger.</param>
-    public PublisherProfileViewModel(
-        PublisherStudioProject project,
-        PublisherStudioViewModel parentViewModel,
-        ILogger logger)
+    partial void OnPublisherIdChanged(string value) => MarkDirty();
+    partial void OnPublisherNameChanged(string value) => MarkDirty();
+    partial void OnAvatarUrlChanged(string value) => MarkDirty();
+    partial void OnWebsiteUrlChanged(string value) => MarkDirty();
+    partial void OnSupportUrlChanged(string value) => MarkDirty();
+    partial void OnContactEmailChanged(string value) => MarkDirty();
+    partial void OnDescriptionChanged(string value) => MarkDirty();
+    partial void OnTagsStringChanged(string value) => MarkDirty();
+
+    private void MarkDirty()
     {
-        _project = project;
-        _parentViewModel = parentViewModel;
-        _logger = logger;
-
-        _project.Catalog ??= new();
-        _project.Catalog.Publisher ??= new();
-
-        // Load existing values
-        PublisherId = project.Catalog.Publisher.Id;
-        PublisherName = project.Catalog.Publisher.Name;
-        AvatarUrl = project.Catalog.Publisher.AvatarUrl ?? string.Empty;
-        WebsiteUrl = project.Catalog.Publisher.WebsiteUrl ?? string.Empty;
-        SupportUrl = project.Catalog.Publisher.SupportUrl ?? string.Empty;
-        ContactEmail = project.Catalog.Publisher.ContactEmail ?? string.Empty;
-        Description = project.Catalog.Publisher.Description ?? string.Empty;
-        TagsString = string.Join(", ", project.Tags);
-
-        // Validate initial state (optional, but good for showing errors on load if data is invalid)
-        ValidateAllProperties();
-
-        // Subscribe to property changes
-        PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName != nameof(PublisherId) &&
-                e.PropertyName != nameof(PublisherName) &&
-                e.PropertyName != nameof(AvatarUrl) &&
-                e.PropertyName != nameof(WebsiteUrl) &&
-                e.PropertyName != nameof(SupportUrl) &&
-                e.PropertyName != nameof(ContactEmail) &&
-                e.PropertyName != nameof(Description) &&
-                e.PropertyName != nameof(TagsString))
-            {
-                return;
-            }
-
-            IsSavedSuccessfully = false;
-            _parentViewModel.MarkDirty();
-        };
+        IsSavedSuccessfully = false;
+        parentViewModel?.MarkDirty();
     }
 
     /// <summary>
@@ -167,7 +130,7 @@ public partial class PublisherProfileViewModel : ObservableValidator
 
         if (HasErrors)
         {
-            _logger.LogWarning("Cannot save publisher profile due to validation errors");
+            logger?.LogWarning("Cannot save publisher profile due to validation errors");
             StatusMessage = "Please fix the validation errors before saving.";
             IsSavedSuccessfully = false;
             return;
@@ -175,41 +138,44 @@ public partial class PublisherProfileViewModel : ObservableValidator
 
         try
         {
-            if (_project.Catalog == null)
+            if (project?.Catalog == null)
             {
-                _logger.LogWarning("Project catalog is null; cannot save publisher profile");
+                logger?.LogWarning("Project catalog is null; cannot save publisher profile");
                 return;
             }
 
-            _project.Catalog.Publisher ??= new();
-            _project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
-            _project.Catalog.Publisher.Name = PublisherName.Trim();
-            _project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl) ? null : AvatarUrl.Trim();
-            _project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
-            _project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(SupportUrl) ? null : SupportUrl.Trim();
-            _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
-            _project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+            project.Catalog.Publisher ??= new();
+            project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
+            project.Catalog.Publisher.Name = PublisherName.Trim();
+            project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl) ? null : AvatarUrl.Trim();
+            project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
+            project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(SupportUrl) ? null : SupportUrl.Trim();
+            project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
+            project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
 
-            foreach (var catalog in _project.Catalogs.Select(namedCatalog => namedCatalog.Catalog).Where(catalog => catalog != null))
+            foreach (var catalog in project.Catalogs.Select(namedCatalog => namedCatalog.Catalog).Where(catalog => catalog != null))
             {
-                catalog.Publisher = _project.Catalog.Publisher;
+                catalog.Publisher = project.Catalog.Publisher;
             }
 
-            _project.Tags.Clear();
-            _project.Tags.AddRange(TagsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            project.Tags.Clear();
+            project.Tags.AddRange(TagsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
-            _parentViewModel.MarkDirty();
-            await _parentViewModel.SaveProjectAsync();
+            parentViewModel?.MarkDirty();
+            if (parentViewModel != null)
+            {
+                await parentViewModel.SaveProjectAsync();
+            }
 
             IsSavedSuccessfully = true;
-            StatusMessage = "Publisher profile saved successfully!";
-            _logger.LogInformation("Saved publisher profile: {PublisherId}", PublisherId);
+            StatusMessage = "Profile saved successfully.";
+            logger?.LogInformation("Publisher profile saved for: {PublisherId}", project.Catalog.Publisher.Id);
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to save: {ex.Message}";
+            logger?.LogError(ex, "Failed to save publisher profile");
+            StatusMessage = $"Error saving profile: {ex.Message}";
             IsSavedSuccessfully = false;
-            _logger.LogError(ex, "Failed to save publisher profile");
         }
     }
 }

@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -257,9 +258,27 @@ public class CrossPublisherDependencyResolver(
             return OperationResult<bool>.CreateFailure("Loopback and local addresses are not allowed for catalog sources.");
         }
 
-        if ((IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip)) && !IsSafeIpAddress(ip))
+        if (IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip))
         {
-            return OperationResult<bool>.CreateFailure("Loopback, private, and local addresses are not allowed for catalog sources.");
+            if (!NetworkSecurityHelper.IsSafeIpAddress(ip))
+            {
+                return OperationResult<bool>.CreateFailure("Loopback, private, and local addresses are not allowed for catalog sources.");
+            }
+        }
+        else
+        {
+            try
+            {
+                var addresses = Dns.GetHostAddresses(uri.DnsSafeHost);
+                if (addresses.Length > 0 && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+                {
+                    return OperationResult<bool>.CreateFailure("Loopback, private, and local addresses are not allowed for catalog sources.");
+                }
+            }
+            catch (SocketException)
+            {
+                // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
+            }
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -365,59 +384,7 @@ public class CrossPublisherDependencyResolver(
         return installedConstraint == null || installedConstraint.IsSatisfiedBy(installedVersion);
     }
 
-    private static bool IsSafeIpAddress(IPAddress address)
-    {
-        var bytes = address.GetAddressBytes();
-        return bytes.Length switch
-        {
-            4 => IsSafeIPv4(bytes),
-            16 => IsSafeIPv6(bytes),
-            _ => false,
-        };
-    }
-
-    private static bool IsSafeIPv4(byte[] b)
-    {
-        return (b[0], b[1], b[2]) switch
-        {
-            (0 or 10 or 127, _, _) => false,
-            (>= 224, _, _) => false,
-            (100, >= 64 and <= 127, _) => false,
-            (169, 254, _) => false,
-            (172, >= 16 and <= 31, _) => false,
-            (192, 0, 0 or 2) => false,
-            (192, 168, _) => false,
-            (198, 18 or 19, _) => false,
-            (198, 51, 100) => false,
-            (203, 0, 113) => false,
-            _ => true,
-        };
-    }
-
-    private static bool IsSafeIPv6(byte[] b)
-    {
-        if (b.Take(15).All(x => x == 0) && b[15] == 1)
-        {
-            return false;
-        }
-
-        if (b.All(x => x == 0))
-        {
-            return false;
-        }
-
-        if ((b[0] & 0xfe) == 0xfc)
-        {
-            return false;
-        }
-
-        if (b[0] == 0xfe && (b[1] & 0xc0) == 0x80)
-        {
-            return false;
-        }
-
-        return true;
-    }
+    private static bool IsSafeIpAddress(IPAddress address) => NetworkSecurityHelper.IsSafeIpAddress(address);
 
     private async Task<MissingDependency?> CheckDependencyAsync(
         ContentDependency dependency,

@@ -262,12 +262,7 @@ public class PublisherStudioService(
     /// <inheritdoc />
     public string GenerateSubscriptionUrl(string catalogUrl)
     {
-        if (string.IsNullOrWhiteSpace(catalogUrl))
-        {
-            return string.Empty;
-        }
-
-        return $"{CommandLineConstants.SubscribeUriPrefix}{CommandLineConstants.SubscribeUrlParam}{Uri.EscapeDataString(catalogUrl)}";
+        return CommandLineConstants.BuildSubscriptionUrl(catalogUrl);
     }
 
     /// <inheritdoc />

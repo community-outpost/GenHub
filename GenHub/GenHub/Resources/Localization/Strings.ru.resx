@@ -8091,6 +8091,7 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
+  </data>
   <data name="Downloads.Browser.ImportSubscription" xml:space="preserve">
     <value>Импорт каталога / поставщика</value>
   </data>
@@ -9701,5 +9702,134 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Replays.Tooltip.CopyGenHubLink" xml:space="preserve">
     <value>Копировать ссылку GenHub (открывает GenHub и импортирует автоматически).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectToProvider" xml:space="preserve">
+    <value>Подключиться к {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProvider" xml:space="preserve">
+    <value>Подключить провайдера</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishToProvider" xml:space="preserve">
+    <value>Опубликовать в {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCatalogs" xml:space="preserve">
+    <value>Опубликовать все каталоги и обновить определение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderSelected" xml:space="preserve">
+    <value>Провайдер хостинга не выбран</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGoogleDrive" xml:space="preserve">
+    <value>Ваш Google Диск (в папке '{0}')</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationDropbox" xml:space="preserve">
+    <value>Ваш аккаунт Dropbox (в папке приложения '/Apps/GenHub/')</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGitHub" xml:space="preserve">
+    <value>Ваши GitHub Gists (только манифесты и определения; бинарные файлы требуют URL CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedTitle" xml:space="preserve">
+    <value>Подключено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedMessage" xml:space="preserve">
+    <value>Успешно подключено к {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTitle" xml:space="preserve">
+    <value>Аутентификация отменена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTimeout" xml:space="preserve">
+    <value>Время аутентификации истекло или операция была отменена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledAborted" xml:space="preserve">
+    <value>Подключение к провайдеру хостинга было прервано.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledDriveHelp" xml:space="preserve">
+    <value>Аутентификация отменена или истекло время ожидания. Для Google Диска убедитесь, что в Google Cloud Console выбрано 'Desktop app' (а не 'Web application').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
+    <value>Ошибка аутентификации: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
+    <value>Сбой аутентификации: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Authenticating" xml:space="preserve">
+    <value>Аутентификация...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGitHubToken" xml:space="preserve">
+    <value>Пожалуйста, введите ваш персональный токен доступа</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxToken" xml:space="preserve">
+    <value>Пожалуйста, введите токен доступа Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGoogleCredentials" xml:space="preserve">
+    <value>Google Диск требует учетные данные клиента. Введите ваш Client ID и Client Secret выше.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticatedSuccess" xml:space="preserve">
+    <value>Аутентификация прошла успешно</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignedOut" xml:space="preserve">
+    <value>Выход выполнен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignOutError" xml:space="preserve">
+    <value>Ошибка выхода: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.RestoredConnection" xml:space="preserve">
+    <value>Соединение восстановлено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleProvider" xml:space="preserve">
+    <value>Несовместимый провайдер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishWarning" xml:space="preserve">
+    <value>Предупреждение публикации</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishFailed" xml:space="preserve">
+    <value>Публикация не удалась</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Copied" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LinkCopied" xml:space="preserve">
+    <value>Ссылка скопирована в буфер обмена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.BrowserError" xml:space="preserve">
+    <value>Ошибка браузера</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CouldNotOpenUrl" xml:space="preserve">
+    <value>Не удалось открыть URL: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderNotConnected" xml:space="preserve">
+    <value>Провайдер не подключен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectBeforeScan" xml:space="preserve">
+    <value>Подключитесь к провайдеру хостинга перед сканированием хранилища.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StorageSynced" xml:space="preserve">
+    <value>Хранилище синхронизировано</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
+    <value>Ошибка сканирования</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
+    <value>Скопировано в буфер обмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DirectDownloadUrlCopied" xml:space="preserve">
+    <value>Прямой URL для скачивания скопирован.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTitle" xml:space="preserve">
+    <value>Удалить каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить каталог '{0}'? Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteConfirm" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DuplicateCatalogId" xml:space="preserve">
+    <value>Дубликат ID каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogAlreadyExists" xml:space="preserve">
+    <value>Каталог с ID '{0}' уже существует.</value>
   </data>
 </root>

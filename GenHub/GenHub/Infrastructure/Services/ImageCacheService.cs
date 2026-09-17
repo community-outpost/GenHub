@@ -3,6 +3,7 @@ using Avalonia.Platform;
 using GenHub;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
@@ -326,16 +327,7 @@ public sealed class ImageCacheService : IImageCacheService
     /// </summary>
     /// <param name="address">The IP address to validate.</param>
     /// <returns><c>true</c> if the IP address is safe; otherwise, <c>false</c>.</returns>
-    internal static bool IsSafeIpAddress(IPAddress address)
-    {
-        var bytes = address.GetAddressBytes();
-        return bytes.Length switch
-        {
-            4 => IsSafeIPv4(bytes),
-            16 => IsSafeIPv6(bytes),
-            _ => false,
-        };
-    }
+    internal static bool IsSafeIpAddress(IPAddress address) => NetworkSecurityHelper.IsSafeIpAddress(address);
 
     private static HttpClient CreateDefaultHttpClient()
     {
@@ -347,93 +339,6 @@ public sealed class ImageCacheService : IImageCacheService
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
         return client;
-    }
-
-    private static bool IsSafeIPv4(byte[] b)
-    {
-        // 0.0.0.0/8, 10.0.0.0/8, 127.0.0.0/8, Multicast (224-239), Reserved (240+)
-        // 100.64.0.0/10 Carrier-grade NAT
-        // 169.254.0.0/16 Link-local / Cloud metadata (AWS/Azure/GCP)
-        // 172.16.0.0/12 Private-use networks
-        // 192.0.0.0/24 IETF Protocol Assignments
-        // 192.0.2.0/24 TEST-NET-1
-        // 192.168.0.0/16 Private-use networks
-        // 198.18.0.0/15 Benchmarking
-        // 198.51.100.0/24 TEST-NET-2
-        // 203.0.113.0/24 TEST-NET-3
-        return (b[0], b[1], b[2]) switch
-        {
-            (0 or 10 or 127, _, _) => false,
-            (>= 224, _, _) => false,
-            (100, >= 64 and <= 127, _) => false,
-            (169, 254, _) => false,
-            (172, >= 16 and <= 31, _) => false,
-            (192, 0, 0 or 2) => false,
-            (192, 168, _) => false,
-            (198, 18 or 19, _) => false,
-            (198, 51, 100) => false,
-            (203, 0, 113) => false,
-            _ => true,
-        };
-    }
-
-    private static bool IsSafeIPv6(byte[] b)
-    {
-        // ::1 Loopback
-        if (b.Take(15).All(x => x == 0) && b[15] == 1)
-        {
-            return false;
-        }
-
-        // :: Unspecified
-        if (b.All(x => x == 0))
-        {
-            return false;
-        }
-
-        // fc00::/7 Unique local addresses
-        if ((b[0] & 0xfe) == 0xfc)
-        {
-            return false;
-        }
-
-        // fe80::/10 Link-local unicast
-        if (b[0] == 0xfe && (b[1] & 0xc0) == 0x80)
-        {
-            return false;
-        }
-
-        // ff00::/8 Multicast
-        if (b[0] == 0xff)
-        {
-            return false;
-        }
-
-        // 64:ff9b::/96 Well-Known Prefix for NAT64 (RFC 6052) and 64:ff9b:1::/48 Local-Use Prefix (RFC 8215)
-        if (b[0] == 0 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b)
-        {
-            return false;
-        }
-
-        // 2002::/16 6to4 relay prefix (RFC 3056 / RFC 7526)
-        if (b[0] == 0x20 && b[1] == 0x02)
-        {
-            return false;
-        }
-
-        // 2001:0::/32 Teredo prefix (RFC 4380)
-        if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0 && b[3] == 0)
-        {
-            return false;
-        }
-
-        // ::ffff:0:0/96 IPv4-mapped IPv6
-        if (b.Take(10).All(x => x == 0) && b[10] == 0xff && b[11] == 0xff)
-        {
-            return IsSafeIPv4(b.Skip(12).ToArray());
-        }
-
-        return true;
     }
 
     private static List<FileInfo> DeleteExpiredCacheFiles(FileInfo[] files)
