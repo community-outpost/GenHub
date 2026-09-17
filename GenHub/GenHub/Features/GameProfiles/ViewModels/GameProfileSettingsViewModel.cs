@@ -1185,6 +1185,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 DisplayName = x.DisplayName,
                 ContentType = x.ContentType,
                 GameType = x.GameType,
+                InstallationType = x.InstallationType,
+                Publisher = x.Publisher,
+                Version = x.Version,
+                SourceId = x.SourceId,
+                GameClientId = x.GameClientId,
+                GameClient = x.GameClient?.Clone(),
+                Manifest = x.Manifest,
             })),
             EnabledContent.Select(x => x.ManifestId.Value));
 
