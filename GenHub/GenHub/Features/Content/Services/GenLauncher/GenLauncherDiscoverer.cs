@@ -407,77 +407,42 @@ public class GenLauncherDiscoverer(
         return items;
     }
 
-    private async Task<List<ContentSearchResult>> ProcessModEntryAsync(
+    private async Task<(GenLauncherVersionManifest? Manifest, string? IconUrl, long? SizeBytes)> FetchParentManifestAsync(
         HttpClient client,
-        GenLauncherModDataEntry modEntry,
-        GameType game,
+        string manifestUrl,
+        string modName,
         CancellationToken cancellationToken)
     {
-        var results = new List<ContentSearchResult>();
-        if (string.IsNullOrWhiteSpace(modEntry.ModName))
+        var parentYaml = await FetchStringWithCacheAsync(client, manifestUrl, cancellationToken);
+        if (string.IsNullOrWhiteSpace(parentYaml))
         {
-            return results;
+            return (null, null, null);
         }
 
-        var modSlug = GenLauncherCatalogParser.Slugify(modEntry.ModName);
-        var variants = new List<ContentVariantInfo>();
-        var filesSections = new List<ContentSection>();
-
-        // 1. Fetch parent version manifest if available
-        GenLauncherVersionManifest? parentManifest = null;
-        string? parentManifestUrl = null;
-        string? parentIconUrl = null;
-        long? parentSizeBytes = null;
-
-        if (!string.IsNullOrWhiteSpace(modEntry.ModLink))
+        try
         {
-            if (!IsValidHttpUrl(modEntry.ModLink, out _))
-            {
-                logger.LogWarning("Rejecting mod entry {ModName} with unsafe or invalid ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
-                return results;
-            }
-
-            parentManifestUrl = modEntry.ModLink;
-            var parentYaml = await FetchStringWithCacheAsync(client, parentManifestUrl, cancellationToken);
-            if (!string.IsNullOrWhiteSpace(parentYaml))
-            {
-                try
-                {
-                    parentManifest = catalogParser.ParseVersionManifest(parentYaml);
-                    parentIconUrl = parentManifest.UIImageSourceLink;
-                    parentSizeBytes = await TryCalculateDownloadSizeAsync(client, parentManifest, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to parse parent version manifest for {Name}", modEntry.ModName);
-                }
-            }
+            var parentManifest = catalogParser.ParseVersionManifest(parentYaml);
+            var parentIconUrl = parentManifest.UIImageSourceLink;
+            var parentSizeBytes = await TryCalculateDownloadSizeAsync(client, parentManifest, cancellationToken);
+            return (parentManifest, parentIconUrl, parentSizeBytes);
         }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to parse parent version manifest for {Name}", modName);
+            return (null, null, null);
+        }
+    }
 
-        var context = new ModProcessingContext(
-            client,
-            game,
-            modEntry.ModName,
-            modSlug,
-            parentIconUrl,
-            results,
-            variants,
-            filesSections);
-
-        // 2. Process child manifests (patches, addons)
-        await ProcessModChildUrlsAsync(
-            context,
-            modEntry.ModPatches,
-            ContentType.Patch,
-            cancellationToken);
-
-        await ProcessModChildUrlsAsync(
-            context,
-            modEntry.ModAddons,
-            ContentType.Addon,
-            cancellationToken);
-
-        // 3. Create parent Mod search result
+    private ContentSearchResult CreateParentModResult(
+        GenLauncherModDataEntry modEntry,
+        GameType game,
+        string modSlug,
+        GenLauncherVersionManifest? parentManifest,
+        string? parentManifestUrl,
+        long? parentSizeBytes,
+        List<ContentVariantInfo> variants,
+        List<ContentSection> filesSections)
+    {
         var parentResult = new ContentSearchResult
         {
             Id = $"genlauncher-{game.ToString().ToLowerInvariant()}-{modSlug}",
@@ -512,7 +477,6 @@ public class GenLauncherDiscoverer(
             parentResult.DownloadSize = parentSizeBytes.Value;
         }
 
-        // Add parent variant
         variants.Insert(0, new ContentVariantInfo
         {
             Id = modSlug,
@@ -542,6 +506,75 @@ public class GenLauncherDiscoverer(
                 filesSections,
                 PageType.Detail);
         }
+
+        return parentResult;
+    }
+
+    private async Task<List<ContentSearchResult>> ProcessModEntryAsync(
+        HttpClient client,
+        GenLauncherModDataEntry modEntry,
+        GameType game,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<ContentSearchResult>();
+        if (string.IsNullOrWhiteSpace(modEntry.ModName))
+        {
+            return results;
+        }
+
+        var modSlug = GenLauncherCatalogParser.Slugify(modEntry.ModName);
+        var variants = new List<ContentVariantInfo>();
+        var filesSections = new List<ContentSection>();
+
+        GenLauncherVersionManifest? parentManifest = null;
+        string? parentManifestUrl = null;
+        string? parentIconUrl = null;
+        long? parentSizeBytes = null;
+
+        if (!string.IsNullOrWhiteSpace(modEntry.ModLink))
+        {
+            if (!IsValidHttpUrl(modEntry.ModLink, out _))
+            {
+                logger.LogWarning("Rejecting mod entry {ModName} with unsafe or invalid ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
+                return results;
+            }
+
+            parentManifestUrl = modEntry.ModLink;
+            (parentManifest, parentIconUrl, parentSizeBytes) = await FetchParentManifestAsync(
+                client, parentManifestUrl, modEntry.ModName, cancellationToken);
+        }
+
+        var context = new ModProcessingContext(
+            client,
+            game,
+            modEntry.ModName,
+            modSlug,
+            parentIconUrl,
+            results,
+            variants,
+            filesSections);
+
+        await ProcessModChildUrlsAsync(
+            context,
+            modEntry.ModPatches,
+            ContentType.Patch,
+            cancellationToken);
+
+        await ProcessModChildUrlsAsync(
+            context,
+            modEntry.ModAddons,
+            ContentType.Addon,
+            cancellationToken);
+
+        var parentResult = CreateParentModResult(
+            modEntry,
+            game,
+            modSlug,
+            parentManifest,
+            parentManifestUrl,
+            parentSizeBytes,
+            variants,
+            filesSections);
 
         results.Insert(0, parentResult);
         return results;
@@ -781,6 +814,37 @@ public class GenLauncherDiscoverer(
         }
     }
 
+    private async Task<(long PageSize, bool HasMore, string? NextMarker)> FetchS3PageSizeAsync(
+        HttpClient client,
+        GenLauncherVersionManifest manifest,
+        string? currentMarker,
+        CancellationToken cancellationToken)
+    {
+        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+            manifest.S3HostLink!,
+            manifest.S3BucketName!,
+            manifest.S3FolderName!,
+            currentMarker);
+
+        var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return (0, false, null);
+        }
+
+        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+            xml,
+            manifest.S3FolderName!,
+            manifest.S3HostLink!,
+            manifest.S3BucketName!,
+            out var isTruncated,
+            out var nextMarker);
+
+        var pageSize = entries.Sum(e => e.Size);
+        var hasMore = isTruncated && !string.IsNullOrEmpty(nextMarker);
+        return (pageSize, hasMore, nextMarker);
+    }
+
     private async Task<long?> TryCalculateS3SizeAsync(
         HttpClient client,
         GenLauncherVersionManifest manifest,
@@ -795,52 +859,22 @@ public class GenLauncherDiscoverer(
 
         long totalSize = 0;
         string? nextMarker = null;
-        var hasMorePages = true;
         var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
         var pageCount = 0;
         const int maxPages = 50;
 
-        while (hasMorePages)
+        while (pageCount++ < maxPages)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-                manifest.S3HostLink,
-                manifest.S3BucketName,
-                manifest.S3FolderName,
-                nextMarker);
+            var (pageSize, hasMore, marker) = await FetchS3PageSizeAsync(client, manifest, nextMarker, cancellationToken);
+            totalSize += pageSize;
 
-            var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
-            if (string.IsNullOrWhiteSpace(xml))
-            {
-                return totalSize > 0 ? totalSize : null;
-            }
-
-            var entries = GenLauncherS3XmlParser.ParseListBucketResult(
-                xml,
-                manifest.S3FolderName,
-                manifest.S3HostLink,
-                manifest.S3BucketName,
-                out var isTruncated,
-                out nextMarker);
-
-            if (entries.Count == 0 && totalSize == 0)
-            {
-                return null;
-            }
-
-            totalSize += entries.Sum(e => e.Size);
-
-            if (!string.IsNullOrEmpty(nextMarker) && !seenMarkers.Add(nextMarker))
+            if (!hasMore || string.IsNullOrEmpty(marker) || !seenMarkers.Add(marker))
             {
                 break;
             }
 
-            if (++pageCount >= maxPages)
-            {
-                break;
-            }
-
-            hasMorePages = isTruncated && !string.IsNullOrEmpty(nextMarker);
+            nextMarker = marker;
         }
 
         return totalSize > 0 ? totalSize : null;

@@ -81,92 +81,17 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
 
         try
         {
-            var results = new List<ContentSearchResult>();
             var targetGame = provider.TargetGame ?? GameType.ZeroHour;
             var gameStr = targetGame.ToString().ToLowerInvariant();
 
-            // Check if this is a root catalog or a child version manifest anchored at root level
             if (RootCatalogRegex().IsMatch(catalogContent))
             {
-                var root = ParseRootCatalog(catalogContent);
-                foreach (var mod in root.ModDatas)
-                {
-                    if (string.IsNullOrWhiteSpace(mod.ModName))
-                    {
-                        continue;
-                    }
-
-                    var modSlug = Slugify(mod.ModName);
-                    var searchResult = new ContentSearchResult
-                    {
-                        Id = $"genlauncher-{gameStr}-{modSlug}",
-                        Name = mod.ModName,
-                        ContentType = ContentType.Mod,
-                        TargetGame = targetGame,
-                        ProviderName = PublisherTypeConstants.GenLauncher,
-                        ResolverId = GenLauncherConstants.PublisherId,
-                        SourceUrl = mod.ModLink,
-                        RequiresResolution = true,
-                        VariantGroupId = modSlug,
-                        VariantFamilyName = mod.ModName,
-                    };
-
-                    searchResult.Tags.Add("genlauncher");
-                    searchResult.Tags.Add("mod");
-                    searchResult.Tags.Add(gameStr);
-
-                    searchResult.ResolverMetadata["modLink"] = mod.ModLink;
-                    if (!string.IsNullOrWhiteSpace(mod.ModLink))
-                    {
-                        searchResult.ResolverMetadata["yamlUrl"] = mod.ModLink;
-                    }
-
-                    searchResult.ResolverMetadata["patchesCount"] = mod.ModPatches.Count.ToString();
-                    searchResult.ResolverMetadata["addonsCount"] = mod.ModAddons.Count.ToString();
-
-                    results.Add(searchResult);
-                }
-
-                return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results.AsEnumerable()));
+                var rootResults = ParseRootCatalogResults(catalogContent, targetGame, gameStr);
+                return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(rootResults));
             }
 
-            // Single version manifest
-            var versionManifest = ParseVersionManifest(catalogContent);
-            if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
-            {
-                return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]));
-            }
-
-            var singleSlug = Slugify(versionManifest.Name);
-            var contentType = MapContentType(versionManifest.GetParsedType());
-
-            var singleResult = new ContentSearchResult
-            {
-                Id = $"genlauncher-{gameStr}-{singleSlug}",
-                Name = versionManifest.Name,
-                Version = versionManifest.Version,
-                ContentType = contentType,
-                TargetGame = targetGame,
-                ProviderName = PublisherTypeConstants.GenLauncher,
-                ResolverId = GenLauncherConstants.PublisherId,
-                SourceUrl = versionManifest.SimpleDownloadLink ?? string.Empty,
-                IconUrl = versionManifest.UIImageSourceLink,
-                RequiresResolution = true,
-                VariantGroupId = !string.IsNullOrEmpty(versionManifest.DependenceName) ? Slugify(versionManifest.DependenceName) : singleSlug,
-                VariantFamilyName = !string.IsNullOrEmpty(versionManifest.DependenceName) ? versionManifest.DependenceName : versionManifest.Name,
-            };
-
-            singleResult.Tags.Add("genlauncher");
-            singleResult.Tags.Add(contentType.ToString().ToLowerInvariant());
-            if (versionManifest.Deprecated)
-            {
-                singleResult.Tags.Add("deprecated");
-            }
-
-            singleResult.SetData(versionManifest);
-
-            results.Add(singleResult);
-            return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results.AsEnumerable()));
+            var singleResults = ParseSingleVersionResults(catalogContent, targetGame, gameStr);
+            return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(singleResults));
         }
         catch (OperationCanceledException)
         {
@@ -174,8 +99,9 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error parsing GenLauncher catalog");
-            return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Failed to parse GenLauncher catalog: {ex.Message}"));
+            logger.LogError(ex, "Failed to parse GenLauncher catalog content");
+            return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                $"Failed to parse GenLauncher catalog: {ex.Message}"));
         }
     }
 
@@ -209,4 +135,94 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
 
     [GeneratedRegex(@"-+", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex CollapseDashesRegex();
+
+    private IEnumerable<ContentSearchResult> ParseRootCatalogResults(
+        string catalogContent,
+        GameType targetGame,
+        string gameStr)
+    {
+        var root = ParseRootCatalog(catalogContent);
+        var results = new List<ContentSearchResult>();
+
+        foreach (var mod in root.ModDatas)
+        {
+            if (string.IsNullOrWhiteSpace(mod.ModName))
+            {
+                continue;
+            }
+
+            var modSlug = Slugify(mod.ModName);
+            var searchResult = new ContentSearchResult
+            {
+                Id = $"genlauncher-{gameStr}-{modSlug}",
+                Name = mod.ModName,
+                ContentType = ContentType.Mod,
+                TargetGame = targetGame,
+                ProviderName = PublisherTypeConstants.GenLauncher,
+                ResolverId = GenLauncherConstants.PublisherId,
+                SourceUrl = mod.ModLink,
+                RequiresResolution = true,
+                VariantGroupId = modSlug,
+                VariantFamilyName = mod.ModName,
+            };
+
+            searchResult.Tags.Add("genlauncher");
+            searchResult.Tags.Add("mod");
+            searchResult.Tags.Add(gameStr);
+
+            searchResult.ResolverMetadata["modLink"] = mod.ModLink;
+            if (!string.IsNullOrWhiteSpace(mod.ModLink))
+            {
+                searchResult.ResolverMetadata["yamlUrl"] = mod.ModLink;
+            }
+
+            searchResult.ResolverMetadata["patchesCount"] = mod.ModPatches.Count.ToString();
+            searchResult.ResolverMetadata["addonsCount"] = mod.ModAddons.Count.ToString();
+
+            results.Add(searchResult);
+        }
+
+        return results;
+    }
+
+    private IEnumerable<ContentSearchResult> ParseSingleVersionResults(
+        string catalogContent,
+        GameType targetGame,
+        string gameStr)
+    {
+        var versionManifest = ParseVersionManifest(catalogContent);
+        if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
+        {
+            return [];
+        }
+
+        var singleSlug = Slugify(versionManifest.Name);
+        var contentType = MapContentType(versionManifest.GetParsedType());
+
+        var singleResult = new ContentSearchResult
+        {
+            Id = $"genlauncher-{gameStr}-{singleSlug}",
+            Name = versionManifest.Name,
+            Version = versionManifest.Version,
+            ContentType = contentType,
+            TargetGame = targetGame,
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ResolverId = GenLauncherConstants.PublisherId,
+            SourceUrl = versionManifest.SimpleDownloadLink ?? string.Empty,
+            IconUrl = versionManifest.UIImageSourceLink,
+            RequiresResolution = true,
+            VariantGroupId = !string.IsNullOrEmpty(versionManifest.DependenceName) ? Slugify(versionManifest.DependenceName) : singleSlug,
+            VariantFamilyName = !string.IsNullOrEmpty(versionManifest.DependenceName) ? versionManifest.DependenceName : versionManifest.Name,
+        };
+
+        singleResult.Tags.Add("genlauncher");
+        singleResult.Tags.Add(contentType.ToString().ToLowerInvariant());
+        if (versionManifest.Deprecated)
+        {
+            singleResult.Tags.Add("deprecated");
+        }
+
+        singleResult.SetData(versionManifest);
+        return [singleResult];
+    }
 }

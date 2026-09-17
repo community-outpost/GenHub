@@ -257,6 +257,50 @@ public class GenLauncherResolver(
         }
     }
 
+    private async Task<(List<ManifestFile>? Files, bool HasMore, string? NextMarker)> FetchS3PageFilesAsync(
+        HttpClient client,
+        string s3Host,
+        string s3Bucket,
+        string s3Folder,
+        string? currentMarker,
+        CancellationToken cancellationToken)
+    {
+        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(s3Host, s3Bucket, s3Folder, currentMarker);
+        if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
+        {
+            logger.LogWarning("Rejecting unsafe S3 query URL: {Url}", queryUrl);
+            return (null, false, null);
+        }
+
+        logger.LogInformation("Querying GenLauncher S3 bucket at {Url}", queryUrl);
+
+        var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
+        var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
+            s3Xml,
+            s3Folder,
+            s3Host,
+            s3Bucket,
+            out var isTruncated,
+            out var nextMarker);
+
+        var files = new List<ManifestFile>();
+        foreach (var entry in fileEntries)
+        {
+            files.Add(new ManifestFile
+            {
+                RelativePath = entry.RelativePath,
+                DownloadUrl = entry.DownloadUrl,
+                Size = entry.Size,
+                Hash = entry.ETag,
+                SourceType = ContentSourceType.RemoteDownload,
+                IsRequired = true,
+            });
+        }
+
+        var hasMore = isTruncated && !string.IsNullOrEmpty(nextMarker);
+        return (files, hasMore, nextMarker);
+    }
+
     private async Task<bool> TryResolveS3StoragePayloadAsync(
         ContentManifest manifest,
         HttpClient client,
@@ -275,65 +319,31 @@ public class GenLauncherResolver(
 
         try
         {
-            var hasMorePages = true;
             string? nextMarker = null;
             var s3Files = new List<ManifestFile>();
             var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
             var pageCount = 0;
             const int maxPages = 100;
 
-            while (hasMorePages)
+            while (pageCount++ < maxPages)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(s3Host, s3Bucket, s3Folder, nextMarker);
-                if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
-                {
-                    logger.LogWarning("Rejecting unsafe S3 query URL: {Url}", queryUrl);
-                    return false;
-                }
+                var (files, hasMore, marker) = await FetchS3PageFilesAsync(
+                    client, s3Host, s3Bucket, s3Folder, nextMarker, cancellationToken);
 
-                logger.LogInformation("Querying GenLauncher S3 bucket at {Url}", queryUrl);
-
-                var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
-                var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
-                    s3Xml,
-                    s3Folder,
-                    s3Host,
-                    s3Bucket,
-                    out var isTruncated,
-                    out nextMarker);
-
-                if (fileEntries.Count == 0 && s3Files.Count == 0)
+                if (files == null || (files.Count == 0 && s3Files.Count == 0))
                 {
                     return false;
                 }
 
-                foreach (var entry in fileEntries)
-                {
-                    s3Files.Add(new ManifestFile
-                    {
-                        RelativePath = entry.RelativePath,
-                        DownloadUrl = entry.DownloadUrl,
-                        Size = entry.Size,
-                        Hash = entry.ETag,
-                        SourceType = ContentSourceType.RemoteDownload,
-                        IsRequired = true,
-                    });
-                }
+                s3Files.AddRange(files);
 
-                if (!string.IsNullOrEmpty(nextMarker) && !seenMarkers.Add(nextMarker))
+                if (!hasMore || string.IsNullOrEmpty(marker) || !seenMarkers.Add(marker))
                 {
-                    logger.LogWarning("Detected cycle or repeating marker '{Marker}' while querying S3 folder '{Folder}'", nextMarker, s3Folder);
                     break;
                 }
 
-                if (++pageCount >= maxPages)
-                {
-                    logger.LogWarning("Reached maximum page limit ({Max}) while querying S3 folder '{Folder}'", maxPages, s3Folder);
-                    break;
-                }
-
-                hasMorePages = isTruncated && !string.IsNullOrEmpty(nextMarker);
+                nextMarker = marker;
             }
 
             if (s3Files.Count > 0)

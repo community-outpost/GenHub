@@ -10,6 +10,8 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 /// </summary>
 public static partial class GenLauncherDownloadLinkParser
 {
+    private const string OneDriveDownloadEndpoint = "https://onedrive.live.com/download";
+
     /// <summary>
     /// Normalizes download links from cloud storage providers to direct download URLs.
     /// </summary>
@@ -76,7 +78,7 @@ public static partial class GenLauncherDownloadLinkParser
 
             if (!string.IsNullOrEmpty(cid) && !string.IsNullOrEmpty(resid))
             {
-                var builder = new UriBuilder("https://onedrive.live.com/download")
+                var builder = new UriBuilder(OneDriveDownloadEndpoint)
                 {
                     Query = $"cid={Uri.EscapeDataString(cid)}&resid={Uri.EscapeDataString(resid)}" +
                             (!string.IsNullOrEmpty(authkey) ? $"&authkey={Uri.EscapeDataString(authkey)}" : string.Empty),
@@ -87,7 +89,7 @@ public static partial class GenLauncherDownloadLinkParser
             var path = uri.AbsolutePath;
             if (path.Contains("/embed", StringComparison.OrdinalIgnoreCase))
             {
-                var newPath = Regex.Replace(path, @"/embed\b", "/download", RegexOptions.IgnoreCase);
+                var newPath = OneDriveEmbedRegex().Replace(path, "/download");
                 var builder = new UriBuilder(uri)
                 {
                     Path = newPath,
@@ -97,7 +99,7 @@ public static partial class GenLauncherDownloadLinkParser
         }
         else if (link.Contains("/embed", StringComparison.OrdinalIgnoreCase))
         {
-            return Regex.Replace(link, @"/embed\b", "/download", RegexOptions.IgnoreCase);
+            return OneDriveEmbedRegex().Replace(link, "/download");
         }
 
         return link;
@@ -119,6 +121,9 @@ public static partial class GenLauncherDownloadLinkParser
 
         return link;
     }
+
+    [GeneratedRegex(@"/embed\b", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex OneDriveEmbedRegex();
 
     [GeneratedRegex(@"/file/d/([a-zA-Z0-9_-]+)", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex GoogleDrivePathRegex();
