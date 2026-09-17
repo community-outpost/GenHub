@@ -431,8 +431,12 @@ public partial class SubscriptionConfirmationViewModel(
                 ? definition.CatalogUrl
                 : definition.Catalogs?.FirstOrDefault()?.Url;
 
-            if (string.IsNullOrWhiteSpace(targetCatalogUrl) ||
-                !NetworkSecurityHelper.IsSafeUrl(targetCatalogUrl, out var ssrfReason))
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            {
+                return (null, null, null);
+            }
+
+            if (!NetworkSecurityHelper.IsSafeUrl(targetCatalogUrl, out var ssrfReason))
             {
                 if (!string.IsNullOrEmpty(ssrfReason))
                 {
