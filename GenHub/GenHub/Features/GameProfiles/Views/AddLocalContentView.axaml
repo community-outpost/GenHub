@@ -182,7 +182,7 @@
                 <!-- RIGHT COLUMN: Tree Preview -->
                 <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="10" BorderBrush="#20FFFFFF" BorderThickness="1" ClipToBounds="True">
                     <Grid RowDefinitions="Auto,*">
-<Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,10">
+                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="{localization:Localize Profiles.AddLocalContent.ContentPreview}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8" VerticalAlignment="Center"/>
                                 <Button Grid.Column="1"
@@ -286,7 +286,7 @@
         </Grid>
 
         <!-- Loading Overlay -->
-<Grid Background="#80000000" IsVisible="{Binding ShowLoadingOverlay}">
+        <Grid Background="#80000000" IsVisible="{Binding ShowLoadingOverlay}">
             <Border Background="{DynamicResource CardBackground}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"

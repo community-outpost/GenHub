@@ -65,262 +65,10 @@ public partial class AddLocalContentViewModel(
         ContentType.Mission,
     ];
 
-    /// <summary>
-    /// Counts the total number of executables in the given file tree items recursively.
-    /// </summary>
-    /// <param name="items">The file tree items to inspect.</param>
-    /// <returns>The total number of executable files found.</returns>
-    internal static int CountExecutables(IEnumerable<FileTreeItem> items)
-    {
-        int count = 0;
-        foreach (var item in items)
-        {
-            if (item.IsExecutable) count++;
-            count += CountExecutables(item.Children);
-        }
-
-        return count;
-    }
-
-    private static bool RequiresExecutable(ContentType contentType) =>
-        contentType is ContentType.GameClient or ContentType.ModdingTool or ContentType.Executable;
-
-    private static FileTreeItem? FindFirstExecutable(IEnumerable<FileTreeItem> items)
-    {
-        foreach (var item in items)
-        {
-            if (item.IsExecutable)
-            {
-                return item;
-            }
-
-            var childExe = FindFirstExecutable(item.Children);
-            if (childExe != null)
-            {
-                return childExe;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool FilesHaveIdenticalContent(string file1, string file2) =>
-        ArchivePayloadProcessor.FilesHaveIdenticalContent(file1, file2);
-
-    private static bool IsBigArchiveFile(string filePath) =>
-        ArchivePayloadProcessor.IsBigArchiveFile(filePath);
-
-    private static bool IsExecutableFile(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(filePath);
-            if (stream.Length < 2)
-            {
-                return false;
-            }
-
-            Span<byte> header = stackalloc byte[2];
-            if (stream.Read(header) < 2)
-            {
-                return false;
-            }
-
-            return header[0] == (byte)'M' && header[1] == (byte)'Z';
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir)
-        => BuildDirectoryTree(dir, CollectExecutableDirectories(dir));
-
-    private static HashSet<string> CollectExecutableDirectories(DirectoryInfo root)
-    {
-        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            foreach (var file in root.EnumerateFiles("*", SearchOption.AllDirectories))
-            {
-                if (!ExecutableFileClassifier.IsLegacyLaunchCandidate(file.Name, file.FullName)
-                    && !file.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                for (var d = file.Directory; d != null; d = d.Parent)
-                {
-                    if (!result.Add(d.FullName))
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // ignore inaccessible directories
-        }
-
-        return result;
-    }
-
-    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir, HashSet<string> executableDirs)
-    {
-        var items = new List<FileTreeItem>();
-
-        if (!dir.Exists)
-        {
-            return items;
-        }
-
-        var subDirs = dir.GetDirectories();
-        var prioritizedDirs = subDirs
-            .OrderByDescending(d => executableDirs.Contains(d.FullName))
-            .ThenBy(d => d.Name)
-            .Take(20);
-
-        foreach (var d in prioritizedDirs)
-        {
-            items.Add(new FileTreeItem
-            {
-                Name = d.Name,
-                IsFile = false,
-                FullPath = d.FullName,
-                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d, executableDirs)),
-            });
-        }
-
-        var files = dir.GetFiles();
-        var prioritizedFiles = files
-            .OrderByDescending(f => ExecutableFileClassifier.IsLegacyLaunchCandidate(f.Name, f.FullName) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
-            .ThenBy(f => f.Name)
-            .Take(50);
-
-        foreach (var f in prioritizedFiles)
-        {
-            items.Add(new FileTreeItem { Name = f.Name, IsFile = true, FullPath = f.FullName });
-        }
-
-        return items;
-    }
-
-    private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (!target.Exists)
-        {
-            Directory.CreateDirectory(target.FullName);
-        }
-
-        foreach (var file in source.GetFiles())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            file.CopyTo(Path.Combine(target.FullName, file.Name), true);
-        }
-
-        foreach (var subDirectory in source.GetDirectories())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var nextTargetSubDir = target.CreateSubdirectory(subDirectory.Name);
-            CopyDirectory(subDirectory, nextTargetSubDir, cancellationToken);
-        }
-    }
-
-    private static List<string> DetectDirectoryCollisions(DirectoryInfo source, DirectoryInfo target)
-    {
-        var collisions = new List<string>();
-        if (!target.Exists)
-        {
-            return collisions;
-        }
-
-        foreach (var file in source.GetFiles())
-        {
-            var targetFilePath = Path.Combine(target.FullName, file.Name);
-            if (File.Exists(targetFilePath) && !FilesHaveIdenticalContent(file.FullName, targetFilePath))
-            {
-                collisions.Add(file.Name);
-            }
-        }
-
-        foreach (var subDir in source.GetDirectories())
-        {
-            var targetSubDirPath = Path.Combine(target.FullName, subDir.Name);
-            if (Directory.Exists(targetSubDirPath))
-            {
-                var subCollisions = DetectDirectoryCollisions(subDir, new DirectoryInfo(targetSubDirPath));
-                foreach (var sc in subCollisions)
-                {
-                    collisions.Add(Path.Combine(subDir.Name, sc).Replace('\\', '/'));
-                }
-            }
-        }
-
-        return collisions;
-    }
-
-    private static string FormatNormalizationSuccessMessage(GenLauncherNormalizationResult result)
-    {
-        if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
-        {
-            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped, {result.FailedFiles.Count} failed. Import completed.";
-        }
-
-        if (result.FailedFiles.Count > 0)
-        {
-            return $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import completed.";
-        }
-
-        if (result.SkippedFiles.Count > 0)
-        {
-            return $"Normalized {result.NormalizedCount} file(s); {result.SkippedFiles.Count} skipped. Import completed.";
-        }
-
-        return $"Normalized {result.NormalizedCount} file(s). Import successful.";
-    }
-
     private readonly ILocalizationService? _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
-
-    private string GetLocalizedString(string key, string fallback) =>
-        _localizationService?[key] ?? fallback;
-
-    private string GetLocalizedString(string key, string fallback, params object[] args) =>
-        _localizationService != null ? _localizationService.GetString(key, args) : string.Format(fallback, args);
-
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
-
-    /// <summary>
-    /// Gets the temporary staging directory path for local content.
-    /// </summary>
-    internal string StagingPath => _stagingPath;
-
     private string? _originalManifestId;
     private string? _pendingEntryPoint;
-
-    /// <summary>
-    /// Gets a value indicating whether we are editing existing content.
-    /// </summary>
-    public bool IsEditing => _originalManifestId != null;
-
-    /// <summary>
-    /// Gets the title for the dialog.
-    /// </summary>
-    public string DialogTitle => IsEditing ? "Edit Local Content" : "Add Local Content";
-
-    /// <summary>
-    /// Gets the text to display on the action button.
-    /// </summary>
-    public string ActionButtonText => IsEditing ? "Save Changes" : "Add to Library";
-
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -366,6 +114,25 @@ public partial class AddLocalContentViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowLoadingOverlay))]
     private bool _isBusy;
+
+    /// <summary>
+    /// Gets a value indicating whether we are editing existing content.
+    /// </summary>
+    public bool IsEditing => _originalManifestId != null;
+
+    /// <summary>
+    /// Gets the title for the dialog.
+    /// </summary>
+    public string DialogTitle => IsEditing
+        ? GetLocalizedString("Profiles.AddLocalContent.DialogTitleEdit", "Edit Local Content")
+        : GetLocalizedString("Profiles.AddLocalContent.DialogTitleAdd", "Add Local Content");
+
+    /// <summary>
+    /// Gets the text to display on the action button.
+    /// </summary>
+    public string ActionButtonText => IsEditing
+        ? GetLocalizedString("Profiles.AddLocalContent.ActionButtonSave", "Save Changes")
+        : GetLocalizedString("Profiles.AddLocalContent.ActionButtonAdd", "Add to Library");
 
     /// <summary>
     /// Gets a value indicating whether the loading overlay should be visible.
@@ -438,17 +205,22 @@ public partial class AddLocalContentViewModel(
     /// </summary>
     public string PreviewIdleText => SelectedContentType switch
     {
-        ContentType.Mod => "Import mod content (e.g. .big, .zip)",
-        ContentType.GameClient => "Import GameClient",
-        ContentType.Executable => "Import executable",
-        ContentType.ModdingTool => "Import tool executable",
-        ContentType.Patch => "Import patch",
-        ContentType.Addon => "Import addon content",
-        ContentType.Map => "Import map files",
-        ContentType.MapPack => "Import map pack files",
-        ContentType.Mission => "Import mission content",
-        _ => "Drag and drop content to begin",
+        ContentType.Mod => GetLocalizedString("Profiles.AddLocalContent.IdleMod", "Import mod content (e.g. .big, .zip)"),
+        ContentType.GameClient => GetLocalizedString("Profiles.AddLocalContent.IdleGameClient", "Import GameClient"),
+        ContentType.Executable => GetLocalizedString("Profiles.AddLocalContent.IdleExecutable", "Import executable"),
+        ContentType.ModdingTool => GetLocalizedString("Profiles.AddLocalContent.IdleModdingTool", "Import tool executable"),
+        ContentType.Patch => GetLocalizedString("Profiles.AddLocalContent.IdlePatch", "Import patch"),
+        ContentType.Addon => GetLocalizedString("Profiles.AddLocalContent.IdleAddon", "Import addon content"),
+        ContentType.Map => GetLocalizedString("Profiles.AddLocalContent.IdleMap", "Import map files"),
+        ContentType.MapPack => GetLocalizedString("Profiles.AddLocalContent.IdleMapPack", "Import map pack files"),
+        ContentType.Mission => GetLocalizedString("Profiles.AddLocalContent.IdleMission", "Import mission content"),
+        _ => GetLocalizedString("Profiles.AddLocalContent.IdleDefault", "Drag and drop content to begin"),
     };
+
+    /// <summary>
+    /// Gets the temporary staging directory path for local content.
+    /// </summary>
+    internal string StagingPath => _stagingPath;
 
     /// <summary>
     /// Event triggered when the window should be closed.
@@ -634,6 +406,212 @@ public partial class AddLocalContentViewModel(
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Counts the total number of executables in the given file tree items recursively.
+    /// </summary>
+    /// <param name="items">The file tree items to inspect.</param>
+    /// <returns>The total number of executable files found.</returns>
+    internal static int CountExecutables(IEnumerable<FileTreeItem> items)
+    {
+        int count = 0;
+        foreach (var item in items)
+        {
+            if (item.IsExecutable) count++;
+            count += CountExecutables(item.Children);
+        }
+
+        return count;
+    }
+
+    private static bool RequiresExecutable(ContentType contentType) =>
+        contentType is ContentType.GameClient or ContentType.ModdingTool or ContentType.Executable;
+
+    private static FileTreeItem? FindFirstExecutable(IEnumerable<FileTreeItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (item.IsExecutable)
+            {
+                return item;
+            }
+
+            var childExe = FindFirstExecutable(item.Children);
+            if (childExe != null)
+            {
+                return childExe;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool FilesHaveIdenticalContent(string file1, string file2) =>
+        ArchivePayloadProcessor.FilesHaveIdenticalContent(file1, file2);
+
+    private static bool IsBigArchiveFile(string filePath) =>
+        ArchivePayloadProcessor.IsBigArchiveFile(filePath);
+
+    private static bool IsExecutableFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            if (stream.Length < 2)
+            {
+                return false;
+            }
+
+            Span<byte> header = stackalloc byte[2];
+            if (stream.Read(header) < 2)
+            {
+                return false;
+            }
+
+            return header[0] == (byte)'M' && header[1] == (byte)'Z';
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir)
+        => BuildDirectoryTree(dir, CollectExecutableDirectories(dir));
+
+    private static HashSet<string> CollectExecutableDirectories(DirectoryInfo root)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var file in root.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                if (!ExecutableFileClassifier.IsLegacyLaunchCandidate(file.Name, file.FullName)
+                    && !file.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                for (var d = file.Directory; d != null; d = d.Parent)
+                {
+                    if (!result.Add(d.FullName))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignore inaccessible directories
+        }
+
+        return result;
+    }
+
+    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir, HashSet<string> executableDirs)
+    {
+        var items = new List<FileTreeItem>();
+
+        if (!dir.Exists)
+        {
+            return items;
+        }
+
+        var subDirs = dir.GetDirectories();
+        var prioritizedDirs = subDirs
+            .OrderByDescending(d => executableDirs.Contains(d.FullName))
+            .ThenBy(d => d.Name)
+            .Take(20);
+
+        foreach (var d in prioritizedDirs)
+        {
+            items.Add(new FileTreeItem
+            {
+                Name = d.Name,
+                IsFile = false,
+                FullPath = d.FullName,
+                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d, executableDirs)),
+            });
+        }
+
+        var files = dir.GetFiles();
+        var prioritizedFiles = files
+            .OrderByDescending(f => ExecutableFileClassifier.IsLegacyLaunchCandidate(f.Name, f.FullName) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(f => f.Name)
+            .Take(50);
+
+        foreach (var f in prioritizedFiles)
+        {
+            items.Add(new FileTreeItem { Name = f.Name, IsFile = true, FullPath = f.FullName });
+        }
+
+        return items;
+    }
+
+    private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!target.Exists)
+        {
+            Directory.CreateDirectory(target.FullName);
+        }
+
+        foreach (var file in source.GetFiles())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            file.CopyTo(Path.Combine(target.FullName, file.Name), true);
+        }
+
+        foreach (var subDirectory in source.GetDirectories())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var nextTargetSubDir = target.CreateSubdirectory(subDirectory.Name);
+            CopyDirectory(subDirectory, nextTargetSubDir, cancellationToken);
+        }
+    }
+
+    private static List<string> DetectDirectoryCollisions(DirectoryInfo source, DirectoryInfo target, CancellationToken cancellationToken = default)
+    {
+        var collisions = new List<string>();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!target.Exists)
+        {
+            return collisions;
+        }
+
+        foreach (var file in source.GetFiles())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var targetFilePath = Path.Combine(target.FullName, file.Name);
+            if (File.Exists(targetFilePath) && !FilesHaveIdenticalContent(file.FullName, targetFilePath))
+            {
+                collisions.Add(file.Name);
+            }
+        }
+
+        foreach (var subDir in source.GetDirectories())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var targetSubDirPath = Path.Combine(target.FullName, subDir.Name);
+            if (Directory.Exists(targetSubDirPath))
+            {
+                var subCollisions = DetectDirectoryCollisions(subDir, new DirectoryInfo(targetSubDirPath), cancellationToken);
+                foreach (var sc in subCollisions)
+                {
+                    collisions.Add(Path.Combine(subDir.Name, sc).Replace('\\', '/'));
+                }
+            }
+        }
+
+        return collisions;
+    }
+
     private void SetDefaultContentName(string path)
     {
         if (string.IsNullOrWhiteSpace(ContentName))
@@ -651,7 +629,15 @@ public partial class AddLocalContentViewModel(
             var extension = Path.GetExtension(path);
             var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
 
-            if (File.Exists(destFile) && !FilesHaveIdenticalContent(path, destFile))
+            var hasCollision = false;
+            if (File.Exists(destFile))
+            {
+                hasCollision = await Task.Run(
+                    () => !FilesHaveIdenticalContent(path, destFile),
+                    cancellationToken);
+            }
+
+            if (hasCollision)
             {
                 logger?.LogWarning("Detected file collision when importing {Source}: file {Dest} already exists with different content.", path, destFile);
                 if (dialogService != null)
@@ -709,7 +695,9 @@ public partial class AddLocalContentViewModel(
             var dirInfo = new DirectoryInfo(path);
             logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", path, _stagingPath);
 
-            var collisions = DetectDirectoryCollisions(dirInfo, new DirectoryInfo(_stagingPath));
+            var collisions = await Task.Run(
+                () => DetectDirectoryCollisions(dirInfo, new DirectoryInfo(_stagingPath), cancellationToken),
+                cancellationToken);
             if (collisions.Count > 0)
             {
                 logger?.LogWarning(
@@ -1057,7 +1045,14 @@ public partial class AddLocalContentViewModel(
                     IsProgressIndeterminate = false;
                     var fileLabel = !string.IsNullOrWhiteSpace(p.CurrentFileName) ? $" ({Path.GetFileName(p.CurrentFileName)})" : string.Empty;
                     ProgressDetailMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressCasStorage", "{0} of {1} files stored in CAS pool{2}", p.ProcessedCount, p.TotalCount, fileLabel);
-                    StatusMessage = $"{(IsEditing ? "Updating" : "Importing")} {ContentName}: {p.Percentage:0}% ({p.ProcessedCount}/{p.TotalCount} files)";
+                    var actionKey = IsEditing ? "Profiles.AddLocalContent.StatusCasProgressUpdating" : "Profiles.AddLocalContent.StatusCasProgressImporting";
+                    var fallback = IsEditing ? "Updating {0}: {1:0}% ({2}/{3} files)" : "Importing {0}: {1:0}% ({2}/{3} files)";
+                    StatusMessage = string.Format(
+                        GetLocalizedString(actionKey, fallback),
+                        ContentName,
+                        p.Percentage,
+                        p.ProcessedCount,
+                        p.TotalCount);
                 }
                 else
                 {
@@ -1138,7 +1133,7 @@ public partial class AddLocalContentViewModel(
             }
             else
             {
-                StatusMessage = $"Error: {result.FirstError}";
+                StatusMessage = string.Format(GetLocalizedString("Profiles.AddLocalContent.StatusGenericError", "Error: {0}"), result.FirstError);
             }
         }
         catch (OperationCanceledException)
@@ -1342,6 +1337,44 @@ public partial class AddLocalContentViewModel(
             if (!hasFiles && !stagingHasEntries) logger?.LogDebug("Validate failed: No files in tree or staging directory.");
             if (!hasExecutableIfNeeded) logger?.LogDebug("Validate failed: Executable content type requires an executable to be selected.");
         }
+    }
+
+    private string GetLocalizedString(string key, string fallback) =>
+        _localizationService?[key] ?? fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object[] args) =>
+        _localizationService != null ? _localizationService.GetString(key, args) : string.Format(fallback, args);
+
+    private string FormatNormalizationSuccessMessage(GenLauncherNormalizationResult result)
+    {
+        if (result.FailedFiles.Count > 0 && result.SkippedFiles.Count > 0)
+        {
+            return string.Format(
+                GetLocalizedString("Profiles.AddLocalContent.NormalizationPartial", "Normalized {0} file(s); {1} skipped, {2} failed. Import completed."),
+                result.NormalizedCount,
+                result.SkippedFiles.Count,
+                result.FailedFiles.Count);
+        }
+
+        if (result.FailedFiles.Count > 0)
+        {
+            return string.Format(
+                GetLocalizedString("Profiles.AddLocalContent.NormalizationFailed", "Normalized {0} file(s); {1} failed. Import completed."),
+                result.NormalizedCount,
+                result.FailedFiles.Count);
+        }
+
+        if (result.SkippedFiles.Count > 0)
+        {
+            return string.Format(
+                GetLocalizedString("Profiles.AddLocalContent.NormalizationSkipped", "Normalized {0} file(s); {1} skipped. Import completed."),
+                result.NormalizedCount,
+                result.SkippedFiles.Count);
+        }
+
+        return string.Format(
+            GetLocalizedString("Profiles.AddLocalContent.NormalizationSuccess", "Normalized {0} file(s). Import successful."),
+            result.NormalizedCount);
     }
 
     partial void OnContentNameChanged(string value) => Validate();
