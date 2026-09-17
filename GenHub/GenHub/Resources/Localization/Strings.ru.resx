@@ -6704,4 +6704,217 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
     <value>Доступный контент</value>
   </data>
+  <data name="Tools.ReplayManager.Action.Recovery" xml:space="preserve">
+    <value>Восстановление</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Resume" xml:space="preserve">
+    <value>Возобновить реплей</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Takeover" xml:space="preserve">
+    <value>Перехватить матч</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateButton" xml:space="preserve">
+    <value>Создать точку</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveSubtitle" xml:space="preserve">
+    <value>GenHub запустит игру для быстрой перемотки реплея до выбранного момента и создания снимка состояния. После создания контрольной точки игра автоматически сохранится и закроется.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveTitle" xml:space="preserve">
+    <value>Создать сохранение контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.ExistingTitle" xml:space="preserve">
+    <value>Существующие контрольные точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.FrameFormat" xml:space="preserve">
+    <value>Кадр {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.MinTime" xml:space="preserve">
+    <value>1 с</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SavesCountFormat" xml:space="preserve">
+    <value>{0} сохр.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TakeoverPlayer" xml:space="preserve">
+    <value>Игрок для перехвата</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetPoint" xml:space="preserve">
+    <value>Целевая точка</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfile" xml:space="preserve">
+    <value>Целевой профиль</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfileSubtitle" xml:space="preserve">
+    <value>Выберите профиль с поддержкой контрольных точек и перехвата управления.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Title" xml:space="preserve">
+    <value>Восстановление реплея и перехват управления</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave" xml:space="preserve">
+    <value>Удалить сохранение контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Resume" xml:space="preserve">
+    <value>Возобновить детерминированное воспроизведение реплея с выбранной контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Takeover" xml:space="preserve">
+    <value>Перехватить управление матчем с этой контрольной точки за выбранного игрока</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить контрольную точку «{0}»?</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointTitle" xml:space="preserve">
+    <value>Удалить контрольную точку</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedDesc" xml:space="preserve">
+    <value>Создана контрольная точка {0} на {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedTitle" xml:space="preserve">
+    <value>Контрольная точка создана</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointDeletedDesc" xml:space="preserve">
+    <value>Контрольная точка {0} удалена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverDesc" xml:space="preserve">
+    <value>Запущен перехват живого матча за {0}!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverTitle" xml:space="preserve">
+    <value>Перехват матча</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledDesc" xml:space="preserve">
+    <value>Создание контрольной точки было отменено.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledTitle" xml:space="preserve">
+    <value>Создание контрольной точки отменено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintErrorTitle" xml:space="preserve">
+    <value>Ошибка при создании контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintFailedTitle" xml:space="preserve">
+    <value>Ошибка создания контрольной точки</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointResumeDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите сохранение контрольной точки для возобновления.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointSelectedTitle" xml:space="preserve">
+    <value>Контрольная точка не выбрана</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointTakeoverDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите сохранение контрольной точки для перехвата.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите слот игрока для перехвата управления.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedTitle" xml:space="preserve">
+    <value>Игрок не выбран</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileResumeDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите совместимый профиль игры.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedDesc" xml:space="preserve">
+    <value>Пожалуйста, выберите совместимый профиль игры для создания контрольной точки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedTitle" xml:space="preserve">
+    <value>Профиль не выбран</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceled" xml:space="preserve">
+    <value>Отменено: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceledDesc" xml:space="preserve">
+    <value>Операция {0} была отменена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationError" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationFailed" xml:space="preserve">
+    <value>Сбой: {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningDesc" xml:space="preserve">
+    <value>Не удалось загрузить профили для восстановления контрольных точек.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningTitle" xml:space="preserve">
+    <value>Предупреждение о профилях</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorDesc" xml:space="preserve">
+    <value>Не удалось загрузить данные контрольных точек.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorTitle" xml:space="preserve">
+    <value>Ошибка восстановления</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedDesc" xml:space="preserve">
+    <value>Возобновлено воспроизведение с кадра {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedTitle" xml:space="preserve">
+    <value>Воспроизведение возобновлено</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CancelingCheckpoint" xml:space="preserve">
+    <value>Отмена создания контрольной точки...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CheckpointCreated" xml:space="preserve">
+    <value>Контрольная точка {0} создана.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingCheckpoint" xml:space="preserve">
+    <value>Создание контрольной точки на {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MatchTakeover" xml:space="preserve">
+    <value>Матч перехвачен за {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintCanceled" xml:space="preserve">
+    <value>Создание контрольной точки отменено.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintError" xml:space="preserve">
+    <value>Ошибка создания контрольной точки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintFailed" xml:space="preserve">
+    <value>Создание контрольной точки не удалось.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationCanceled" xml:space="preserve">
+    <value>Операция {0} отменена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationError" xml:space="preserve">
+    <value>Ошибка операции {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationFailed" xml:space="preserve">
+    <value>Сбой операции {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReplayResumed" xml:space="preserve">
+    <value>Воспроизведение реплея возобновлено.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ResumingReplay" xml:space="preserve">
+    <value>Возобновление реплея из {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
+    <value>Перехват матча за слот {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.CompatibleRequired" xml:space="preserve">
+    <value>Для просмотра этого реплея требуется совместимый игровой клиент.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
+    <value>Настройте или создайте профиль игры для просмотра этого реплея.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.DownloadRequired" xml:space="preserve">
+    <value>Загрузите и настройте необходимый игровой клиент для просмотра этого реплея.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
+    <value>Возобновите реплей из сохранения контрольной точки или перехватите живой матч за любого игрока.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithProfile" xml:space="preserve">
+    <value>Возобновите реплей из контрольной точки или перехватите живой матч за любого игрока, используя профиль «{0}».</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
+    <value>Восстановление контрольных точек и перехват управления требуют игрового клиента с поддержкой контрольных точек (например, MP-Recovery или современного движка сообщества).</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchCompatible" xml:space="preserve">
+    <value>Смотреть реплей с совместимым игровым клиентом.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
+    <value>Смотреть реплей с использованием профиля «{0}».</value>
+  </data>
+  <data name="Common.DeleteError" xml:space="preserve">
+    <value>Ошибка при удалении</value>
+  </data>
+  <data name="Common.DeleteFailed" xml:space="preserve">
+    <value>Ошибка удаления</value>
+  </data>
+  <data name="Common.Deleted" xml:space="preserve">
+    <value>Удалено</value>
+  </data>
 </root>

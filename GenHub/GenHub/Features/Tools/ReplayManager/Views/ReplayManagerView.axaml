@@ -177,7 +177,7 @@
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding CanPlay}"
-                            ToolTip.Tip="{Binding PlayButtonTooltip}">
+                            ToolTip.Tip="{Binding PlayButtonTooltip, Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}}">
                       <Button.ContextFlyout>
                         <MenuFlyout>
                           <MenuItem Header="{localization:Localize Tools.ReplayManager.Action.SelectProfile}"
@@ -199,10 +199,10 @@
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).OpenCheckpointDrawerCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding SupportsCheckpoints}"
-                            ToolTip.Tip="{Binding TakeoverButtonTooltip}">
+                            ToolTip.Tip="{Binding TakeoverButtonTooltip, Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="Recovery" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Recovery}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
@@ -446,7 +446,7 @@
           <!-- Header -->
           <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
             <StackPanel Grid.Column="0" Spacing="4">
-              <TextBlock Text="Replay Recovery &amp; Takeover"
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.Title}"
                          FontSize="18"
                          FontWeight="Bold"
                          Foreground="{DynamicResource TextPrimary}"/>
@@ -473,7 +473,7 @@
                   Padding="14,10">
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0"
-                         Text="Target Profile"
+                         Text="{localization:Localize Tools.ReplayManager.Checkpoint.TargetProfile}"
                          FontSize="12"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource TextSecondary}"
@@ -490,7 +490,7 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
               <TextBlock Grid.Row="1" Grid.Column="1"
-                         Text="Select a profile with checkpoint and takeover engine support."
+                         Text="{localization:Localize Tools.ReplayManager.Checkpoint.TargetProfileSubtitle}"
                          FontSize="11"
                          Foreground="{DynamicResource TextMuted}"
                          Margin="0,4,0,0"/>
@@ -505,11 +505,11 @@
                   CornerRadius="10"
                   Padding="14,12">
             <StackPanel Spacing="10">
-              <TextBlock Text="Create Checkpoint Save"
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.CreateSaveTitle}"
                          FontSize="13"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource TextPrimary}"/>
-              <TextBlock Text="GenHub will launch the game to fast-forward through the replay up to your chosen point and snapshot the state. Once the checkpoint is created, the game will automatically save and close itself."
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.CreateSaveSubtitle}"
                          FontSize="11"
                          Foreground="{DynamicResource TextSecondary}"
                          TextWrapping="Wrap"/>
@@ -518,7 +518,7 @@
               <Grid RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
                   <TextBlock Grid.Column="0"
-                             Text="Target Point"
+                             Text="{localization:Localize Tools.ReplayManager.Checkpoint.TargetPoint}"
                              FontSize="12"
                              FontWeight="Medium"
                              Foreground="{DynamicResource TextSecondary}"
@@ -542,7 +542,7 @@
 
                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
                   <TextBlock Grid.Column="0"
-                             Text="1s"
+                             Text="{localization:Localize Tools.ReplayManager.Checkpoint.MinTime}"
                              FontSize="10"
                              Foreground="{DynamicResource TextMuted}"/>
                   <TextBlock Grid.Column="2"
@@ -561,7 +561,7 @@
                         Padding="14,6">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="14" Height="14" VerticalAlignment="Center"/>
-                    <TextBlock Text="Create Checkpoint" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.CreateButton}" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
                   </StackPanel>
                 </Button>
                 <Button Grid.Column="2"
@@ -571,7 +571,7 @@
                         Padding="14,6">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <PathIcon Data="{StaticResource ToolIcon.Close}" Width="14" Height="14" VerticalAlignment="Center"/>
-                    <TextBlock Text="Cancel" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Text="{localization:Localize Common.Button.Cancel}" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
                   </StackPanel>
                 </Button>
               </Grid>
@@ -588,12 +588,12 @@
             <Grid RowDefinitions="Auto,*,Auto">
               <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
                 <TextBlock Grid.Column="0"
-                           Text="Existing Checkpoints"
+                           Text="{localization:Localize Tools.ReplayManager.Checkpoint.ExistingTitle}"
                            FontSize="13"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimary}"/>
                 <TextBlock Grid.Column="1"
-                           Text="{Binding AvailableCheckpoints.Count, StringFormat={}{0} saves}"
+                           Text="{Binding AvailableCheckpoints.Count, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Tools.ReplayManager.Checkpoint.SavesCountFormat'}"
                            FontSize="11"
                            Foreground="{DynamicResource TextMuted}"/>
               </Grid>
@@ -613,7 +613,7 @@
                     <DataTemplate>
                       <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="4,2">
                         <TextBlock Grid.Column="0"
-                                   Text="{Binding TargetFrame, StringFormat={}Frame {0}}"
+                                   Text="{Binding TargetFrame, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Tools.ReplayManager.Checkpoint.FrameFormat'}"
                                    FontWeight="Bold"
                                    VerticalAlignment="Center"
                                    Margin="0,0,12,0"/>
@@ -633,7 +633,7 @@
                                 Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).DeleteCheckpointCommand}"
                                 CommandParameter="{Binding}"
                                 Padding="4"
-                                ToolTip.Tip="Delete checkpoint save">
+                                ToolTip.Tip="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave}">
                           <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="13" Height="13"/>
                         </Button>
                       </Grid>
@@ -645,7 +645,7 @@
               <!-- Takeover Slot Picker -->
               <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,4,0,0">
                 <TextBlock Grid.Column="0"
-                           Text="Takeover Player"
+                           Text="{localization:Localize Tools.ReplayManager.Checkpoint.TakeoverPlayer}"
                            FontSize="12"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondary}"
@@ -672,7 +672,7 @@
                     Command="{Binding CloseCheckpointDrawerCommand}"
                     HorizontalAlignment="Left"
                     Padding="14,8">
-              <TextBlock Text="Cancel"/>
+              <TextBlock Text="{localization:Localize Common.Button.Cancel}"/>
             </Button>
             <Button Grid.Column="1"
                     Classes="Secondary"
@@ -680,10 +680,10 @@
                     IsEnabled="{Binding CanResumeFromCheckpoint}"
                     Padding="14,8"
                     Margin="0,0,8,0"
-                    ToolTip.Tip="Resume deterministic replay playback from the selected checkpoint">
+                    ToolTip.Tip="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.Resume}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource ToolIcon.Play}" Width="14" Height="14" VerticalAlignment="Center"/>
-                <TextBlock Text="Resume Replay" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.Button.Resume}" VerticalAlignment="Center" FontWeight="SemiBold"/>
               </StackPanel>
             </Button>
             <Button Grid.Column="2"
@@ -691,10 +691,10 @@
                     Command="{Binding TakeoverMatchFromCheckpointCommand}"
                     IsEnabled="{Binding CanTakeoverFromCheckpoint}"
                     Padding="14,8"
-                    ToolTip.Tip="Take over live match control from this checkpoint as the chosen player">
+                    ToolTip.Tip="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.Takeover}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource ToolIcon.Gamepad}" Width="14" Height="14" VerticalAlignment="Center"/>
-                <TextBlock Text="Takeover Match" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.Button.Takeover}" VerticalAlignment="Center" FontWeight="SemiBold"/>
               </StackPanel>
             </Button>
           </Grid>

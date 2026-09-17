@@ -6704,4 +6704,217 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
     <value>المحتوى المتاح</value>
   </data>
+  <data name="Tools.ReplayManager.Action.Recovery" xml:space="preserve">
+    <value>استرداد</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Resume" xml:space="preserve">
+    <value>استئناف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Takeover" xml:space="preserve">
+    <value>تولي المباراة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateButton" xml:space="preserve">
+    <value>إنشاء نقطة فحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveSubtitle" xml:space="preserve">
+    <value>سيقوم GenHub بتشغيل اللعبة للتقديم السريع عبر الإعادة حتى النقطة المحددة وحفظ الحالة. بمجرد إنشاء نقطة الفحص، ستقوم اللعبة بالحفظ والإغلاق تلقائيًا.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveTitle" xml:space="preserve">
+    <value>إنشاء نقطة فحص محفوظة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.ExistingTitle" xml:space="preserve">
+    <value>نقاط الفحص الموجودة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.FrameFormat" xml:space="preserve">
+    <value>إطار {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.MinTime" xml:space="preserve">
+    <value>1 ث</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SavesCountFormat" xml:space="preserve">
+    <value>{0} حفظ</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TakeoverPlayer" xml:space="preserve">
+    <value>اللاعب المراد تولي التحكم به</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetPoint" xml:space="preserve">
+    <value>النقطة المستهدفة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfile" xml:space="preserve">
+    <value>الملف الشخصي المستهدف</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfileSubtitle" xml:space="preserve">
+    <value>حدد ملفًا شخصيًا يدعم محرك نقاط الفحص وتولي التحكم.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Title" xml:space="preserve">
+    <value>استرداد الإعادة وتولي التحكم</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave" xml:space="preserve">
+    <value>حذف نقطة الفحص المحفوظة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Resume" xml:space="preserve">
+    <value>استئناف تشغيل الإعادة بدقة من نقطة الفحص المحددة</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Takeover" xml:space="preserve">
+    <value>تولي التحكم المباشر بالمباراة من نقطة الفحص هذه كاللاعب المحدد</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointMessage" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف نقطة الفحص '{0}'؟</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointTitle" xml:space="preserve">
+    <value>حذف نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedDesc" xml:space="preserve">
+    <value>تم إنشاء نقطة الفحص {0} عند {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedTitle" xml:space="preserve">
+    <value>تم إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointDeletedDesc" xml:space="preserve">
+    <value>تم حذف نقطة الفحص {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverDesc" xml:space="preserve">
+    <value>بدأ تولي التحكم المباشر بالمباراة كـ {0}!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverTitle" xml:space="preserve">
+    <value>تولي المباراة</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledDesc" xml:space="preserve">
+    <value>تم إلغاء إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledTitle" xml:space="preserve">
+    <value>تم إلغاء إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintErrorTitle" xml:space="preserve">
+    <value>خطأ في إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintFailedTitle" xml:space="preserve">
+    <value>فشل إنشاء نقطة الفحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointResumeDesc" xml:space="preserve">
+    <value>يرجى تحديد نقطة فحص محفوظة للاستئناف.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointSelectedTitle" xml:space="preserve">
+    <value>لم يتم تحديد نقطة فحص</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointTakeoverDesc" xml:space="preserve">
+    <value>يرجى تحديد نقطة فحص محفوظة لتولي التحكم.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedDesc" xml:space="preserve">
+    <value>يرجى تحديد خانة لاعب لتولي التحكم بها.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedTitle" xml:space="preserve">
+    <value>لم يتم تحديد لاعب</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileResumeDesc" xml:space="preserve">
+    <value>يرجى تحديد ملف شخصي متوافق للعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedDesc" xml:space="preserve">
+    <value>يرجى تحديد ملف شخصي متوافق للعبة لإنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedTitle" xml:space="preserve">
+    <value>لم يتم تحديد ملف شخصي</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceled" xml:space="preserve">
+    <value>تم إلغاء {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceledDesc" xml:space="preserve">
+    <value>تم إلغاء {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationError" xml:space="preserve">
+    <value>خطأ في {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationFailed" xml:space="preserve">
+    <value>فشل {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningDesc" xml:space="preserve">
+    <value>تعذر تحميل الملفات الشخصية لاسترداد نقاط الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningTitle" xml:space="preserve">
+    <value>تحذير الملفات الشخصية</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorDesc" xml:space="preserve">
+    <value>فشل تحميل بيانات نقاط الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorTitle" xml:space="preserve">
+    <value>خطأ في الاسترداد</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedDesc" xml:space="preserve">
+    <value>تم استئناف التشغيل من الإطار {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedTitle" xml:space="preserve">
+    <value>تم استئناف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CancelingCheckpoint" xml:space="preserve">
+    <value>جارٍ إلغاء إنشاء نقطة الفحص...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CheckpointCreated" xml:space="preserve">
+    <value>تم إنشاء نقطة الفحص {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingCheckpoint" xml:space="preserve">
+    <value>جارٍ إنشاء نقطة الفحص عند {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MatchTakeover" xml:space="preserve">
+    <value>تم تولي التحكم بالمباراة كـ {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintCanceled" xml:space="preserve">
+    <value>تم إلغاء إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintError" xml:space="preserve">
+    <value>خطأ في إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintFailed" xml:space="preserve">
+    <value>فشل إنشاء نقطة الفحص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationCanceled" xml:space="preserve">
+    <value>تم إلغاء {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationError" xml:space="preserve">
+    <value>خطأ في {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationFailed" xml:space="preserve">
+    <value>فشل {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReplayResumed" xml:space="preserve">
+    <value>تم استئناف تشغيل الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ResumingReplay" xml:space="preserve">
+    <value>جارٍ استئناف الإعادة من {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
+    <value>جارٍ تولي التحكم بالمباراة في الخانة {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.CompatibleRequired" xml:space="preserve">
+    <value>يلزم وجود عميل لعبة متوافق لمشاهدة هذه الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
+    <value>قم بتكوين أو إنشاء ملف تعريف للعبة لمشاهدة هذه الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.DownloadRequired" xml:space="preserve">
+    <value>قم بتنزيل وإعداد عميل اللعبة المطلوب لمشاهدة هذه الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
+    <value>استئناف الإعادة من نقطة فحص محفوظة، أو تولي اللعب المباشر بالمباراة كأي لاعب.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithProfile" xml:space="preserve">
+    <value>استئناف الإعادة من نقطة فحص محفوظة، أو تولي اللعب المباشر بالمباراة كأي لاعب باستخدام الملف الشخصي '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
+    <value>يتطلب استرداد نقاط الفحص وتولي التحكم بالمباراة عميل لعبة يدعم قدرات نقاط الفحص (مثل MP-Recovery أو محرك مجتمعي حديث).</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchCompatible" xml:space="preserve">
+    <value>شاهد الإعادة باستخدام عميل لعبة متوافق.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
+    <value>شاهد الإعادة باستخدام الملف الشخصي '{0}'.</value>
+  </data>
+  <data name="Common.DeleteError" xml:space="preserve">
+    <value>خطأ في الحذف</value>
+  </data>
+  <data name="Common.DeleteFailed" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="Common.Deleted" xml:space="preserve">
+    <value>تم الحذف</value>
+  </data>
 </root>

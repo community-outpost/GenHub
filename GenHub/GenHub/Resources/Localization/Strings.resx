@@ -6798,4 +6798,217 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
     <value>Available Content</value>
   </data>
+  <data name="Tools.ReplayManager.Action.Recovery" xml:space="preserve">
+    <value>Recovery</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Resume" xml:space="preserve">
+    <value>Resume Replay</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Button.Takeover" xml:space="preserve">
+    <value>Takeover Match</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateButton" xml:space="preserve">
+    <value>Create Checkpoint</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveSubtitle" xml:space="preserve">
+    <value>GenHub will launch the game to fast-forward through the replay up to your chosen point and snapshot the state. Once the checkpoint is created, the game will automatically save and close itself.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.CreateSaveTitle" xml:space="preserve">
+    <value>Create Checkpoint Save</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.ExistingTitle" xml:space="preserve">
+    <value>Existing Checkpoints</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.FrameFormat" xml:space="preserve">
+    <value>Frame {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.MinTime" xml:space="preserve">
+    <value>1s</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SavesCountFormat" xml:space="preserve">
+    <value>{0} saves</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TakeoverPlayer" xml:space="preserve">
+    <value>Takeover Player</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetPoint" xml:space="preserve">
+    <value>Target Point</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfile" xml:space="preserve">
+    <value>Target Profile</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.TargetProfileSubtitle" xml:space="preserve">
+    <value>Select a profile with checkpoint and takeover engine support.</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Title" xml:space="preserve">
+    <value>Replay Recovery &amp; Takeover</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave" xml:space="preserve">
+    <value>Delete checkpoint save</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Resume" xml:space="preserve">
+    <value>Resume deterministic replay playback from the selected checkpoint</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.Tooltip.Takeover" xml:space="preserve">
+    <value>Take over live match control from this checkpoint as the chosen player</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointMessage" xml:space="preserve">
+    <value>Are you sure you want to delete checkpoint '{0}'?</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.DeleteCheckpointTitle" xml:space="preserve">
+    <value>Delete Checkpoint</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedDesc" xml:space="preserve">
+    <value>Created checkpoint {0} at {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointCreatedTitle" xml:space="preserve">
+    <value>Checkpoint Created</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.CheckpointDeletedDesc" xml:space="preserve">
+    <value>Checkpoint {0} deleted.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverDesc" xml:space="preserve">
+    <value>Live match takeover initiated as {0}!</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MatchTakeoverTitle" xml:space="preserve">
+    <value>Match Takeover</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledDesc" xml:space="preserve">
+    <value>Checkpoint creation was canceled.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintCanceledTitle" xml:space="preserve">
+    <value>Checkpoint Creation Canceled</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintErrorTitle" xml:space="preserve">
+    <value>Checkpoint Creation Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.MintFailedTitle" xml:space="preserve">
+    <value>Checkpoint Creation Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointResumeDesc" xml:space="preserve">
+    <value>Please select a checkpoint save to resume.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointSelectedTitle" xml:space="preserve">
+    <value>No Checkpoint Selected</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoCheckpointTakeoverDesc" xml:space="preserve">
+    <value>Please select a checkpoint save to take over.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedDesc" xml:space="preserve">
+    <value>Please select a player slot to take over.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoPlayerSelectedTitle" xml:space="preserve">
+    <value>No Player Selected</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileResumeDesc" xml:space="preserve">
+    <value>Please select a compatible game profile.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedDesc" xml:space="preserve">
+    <value>Please select a compatible game profile to create the checkpoint.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.NoProfileSelectedTitle" xml:space="preserve">
+    <value>No Profile Selected</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceled" xml:space="preserve">
+    <value>{0} Canceled</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationCanceledDesc" xml:space="preserve">
+    <value>{0} was canceled.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationError" xml:space="preserve">
+    <value>{0} Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.OperationFailed" xml:space="preserve">
+    <value>{0} Failed</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningDesc" xml:space="preserve">
+    <value>Could not load profiles for checkpoint recovery.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ProfilesWarningTitle" xml:space="preserve">
+    <value>Profiles Warning</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorDesc" xml:space="preserve">
+    <value>Failed to load checkpoint data.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RecoveryErrorTitle" xml:space="preserve">
+    <value>Recovery Error</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedDesc" xml:space="preserve">
+    <value>Resumed playback from frame {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ReplayResumedTitle" xml:space="preserve">
+    <value>Replay Resumed</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CancelingCheckpoint" xml:space="preserve">
+    <value>Canceling checkpoint creation...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CheckpointCreated" xml:space="preserve">
+    <value>Checkpoint {0} created.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.CreatingCheckpoint" xml:space="preserve">
+    <value>Creating checkpoint at {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MatchTakeover" xml:space="preserve">
+    <value>Took over match as {0}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintCanceled" xml:space="preserve">
+    <value>Checkpoint creation canceled.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintError" xml:space="preserve">
+    <value>Checkpoint creation error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.MintFailed" xml:space="preserve">
+    <value>Checkpoint creation failed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationCanceled" xml:space="preserve">
+    <value>{0} canceled.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationError" xml:space="preserve">
+    <value>{0} error.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.OperationFailed" xml:space="preserve">
+    <value>{0} failed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ReplayResumed" xml:space="preserve">
+    <value>Replay playback resumed.</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ResumingReplay" xml:space="preserve">
+    <value>Resuming replay from {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
+    <value>Taking over match as slot {0}...</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.CompatibleRequired" xml:space="preserve">
+    <value>A compatible game client is required to watch this replay.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
+    <value>Configure or create a game profile to watch this replay.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.DownloadRequired" xml:space="preserve">
+    <value>Download and set up the required game client to watch this replay.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
+    <value>Resume replay from a checkpoint save, or take over and play the match live as any player.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithProfile" xml:space="preserve">
+    <value>Resume replay from a checkpoint save, or take over and play the match live as any player using profile '{0}'.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
+    <value>Checkpoint recovery and match takeover require a game client with checkpoint capabilities (e.g. MP-Recovery or modern community engine).</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchCompatible" xml:space="preserve">
+    <value>Watch replay with a compatible game client.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
+    <value>Watch replay using profile '{0}'.</value>
+  </data>
+  <data name="Common.DeleteError" xml:space="preserve">
+    <value>Delete Error</value>
+  </data>
+  <data name="Common.DeleteFailed" xml:space="preserve">
+    <value>Delete Failed</value>
+  </data>
+  <data name="Common.Deleted" xml:space="preserve">
+    <value>Deleted</value>
+  </data>
 </root>

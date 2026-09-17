@@ -1698,7 +1698,9 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load checkpoint recovery data for replay {FileName}", replay.FileName);
-            notificationService.ShowError("Recovery Error", "Failed to load checkpoint data.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.RecoveryErrorTitle") ?? "Recovery Error";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.RecoveryErrorDesc") ?? "Failed to load checkpoint data.";
+            notificationService.ShowError(title, desc);
         }
     }
 
@@ -1714,7 +1716,9 @@ public partial class ReplayManagerViewModel(
         if (manager == null)
         {
             logger.LogWarning("Failed to resolve profile manager for replay compatibility.");
-            notificationService.ShowWarning("Profiles Warning", "Could not load profiles for checkpoint recovery.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningTitle") ?? "Profiles Warning";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningDesc") ?? "Could not load profiles for checkpoint recovery.";
+            notificationService.ShowWarning(title, desc);
             return;
         }
 
@@ -1723,7 +1727,9 @@ public partial class ReplayManagerViewModel(
         {
             var error = allProfilesResult.FirstError ?? "Failed to load profiles.";
             logger.LogWarning("Failed to load profiles for replay compatibility: {Error}", error);
-            notificationService.ShowWarning("Profiles Warning", "Could not load profiles for checkpoint recovery.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningTitle") ?? "Profiles Warning";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ProfilesWarningDesc") ?? "Could not load profiles for checkpoint recovery.";
+            notificationService.ShowWarning(title, desc);
             return;
         }
 
@@ -1796,7 +1802,7 @@ public partial class ReplayManagerViewModel(
         if (IsMintingCheckpoint)
         {
             checkpointService.CancelActiveMint();
-            StatusMessage = "Canceling checkpoint creation...";
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.CancelingCheckpoint") ?? "Canceling checkpoint creation...";
         }
     }
 
@@ -1815,12 +1821,16 @@ public partial class ReplayManagerViewModel(
 
         if (SelectedCompatibleProfile == null)
         {
-            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile to create the checkpoint.");
+            var noProfileTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoProfileSelectedTitle") ?? "No Profile Selected";
+            var noProfileDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoProfileSelectedDesc") ?? "Please select a compatible game profile to create the checkpoint.";
+            notificationService.ShowWarning(noProfileTitle, noProfileDesc);
             return;
         }
 
         IsMintingCheckpoint = true;
-        StatusMessage = $"Creating checkpoint at {CheckpointTimeDisplay}...";
+        StatusMessage = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Status.CreatingCheckpoint", CheckpointTimeDisplay)
+            : $"Creating checkpoint at {CheckpointTimeDisplay}...";
 
         try
         {
@@ -1833,36 +1843,46 @@ public partial class ReplayManagerViewModel(
             {
                 AvailableCheckpoints.Add(result.Data);
                 SelectedCheckpoint = result.Data;
-                notificationService.ShowSuccess(
-                    "Checkpoint Created",
-                    $"Created checkpoint {result.Data.FileName} at {CheckpointTimeDisplay}.");
-                StatusMessage = $"Checkpoint {result.Data.FileName} created.";
+                var successTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.CheckpointCreatedTitle") ?? "Checkpoint Created";
+                var successDesc = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.CheckpointCreatedDesc", result.Data.FileName, CheckpointTimeDisplay)
+                    : $"Created checkpoint {result.Data.FileName} at {CheckpointTimeDisplay}.";
+                notificationService.ShowSuccess(successTitle, successDesc);
+                StatusMessage = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Status.CheckpointCreated", result.Data.FileName)
+                    : $"Checkpoint {result.Data.FileName} created.";
             }
             else
             {
                 var error = result.FirstError ?? "Failed to create checkpoint.";
                 if (string.Equals(error, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal))
                 {
-                    notificationService.ShowInfo("Checkpoint Creation Canceled", "Checkpoint creation was canceled.");
-                    StatusMessage = "Checkpoint creation canceled.";
+                    var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
+                    var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
+                    notificationService.ShowInfo(cancelTitle, cancelDesc);
+                    StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
                 }
                 else
                 {
-                    notificationService.ShowError("Checkpoint Creation Failed", error);
-                    StatusMessage = "Checkpoint creation failed.";
+                    var failTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintFailedTitle") ?? "Checkpoint Creation Failed";
+                    notificationService.ShowError(failTitle, error);
+                    StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintFailed") ?? "Checkpoint creation failed.";
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            notificationService.ShowInfo("Checkpoint Creation Canceled", "Checkpoint creation was canceled.");
-            StatusMessage = "Checkpoint creation canceled.";
+            var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
+            var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
+            notificationService.ShowInfo(cancelTitle, cancelDesc);
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create checkpoint at frame {Frame}", TargetCheckpointFrame);
-            notificationService.ShowError("Checkpoint Creation Error", ex.Message);
-            StatusMessage = "Checkpoint creation error.";
+            var errTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintErrorTitle") ?? "Checkpoint Creation Error";
+            notificationService.ShowError(errTitle, ex.Message);
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintError") ?? "Checkpoint creation error.";
         }
         finally
         {
@@ -1931,19 +1951,27 @@ public partial class ReplayManagerViewModel(
     {
         if (ActiveCheckpointReplay == null || SelectedCheckpoint == null)
         {
-            notificationService.ShowWarning("No Checkpoint Selected", "Please select a checkpoint save to resume.");
+            var noCpTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoCheckpointSelectedTitle") ?? "No Checkpoint Selected";
+            var noCpDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoCheckpointResumeDesc") ?? "Please select a checkpoint save to resume.";
+            notificationService.ShowWarning(noCpTitle, noCpDesc);
             return;
         }
 
         if (SelectedCompatibleProfile == null)
         {
-            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile.");
+            var noProfTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoProfileSelectedTitle") ?? "No Profile Selected";
+            var noProfDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoProfileResumeDesc") ?? "Please select a compatible game profile.";
+            notificationService.ShowWarning(noProfTitle, noProfDesc);
             return;
         }
 
+        var resumeStartStatus = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Status.ResumingReplay", SelectedCheckpoint.FileName)
+            : $"Resuming replay from {SelectedCheckpoint.FileName}...";
+
         await ExecuteCheckpointLaunchOperationAsync(
             "Resume",
-            $"Resuming replay from {SelectedCheckpoint.FileName}...",
+            resumeStartStatus,
             () => checkpointService.ResumeReplayAsync(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
@@ -1951,8 +1979,12 @@ public partial class ReplayManagerViewModel(
                 CancellationToken.None),
             () =>
             {
-                notificationService.ShowSuccess("Replay Resumed", $"Resumed playback from frame {SelectedCheckpoint.TargetFrame}.");
-                StatusMessage = "Replay playback resumed.";
+                var resumedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ReplayResumedTitle") ?? "Replay Resumed";
+                var resumedDesc = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.ReplayResumedDesc", SelectedCheckpoint.TargetFrame)
+                    : $"Resumed playback from frame {SelectedCheckpoint.TargetFrame}.";
+                notificationService.ShowSuccess(resumedTitle, resumedDesc);
+                StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.ReplayResumed") ?? "Replay playback resumed.";
             });
     }
 
@@ -1966,28 +1998,38 @@ public partial class ReplayManagerViewModel(
     {
         if (ActiveCheckpointReplay == null || SelectedCheckpoint == null)
         {
-            notificationService.ShowWarning("No Checkpoint Selected", "Please select a checkpoint save to take over.");
+            var noCpTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoCheckpointSelectedTitle") ?? "No Checkpoint Selected";
+            var noCpDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoCheckpointTakeoverDesc") ?? "Please select a checkpoint save to take over.";
+            notificationService.ShowWarning(noCpTitle, noCpDesc);
             return;
         }
 
         if (SelectedSlot == null)
         {
-            notificationService.ShowWarning("No Player Selected", "Please select a player slot to take over.");
+            var noSlotTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoPlayerSelectedTitle") ?? "No Player Selected";
+            var noSlotDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoPlayerSelectedDesc") ?? "Please select a player slot to take over.";
+            notificationService.ShowWarning(noSlotTitle, noSlotDesc);
             return;
         }
 
         if (SelectedCompatibleProfile == null)
         {
-            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile.");
+            var noProfTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoProfileSelectedTitle") ?? "No Profile Selected";
+            var noProfDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.NoProfileResumeDesc") ?? "Please select a compatible game profile.";
+            notificationService.ShowWarning(noProfTitle, noProfDesc);
             return;
         }
 
         var slotIndex = SelectedSlot.SlotIndex;
         var playerName = SelectedSlot.PlayerName ?? $"Slot {slotIndex}";
 
+        var takeoverStartStatus = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Status.TakingOverMatch", slotIndex)
+            : $"Taking over match as slot {slotIndex}...";
+
         await ExecuteCheckpointLaunchOperationAsync(
             "Takeover",
-            $"Taking over match as slot {slotIndex}...",
+            takeoverStartStatus,
             () => checkpointService.TakeoverMatchAsync(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
@@ -1996,8 +2038,14 @@ public partial class ReplayManagerViewModel(
                 CancellationToken.None),
             () =>
             {
-                notificationService.ShowSuccess("Match Takeover", $"Live match takeover initiated as {playerName}!");
-                StatusMessage = $"Took over match as {playerName}.";
+                var takeoverTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MatchTakeoverTitle") ?? "Match Takeover";
+                var takeoverDesc = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.MatchTakeoverDesc", playerName)
+                    : $"Live match takeover initiated as {playerName}!";
+                notificationService.ShowSuccess(takeoverTitle, takeoverDesc);
+                StatusMessage = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Status.MatchTakeover", playerName)
+                    : $"Took over match as {playerName}.";
             });
     }
 
@@ -2021,20 +2069,41 @@ public partial class ReplayManagerViewModel(
             else
             {
                 var error = result.FirstError ?? $"Failed to {operationName.ToLowerInvariant()}.";
-                notificationService.ShowError($"{operationName} Failed", error);
-                StatusMessage = $"{operationName} failed.";
+                var failedTitle = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationFailed", operationName)
+                    : $"{operationName} Failed";
+                var failedStatus = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationFailed", operationName)
+                    : $"{operationName} failed.";
+                notificationService.ShowError(failedTitle, error);
+                StatusMessage = failedStatus;
             }
         }
         catch (OperationCanceledException)
         {
-            notificationService.ShowInfo($"{operationName} Canceled", $"{operationName} was canceled.");
-            StatusMessage = $"{operationName} canceled.";
+            var canceledTitle = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationCanceled", operationName)
+                : $"{operationName} Canceled";
+            var canceledDesc = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationCanceledDesc", operationName)
+                : $"{operationName} was canceled.";
+            var canceledStatus = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationCanceled", operationName)
+                : $"{operationName} canceled.";
+            notificationService.ShowInfo(canceledTitle, canceledDesc);
+            StatusMessage = canceledStatus;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to {OperationName} from checkpoint", operationName.ToLowerInvariant());
-            notificationService.ShowError($"{operationName} Error", ex.Message);
-            StatusMessage = $"{operationName} error.";
+            var errorTitle = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationError", operationName)
+                : $"{operationName} Error";
+            var errorStatus = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationError", operationName)
+                : $"{operationName} error.";
+            notificationService.ShowError(errorTitle, ex.Message);
+            StatusMessage = errorStatus;
         }
         finally
         {
@@ -2058,11 +2127,18 @@ public partial class ReplayManagerViewModel(
 
         if (DialogService != null)
         {
+            var dialogTitle = LocalizationService?.GetString("Tools.ReplayManager.Dialog.DeleteCheckpointTitle") ?? "Delete Checkpoint";
+            var dialogMessage = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Dialog.DeleteCheckpointMessage", checkpoint.FileName)
+                : $"Are you sure you want to delete checkpoint '{checkpoint.FileName}'?";
+            var confirmText = LocalizationService?.GetString("Common.Button.Delete") ?? "Delete";
+            var cancelText = LocalizationService?.GetString("Common.Button.Cancel") ?? "Cancel";
+
             var confirmed = await DialogService.ShowConfirmationAsync(
-                "Delete Checkpoint",
-                $"Are you sure you want to delete checkpoint '{checkpoint.FileName}'?",
-                "Delete",
-                "Cancel");
+                dialogTitle,
+                dialogMessage,
+                confirmText,
+                cancelText);
 
             if (!confirmed)
             {
@@ -2081,17 +2157,24 @@ public partial class ReplayManagerViewModel(
                     SelectedCheckpoint = AvailableCheckpoints.LastOrDefault();
                 }
 
-                notificationService.ShowSuccess("Deleted", $"Checkpoint {checkpoint.FileName} deleted.");
+                var delTitle = LocalizationService?.GetString("Common.Deleted") ?? "Deleted";
+                var delDesc = LocalizationService != null
+                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.CheckpointDeletedDesc", checkpoint.FileName)
+                    : $"Checkpoint {checkpoint.FileName} deleted.";
+                notificationService.ShowSuccess(delTitle, delDesc);
             }
             else
             {
-                notificationService.ShowWarning("Delete Failed", result.FirstError ?? $"Failed to delete checkpoint {checkpoint.FileName}.");
+                var warnTitle = LocalizationService?.GetString("Common.DeleteFailed") ?? ReplayManagerConstants.DeleteFailedTitle;
+                var warnDesc = result.FirstError ?? $"Failed to delete checkpoint {checkpoint.FileName}.";
+                notificationService.ShowWarning(warnTitle, warnDesc);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete checkpoint {File}", checkpoint.FileName);
-            notificationService.ShowError("Delete Error", ex.Message);
+            var errTitle = LocalizationService?.GetString("Common.DeleteError") ?? "Delete Error";
+            notificationService.ShowError(errTitle, ex.Message);
         }
     }
 
