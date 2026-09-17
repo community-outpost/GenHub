@@ -6798,4 +6798,796 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
     <value>Available Content</value>
   </data>
+  <data name="Tools.ModBuilder.FileTree.TooltipExpandCollapse" xml:space="preserve">
+    <value>Expand or collapse directory</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Processed" xml:space="preserve">
+    <value>Processed</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Speed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Remaining" xml:space="preserve">
+    <value>Remaining</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.ProcessingPrefix" xml:space="preserve">
+    <value>Processing:</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Title" xml:space="preserve">
+    <value>Building Project</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.FilesPerSec" xml:space="preserve">
+    <value>Files/sec</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.CacheHits" xml:space="preserve">
+    <value>Cache Hits</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Elapsed" xml:space="preserve">
+    <value>Elapsed</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Eta" xml:space="preserve">
+    <value>ETA</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.TooltipCancel" xml:space="preserve">
+    <value>Cancel the active build process</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.ButtonCancel" xml:space="preserve">
+    <value>Cancel Build</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.Title" xml:space="preserve">
+    <value>Game Asset &amp; File Manager</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.Subtitle" xml:space="preserve">
+    <value>Browse game files and import textures, INIs, and models into your project</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipMinimize" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipMaximize" xml:space="preserve">
+    <value>Maximize / Restore</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.GameInstallationLabel" xml:space="preserve">
+    <value>Game Installation:</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.WatermarkSearchFiles" xml:space="preserve">
+    <value>Search files...</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipRefreshFiles" xml:space="preserve">
+    <value>Refresh file lists</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipImportBigGame" xml:space="preserve">
+    <value>Import .BIG archives directly into this project&apos;s GameFilesEdited folder so you can edit and rebuild them.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonImportBig" xml:space="preserve">
+    <value>Import .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.FilesUnit" xml:space="preserve">
+    <value>files</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ModifiedUnit" xml:space="preserve">
+    <value>modified</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.NewUnit" xml:space="preserve">
+    <value>new</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.GameInstallationFilesHeader" xml:space="preserve">
+    <value>Game Installation Files</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipAddSelected" xml:space="preserve">
+    <value>Add selected files to project</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonAddToProject" xml:space="preserve">
+    <value>Add to Project</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ProjectFilesHeader" xml:space="preserve">
+    <value>Project Files (GameFilesEdited)</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipExtractBigProject" xml:space="preserve">
+    <value>Extract .BIG archives directly into this project&apos;s GameFilesEdited folder so you can edit and rebuild them.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonImportBigProject" xml:space="preserve">
+    <value>Import .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipRemoveSelected" xml:space="preserve">
+    <value>Remove selected files from project</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonRemoveFromProject" xml:space="preserve">
+    <value>Remove from Project</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
+    <value>Bundle Pack Editor</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TotalFiles" xml:space="preserve">
+    <value>Total Files</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.WatermarkSearchFiles" xml:space="preserve">
+    <value>Search files...</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipAddFiles" xml:space="preserve">
+    <value>Add files to bundle (Ctrl+A)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonAddFiles" xml:space="preserve">
+    <value>Add Files</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipRemoveFiles" xml:space="preserve">
+    <value>Remove selected files (Delete)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonRemove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipMoveUp" xml:space="preserve">
+    <value>Move up (Ctrl+Up)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipMoveDown" xml:space="preserve">
+    <value>Move down (Ctrl+Down)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipConvertAll" xml:space="preserve">
+    <value>Convert all TGA files to DDS</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonConvertAll" xml:space="preserve">
+    <value>Convert All</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TagCached" xml:space="preserve">
+    <value>Cached</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TagModified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.FilePreviewHeader" xml:space="preserve">
+    <value>File Preview</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileName" xml:space="preserve">
+    <value>File Name</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelSourcePath" xml:space="preserve">
+    <value>Source Path</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileType" xml:space="preserve">
+    <value>File Type</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileSize" xml:space="preserve">
+    <value>File Size</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelLastModified" xml:space="preserve">
+    <value>Last Modified</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ImagePreviewComingSoon" xml:space="preserve">
+    <value>Image preview coming soon</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.NoticeChangesSavedOnProjectSave" xml:space="preserve">
+    <value>* Changes will be applied when you save the project</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipSave" xml:space="preserve">
+    <value>Save bundle pack changes</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipCancel" xml:space="preserve">
+    <value>Close without saving changes</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.BrandTitle" xml:space="preserve">
+    <value>ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.BrandSubtitle" xml:space="preserve">
+    <value>C&amp;C Generals &amp; Zero Hour Content Creation Tool</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipNewProject" xml:space="preserve">
+    <value>Create a brand new mod project (Ctrl+N)</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonNewProject" xml:space="preserve">
+    <value>New Project</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipOpenProject" xml:space="preserve">
+    <value>Open an existing project from disk (Ctrl+O)</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonOpenProject" xml:space="preserve">
+    <value>Open Project</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectTitle" xml:space="preserve">
+    <value>New Project</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectSubtitle" xml:space="preserve">
+    <value>Start from scratch</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectDesc" xml:space="preserve">
+    <value>Set up a structured mod workspace with standard INI, Art, and Audio directories ready for authoring.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectAction" xml:space="preserve">
+    <value>Create Project →</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectTitle" xml:space="preserve">
+    <value>Open Project</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectSubtitle" xml:space="preserve">
+    <value>Browse your disk</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectDesc" xml:space="preserve">
+    <value>Open an existing .mbproj project file or import a workspace configured with ModBuilder tools.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectAction" xml:space="preserve">
+    <value>Browse Files →</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsTitle" xml:space="preserve">
+    <value>Sample Projects</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsSubtitle" xml:space="preserve">
+    <value>Learn by example</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsDesc" xml:space="preserve">
+    <value>Explore community patch and hotkey sample projects with preconfigured bundle items and release archives.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsAction" xml:space="preserve">
+    <value>Open Samples →</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle" xml:space="preserve">
+    <value>Featured Community Templates</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesSubtitle" xml:space="preserve">
+    <value>Popular community addons preconfigured with bundle items &amp; packs</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonDownloadOpenProject" xml:space="preserve">
+    <value>Download &amp; Open Project</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.RecentProjectsTitle" xml:space="preserve">
+    <value>Recent Projects</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.NoProjectsFound" xml:space="preserve">
+    <value>No projects found</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.NoProjectsFoundDesc" xml:space="preserve">
+    <value>Create a new project or explore the featured templates to get started</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipExploreTemplates" xml:space="preserve">
+    <value>Explore the built-in sample projects</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonExploreTemplates" xml:space="preserve">
+    <value>Explore Templates</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TipWorkflowTitle" xml:space="preserve">
+    <value>Quick Tip: Build Workflow</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TipWorkflowDesc" xml:space="preserve">
+    <value>Organize source files inside &apos;GameFilesEdited&apos;, configure output archives in &apos;config/ModBundlePacks.json&apos;, and click &apos;Execute Build&apos; to create distribution-ready .big and .zip archives automatically.</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.Title" xml:space="preserve">
+    <value>ModBuilder Settings</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.Subtitle" xml:space="preserve">
+    <value>Configure build performance, cache, and UI preferences</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipResetDefaults" xml:space="preserve">
+    <value>Reset all settings to defaults</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonResetDefaults" xml:space="preserve">
+    <value>Reset to Defaults</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CacheManagementHeader" xml:space="preserve">
+    <value>Cache Management</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCacheSize" xml:space="preserve">
+    <value>Cache Size:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCachedFiles" xml:space="preserve">
+    <value>Cached Files:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelStatus" xml:space="preserve">
+    <value>Status:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipClearCache" xml:space="preserve">
+    <value>Clear all cached build files</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonClearCache" xml:space="preserve">
+    <value>Clear Cache</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipRebuildIndex" xml:space="preserve">
+    <value>Rebuild cache index</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonRebuildIndex" xml:space="preserve">
+    <value>Rebuild Index</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeClearCache" xml:space="preserve">
+    <value>Clearing cache will remove all cached build artifacts. Files will be rebuilt on next build.</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.PerformanceHeader" xml:space="preserve">
+    <value>Performance Settings</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCompressionLevel" xml:space="preserve">
+    <value>Default Compression Level</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipCompressionLevel" xml:space="preserve">
+    <value>Default compression level for archives</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeCompression" xml:space="preserve">
+    <value>Higher compression = smaller files but slower builds</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelThreadCount" xml:space="preserve">
+    <value>Thread Count</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipThreadCount" xml:space="preserve">
+    <value>Number of parallel threads for builds</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeThreadCount" xml:space="preserve">
+    <value>More threads = faster builds but higher CPU usage</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelIoBufferSize" xml:space="preserve">
+    <value>I/O Buffer Size (KB)</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipIoBufferSize" xml:space="preserve">
+    <value>Buffer size for file I/O operations</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeIoBufferSize" xml:space="preserve">
+    <value>Larger buffers = better performance for large files</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckMultiProcessing" xml:space="preserve">
+    <value>Enable Multi-Processing by Default</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipMultiProcessing" xml:space="preserve">
+    <value>Use parallel processing for new projects</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckVerboseLogging" xml:space="preserve">
+    <value>Enable Verbose Logging by Default</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipVerboseLogging" xml:space="preserve">
+    <value>Show detailed build information for new projects</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.UiPreferencesHeader" xml:space="preserve">
+    <value>UI Preferences</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelFontSize" xml:space="preserve">
+    <value>Build Output Font Size</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipFontSize" xml:space="preserve">
+    <value>Font size for build output console</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckEnableAnimations" xml:space="preserve">
+    <value>Enable Animations</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipEnableAnimations" xml:space="preserve">
+    <value>Enable smooth transitions and animations</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckAutoScroll" xml:space="preserve">
+    <value>Auto-Scroll Build Output</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipAutoScroll" xml:space="preserve">
+    <value>Automatically scroll to latest build output</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckSyntaxHighlighting" xml:space="preserve">
+    <value>Enable Syntax Highlighting</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipSyntaxHighlighting" xml:space="preserve">
+    <value>Color-code build output by log level</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Title" xml:space="preserve">
+    <value>Configuration Editor</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Subtitle" xml:space="preserve">
+    <value>Manage bundle items and packs for your mod</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TotalItems" xml:space="preserve">
+    <value>Total Items</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PacksUnit" xml:space="preserve">
+    <value>packs</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabBundleItems" xml:space="preserve">
+    <value>Bundle Items</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddItem" xml:space="preserve">
+    <value>Add a new bundle item</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddItem" xml:space="preserve">
+    <value>Add Item</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveItem" xml:space="preserve">
+    <value>Remove selected bundle item</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemoveItem" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagBig" xml:space="preserve">
+    <value>.BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundleItemSettingsHeader" xml:space="preserve">
+    <value>Bundle Item Settings</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelBundleName" xml:space="preserve">
+    <value>Bundle Name</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkBundleName" xml:space="preserve">
+    <value>e.g. MyINI, MyTextures...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelSourceFiles" xml:space="preserve">
+    <value>Source Files / Glob Pattern</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescSourceFiles" xml:space="preserve">
+    <value>Specifies which files inside GameFilesEdited are packed into this bundle</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkSourceFiles" xml:space="preserve">
+    <value>e.g. GameFilesEdited/**/*.* or GameFilesEdited/Data/INI/**/*.ini</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.QuickPresetsLabel" xml:space="preserve">
+    <value>Quick Presets:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetAllFiles" xml:space="preserve">
+    <value>All Files (**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetAllFiles" xml:space="preserve">
+    <value>Match all files in GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetIniFiles" xml:space="preserve">
+    <value>INI Files</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetIniFiles" xml:space="preserve">
+    <value>Match all .ini files in GameFilesEdited/Data/INI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetTextures" xml:space="preserve">
+    <value>Textures (.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetTextures" xml:space="preserve">
+    <value>Match all .tga textures in GameFilesEdited/Art/Textures</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetAudio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetAudio" xml:space="preserve">
+    <value>Match all audio files in GameFilesEdited/Data/Audio</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckPackAsBig" xml:space="preserve">
+    <value>Pack as .BIG Archive</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPackAsBig" xml:space="preserve">
+    <value>Packs matched assets into an EA .big archive container. Uncheck to keep files as loose folders.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescPackAsBig" xml:space="preserve">
+    <value>When enabled, files compile into a .big archive. When disabled, files remain loose directories.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelArchiveSuffix" xml:space="preserve">
+    <value>Archive Name Suffix (optional)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkArchiveSuffix" xml:space="preserve">
+    <value>e.g. _01 (outputs Name_01.big)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipArchiveSuffix" xml:space="preserve">
+    <value>Appends text to the generated .big file name</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectBundleItemPrompt" xml:space="preserve">
+    <value>Select a bundle item on the left or click &apos;Add Item&apos; to configure files and settings.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabBundlePacks" xml:space="preserve">
+    <value>Bundle Packs</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPack" xml:space="preserve">
+    <value>Add a new bundle pack</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPack" xml:space="preserve">
+    <value>Add Pack</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePack" xml:space="preserve">
+    <value>Remove selected bundle pack</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemovePack" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackBig" xml:space="preserve">
+    <value>BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackBuild" xml:space="preserve">
+    <value>Build</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackInstall" xml:space="preserve">
+    <value>Install</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundlePackSettingsHeader" xml:space="preserve">
+    <value>Bundle Pack Settings</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelPackName" xml:space="preserve">
+    <value>Pack Name</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkPackName" xml:space="preserve">
+    <value>e.g. MyMod, EnhancedEdition...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelIncludedItems" xml:space="preserve">
+    <value>Included Bundle Items in this Pack</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescIncludedItems" xml:space="preserve">
+    <value>Check which bundle items should be combined when this pack is built</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelPackagingFormat" xml:space="preserve">
+    <value>Packaging Format</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckPackIntoOneBig" xml:space="preserve">
+    <value>Pack into ONE .big file instead of .zip</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPackIntoOneBig" xml:space="preserve">
+    <value>Packs all constituent bundle items into a single EA BIG archive instead of a ZIP file (e.g. for game patches).</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelCustomOutputFile" xml:space="preserve">
+    <value>Custom Output File (optional)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkCustomOutputFile" xml:space="preserve">
+    <value>e.g. 500_900_CommunityPatch_CoreINI.big (leave empty for default)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelActionsTargets" xml:space="preserve">
+    <value>Actions &amp; Targets</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckAllowBuild" xml:space="preserve">
+    <value>Allow Build (Include in release packaging)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAllowBuild" xml:space="preserve">
+    <value>Packages this pack into an archive inside the Releases folder during release builds.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckAllowInstall" xml:space="preserve">
+    <value>Allow Install (Legacy: manual direct folder install)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAllowInstall" xml:space="preserve">
+    <value>Legacy standalone flag for copying files directly into a game root directory. Redundant in GenHub, which isolates game installs via virtual workspaces and ContentManifests.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeGenHubWorkspaces" xml:space="preserve">
+    <value>GenHub uses virtual workspaces and ContentManifests to isolate mods. Manual game directory install is redundant in normal GenHub workflows.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectBundlePackPrompt" xml:space="preserve">
+    <value>Select a bundle pack on the left or click &apos;Add Pack&apos; to configure items and deployment.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.UnsavedChangesBadge" xml:space="preserve">
+    <value>Unsaved Changes</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeUnsavedChanges" xml:space="preserve">
+    <value>Changes will be saved to configuration files</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipSave" xml:space="preserve">
+    <value>Save configuration changes to project files</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClose" xml:space="preserve">
+    <value>Close configuration editor without saving</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Tools.ModBuilder.View.CurrentProjectHeader" xml:space="preserve">
+    <value>CURRENT PROJECT</value>
+  </data>
+  <data name="Tools.ModBuilder.View.NoProjectLoadedWatermark" xml:space="preserve">
+    <value>No project loaded...</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelTarget" xml:space="preserve">
+    <value>Target:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipTargetGame" xml:space="preserve">
+    <value>Target game for this project and its manifests</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelType" xml:space="preserve">
+    <value>Type:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipContentType" xml:space="preserve">
+    <value>Content type for this project (Mod, Patch, Addon, etc.)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipNewProject" xml:space="preserve">
+    <value>Create a new ModBuilder project</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonNew" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenProject" xml:space="preserve">
+    <value>Open an existing project</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipAssetManager" xml:space="preserve">
+    <value>Browse game assets and import them into the project</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonAssetManager" xml:space="preserve">
+    <value>Asset Manager</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipImportBig" xml:space="preserve">
+    <value>Extract and import .BIG archives directly into this project&apos;s GameFilesEdited folder so you can edit and rebuild them.</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonImportBig" xml:space="preserve">
+    <value>Import .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipSaveProject" xml:space="preserve">
+    <value>Save project configuration (.mbproj)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipCloseProject" xml:space="preserve">
+    <value>Close project and return to dashboard</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Tools.ModBuilder.View.FilesInStagingHeader" xml:space="preserve">
+    <value>Files in Staging</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipRefreshCount" xml:space="preserve">
+    <value>Recalculate files in GameFilesEdited directory</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonRefreshCount" xml:space="preserve">
+    <value>Refresh Count</value>
+  </data>
+  <data name="Tools.ModBuilder.View.QuickAccessHeader" xml:space="preserve">
+    <value>Quick Access</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenProjectFolder" xml:space="preserve">
+    <value>Open the project root directory in File Explorer</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenProjectFolder" xml:space="preserve">
+    <value>Open Project Folder</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenGameFilesEdited" xml:space="preserve">
+    <value>Open the GameFilesEdited directory in File Explorer</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenGameFilesEdited" xml:space="preserve">
+    <value>Open GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipGameAssetManager" xml:space="preserve">
+    <value>Browse game assets and import them into the project</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonGameAssetManager" xml:space="preserve">
+    <value>Game Asset Manager</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditConfiguration" xml:space="preserve">
+    <value>Edit bundle items, packs, and build targets</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonEditConfiguration" xml:space="preserve">
+    <value>Edit Configuration</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BundlePacksHeader" xml:space="preserve">
+    <value>Bundle Packs</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipPackCompilesBig" xml:space="preserve">
+    <value>This pack compiles directly into a .big archive instead of a .zip</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TagBigArchive" xml:space="preserve">
+    <value>.BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildActionsHeader" xml:space="preserve">
+    <value>Build Actions</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionClean" xml:space="preserve">
+    <value>Clean</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionClean" xml:space="preserve">
+    <value>Deletes output folders (.Build and Releases) before starting the build</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionBuild" xml:space="preserve">
+    <value>Build</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionBuild" xml:space="preserve">
+    <value>Processes assets (texture conversion, CSF string tables) and compiles .big archives into .Build/bundles</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionRelease" xml:space="preserve">
+    <value>Release</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionRelease" xml:space="preserve">
+    <value>Packages built .big archives and loose assets into zip archives in the Releases folder</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionCreateManifest" xml:space="preserve">
+    <value>Create Manifest</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionCreateManifest" xml:space="preserve">
+    <value>Generates manifest.json and registers the mod in GenHub CAS for launch in isolated workspaces</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOptionsHeader" xml:space="preserve">
+    <value>Build Options</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionSingleBigPack" xml:space="preserve">
+    <value>Single .BIG Pack</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionSingleBigPack" xml:space="preserve">
+    <value>Package all bundle items into ONE .big archive instead of a .zip file (GeneralsGamePatch style)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionVerboseLogging" xml:space="preserve">
+    <value>Verbose Logging</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionVerboseLogging" xml:space="preserve">
+    <value>Prints detailed pipeline and conversion messages in the log window</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionMultiProcessing" xml:space="preserve">
+    <value>Multi-Processing</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionMultiProcessing" xml:space="preserve">
+    <value>Processes asset conversions in parallel using all CPU cores</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionPrintConfig" xml:space="preserve">
+    <value>Print Config</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionPrintConfig" xml:space="preserve">
+    <value>Outputs the resolved configuration to the log before building</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOutputHeader" xml:space="preserve">
+    <value>Build Output</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOutputTerminal" xml:space="preserve">
+    <value>Terminal</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipClearOutput" xml:space="preserve">
+    <value>Clear console log output</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonClearOutput" xml:space="preserve">
+    <value>Clear Output</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildStatusHeader" xml:space="preserve">
+    <value>Build Status</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStatus" xml:space="preserve">
+    <value>Status:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStage" xml:space="preserve">
+    <value>Stage:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelFile" xml:space="preserve">
+    <value>File:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProgress" xml:space="preserve">
+    <value>Progress:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ProjectInfoHeader" xml:space="preserve">
+    <value>Project Info</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectName" xml:space="preserve">
+    <value>Name:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectTarget" xml:space="preserve">
+    <value>Target:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipInfoTargetGame" xml:space="preserve">
+    <value>Target game for this project and its manifests</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectType" xml:space="preserve">
+    <value>Type:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipInfoContentType" xml:space="preserve">
+    <value>Content type for this project (Mod, Patch, Addon, etc.)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectVersion" xml:space="preserve">
+    <value>Version:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectAuthor" xml:space="preserve">
+    <value>Author:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectPacks" xml:space="preserve">
+    <value>Packs:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipExecuteBuild" xml:space="preserve">
+    <value>Run selected build actions (Clean, Build, Release, Create Manifest)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonExecuteBuild" xml:space="preserve">
+    <value>Execute Build</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipAbortBuild" xml:space="preserve">
+    <value>Cancel the active build process</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonAbortBuild" xml:space="preserve">
+    <value>Abort Build</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipCreateManifest" xml:space="preserve">
+    <value>Store compiled bundles in CAS and create a local ContentManifest for Game Profiles</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonCreateManifest" xml:space="preserve">
+    <value>Create Manifest</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenBuildFolder" xml:space="preserve">
+    <value>Open the .Build intermediate output folder in File Explorer</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenBuildFolder" xml:space="preserve">
+    <value>Open Build Folder</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenReleaseFolder" xml:space="preserve">
+    <value>Open the Releases folder in File Explorer</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenReleaseFolder" xml:space="preserve">
+    <value>Open Release Folder</value>
+  </data>
 </root>

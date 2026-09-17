@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
@@ -50,11 +51,11 @@
               BoxShadow="0 4 16 0 #20000000">
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Grid.Column="0" Spacing="4">
-            <TextBlock Text="ModBuilder Settings"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.Title}"
                        FontSize="20"
                        FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
-            <TextBlock Text="Configure build performance, cache, and UI preferences"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.Subtitle}"
                        FontSize="13"
                        Foreground="{DynamicResource TextSecondary}"/>
           </StackPanel>
@@ -62,10 +63,10 @@
           <Button Grid.Column="1"
                   Command="{Binding ResetToDefaultsCommand}"
                   Classes="settings-btn"
-                  ToolTip.Tip="Reset all settings to defaults">
+                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipResetDefaults}">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Path Width="14" Height="14" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconReset}" Stretch="Uniform" VerticalAlignment="Center"/>
-              <TextBlock Text="Reset to Defaults" VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.ButtonResetDefaults}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </Grid>
@@ -77,7 +78,7 @@
               CornerRadius="12" Padding="18"
               BoxShadow="0 4 16 0 #20000000">
         <StackPanel Spacing="16">
-          <TextBlock Text="Cache Management"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.CacheManagementHeader}"
                      FontSize="16"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource TextPrimary}"/>
@@ -88,7 +89,7 @@
                   CornerRadius="8" Padding="14">
             <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*">
               <TextBlock Grid.Row="0" Grid.Column="0"
-                         Text="Cache Size:"
+                         Text="{localization:Localize Tools.ModBuilder.Settings.LabelCacheSize}"
                          Foreground="{DynamicResource TextSecondary}"
                          Width="120"/>
               <TextBlock Grid.Row="0" Grid.Column="1"
@@ -97,7 +98,7 @@
                          Foreground="{DynamicResource AccentBrush}"/>
 
               <TextBlock Grid.Row="1" Grid.Column="0"
-                         Text="Cached Files:" Margin="0,6,0,0"
+                         Text="{localization:Localize Tools.ModBuilder.Settings.LabelCachedFiles}" Margin="0,6,0,0"
                          Foreground="{DynamicResource TextSecondary}"/>
               <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0"
                          Text="{Binding CachedFileCount}"
@@ -105,7 +106,7 @@
                          Foreground="{DynamicResource AccentBrush}"/>
 
               <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,6,0,0"
-                         Text="Status:"
+                         Text="{localization:Localize Tools.ModBuilder.Settings.LabelStatus}"
                          Foreground="{DynamicResource TextSecondary}"/>
               <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0"
                          Text="{Binding IsCacheOperationInProgress, Converter={StaticResource BoolToStringConverter}, ConverterParameter='In Progress|Ready'}"
@@ -124,10 +125,10 @@
                     HorizontalContentAlignment="Center"
                     Margin="0,0,6,0"
                     Padding="0,12"
-                    ToolTip.Tip="Clear all cached build files">
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipClearCache}">
               <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                 <Path Width="14" Height="14" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconTrash}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Clear Cache" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.ButtonClearCache}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
 
@@ -139,15 +140,15 @@
                     HorizontalContentAlignment="Center"
                     Margin="6,0,0,0"
                     Padding="0,12"
-                    ToolTip.Tip="Rebuild cache index">
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipRebuildIndex}">
               <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                 <Path Width="14" Height="14" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Rebuild Index" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.ButtonRebuildIndex}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
           </Grid>
 
-          <TextBlock Text="Clearing cache will remove all cached build artifacts. Files will be rebuilt on next build."
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.NoticeClearCache}"
                      FontSize="12"
                      Foreground="{DynamicResource TextSecondary}"
                      TextWrapping="Wrap"/>
@@ -160,28 +161,28 @@
               CornerRadius="12" Padding="18"
               BoxShadow="0 4 16 0 #20000000">
         <StackPanel Spacing="16">
-          <TextBlock Text="Performance Settings"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.PerformanceHeader}"
                      FontSize="16"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource TextPrimary}"/>
 
           <!-- Compression Level -->
           <StackPanel Spacing="8">
-            <TextBlock Text="Default Compression Level"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.LabelCompressionLevel}"
                        FontWeight="Medium"
                        Foreground="{DynamicResource TextPrimary}"/>
             <ComboBox ItemsSource="{Binding CompressionLevels}"
                       SelectedItem="{Binding SelectedCompressionLevel}"
                       HorizontalAlignment="Stretch"
-                      ToolTip.Tip="Default compression level for archives"/>
-            <TextBlock Text="Higher compression = smaller files but slower builds"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipCompressionLevel}"/>
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.NoticeCompression}"
                        FontSize="12"
                        Foreground="{DynamicResource TextSecondary}"/>
           </StackPanel>
 
           <!-- Thread Count -->
           <StackPanel Spacing="8">
-            <TextBlock Text="Thread Count"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.LabelThreadCount}"
                        FontWeight="Medium"
                        Foreground="{DynamicResource TextPrimary}"/>
             <Grid ColumnDefinitions="*,Auto">
@@ -191,7 +192,7 @@
                       Value="{Binding SelectedThreadCount}"
                       TickFrequency="1"
                       IsSnapToTickEnabled="True"
-                      ToolTip.Tip="Number of parallel threads for builds"/>
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipThreadCount}"/>
               <TextBlock Grid.Column="1"
                          Text="{Binding SelectedThreadCount}"
                          FontWeight="SemiBold"
@@ -200,21 +201,21 @@
                          MinWidth="30"
                          TextAlignment="Right"/>
             </Grid>
-            <TextBlock Text="More threads = faster builds but higher CPU usage"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.NoticeThreadCount}"
                        FontSize="12"
                        Foreground="{DynamicResource TextSecondary}"/>
           </StackPanel>
 
           <!-- Buffer Size -->
           <StackPanel Spacing="8">
-            <TextBlock Text="I/O Buffer Size (KB)"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.LabelIoBufferSize}"
                        FontWeight="Medium"
                        Foreground="{DynamicResource TextPrimary}"/>
             <ComboBox ItemsSource="{Binding BufferSizeOptions}"
                       SelectedItem="{Binding SelectedBufferSize}"
                       HorizontalAlignment="Stretch"
-                      ToolTip.Tip="Buffer size for file I/O operations"/>
-            <TextBlock Text="Larger buffers = better performance for large files"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipIoBufferSize}"/>
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.NoticeIoBufferSize}"
                        FontSize="12"
                        Foreground="{DynamicResource TextSecondary}"/>
           </StackPanel>
@@ -222,15 +223,15 @@
           <!-- Default Options -->
           <Separator Background="{DynamicResource BorderBrush}"/>
 
-          <CheckBox Content="Enable Multi-Processing by Default"
+          <CheckBox Content="{localization:Localize Tools.ModBuilder.Settings.CheckMultiProcessing}"
                     IsChecked="{Binding EnableMultiProcessingByDefault}"
                     Foreground="{DynamicResource TextPrimary}"
-                    ToolTip.Tip="Use parallel processing for new projects"/>
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipMultiProcessing}"/>
 
-          <CheckBox Content="Enable Verbose Logging by Default"
+          <CheckBox Content="{localization:Localize Tools.ModBuilder.Settings.CheckVerboseLogging}"
                     IsChecked="{Binding EnableVerboseLoggingByDefault}"
                     Foreground="{DynamicResource TextPrimary}"
-                    ToolTip.Tip="Show detailed build information for new projects"/>
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipVerboseLogging}"/>
         </StackPanel>
       </Border>
 
@@ -240,39 +241,39 @@
               CornerRadius="12" Padding="18"
               BoxShadow="0 4 16 0 #20000000">
         <StackPanel Spacing="16">
-          <TextBlock Text="UI Preferences"
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.UiPreferencesHeader}"
                      FontSize="16"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource TextPrimary}"/>
 
           <!-- Font Size -->
           <StackPanel Spacing="8">
-            <TextBlock Text="Build Output Font Size"
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Settings.LabelFontSize}"
                        FontWeight="Medium"
                        Foreground="{DynamicResource TextPrimary}"/>
             <ComboBox ItemsSource="{Binding FontSizeOptions}"
                       SelectedItem="{Binding SelectedFontSize}"
                       HorizontalAlignment="Stretch"
-                      ToolTip.Tip="Font size for build output console"/>
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipFontSize}"/>
           </StackPanel>
 
           <!-- UI Options -->
           <Separator Background="{DynamicResource BorderBrush}"/>
 
-          <CheckBox Content="Enable Animations"
+          <CheckBox Content="{localization:Localize Tools.ModBuilder.Settings.CheckEnableAnimations}"
                     IsChecked="{Binding EnableAnimations}"
                     Foreground="{DynamicResource TextPrimary}"
-                    ToolTip.Tip="Enable smooth transitions and animations"/>
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipEnableAnimations}"/>
 
-          <CheckBox Content="Auto-Scroll Build Output"
+          <CheckBox Content="{localization:Localize Tools.ModBuilder.Settings.CheckAutoScroll}"
                     IsChecked="{Binding EnableAutoScroll}"
                     Foreground="{DynamicResource TextPrimary}"
-                    ToolTip.Tip="Automatically scroll to latest build output"/>
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipAutoScroll}"/>
 
-          <CheckBox Content="Enable Syntax Highlighting"
+          <CheckBox Content="{localization:Localize Tools.ModBuilder.Settings.CheckSyntaxHighlighting}"
                     IsChecked="{Binding EnableSyntaxHighlighting}"
                     Foreground="{DynamicResource TextPrimary}"
-                    ToolTip.Tip="Color-code build output by log level"/>
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipSyntaxHighlighting}"/>
         </StackPanel>
       </Border>
 
