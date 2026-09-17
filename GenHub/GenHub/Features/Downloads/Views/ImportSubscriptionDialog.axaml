@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.Downloads.ViewModels"
@@ -63,11 +64,11 @@
                               VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="Import Catalog or Provider"
+                    <TextBlock Text="{localization:Localize Downloads.ImportSubscription.Title}"
                                FontSize="18"
                                FontWeight="Bold"
                                Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBlock Text="Subscribe to custom community content"
+                    <TextBlock Text="{localization:Localize Downloads.ImportSubscription.Subtitle}"
                                FontSize="12"
                                Foreground="{DynamicResource TextMuted}"/>
                 </StackPanel>
@@ -84,13 +85,13 @@
 
             <!-- Body -->
             <StackPanel Grid.Row="1" Spacing="14">
-                <TextBlock Text="Paste a genhub:// subscription link, Google Drive link, or direct catalog/definition URL:"
+                <TextBlock Text="{localization:Localize Downloads.ImportSubscription.Prompt}"
                            FontSize="13"
                            Foreground="{DynamicResource TextSecondary}"
                            TextWrapping="Wrap"/>
 
                 <TextBox Text="{Binding InputUrl}"
-                         Watermark="genhub://subscribe?url=... or https://drive.google.com/..."
+                         Watermark="{localization:Localize Downloads.ImportSubscription.UrlWatermark}"
                          FontSize="13"
                          FontFamily="Consolas, Courier New, monospace"/>
 
@@ -114,7 +115,7 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="Supported: Google Drive direct links, Dropbox, GitHub, and custom HTTPS publisher endpoints."
+                <TextBlock Text="{localization:Localize Downloads.ImportSubscription.SupportedSources}"
                            FontSize="11"
                            Foreground="{DynamicResource TextMuted}"
                            TextWrapping="Wrap"/>
@@ -123,7 +124,7 @@
             <!-- Footer Buttons -->
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
                 <Button Command="{Binding CancelCommand}"
-                        Content="Cancel"
+                        Content="{localization:Localize Downloads.ImportSubscription.Cancel}"
                         Classes="secondary-btn"/>
                 <Button Command="{Binding SubmitCommand}"
                         Classes="primary-btn"
@@ -133,7 +134,7 @@
                                   Width="14" Height="14"
                                   Foreground="{DynamicResource TextPrimary}"
                                   VerticalAlignment="Center"/>
-                        <TextBlock Text="Load and Subscribe" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Downloads.ImportSubscription.LoadAndSubscribe}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </StackPanel>

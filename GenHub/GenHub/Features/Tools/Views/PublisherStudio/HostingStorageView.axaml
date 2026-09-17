@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -126,30 +127,30 @@
                         <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center">
                             <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="White"/>
                         </Border>
-                        <TextBlock Text="Hosting &amp; Cloud Storage" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Title}" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="Manage cloud storage distribution, monitor space consumed, inspect live file URLs, and sync existing assets."
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Subtitle}"
                                FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <Button Classes="glass-btn"
                             Command="{Binding OpenCloudFolderCommand}"
-                            ToolTip.Tip="Open the provider's /GenHub_Publisher storage folder in browser">
+                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolderTip}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Data="{StaticResource FolderOpenIcon}" Width="14" Height="14" Foreground="White"/>
-                            <TextBlock Text="Open Cloud Folder" Foreground="White" FontSize="12"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolder}" Foreground="White" FontSize="12"/>
                         </StackPanel>
                     </Button>
 
                     <Button Classes="primary-btn"
                             Command="{Binding ScanCloudStorageCommand}"
                             IsEnabled="{Binding !IsScanningStorage}"
-                            ToolTip.Tip="Scan cloud storage for already-uploaded publisher files and synchronize state">
+                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorageTip}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="White"/>
-                            <TextBlock Text="Scanning..." IsVisible="{Binding IsScanningStorage}" Foreground="White" FontSize="12"/>
-                            <TextBlock Text="Scan / Sync Storage" IsVisible="{Binding !IsScanningStorage}" Foreground="White" FontSize="12"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Scanning}" IsVisible="{Binding IsScanningStorage}" Foreground="White" FontSize="12"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorage}" IsVisible="{Binding !IsScanningStorage}" Foreground="White" FontSize="12"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -173,10 +174,10 @@
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13" Foreground="{DynamicResource StatusInfoBrush}"/>
-                            <TextBlock Text="STORAGE CONSUMED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageConsumed}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </StackPanel>
                         <TextBlock Text="{Binding TotalStorageUsedFormatted}" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Text="Cloud files (Definition, Catalogs, Releases)" FontSize="11" Foreground="#8888AA"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudFilesSummary}" FontSize="11" Foreground="#8888AA"/>
                     </StackPanel>
                 </Border>
 
@@ -185,25 +186,25 @@
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource PackageIcon}" Width="13" Height="13" Foreground="#B388FF"/>
-                            <TextBlock Text="HOSTED ASSETS" FontSize="10" FontWeight="Bold" Foreground="#B388FF"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.HostedAssets}" FontSize="10" FontWeight="Bold" Foreground="#B388FF"/>
                         </StackPanel>
                         <TextBlock Text="{Binding TotalHostedFilesCount}" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Text="Files hosted on cloud storage" FontSize="11" Foreground="#8888AA"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilesHostedOnCloud}" FontSize="11" Foreground="#8888AA"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Card 3: Categorized Breakdown -->
                 <Border Grid.Column="2" Classes="metric-box" Margin="5,0,5,0">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="ASSET BREAKDOWN" FontSize="10" FontWeight="Bold" Foreground="#69F0AE"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AssetBreakdown}" FontSize="10" FontWeight="Bold" Foreground="#69F0AE"/>
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,2,0,0">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Catalogs: " FontSize="11" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.CatalogsPrefix}" FontSize="11" Foreground="#AAAAAA"/>
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding HostedCatalogsCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Release Binaries: " FontSize="11" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix}" FontSize="11" Foreground="#AAAAAA"/>
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HostedArtifactsCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="External CDN: " FontSize="11" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ExternalCdnPrefix}" FontSize="11" Foreground="#AAAAAA"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </Grid>
                     </StackPanel>
@@ -213,7 +214,7 @@
                 <Border Grid.Column="3" Classes="metric-box" Margin="10,0,0,0">
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-                            <TextBlock Text="STORAGE LOCATION" FontSize="10" FontWeight="Bold" Foreground="#FFD54F"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageLocation}" FontSize="10" FontWeight="Bold" Foreground="#FFD54F"/>
                         </StackPanel>
                         <TextBlock Text="{Binding SelectedHostingProvider.DisplayName, FallbackValue='Not Connected'}" FontSize="18" FontWeight="Bold" Foreground="White"/>
                         <TextBlock Text="{Binding HostingFolderPath}" FontSize="11" Foreground="#8888AA" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding HostingFolderPath}"/>
@@ -226,8 +227,8 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="Cloud Storage Provider Setup" FontSize="17" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock Text="Select a hosting service to upload catalogs and releases. Step-by-step setup instructions are provided below."
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudProviderSetup}" FontSize="17" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudProviderSetupSubtitle}"
                                        FontSize="12" Foreground="#8888AA"/>
                         </StackPanel>
 
@@ -236,14 +237,14 @@
                             <Border Classes="status-badge-active" IsVisible="{Binding IsProviderAuthenticated}">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <Ellipse Width="6" Height="6" Fill="{DynamicResource StatusSuccessBrush}"/>
-                                    <TextBlock Text="Connected" Foreground="{DynamicResource StatusSuccessBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Connected}" Foreground="{DynamicResource StatusSuccessBrush}" FontSize="11" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Classes="status-badge-inactive" IsVisible="{Binding !IsProviderAuthenticated}">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <Ellipse Width="6" Height="6" Fill="{DynamicResource TextMuted}"/>
-                                    <TextBlock Text="Not Connected" Foreground="{DynamicResource TextMuted}" FontSize="11"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NotConnected}" Foreground="{DynamicResource TextMuted}" FontSize="11"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -251,7 +252,7 @@
 
                     <!-- Provider Selector Dropdown -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Select Provider:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.SelectProvider}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                         <ComboBox ItemsSource="{Binding HostingProviders}"
                                   SelectedItem="{Binding SelectedHostingProvider}"
                                   HorizontalAlignment="Stretch">
@@ -274,32 +275,32 @@
                                     <Border Width="20" Height="20" CornerRadius="4" Background="#4285F4" VerticalAlignment="Center">
                                         <TextBlock Text="G" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                     </Border>
-                                    <TextBlock Text="Google Drive Desktop OAuth Setup Guide (Step-by-Step)" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock Text="Google Drive supports hosting both catalog manifests and binary archives (mod/patch zips) up to your Drive storage quota."
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDGuideSubtitle}"
                                            FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
 
                                 <Border Height="1" Background="#20FFFFFF"/>
 
                                 <!-- Steps -->
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="Step 1: Create a Google Cloud Project" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Click button #1 below. In Google Cloud Console, click the project selector at the top &gt; 'NEW PROJECT' &gt; name it 'GenHub Publisher' &gt; click 'CREATE'. Then select it from the project dropdown." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 2: Create App via 'Project Configuration'  [CRITICAL: Configure first]" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}"/>
-                                    <TextBlock Text="Click button #1 below ('Open Google Auth Platform'). If you see 'Google auth platform not configured yet', click 'Get started' (or 'Configure consent screen'). Enter App name (GenHub), select your email, set Audience to External, developer email, and click Create." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 3: Enable the Google Drive API" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Search for 'Google Drive API' in the top search bar and click 'ENABLE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDS3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep3Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 4: Create Desktop OAuth Client ID  [CRITICAL: Must select 'Desktop app']" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                    <TextBlock Text="In Google Auth Platform, click 'Clients' (or click button #2 below). Click '+ Create client'. Set Application type to 'Desktop app' (DO NOT leave as 'Web application'!). Name it 'GenHub Desktop' and click 'CREATE'. Copy your Client ID and Client Secret immediately!" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Desc}" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 5: Add your Google account to Test Users  [CRITICAL: Fixes Error 403 access_denied]" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                    <TextBlock Text="In Google Auth Platform, click 'Audience' (or button #3 below). Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'. If you skip this, Google blocks authorization with Error 403: access_denied." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Desc}" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 6: Paste Client ID and Secret below and Connect" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Copy your Client ID and Client Secret into the input fields below and click Connect." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 </StackPanel>
 
                                 <!-- Action buttons to consoles -->
@@ -307,30 +308,30 @@
                                     <Button Command="{Binding OpenGoogleAuthPlatformConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="1. Open Google Auth Platform" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthPlatform}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                     <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="2. Open Credentials (Desktop Client ID)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentials}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                     <Button Command="{Binding OpenGoogleAudienceConsoleCommand}" Classes="small-glass-btn" Margin="0,0,0,6">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="3. Open Audience / Test Users (Fix 403)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsers}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                 </WrapPanel>
 
                                 <!-- Inputs -->
                                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Google Client ID:" FontSize="12" Foreground="#AAAAAA" Margin="0,0,6,4"/>
-                                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="Enter client ID" FontSize="12" Margin="0,0,6,0"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientId}" FontSize="12" Foreground="#AAAAAA" Margin="0,0,6,4"/>
+                                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder}" FontSize="12" Margin="0,0,6,0"/>
 
                                     <!-- skipcq: SCT-A000 -->
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Google Client Secret:" FontSize="12" Foreground="#AAAAAA" Margin="6,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientSecret}" FontSize="12" Foreground="#AAAAAA" Margin="6,0,0,4"/>
                                     <!-- skipcq: SCT-A000 -->
                                     <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" PasswordChar="●" RevealPassword="True" FontSize="12" Margin="6,0,0,0"/>
                                 </Grid>
@@ -346,23 +347,23 @@
                                     <Border Width="20" Height="20" CornerRadius="4" Background="#0061FF" VerticalAlignment="Center">
                                         <TextBlock Text="D" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                     </Border>
-                                    <TextBlock Text="Dropbox Setup &amp; Token Guide (No Cloud Project Needed)" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock Text="Dropbox offers 2 GB free storage with instant direct download links. Setup takes under 1 minute:"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBGuideSubtitle}"
                                            FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
 
                                 <Border Height="1" Background="#20FFFFFF"/>
 
                                 <!-- Steps -->
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="Step 1: Create a Scoped App" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Click button #1 below ('1. Create Dropbox App'). Select 'Scoped access', choose 'Full Dropbox' (or 'App folder'), enter an App name (e.g. 'GenHubPublisher'), and click 'Create app'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep1Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep1Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 2: Enable Permissions in Dropbox Console  [CRITICAL: Prevents 400 Bad Request]" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
-                                    <TextBlock Text="Switch to the 'Permissions' tab at the top of your Dropbox app page. Enable ALL of the following permissions:&#x0a;• files.content.write&#x0a;• files.content.read&#x0a;• sharing.write&#x0a;• sharing.read&#x0a;• account_info.read&#x0a;Then click the 'Submit' button at the bottom of the page! (If permissions are not saved, link creation will fail with HTTP 400)." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Desc}" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 3: Generate Access Token" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Click the 'Settings' tab on your Dropbox app page. Scroll down to 'Generated access token' and click 'Generate'. Copy the token and paste it below." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 </StackPanel>
 
                                 <!-- Action button to Dropbox console -->
@@ -370,21 +371,21 @@
                                     <Button Command="{Binding OpenDropboxAppConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,0">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="1. Create Dropbox App (App Console)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateDropboxApp}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                     <Button Command="{Binding OpenDropboxCreateAppCommand}" Classes="small-glass-btn">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="2. Dropbox Developer Settings" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxDevSettings}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                 </WrapPanel>
 
                                 <!-- Dropbox Token Input -->
                                 <StackPanel Spacing="4" Margin="0,6,0,0">
-                                    <TextBlock Text="Dropbox Access Token (sl.u.xxxxxx...):" FontSize="12" Foreground="#AAAAAA"/>
-                                    <TextBox Text="{Binding DropboxAccessToken}" Watermark="sl.u.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" PasswordChar="●" RevealPassword="True" FontSize="12"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxTokenPrompt}" FontSize="12" Foreground="#AAAAAA"/>
+                                    <TextBox Text="{Binding DropboxAccessToken}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder}" PasswordChar="●" RevealPassword="True" FontSize="12"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -395,18 +396,18 @@
                         <Button Classes="primary-btn"
                                 Command="{Binding AuthenticateCommand}"
                                 IsEnabled="{Binding !IsAuthenticating}"
-                                ToolTip.Tip="Connect and authenticate with the selected provider">
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProviderTip}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="14" Height="14" Foreground="White"/>
-                                <TextBlock Text="Connect Provider" FontSize="12" Foreground="White"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProvider}" FontSize="12" Foreground="White"/>
                             </StackPanel>
                         </Button>
 
                         <Button Classes="glass-btn"
                                 Command="{Binding CancelAuthenticationCommand}"
                                 IsVisible="{Binding IsAuthenticating}"
-                                ToolTip.Tip="Cancel the ongoing authentication">
-                            <TextBlock Text="Cancel" FontSize="12" Foreground="#FF8888"/>
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CancelAuthTip}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Cancel}" FontSize="12" Foreground="#FF8888"/>
                         </Button>
 
                         <ProgressBar IsIndeterminate="True" Width="100" Height="4"
@@ -424,8 +425,8 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="Hosted Asset Inventory" FontSize="17" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock Text="Inventory of publisher definition, catalog manifests, and release binaries stored in cloud storage or external CDNs."
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.InventoryTitle}" FontSize="17" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.InventorySubtitle}"
                                        FontSize="12" Foreground="#8888AA"/>
                         </StackPanel>
 
@@ -437,12 +438,12 @@
                     <!-- Table Header -->
                     <Border Background="#15FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12,8">
                         <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
-                            <TextBlock Grid.Column="0" Text="FILE NAME" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="1" Text="CATEGORY" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="2" Text="SIZE" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="3" Text="STATUS" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="4" Text="LOCATION" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="5" Text="ACTIONS" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA" Width="140" TextAlignment="Right"/>
+                            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColFileName}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColCategory}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColSize}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="3" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColStatus}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="4" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLocation}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA" Width="140" TextAlignment="Right"/>
                         </Grid>
                     </Border>
 
@@ -471,13 +472,13 @@
                                         <!-- Column 3: Status Badge -->
                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Border Classes="status-badge-active" IsVisible="{Binding IsOnline}">
-                                                <TextBlock Text="Live Online" FontSize="10" Foreground="{DynamicResource StatusSuccessBrush}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusLiveOnline}" FontSize="10" Foreground="{DynamicResource StatusSuccessBrush}" FontWeight="SemiBold"/>
                                             </Border>
                                             <Border Classes="status-badge-info" IsVisible="{Binding IsExternalCdn}">
-                                                <TextBlock Text="External CDN" FontSize="10" Foreground="{DynamicResource StatusInfoBrush}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusExternalCdn}" FontSize="10" Foreground="{DynamicResource StatusInfoBrush}" FontWeight="SemiBold"/>
                                             </Border>
                                             <Border Classes="status-badge-warning" IsVisible="{Binding !IsOnline}">
-                                                <TextBlock Text="Pending" FontSize="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusPending}" FontSize="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
                                             </Border>
                                         </StackPanel>
 
@@ -491,10 +492,10 @@
                                                     CommandParameter="{Binding Url}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                     AutomationProperties.Name="Copy direct download link"
-                                                    ToolTip.Tip="Copy direct download link">
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                     <PathIcon Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="White"/>
-                                                    <TextBlock Text="Copy" FontSize="10" Foreground="White"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" FontSize="10" Foreground="White"/>
                                                 </StackPanel>
                                             </Button>
 
@@ -503,7 +504,7 @@
                                                     CommandParameter="{Binding Url}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                     AutomationProperties.Name="Open download URL in browser"
-                                                    ToolTip.Tip="Open download URL in browser">
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}">
                                                 <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
                                             </Button>
                                         </StackPanel>
@@ -519,8 +520,8 @@
                             Padding="32" Margin="0,10,0,0">
                         <StackPanel Spacing="10" HorizontalAlignment="Center">
                             <PathIcon Data="{StaticResource CloudStorageIcon}" Width="32" Height="32" Foreground="#555577" HorizontalAlignment="Center"/>
-                            <TextBlock Text="No Hosted Assets Recorded" FontSize="14" FontWeight="Bold" Foreground="#AAAAAA" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Upload your catalog or click 'Scan / Sync Storage' to discover existing files on your cloud provider."
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoAssetsTitle}" FontSize="14" FontWeight="Bold" Foreground="#AAAAAA" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoAssetsSubtitle}"
                                        FontSize="12" Foreground="#666688" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center"/>
                         </StackPanel>
                     </Border>

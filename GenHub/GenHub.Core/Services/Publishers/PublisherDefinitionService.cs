@@ -48,7 +48,7 @@ public class PublisherDefinitionService(
                 return OperationResult<PublisherDefinition>.CreateFailure("Invalid definition URL");
             }
 
-            using var client = httpClientFactory.CreateClient("PublisherDefinition");
+            using var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
 
             if (!response.IsSuccessStatusCode)
@@ -122,7 +122,7 @@ public class PublisherDefinitionService(
                 return OperationResult<PublisherCatalog>.CreateFailure("Definition contains no catalog URL");
             }
 
-            using var client = httpClientFactory.CreateClient("PublisherCatalog");
+            using var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             var urlsToTry = new List<string> { catalogUrl };
             if (definition.CatalogMirrors != null)
             {
@@ -333,7 +333,7 @@ public class PublisherDefinitionService(
         IReadOnlyList<CatalogEntry>? catalogs,
         CancellationToken ct)
     {
-        using var client = httpClientFactory.CreateClient("PublisherCatalog");
+        using var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
         var results = new Dictionary<string, PublisherCatalog>();
         var errors = new List<string>();
 

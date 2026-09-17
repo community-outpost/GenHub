@@ -217,19 +217,37 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
         }
         catch (OperationCanceledException)
         {
+            if (_discoveryCts?.Token != ct)
+            {
+                return;
+            }
+
             ValidationError = "Discovery request timed out or was canceled.";
         }
         catch (HttpRequestException ex)
         {
+            if (_discoveryCts?.Token != ct)
+            {
+                return;
+            }
+
             ValidationError = $"Failed to fetch URL: {ex.Message}";
         }
         catch (Exception ex)
         {
+            if (_discoveryCts?.Token != ct)
+            {
+                return;
+            }
+
             ValidationError = $"Discovery failed: {ex.Message}";
         }
         finally
         {
-            IsBusy = false;
+            if (_discoveryCts?.Token == ct)
+            {
+                IsBusy = false;
+            }
         }
     }
 

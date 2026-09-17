@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -16,7 +17,7 @@
     <Grid RowDefinitions="Auto, *, Auto" Margin="24">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
-            <TextBlock Text="Add Publisher Referral"
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.AddTitle}"
                        FontSize="20" FontWeight="Bold"
                        Foreground="White"/>
             <Button Grid.Column="1"
@@ -51,11 +52,11 @@
                         BorderThickness="1"
                         BorderBrush="#20FFFFFF">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="Quick Select from Your Subscriptions"
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.QuickSelect}"
                                    FontWeight="SemiBold"
                                    Foreground="White"
                                    FontSize="14"/>
-                        <TextBlock Text="Select a publisher you're already subscribed to:"
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.QuickSelectPrompt}"
                                    FontSize="12"
                                    Foreground="#AAAAAA"/>
                         <ItemsControl ItemsSource="{Binding AvailablePublishers}">
@@ -115,13 +116,13 @@
 
                 <!-- Manual Entry -->
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Or Enter Manually"
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.OrEnterManually}"
                                FontWeight="SemiBold"
                                Foreground="White"
                                FontSize="14"/>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Catalog / Definition URL" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.CatalogUrl}" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                             <TextBox Grid.Column="0" Grid.Row="0"
                                      Text="{Binding CatalogUrl}"
@@ -129,7 +130,7 @@
                                      IsEnabled="{Binding SelectedPublisher, Converter={x:Static ObjectConverters.IsNull}}"/>
                             <Button Grid.Column="1" Grid.Row="0"
                                     Command="{Binding DiscoverPublisherCommand}"
-                                    Content="Discover"
+                                    Content="{localization:Localize Tools.PublisherStudio.Referral.Discover}"
                                     Margin="8,0,0,0"
                                     Classes="glass-btn"
                                     Padding="12,8"
@@ -140,7 +141,7 @@
                                          Height="2"
                                          Margin="0,4,0,0"/>
                         </Grid>
-                        <TextBlock Text="Enter a URL to a publisher definition (publisher.json) or catalog (catalog.json)"
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.DiscoverHint}"
                                    FontSize="11"
                                    Foreground="#888888"/>
                     </StackPanel>
@@ -158,7 +159,7 @@
                                       Foreground="#40FF40"
                                       Margin="0,0,12,0"/>
                             <StackPanel Grid.Column="1" Spacing="4">
-                                <TextBlock Text="Publisher Found"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.PublisherFound}"
                                            FontWeight="Bold"
                                            Foreground="White"
                                            FontSize="13"/>
@@ -172,16 +173,16 @@
                     </Border>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Publisher ID" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.PublisherId}" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
                         <TextBox Text="{Binding PublisherId}"
-                                 Watermark="e.g. community-outpost"
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Referral.PublisherIdPlaceholder}"
                                  IsReadOnly="{Binding DiscoveredPublisher, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     </StackPanel>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Note (Optional)" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.Note}" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
                         <TextBox Text="{Binding Note}"
-                                 Watermark="Why are you recommending this publisher?"
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Referral.NotePlaceholder}"
                                  AcceptsReturn="True"
                                  Height="80"/>
                     </StackPanel>
@@ -203,11 +204,11 @@
                         MaxWidth="300"
                         IsVisible="{Binding !IsValid}"/>
 
-             <Button Content="Cancel"
+             <Button Content="{localization:Localize Downloads.ImportSubscription.Cancel}"
                      Command="{Binding CloseCommand}"
                      Classes="glass-btn"
                      Padding="24,12"/>
-             <Button Content="Add Referral"
+             <Button Content="{localization:Localize Tools.PublisherStudio.Referral.AddButton}"
                      Command="{Binding CreateReferralCommand}"
                      Background="{DynamicResource PrimaryGradientBrush}"
                      Foreground="White"

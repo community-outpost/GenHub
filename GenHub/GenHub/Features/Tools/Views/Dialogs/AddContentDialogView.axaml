@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -73,11 +74,11 @@
                 <!-- Name -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="Content Name" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Name}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding ContentName}" Watermark="e.g. Generals Online, Modern Wars"/>
-                    <Button Content="Use Suggested ID"
+                    <TextBox Text="{Binding ContentName}" Watermark="{localization:Localize Tools.PublisherStudio.Content.NamePlaceholder}"/>
+                    <Button Content="{localization:Localize Tools.PublisherStudio.Content.UseSuggestedId}"
                             Command="{Binding ApplySuggestedIdCommand}"
                             Background="Transparent"
                             BorderThickness="0"
@@ -91,25 +92,25 @@
                 <!-- ID -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="Content ID" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Id}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding ContentId}" Watermark="e.g. generals-online"
+                    <TextBox Text="{Binding ContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.IdPlaceholder}"
                              IsReadOnly="{Binding IsEditMode}"/>
-                    <TextBlock Text="Unique identifier for this content (lowercase, alphanumeric, hyphens)."
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IdHint}"
                                Classes="hint"/>
                 </StackPanel>
 
                 <!-- Type & Target -->
                 <Grid ColumnDefinitions="*,16,*">
                     <StackPanel Grid.Column="0" Spacing="6">
-                        <TextBlock Text="Content Type" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Type}" Classes="label"/>
                         <ComboBox ItemsSource="{Binding AvailableContentTypes}"
                                   SelectedItem="{Binding SelectedContentType}"
                                   HorizontalAlignment="Stretch"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
-                        <TextBlock Text="Target Game" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.TargetGame}" Classes="label"/>
                         <ComboBox ItemsSource="{Binding AvailableTargetGames}"
                                   SelectedItem="{Binding SelectedTargetGame}"
                                   HorizontalAlignment="Stretch"/>
@@ -118,30 +119,30 @@
 
                 <!-- Addon Parent Selection (only visible when ContentType is Addon) -->
                 <StackPanel Spacing="6" IsVisible="{Binding ShowAddonParentSelection}">
-                    <TextBlock Text="Extends Content" Classes="label"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ExtendsContent}" Classes="label"/>
                     <TextBox Text="{Binding ExtendsContentId}"
-                             Watermark="e.g. my-mod or publisher-id/content-id"/>
-                    <TextBlock Text="The content ID this addon extends. Use 'content-id' for same catalog, or 'publisher-id/content-id' for cross-publisher."
+                             Watermark="{localization:Localize Tools.PublisherStudio.Content.ExtendsPlaceholder}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ExtendsHint}"
                                Classes="hint"/>
                 </StackPanel>
 
                 <!-- Description -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="Description" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Description}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding Description}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
                              Height="80"
-                             Watermark="Describe your content..."/>
+                             Watermark="{localization:Localize Tools.PublisherStudio.Content.DescriptionPlaceholder}"/>
                 </StackPanel>
 
                 <!-- Tags -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="Tags (Comma Separated)" Classes="label"/>
-                    <TextBox Text="{Binding TagsInput}" Watermark="strategy, overhaul, patch, map"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Tags}" Classes="label"/>
+                    <TextBox Text="{Binding TagsInput}" Watermark="{localization:Localize Tools.PublisherStudio.Content.TagsPlaceholder}"/>
                 </StackPanel>
 
                 <!-- ==================== INITIAL RELEASE & ARTIFACT (Create Mode Only) ==================== -->
@@ -153,7 +154,7 @@
                         IsVisible="{Binding !IsEditMode}">
                     <StackPanel Spacing="12">
                         <CheckBox IsChecked="{Binding IncludeInitialRelease}"
-                                  Content="Include initial release and package artifact"
+                                  Content="{localization:Localize Tools.PublisherStudio.Content.IncludeInitialRelease}"
                                   FontWeight="SemiBold"
                                   Foreground="{DynamicResource TextPrimary}"/>
 
@@ -161,12 +162,12 @@
                             <!-- Version and Filename -->
                             <Grid ColumnDefinitions="*,16,*">
                                 <StackPanel Grid.Column="0" Spacing="4">
-                                    <TextBlock Text="Release Version" Classes="label"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ReleaseVersion}" Classes="label"/>
                                     <TextBox Text="{Binding InitialVersion}" Watermark="1.0.0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="4">
-                                    <TextBlock Text="Package Filename" Classes="label"/>
-                                    <TextBox Text="{Binding PackageFilename}" Watermark="e.g. GeneralsOnline.zip"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.PackageFilename}" Classes="label"/>
+                                    <TextBox Text="{Binding PackageFilename}" Watermark="{localization:Localize Tools.PublisherStudio.Content.PackageFilenamePlaceholder}"/>
                                 </StackPanel>
                             </Grid>
 
@@ -174,49 +175,49 @@
                             <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusInfoBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" IsVisible="{Binding IsGameClientType}">
                                 <Grid ColumnDefinitions="Auto,*">
                                     <PathIcon Data="{StaticResource GamepadIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Grid.Column="1" Text="Game clients and standalone base packages are typically large and distributed via external CDNs or high-speed mirrors. Use Direct Download URL to point players to your CDN without re-uploading."
+                                    <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Content.CdnExplanation}"
                                                FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
                                 </Grid>
                             </Border>
 
                             <!-- Hosting Mode Radio Buttons -->
-                            <TextBlock Text="Download / Distribution Source" Classes="label" Margin="0,4,0,0"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSource}" Classes="label" Margin="0,4,0,0"/>
                             <StackPanel Orientation="Horizontal" Spacing="24">
-                                <RadioButton Content="Direct Download URL (hosted/CDN)"
+                                <RadioButton Content="{localization:Localize Tools.PublisherStudio.Content.DirectUrlOption}"
                                              IsChecked="{Binding UseDirectUrl, Mode=TwoWay}"
                                              Foreground="#E0E0E0"/>
-                                <RadioButton Content="Local File (for cloud upload)"
+                                <RadioButton Content="{localization:Localize Tools.PublisherStudio.Content.LocalFileOption}"
                                              IsChecked="{Binding !UseDirectUrl, Mode=TwoWay}"
                                              Foreground="#E0E0E0"/>
                             </StackPanel>
 
                             <!-- Direct URL Mode -->
                             <StackPanel Spacing="4" IsVisible="{Binding UseDirectUrl}">
-                                <TextBlock Text="Download URL" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrl}" Classes="label"/>
                                 <TextBox Text="{Binding DownloadUrl, Mode=TwoWay}"
                                          AutomationProperties.Name="Download URL"
                                          Watermark="https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"/>
-                                <TextBlock Text="Direct URL where players download this package (Google Drive, CDN, GitHub, etc.)" Classes="hint"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrlHint}" Classes="hint"/>
                             </StackPanel>
 
                             <!-- Local File Mode -->
                             <StackPanel Spacing="4" IsVisible="{Binding !UseDirectUrl}">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="Local Package File or Folder" Classes="label"/>
-                                    <TextBlock Grid.Column="1" Text="Drag &amp; drop folders or files here" Classes="hint" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.LocalFileOrFolder}" Classes="label"/>
+                                    <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Content.DragDropHint}" Classes="hint" VerticalAlignment="Center"/>
                                 </Grid>
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBox Text="{Binding LocalFilePath, Mode=TwoWay}"
-                                             Watermark="Select or drag &amp; drop a folder or archive file..."
+                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.SelectOrDragPlaceholder}"
                                              IsReadOnly="True"/>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
-                                        <Button Content="Browse File..."
+                                        <Button Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
                                                 Command="{Binding BrowseLocalFileCommand}"
                                                 Padding="12,8"
                                                 Background="#20FFFFFF"
                                                 CornerRadius="6"
                                                 Foreground="{DynamicResource TextPrimary}"/>
-                                        <Button Content="Browse Folder..."
+                                        <Button Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFolder}"
                                                 Command="{Binding BrowseLocalFolderCommand}"
                                                 Padding="12,8"
                                                 Background="#20FFFFFF"

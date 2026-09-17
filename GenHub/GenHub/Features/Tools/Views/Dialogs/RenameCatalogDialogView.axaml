@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -10,7 +11,7 @@
     <Grid RowDefinitions="Auto, *, Auto" Margin="24">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-            <TextBlock Text="Rename Catalog"
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Title}"
                        FontSize="18" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
@@ -28,15 +29,15 @@
 
         <!-- Form Body -->
         <StackPanel Grid.Row="1" Spacing="12">
-            <TextBlock Text="Catalog Name"
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Name}"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"
                        FontSize="13"/>
             <TextBox Text="{Binding CatalogName, Mode=TwoWay}"
-                     Watermark="e.g. Maps, Mods, Zero Hour Content"
+                     Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.NamePlaceholder}"
                      FontSize="14"
                      Padding="12,10"/>
-            <TextBlock Text="Renaming will update the catalog title and its export filename (e.g. catalog-maps.json)."
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Description}"
                        FontSize="11"
                        Foreground="{DynamicResource TextMuted}"
                        TextWrapping="Wrap"/>
@@ -49,11 +50,11 @@
 
         <!-- Actions -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Cancel"
+            <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Cancel}"
                     Command="{Binding CancelCommand}"
                     Classes="glass-btn"
                     Padding="20,10"/>
-            <Button Content="Rename"
+            <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.RenameButton}"
                     Command="{Binding SaveCommand}"
                     Background="{DynamicResource PrimaryGradientBrush}"
                     Foreground="{DynamicResource TextPrimary}"

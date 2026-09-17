@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -53,7 +54,7 @@
     <Grid RowDefinitions="Auto,*,Auto" Margin="24">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
-            <TextBlock Text="Add Artifact"
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
                        FontSize="22" FontWeight="Bold"
                        Foreground="White"/>
             <Button Grid.Column="1"
@@ -82,15 +83,15 @@
             <StackPanel Spacing="20">
                 <!-- Source Selection -->
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Choose artifact source:" Classes="label"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.SourcePrompt}" Classes="label"/>
 
                     <!-- Upload Local File Option -->
                     <RadioButton GroupName="ArtifactSource"
                                  IsChecked="{Binding UseLocalFile}"
                                  Foreground="White">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Upload Local File (Cloud Hosting)" FontWeight="SemiBold"/>
-                            <TextBlock Text="File will be uploaded to your connected cloud hosting provider when you publish"
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFile}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFileHint}"
                                        FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="420"/>
                         </StackPanel>
                     </RadioButton>
@@ -100,11 +101,11 @@
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Text="{Binding LocalFilePath}"
                                      IsReadOnly="True"
-                                     Watermark="No file selected..."
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.NoFileSelected}"
                                      FontSize="12"/>
                             <Button Grid.Column="1"
                                     Command="{Binding BrowseLocalFileCommand}"
-                                    Content="Browse..."
+                                    Content="{localization:Localize Tools.PublisherStudio.Artifact.Browse}"
                                     Classes="small-glass-btn"
                                     Margin="8,0,0,0"
                                     Padding="16,8"/>
@@ -119,8 +120,8 @@
                                  Foreground="White"
                                  Margin="0,8,0,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="External CDN / Direct URL (e.g. Game Client, Fast Mirror)" FontWeight="SemiBold"/>
-                            <TextBlock Text="Pre-hosted external link (game clients, community CDN, S3, fast mirrors). Kept intact without cloud re-upload."
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdn}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdnHint}"
                                        FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="420"/>
                         </StackPanel>
                     </RadioButton>
@@ -128,17 +129,17 @@
                     <!-- CDN URL and Size Inputs (visible when UseExistingUrl is true) -->
                     <StackPanel Spacing="10" Margin="24,8,0,0" IsVisible="{Binding UseExistingUrl}">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Direct Download URL *" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}" Classes="label"/>
                             <TextBox Text="{Binding DownloadUrl}"
                                      AutomationProperties.Name="Direct Download URL"
                                      Watermark="https://cdn.example.com/downloads/gameclient-v1.0.zip"/>
                         </StackPanel>
 
                         <StackPanel Spacing="4">
-                            <TextBlock Text="File Size (e.g. 500 MB, 1.2 GB, or bytes)" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}" Classes="label"/>
                             <TextBox Text="{Binding FileSizeInput}"
                                      AutomationProperties.Name="File Size"
-                                     Watermark="e.g. 750 MB"/>
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FileSizePlaceholder}"/>
                             <TextBlock Text="{Binding FileSizeDisplay, StringFormat='Parsed: {0}'}" Classes="hint"
                                        IsVisible="{Binding FileSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </StackPanel>
@@ -157,48 +158,48 @@
                 <Rectangle Height="1" Fill="#20FFFFFF" Margin="0,4"/>
 
                 <!-- Artifact Details -->
-                <TextBlock Text="Artifact Metadata:" Classes="label"/>
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.MetadataHeader}" Classes="label"/>
 
                 <!-- Computing hash indicator -->
                 <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
                     <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="{DynamicResource AccentColorBrush}"/>
-                    <TextBlock Text="Computing SHA-256 hash..." FontSize="12" Foreground="#888888"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ComputingHash}" FontSize="12" Foreground="#888888"/>
                 </StackPanel>
 
                 <!-- Filename -->
                 <StackPanel Spacing="8">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="Filename" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.Filename}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding Filename}"
-                             Watermark="e.g. GeneralsOnline-Client-v1.0.zip"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FilenamePlaceholder}"
                              IsReadOnly="{Binding UseLocalFile}"/>
-                    <TextBlock Text="Auto-filled from selected file or direct URL"
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FilenameHint}"
                                Classes="hint"/>
                 </StackPanel>
 
                 <!-- SHA256 -->
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="SHA256 Hash (Optional)" Classes="label" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Content="Compute"
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.Sha256Hash}" Classes="label" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Artifact.ComputeHash}"
                                 Command="{Binding ComputeHashCommand}"
                                 IsEnabled="{Binding !IsComputingHash}"
                                 IsVisible="{Binding UseLocalFile}"
                                 Classes="small-glass-btn"/>
                     </Grid>
                     <TextBox Text="{Binding Sha256Hash}"
-                             Watermark="Hash string (optional for external CDN)..."
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.HashPlaceholder}"
                              IsReadOnly="{Binding UseLocalFile}"/>
-                    <TextBlock Text="Auto-computed from selected local file"
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.HashHint}"
                                Classes="hint"
                                IsVisible="{Binding UseLocalFile}"/>
                     <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsComputingHash}" Height="2" Foreground="{DynamicResource AccentColorBrush}"/>
                 </StackPanel>
 
-                <CheckBox Content="Primary Artifact" IsChecked="{Binding IsPrimary}"
-                          ToolTip.Tip="This is the main file users should download."/>
+                <CheckBox Content="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifact}" IsChecked="{Binding IsPrimary}"
+                          ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip}"/>
             </StackPanel>
         </ScrollViewer>
 
@@ -211,7 +212,7 @@
                         MaxWidth="300"
                         Margin="0,0,12,0"/>
 
-             <Button Content="Add Artifact"
+             <Button Content="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
                      Command="{Binding CreateArtifactCommand}"
                      Background="{DynamicResource PrimaryGradientBrush}"
                      Foreground="White"

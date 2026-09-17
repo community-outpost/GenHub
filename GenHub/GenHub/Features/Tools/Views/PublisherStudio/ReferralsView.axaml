@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -123,11 +124,11 @@
                                           Foreground="White"/>
                             </Border>
                             <StackPanel Spacing="1" VerticalAlignment="Center">
-                                <TextBlock Text="Referrals"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.Title}"
                                            FontSize="15"
                                            FontWeight="Bold"
                                            Foreground="White"/>
-                                <TextBlock Text="Recommend publishers"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.Subtitle}"
                                            FontSize="11"
                                            Foreground="#9CA3AF"/>
                             </StackPanel>
@@ -135,7 +136,7 @@
                         <Button Grid.Column="1"
                                 Classes="primary-btn"
                                 Command="{Binding AddReferralCommand}"
-                                ToolTip.Tip="Add New Referral"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Referrals.AddTooltip}"
                                 Padding="8">
                             <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="White"/>
                         </Button>
@@ -197,7 +198,7 @@
                                   Width="24" Height="24"
                                   Foreground="#4B5563"/>
                     </Border>
-                    <TextBlock Text="No referrals yet"
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.EmptyState}"
                                FontSize="13"
                                Foreground="#6B7280"
                                HorizontalAlignment="Center"/>
@@ -218,14 +219,14 @@
                                 <PathIcon Data="{StaticResource AddIcon}"
                                           Width="12" Height="12"
                                           Foreground="White"/>
-                                <TextBlock Text="Add Referral" FontSize="12"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.AddButton}" FontSize="12"/>
                             </StackPanel>
                         </Button>
                         <Button Grid.Column="1"
                                 Classes="danger-btn"
                                 Command="{Binding DeleteReferralCommand}"
                                 IsEnabled="{Binding SelectedReferral, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="Remove selected referral">
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Referrals.RemoveTooltip}">
                             <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14"/>
                         </Button>
                     </Grid>
@@ -245,8 +246,8 @@
                     <Grid ColumnDefinitions="Auto,*">
                         <PathIcon Data="{StaticResource InfoIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentColorBrush}" Margin="0,2,12,0" VerticalAlignment="Top"/>
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="How Referrals Work" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
-                            <TextBlock Text="Referrals allow your catalog to cross-promote other trusted publishers (such as Community-Outpost or GeneralsOnline). When players subscribe to your catalog, they can easily discover and install content from your referred publishers."
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.HowItWorksTitle}" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.HowItWorksText}"
                                        FontSize="11" Foreground="#BBBBCC" TextWrapping="Wrap" LineHeight="16"/>
                         </StackPanel>
                     </Grid>
@@ -260,11 +261,11 @@
                         <!-- Header -->
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2">
-                                <TextBlock Text="Edit Referral"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.EditTitle}"
                                            FontSize="16"
                                            FontWeight="Bold"
                                            Foreground="White"/>
-                                <TextBlock Text="Update publisher recommendation details"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.EditSubtitle}"
                                            FontSize="12"
                                            Foreground="#9CA3AF"/>
                             </StackPanel>
@@ -275,7 +276,7 @@
                                     <PathIcon Data="{StaticResource SaveIcon}"
                                               Width="13" Height="13"
                                               Foreground="White"/>
-                                    <TextBlock Text="Save Changes" FontSize="12"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.SaveChanges}" FontSize="12"/>
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -284,26 +285,26 @@
 
                         <!-- Publisher ID -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Publisher ID" Classes="field-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.PublisherId}" Classes="field-label"/>
                             <TextBox Text="{Binding EditPublisherId}"
-                                     Watermark="e.g. generals-online"/>
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Referrals.PublisherIdPlaceholder}"/>
                         </StackPanel>
 
                         <!-- Catalog URL -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Catalog URL" Classes="field-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.CatalogUrl}" Classes="field-label"/>
                             <TextBox Text="{Binding EditCatalogUrl}"
                                      Watermark="https://cdn.playgenerals.online/catalog.json"/>
                         </StackPanel>
 
                         <!-- Notes -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Recommendation Note (optional)" Classes="field-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.RecommendationNote}" Classes="field-label"/>
                             <TextBox Text="{Binding EditNote}"
                                      AcceptsReturn="True"
                                      Height="70"
                                      TextWrapping="Wrap"
-                                     Watermark="Why do you recommend this publisher to your players?"/>
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Referrals.RecommendationNotePlaceholder}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -324,7 +325,7 @@
                                   Width="28" Height="28"
                                   Foreground="#374151"/>
                     </Border>
-                    <TextBlock Text="Select a referral to view details, or click 'Add Referral' to recommend a publisher"
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.SelectPrompt}"
                                FontSize="13"
                                Foreground="#6B7280"
                                HorizontalAlignment="Center"
