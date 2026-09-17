@@ -218,34 +218,7 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
                 {
                     try
                     {
-                        _pipeServer = new NamedPipeServerStream(
-                            PipeName,
-                            PipeDirection.In,
-                            1,
-                            PipeTransmissionMode.Byte,
-                            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-
-                        _logger.LogDebug("Pipe server waiting for connection...");
-                        await _pipeServer.WaitForConnectionAsync(_pipeServerCts.Token);
-
-                        using var reader = new StreamReader(_pipeServer);
-                        var rawCommand = await reader.ReadLineAsync(_pipeServerCts.Token);
-
-                        if (!string.IsNullOrWhiteSpace(rawCommand))
-                        {
-                            var command = CommandLineParser.SanitizePayload(rawCommand).Trim();
-                            if (IsValidIpcCommand(command))
-                            {
-                                LogReceivedCommand(_logger, command);
-                                CommandReceived?.Invoke(this, command);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("Rejecting unknown or malformed IPC command from secondary Windows instance.");
-                            }
-                        }
-
-                        _pipeServer.Disconnect();
+                        await ProcessPipeConnectionAsync(_pipeServerCts.Token);
                     }
                     catch (OperationCanceledException)
                     {
@@ -255,13 +228,48 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
                     {
                         _logger.LogWarning(ex, "Error in pipe server loop");
                     }
-                    finally
-                    {
-                        _pipeServer?.Dispose();
-                        _pipeServer = null;
-                    }
                 }
             },
             _pipeServerCts.Token);
+    }
+
+    private async Task ProcessPipeConnectionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            _pipeServer = new NamedPipeServerStream(
+                PipeName,
+                PipeDirection.In,
+                1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+
+            _logger.LogDebug("Pipe server waiting for connection...");
+            await _pipeServer.WaitForConnectionAsync(cancellationToken);
+
+            using var reader = new StreamReader(_pipeServer);
+            var rawCommand = await reader.ReadLineAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(rawCommand))
+            {
+                var command = CommandLineParser.SanitizePayload(rawCommand).Trim();
+                if (IsValidIpcCommand(command))
+                {
+                    LogReceivedCommand(_logger, command);
+                    CommandReceived?.Invoke(this, command);
+                }
+                else
+                {
+                    _logger.LogWarning("Rejecting unknown or malformed IPC command from secondary Windows instance.");
+                }
+            }
+
+            _pipeServer.Disconnect();
+        }
+        finally
+        {
+            _pipeServer?.Dispose();
+            _pipeServer = null;
+        }
     }
 }

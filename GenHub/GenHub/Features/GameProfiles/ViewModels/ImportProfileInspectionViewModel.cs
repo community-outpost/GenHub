@@ -119,11 +119,22 @@ public sealed partial class ImportProfileInspectionViewModel(
     private int _cachedManifestCount = inspectionResult?.CachedManifestCount ?? 0;
 
     [ObservableProperty]
-    private string _actionButtonText = (inspectionResult?.TotalDownloadBytesRequired ?? 0) > 0
-        ? $"Import & Download ({ByteFormatHelper.FormatBytes(inspectionResult?.TotalDownloadBytesRequired ?? 0)})"
-        : (inspectionResult?.MissingManifestCount ?? 0) > 0
-            ? "Import & Download"
-            : "Import Profile";
+    private string _actionButtonText = DetermineInitialActionButtonText(inspectionResult);
+
+    private static string DetermineInitialActionButtonText(SharedProfileInspectionResult? result)
+    {
+        if ((result?.TotalDownloadBytesRequired ?? 0) > 0)
+        {
+            return $"Import & Download ({ByteFormatHelper.FormatBytes(result!.TotalDownloadBytesRequired)})";
+        }
+
+        if ((result?.MissingManifestCount ?? 0) > 0)
+        {
+            return "Import & Download";
+        }
+
+        return "Import Profile";
+    }
 
     private static bool ValidateArguments(
         SharedProfileInspectionResult inspectionResult,

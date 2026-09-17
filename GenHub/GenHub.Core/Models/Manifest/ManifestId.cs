@@ -28,7 +28,12 @@ public readonly struct ManifestId(string value)
             }
 
             var segments = Value.Split('.');
-            return segments.Length >= 3 ? segments[2] : (segments.Length >= 2 ? segments[1] : null);
+            if (segments.Length >= 3)
+            {
+                return segments[2];
+            }
+
+            return segments.Length >= 2 ? segments[1] : null;
         }
     }
 

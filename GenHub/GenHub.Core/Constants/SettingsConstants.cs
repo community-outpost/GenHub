@@ -79,4 +79,9 @@ public static class SettingsConstants
     /// Section ID for Danger Zone.
     /// </summary>
     public const string SectionDangerZone = "danger-zone";
+
+    /// <summary>
+    /// Standard label for cancel buttons in settings dialogs.
+    /// </summary>
+    public const string CancelButtonText = "Cancel";
 }

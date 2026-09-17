@@ -75,7 +75,7 @@ public class ProfileSharingService(
     private static readonly ConcurrentDictionary<string, HashSet<IPAddress>> ValidatedHostAddresses = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly System.Text.RegularExpressions.Regex DuplicateCounterRegex =
-        new(@"\s*\(\d+\)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+        new(@"\s*\(\d+\)$", System.Text.RegularExpressions.RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
     // HTTP client whose connections are pinned to previously validated addresses, defeating DNS rebinding.
     private readonly HttpClient safeHttpClient = CreateSafeHttpClient();
@@ -1375,13 +1375,11 @@ public class ProfileSharingService(
             return true;
         }
 
-        if (ManifestId.TryCreate(dependency.ManifestId, out var parsed))
+        if (ManifestId.TryCreate(dependency.ManifestId, out var parsed) &&
+            (string.Equals(parsed.Publisher, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(parsed.Publisher, PublisherTypeConstants.GenHubLocal, StringComparison.OrdinalIgnoreCase)))
         {
-            if (string.Equals(parsed.Publisher, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(parsed.Publisher, PublisherTypeConstants.GenHubLocal, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         if (!HasAcquisitionSource(dependency) &&
@@ -1454,12 +1452,10 @@ public class ProfileSharingService(
     private static bool HasCompatiblePublisher(ContentSearchResult candidate, SharedManifestDependency dependency)
     {
         if (ManifestId.TryCreate(candidate.Id, out var candidateId) &&
-            ManifestId.TryCreate(dependency.ManifestId, out var depId))
+            ManifestId.TryCreate(dependency.ManifestId, out var depId) &&
+            !string.Equals(candidateId.Publisher, depId.Publisher, StringComparison.OrdinalIgnoreCase))
         {
-            if (!string.Equals(candidateId.Publisher, depId.Publisher, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            return false;
         }
 
         return true;
@@ -2751,10 +2747,26 @@ public class ProfileSharingService(
             Files = dependency.Files.Select(f => ToSharedManifestFile(f)).ToList(),
         };
 
+        var poolResult = await AddManifestToPoolAsync(contentManifest, stagingDir, dependency.Files, cancellationToken).ConfigureAwait(false);
+        if (!poolResult.Success)
+        {
+            return poolResult;
+        }
+
+        ScanStagingExecutables(stagingDir, validatedManifestId);
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> AddManifestToPoolAsync(
+        ContentManifest contentManifest,
+        string stagingDir,
+        IReadOnlyList<ManifestFile> files,
+        CancellationToken cancellationToken)
+    {
         var factory = publisherManifestFactoryResolver?.ResolveFactory(contentManifest);
         if (factory != null)
         {
-            PruneUnverifiedStagingFiles(stagingDir, dependency.Files);
+            PruneUnverifiedStagingFiles(stagingDir, files);
             var createdManifestsResult = await factory.CreateManifestsFromExtractedContentAsync(contentManifest, stagingDir, cancellationToken).ConfigureAwait(false);
             if (!createdManifestsResult.Success || createdManifestsResult.Data == null)
             {
@@ -2785,32 +2797,36 @@ public class ProfileSharingService(
             {
                 (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
                     "Failed to register extracted manifest {ManifestId} into pool: {Error}",
-                    validatedManifestId,
+                    contentManifest.Id,
                     addResult.FirstError);
-                return OperationResult<bool>.CreateFailure($"Failed to register extracted manifest '{validatedManifestId}': {addResult.FirstError}");
-            }
-        }
-
-        // Re-scan staging directory for nested archive executables or dangerous scripts
-        if (Directory.Exists(stagingDir))
-        {
-            var stagingFiles = Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories);
-            var foundExecutables = stagingFiles
-                .Where(f => ProfileSharingConstants.ExecutableFileExtensions.Contains(Path.GetExtension(f)))
-                .Select(f => Path.GetRelativePath(stagingDir, f))
-                .ToList();
-
-            if (foundExecutables.Count > 0)
-            {
-                (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
-                    "Extracted content for manifest '{ManifestId}' contains {Count} executable file(s): {Files}",
-                    validatedManifestId,
-                    foundExecutables.Count,
-                    string.Join(", ", foundExecutables.Take(5)));
+                return OperationResult<bool>.CreateFailure($"Failed to register extracted manifest '{contentManifest.Id}': {addResult.FirstError}");
             }
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private void ScanStagingExecutables(string stagingDir, ManifestId validatedManifestId)
+    {
+        if (!Directory.Exists(stagingDir))
+        {
+            return;
+        }
+
+        var stagingFiles = Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories);
+        var foundExecutables = stagingFiles
+            .Where(f => ProfileSharingConstants.ExecutableFileExtensions.Contains(Path.GetExtension(f)))
+            .Select(f => Path.GetRelativePath(stagingDir, f))
+            .ToList();
+
+        if (foundExecutables.Count > 0)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Extracted content for manifest '{ManifestId}' contains {Count} executable file(s): {Files}",
+                validatedManifestId,
+                foundExecutables.Count,
+                string.Join(", ", foundExecutables.Take(5)));
+        }
     }
 
     private void CleanupStagingFile(string tempZipPath)

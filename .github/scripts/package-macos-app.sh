@@ -2,9 +2,10 @@
 # Packages a self-contained GenHub.MacOS publish directory into a macOS .app bundle.
 #
 # Usage:
-#   package-macos-app.sh <publish-dir> <output-dir> <app-name> <version>
+#   package-macos-app.sh <publish-dir> <output-dir> [app-name] <version>
 #
-# Example:
+# Examples:
+#   ./package-macos-app.sh macos-publish macos-dist 0.0.1
 #   ./package-macos-app.sh artifacts/GenHub.MacOS artifacts/macos/arm64 GenHub 0.1.0-alpha.1
 #
 # Produces:
@@ -17,11 +18,20 @@ set -euo pipefail
 
 PUBLISH_DIR="${1:-}"
 OUTPUT_DIR="${2:-}"
-APP_NAME="${3:-GenHub}"
-VERSION="${4:-}"
+
+if [[ $# -eq 3 ]]; then
+  APP_NAME="GenHub"
+  VERSION="${3:-}"
+elif [[ $# -ge 4 ]]; then
+  APP_NAME="${3:-GenHub}"
+  VERSION="${4:-}"
+else
+  APP_NAME="GenHub"
+  VERSION="${3:-}"
+fi
 
 if [[ -z "$PUBLISH_DIR" || -z "$OUTPUT_DIR" || -z "$VERSION" ]]; then
-  echo "usage: $0 <publish-dir> <output-dir> <app-name> <version>" >&2
+  echo "usage: $0 <publish-dir> <output-dir> [app-name] <version>" >&2
   exit 2
 fi
 
@@ -33,11 +43,11 @@ BUNDLE_ID="org.communityoutpost.genhub"
 [[ -f "$PUBLISH_DIR/$EXECUTABLE_NAME" ]] || {
   echo "error: $EXECUTABLE_NAME not found in $PUBLISH_DIR" >&2
   echo "hint: publish GenHub.MacOS with -r osx-arm64 --self-contained true first" >&2
-  exit 1
+  exit 1;
 }
 [[ "$BUNDLE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
   echo "error: version must start with a three-part numeric version: $VERSION" >&2
-  exit 1
+  exit 1;
 }
 
 APP_BUNDLE="$OUTPUT_DIR/$APP_NAME.app"

@@ -90,9 +90,6 @@ public static class PublisherTypeConstants
     public const string GenHubInternal = "genhub";
 
     /// <summary>
-    /// Set of publisher identifiers trusted to execute installation steps (e.g. installers).
-    /// </summary>
-    /// <summary>
     /// Set of known curated or platform publisher identifiers that must not be registered via untrusted direct package imports.
     /// </summary>
     public static readonly IReadOnlySet<string> CuratedPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

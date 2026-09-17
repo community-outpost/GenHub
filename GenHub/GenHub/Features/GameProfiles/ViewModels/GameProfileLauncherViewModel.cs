@@ -488,48 +488,18 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
-        string? targetHost = null;
-        if (shareUriOrPath.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            int queryStart = shareUriOrPath.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
-            if (queryStart != -1)
-            {
-                var urlValue = shareUriOrPath[(queryStart + 4)..];
-                int ampIndex = urlValue.IndexOf('&');
-                if (ampIndex != -1)
-                {
-                    urlValue = urlValue[..ampIndex];
-                }
-
-                var unescaped = Uri.UnescapeDataString(urlValue);
-                if (Uri.TryCreate(unescaped, UriKind.Absolute, out var uri))
-                {
-                    targetHost = uri.Host;
-                }
-            }
-        }
-
-        if (!string.IsNullOrEmpty(targetHost))
-        {
-            var confirmed = await dialogService.ShowConfirmationAsync(
-                "Download Remote Profile?",
-                $"A link requested to import a shared game profile from host '{targetHost}'.\n\nDo you want to download and inspect this profile package?",
-                confirmText: "Download & Inspect",
-                cancelText: "Cancel");
-
-            if (!confirmed)
-            {
-                logger.LogInformation("User declined remote profile download from {Host}", targetHost);
-                return;
-            }
-        }
-
         var safeSource = shareUriOrPath.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase)
             ? $"{CommandLineConstants.UriScheme} URI"
             : Path.GetFileName(shareUriOrPath);
 
         try
         {
+            var targetHost = TryExtractRemoteImportHost(shareUriOrPath);
+            if (!string.IsNullOrEmpty(targetHost) && !await PromptRemoteDownloadConsentAsync(targetHost))
+            {
+                return;
+            }
+
             logger.LogInformation("Inspecting shared profile for import from source: {Source}", safeSource);
             var inspectResult = await service.InspectSharedProfileAsync(shareUriOrPath, cancellationToken);
 
@@ -540,31 +510,13 @@ public partial class GameProfileLauncherViewModel(
                 return;
             }
 
-            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-            var parent = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
-
             var inspectionViewModel = new ImportProfileInspectionViewModel(
                 inspectResult.Data,
                 service,
                 notificationService,
                 loggerFactory?.CreateLogger<ImportProfileInspectionViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance);
 
-            var dialog = new Views.ImportProfileInspectionWindow
-            {
-                DataContext = inspectionViewModel,
-            };
-
-            if (parent != null)
-            {
-                await dialog.ShowDialog(parent);
-            }
-            else
-            {
-                var tcs = new TaskCompletionSource<bool>();
-                dialog.Closed += (s, e) => tcs.TrySetResult(true);
-                dialog.Show();
-                await tcs.Task;
-            }
+            await ShowImportProfileInspectionDialogAsync(inspectionViewModel);
         }
         catch (OperationCanceledException ex)
         {
@@ -673,6 +625,53 @@ public partial class GameProfileLauncherViewModel(
 
             var profileCount = Math.Max(0, Profiles.Count - 1);
             StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
+        }
+    }
+
+    private static string? TryExtractRemoteImportHost(string shareUriOrPath)
+    {
+        if (!shareUriOrPath.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        int queryStart = shareUriOrPath.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
+        if (queryStart == -1)
+        {
+            return null;
+        }
+
+        var urlValue = shareUriOrPath[(queryStart + 4)..];
+        int ampIndex = urlValue.IndexOf('&');
+        if (ampIndex != -1)
+        {
+            urlValue = urlValue[..ampIndex];
+        }
+
+        var unescaped = Uri.UnescapeDataString(urlValue);
+        return Uri.TryCreate(unescaped, UriKind.Absolute, out var uri) ? uri.Host : null;
+    }
+
+    private static async Task ShowImportProfileInspectionDialogAsync(ImportProfileInspectionViewModel inspectionViewModel)
+    {
+        var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+        var parent = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+
+        var dialog = new Views.ImportProfileInspectionWindow
+        {
+            DataContext = inspectionViewModel,
+        };
+
+        if (parent != null)
+        {
+            await dialog.ShowDialog(parent);
+        }
+        else
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            dialog.Closed += (s, e) => tcs.TrySetResult(true);
+            dialog.Show();
+            await tcs.Task;
         }
     }
 
@@ -2018,6 +2017,23 @@ public partial class GameProfileLauncherViewModel(
             loggerFactory,
             uploadHistoryService,
             logger);
+    }
+
+    private async Task<bool> PromptRemoteDownloadConsentAsync(string host)
+    {
+        var confirmed = await dialogService.ShowConfirmationAsync(
+            "Download Remote Profile?",
+            $"A link requested to import a shared game profile from host '{host}'.\n\nDo you want to download and inspect this profile package?",
+            confirmText: "Download & Inspect",
+            cancelText: "Cancel");
+
+        if (!confirmed)
+        {
+            logger.LogInformation("User declined remote profile download from {Host}", host);
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>

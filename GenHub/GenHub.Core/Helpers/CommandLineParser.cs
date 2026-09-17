@@ -20,22 +20,10 @@ public static class CommandLineParser
     {
         for (int i = 0; i < args.Length; i++)
         {
-            string arg = args[i];
-
-            if (arg.Equals(CommandLineConstants.LaunchProfileArg, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            var id = TryExtractProfileIdAt(args, i);
+            if (id != null)
             {
-                var nextArg = args[i + 1];
-                if (!nextArg.StartsWith('-'))
-                {
-                    var id = SanitizePayload(Unquote(nextArg));
-                    return string.IsNullOrWhiteSpace(id) ? null : id;
-                }
-            }
-
-            if (arg.StartsWith(CommandLineConstants.LaunchProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                var id = SanitizePayload(Unquote(arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..]));
-                return string.IsNullOrWhiteSpace(id) ? null : id;
+                return id;
             }
         }
 
@@ -121,35 +109,10 @@ public static class CommandLineParser
     {
         for (int i = 0; i < args.Length; i++)
         {
-            string rawArg = args[i].Trim();
-            string sanitizedArg = SanitizePayload(rawArg);
-            string arg = Unquote(sanitizedArg.Trim());
-
-            if (arg.Equals(CommandLineConstants.ImportProfileArg, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            var uri = TryExtractProfileShareUriAt(args, i);
+            if (uri != null)
             {
-                var nextArg = args[i + 1];
-                if (!nextArg.StartsWith('-'))
-                {
-                    var result = SanitizePayload(Unquote(nextArg.Trim()));
-                    return string.IsNullOrWhiteSpace(result) ? null : result;
-                }
-            }
-
-            if (arg.StartsWith(CommandLineConstants.ImportProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                var result = SanitizePayload(Unquote(arg[CommandLineConstants.ImportProfileInlinePrefix.Length..].Trim()));
-                return string.IsNullOrWhiteSpace(result) ? null : result;
-            }
-
-            if (arg.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
-                arg.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return arg;
-            }
-
-            if (arg.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                return arg;
+                return uri;
             }
         }
 
@@ -180,6 +143,71 @@ public static class CommandLineParser
         }
 
         return sb.ToString();
+    }
+
+    private static string? TryExtractProfileIdAt(string[] args, int index)
+    {
+        string arg = args[index];
+
+        if (arg.Equals(CommandLineConstants.LaunchProfileArg, StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+        {
+            var nextArg = args[index + 1];
+            if (!nextArg.StartsWith('-'))
+            {
+                return CleanExtractedValue(nextArg);
+            }
+        }
+
+        if (arg.StartsWith(CommandLineConstants.LaunchProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return CleanExtractedValue(arg[CommandLineConstants.LaunchProfileInlinePrefix.Length..]);
+        }
+
+        return null;
+    }
+
+    private static string? TryExtractProfileShareUriAt(string[] args, int index)
+    {
+        string rawArg = args[index].Trim();
+        string sanitizedArg = SanitizePayload(rawArg);
+        string arg = Unquote(sanitizedArg.Trim());
+
+        if (arg.Equals(CommandLineConstants.ImportProfileArg, StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+        {
+            var nextArg = args[index + 1];
+            if (!nextArg.StartsWith('-'))
+            {
+                return CleanExtractedValue(nextArg);
+            }
+        }
+
+        if (arg.StartsWith(CommandLineConstants.ImportProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return CleanExtractedValue(arg[CommandLineConstants.ImportProfileInlinePrefix.Length..]);
+        }
+
+        if (IsProfileUriOrFile(arg))
+        {
+            return arg;
+        }
+
+        return null;
+    }
+
+    private static bool IsProfileUriOrFile(string arg) =>
+        arg.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+        arg.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+        arg.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase);
+
+    private static string? CleanExtractedValue(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var sanitized = SanitizePayload(Unquote(raw.Trim()));
+        return string.IsNullOrWhiteSpace(sanitized) ? null : sanitized;
     }
 
     private static string Unquote(string s)

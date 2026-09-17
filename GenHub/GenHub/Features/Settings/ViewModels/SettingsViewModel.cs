@@ -1137,7 +1137,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 "Remove Custom Installation",
                 $"Are you sure you want to remove '{installation.DisplayName}' ({installation.InstallationPath})? No files on disk will be deleted.",
                 "Remove",
-                "Cancel");
+                SettingsConstants.CancelButtonText);
 
             if (!confirmed)
             {
@@ -1335,7 +1335,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 "Confirm Installation Migration",
                 confirmMessage,
                 "Migrate & Restart",
-                "Cancel");
+                SettingsConstants.CancelButtonText);
 
             if (!confirmed)
             {
@@ -2849,7 +2849,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             "Clear Upload History",
             "Are you sure you want to clear all upload history and remove uploaded files from cloud storage?",
             "Clear All",
-            "Cancel");
+            SettingsConstants.CancelButtonText);
 
         if (!confirmed)
         {
