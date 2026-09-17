@@ -489,12 +489,14 @@ public class GameProfileManager(
 
         if (matchedClient == null && profile.GameClient != null)
         {
-            var targetNormalized = GameVersionHelper.NormalizeVersion(profile.GameClient.Version);
+            var hasTargetNumeric = GameVersionHelper.TryParseStrictNumericVersion(profile.GameClient.Version, out var targetNumeric);
             matchedClient = availableClients.FirstOrDefault(c =>
                 c.IsEnabled &&
                 c.GameType == profile.GameClient.GameType &&
                 (string.Equals(c.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase) ||
-                 (targetNormalized > 0 && GameVersionHelper.NormalizeVersion(c.Version) == targetNormalized)));
+                 (hasTargetNumeric &&
+                  GameVersionHelper.TryParseStrictNumericVersion(c.Version, out var clientNumeric) &&
+                  clientNumeric == targetNumeric)));
         }
 
         if (matchedClient == null && profile.GameClient == null && request.EnabledContentIds == null)

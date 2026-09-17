@@ -42,10 +42,17 @@ internal static class GameProfileClientResolutionHelper
 
         if (resolvedClient != null)
         {
-            var installationSourceId = selectedInstallation?.SourceId ?? selectedInstallation?.GameClient?.InstallationId;
-            if (!string.IsNullOrEmpty(installationSourceId))
+            var isGameTypeMatch = selectedInstallation == null ||
+                ((selectedInstallation.GameType == GameType.Unknown || resolvedClient.GameType == selectedInstallation.GameType) &&
+                 (selectedInstallation.GameClient == null || resolvedClient.GameType == selectedInstallation.GameClient.GameType));
+
+            if (isGameTypeMatch)
             {
-                resolvedClient.InstallationId = installationSourceId;
+                var installationSourceId = selectedInstallation?.SourceId ?? selectedInstallation?.GameClient?.InstallationId;
+                if (!string.IsNullOrEmpty(installationSourceId))
+                {
+                    resolvedClient.InstallationId = installationSourceId;
+                }
             }
 
             HydrateClientPaths(resolvedClient, selectedInstallation?.GameClient);
@@ -111,7 +118,6 @@ internal static class GameProfileClientResolutionHelper
 
             target.CreatedAt = existing.CreatedAt;
             target.LastDetected = existing.LastDetected;
-            target.IsEnabled = existing.IsEnabled;
         }
     }
 
