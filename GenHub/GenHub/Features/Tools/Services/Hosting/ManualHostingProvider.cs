@@ -82,6 +82,7 @@ public class ManualHostingProvider : IHostingProvider
     public Task<OperationResult<HostingUploadResult>> UploadCatalogAsync(
         string catalogJson,
         string publisherId,
+        string? catalogFileName = null,
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {

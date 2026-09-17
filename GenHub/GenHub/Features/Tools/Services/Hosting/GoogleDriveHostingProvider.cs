@@ -280,10 +280,11 @@ public class GoogleDriveHostingProvider(
     public async Task<OperationResult<HostingUploadResult>> UploadCatalogAsync(
         string catalogJson,
         string publisherId,
+        string? catalogFileName = null,
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var fileName = $"catalog-{publisherId}.json";
+        var fileName = string.IsNullOrWhiteSpace(catalogFileName) ? $"catalog-{publisherId}.json" : catalogFileName;
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(catalogJson));
         return await UploadFileAsync(stream, fileName, null, progress, cancellationToken);
     }

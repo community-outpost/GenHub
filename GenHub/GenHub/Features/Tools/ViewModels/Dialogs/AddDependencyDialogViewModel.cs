@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Infrastructure.Services;
@@ -316,16 +317,30 @@ public partial class AddDependencyDialogViewModel(
     {
         try
         {
-            var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
-            if (parsedCatalog != null)
+            var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(json);
+            var hasCatalogs = definition != null && ((definition.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl));
+            if (hasCatalogs && definition != null)
             {
-                ExternalPublisherId = parsedCatalog.Publisher.Id;
-                foreach (var item in parsedCatalog.Content)
-                {
-                    DiscoveredContent.Add(item);
-                }
+                ExternalPublisherId = definition.Publisher.Id;
 
-                return;
+                var targetUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+                    ? definition.CatalogUrl
+                    : definition.Catalogs?.FirstOrDefault()?.Url;
+
+                if (!string.IsNullOrWhiteSpace(targetUrl) && NetworkSecurityHelper.IsSafeUrl(targetUrl, out _))
+                {
+                    var catalogJson = await client.GetStringAsync(targetUrl, cancellationToken);
+                    var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
+                    if (parsedCatalog != null)
+                    {
+                        foreach (var item in parsedCatalog.Content)
+                        {
+                            DiscoveredContent.Add(item);
+                        }
+
+                        return;
+                    }
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -334,25 +349,21 @@ public partial class AddDependencyDialogViewModel(
         }
         catch (Exception)
         {
-            // Fall through to try as definition
+            // Fall through to try as catalog
         }
 
         try
         {
-            var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(json);
-            if (definition != null)
+            var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
+            if (parsedCatalog != null && parsedCatalog.Content.Count > 0)
             {
-                ExternalPublisherId = definition.Publisher.Id;
-
-                var catalogJson = await client.GetStringAsync(definition.CatalogUrl, cancellationToken);
-                var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
-                if (parsedCatalog != null)
+                ExternalPublisherId = parsedCatalog.Publisher.Id;
+                foreach (var item in parsedCatalog.Content)
                 {
-                    foreach (var item in parsedCatalog.Content)
-                    {
-                        DiscoveredContent.Add(item);
-                    }
+                    DiscoveredContent.Add(item);
                 }
+
+                return;
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
@@ -430,8 +431,14 @@ public partial class SubscriptionConfirmationViewModel(
                 ? definition.CatalogUrl
                 : definition.Catalogs?.FirstOrDefault()?.Url;
 
-            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl) ||
+                !NetworkSecurityHelper.IsSafeUrl(targetCatalogUrl, out var ssrfReason))
             {
+                if (!string.IsNullOrEmpty(ssrfReason))
+                {
+                    logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
+                }
+
                 return (null, null, null);
             }
 

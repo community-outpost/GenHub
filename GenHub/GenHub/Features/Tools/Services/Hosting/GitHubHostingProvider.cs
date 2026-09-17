@@ -271,6 +271,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     public async Task<OperationResult<HostingUploadResult>> UploadCatalogAsync(
         string catalogJson,
         string publisherId,
+        string? catalogFileName = null,
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -283,7 +284,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
         {
             // For catalogs, create/update a Gist
             // Gists provide a simple way to host and update JSON files
-            var gistName = $"genhub-catalog-{publisherId}.json";
+            var gistName = string.IsNullOrWhiteSpace(catalogFileName) ? $"genhub-catalog-{publisherId}.json" : catalogFileName;
             logger.LogInformation("Uploading catalog to GitHub Gist: {GistName}", gistName);
 
             progress?.Report(30);

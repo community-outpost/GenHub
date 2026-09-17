@@ -1,13 +1,69 @@
 namespace GenHub.Core.Helpers;
 
 using System;
+using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 
 /// <summary>
 /// Provides network and IP validation helpers to prevent SSRF (Server-Side Request Forgery) attacks.
 /// </summary>
 public static class NetworkSecurityHelper
 {
+    /// <summary>
+    /// Validates whether a URL is a safe external HTTP or HTTPS URL (not loopback, private, or local network).
+    /// </summary>
+    /// <param name="url">The URL string to validate.</param>
+    /// <param name="failureReason">The error message if validation fails.</param>
+    /// <returns><c>true</c> if safe; otherwise, <c>false</c>.</returns>
+    public static bool IsSafeUrl(string? url, out string? failureReason)
+    {
+        failureReason = null;
+        if (string.IsNullOrWhiteSpace(url) ||
+            !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            failureReason = "URL must be a valid absolute HTTP or HTTPS URL.";
+            return false;
+        }
+
+        if (uri.IsLoopback ||
+            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
+        {
+            failureReason = "Loopback and local addresses are not allowed.";
+            return false;
+        }
+
+        if (IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip))
+        {
+            if (!IsSafeIpAddress(ip))
+            {
+                failureReason = "Loopback, private, and local addresses are not allowed.";
+                return false;
+            }
+        }
+        else
+        {
+            try
+            {
+                var addresses = Dns.GetHostAddresses(uri.DnsSafeHost);
+                if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
+                {
+                    failureReason = "Loopback, private, and local addresses are not allowed.";
+                    return false;
+                }
+            }
+            catch (SocketException)
+            {
+                // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>
     /// Determines whether an IP address is considered safe from SSRF attack vectors.
     /// Blocks loopback, link-local, private, reserved, multicast, and IPv6 transition embeddings (IPv4-mapped IPv6, 6to4, NAT64, Teredo) of unsafe IPs.
