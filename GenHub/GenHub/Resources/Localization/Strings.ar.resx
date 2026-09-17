@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -7305,5 +7305,62 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>اختر عميل لعبة متاح لإنشاء ملف تعريف جديد</value>
+  </data>
+  <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
+    <value>مطلوب التحقق من ModDB</value>
+  </data>
+  <data name="Downloads.ContentDetail.ChromiumSetupFailed" xml:space="preserve">
+    <value>فشل إعداد Chromium</value>
+  </data>
+  <data name="Downloads.ContentDetail.LoadingModDbDetailsTitle" xml:space="preserve">
+    <value>جارٍ تحميل تفاصيل ModDB</value>
+  </data>
+  <data name="Downloads.ContentDetail.LoadingModDbDetailsMessage" xml:space="preserve">
+    <value>يتم فتح نافذة متصفح لقراءة صفحة ModDB هذه. إذا طلبت التحقق، فأكمله هناك. وإلا فانتظر ولا تنقر فوق أي شيء في تلك النافذة — سيتم ملء التفاصيل تلقائيًا.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ModDbDownloadStartingTitle" xml:space="preserve">
+    <value>بدء تنزيل ModDB</value>
+  </data>
+  <data name="Downloads.ContentDetail.ModDbDownloadStartingMessage" xml:space="preserve">
+    <value>سيتم فتح نافذة متصفح لجلب هذا الملف. انتظر حتى ينتهي التنزيل ولا تنقر فوق أي شيء في تلك النافذة.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadFailed" xml:space="preserve">
+    <value>فشل التنزيل</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentTypeNotSaved" xml:space="preserve">
+    <value>لم يتم حفظ نوع المحتوى</value>
+  </data>
+  <data name="Downloads.ContentDetail.CouldNotUpdateStoredManifestType" xml:space="preserve">
+    <value>تعذر تحديث نوع البيان المخزن.</value>
+  </data>
+  <data name="Downloads.ContentDetail.CouldNotUpdateStoredManifestTypeRetry" xml:space="preserve">
+    <value>تعذر تحديث نوع البيان المخزن. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentTypeUpdated" xml:space="preserve">
+    <value>تم تحديث نوع المحتوى</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentTypeUpdatedMessageFormat" xml:space="preserve">
+    <value>&apos;{0}&apos; مصنف الآن كـ {1}.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentNotDownloadedTitle" xml:space="preserve">
+    <value>المحتوى غير منزّل</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleMembersNotDownloadedMessage" xml:space="preserve">
+    <value>قم بتنزيل كل عنصر حزمة محدد (بما في ذلك المتغيرات المختارة) قبل إضافته إلى ملف التعريف.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadItemBeforeAdding" xml:space="preserve">
+    <value>يرجى تنزيل هذا العنصر قبل إضافته إلى ملف التعريف.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadContentBeforeAdding" xml:space="preserve">
+    <value>يرجى تنزيل المحتوى قبل إضافته إلى ملف التعريف.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadFileBeforeAdding" xml:space="preserve">
+    <value>يرجى تنزيل هذا الملف قبل إضافته إلى ملف التعريف.</value>
+  </data>
+  <data name="Downloads.ContentDetail.FailedToShowProfileSelectionDialogFormat" xml:space="preserve">
+    <value>فشل إظهار مربع حوار اختيار ملف التعريف: {0}</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImagePreview" xml:space="preserve">
+    <value>معاينة الصورة</value>
   </data>
 </root>

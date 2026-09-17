@@ -429,4 +429,76 @@ public static class GameSettingsConstants
             (1280, 768),
         ];
     }
+
+    /// <summary>
+    /// Keys used in Options.ini configuration files.
+    /// </summary>
+    public static class IniKeys
+    {
+        /// <summary>Configuration key for building animations.</summary>
+        public const string GenHubBuildingAnimations = GameSettingsIniConstants.GenHubBuildingAnimationsKey;
+
+        /// <summary>Configuration key for particle effects.</summary>
+        public const string GenHubParticleEffects = GameSettingsIniConstants.GenHubParticleEffectsKey;
+
+        /// <summary>Configuration key for static game LOD.</summary>
+        public const string StaticGameLOD = GameSettingsIniConstants.StaticGameLODKey;
+
+        /// <summary>Configuration key for ideal static game LOD.</summary>
+        public const string IdealStaticGameLOD = GameSettingsIniConstants.IdealStaticGameLODKey;
+
+        /// <summary>Configuration key for skipping EA logo.</summary>
+        public const string SkipEALogo = GameSettingsIniConstants.SkipEALogoKey;
+
+        /// <summary>Configuration key for shadow volumes.</summary>
+        public const string UseShadowVolumes = GameSettingsIniConstants.UseShadowVolumesKey;
+
+        /// <summary>Configuration key for alternate mouse setup.</summary>
+        public const string UseAlternateMouse = GameSettingsIniConstants.UseAlternateMouseKey;
+
+        /// <summary>Configuration key for alternate mouse setup in Options.ini.</summary>
+        public const string AlternateMouseSetup = GameSettingsIniConstants.AlternateMouseSetupKey;
+
+        /// <summary>Configuration key for extra animations.</summary>
+        public const string ExtraAnimations = GameSettingsIniConstants.ExtraAnimationsKey;
+
+        /// <summary>Configuration key for heat effects.</summary>
+        public const string HeatEffects = GameSettingsIniConstants.HeatEffectsKey;
+
+        /// <summary>Configuration key for building occlusion.</summary>
+        public const string BuildingOcclusion = GameSettingsIniConstants.BuildingOcclusionKey;
+
+        /// <summary>Configuration key for show props.</summary>
+        public const string ShowProps = GameSettingsIniConstants.ShowPropsKey;
+
+        /// <summary>Configuration key for soft water edges.</summary>
+        public const string ShowSoftWaterEdge = GameSettingsIniConstants.ShowSoftWaterEdgeKey;
+
+        /// <summary>Configuration key for showing trees.</summary>
+        public const string ShowTrees = GameSettingsIniConstants.ShowTreesKey;
+
+        /// <summary>Configuration key for cloud maps.</summary>
+        public const string UseCloudMap = GameSettingsIniConstants.UseCloudMapKey;
+
+        /// <summary>Configuration key for light maps.</summary>
+        public const string UseLightMap = GameSettingsIniConstants.UseLightMapKey;
+
+        /// <summary>Configuration key for shadow decals.</summary>
+        public const string UseShadowDecals = GameSettingsIniConstants.UseShadowDecalsKey;
+
+        /// <summary>Configuration key for resolution.</summary>
+        public const string Resolution = GameSettingsIniConstants.ResolutionKey;
+
+        /// <summary>Configuration key for windowed mode.</summary>
+        public const string Windowed = GameSettingsIniConstants.WindowedKey;
+
+        /// <summary>Configuration key for texture reduction.</summary>
+        public const string TextureReduction = GameSettingsIniConstants.TextureReductionKey;
+
+        /// <summary>Configuration key for anti-aliasing.</summary>
+        public const string AntiAliasing = GameSettingsIniConstants.AntiAliasingKey;
+
+        /// <summary>Configuration key for gamma.</summary>
+        public const string Gamma = GameSettingsIniConstants.GammaKey;
+    }
 }

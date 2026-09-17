@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -7399,5 +7399,62 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Choose an available game client to create a fresh profile</value>
+  </data>
+  <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
+    <value>ModDB verification required</value>
+  </data>
+  <data name="Downloads.ContentDetail.ChromiumSetupFailed" xml:space="preserve">
+    <value>Chromium setup failed</value>
+  </data>
+  <data name="Downloads.ContentDetail.LoadingModDbDetailsTitle" xml:space="preserve">
+    <value>Loading ModDB details</value>
+  </data>
+  <data name="Downloads.ContentDetail.LoadingModDbDetailsMessage" xml:space="preserve">
+    <value>A browser window is opening to read this ModDB page. If it asks for verification, complete it there. Otherwise wait and do not click anything in that window — details will fill in automatically.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ModDbDownloadStartingTitle" xml:space="preserve">
+    <value>ModDB download starting</value>
+  </data>
+  <data name="Downloads.ContentDetail.ModDbDownloadStartingMessage" xml:space="preserve">
+    <value>A browser window will open to fetch this file. Wait for the download to finish and do not click anything in that window.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadFailed" xml:space="preserve">
+    <value>Download failed</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentTypeNotSaved" xml:space="preserve">
+    <value>Content Type Not Saved</value>
+  </data>
+  <data name="Downloads.ContentDetail.CouldNotUpdateStoredManifestType" xml:space="preserve">
+    <value>Could not update the stored manifest type.</value>
+  </data>
+  <data name="Downloads.ContentDetail.CouldNotUpdateStoredManifestTypeRetry" xml:space="preserve">
+    <value>Could not update the stored manifest type. Please try again.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentTypeUpdated" xml:space="preserve">
+    <value>Content Type Updated</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentTypeUpdatedMessageFormat" xml:space="preserve">
+    <value>&apos;{0}&apos; is now classified as {1}.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ContentNotDownloadedTitle" xml:space="preserve">
+    <value>Content Not Downloaded</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleMembersNotDownloadedMessage" xml:space="preserve">
+    <value>Download every selected bundle item (including the chosen variants) before adding them to a profile.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadItemBeforeAdding" xml:space="preserve">
+    <value>Please download this item before adding it to a profile.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadContentBeforeAdding" xml:space="preserve">
+    <value>Please download the content before adding it to a profile.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadFileBeforeAdding" xml:space="preserve">
+    <value>Please download this file before adding it to a profile.</value>
+  </data>
+  <data name="Downloads.ContentDetail.FailedToShowProfileSelectionDialogFormat" xml:space="preserve">
+    <value>Failed to show profile selection dialog: {0}</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImagePreview" xml:space="preserve">
+    <value>Image Preview</value>
   </data>
 </root>
