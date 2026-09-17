@@ -68,7 +68,7 @@ public sealed partial class ReplayCheckpointService : IReplayCheckpointService, 
     /// <param name="logger">The logger instance.</param>
     /// <param name="customSaveDirectory">Optional custom save directory path.</param>
     /// <param name="mintTimeout">Optional custom minting timeout duration.</param>
-    public ReplayCheckpointService(
+    internal ReplayCheckpointService(
         IProfileLauncherFacade launcherFacade,
         IGameProcessManager processManager,
         ILogger<ReplayCheckpointService> logger,
