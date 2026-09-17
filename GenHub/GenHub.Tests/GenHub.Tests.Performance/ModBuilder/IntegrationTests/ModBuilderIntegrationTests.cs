@@ -2,8 +2,6 @@
 // Copyright (c) enowX Labs. All rights reserved.
 // </copyright>
 
-namespace GenHub.Tests.Performance.ModBuilder.IntegrationTests;
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -22,6 +20,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using Xunit.Abstractions;
+
+namespace GenHub.Tests.Performance.ModBuilder.IntegrationTests;
 
 /// <summary>
 /// End-to-end integration tests for ModBuilder build pipeline.

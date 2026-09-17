@@ -2,11 +2,11 @@
 // Copyright (c) enowX Labs. All rights reserved.
 // </copyright>
 
-namespace GenHub.Tests.Performance.ModBuilder.IntegrationTests;
-
 using System;
 using Microsoft.Extensions.Logging;
 using Xunit.Abstractions;
+
+namespace GenHub.Tests.Performance.ModBuilder.IntegrationTests;
 
 /// <summary>
 /// XUnit logger for capturing logs in test output.

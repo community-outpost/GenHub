@@ -2,8 +2,6 @@
 // Copyright (c) enowX Labs. All rights reserved.
 // </copyright>
 
-namespace GenHub.Tests.Performance.ModBuilder.IntegrationTests;
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,6 +19,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using Xunit.Abstractions;
+
+namespace GenHub.Tests.Performance.ModBuilder.IntegrationTests;
 
 /// <summary>
 /// Performance benchmark tests comparing C# implementation against Python baseline.
@@ -319,6 +319,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
     {
         await CreateSmallBenchmarkProjectAsync();
         await CreateMediumBenchmarkProjectAsync();
+
         // Large project creation skipped by default (too large)
     }
 
