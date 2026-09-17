@@ -4621,6 +4621,75 @@
   <data name="Profiles.AddLocalContent.TypeLabel" xml:space="preserve">
     <value>النوع</value>
   </data>
+  <data name="Profiles.AddLocalContent.NormalizeButton" xml:space="preserve">
+    <value>تسوية إلى .big (تشغيل مباشر)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
+    <value>تحويل ملفات .ctr / .gib / .skw إلى تنسيق .big النشط للتشغيل المباشر عبر GameClient</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
+    <value>التحقق من صحة تنسيقات الأرشيف وتحويلها...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
+    <value>تطبيع الأرشيفات غير النشطة (.ctr / .gib / .skw) إلى .big...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
+    <value>تم تطبيع الأرشيفات غير النشطة إلى .big بنجاح.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationFailed" xml:space="preserve">
+    <value>فشل التطبيع: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressAnalyzingFiles" xml:space="preserve">
+    <value>تحليل الملفات وحساب التجزئة...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusScanningContent" xml:space="preserve">
+    <value>مسح المحتوى المحلي...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingManifest" xml:space="preserve">
+    <value>تحديث بيان المحتوى...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressCasStorage" xml:space="preserve">
+    <value>{0} من أصل {1} من الملفات المخزنة في تجمع CAS{2}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressWritingMetadata" xml:space="preserve">
+    <value>كتابة البيانات الوصفية...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingFiles" xml:space="preserve">
+    <value>تحديث ملفات المحتوى...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFiles" xml:space="preserve">
+    <value>استيراد ملفات المحتوى...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportCancelled" xml:space="preserve">
+    <value>تم إلغاء الاستيراد.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSuccessful" xml:space="preserve">
+    <value>تم الاستيراد بنجاح.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportError" xml:space="preserve">
+    <value>خطأ في الاستيراد: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFile" xml:space="preserve">
+    <value>جارٍ استيراد {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogTitle" xml:space="preserve">
+    <value>تم اكتشاف تعارض في الملفات</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogMessage" xml:space="preserve">
+    <value>استيراد '{0}' يتعارض مع {1} من الملفات الموجودة. هل تريد استبدال الملفات الموجودة؟</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogOverwrite" xml:space="preserve">
+    <value>استبدال</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogCancel" xml:space="preserve">
+    <value>تخطي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSkippedCollision" xml:space="preserve">
+    <value>تم تخطي الاستيراد بسبب تعارض الملفات.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SingleCollisionDialogMessage" xml:space="preserve">
+    <value>الملف '{0}' موجود بالفعل في منطقة التجهيز بمحتوى مختلف. هل تريد الاستبدال؟</value>
+  </data>
   <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
     <value>إضافة محتوى</value>
   </data>
@@ -7306,6 +7375,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>اختر عميل لعبة متاح لإنشاء ملف تعريف جديد</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
+    <value>جارٍ تحديث {0}: {1:0}% ({2}/{3} ملفات)</value>
+  </data>
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>مطلوب التحقق من ModDB</value>
   </data>
@@ -7363,4 +7435,136 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Downloads.ContentDetail.ImagePreview" xml:space="preserve">
     <value>معاينة الصورة</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
+    <value>جارٍ استيراد {0}: {1:0}% ({2}/{3} ملفات)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.DialogTitleAdd" xml:space="preserve">
+    <value>إضافة محتوى محلي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.DialogTitleEdit" xml:space="preserve">
+    <value>تعديل المحتوى المحلي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ActionButtonAdd" xml:space="preserve">
+    <value>إضافة إلى المكتبة</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ActionButtonSave" xml:space="preserve">
+    <value>حفظ التغييرات</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusEnterName" xml:space="preserve">
+    <value>يرجى إدخال اسم للمحتوى.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNoContent" xml:space="preserve">
+    <value>لا يوجد محتوى للإضافة. يرجى استيراد ملفات أو مجلدات.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusStorageUnavailable" xml:space="preserve">
+    <value>خدمة التخزين غير متوفرة.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadingContent" xml:space="preserve">
+    <value>جارٍ تحميل المحتوى الحالي...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadSuccess" xml:space="preserve">
+    <value>نجاح!</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadFailed" xml:space="preserve">
+    <value>فشل تحميل المحتوى: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadError" xml:space="preserve">
+    <value>خطأ أثناء تحميل المحتوى: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizingGenLauncher" xml:space="preserve">
+    <value>جارٍ تسوية ملفات GenLauncher...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSkipped" xml:space="preserve">
+    <value>تم الاستيراد بنجاح (لم يتم ضبط ملفات GenLauncher).</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationCheckFailed" xml:space="preserve">
+    <value>تم الاستيراد بنجاح (فشل فحص الضبط).</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationWarning" xml:space="preserve">
+    <value>تحذير الضبط: {0}. سيستمر الاستيراد.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusPartialNormalization" xml:space="preserve">
+    <value>تعذر تسوية بعض الأرشيفات غير النشطة.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovingItem" xml:space="preserve">
+    <value>جارٍ حذف {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovedItem" xml:space="preserve">
+    <value>تم حذف {0}.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovalError" xml:space="preserve">
+    <value>خطأ في الحذف: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusOperationCancelled" xml:space="preserve">
+    <value>تم إلغاء العملية</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusGenericError" xml:space="preserve">
+    <value>خطأ: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusDemoRegistered" xml:space="preserve">
+    <value>تم تسجيل '{0}' في المكتبة. جاهز للربط بأي ملف تعريف للعبة!</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMod" xml:space="preserve">
+    <value>استيراد محتوى التعديل (مثل .big, .zip)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleGameClient" xml:space="preserve">
+    <value>استيراد GameClient</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleExecutable" xml:space="preserve">
+    <value>استيراد الملف التنفيذي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleModdingTool" xml:space="preserve">
+    <value>استيراد أداة تنفيذية</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdlePatch" xml:space="preserve">
+    <value>استيراد التحديث</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleAddon" xml:space="preserve">
+    <value>استيراد محتوى الملحق</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMap" xml:space="preserve">
+    <value>استيراد ملفات الخرائط</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMapPack" xml:space="preserve">
+    <value>استيراد حزم الخرائط</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMission" xml:space="preserve">
+    <value>استيراد محتوى المهمة</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleDefault" xml:space="preserve">
+    <value>اسحب وأفلت المحتوى للبدء</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogTitle" xml:space="preserve">
+    <value>تم اكتشاف ملفات GenLauncher</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogNormalize" xml:space="preserve">
+    <value>ضبط</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogSkip" xml:space="preserve">
+    <value>تخطي</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherPrompt" xml:space="preserve">
+    <value>يحتوي هذا المحتوى على ملفات معدلة بواسطة GenLauncher:
+
+{0}
+
+هل ترغب في ضبط هذه الملفات إلى التنسيق القياسي؟
+
+سيؤدي هذا إلى:
+• تحويل ملفات {1} إلى {2}
+• تحويل ملفات {3} إلى {2} أو {4} حسب المحتوى
+• إزالة اللاحقات {5}
+• إزالة الروابط الرمزية</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationSuccess" xml:space="preserve">
+    <value>تم ضبط {0} من الملفات. اكتمل الاستيراد بنجاح.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationPartial" xml:space="preserve">
+    <value>تم ضبط {0} من الملفات؛ تم تخطي {1}، وفشل {2}. اكتمل الاستيراد.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationFailed" xml:space="preserve">
+    <value>تم ضبط {0} من الملفات؛ وفشل {1}. اكتمل الاستيراد.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationSkipped" xml:space="preserve">
+    <value>تم ضبط {0} من الملفات؛ تم تخطي {1}. اكتمل الاستيراد.</value>  </data>
 </root>

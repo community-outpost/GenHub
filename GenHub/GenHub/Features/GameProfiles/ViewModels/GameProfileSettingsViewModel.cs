@@ -56,6 +56,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
     private readonly IProfileContentLinker? _profileContentLinker;
     private readonly ILaunchRegistry? _launchRegistry;
+    private readonly IArchivePayloadProcessor? _archivePayloadProcessor;
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
@@ -81,6 +82,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
     /// <param name="profileContentLinker">The profile content linker service.</param>
     /// <param name="launchRegistry">The launch registry service.</param>
+    /// <param name="archivePayloadProcessor">The archive payload processor service.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -96,7 +98,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
         IProfileContentLinker? profileContentLinker = null,
-        ILaunchRegistry? launchRegistry = null)
+        ILaunchRegistry? launchRegistry = null,
+        IArchivePayloadProcessor? archivePayloadProcessor = null)
     {
         _gameProfileManager = gameProfileManager;
         _configurationProvider = configurationProvider;
@@ -112,6 +115,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _gameSettingsLogger = gameSettingsLogger;
         _profileContentLinker = profileContentLinker;
         _launchRegistry = launchRegistry;
+        _archivePayloadProcessor = archivePayloadProcessor;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,

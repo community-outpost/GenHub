@@ -31,6 +31,11 @@ public static class GenLauncherConstants
     public const string CtrExtension = ".ctr";
 
     /// <summary>
+    /// Shockwave mod inactive .big file extension.
+    /// </summary>
+    public const string SkwExtension = ".skw";
+
+    /// <summary>
     /// Standard .big file extension.
     /// </summary>
     public const string BigExtension = ".big";
@@ -62,5 +67,6 @@ public static class GenLauncherConstants
     [
         GibExtension,
         CtrExtension,
+        SkwExtension,
     ];
 }
