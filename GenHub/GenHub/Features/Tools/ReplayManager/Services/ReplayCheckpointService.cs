@@ -686,57 +686,132 @@ public sealed partial class ReplayCheckpointService : IReplayCheckpointService, 
         DateTime? preExistingTargetTime,
         DateTime? preExistingLegacyTime)
     {
+        var (resolvedPath, resolvedName, usedLegacy, resolutionError) = ResolveSaveFilePath(
+            saveFilePath,
+            saveDirectory,
+            saveFileName,
+            targetFrame,
+            preExistingLegacyTime);
+
+        if (resolutionError != null)
+        {
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(resolutionError);
+        }
+
+        var (fileInfo, validationError) = ValidateSaveFileInfo(
+            resolvedPath,
+            resolvedName,
+            usedLegacy,
+            preExistingTargetTime);
+
+        if (validationError != null)
+        {
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(validationError);
+        }
+
+        var checkpoint = new ReplayCheckpointInfo
+        {
+            FilePath = resolvedPath,
+            FileName = resolvedName,
+            TargetFrame = targetFrame,
+            CreatedAt = fileInfo!.CreationTimeUtc,
+            FileSizeBytes = fileInfo.Length,
+            AssociatedReplayFileName = replayFileName,
+        };
+
+        _logger.LogInformation("[ReplayCheckpoint] Successfully minted checkpoint {FileName} ({Size} bytes)", resolvedName, fileInfo.Length);
+        return ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(checkpoint);
+    }
+
+    private (string ResolvedPath, string ResolvedName, bool UsedLegacy, string? Error) ResolveSaveFilePath(
+        string saveFilePath,
+        string saveDirectory,
+        string saveFileName,
+        int targetFrame,
+        DateTime? preExistingLegacyTime)
+    {
         var usedLegacy = false;
         if (!File.Exists(saveFilePath))
         {
-            // Defensive check: if engine wrote bare cp_<frame>.sav without replay prefix, rename it
-            var legacyFileName = $"{ReplayManagerConstants.CheckpointFilePrefix}{targetFrame}{ReplayManagerConstants.SaveFileExtension}";
-            var legacyFilePath = Path.Combine(saveDirectory, legacyFileName);
-            if (File.Exists(legacyFilePath))
-            {
-                if (preExistingLegacyTime.HasValue && File.GetLastWriteTimeUtc(legacyFilePath) <= preExistingLegacyTime.Value)
-                {
-                    _logger.LogError(
-                        "[ReplayCheckpoint] Legacy save file '{Path}' was not updated by this mint run (stale file from previous session detected).",
-                        legacyFilePath);
-                    return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(
-                        $"Save file '{legacyFileName}' was not updated by the game client (stale file detected).");
-                }
+            var legacyResult = TryResolveLegacySaveFile(
+                saveFilePath,
+                saveDirectory,
+                saveFileName,
+                targetFrame,
+                preExistingLegacyTime);
 
-                usedLegacy = true;
-                try
-                {
-                    File.Move(legacyFilePath, saveFilePath, overwrite: true);
-                }
-                catch (IOException ioEx)
-                {
-                    _logger.LogWarning(ioEx, "[ReplayCheckpoint] Could not rename {Legacy} to {Target}", legacyFilePath, saveFilePath);
-                    saveFilePath = legacyFilePath;
-                    saveFileName = legacyFileName;
-                }
+            if (legacyResult.Error != null)
+            {
+                return (saveFilePath, saveFileName, false, legacyResult.Error);
             }
+
+            saveFilePath = legacyResult.ResolvedPath;
+            saveFileName = legacyResult.ResolvedName;
+            usedLegacy = legacyResult.UsedLegacy;
         }
 
         if (!File.Exists(saveFilePath))
         {
             _logger.LogError("[ReplayCheckpoint] Save file '{Path}' was not created by the game client.", saveFilePath);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Save file '{saveFileName}' was not created by the game client.");
+            return (saveFilePath, saveFileName, false, $"Save file '{saveFileName}' was not created by the game client.");
         }
 
-        FileInfo fileInfo;
+        return (saveFilePath, saveFileName, usedLegacy, null);
+    }
+
+    private (string ResolvedPath, string ResolvedName, bool UsedLegacy, string? Error) TryResolveLegacySaveFile(
+        string saveFilePath,
+        string saveDirectory,
+        string saveFileName,
+        int targetFrame,
+        DateTime? preExistingLegacyTime)
+    {
+        var legacyFileName = $"{ReplayManagerConstants.CheckpointFilePrefix}{targetFrame}{ReplayManagerConstants.SaveFileExtension}";
+        var legacyFilePath = Path.Combine(saveDirectory, legacyFileName);
+        if (!File.Exists(legacyFilePath))
+        {
+            return (saveFilePath, saveFileName, false, null);
+        }
+
+        if (preExistingLegacyTime.HasValue && File.GetLastWriteTimeUtc(legacyFilePath) <= preExistingLegacyTime.Value)
+        {
+            _logger.LogError(
+                "[ReplayCheckpoint] Legacy save file '{Path}' was not updated by this mint run (stale file from previous session detected).",
+                legacyFilePath);
+            return (saveFilePath, saveFileName, false, $"Save file '{legacyFileName}' was not updated by the game client (stale file detected).");
+        }
+
         try
         {
-            fileInfo = new FileInfo(saveFilePath);
+            File.Move(legacyFilePath, saveFilePath, overwrite: true);
+            return (saveFilePath, saveFileName, true, null);
+        }
+        catch (IOException ioEx)
+        {
+            _logger.LogWarning(ioEx, "[ReplayCheckpoint] Could not rename {Legacy} to {Target}", legacyFilePath, saveFilePath);
+            return (legacyFilePath, legacyFileName, true, null);
+        }
+    }
+
+    private (FileInfo? FileInfo, string? Error) ValidateSaveFileInfo(
+        string saveFilePath,
+        string saveFileName,
+        bool usedLegacy,
+        DateTime? preExistingTargetTime)
+    {
+        try
+        {
+            var fileInfo = new FileInfo(saveFilePath);
             if (!fileInfo.Exists)
             {
                 _logger.LogError("[ReplayCheckpoint] Save file '{Path}' was not created by the game client.", saveFilePath);
-                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Save file '{saveFileName}' was not created by the game client.");
+                return (null, $"Save file '{saveFileName}' was not created by the game client.");
             }
 
             if (fileInfo.Length < ReplayManagerConstants.MinValidSaveFileSizeBytes)
             {
                 _logger.LogWarning("[ReplayCheckpoint] Save file '{Path}' is too small ({Size} bytes) to be a valid game save.", saveFilePath, fileInfo.Length);
-                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Save file '{saveFileName}' is corrupted or incomplete (file size too small).");
+                return (null, $"Save file '{saveFileName}' is corrupted or incomplete (file size too small).");
             }
 
             if (!usedLegacy && preExistingTargetTime.HasValue && fileInfo.LastWriteTimeUtc <= preExistingTargetTime.Value)
@@ -744,27 +819,15 @@ public sealed partial class ReplayCheckpointService : IReplayCheckpointService, 
                 _logger.LogError(
                     "[ReplayCheckpoint] Save file '{Path}' was not updated by this mint run (stale file from previous session detected).",
                     saveFilePath);
-                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(
-                    $"Save file '{saveFileName}' was not updated by the game client (stale file detected).");
+                return (null, $"Save file '{saveFileName}' was not updated by the game client (stale file detected).");
             }
+
+            return (fileInfo, null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.LogError(ex, "[ReplayCheckpoint] Failed to access save file metadata for '{Path}'", saveFilePath);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Failed to read metadata for save file '{saveFileName}': {ex.Message}");
+            return (null, $"Failed to read metadata for save file '{saveFileName}': {ex.Message}");
         }
-
-        var checkpoint = new ReplayCheckpointInfo
-        {
-            FilePath = saveFilePath,
-            FileName = saveFileName,
-            TargetFrame = targetFrame,
-            CreatedAt = fileInfo.CreationTimeUtc,
-            FileSizeBytes = fileInfo.Length,
-            AssociatedReplayFileName = replayFileName,
-        };
-
-        _logger.LogInformation("[ReplayCheckpoint] Successfully minted checkpoint {FileName} ({Size} bytes)", saveFileName, fileInfo.Length);
-        return ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(checkpoint);
     }
 }

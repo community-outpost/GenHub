@@ -273,69 +273,124 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         int bytesRead,
         in ReplayTimingContext ctx)
     {
-        var is60Hz = (ctx.VersionString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true) ||
-                     (ctx.VersionString?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true) ||
-                     (ctx.BuildTimeString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true) ||
-                     (ctx.TitleString?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true);
+        var is60Hz = IsHighRefreshRate(ctx);
         var baseFps = is60Hz ? ReplayManagerConstants.GeneralsOnlineFps : ReplayManagerConstants.ClassicFps;
 
-        uint? totalFrames = ctx.HeaderFrameCount > 0 ? ctx.HeaderFrameCount : null;
-        TimeSpan? duration = null;
-        int? fps = null;
+        var (totalFrames, fps, duration) = ResolveFramesAndDuration(buffer, offsetAfterInitString, bytesRead, ctx, baseFps);
+        var gameDate = ResolveGameDate(ctx.StartTime);
 
-        if (totalFrames.HasValue && totalFrames.Value > 0)
+        return (totalFrames, fps, duration, gameDate);
+    }
+
+    private static bool IsHighRefreshRate(in ReplayTimingContext ctx) =>
+        ContainsHighRefreshKeyword(ctx.VersionString) ||
+        ContainsGeneralsOnlineKeyword(ctx.VersionString) ||
+        ContainsHighRefreshKeyword(ctx.BuildTimeString) ||
+        ContainsHighRefreshKeyword(ctx.TitleString);
+
+    private static bool ContainsHighRefreshKeyword(string? text) =>
+        text?.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool ContainsGeneralsOnlineKeyword(string? text) =>
+        text?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static (uint? TotalFrames, int? Fps, TimeSpan? Duration) ResolveFramesAndDuration(
+        byte[] buffer,
+        int offsetAfterInitString,
+        int bytesRead,
+        in ReplayTimingContext ctx,
+        int baseFps)
+    {
+        if (ctx.HeaderFrameCount > 0)
         {
-            fps = baseFps;
-            duration = TimeSpan.FromSeconds((double)totalFrames.Value / baseFps);
+            var frames = ctx.HeaderFrameCount;
+            return (frames, baseFps, TimeSpan.FromSeconds((double)frames / baseFps));
         }
-        else if (ctx.EndTime > ctx.StartTime && ctx.StartTime >= ReplayManagerConstants.MinSanityTimestampEpoch)
+
+        if (TryResolveFramesFromTimestamps(ctx, baseFps, out var timestampFrames, out var timestampDuration))
         {
-            var seconds = ctx.EndTime - ctx.StartTime;
-            const long maxSanityDurationSeconds = 86400; // 24 hours
-            if (seconds > 0 && seconds <= maxSanityDurationSeconds)
-            {
-                duration = TimeSpan.FromSeconds(seconds);
-                fps = baseFps;
-                var calculatedFrames = (double)seconds * baseFps;
-                if (calculatedFrames <= uint.MaxValue)
-                {
-                    totalFrames = (uint)Math.Round(calculatedFrames);
-                }
-            }
+            return (timestampFrames, baseFps, timestampDuration);
+        }
+
+        if (TryResolveFramesFromChunkStream(buffer, offsetAfterInitString, bytesRead, out var scannedFrames))
+        {
+            return (scannedFrames, baseFps, TimeSpan.FromSeconds((double)scannedFrames / baseFps));
+        }
+
+        return (null, null, null);
+    }
+
+    private static bool TryResolveFramesFromTimestamps(
+        in ReplayTimingContext ctx,
+        int baseFps,
+        out uint? totalFrames,
+        out TimeSpan? duration)
+    {
+        totalFrames = null;
+        duration = null;
+
+        if (ctx.EndTime <= ctx.StartTime || ctx.StartTime < ReplayManagerConstants.MinSanityTimestampEpoch)
+        {
+            return false;
+        }
+
+        var seconds = ctx.EndTime - ctx.StartTime;
+        const long maxSanityDurationSeconds = 86400; // 24 hours
+        if (seconds <= 0 || seconds > maxSanityDurationSeconds)
+        {
+            return false;
+        }
+
+        duration = TimeSpan.FromSeconds(seconds);
+        var calculatedFrames = (double)seconds * baseFps;
+        if (calculatedFrames <= uint.MaxValue)
+        {
+            totalFrames = (uint)Math.Round(calculatedFrames);
+        }
+
+        return true;
+    }
+
+    private static bool TryResolveFramesFromChunkStream(
+        byte[] buffer,
+        int offsetAfterInitString,
+        int bytesRead,
+        out uint totalFrames)
+    {
+        totalFrames = 0;
+        var scanOffset = offsetAfterInitString;
+        if (TryReadNullTerminatedAsciiString(buffer, ref scanOffset, bytesRead, out _))
+        {
+            scanOffset += ReplayManagerConstants.ReplayPlayerIndexFixedTrailerSizeBytes;
         }
         else
         {
-            var scanOffset = offsetAfterInitString;
-            if (TryReadNullTerminatedAsciiString(buffer, ref scanOffset, bytesRead, out _))
-            {
-                // Engine writes null-terminated local player index string (e.g. "0 " or "-1 "),
-                // followed by a 16-byte fixed trailer before the chunk stream.
-                scanOffset += ReplayManagerConstants.ReplayPlayerIndexFixedTrailerSizeBytes;
-            }
-            else
-            {
-                scanOffset = offsetAfterInitString + ReplayManagerConstants.ReplayPostHeaderTrailerSizeBytes;
-            }
-
-            if (scanOffset < bytesRead)
-            {
-                var scannedFrames = TryScanMaxChunkTimecode(buffer, scanOffset, bytesRead);
-                if (scannedFrames.HasValue && scannedFrames.Value > 0)
-                {
-                    totalFrames = scannedFrames;
-                    fps = baseFps;
-                    duration = TimeSpan.FromSeconds((double)scannedFrames.Value / baseFps);
-                }
-            }
+            scanOffset = offsetAfterInitString + ReplayManagerConstants.ReplayPostHeaderTrailerSizeBytes;
         }
 
-        DateTime? gameDate = null;
-        if (ctx.StartTime >= ReplayManagerConstants.MinSanityTimestampEpoch)
+        if (scanOffset >= bytesRead)
         {
-            gameDate = DateTimeOffset.FromUnixTimeSeconds(ctx.StartTime).UtcDateTime;
+            return false;
         }
 
-        return (totalFrames, fps, duration, gameDate);
+        var scannedFrames = TryScanMaxChunkTimecode(buffer, scanOffset, bytesRead);
+        if (scannedFrames is > 0)
+        {
+            totalFrames = scannedFrames.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static DateTime? ResolveGameDate(long startTime)
+    {
+        if (startTime >= ReplayManagerConstants.MinSanityTimestampEpoch)
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(startTime).UtcDateTime;
+        }
+
+        return null;
     }
 
     private static uint? TryScanMaxChunkTimecode(byte[] buffer, int offset, int bytesRead)
