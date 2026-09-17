@@ -34,9 +34,11 @@ public class GameProcessManager(
 {
     private sealed class ExitFinalizationState
     {
-        public int Finalized;
+        private int _finalized;
 
         public Guid InstanceId { get; } = Guid.NewGuid();
+
+        public bool TryFinalize() => Interlocked.Exchange(ref _finalized, 1) == 0;
     }
 
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
@@ -186,9 +188,9 @@ public class GameProcessManager(
                 }
             }
 
-            RegisterProcessEventHandlers(process);
-
+            // Enabling exit events can synchronously finalize and dispose an exited process.
             var processInfo = BuildProcessInfo(process, configuration.ExecutablePath);
+            RegisterProcessEventHandlers(process);
 
             logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", processInfo.ProcessId, configuration.ExecutablePath);
             return OperationResult<GameProcessInfo>.CreateSuccess(processInfo);
@@ -444,15 +446,7 @@ public class GameProcessManager(
 
         _managedProcesses[process.Id] = process;
 
-        try
-        {
-            process.Exited += OnProcessExited;
-            process.EnableRaisingEvents = true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "[Process] Failed to enable raising events for tracked process {ProcessId}", process.Id);
-        }
+        RegisterProcessEventHandlers(process);
     }
 
     /// <inheritdoc/>
@@ -480,16 +474,6 @@ public class GameProcessManager(
                 // Track it
                 _managedProcesses[process.Id] = process;
 
-                try
-                {
-                    process.Exited += OnProcessExited;
-                    process.EnableRaisingEvents = true;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to enable raising events for discovered process {ProcessId}", process.Id);
-                }
-
                 // BuildProcessInfo assigns the fallback to GameProcessInfo.ExecutablePath, which
                 // GameLauncher persists. Passing the directory alone would store a folder where a
                 // file path is expected, so rebuild the executable path from what we were given.
@@ -497,7 +481,9 @@ public class GameProcessManager(
                     workingDirectory,
                     OperatingSystem.IsWindows() ? processName + ".exe" : processName);
 
-                return OperationResult<GameProcessInfo>.CreateSuccess(BuildProcessInfo(process, fallbackExecutable));
+                var processInfo = BuildProcessInfo(process, fallbackExecutable);
+                RegisterProcessEventHandlers(process);
+                return OperationResult<GameProcessInfo>.CreateSuccess(processInfo);
             }
 
             await Task.Delay(DelayMs, cancellationToken);
@@ -633,7 +619,7 @@ public class GameProcessManager(
     /// <param name="processId">Its positive process ID, captured before disposal.</param>
     internal void FinalizeProcessExit(Process process, int processId)
     {
-        if (processId <= 0 || Interlocked.Exchange(ref _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).Finalized, 1) != 0)
+        if (processId <= 0 || !_exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).TryFinalize())
         {
             return;
         }
@@ -705,8 +691,14 @@ public class GameProcessManager(
             }
         }
 
+        // Explicit termination owns disposal until its wait and notification cleanup finish.
+        // Natural exits have no remaining owner after removal from _managedProcesses.
+        if (!terminationRequested)
+        {
+            SafeDisposeProcess(process, processId);
+        }
+
         logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
-        SafeDisposeProcess(process, processId);
     }
 
     /// <summary>
@@ -785,6 +777,84 @@ public class GameProcessManager(
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Extracts the archive paths named by the engine's mount-failure stderr sentinels.
+    /// </summary>
+    /// <remarks>
+    /// Strictly advisory. The sentinels are an external contract with the fork engine
+    /// (see <see cref="RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix"/>)
+    /// and no other build emits them, so an empty result must never influence whether the
+    /// launch is judged to have failed — it only leaves the generic stderr tail in place.
+    /// </remarks>
+    /// <param name="stderrLines">The captured stderr lines.</param>
+    /// <returns>The distinct archives named, in order of first appearance.</returns>
+    private static IReadOnlyList<string> ExtractUnmountableArchives(IReadOnlyList<string> stderrLines)
+    {
+        string[] sentinelPrefixes =
+        [
+            RetailArchiveConstants.ArchiveMountFailedStderrPrefix,
+            RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix,
+        ];
+
+        var archives = new List<string>();
+        foreach (var line in stderrLines)
+        {
+            foreach (var prefix in sentinelPrefixes)
+            {
+                var index = line.IndexOf(prefix, StringComparison.Ordinal);
+                if (index < 0)
+                {
+                    continue;
+                }
+
+                var archive = line[(index + prefix.Length)..].Trim();
+                if (archive.Length > 0 && !archives.Contains(archive))
+                {
+                    archives.Add(archive);
+                }
+            }
+        }
+
+        return archives;
+    }
+
+    /// <summary>
+    /// Waits for the process to exit, up to the post-spawn detection window.
+    /// </summary>
+    /// <remarks>
+    /// The window bounds how long a launch report can be delayed, not how long a failure
+    /// can be detected: a process that outlives it is treated as launched, and any later
+    /// abort surfaces through <see cref="ProcessExited"/>. Cancellation requested by the
+    /// caller propagates; the window elapsing does not.
+    /// </remarks>
+    /// <param name="process">The just-started process.</param>
+    /// <param name="cancellationToken">The caller's cancellation token.</param>
+    /// <returns><c>true</c> when the process exited within the window.</returns>
+    private static async Task<bool> WaitForExitWithinWindowAsync(Process process, CancellationToken cancellationToken)
+    {
+        using var windowCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        windowCts.CancelAfter(ProcessConstants.PostSpawnExitDetectionWindowMs);
+
+        try
+        {
+            await process.WaitForExitAsync(windowCts.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Only the detection window elapsed; the launch itself is not cancelled.
+        }
+        finally
+        {
+            // WaitForExitAsync enables exit events internally. Disable them before the
+            // final check so an exit after this check is delivered when the long-lived
+            // handler is attached and events are re-enabled with tracking state ready.
+            process.EnableRaisingEvents = false;
+        }
+
+        return process.HasExited;
     }
 
     private static void AddValidBindRoot(List<string> binds, string? dirPath)
@@ -1126,6 +1196,7 @@ public class GameProcessManager(
 
     private void RegisterProcessEventHandlers(Process process)
     {
+        var processId = process.Id;
         try
         {
             process.Exited += OnProcessExited;
@@ -1133,7 +1204,7 @@ public class GameProcessManager(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to enable raising events for process {ProcessId}, process cleanup may not work properly", process.Id);
+            logger.LogWarning(ex, "Failed to enable raising events for process {ProcessId}, process cleanup may not work properly", processId);
         }
     }
 
@@ -1380,18 +1451,9 @@ public class GameProcessManager(
         launcherProcess.Dispose();
         _managedProcesses[spawnedProcess.Id] = spawnedProcess;
 
-        try
-        {
-            spawnedProcess.Exited += OnProcessExited;
-            spawnedProcess.EnableRaisingEvents = true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to enable raising events for spawned process {ProcessId}", spawnedProcess.Id);
-        }
-
         var spawnedProcessInfo = BuildProcessInfo(spawnedProcess, configuration.ExecutablePath);
-        logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", spawnedProcess.Id, configuration.ExecutablePath);
+        RegisterProcessEventHandlers(spawnedProcess);
+        logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", spawnedProcessInfo.ProcessId, configuration.ExecutablePath);
         return spawnedProcessInfo;
     }
 
@@ -1458,97 +1520,6 @@ public class GameProcessManager(
 
         return OperationResult<GameProcessInfo>.CreateFailure(
             $"Process exited immediately after launch.{suffix}");
-    }
-
-    /// <summary>
-    /// Waits for the process to exit, up to the post-spawn detection window.
-    /// </summary>
-    /// <remarks>
-    /// The window bounds how long a launch report can be delayed, not how long a failure
-    /// can be detected: a process that outlives it is treated as launched, and any later
-    /// abort surfaces through <see cref="ProcessExited"/>. Cancellation requested by the
-    /// caller propagates; the window elapsing does not.
-    /// </remarks>
-    /// <param name="process">The just-started process.</param>
-    /// <param name="cancellationToken">The caller's cancellation token.</param>
-    /// <returns><c>true</c> when the process exited within the window.</returns>
-    private static async Task<bool> WaitForExitWithinWindowAsync(Process process, CancellationToken cancellationToken)
-    {
-        using var windowCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        windowCts.CancelAfter(ProcessConstants.PostSpawnExitDetectionWindowMs);
-
-        try
-        {
-            await process.WaitForExitAsync(windowCts.Token);
-            return true;
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            // Only the detection window elapsed; the launch itself is not cancelled.
-        }
-        finally
-        {
-            // WaitForExitAsync enables exit events internally. Disable them before the
-            // final check so an exit after this check is delivered when the long-lived
-            // handler is attached and events are re-enabled with tracking state ready.
-            process.EnableRaisingEvents = false;
-        }
-
-        return process.HasExited;
-    }
-
-    /// <summary>
-    /// Extracts the archive paths named by the engine's mount-failure stderr sentinels.
-    /// </summary>
-    /// <remarks>
-    /// Strictly advisory. The sentinels are an external contract with the fork engine
-    /// (see <see cref="RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix"/>)
-    /// and no other build emits them, so an empty result must never influence whether the
-    /// launch is judged to have failed — it only leaves the generic stderr tail in place.
-    /// </remarks>
-    /// <param name="stderrLines">The captured stderr lines.</param>
-    /// <returns>The distinct archives named, in order of first appearance.</returns>
-    private static IReadOnlyList<string> ExtractUnmountableArchives(IReadOnlyList<string> stderrLines)
-    {
-        string[] sentinelPrefixes =
-        [
-            RetailArchiveConstants.ArchiveMountFailedStderrPrefix,
-            RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix,
-        ];
-
-        var archives = new List<string>();
-        foreach (var line in stderrLines)
-        {
-            foreach (var prefix in sentinelPrefixes)
-            {
-                var index = line.IndexOf(prefix, StringComparison.Ordinal);
-                if (index < 0)
-                {
-                    continue;
-                }
-
-                var archive = line[(index + prefix.Length)..].Trim();
-                if (archive.Length > 0 && !archives.Contains(archive))
-                {
-                    archives.Add(archive);
-                }
-            }
-        }
-
-        return archives;
-    }
-
-    private void SafeDisposeProcess(Process process, int processId)
-    {
-        try
-        {
-            process.Exited -= OnProcessExited;
-            process.Dispose();
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Failed to dispose process {ProcessId}", processId);
-        }
     }
 
     /// <summary>
@@ -1621,23 +1592,16 @@ public class GameProcessManager(
                 {
                     _managedProcesses[child.Id] = child;
 
-                    try
-                    {
-                        child.Exited += OnProcessExited;
-                        child.EnableRaisingEvents = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to enable raising events for adopted process {ProcessId}", child.Id);
-                    }
+                    var childInfo = BuildProcessInfo(child, configuration.ExecutablePath);
+                    RegisterProcessEventHandlers(child);
 
                     logger.LogInformation(
                         "[Process] Adopted game process {ProcessId} ({ExpectedName}); launcher {LauncherId} is no longer tracked and its exit is ignored",
-                        child.Id,
+                        childInfo.ProcessId,
                         expectedName,
                         launcher.Id);
 
-                    return OperationResult<GameProcessInfo>.CreateSuccess(BuildProcessInfo(child, configuration.ExecutablePath));
+                    return OperationResult<GameProcessInfo>.CreateSuccess(childInfo);
                 }
 
                 var (launcherExited, launcherExitCode) = ReadLauncherExit(launcher);
@@ -2018,6 +1982,19 @@ public class GameProcessManager(
         if (ownsProcess || terminated)
         {
             process?.Dispose();
+        }
+    }
+
+    private void SafeDisposeProcess(Process process, int processId)
+    {
+        try
+        {
+            process.Exited -= OnProcessExited;
+            process.Dispose();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to dispose process {ProcessId}", processId);
         }
     }
 
