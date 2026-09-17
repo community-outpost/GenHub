@@ -328,6 +328,7 @@ public sealed class LocalizationServiceTests : IDisposable
     /// <summary>
     /// Verifies that TryGetString returns false and null for null, empty, or whitespace keys.
     /// </summary>
+    /// <param name="key">The key to test.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]

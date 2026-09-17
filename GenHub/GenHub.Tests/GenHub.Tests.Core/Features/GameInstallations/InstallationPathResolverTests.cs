@@ -47,6 +47,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     /// <summary>
     /// Verifies that ValidateInstallationPathAsync returns false when the installation directory does not exist.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ValidateInstallationPathAsync_WhenPathDoesNotExist_ReturnsFalse()
     {
@@ -62,6 +63,8 @@ public sealed class InstallationPathResolverTests : IDisposable
     /// <summary>
     /// Verifies that ValidateInstallationPathAsync returns true for Steam Zero Hour installations containing game.dat.
     /// </summary>
+    /// <param name="exeName">The executable name to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Theory]
     [InlineData("game.dat")]
     [InlineData("GAME.DAT")]
@@ -84,6 +87,8 @@ public sealed class InstallationPathResolverTests : IDisposable
     /// <summary>
     /// Verifies that ValidateInstallationPathAsync returns true for installations containing generals.exe.
     /// </summary>
+    /// <param name="exeName">The executable name to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Theory]
     [InlineData("generals.exe")]
     [InlineData("Generals.exe")]
@@ -106,6 +111,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     /// <summary>
     /// Verifies that ValidateInstallationPathAsync returns false when no recognized executables exist.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ValidateInstallationPathAsync_WhenNoValidExecutableExists_ReturnsFalse()
     {
@@ -125,6 +131,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     /// <summary>
     /// Verifies that ResolveInstallationPathAsync immediately returns success when path is already valid.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ResolveInstallationPathAsync_WhenAlreadyValid_ReturnsSameInstallation()
     {
