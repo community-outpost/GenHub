@@ -198,9 +198,9 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         {
             _pipeServer?.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore disposal errors
+            _logger.LogDebug(ex, "Failed to cleanly dispose pipe server during shutdown");
         }
 
         try

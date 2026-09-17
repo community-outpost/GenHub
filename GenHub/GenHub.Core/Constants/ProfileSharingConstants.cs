@@ -150,5 +150,6 @@ public static class ProfileSharingConstants
     public static readonly IReadOnlySet<string> ExecutableFileExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".exe", ".dll", ".asi", ".bat", ".cmd", ".ps1", ".vbs",
+        ".msi", ".scr", ".com", ".pif", ".hta", ".jar", ".lnk", ".wsf",
     };
 }

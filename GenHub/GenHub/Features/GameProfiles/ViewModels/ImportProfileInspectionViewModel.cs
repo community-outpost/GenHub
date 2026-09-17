@@ -99,7 +99,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     private ObservableCollection<SharedInstallationOption> _compatibleInstallations = inspectionResult != null ? CreateInstallationOptions(inspectionResult) : [];
 
     [ObservableProperty]
-    private ObservableCollection<string> _securityWarnings = inspectionResult != null ? BuildSecurityWarnings(inspectionResult, CalculateTotalExecutables(inspectionResult)) : [];
+    private ObservableCollection<string> _securityWarnings = inspectionResult != null ? BuildSecurityWarnings(inspectionResult, CalculateTotalExecutables(inspectionResult), localizationService) : [];
 
     [ObservableProperty]
     private bool _hasSecurityWarnings = (inspectionResult?.SecurityWarnings.Count > 0) ||
@@ -261,18 +261,45 @@ public sealed partial class ImportProfileInspectionViewModel(
             };
     }
 
-    private static ObservableCollection<string> BuildSecurityWarnings(SharedProfileInspectionResult result, int totalExecutables)
+    private static ObservableCollection<string> BuildSecurityWarnings(
+        SharedProfileInspectionResult result,
+        int totalExecutables,
+        ILocalizationService? localizationService)
     {
-        var warnings = new List<string>(result.SecurityWarnings);
+        var warnings = new List<string>();
+        foreach (var warning in result.SecurityWarnings)
+        {
+            if (warning.StartsWith("Disallowed special command characters", StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters") ?? warning);
+            }
+            else if (warning.StartsWith("Quote and percent characters were removed", StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent") ?? warning);
+            }
+            else if (warning.StartsWith("Control characters were removed", StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters") ?? warning);
+            }
+            else
+            {
+                warnings.Add(warning);
+            }
+        }
+
         if (totalExecutables > 0)
         {
             var extList = string.Join(", ", ProfileSharingConstants.ExecutableFileExtensions);
-            warnings.Insert(0, $"Executable binaries detected ({totalExecutables} file(s) ending in {extList}). Ensure you trust the author before running.");
+            var format = localizationService?.GetString("GameProfiles.ImportInspection.Warning.ExecutablesDetected")
+                ?? "Executable binaries detected ({0} file(s) ending in {1}). Ensure you trust the author before running.";
+            warnings.Insert(0, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, totalExecutables, extList));
         }
 
         if (result.MissingManifestCount > 0 && result.TotalDownloadBytesRequired == 0)
         {
-            warnings.Add("Some required dependencies do not report an exact download size. Additional downloads will occur during import.");
+            var msg = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingSizes")
+                ?? "Some required dependencies do not report an exact download size. Additional downloads will occur during import.";
+            warnings.Add(msg);
         }
 
         return new ObservableCollection<string>(warnings);

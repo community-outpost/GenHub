@@ -7428,6 +7428,7 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Выберите доступный клиент игры для создания нового профиля</value>
+  </data>
   <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
     <value>Поделиться профилем...</value>
   </data>
@@ -7964,5 +7965,53 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="GameProfiles.ShareDialog.Quota.ExceededWarning" xml:space="preserve">
     <value>Достигнут лимит облачного хранилища ({0:F0} МБ). Старые загрузки можно удалить в меню «Настройки &gt; Облачное хранилище и загрузки» или экспортировать файл .ghprofile.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorTitle" xml:space="preserve">
+    <value>Ошибка отправки</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorMessage" xml:space="preserve">
+    <value>Произошла ошибка при подготовке к отправке: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.CannotShareTitle" xml:space="preserve">
+    <value>Невозможно поделиться</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.SaveBeforeShareMsg" xml:space="preserve">
+    <value>Пожалуйста, сохраните профиль перед тем, как делиться им.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>Сбой импорта</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SharingServiceUnavailable" xml:space="preserve">
+    <value>Служба обмена профилями недоступна.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressTitle" xml:space="preserve">
+    <value>Импорт выполняется</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressMsg" xml:space="preserve">
+    <value>Диалоговое окно импорта профиля уже открыто.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfileImportErrorTitle" xml:space="preserve">
+    <value>Ошибка импорта профиля</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfilePackageInspectFailed" xml:space="preserve">
+    <value>Не удалось проверить пакет профиля.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
+    <value>Произошла ошибка во время импорта профиля: {0}</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
+    <value>Не удалось выбрать файл профиля: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedShellCharacters" xml:space="preserve">
+    <value>Недопустимые специальные символы команд (| &amp; ; &gt; &lt; ` $ ^ ! ( )) были удалены из аргументов запуска.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent" xml:space="preserve">
+    <value>Символы кавычек и процентов были удалены из аргументов запуска. Проверьте аргументы, если использовались пути с пробелами.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
+    <value>Управляющие символы были удалены из аргументов запуска.</value>
   </data>
 </root>

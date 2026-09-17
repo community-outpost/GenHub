@@ -60,6 +60,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly IProfileContentLinker? _profileContentLinker;
     private readonly ILaunchRegistry? _launchRegistry;
     private readonly IArchivePayloadProcessor? _archivePayloadProcessor;
+    private readonly ILocalizationService? _localizationService;
+    private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
@@ -92,6 +94,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="profileContentLinker">The profile content linker service.</param>
     /// <param name="launchRegistry">The launch registry service.</param>
     /// <param name="archivePayloadProcessor">The archive payload processor service.</param>
+    /// <param name="localizationService">The optional localization service.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -111,7 +114,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IUploadHistoryService? uploadHistoryService = null,
         IProfileContentLinker? profileContentLinker = null,
         ILaunchRegistry? launchRegistry = null,
-        IArchivePayloadProcessor? archivePayloadProcessor = null)
+        IArchivePayloadProcessor? archivePayloadProcessor = null,
+        ILocalizationService? localizationService = null)
     {
         _gameProfileManager = gameProfileManager;
         _configurationProvider = configurationProvider;
@@ -131,6 +135,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _profileContentLinker = profileContentLinker;
         _launchRegistry = launchRegistry;
         _archivePayloadProcessor = archivePayloadProcessor;
+        _localizationService = localizationService;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,

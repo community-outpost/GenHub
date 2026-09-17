@@ -61,7 +61,7 @@ public partial class GameProfileSettingsViewModel
     {
         var version = Interlocked.Increment(ref _loadContentVersion);
 
-        await _loadContentSemaphore.WaitAsync().ConfigureAwait(false);
+        await _loadContentSemaphore.WaitAsync();
         try
         {
             if (version != Volatile.Read(ref _loadContentVersion))
@@ -1430,24 +1430,41 @@ public partial class GameProfileSettingsViewModel
     {
         if (string.IsNullOrEmpty(CurrentProfileId))
         {
-            _localNotificationService.ShowWarning("Cannot Share", "Please save the profile first before sharing.");
+            var title = _localizationService?.GetString("GameProfiles.ShareDialog.Notification.CannotShareTitle") ?? "Cannot Share";
+            var msg = _localizationService?.GetString("GameProfiles.ShareDialog.Notification.SaveBeforeShareMsg") ?? "Please save the profile first before sharing.";
+            _localNotificationService.ShowWarning(title, msg);
             return;
         }
 
         var sharingService = ProfileSharingService;
         if (sharingService == null || _gameProfileManager == null)
         {
-            _localNotificationService.ShowError("Error", "Profile sharing service is not available.");
+            var title = _localizationService?.GetString("GameProfiles.ShareDialog.Notification.ShareErrorTitle") ?? "Share Error";
+            var msg = _localizationService?.GetString("GameProfiles.Launcher.Notify.SharingServiceUnavailable") ?? "Profile sharing service is not available.";
+            _localNotificationService.ShowError(title, msg);
             return;
         }
 
-        await Helpers.ProfileSharingDialogHelper.OpenShareDialogAsync(
-            CurrentProfileId,
-            _gameProfileManager,
-            sharingService,
-            _localNotificationService,
-            _loggerFactory,
-            _uploadHistoryService,
-            _logger);
+        if (!await _shareDialogSemaphore.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            await Helpers.ProfileSharingDialogHelper.OpenShareDialogAsync(
+                CurrentProfileId,
+                _gameProfileManager,
+                sharingService,
+                _localNotificationService,
+                _loggerFactory,
+                _uploadHistoryService,
+                _logger,
+                _localizationService);
+        }
+        finally
+        {
+            _shareDialogSemaphore.Release();
+        }
     }
 }

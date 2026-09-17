@@ -92,7 +92,9 @@ public static class ProfileSharingDialogHelper
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to share profile {ProfileId}", profileId);
-            notificationService.ShowError("Share Error", $"An error occurred while preparing share: {ex.Message}");
+            var title = localizationService?.GetString("GameProfiles.ShareDialog.Notification.ShareErrorTitle") ?? "Share Error";
+            var format = localizationService?.GetString("GameProfiles.ShareDialog.Notification.ShareErrorMessage") ?? "An error occurred while preparing share: {0}";
+            notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
         }
     }
 }

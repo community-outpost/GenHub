@@ -104,6 +104,7 @@ public static class PublisherTypeConstants
         AODMaps,
         SteamWorkshop,
         Ea,
+        EaApp,
         Steam,
         Retail,
         GenHubLocal,

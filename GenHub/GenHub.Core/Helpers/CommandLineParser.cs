@@ -217,14 +217,6 @@ public static class CommandLineParser
             return s;
         }
 
-        s = s.Trim();
-        if (s.Length >= 2 &&
-            ((s[0] == '"' && s[^1] == '"') ||
-             (s[0] == '\'' && s[^1] == '\'')))
-        {
-            return s[1..^1].Trim();
-        }
-
-        return s;
+        return s.Trim('"', '\'', ' ', '\t');
     }
 }

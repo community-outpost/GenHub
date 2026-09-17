@@ -757,7 +757,10 @@ public class ProfileSharingService(
 
             if (ValidatedHostAddresses.Count >= 500)
             {
-                ValidatedHostAddresses.Clear();
+                foreach (var key in ValidatedHostAddresses.Keys.Take(100))
+                {
+                    ValidatedHostAddresses.TryRemove(key, out _);
+                }
             }
 
             ValidatedHostAddresses[uri.DnsSafeHost] = publicAddresses;
@@ -806,7 +809,7 @@ public class ProfileSharingService(
             var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(input, cancellationToken);
             return OperationResult<string>.CreateSuccess(decompressed);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
         {
             return OperationResult<string>.CreateFailure($"Unable to parse shared profile payload: {ex.Message}");
         }
@@ -1327,7 +1330,7 @@ public class ProfileSharingService(
             return dependency.PackageUrl;
         }
 
-        return dependency.Files.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
+        return dependency.Files?.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
     }
 
     private static bool IsZipArchivePackage(string? packageUrl, string? explicitPackageUrl)
@@ -2154,6 +2157,21 @@ public class ProfileSharingService(
                 $"Cannot package local manifest '{manifest.Name}': missing files or upload services.");
         }
 
+        long totalLocalBytes = 0;
+        if (manifest.Files != null)
+        {
+            foreach (var file in manifest.Files)
+            {
+                totalLocalBytes += Math.Max(0, file.Size);
+            }
+        }
+
+        if (totalLocalBytes > ProfileSharingConstants.MaxCloudUploadSizeBytes)
+        {
+            return OperationResult<(string? Url, string? Hash)>.CreateFailure(
+                $"Total size of files in local manifest '{manifest.Name}' ({totalLocalBytes:N0} bytes) exceeds cloud upload limit of {ProfileSharingConstants.MaxCloudUploadSizeBytes:N0} bytes. Use standalone profile export (.ghprofile) instead.");
+        }
+
         var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, ProfileSharingConstants.CloudUploadStagingDirectoryName);
         var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
 
@@ -2198,10 +2216,9 @@ public class ProfileSharingService(
 
         var sortedFiles = manifest.Files.OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
         var fixedTimestamp = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
-
-        using (var zipFile = File.Create(tempZipPath))
-        using (var archive = new ZipArchive(zipFile, ZipArchiveMode.Create))
         {
+            using var zipFile = File.Create(tempZipPath);
+            using var archive = new ZipArchive(zipFile, ZipArchiveMode.Create);
             foreach (var file in sortedFiles)
             {
                 var contentPathResult = await casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
@@ -2357,7 +2374,8 @@ public class ProfileSharingService(
             }
         }
 
-        return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
+        var displayInput = input.Length > 100 ? $"{input[..100]}..." : input;
+        return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {displayInput}");
     }
 
     private async Task<OperationResult<string>> ResolveRemotePayloadAsync(string url, CancellationToken cancellationToken)
@@ -3187,7 +3205,8 @@ public class ProfileSharingService(
             }
 
             bool isCached = false;
-            long missingBytes = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => f.Size) ?? 0);
+            long rawSize = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => f.Size) ?? 0);
+            long missingBytes = Math.Clamp(rawSize, 0, ProfileSharingConstants.MaxDownloadedFileBytes);
             var acquiredResult = await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
             if (acquiredResult.Success && acquiredResult.Data)
             {

@@ -73,6 +73,7 @@ public partial class GameProfileLauncherViewModel(
 {
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
 
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
@@ -477,14 +478,18 @@ public partial class GameProfileLauncherViewModel(
         var service = GetSharingService();
         if (service == null)
         {
-            notificationService.ShowError("Import Failed", "Profile sharing service is not available.");
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportFailedTitle") ?? "Import Failed";
+            var msg = localizationService?.GetString("GameProfiles.Launcher.Notify.SharingServiceUnavailable") ?? "Profile sharing service is not available.";
+            notificationService.ShowError(title, msg);
             return;
         }
 
         if (!await _importDialogSemaphore.WaitAsync(0, cancellationToken))
         {
             logger.LogWarning("Profile import dialog is already active. Ignoring concurrent request.");
-            notificationService.ShowWarning("Import In Progress", "A profile import dialog is already open.");
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressTitle") ?? "Import In Progress";
+            var msg = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressMsg") ?? "A profile import dialog is already open.";
+            notificationService.ShowWarning(title, msg);
             return;
         }
 
@@ -506,7 +511,9 @@ public partial class GameProfileLauncherViewModel(
             if (!inspectResult.Success || inspectResult.Data == null)
             {
                 logger.LogWarning("Failed to inspect shared profile: {Error}", inspectResult.FirstError);
-                notificationService.ShowError("Profile Import Error", inspectResult.FirstError ?? "Failed to inspect profile package.");
+                var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ProfileImportErrorTitle") ?? "Profile Import Error";
+                var defaultMsg = localizationService?.GetString("GameProfiles.Launcher.Notify.ProfilePackageInspectFailed") ?? "Failed to inspect profile package.";
+                notificationService.ShowError(title, inspectResult.FirstError ?? defaultMsg);
                 return;
             }
 
@@ -526,7 +533,9 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error importing profile from {Source}", safeSource);
-            notificationService.ShowError("Import Error", $"An error occurred during profile import: {ex.Message}");
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportErrorTitle") ?? "Import Error";
+            var format = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportErrorFormat") ?? "An error occurred during profile import: {0}";
+            notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
         }
         finally
         {
@@ -2004,21 +2013,41 @@ public partial class GameProfileLauncherViewModel(
 
     private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item)
     {
-        var service = GetSharingService();
-        if (service == null || string.IsNullOrEmpty(item.ProfileId))
+        if (string.IsNullOrEmpty(item.ProfileId))
         {
             return;
         }
 
-        await Helpers.ProfileSharingDialogHelper.OpenShareDialogAsync(
-            item.ProfileId,
-            gameProfileManager,
-            service,
-            notificationService,
-            loggerFactory,
-            uploadHistoryService,
-            logger,
-            localizationService);
+        var service = GetSharingService();
+        if (service == null)
+        {
+            var title = localizationService?.GetString("GameProfiles.ShareDialog.Notification.ShareErrorTitle") ?? "Share Error";
+            var msg = localizationService?.GetString("GameProfiles.Launcher.Notify.SharingServiceUnavailable") ?? "Profile sharing service is not available.";
+            notificationService.ShowError(title, msg);
+            return;
+        }
+
+        if (!await _shareDialogSemaphore.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            await Helpers.ProfileSharingDialogHelper.OpenShareDialogAsync(
+                item.ProfileId,
+                gameProfileManager,
+                service,
+                notificationService,
+                loggerFactory,
+                uploadHistoryService,
+                logger,
+                localizationService);
+        }
+        finally
+        {
+            _shareDialogSemaphore.Release();
+        }
     }
 
     private async Task<bool> PromptRemoteDownloadConsentAsync(string host)
@@ -2088,7 +2117,9 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to select profile file for import");
-            notificationService.ShowError("Import Failed", $"Failed to select profile file: {ex.Message}");
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportFailedTitle") ?? "Import Failed";
+            var format = localizationService?.GetString("GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat") ?? "Failed to select profile file: {0}";
+            notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
         }
     }
 }

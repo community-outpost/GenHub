@@ -7522,7 +7522,8 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Choose an available game client to create a fresh profile</value>
-  <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
+    </data>
+<data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
     <value>Share Profile...</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.ShareProfile" xml:space="preserve">
@@ -8058,5 +8059,53 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="GameProfiles.ShareDialog.Quota.ExceededWarning" xml:space="preserve">
     <value>Cloud storage limit reached ({0:F0} MB). Old uploads can be cleared in Settings &gt; Cloud Storage &amp; Uploads, or you can export a .ghprofile file instead.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorTitle" xml:space="preserve">
+    <value>Share Error</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorMessage" xml:space="preserve">
+    <value>An error occurred while preparing share: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.CannotShareTitle" xml:space="preserve">
+    <value>Cannot Share</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.SaveBeforeShareMsg" xml:space="preserve">
+    <value>Please save the profile first before sharing.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SharingServiceUnavailable" xml:space="preserve">
+    <value>Profile sharing service is not available.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressTitle" xml:space="preserve">
+    <value>Import In Progress</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressMsg" xml:space="preserve">
+    <value>A profile import dialog is already open.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfileImportErrorTitle" xml:space="preserve">
+    <value>Profile Import Error</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfilePackageInspectFailed" xml:space="preserve">
+    <value>Failed to inspect profile package.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>Import Error</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
+    <value>An error occurred during profile import: {0}</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
+    <value>Failed to select profile file: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedShellCharacters" xml:space="preserve">
+    <value>Disallowed special command characters (| &amp; ; &gt; &lt; ` $ ^ ! ( )) were removed from launch arguments.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent" xml:space="preserve">
+    <value>Quote and percent characters were removed from launch arguments. Check arguments if paths with spaces were used.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
+    <value>Control characters were removed from launch arguments.</value>
   </data>
 </root>

@@ -7428,6 +7428,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>اختر عميل لعبة متاح لإنشاء ملف تعريف جديد</value>
+  </data>
   <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
     <value>مشاركة الملف الشخصي...</value>
   </data>
@@ -7964,5 +7965,53 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameProfiles.ShareDialog.Quota.ExceededWarning" xml:space="preserve">
     <value>تم الوصول إلى الحد الأقصى للتخزين السحابي ({0:F0} م.ب). يمكن مسح التحميلات القديمة من الإعدادات &gt; التخزين السحابي والتحميلات، أو يمكنك تصدير ملف .ghprofile بدلاً من ذلك.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorTitle" xml:space="preserve">
+    <value>خطأ في المشاركة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorMessage" xml:space="preserve">
+    <value>حدث خطأ أثناء إعداد المشاركة: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.CannotShareTitle" xml:space="preserve">
+    <value>تعذر المشاركة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.SaveBeforeShareMsg" xml:space="preserve">
+    <value>يرجى حفظ ملف التعريف أولاً قبل المشاركة.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SharingServiceUnavailable" xml:space="preserve">
+    <value>خدمة مشاركة الملف التعريفي غير متوفرة.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressTitle" xml:space="preserve">
+    <value>الاستيراد قيد التقدم</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressMsg" xml:space="preserve">
+    <value>مربع حوار استيراد ملف التعريف مفتوح بالفعل.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfileImportErrorTitle" xml:space="preserve">
+    <value>خطأ في استيراد ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfilePackageInspectFailed" xml:space="preserve">
+    <value>فشل فحص حزمة ملف التعريف.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
+    <value>حدث خطأ أثناء استيراد ملف التعريف: {0}</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
+    <value>فشل تحديد ملف التعريف: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedShellCharacters" xml:space="preserve">
+    <value>تمت إزالة أحرف الأوامر الخاصة غير المسموح بها (| &amp; ; &gt; &lt; ` $ ^ ! ( )) من وسيطات التشغيل.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent" xml:space="preserve">
+    <value>تمت إزالة علامات الاقتباس وعلامة النسبة المئوية من وسيطات التشغيل. تحقق من الوسيطات إذا تم استخدام مسارات تحتوي على مسافات.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
+    <value>تمت إزالة رموز التحكم من وسيطات التشغيل.</value>
   </data>
 </root>
