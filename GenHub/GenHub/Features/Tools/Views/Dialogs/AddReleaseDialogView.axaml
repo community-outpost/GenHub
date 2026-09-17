@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -97,12 +98,12 @@
                 <!-- Version -->
                 <StackPanel Spacing="8">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="Version" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Version}" Classes="label"/>
                         <TextBlock Text="*" Foreground="#FF5555"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,8,Auto">
-                         <TextBox Text="{Binding Version}" Watermark="e.g. 1.0.0"/>
-                         <Button Grid.Column="2" Content="Suggest"
+                         <TextBox Text="{Binding Version}" Watermark="{localization:Localize Tools.PublisherStudio.Release.VersionPlaceholder}"/>
+                         <Button Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Suggest}"
                                  Command="{Binding ApplySuggestedVersionCommand}"
                                  Classes="small-glass-btn"/>
                     </Grid>
@@ -111,14 +112,14 @@
                 <!-- Date & Options -->
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                     <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="{DynamicResource TextPrimary}" Background="#15FFFFFF" BorderBrush="#25FFFFFF" CornerRadius="6"/>
-                    <CheckBox Grid.Column="1" Content="Latest" IsChecked="{Binding IsLatest}" Margin="8,0"/>
-                    <CheckBox Grid.Column="2" Content="Pre-release" IsChecked="{Binding IsPrerelease}" Margin="8,0"/>
-                    <CheckBox Grid.Column="3" Content="Featured" IsChecked="{Binding IsFeatured}" Margin="8,0"/>
+                    <CheckBox Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Release.Latest}" IsChecked="{Binding IsLatest}" Margin="8,0"/>
+                    <CheckBox Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Prerelease}" IsChecked="{Binding IsPrerelease}" Margin="8,0"/>
+                    <CheckBox Grid.Column="3" Content="{localization:Localize Tools.PublisherStudio.Release.Featured}" IsChecked="{Binding IsFeatured}" Margin="8,0"/>
                 </Grid>
 
                 <!-- Changelog -->
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Changelog" Classes="label"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="label"/>
                     <TextBox Text="{Binding Changelog}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
@@ -129,7 +130,7 @@
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                            <TextBlock Text="Artifacts (Files)" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactsFiles}" Classes="label"/>
                             <TextBlock Text="*" Foreground="#FF5555"/>
                         </StackPanel>
                         <Button Grid.Column="1"
@@ -137,7 +138,7 @@
                                 Classes="small-glass-btn">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
-                                <TextBlock Text="Add Artifact" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddArtifact}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -162,19 +163,19 @@
                              </DataTemplate>
                          </ListBox.ItemTemplate>
                     </ListBox>
-                    <TextBlock Text="At least one artifact is required." FontSize="11" Foreground="#FF5555" IsVisible="{Binding !Artifacts.Count}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="#FF5555" IsVisible="{Binding !Artifacts.Count}"/>
                 </StackPanel>
 
                 <!-- Dependencies Section -->
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="Dependencies" Classes="label" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Dependencies}" Classes="label" VerticalAlignment="Center"/>
                         <Button Grid.Column="1"
                                 Command="{Binding AddDependencyCommand}"
                                 Classes="small-glass-btn">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
-                                <TextBlock Text="Add Dependency" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddDependency}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
                         </Button>
                     </Grid>

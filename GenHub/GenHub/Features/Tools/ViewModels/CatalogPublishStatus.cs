@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Publishers;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -12,6 +13,8 @@ namespace GenHub.Features.Tools.ViewModels;
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class CatalogPublishStatus : ObservableObject
 {
+    private readonly ILocalizationService? _localizationService;
+
     [ObservableProperty]
     private NamedCatalog _catalog;
 
@@ -36,17 +39,23 @@ public partial class CatalogPublishStatus : ObservableObject
         {
             if (!IsPublished)
             {
-                return "Not Published";
+                return _localizationService?.GetString("Tools.PublisherStudio.Status.NotPublished") ?? "Not Published";
             }
 
             if (HasChanges)
             {
-                return "Changes Pending";
+                return _localizationService?.GetString("Tools.PublisherStudio.Status.ChangesPending") ?? "Changes Pending";
             }
 
-            return LastPublished.HasValue
-                ? $"Published {LastPublished.Value:MMM d, yyyy}"
-                : "Published";
+            if (LastPublished.HasValue)
+            {
+                var dateStr = LastPublished.Value.ToString("MMM d, yyyy");
+                return _localizationService != null
+                    ? _localizationService.GetString("Tools.PublisherStudio.Status.PublishedDate", dateStr)
+                    : $"Published {dateStr}";
+            }
+
+            return _localizationService?.GetString("Tools.PublisherStudio.Status.Published") ?? "Published";
         }
     }
 
@@ -75,9 +84,11 @@ public partial class CatalogPublishStatus : ObservableObject
     /// Initializes a new instance of the <see cref="CatalogPublishStatus"/> class.
     /// </summary>
     /// <param name="catalog">The catalog.</param>
-    public CatalogPublishStatus(NamedCatalog catalog)
+    /// <param name="localizationService">The optional localization service.</param>
+    public CatalogPublishStatus(NamedCatalog catalog, ILocalizationService? localizationService = null)
     {
         _catalog = catalog;
+        _localizationService = localizationService;
     }
 
     partial void OnIsPublishedChanged(bool value) => NotifyStatusChanged();

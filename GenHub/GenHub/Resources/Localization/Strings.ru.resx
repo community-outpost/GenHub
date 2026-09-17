@@ -5439,7 +5439,6 @@
   <data name="Tools.GenHotkeys.UpdateAddonTooltip" xml:space="preserve">
     <value>Обновить существующий аддон '{0}' с текущими настройками горячих клавиш.</value>
   </data>
-
   <data name="Tools.ReplayManager.ClientSelection.Title" xml:space="preserve">
     <value>Выбор игрового клиента</value>
   </data>
@@ -5575,7 +5574,7 @@
   <data name="Tools.ReplayManager.Client.CustomExeIni" xml:space="preserve">
     <value>Пользовательская (Exe: {0}, INI: {1})</value>
   </data>
-    <data name="Info.Card.app-updates.rollback.Content" xml:space="preserve">
+  <data name="Info.Card.app-updates.rollback.Content" xml:space="preserve">
     <value>Как при необходимости вернуться к предыдущей стабильной версии.</value>
   </data>
   <data name="Info.Card.app-updates.rollback.DetailedContent" xml:space="preserve">
@@ -8092,6 +8091,1556 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
+  <data name="Downloads.Browser.ImportSubscription" xml:space="preserve">
+    <value>Импорт каталога / поставщика</value>
+  </data>
+  <data name="Downloads.Browser.ImportSubscriptionTooltip" xml:space="preserve">
+    <value>Импорт пользовательского каталога или ссылки подписки поставщика</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Downloads.ImportSubscription.LoadAndSubscribe" xml:space="preserve">
+    <value>Загрузить и подписаться</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Prompt" xml:space="preserve">
+    <value>URL подписки или манифеста:</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Subtitle" xml:space="preserve">
+    <value>Добавление внешних каталогов или подписка на поставщиков через прямую ссылку или протокол GenHub.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.SupportedSources" xml:space="preserve">
+    <value>Поддерживаются: ссылки genhub://, GitHub Gist, Dropbox, Google Drive или прямые ссылки на JSON каталога/поставщика.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Title" xml:space="preserve">
+    <value>Импорт пользовательского каталога / поставщика</value>
+  </data>
+  <data name="Downloads.ImportSubscription.UrlWatermark" xml:space="preserve">
+    <value>genhub://subscribe?url=... или https://example.com/catalog.json</value>
+  </data>
+  <data name="Tools.Plugin.publisher-studio.Description" xml:space="preserve">
+    <value>Создание, размещение и публикация пользовательских манифестов, каталогов и загрузок через сеть GenHub.</value>
+  </data>
+  <data name="Tools.Plugin.publisher-studio.Name" xml:space="preserve">
+    <value>Студия издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.AddTitle" xml:space="preserve">
+    <value>Добавить файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Browse" xml:space="preserve">
+    <value>Обзор...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ComputeHash" xml:space="preserve">
+    <value>Вычислить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ComputingHash" xml:space="preserve">
+    <value>Вычисление SHA-256 хэша...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrl" xml:space="preserve">
+    <value>Прямая ссылка на скачивание *</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ExternalCdn" xml:space="preserve">
+    <value>Внешний CDN / Прямая ссылка (клиент игры, быстрое зеркало)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ExternalCdnHint" xml:space="preserve">
+    <value>Внешняя ссылка (клиент игры, CDN, S3, зеркала). Сохраняется без повторной загрузки в облако.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FileSize" xml:space="preserve">
+    <value>Размер файла (например: 500 MB, 1.2 GB или в байтах)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FileSizePlaceholder" xml:space="preserve">
+    <value>например, 750 MB</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Filename" xml:space="preserve">
+    <value>Имя файла</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FilenameHint" xml:space="preserve">
+    <value>Заполняется автоматически из выбранного файла или ссылки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FilenamePlaceholder" xml:space="preserve">
+    <value>например, GeneralsOnline-Client-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashHint" xml:space="preserve">
+    <value>Вычисляется автоматически для выбранного файла</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashPlaceholder" xml:space="preserve">
+    <value>Строка хэша (необязательно для внешнего CDN)...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFile" xml:space="preserve">
+    <value>Локальный файл (загрузка в облако)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileHint" xml:space="preserve">
+    <value>Файл будет скопирован, SHA-256 вычислен и подготовлен к загрузке в разделе «Публикация».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.MetadataHeader" xml:space="preserve">
+    <value>Метаданные файла:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.NoFileSelected" xml:space="preserve">
+    <value>Файл не выбран...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.PrimaryArtifact" xml:space="preserve">
+    <value>Основной файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
+    <value>Это основной файл, который должны загружать пользователи.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
+    <value>Хэш SHA256 (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SourceMethod" xml:space="preserve">
+    <value>Источник файла:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SourcePrompt" xml:space="preserve">
+    <value>Выберите источник артефакта:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Subtitle" xml:space="preserve">
+    <value>Укажите данные файла. GenHub поддерживает загрузку локальных файлов в облако или указание внешних прямых ссылок.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.UploadLocalFile" xml:space="preserve">
+    <value>Загрузить локальный файл (облачный хостинг)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.UploadLocalFileHint" xml:space="preserve">
+    <value>Файл будет загружен к вашему подключенному облачному провайдеру при публикации</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AddButton" xml:space="preserve">
+    <value>Добавить контент</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AddTitle" xml:space="preserve">
+    <value>Добавить элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactExternalCdn" xml:space="preserve">
+    <value>Внешний CDN / Прямая ссылка</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactExternalCdnHint" xml:space="preserve">
+    <value>Внешняя ссылка (клиенты игры, зеркала). Сохраняется без повторной загрузки.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactLocalFile" xml:space="preserve">
+    <value>Локальный файл (загрузка в облако)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactLocalFileHint" xml:space="preserve">
+    <value>Файл будет скопирован и подготовлен к загрузке при публикации.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Browse" xml:space="preserve">
+    <value>Обзор...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFile" xml:space="preserve">
+    <value>Обзор файла...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFolder" xml:space="preserve">
+    <value>Обзор папки...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CdnExplanation" xml:space="preserve">
+    <value>Игровые клиенты и автономные базовые пакеты обычно имеют большой размер и распространяются через внешние CDN или быстрые зеркала. Используйте прямую ссылку на скачивание, чтобы направлять игроков к вашей CDN без повторной загрузки.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Changelog" xml:space="preserve">
+    <value>Список изменений</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ChangelogPlaceholder" xml:space="preserve">
+    <value>Заметки к первому релизу...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ContentType" xml:space="preserve">
+    <value>Тип контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Description" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DescriptionPlaceholder" xml:space="preserve">
+    <value>Опишите элемент контента...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectDownloadUrl" xml:space="preserve">
+    <value>Прямая ссылка на скачивание *</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectUrlOption" xml:space="preserve">
+    <value>Прямой URL для скачивания (хостинг/CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadSource" xml:space="preserve">
+    <value>Источник загрузки / распространения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadUrl" xml:space="preserve">
+    <value>URL для скачивания</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadUrlHint" xml:space="preserve">
+    <value>Прямой URL, по которому игроки скачивают этот пакет (Google Диск, CDN, GitHub и т. д.)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropHint" xml:space="preserve">
+    <value>Перетащите папки или файлы сюда</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsContent" xml:space="preserve">
+    <value>Расширяет контент</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsContentPlaceholder" xml:space="preserve">
+    <value>Идентификатор родительского контента для аддона/субмода</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsHint" xml:space="preserve">
+    <value>Идентификатор контента, который расширяет этот аддон. Используйте 'content-id' для того же каталога или 'publisher-id/content-id' для другого издателя.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsPlaceholder" xml:space="preserve">
+    <value>напр., my-mod или publisher-id/content-id</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FileSize" xml:space="preserve">
+    <value>Размер файла</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FileSizePlaceholder" xml:space="preserve">
+    <value>например: 500 MB, 1.2 GB или в байтах</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Id" xml:space="preserve">
+    <value>Идентификатор контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
+    <value>Уникальный идентификатор контента. Только буквы, цифры и дефисы.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
+    <value>например: generals-online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IncludeInitialRelease" xml:space="preserve">
+    <value>Включить начальный релиз и артефакт пакета</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InitialArtifact" xml:space="preserve">
+    <value>Начальный файл (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InitialRelease" xml:space="preserve">
+    <value>Начальный релиз (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.LocalFileOption" xml:space="preserve">
+    <value>Локальный файл (для загрузки в облако)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.LocalFileOrFolder" xml:space="preserve">
+    <value>Перетащите папки или файлы сюда</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.NamePlaceholder" xml:space="preserve">
+    <value>например: Generals Online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.NoFileSelected" xml:space="preserve">
+    <value>Файл не выбран...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.PackageFilename" xml:space="preserve">
+    <value>Имя файла пакета</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.PackageFilenamePlaceholder" xml:space="preserve">
+    <value>напр., GeneralsOnline.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseVersion" xml:space="preserve">
+    <value>Версия релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectOrDragPlaceholder" xml:space="preserve">
+    <value>Выберите или перетащите папку или архив...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Subtitle" xml:space="preserve">
+    <value>Создайте элемент контента в каталоге. После создания можно добавить релизы и файлы.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Tags" xml:space="preserve">
+    <value>Теги (через запятую)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.TagsPlaceholder" xml:space="preserve">
+    <value>например: multiplayer, patch, balance</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.TargetGame" xml:space="preserve">
+    <value>Целевая игра</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Type" xml:space="preserve">
+    <value>Тип контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UseSuggestedId" xml:space="preserve">
+    <value>Использовать предложенный ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Version" xml:space="preserve">
+    <value>Версия</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VersionPlaceholder" xml:space="preserve">
+    <value>например: 1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AddButton" xml:space="preserve">
+    <value>Добавить зависимость</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AddTitle" xml:space="preserve">
+    <value>Добавить зависимость</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AvailableVersions" xml:space="preserve">
+    <value>Доступные версии: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.BrowseKnown" xml:space="preserve">
+    <value>Выбрать из известного контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrl" xml:space="preserve">
+    <value>URL каталога / манифеста (рекомендуется)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWith" xml:space="preserve">
+    <value>Конфликтует с (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWithHint" xml:space="preserve">
+    <value>Разделенные запятыми ID манифестов, с которыми конфликтует эта зависимость.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWithPlaceholder" xml:space="preserve">
+    <value>напр., 1.0.other.mod.id, 1.0.another.mod</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentId" xml:space="preserve">
+    <value>Идентификатор контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdPlaceholder" xml:space="preserve">
+    <value>напр., worldbuilder-tool</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Discover" xml:space="preserve">
+    <value>Найти</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoverHint" xml:space="preserve">
+    <value>Указание URL позволяет автоматически обнаружить ID контента.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoverTooltip" xml:space="preserve">
+    <value>Получить каталоги этого издателя для выбора контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveredContent" xml:space="preserve">
+    <value>Обнаруженный контент</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveredCount" xml:space="preserve">
+    <value>Найдено элементов контента: {0} от издателя '{1}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExactVersion" xml:space="preserve">
+    <value>Точная версия (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExactVersionPlaceholder" xml:space="preserve">
+    <value>например, 1.2.3</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Examples" xml:space="preserve">
+    <value>Примеры:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExternalPublisher" xml:space="preserve">
+    <value>Внешний издатель</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.FromMyCatalog" xml:space="preserve">
+    <value>Из моего каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MaxVersion" xml:space="preserve">
+    <value>Максимальная версия (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MaxVersionPlaceholder" xml:space="preserve">
+    <value>например, 2.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MinVersion" xml:space="preserve">
+    <value>Минимальная версия (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MinVersionPlaceholder" xml:space="preserve">
+    <value>например, 1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentDiscovered" xml:space="preserve">
+    <value>Контент для этого издателя не найден.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoKnownPublishers" xml:space="preserve">
+    <value>Нет доступных известных издателей</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherItems" xml:space="preserve">
+    <value>Другие элементы контента недоступны.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.OptionalDependency" xml:space="preserve">
+    <value>Необязательная зависимость</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherId" xml:space="preserve">
+    <value>Идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdPlaceholder" xml:space="preserve">
+    <value>например: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.RequiredNotice" xml:space="preserve">
+    <value>* Идентификатор издателя и контента обязательны.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Select" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentItem" xml:space="preserve">
+    <value>Выберите элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectFromDiscovered" xml:space="preserve">
+    <value>Или выберите из найденного контента:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectPublisherFirst" xml:space="preserve">
+    <value>Сначала выберите издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Source" xml:space="preserve">
+    <value>Источник зависимости</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Subtitle" xml:space="preserve">
+    <value>Укажите обязательную зависимость для этого релиза.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.VersionConstraint" xml:space="preserve">
+    <value>Ограничение версии (SemVer)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.VersionConstraintPlaceholder" xml:space="preserve">
+    <value>напр., &gt;=1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetBreakdown" xml:space="preserve">
+    <value>РАСПРЕДЕЛЕНИЕ АКТИВОВ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AuthRequired" xml:space="preserve">
+    <value>Требуется авторизация</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CancelAuthTip" xml:space="preserve">
+    <value>Отменить текущую авторизацию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CatalogsPrefix" xml:space="preserve">
+    <value>Каталоги: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudFilesSummary" xml:space="preserve">
+    <value>Облачные файлы (определение, каталоги, релизы)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudProviderSetup" xml:space="preserve">
+    <value>Настройка провайдера облачного хранилища</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudProviderSetupSubtitle" xml:space="preserve">
+    <value>Выберите службу хостинга для загрузки каталогов и релизов. Пошаговые инструкции приведены ниже.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColActions" xml:space="preserve">
+    <value>ДЕЙСТВИЯ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColCategory" xml:space="preserve">
+    <value>КАТЕГОРИЯ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColFileName" xml:space="preserve">
+    <value>ИМЯ ФАЙЛА</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColLocation" xml:space="preserve">
+    <value>МЕСТОПОЛОЖЕНИЕ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColSize" xml:space="preserve">
+    <value>РАЗМЕР</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColStatus" xml:space="preserve">
+    <value>СТАТУС</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectProvider" xml:space="preserve">
+    <value>Подключить провайдера</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectProviderTip" xml:space="preserve">
+    <value>Подключиться и пройти аутентификацию у выбранного провайдера</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Connected" xml:space="preserve">
+    <value>Подключено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Copy" xml:space="preserve">
+    <value>Копировать</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CopyDownloadLinkTip" xml:space="preserve">
+    <value>Скопировать прямую ссылку на скачивание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CreateDropboxApp" xml:space="preserve">
+    <value>1. Создать приложение Dropbox (консоль)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBGuideSubtitle" xml:space="preserve">
+    <value>Dropbox предлагает 2 ГБ бесплатного хранилища с мгновенными прямыми ссылками. Настройка занимает менее 1 минуты:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBGuideTitle" xml:space="preserve">
+    <value>Руководство по настройке и токену Dropbox (без проекта в облаке)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep1Desc" xml:space="preserve">
+    <value>Нажмите кнопку №1 ниже («1. Create Dropbox App»). Выберите «Scoped access», «Full Dropbox» (или «App folder»), введите имя (например: «GenHubPublisher») и нажмите «Create app».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep1Title" xml:space="preserve">
+    <value>Шаг 1: Создание приложения Scoped App</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep2Desc" xml:space="preserve">
+    <value>Перейдите на вкладку «Permissions» вверху страницы приложения Dropbox. Включите ВСЕ следующие разрешения:
+• files.content.write
+• files.content.read
+• sharing.write
+• sharing.read
+• account_info.read
+Затем нажмите кнопку «Submit» внизу! (Если разрешения не сохранить, создание ссылок завершится ошибкой HTTP 400).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep2Title" xml:space="preserve">
+    <value>Шаг 2: Включение разрешений в консоли Dropbox [ВАЖНО: предотвращает ошибку 400 Bad Request]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep3Desc" xml:space="preserve">
+    <value>Перейдите на вкладку «Settings» на странице приложения Dropbox. Прокрутите вниз до «Generated access token» и нажмите «Generate». Скопируйте токен и вставьте его ниже.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep3Title" xml:space="preserve">
+    <value>Шаг 3: Генерация токена доступа</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Disconnect" xml:space="preserve">
+    <value>Отключить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxConsole" xml:space="preserve">
+    <value>Открыть консоль приложений Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxConsoleTip" xml:space="preserve">
+    <value>Открыть консоль приложений Dropbox в браузере по умолчанию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxDescription" xml:space="preserve">
+    <value>Dropbox позволяет размещать как манифесты каталогов, так и бинарные файлы релизов прямо в вашем аккаунте Dropbox.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxDevSettings" xml:space="preserve">
+    <value>2. Настройки разработчика Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder" xml:space="preserve">
+    <value>sl.u.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxHowTo" xml:space="preserve">
+    <value>Как создать токен доступа Dropbox за 30 секунд:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep1" xml:space="preserve">
+    <value>1. Нажмите «Открыть консоль приложений Dropbox» ниже (или создайте приложение: Scoped access &gt; App folder или Full Dropbox).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep2" xml:space="preserve">
+    <value>2. Во вкладке «Permissions» вверху отметьте «files.content.write», «files.content.read» и «sharing.write», затем нажмите «Submit» внизу.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep3" xml:space="preserve">
+    <value>3. Во вкладке «Settings» прокрутите до раздела «OAuth 2» -&gt; найдите «Generated access token».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep4" xml:space="preserve">
+    <value>4. Нажмите кнопку «Generate» на странице. Dropbox отобразит ваш токен доступа (начинается с «sl.»).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep5" xml:space="preserve">
+    <value>5. Скопируйте этот токен, вставьте его ниже и нажмите «Подключить».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTip" xml:space="preserve">
+    <value>Совет: Если вы хотите избежать настройки проекта Google Cloud и приложения OAuth, выберите Dropbox выше! Для Dropbox не нужен облачный проект или экран согласия — токен можно создать за 30 секунд.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTokenPlaceholder" xml:space="preserve">
+    <value>sl.xxxxxxxx...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTokenPrompt" xml:space="preserve">
+    <value>Токен доступа Dropbox (sl.u.xxxxxx...):</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ExternalCdnPrefix" xml:space="preserve">
+    <value>Внешний CDN: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilesHostedOnCloud" xml:space="preserve">
+    <value>Файлы, размещенные в облачном хранилище</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDGuideSubtitle" xml:space="preserve">
+    <value>Google Drive поддерживает размещение как манифестов каталогов, так и архивов (zip с модами/патчами) в пределах квоты хранилища.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDGuideTitle" xml:space="preserve">
+    <value>Руководство по настройке Google Drive Desktop OAuth (пошагово)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step1" xml:space="preserve">
+    <value>1. Нажмите «1. Открыть Google Auth Platform» или «2. Открыть консоль учетных данных» ниже и войдите в свой аккаунт Google.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step2" xml:space="preserve">
+    <value>2. В верхней панели навигации (рядом с «Google Cloud») нажмите на селектор проектов и выберите «NEW PROJECT».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step3" xml:space="preserve">
+    <value>3. Введите имя проекта (например: «GenHub Publisher»), оставьте организацию «No organization» и нажмите «CREATE».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step4" xml:space="preserve">
+    <value>4. Подождите несколько секунд, затем снова нажмите на селектор проектов вверху и выберите созданный проект.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Title" xml:space="preserve">
+    <value>Шаг 1: Создание проекта в Google Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step1" xml:space="preserve">
+    <value>1. Нажмите «1. Открыть Google Auth Platform» ниже. Если появится сообщение «Google auth platform not configured yet», нажмите синюю кнопку «Get started». (Если появится желтый баннер с запросом экрана согласия, нажмите «Configure consent screen»).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2" xml:space="preserve">
+    <value>2. Откроется мастер настройки проекта из 4 шагов:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2a" xml:space="preserve">
+    <value>   • Данные приложения: введите имя (например: «GenHub»), укажите ваш email в «User support email» и нажмите «Next».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2b" xml:space="preserve">
+    <value>   • Аудитория: выберите «External» (Internal только для Google Workspace; External позволяет тестировать вашему аккаунту). Нажмите «Next».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2c" xml:space="preserve">
+    <value>   • Контактные данные: введите ваш email в поле «Developer contact information», затем нажмите «Next».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2d" xml:space="preserve">
+    <value>   • Завершение: проверьте данные и нажмите «Create». Появится уведомление: «OAuth configuration created».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Title" xml:space="preserve">
+    <value>Шаг 2: Создание приложения через «Настройки проекта» (Google Auth Platform)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Warning" xml:space="preserve">
+    <value>Примечание: Google НЕ позволит создать учетные данные OAuth, пока в проекте не настроено приложение!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Step1" xml:space="preserve">
+    <value>1. В верхней строке поиска найдите «Google Drive API» и выберите его.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Step2" xml:space="preserve">
+    <value>2. Нажмите синюю кнопку «ENABLE».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Title" xml:space="preserve">
+    <value>Шаг 3: Включение Google Drive API</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step1" xml:space="preserve">
+    <value>1. В Google Auth Platform перейдите в раздел «Clients» в меню слева (или нажмите «2. Открыть консоль учетных данных» ниже).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step2" xml:space="preserve">
+    <value>2. Нажмите «+ Create client» (или «+ CREATE CREDENTIALS» &gt; «OAuth client ID»).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step3" xml:space="preserve">
+    <value>3. Тип приложения: ОБЯЗАТЕЛЬНО выберите «Desktop app» (НЕ оставляйте «Web application» — значение по умолчанию приведет к ошибке URI перенаправления!).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step4" xml:space="preserve">
+    <value>4. Введите имя (например: «GenHub Desktop») и нажмите «CREATE».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step5" xml:space="preserve">
+    <value>5. Появится всплывающее окно «OAuth client created» с вашими «Client ID» и «Client secret».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step6" xml:space="preserve">
+    <value>6. Важно: скопируйте оба значения сейчас! Google предупреждает, что секрет нельзя будет посмотреть после закрытия окна.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Title" xml:space="preserve">
+    <value>Шаг 4: Создание учетных данных OAuth для Desktop</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step1" xml:space="preserve">
+    <value>1. В Google Auth Platform откройте вкладку «Audience» в меню слева (или нажмите кнопку №3 ниже).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step2" xml:space="preserve">
+    <value>2. В разделе «Test users» нажмите «+ ADD USERS», введите адрес вашей почты Google (Gmail) и нажмите «SAVE».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step2Note" xml:space="preserve">
+    <value>   (Без этого Google заблокирует авторизацию с ошибкой «Error 403: access_denied / Access blocked: GenHub has not completed the Google verification process»).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Title" xml:space="preserve">
+    <value>Шаг 5: Добавление аккаунта Google в тестовые пользователи [ВАЖНО: устраняет ошибку 403 access_denied]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Step1" xml:space="preserve">
+    <value>1. Скопируйте и вставьте Client ID и Client Secret в два поля ввода ниже.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Step2" xml:space="preserve">
+    <value>2. Нажмите «Подключиться к Google Drive». Откроется окно браузера для входа в аккаунт Google и предоставления разрешений Диска.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Title" xml:space="preserve">
+    <value>Шаг 6: Вставка и подключение в GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep1Desc" xml:space="preserve">
+    <value>Нажмите кнопку №1 ниже. В Google Cloud Console нажмите выбор проекта вверху &gt; «NEW PROJECT» &gt; назовите «GenHub Publisher» &gt; нажмите «CREATE». Затем выберите его в списке.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep1Title" xml:space="preserve">
+    <value>Шаг 1: Создайте проект Google Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep2Desc" xml:space="preserve">
+    <value>Нажмите кнопку №1 ниже («Open Google Auth Platform»). Если написано «Google auth platform not configured yet», нажмите «Get started» (или «Configure consent screen»). Введите имя (GenHub), email, выберите External, email разработчика и нажмите Create.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep2Title" xml:space="preserve">
+    <value>Шаг 2: Создайте приложение через «Настройки проекта» [ВАЖНО: настройте сначала]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep3Desc" xml:space="preserve">
+    <value>Найдите «Google Drive API» в верхней строке поиска и нажмите «ENABLE».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep4Desc" xml:space="preserve">
+    <value>В Google Auth Platform перейдите в «Clients» (или кнопку №2 ниже). Нажмите «+ Create client». Выберите «Desktop app» (НЕ «Web application»!). Назовите «GenHub Desktop» и нажмите «CREATE». Сразу скопируйте Client ID и Client Secret!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep4Title" xml:space="preserve">
+    <value>Шаг 4: Создайте Desktop OAuth Client ID [ВАЖНО: выберите «Desktop app»]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep5Desc" xml:space="preserve">
+    <value>В Google Auth Platform перейдите в «Audience» (или кнопку №3 ниже). В «Test users» нажмите «+ ADD USERS», введите свой Google email и нажмите «SAVE». Без этого Google заблокирует вход с ошибкой 403: access_denied.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep5Title" xml:space="preserve">
+    <value>Шаг 5: Добавьте аккаунт Google в тестовые пользователи [ВАЖНО: устраняет 403 access_denied]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep6Desc" xml:space="preserve">
+    <value>Скопируйте Client ID и Client Secret в поля ввода ниже и нажмите «Подключить».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep6Title" xml:space="preserve">
+    <value>Шаг 6: Вставьте Client ID и Secret ниже и подключитесь</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGenerateToken" xml:space="preserve">
+    <value>Создать Personal Access Token на GitHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsDescription" xml:space="preserve">
+    <value>GitHub Gists размещает манифесты каталогов и определение поставщика в виде публичных Gist в вашем профиле GitHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsHowItWorks" xml:space="preserve">
+    <value>Как работает хостинг GitHub Gists:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsManifestsOnly" xml:space="preserve">
+    <value>• Только манифесты: публикует 'catalog.json' и 'publisher.json' как публичные Gist под вашим аккаунтом GitHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsNoBinaryHosting" xml:space="preserve">
+    <value>• Без бинарных файлов: Gist НЕ хранят архивы (zip/exe). Все файлы релизов должны использовать внешние CDN или прямые ссылки.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsNoRepoCommits" xml:space="preserve">
+    <value>• Без коммитов в репозитории: файлы не добавляются в репозитории; Gist — это отдельные фрагменты.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep1" xml:space="preserve">
+    <value>1. Нажмите «Создать Personal Access Token на GitHub» ниже.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep2" xml:space="preserve">
+    <value>2. Убедитесь, что выбран scope «gist» (или «repo»).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep3" xml:space="preserve">
+    <value>3. Нажмите «Generate token» внизу, скопируйте токен «ghp_...», вставьте его ниже и подключитесь.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubTokenTip" xml:space="preserve">
+    <value>Открыть страницу генерации токена GitHub с предустановленным разрешением repo</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientId" xml:space="preserve">
+    <value>Google Client ID:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder" xml:space="preserve">
+    <value>Введите Client ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientSecret" xml:space="preserve">
+    <value>Google Client Secret:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveDescription" xml:space="preserve">
+    <value>Google Drive позволяет размещать манифесты каталогов и большие бинарные файлы релизов прямо на вашем личном Диске.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveGuideSummary" xml:space="preserve">
+    <value>Google Drive требует: 1) Создать проект Google Cloud, 2) Создать приложение в настройках (Google Auth Platform), 3) Создать OAuth Client ID для Desktop перед загрузкой файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveGuideTitle" xml:space="preserve">
+    <value>Руководство по настройке Google Cloud OAuth (пошагово):</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.HostedAssets" xml:space="preserve">
+    <value>РАЗМЕЩЕННЫЕ АКТИВЫ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InventorySubtitle" xml:space="preserve">
+    <value>Реестр определения издателя, манифестов каталогов и бинарных файлов релизов, сохраненных в облаке или внешних CDN.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InventoryTitle" xml:space="preserve">
+    <value>Реестр размещенных файлов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoAssetsSubtitle" xml:space="preserve">
+    <value>Загрузите каталог или нажмите «Сканировать / синхронизировать», чтобы обнаружить существующие файлы в облаке.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoAssetsTitle" xml:space="preserve">
+    <value>Нет записей о размещенных файлах</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnected" xml:space="preserve">
+    <value>Не подключено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenAuthPlatform" xml:space="preserve">
+    <value>1. Открыть Google Auth Platform</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenAuthWizardTip" xml:space="preserve">
+    <value>Открыть мастер Google Auth Platform / Настройки проекта в браузере по умолчанию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCloudFolder" xml:space="preserve">
+    <value>Открыть папку в облаке</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCloudFolderTip" xml:space="preserve">
+    <value>Открыть папку хранилища /GenHub_Publisher поставщика в браузере</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCredentials" xml:space="preserve">
+    <value>2. Открыть учетные данные (Desktop Client ID)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCredentialsTip" xml:space="preserve">
+    <value>Открыть страницу учетных данных Google Cloud Console в браузере по умолчанию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenTestUsers" xml:space="preserve">
+    <value>3. Открыть Audience / Test Users (исправление 403)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenTestUsersTip" xml:space="preserve">
+    <value>Открыть страницу Audience / Test Users в Google Auth Platform для авторизации аккаунта и устранения ошибок 403</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenUrlTip" xml:space="preserve">
+    <value>Открыть URL для скачивания в браузере</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Provider" xml:space="preserve">
+    <value>Провайдер хостинга</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ProviderSubtitle" xml:space="preserve">
+    <value>Выберите, где размещать определение поставщика, манифесты каталога и загружаемые файлы.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix" xml:space="preserve">
+    <value>Бинарные файлы релизов: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanSyncStorage" xml:space="preserve">
+    <value>Сканировать / синхронизировать</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanSyncStorageTip" xml:space="preserve">
+    <value>Сканировать облачное хранилище на наличие загруженных файлов издателя и синхронизировать состояние</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Scanning" xml:space="preserve">
+    <value>Сканирование...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SelectProvider" xml:space="preserve">
+    <value>Выберите провайдера:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusExternalCdn" xml:space="preserve">
+    <value>Внешний CDN</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusLiveOnline" xml:space="preserve">
+    <value>Доступен онлайн</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPending" xml:space="preserve">
+    <value>В ожидании</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StorageConsumed" xml:space="preserve">
+    <value>ЗАНЯТОЕ МЕСТО</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StorageLocation" xml:space="preserve">
+    <value>МЕСТО ХРАНЕНИЯ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Subtitle" xml:space="preserve">
+    <value>Управление облачным хранилищем, мониторинг занятого места, проверка прямых ссылок и синхронизация файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Title" xml:space="preserve">
+    <value>Хостинг и облачное хранилище</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddArtifact" xml:space="preserve">
+    <value>Добавить файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddArtifactTooltip" xml:space="preserve">
+    <value>Добавить файл к этому релизу</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddButton" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddCatalogTooltip" xml:space="preserve">
+    <value>Добавить новый каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddContent" xml:space="preserve">
+    <value>Добавить контент</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddContentTooltip" xml:space="preserve">
+    <value>Добавить элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddDependency" xml:space="preserve">
+    <value>Добавить зависимость</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddDependencyTooltip" xml:space="preserve">
+    <value>Добавить зависимость к этому релизу</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddItem" xml:space="preserve">
+    <value>Добавить элемент</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddRelease" xml:space="preserve">
+    <value>Добавить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddReleaseTooltip" xml:space="preserve">
+    <value>Добавить новый релиз для этого элемента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Artifacts" xml:space="preserve">
+    <value>Артефакты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ArtifactsHeader" xml:space="preserve">
+    <value>Файлы для загрузки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BundledItems" xml:space="preserve">
+    <value>Связанные элементы контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BundledItemsHint" xml:space="preserve">
+    <value>Элементы, включенные в этот комплект, которые будут установлены вместе</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.CdnDirectBadge" xml:space="preserve">
+    <value>CDN / ПРЯМАЯ ССЫЛКА</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Changelog" xml:space="preserve">
+    <value>Список изменений</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColActions" xml:space="preserve">
+    <value>ДЕЙСТВИЯ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColContent" xml:space="preserve">
+    <value>КОНТЕНТ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColFilename" xml:space="preserve">
+    <value>ИМЯ ФАЙЛА</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColHash" xml:space="preserve">
+    <value>ХЭШ SHA256</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColPublisher" xml:space="preserve">
+    <value>ИЗДАТЕЛЬ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColSize" xml:space="preserve">
+    <value>РАЗМЕР</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColVersionRange" xml:space="preserve">
+    <value>ДИАПАЗОН ВЕРСИЙ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ContentId" xml:space="preserve">
+    <value>Идентификатор контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ContentType" xml:space="preserve">
+    <value>Тип контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteCatalogTooltip" xml:space="preserve">
+    <value>Удалить выбранный каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteContent" xml:space="preserve">
+    <value>Удалить элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteContentTooltip" xml:space="preserve">
+    <value>Удалить элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteRelease" xml:space="preserve">
+    <value>Удалить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTooltip" xml:space="preserve">
+    <value>Удалить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Dependencies" xml:space="preserve">
+    <value>Зависимости</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Description" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropAddHint" xml:space="preserve">
+    <value>Перетащите папки или архивы сюда для добавления контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditContentTooltip" xml:space="preserve">
+    <value>Редактировать сведения о контенте</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditReleaseTooltip" xml:space="preserve">
+    <value>Редактировать релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EmptyContent" xml:space="preserve">
+    <value>Пока нет элементов контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ExtendsContent" xml:space="preserve">
+    <value>Расширяет контент</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.LatestBadge" xml:space="preserve">
+    <value>ПОСЛЕДНИЙ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoArtifacts" xml:space="preserve">
+    <value>В этом релизе нет файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoBundledItems" xml:space="preserve">
+    <value>Пока нет связанных элементов. Нажмите 'Добавить элемент' для объединения существующего контента.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoContentSubtitle" xml:space="preserve">
+    <value>Нажмите «Добавить контент» выше, чтобы создать первый элемент.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoContentTitle" xml:space="preserve">
+    <value>В каталоге нет элементов контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoDependencies" xml:space="preserve">
+    <value>Нет зависимостей для этого релиза.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoReleases" xml:space="preserve">
+    <value>Нет релизов для этого контента. Добавьте релиз, чтобы пользователи могли загружать файлы.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PendingCloudBadge" xml:space="preserve">
+    <value>ОЖИДАЕТ ЗАГРУЗКИ В ОБЛАКО</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PrereleaseBadge" xml:space="preserve">
+    <value>ПРЕДРЕЛИЗ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Primary" xml:space="preserve">
+    <value>ОСНОВНОЙ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PublisherPrefix" xml:space="preserve">
+    <value>Издатель: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDate" xml:space="preserve">
+    <value>Дата релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesAndArtifacts" xml:space="preserve">
+    <value>Релизы и артефакты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesHeader" xml:space="preserve">
+    <value>Релизы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
+    <value> релизов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveArtifactTooltip" xml:space="preserve">
+    <value>Удалить файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveDependencyTooltip" xml:space="preserve">
+    <value>Удалить зависимость</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveFromBundleTooltip" xml:space="preserve">
+    <value>Удалить из комплекта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RenameCatalogTooltip" xml:space="preserve">
+    <value>Переименовать выбранный каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SaveContent" xml:space="preserve">
+    <value>Сохранить элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SaveRelease" xml:space="preserve">
+    <value>Сохранить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SearchWatermark" xml:space="preserve">
+    <value>Поиск контента...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SelectItemPrompt" xml:space="preserve">
+    <value>Выберите элемент контента для просмотра сведений</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Subtitle" xml:space="preserve">
+    <value>Управление контентом, релизами и файлами в активном каталоге</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Tags" xml:space="preserve">
+    <value>Теги</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.TargetGame" xml:space="preserve">
+    <value>Целевая игра</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Title" xml:space="preserve">
+    <value>Библиотека контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Version" xml:space="preserve">
+    <value>Версия</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUrl" xml:space="preserve">
+    <value>URL аватара</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Description" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DescriptionHint" xml:space="preserve">
+    <value>Краткое описание организации или команды издателя.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DescriptionPlaceholder" xml:space="preserve">
+    <value>Об этом издателе...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayName" xml:space="preserve">
+    <value>Отображаемое имя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayNameHint" xml:space="preserve">
+    <value>Понятное имя, отображаемое в GenHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayNamePlaceholder" xml:space="preserve">
+    <value>например: Community Outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Email" xml:space="preserve">
+    <value>Контактный email</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.EmailPlaceholder" xml:space="preserve">
+    <value>publisher@example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherId" xml:space="preserve">
+    <value>Идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherIdHint" xml:space="preserve">
+    <value>Уникальный идентификатор издателя. Только буквы, цифры и дефисы.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherIdPlaceholder" xml:space="preserve">
+    <value>например: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Save" xml:space="preserve">
+    <value>Сохранить профиль</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveProfile" xml:space="preserve">
+    <value>Сохранить профиль</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Subtitle" xml:space="preserve">
+    <value>Ваш профиль издателя. Эти данные включаются во все создаваемые вами каталоги.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SupportDiscord" xml:space="preserve">
+    <value>URL поддержки / Discord</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Tags" xml:space="preserve">
+    <value>Теги (через запятую)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.TagsPlaceholder" xml:space="preserve">
+    <value>например: mods, maps, patches</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Title" xml:space="preserve">
+    <value>Профиль издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Website" xml:space="preserve">
+    <value>Веб-сайт</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.WebsitePlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CancelUpload" xml:space="preserve">
+    <value>Отменить загрузку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsAndDefinition" xml:space="preserve">
+    <value>Каталоги и определение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyArtifactUrlTip" xml:space="preserve">
+    <value>Скопировать URL артефакта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyDefinitionUrlTip" xml:space="preserve">
+    <value>Скопировать URL определения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyLink" xml:space="preserve">
+    <value>Скопировать ссылку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyProtocolLinkTip" xml:space="preserve">
+    <value>Скопировать ссылку протокола</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>Еще не загружено...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUrlTitle" xml:space="preserve">
+    <value>Прямой URL онлайн-определения (publisher.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExternalCdnPreserved" xml:space="preserve">
+    <value>Внешний CDN (сохранен)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.HierarchySubtitle" xml:space="preserve">
+    <value>Обзор загруженных ресурсов: 1. Определение поставщика  -&gt;  2. Каталоги  -&gt;  3. Элементы контента и релизы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.HierarchyTitle" xml:space="preserve">
+    <value>Иерархия загрузки и распространения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LocalFilesToUpload" xml:space="preserve">
+    <value>Локальные файлы для загрузки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NotPublished" xml:space="preserve">
+    <value>Не опубликовано</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NotUploadedYet" xml:space="preserve">
+    <value>Еще не загружено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PendingUploadHint" xml:space="preserve">
+    <value>Локальный файл ожидает загрузки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkHint" xml:space="preserve">
+    <value>Пользователи могут нажать или вставить эту ссылку genhub:// в GenHub, чтобы просмотреть ваш контент и подписаться на него.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkPlaceholder" xml:space="preserve">
+    <value>Опубликуйте определение для создания ссылки...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkTitle" xml:space="preserve">
+    <value>Ссылка протокола GenHub для общего доступа</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalog" xml:space="preserve">
+    <value>Опубликовать каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Published" xml:space="preserve">
+    <value>Опубликовано</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishedCatalogs" xml:space="preserve">
+    <value>Опубликованные каталоги и манифесты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Revalidate" xml:space="preserve">
+    <value>Повторить проверку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepCatalogs" xml:space="preserve">
+    <value>2. Каталоги</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepContentReleases" xml:space="preserve">
+    <value>3. Элементы контента и релизы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepDefinition" xml:space="preserve">
+    <value>1. Определение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Subtitle" xml:space="preserve">
+    <value>Размещайте определение поставщика и каталоги онлайн и распространяйте их через протокол GenHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagCdn" xml:space="preserve">
+    <value>CDN</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagCloud" xml:space="preserve">
+    <value>ОБЛАКО</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagPending" xml:space="preserve">
+    <value>ОЖИДАЕТ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TargetDestination" xml:space="preserve">
+    <value>Целевое назначение хостинга:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Title" xml:space="preserve">
+    <value>Публикация и доступ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinition" xml:space="preserve">
+    <value>Загрузить / обновить определение поставщика</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Uploaded" xml:space="preserve">
+    <value>Загружено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.AddButton" xml:space="preserve">
+    <value>Добавить рекомендацию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.AddTitle" xml:space="preserve">
+    <value>Добавить рекомендацию издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.BrowseKnown" xml:space="preserve">
+    <value>Выбрать из известных издателей</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrl" xml:space="preserve">
+    <value>URL каталога / манифеста</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DefinitionUrl" xml:space="preserve">
+    <value>URL определения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Description" xml:space="preserve">
+    <value>Описание (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DescriptionPlaceholder" xml:space="preserve">
+    <value>Почему вы рекомендуете этого издателя?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Discover" xml:space="preserve">
+    <value>Найти</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoverHint" xml:space="preserve">
+    <value>Введите URL к определению издателя (publisher.json) или каталогу (catalog.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoKnownPublishers" xml:space="preserve">
+    <value>Нет доступных известных издателей</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Note" xml:space="preserve">
+    <value>Примечание (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NotePlaceholder" xml:space="preserve">
+    <value>Почему вы рекомендуете этого издателя?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.OrEnterManually" xml:space="preserve">
+    <value>Или введите вручную</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherFound" xml:space="preserve">
+    <value>Издатель найден</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherId" xml:space="preserve">
+    <value>Идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdPlaceholder" xml:space="preserve">
+    <value>например: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.QuickSelect" xml:space="preserve">
+    <value>Быстрый выбор из ваших подписок</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.QuickSelectPrompt" xml:space="preserve">
+    <value>Выберите издателя, на которого вы уже подписаны:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.RequiredNotice" xml:space="preserve">
+    <value>* Идентификатор издателя и URL определения обязательны.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Subtitle" xml:space="preserve">
+    <value>Порекомендуйте другого издателя своим подписчикам. Это поможет находить связанный контент сообщества.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.AddButton" xml:space="preserve">
+    <value>Добавить рекомендацию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.AddTooltip" xml:space="preserve">
+    <value>Добавить новую рекомендацию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrl" xml:space="preserve">
+    <value>URL каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColActions" xml:space="preserve">
+    <value>ДЕЙСТВИЯ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColDefinitionUrl" xml:space="preserve">
+    <value>URL ОПРЕДЕЛЕНИЯ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColDescription" xml:space="preserve">
+    <value>ОПИСАНИЕ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColPublisherId" xml:space="preserve">
+    <value>ID ИЗДАТЕЛЯ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DefinitionUrl" xml:space="preserve">
+    <value>URL определения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Description" xml:space="preserve">
+    <value>Описание (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DescriptionPlaceholder" xml:space="preserve">
+    <value>Почему вы рекомендуете этого издателя?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EditSubtitle" xml:space="preserve">
+    <value>Обновить сведения о рекомендации издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EditTitle" xml:space="preserve">
+    <value>Редактировать рекомендацию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EmptyState" xml:space="preserve">
+    <value>Пока нет рекомендаций</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.HowItWorksText" xml:space="preserve">
+    <value>Рекомендации позволяют вашему каталогу продвигать других доверенных издателей (таких как Community-Outpost или GeneralsOnline). Когда игроки подписываются на ваш каталог, они могут легко находить и устанавливать контент рекомендованных вами издателей.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.HowItWorksTitle" xml:space="preserve">
+    <value>Как работают рекомендации</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.NoReferralsSubtitle" xml:space="preserve">
+    <value>Нажмите «Добавить рекомендацию» выше, чтобы порекомендовать других издателей.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.NoReferralsTitle" xml:space="preserve">
+    <value>Нет настроенных рекомендаций</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherId" xml:space="preserve">
+    <value>Идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdPlaceholder" xml:space="preserve">
+    <value>например: generals-online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RecommendationNote" xml:space="preserve">
+    <value>Примечание к рекомендации (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RecommendationNotePlaceholder" xml:space="preserve">
+    <value>Почему вы рекомендуете этого издателя своим игрокам?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Remove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RemoveTooltip" xml:space="preserve">
+    <value>Удалить эту рекомендацию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.SaveChanges" xml:space="preserve">
+    <value>Сохранить изменения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.SelectPrompt" xml:space="preserve">
+    <value>Выберите рекомендацию для просмотра сведений или нажмите 'Добавить рекомендацию', чтобы порекомендовать издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Subtitle" xml:space="preserve">
+    <value>Порекомендуйте других издателей подписчикам. При подписке на ваш каталог пользователи увидят эти рекомендации.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Title" xml:space="preserve">
+    <value>Рекомендации</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddArtifact" xml:space="preserve">
+    <value>Добавить файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddDependency" xml:space="preserve">
+    <value>Добавить зависимость</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddRelease" xml:space="preserve">
+    <value>Добавить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddTitle" xml:space="preserve">
+    <value>Добавить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactRequired" xml:space="preserve">
+    <value>Требуется как минимум один артефакт.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Artifacts" xml:space="preserve">
+    <value>Файлы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactsFiles" xml:space="preserve">
+    <value>Артефакты (файлы)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Changelog" xml:space="preserve">
+    <value>Список изменений</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ChangelogPlaceholder" xml:space="preserve">
+    <value>Опишите изменения в этом релизе...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Dependencies" xml:space="preserve">
+    <value>Зависимости</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Featured" xml:space="preserve">
+    <value>Рекомендуемый</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Latest" xml:space="preserve">
+    <value>Последний</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Prerelease" xml:space="preserve">
+    <value>Предрелиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Subtitle" xml:space="preserve">
+    <value>Создайте новый релиз для этого элемента контента. Добавьте файлы для загрузки и настройте зависимости.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Suggest" xml:space="preserve">
+    <value>Предложить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Version" xml:space="preserve">
+    <value>Версия</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VersionPlaceholder" xml:space="preserve">
+    <value>например, 1.0.0, 2.1-beta</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VersionRequired" xml:space="preserve">
+    <value>* Поле версии обязательно для заполнения.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.CatalogName" xml:space="preserve">
+    <value>Имя каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.CatalogNamePlaceholder" xml:space="preserve">
+    <value>например, Основные моды, Патчи, Контент сообщества</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Description" xml:space="preserve">
+    <value>Переименование обновит название каталога и имя файла экспорта (напр., catalog-maps.json).</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Name" xml:space="preserve">
+    <value>Название каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.NamePlaceholder" xml:space="preserve">
+    <value>напр., Карты, Моды, Контент Zero Hour</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.RenameButton" xml:space="preserve">
+    <value>Переименовать</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Subtitle" xml:space="preserve">
+    <value>Изменение отображаемого имени этого каталога. Идентификатор каталога останется прежним.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Title" xml:space="preserve">
+    <value>Переименовать каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.AllSet" xml:space="preserve">
+    <value>Все готово!</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.AllSetDescription" xml:space="preserve">
+    <value>Ваш профиль издателя готов. Теперь вы можете начать добавлять контент в свой каталог.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Back" xml:space="preserve">
+    <value>Назад</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.CompleteSetup" xml:space="preserve">
+    <value>Завершить настройку</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactEmail" xml:space="preserve">
+    <value>Контактный email</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder" xml:space="preserve">
+    <value>publisher@example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactInfo" xml:space="preserve">
+    <value>Укажите контактную информацию для пользователей (необязательно).</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.DisplayName" xml:space="preserve">
+    <value>Отображаемое имя</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder" xml:space="preserve">
+    <value>например: Community Outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Finish" xml:space="preserve">
+    <value>Завершить</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalog" xml:space="preserve">
+    <value>Имя начального каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalogHint" xml:space="preserve">
+    <value>У каждого издателя должен быть как минимум один каталог.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalogPlaceholder" xml:space="preserve">
+    <value>например, Основной, Контент, Моды</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Next" xml:space="preserve">
+    <value>Далее</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherId" xml:space="preserve">
+    <value>Идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherIdHint" xml:space="preserve">
+    <value>Уникальный идентификатор из букв, цифр и дефисов. Не может быть изменен позже.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder" xml:space="preserve">
+    <value>например: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.RequiredNotice" xml:space="preserve">
+    <value>* Идентификатор издателя, отображаемое имя и имя начального каталога обязательны.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Subtitle" xml:space="preserve">
+    <value>Настройте профиль издателя. Эти сведения будут включены в ваши манифесты.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Title" xml:space="preserve">
+    <value>Настройка издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Website" xml:space="preserve">
+    <value>Веб-сайт (необязательно)</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.WebsitePlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Welcome" xml:space="preserve">
+    <value>Добро пожаловать в Publisher Studio! Давайте настроим профиль издателя.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.ChangesPending" xml:space="preserve">
+    <value>Ожидаются изменения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.NotPublished" xml:space="preserve">
+    <value>Не опубликовано</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.Published" xml:space="preserve">
+    <value>Опубликовано</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.PublishedDate" xml:space="preserve">
+    <value>Опубликовано {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.AddCatalogTooltip" xml:space="preserve">
+    <value>Добавить новый каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.BadgeCreator" xml:space="preserve">
+    <value>СОЗДАТЕЛЬ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ConfigureProfile" xml:space="preserve">
+    <value>Настроить профиль</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CurrentCatalog" xml:space="preserve">
+    <value>Текущий каталог:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTooltip" xml:space="preserve">
+    <value>Удалить выбранный каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectTooltip" xml:space="preserve">
+    <value>Загрузить существующий проект</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NewProjectTooltip" xml:space="preserve">
+    <value>Создать новый проект</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.RenameCatalogTooltip" xml:space="preserve">
+    <value>Переименовать выбранный каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectTooltip" xml:space="preserve">
+    <value>Сохранить проект</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupBannerSubtitle" xml:space="preserve">
+    <value>Настройте профиль издателя перед созданием каталогов и контента.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupBannerTitle" xml:space="preserve">
+    <value>Требуется настройка издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupPublisher" xml:space="preserve">
+    <value>Настроить издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupRequired" xml:space="preserve">
+    <value>Требуется настройка издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupRequiredDescription" xml:space="preserve">
+    <value>Укажите ID и имя издателя на вкладке 'Профиль', чтобы открыть доступ к библиотеке контента и функциям публикации.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Subtitle" xml:space="preserve">
+    <value>Создание и управление каталогами пользовательского контента для распространения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHelp" xml:space="preserve">
+    <value>Справка и документация</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHelpTooltip" xml:space="preserve">
+    <value>Документация и руководства по Студии издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHosting" xml:space="preserve">
+    <value>Хостинг и облако</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHostingTooltip" xml:space="preserve">
+    <value>Управление подключением к облаку, мониторинг места и поиск файлов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabLibrary" xml:space="preserve">
+    <value>Библиотека контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabLibraryTooltip" xml:space="preserve">
+    <value>Управление модами, картами, патчами и дополнениями в этом каталоге</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabProfile" xml:space="preserve">
+    <value>Профиль издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabProfileTooltip" xml:space="preserve">
+    <value>Просмотр и редактирование данных профиля издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabPublish" xml:space="preserve">
+    <value>Публикация и доступ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabPublishTooltip" xml:space="preserve">
+    <value>Размещение каталогов и файлов определения онлайн через облачные сервисы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabReferrals" xml:space="preserve">
+    <value>Рекомендации</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabReferralsTooltip" xml:space="preserve">
+    <value>Рекомендовать других издателей вашим подписчикам</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Title" xml:space="preserve">
+    <value>Студия издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Unsaved" xml:space="preserve">
+    <value>Не сохранено</value>
   </data>
   <data name="Tools.Share.Title" xml:space="preserve">
     <value>Поделиться загрузкой</value>

@@ -847,11 +847,11 @@ Check for:
 
 #### "Catalog too large"
 
-**Limits:**
+**Limits & Recommendations:**
 
-- Max catalog size: 10 MB
-- Max content items: 1000
-- Max releases per content: 100
+- Max catalog size: 10 MB (enforced by CatalogConstants.MaxCatalogSizeBytes)
+- Recommended max content items: 1000
+- Recommended max releases per content: 100
 
 **Solutions:**
 
@@ -1038,8 +1038,8 @@ Task<OperationResult<bool>> ValidateCatalogAsync(PublisherCatalog catalog);
 Task<OperationResult<string>> ExportCatalogAsync(PublisherStudioProject project);
 
 // Save/load projects
-Task<OperationResult<bool>> SaveProjectAsync(PublisherStudioProject project, string path);
-Task<OperationResult<PublisherStudioProject>> LoadProjectAsync(string path);
+Task<OperationResult<bool>> SaveProjectAsync(PublisherStudioProject project, CancellationToken cancellationToken = default);
+Task<OperationResult<PublisherStudioProject>> LoadProjectAsync(string path, CancellationToken cancellationToken = default);
 ```
 
 ##### 2. Publisher Studio ViewModels
@@ -1266,7 +1266,6 @@ public class PublisherCatalog
     public List<CatalogContentItem> Content { get; set; }
     public DateTime LastUpdated { get; set; }
     public string? Signature { get; set; }
-    public List<string> CatalogMirrors { get; set; }
     public List<PublisherReferral> Referrals { get; set; }
 }
 ```
@@ -1391,14 +1390,10 @@ public class CatalogDependency
 
 - **Publisher ID**:
   - Required
-  - 3-50 characters
-  - Lowercase letters, numbers, hyphens only
-  - Must start with letter
-  - No consecutive hyphens in the ID
+  - Lowercase alphanumeric with hyphens only (`^[a-z0-9-]+$`)
 
 - **Display Name**:
   - Required
-  - 1-100 characters
 
 - **URLs**:
   - Must be valid HTTP/HTTPS
@@ -1408,13 +1403,11 @@ public class CatalogDependency
 
 - **Content ID**:
   - Required
-  - 3-50 characters
-  - Lowercase letters, numbers, hyphens only
+  - Lowercase alphanumeric with hyphens only (`^[a-z0-9-]+$`)
   - Unique within catalog
 
 - **Name**:
   - Required
-  - 1-100 characters
 
 - **Content Type**:
   - Required enum value
@@ -1529,10 +1522,10 @@ All errors return `OperationResult<T>` with descriptive messages.
 
 #### Catalog Size Limits
 
-- Maximum catalog size: 10 MB
-- Maximum content items: 1000
-- Maximum releases per content: 100
-- Maximum artifacts per release: 50
+- Maximum catalog size: 10 MB (enforced limit)
+- Recommended max content items: 1000
+- Recommended max releases per content: 100
+- Recommended max artifacts per release: 50
 
 #### Caching
 

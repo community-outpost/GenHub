@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -67,7 +68,7 @@
         <!-- Header -->
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
-            <TextBlock Text="Add Dependency"
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"
                        FontSize="22" FontWeight="Bold"
                        Foreground="White"/>
             <Button Grid.Column="1"
@@ -96,9 +97,9 @@
             <StackPanel Spacing="16">
                 <!-- Source Selection -->
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Dependency Source" Classes="label"/>
-                    <RadioButton Content="From My Catalog" IsChecked="{Binding IsFromMyCatalog}" GroupName="Source"/>
-                    <RadioButton Content="External Publisher" IsChecked="{Binding !IsFromMyCatalog}" GroupName="Source"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.Source}" Classes="label"/>
+                    <RadioButton Content="{localization:Localize Tools.PublisherStudio.Dependency.FromMyCatalog}" IsChecked="{Binding IsFromMyCatalog}" GroupName="Source"/>
+                    <RadioButton Content="{localization:Localize Tools.PublisherStudio.Dependency.ExternalPublisher}" IsChecked="{Binding !IsFromMyCatalog}" GroupName="Source"/>
                 </StackPanel>
 
                 <Separator Background="#20FFFFFF" Height="1"/>
@@ -106,7 +107,7 @@
                 <!-- Internal -->
                 <StackPanel Spacing="16" IsVisible="{Binding IsFromMyCatalog}">
                      <StackPanel Spacing="8">
-                         <TextBlock Text="Select Content Item" Classes="label"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.SelectContentItem}" Classes="label"/>
                          <ComboBox ItemsSource="{Binding AvailableContent}"
                                    SelectedItem="{Binding SelectedContent}"
                                    HorizontalAlignment="Stretch"
@@ -117,7 +118,7 @@
                                  </DataTemplate>
                              </ComboBox.ItemTemplate>
                          </ComboBox>
-                         <TextBlock Text="No other content items available." IsVisible="{Binding !AvailableContent.Count}" Foreground="#FF5555"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.NoOtherItems}" IsVisible="{Binding !AvailableContent.Count}" Foreground="#FF5555"/>
                      </StackPanel>
                 </StackPanel>
 
@@ -125,24 +126,24 @@
                 <StackPanel Spacing="16" IsVisible="{Binding !IsFromMyCatalog}">
                      <StackPanel Spacing="8">
                          <StackPanel Orientation="Horizontal" Spacing="4">
-                             <TextBlock Text="Publisher ID" Classes="label"/>
+                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.PublisherId}" Classes="label"/>
                              <TextBlock Text="*" Foreground="#FF5555"/>
                          </StackPanel>
-                         <TextBox Text="{Binding ExternalPublisherId}" Watermark="e.g. cnclabs"/>
+                         <TextBox Text="{Binding ExternalPublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.PublisherIdPlaceholder}"/>
                      </StackPanel>
                      <StackPanel Spacing="8">
                          <StackPanel Orientation="Horizontal" Spacing="4">
-                             <TextBlock Text="Content ID" Classes="label"/>
+                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ContentId}" Classes="label"/>
                              <TextBlock Text="*" Foreground="#FF5555"/>
                          </StackPanel>
-                         <TextBox Text="{Binding ExternalContentId}" Watermark="e.g. worldbuilder-tool"/>
+                         <TextBox Text="{Binding ExternalContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ContentIdPlaceholder}"/>
                      </StackPanel>
                      <StackPanel Spacing="8">
-                         <TextBlock Text="Catalog / Definition URL (Recommended)" Classes="label"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.CatalogUrl}" Classes="label"/>
                          <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
                             <TextBox Grid.Column="0" Text="{Binding ExternalCatalogUrl}"
                                      Watermark="https://example.com/publisher.json"/>
-                            <Button Grid.Column="1" Content="Discover"
+                            <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Discover}"
                                     Command="{Binding DiscoverContentCommand}"
                                     Margin="8,0,0,0"
                                     Classes="small-glass-btn"
@@ -153,12 +154,12 @@
                                          IsVisible="{Binding IsBusy}"
                                          Margin="0,4,0,0"/>
                          </Grid>
-                         <TextBlock Text="Providing a URL allows discovering content IDs automatically." Classes="hint"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.DiscoverHint}" Classes="hint"/>
                      </StackPanel>
 
                      <!-- Discovery Results -->
                      <StackPanel Spacing="8" IsVisible="{Binding DiscoveredContent.Count}">
-                         <TextBlock Text="Discovered Content" Classes="label"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.DiscoveredContent}" Classes="label"/>
                          <ListBox ItemsSource="{Binding DiscoveredContent}"
                                   Height="120"
                                   Background="#10000000"
@@ -169,7 +170,7 @@
                                  <DataTemplate>
                                      <Grid ColumnDefinitions="*, Auto">
                                          <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                                         <Button Grid.Column="1" Content="Select"
+                                         <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Select}"
                                                  Command="{Binding $parent[UserControl].((vm:AddDependencyDialogViewModel)DataContext).SelectDiscoveredContentCommand}"
                                                  CommandParameter="{Binding}"
                                                  Classes="small-glass-btn"/>
@@ -184,9 +185,9 @@
 
                 <!-- Version Constraints -->
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Version Constraint (SemVer)" Classes="label"/>
-                    <TextBox Text="{Binding VersionConstraint}" Watermark="e.g. >=1.0.0"/>
-                    <TextBlock Text="Examples:" Classes="hint"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.VersionConstraint}" Classes="label"/>
+                    <TextBox Text="{Binding VersionConstraint}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.VersionConstraintPlaceholder}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.Examples}" Classes="hint"/>
                     <ItemsControl ItemsSource="{Binding VersionConstraintExamples}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -204,12 +205,12 @@
                     </ItemsControl>
                 </StackPanel>
 
-                <CheckBox Content="Optional Dependency" IsChecked="{Binding IsOptional}"/>
+                <CheckBox Content="{localization:Localize Tools.PublisherStudio.Dependency.OptionalDependency}" IsChecked="{Binding IsOptional}"/>
 
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Conflicts With (Optional)" Classes="label"/>
-                    <TextBox Text="{Binding ConflictsWithIds}" Watermark="e.g. 1.0.other.mod.id, 1.0.another.mod"/>
-                    <TextBlock Text="Comma-separated Manifest IDs this dependency conflicts with." Classes="hint"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWith}" Classes="label"/>
+                    <TextBox Text="{Binding ConflictsWithIds}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWithPlaceholder}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWithHint}" Classes="hint"/>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
@@ -222,7 +223,7 @@
                         TextWrapping="Wrap"
                         MaxWidth="300"/>
 
-             <Button Content="Add Dependency"
+             <Button Content="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"
                      Command="{Binding CreateDependencyCommand}"
                      Background="{DynamicResource PrimaryGradientBrush}"
                      Foreground="White"

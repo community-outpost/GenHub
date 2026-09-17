@@ -261,7 +261,7 @@ Definition (1) ──┬──> Catalog: ZH Mods ──> Content Items
 2. GenHub fetches the definition
 3. User sees confirmation with publisher info and catalog list
 4. User selects catalogs to subscribe
-5. `PublisherSubscription` stored with `CatalogEntries[]`
+5. `PublisherSubscription` stored with primary catalog and definition URLs
 
 ### Content Discovery
 

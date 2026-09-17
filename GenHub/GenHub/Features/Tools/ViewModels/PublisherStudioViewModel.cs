@@ -395,6 +395,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             StatusMessage = $"Error loading project: {ex.Message}";
+            _notificationService?.ShowError("Publisher Studio", StatusMessage, NotificationDurations.Long);
             _logger.LogError(ex, "Error loading project");
         }
     }
@@ -412,17 +413,20 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
                 await SaveLastProjectPathAsync(filePath);
                 HasUnsavedChanges = false;
                 StatusMessage = $"Project loaded: {CurrentProject.ProjectName}";
+                _notificationService?.ShowSuccess("Publisher Studio", StatusMessage, NotificationDurations.Short);
                 _logger.LogInformation("Loaded publisher project from {Path}", filePath);
             }
             else
             {
                 StatusMessage = $"Failed to load project: {result.FirstError}";
+                _notificationService?.ShowError("Publisher Studio", StatusMessage, NotificationDurations.Long);
                 _logger.LogError("Failed to load project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error loading project: {ex.Message}";
+            _notificationService?.ShowError("Publisher Studio", StatusMessage, NotificationDurations.Long);
             _logger.LogError(ex, "Error loading project from {Path}", filePath);
         }
     }
@@ -488,17 +492,20 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
                 CurrentProject.ProjectPath = GetDefaultProjectPath();
                 await InitializeChildViewModelsAsync();
                 StatusMessage = showWizard ? "New project created - configure your publisher profile to get started" : "New project created";
+                _notificationService?.ShowSuccess("Publisher Studio", StatusMessage, NotificationDurations.Medium);
                 _logger.LogInformation("Created new publisher project");
             }
             else
             {
                 StatusMessage = $"Failed to create project: {result.FirstError}";
+                _notificationService?.ShowError("Publisher Studio", StatusMessage, NotificationDurations.Long);
                 _logger.LogError("Failed to create new project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error: {ex.Message}";
+            _notificationService?.ShowError("Publisher Studio", StatusMessage, NotificationDurations.Long);
             _logger.LogError(ex, "Error creating new project");
         }
     }
@@ -553,6 +560,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
         if (CurrentProject.Catalogs.Count <= 1)
         {
             StatusMessage = "Cannot remove the last catalog";
+            _notificationService?.ShowWarning("Publisher Studio", StatusMessage, NotificationDurations.Medium);
             return;
         }
 
@@ -621,6 +629,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
 
         await SaveProjectAsync();
         StatusMessage = $"Renamed catalog to '{target.Name}'";
+        _notificationService?.ShowSuccess("Publisher Studio", StatusMessage, NotificationDurations.Short);
         _logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);
     }
 
@@ -680,6 +689,7 @@ public partial class PublisherStudioViewModel : ObservableObject, IDisposable
             {
                 IsRecoveryNeeded = true;
                 StatusMessage = "Hosting state missing - recovery may be needed. Use Publish & Share tab to reconnect.";
+                _notificationService?.ShowWarning("Publisher Studio", StatusMessage, NotificationDurations.VeryLong);
                 _logger.LogWarning("Project appears to have been published but hosting state is missing");
             }
         }

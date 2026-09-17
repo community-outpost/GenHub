@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -83,9 +84,9 @@
                                       VerticalAlignment="Center"/>
                         </Border>
                         <StackPanel Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="Publisher Profile &amp; Identity"
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Title}"
                                        FontSize="16" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock Text="Configure public identity, support links, and metadata"
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Subtitle}"
                                        FontSize="11" Foreground="#9CA3AF"/>
                         </StackPanel>
                     </StackPanel>
@@ -97,7 +98,7 @@
                             VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Data="{StaticResource SaveIcon}" Width="14" Height="14" Foreground="White"/>
-                            <TextBlock Text="Save Profile" FontWeight="SemiBold" FontSize="13"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Save}" FontWeight="SemiBold" FontSize="13"/>
                         </StackPanel>
                     </Button>
                 </Grid>
@@ -122,46 +123,46 @@
                     <!-- Row 0: Publisher ID & Display Name -->
                     <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Publisher ID" Classes="field-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherId}" Classes="field-label"/>
                             <TextBlock Text="*" Classes="required"/>
                         </StackPanel>
                         <TextBox Text="{Binding PublisherId, Mode=TwoWay}"
-                                 Watermark="e.g. community-outpost"/>
-                        <TextBlock Text="Lowercase letters, numbers, and hyphens" Classes="field-hint"/>
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdPlaceholder}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdHint}" Classes="field-hint"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Display Name" Classes="field-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayName}" Classes="field-label"/>
                             <TextBlock Text="*" Classes="required"/>
                         </StackPanel>
                         <TextBox Text="{Binding PublisherName, Mode=TwoWay}"
-                                 Watermark="e.g. Community-Outpost"/>
-                        <TextBlock Text="Public display name shown in GenHub" Classes="field-hint"/>
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Profile.DisplayNamePlaceholder}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayNameHint}" Classes="field-hint"/>
                     </StackPanel>
 
                     <!-- Row 2: Website & Contact Email -->
                     <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
-                        <TextBlock Text="Website URL" Classes="field-label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Website}" Classes="field-label"/>
                         <TextBox Text="{Binding WebsiteUrl, Mode=TwoWay}"
                                  Watermark="https://community-outpost.org"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Grid.Column="2" Spacing="4">
-                        <TextBlock Text="Contact Email" Classes="field-label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Email}" Classes="field-label"/>
                         <TextBox Text="{Binding ContactEmail, Mode=TwoWay}"
-                                 Watermark="contact@community-outpost.org"/>
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Profile.EmailPlaceholder}"/>
                     </StackPanel>
 
                     <!-- Row 4: Support URL & Avatar URL -->
                     <StackPanel Grid.Row="4" Grid.Column="0" Spacing="4">
-                        <TextBlock Text="Support / Discord URL" Classes="field-label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.SupportDiscord}" Classes="field-label"/>
                         <TextBox Text="{Binding SupportUrl, Mode=TwoWay}"
                                  Watermark="https://discord.gg/yourserver"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="4" Grid.Column="2" Spacing="4">
-                        <TextBlock Text="Avatar URL" Classes="field-label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}" Classes="field-label"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Grid.Column="0"
                                      Text="{Binding AvatarUrl, Mode=TwoWay}"
@@ -185,15 +186,15 @@
 
                 <!-- Tags & Description -->
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Tags (Comma Separated)" Classes="field-label"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Tags}" Classes="field-label"/>
                     <TextBox Text="{Binding TagsString, Mode=TwoWay}"
-                             Watermark="maps, zero-hour, mods, patches"/>
+                             Watermark="{localization:Localize Tools.PublisherStudio.Profile.TagsPlaceholder}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Publisher Description" Classes="field-label"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Description}" Classes="field-label"/>
                     <TextBox Text="{Binding Description, Mode=TwoWay}"
-                             Watermark="Describe your team, community, or mods..."
+                             Watermark="{localization:Localize Tools.PublisherStudio.Profile.DescriptionPlaceholder}"
                              AcceptsReturn="True"
                              Height="70"
                              TextWrapping="Wrap"/>

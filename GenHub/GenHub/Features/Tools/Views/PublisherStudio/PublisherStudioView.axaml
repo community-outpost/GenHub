@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -137,14 +138,14 @@
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Publisher Studio" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
                                 <Border Background="{DynamicResource AccentBadgeBackgroundColor}"
                                         CornerRadius="4" Padding="5,1">
-                                    <TextBlock Text="CREATOR" FontSize="9" FontWeight="Bold"
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.BadgeCreator}" FontSize="9" FontWeight="Bold"
                                                Foreground="{DynamicResource AccentLightColor}"/>
                                 </Border>
                             </StackPanel>
-                            <TextBlock Text="Create, package, and distribute your mods" FontSize="11" Foreground="#6B7280"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Subtitle}" FontSize="11" Foreground="#6B7280"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -162,10 +163,10 @@
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="0"
-                                    ToolTip.Tip="Configure your publisher identity, branding, and contact links">
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabProfileTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource PersonIcon}" Width="13" Height="13"/>
-                                    <TextBlock Text="Profile"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabProfile}"/>
                                 </StackPanel>
                             </Button>
 
@@ -175,10 +176,10 @@
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="1"
                                     IsEnabled="{Binding IsSetupComplete}"
-                                    ToolTip.Tip="Manage mods, patches, maps, and downloadable content items">
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabLibraryTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource ContentIcon}" Width="13" Height="13"/>
-                                    <TextBlock Text="Content Library"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabLibrary}"/>
                                 </StackPanel>
                             </Button>
 
@@ -188,10 +189,10 @@
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="2"
                                     IsEnabled="{Binding IsSetupComplete}"
-                                    ToolTip.Tip="Configure cloud hosting providers and inspect storage usage">
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabHostingTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13"/>
-                                    <TextBlock Text="Hosting &amp; Storage"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabHosting}"/>
                                 </StackPanel>
                             </Button>
 
@@ -201,10 +202,10 @@
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="3"
                                     IsEnabled="{Binding IsSetupComplete}"
-                                    ToolTip.Tip="Recommend other community publishers">
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabReferralsTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource LinkIcon}" Width="13" Height="13"/>
-                                    <TextBlock Text="Referrals"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabReferrals}"/>
                                 </StackPanel>
                             </Button>
 
@@ -214,10 +215,10 @@
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="4"
                                     IsEnabled="{Binding IsSetupComplete}"
-                                    ToolTip.Tip="Export, host, and publish your catalog">
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabPublishTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource PublishIcon}" Width="13" Height="13"/>
-                                    <TextBlock Text="Publish &amp; Share"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabPublish}"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -231,7 +232,7 @@
                                 VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="5">
                                 <Ellipse Width="6" Height="6" Fill="#F59E0B"/>
-                                <TextBlock Text="Unsaved"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Unsaved}"
                                            FontSize="11"
                                            FontWeight="SemiBold"
                                            Foreground="#F59E0B"/>
@@ -243,7 +244,7 @@
                         <!-- New Project Button -->
                         <Button Classes="glass-btn-icon"
                                 Command="{Binding CreateNewProjectCommand}"
-                                ToolTip.Tip="Create New Project">
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.NewProjectTooltip}">
                             <PathIcon Data="{StaticResource AddIcon}"
                                       Width="14" Height="14"
                                       Foreground="#9CA3AF"/>
@@ -252,7 +253,7 @@
                         <!-- Load Project Button -->
                         <Button Classes="glass-btn-icon"
                                 Command="{Binding LoadProjectCommand}"
-                                ToolTip.Tip="Load Existing Project">
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.LoadProjectTooltip}">
                             <PathIcon Data="{StaticResource FolderOpenIcon}"
                                       Width="14" Height="14"
                                       Foreground="#9CA3AF"/>
@@ -262,7 +263,7 @@
                         <Button Classes="glass-btn-icon"
                                 Command="{Binding SaveProjectCommand}"
                                 IsEnabled="{Binding HasUnsavedChanges}"
-                                ToolTip.Tip="Save Project">
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.SaveProjectTooltip}">
                             <PathIcon Data="{StaticResource SaveIcon}"
                                       Width="14" Height="14"
                                       Foreground="#9CA3AF"/>
@@ -324,12 +325,12 @@
                             </Border>
 
                             <StackPanel Spacing="6" HorizontalAlignment="Center">
-                                <TextBlock Text="Publisher Setup Required"
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.SetupRequired}"
                                            FontSize="18"
                                            FontWeight="Bold"
                                            Foreground="White"
                                            HorizontalAlignment="Center"/>
-                                <TextBlock Text="Configure your Publisher ID and Name in the Profile tab to unlock the content library and publishing features."
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.SetupRequiredDescription}"
                                            FontSize="13"
                                            Foreground="#9CA3AF"
                                            TextWrapping="Wrap"
@@ -344,7 +345,7 @@
                                     <PathIcon Data="{StaticResource PersonIcon}"
                                               Width="14" Height="14"
                                               Foreground="White"/>
-                                    <TextBlock Text="Configure Profile" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.ConfigureProfile}" FontWeight="SemiBold" FontSize="13"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -394,13 +395,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Right: Status Message -->
-                    <TextBlock Grid.Column="2"
-                               Text="{Binding StatusMessage}"
-                               FontSize="11"
-                               Foreground="#888899"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center"/>
+
                 </Grid>
             </Border>
         </Grid>
