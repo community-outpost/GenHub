@@ -725,12 +725,19 @@ public class GameProfileManagerTests
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
+        var existingClient = new GameClient
+        {
+            Id = "existing-client-id",
+            Name = "Existing Client",
+            Version = "1.0",
+            GameType = GameType.Generals,
+        };
         var existingProfile = new GameProfile
         {
             Id = profileId,
             Name = "Test Profile",
             GameInstallationId = "install-1",
-            GameClient = null,
+            GameClient = existingClient,
             EnabledContentIds = ["some-client-id"],
         };
         var request = new UpdateProfileRequest
@@ -753,6 +760,11 @@ public class GameProfileManagerTests
         // Assert
         Assert.True(result.Success);
         Assert.Null(request.GameClient);
+        _profileRepositoryMock.Verify(
+            x => x.SaveProfileAsync(
+                It.Is<GameProfile>(p => p.Name == "Updated Name" && p.GameClient == existingClient),
+                default),
+            Times.Once);
     }
 
     private static GameInstallation CreateTestInstallation(string clientId)

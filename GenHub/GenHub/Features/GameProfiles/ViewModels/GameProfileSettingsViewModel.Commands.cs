@@ -84,6 +84,8 @@ public partial class GameProfileSettingsViewModel
                     Version = vmItem.Version ?? string.Empty,
                     SourceId = vmItem.SourceId ?? string.Empty,
                     GameClientId = vmItem.GameClientId ?? string.Empty,
+                    GameClient = vmItem.GameClient?.Clone(),
+                    Manifest = vmItem.Manifest,
                     IsEnabled = vmItem.IsEnabled,
                 });
             }
@@ -795,38 +797,72 @@ public partial class GameProfileSettingsViewModel
     private GameClient? ResolveActiveGameClient()
     {
         var enabledClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
-        if (enabledClientItem?.GameClient != null)
+        GameClient? resolvedClient = enabledClientItem?.GameClient?.Clone();
+
+        if (resolvedClient == null && enabledClientItem?.Manifest != null)
         {
-            return enabledClientItem.GameClient;
+            resolvedClient = ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, SelectedGameInstallation?.SourceId);
         }
 
-        if (enabledClientItem?.Manifest != null)
+        if (resolvedClient == null && enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
         {
-            return ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, SelectedGameInstallation?.SourceId);
+            resolvedClient = CreateGameClientFromDisplayItem(enabledClientItem, SelectedGameInstallation?.SourceId);
         }
 
-        if (enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
+        if (resolvedClient != null)
         {
-            return CreateGameClientFromDisplayItem(enabledClientItem, SelectedGameInstallation?.SourceId);
+            HydrateClientPaths(resolvedClient, SelectedGameInstallation?.GameClient);
+            return resolvedClient;
         }
 
-        return SelectedGameInstallation?.GameClient;
+        return SelectedGameInstallation?.GameClient?.Clone();
+    }
+
+    private void HydrateClientPaths(GameClient target, GameClient? source)
+    {
+        if (source == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(target.ExecutablePath))
+        {
+            target.ExecutablePath = source.ExecutablePath;
+        }
+
+        if (string.IsNullOrEmpty(target.WorkingDirectory))
+        {
+            target.WorkingDirectory = source.WorkingDirectory;
+        }
     }
 
     private GameClient CreateGameClientFromDisplayItem(ContentDisplayItem item, string? installationId)
     {
-        var publisherType = item.Publisher;
-        var version = item.Version ?? string.Empty;
+        string? publisherType = null;
+        var version = !string.IsNullOrWhiteSpace(item.Version) ? item.Version : string.Empty;
 
         var manifestIdValue = item.ManifestId.Value ?? string.Empty;
         var segments = manifestIdValue.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
         if (segments.Length >= 4)
         {
             publisherType = segments[2].ToLowerInvariant();
-            if (!string.IsNullOrEmpty(segments[1]))
+            if (string.IsNullOrEmpty(version) && !string.IsNullOrEmpty(segments[1]))
             {
-                version = segments[1];
+                if (int.TryParse(segments[1], out var verNum) && verNum > 0)
+                {
+                    version = verNum >= 100
+                        ? $"{verNum / 100}.{verNum % 100:D2}"
+                        : verNum.ToString();
+                }
+                else if (!string.Equals(segments[1], "0", StringComparison.OrdinalIgnoreCase))
+                {
+                    version = segments[1];
+                }
             }
+        }
+        else if (!string.IsNullOrWhiteSpace(item.Publisher))
+        {
+            publisherType = item.Publisher.Trim().ToLowerInvariant().Replace(" ", string.Empty);
         }
 
         return new GameClient

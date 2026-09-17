@@ -863,7 +863,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
             var publisherSegment = segments[2].ToLowerInvariant();
             Publisher = ParsePublisherName(publisherSegment, segments[2]);
             ApplyPublisherBranding(publisherSegment);
-            GameVersion = ParseManifestVersion(publisherSegment, segments[1]);
+            var parsedVersion = ParseManifestVersion(publisherSegment, segments[1]);
+            if (!string.IsNullOrEmpty(parsedVersion))
+            {
+                GameVersion = parsedVersion;
+            }
+
             ContentType = ParseContentType(segments[3]);
         }
         catch
@@ -917,10 +922,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             TryResolveFromEnabledGameClient(enabledIds);
         }
 
-        if (!isPublisherClient || string.IsNullOrEmpty(GameVersion))
-        {
-            TryResolveFromPatchManifest(enabledIds, isPublisherClient);
-        }
+        TryResolveFromPatchManifest(enabledIds, isPublisherClient);
     }
 
     private void TryResolveFromEnabledGameClient(IReadOnlyList<string> enabledContentIds)
@@ -953,12 +955,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
         if (!string.IsNullOrEmpty(patchVer))
         {
             GameVersion = patchVer;
-        }
 
-        if (!isPublisherClient || string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
-        {
-            Publisher = ParsePublisherName(patchPub, patchSegments[2]);
-            ApplyPublisherBranding(patchPub);
+            if (!isPublisherClient || string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
+            {
+                Publisher = ParsePublisherName(patchPub, patchSegments[2]);
+                ApplyPublisherBranding(patchPub);
+            }
         }
     }
 
@@ -977,12 +979,34 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ResolvePublisherFromGameClient(gameClient);
         }
 
-        if (!string.IsNullOrEmpty(gameClient.Version) &&
+        if (string.IsNullOrEmpty(GameVersion) &&
+            !string.IsNullOrEmpty(gameClient.Version) &&
             !string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase) &&
             !IsZeroOrPlaceholderVersion(gameClient.Version))
         {
-            GameVersion = gameClient.Version;
+            GameVersion = FormatDisplayVersion(gameClient.PublisherType, gameClient.Version);
         }
+    }
+
+    private string FormatDisplayVersion(string? publisherType, string version)
+    {
+        var pub = publisherType?.ToLowerInvariant() ?? string.Empty;
+        if (pub == PublisherTypeConstants.GeneralsOnline)
+        {
+            return version;
+        }
+
+        if (int.TryParse(version, out var num) && num >= ManifestConstants.DateBasedVersionThreshold)
+        {
+            return version;
+        }
+
+        if (version.StartsWith('v') || version.StartsWith('V'))
+        {
+            return version;
+        }
+
+        return $"v{version}";
     }
 
     private void ResolvePublisherFromGameClient(GameClient gameClient)

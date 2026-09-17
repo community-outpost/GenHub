@@ -106,4 +106,26 @@ public class GameClient
     {
         return Id?.GetHashCode() ?? 0;
     }
+
+    /// <summary>
+    /// Creates a defensive copy of this game client.
+    /// </summary>
+    /// <returns>A new <see cref="GameClient"/> instance with cloned property values.</returns>
+    public GameClient Clone() => new()
+    {
+        Id = Id,
+        Name = Name,
+        ExecutablePath = ExecutablePath,
+        WorkingDirectory = WorkingDirectory,
+        InstallationId = InstallationId,
+        CreatedAt = CreatedAt,
+        Version = Version,
+        GameType = GameType,
+        SourceType = SourceType,
+        PublisherType = PublisherType,
+        CommandLineArgs = CommandLineArgs,
+        IsEnabled = IsEnabled,
+        LastDetected = LastDetected,
+        BuildDate = BuildDate,
+    };
 }

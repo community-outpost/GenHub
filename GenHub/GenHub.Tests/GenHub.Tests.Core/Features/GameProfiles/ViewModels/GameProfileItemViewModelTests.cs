@@ -254,6 +254,34 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies that enabling a patch manifest on a publisher game client preserves the publisher while overriding the version.
+    /// </summary>
+    [Fact]
+    public void Construction_WithPublisherClientAndEnabledPatch_PreservesPublisherAndOverridesVersion()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-go-patch",
+            Name = "Generals Online Patch Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000104.generalsonline.gameclient.zerohour",
+                Name = "Generals Online",
+                PublisherType = "GeneralsOnline",
+            },
+            EnabledContentIds = ["1.106.communityoutpost.patch.zerohour"],
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-go-patch", profile, null!, null!);
+
+        // Assert
+        Assert.Equal("Generals Online", vm.Publisher);
+        Assert.Equal("v1.06", vm.GameVersion);
+    }
+
+    /// <summary>
     /// Verifies that calling UpdateFromProfile updates version and publisher badges when the client changes.
     /// </summary>
     [Fact]
