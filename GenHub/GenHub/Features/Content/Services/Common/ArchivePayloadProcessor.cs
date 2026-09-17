@@ -192,6 +192,44 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     internal static bool IsBigArchiveFile(string filePath) =>
         BigArchiveClassifier.IsBigArchiveFile(filePath);
 
+    /// <summary>
+    /// Compares two files byte-by-byte to determine whether their contents are identical.
+    /// </summary>
+    /// <param name="file1">Path to the first file.</param>
+    /// <param name="file2">Path to the second file.</param>
+    /// <returns><c>true</c> if both files exist and have identical contents; otherwise, <c>false</c>.</returns>
+    internal static bool FilesHaveIdenticalContent(string file1, string file2)
+    {
+        const int bufferSize = 65536;
+        var buffer1 = new byte[bufferSize];
+        var buffer2 = new byte[bufferSize];
+
+        using var s1 = File.OpenRead(file1);
+        using var s2 = File.OpenRead(file2);
+
+        if (s1.Length != s2.Length)
+        {
+            return false;
+        }
+
+        var bytesRead1 = 0;
+        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
+        {
+            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
+            if (bytesRead1 != bytesRead2)
+            {
+                return false;
+            }
+
+            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool ShouldAttemptExecutableExtraction(ContentType? contentType)
     {
         if (!contentType.HasValue)
@@ -1891,38 +1929,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         while (File.Exists(newDestPath));
 
         return newDestPath;
-    }
-
-    private static bool FilesHaveIdenticalContent(string file1, string file2)
-    {
-        const int bufferSize = 65536;
-        var buffer1 = new byte[bufferSize];
-        var buffer2 = new byte[bufferSize];
-
-        using var s1 = File.OpenRead(file1);
-        using var s2 = File.OpenRead(file2);
-
-        if (s1.Length != s2.Length)
-        {
-            return false;
-        }
-
-        var bytesRead1 = 0;
-        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
-        {
-            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
-            if (bytesRead1 != bytesRead2)
-            {
-                return false;
-            }
-
-            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static void CleanupEmptyDirectories(string rootDirectory)

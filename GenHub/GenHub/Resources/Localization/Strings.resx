@@ -4621,6 +4621,12 @@ This will modify game files and configuration settings at:
   <data name="Profiles.AddLocalContent.TypeLabel" xml:space="preserve">
     <value>TYPE</value>
   </data>
+  <data name="Profiles.AddLocalContent.NormalizeButton" xml:space="preserve">
+    <value>Normalize to .big (Direct Launch)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
+    <value>Convert .ctr / .gib files to active .big format for direct modern GameClient launch</value>
+  </data>
   <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
     <value>Add Content</value>
   </data>
