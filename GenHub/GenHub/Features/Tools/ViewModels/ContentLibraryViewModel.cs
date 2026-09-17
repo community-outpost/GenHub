@@ -361,8 +361,10 @@ public partial class ContentLibraryViewModel : ObservableObject
             release.IsPrerelease = edited.IsPrerelease;
             release.IsFeatured = edited.IsFeatured;
             release.ReleaseDate = edited.ReleaseDate;
-            release.Artifacts = edited.Artifacts;
-            release.Dependencies = edited.Dependencies;
+            release.Artifacts.Clear();
+            release.Artifacts.AddRange(edited.Artifacts);
+            release.Dependencies.Clear();
+            release.Dependencies.AddRange(edited.Dependencies);
 
             // Force UI refresh
             OnPropertyChanged(nameof(SelectedContent));

@@ -446,6 +446,6 @@ See [Publisher Architecture](../../dev/publisher-architecture.md) for complete a
 
 - [Publisher Architecture](../../dev/publisher-architecture.md) - Comprehensive architectural design
 - [Manifest ID System](../../dev/manifest-id-system.md) - How content IDs are generated
-- [Provider Infrastructure](provider-infrastructure.md) - Existing provider system
+- [Provider Infrastructure](publisher-infrastructure.md) - Existing provider system
 - [Downloads Flow](../../FlowCharts/Downloads-Flow.md) - Content discovery pipeline
 - [Publisher Studio](../tools/publisher-studio.md) - Visual authoring and publishing tool

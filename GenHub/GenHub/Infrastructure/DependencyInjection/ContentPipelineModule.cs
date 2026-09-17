@@ -220,12 +220,12 @@ public static class ContentPipelineModule
         {
             client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
-        });
+        }).ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
         services.AddHttpClient("PublisherCatalog", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(60);
             client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
-        });
+        }).ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
         services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();
 
         // Register catalog parser and version selector

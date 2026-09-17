@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using GenHub.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -19,7 +20,8 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// </summary>
 public partial class AddDependencyDialogViewModel : ObservableValidator, IDisposable
 {
-    private static readonly HttpClient SharedHttpClient = new()
+    private static readonly HttpClient SharedHttpClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
     {
         Timeout = TimeSpan.FromSeconds(15),
     };
@@ -276,6 +278,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
             return;
         }
 
+        var requestedUrl = ExternalCatalogUrl.Trim();
         IsBusy = true;
         ValidationError = null;
         DiscoveredContent.Clear();
@@ -291,8 +294,18 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
 
         try
         {
-            var json = await SharedHttpClient.GetStringAsync(ExternalCatalogUrl, ct);
+            var json = await SharedHttpClient.GetStringAsync(requestedUrl, ct);
+            if (ct.IsCancellationRequested || !string.Equals(ExternalCatalogUrl?.Trim(), requestedUrl, StringComparison.Ordinal))
+            {
+                return;
+            }
+
             await TryParseCatalogOrDefinitionAsync(SharedHttpClient, json, ct);
+
+            if (ct.IsCancellationRequested || !string.Equals(ExternalCatalogUrl?.Trim(), requestedUrl, StringComparison.Ordinal))
+            {
+                return;
+            }
 
             if (DiscoveredContent.Count == 0)
             {
@@ -330,7 +343,11 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
                 return;
             }
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
         {
             // Fall through to try as definition
         }
@@ -353,7 +370,11 @@ public partial class AddDependencyDialogViewModel : ObservableValidator, IDispos
                 }
             }
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
         {
             // Failed to parse as either
         }

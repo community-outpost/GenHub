@@ -16,6 +16,23 @@ public partial class ToolDialogWindow : Window
         InitializeComponent();
     }
 
+    /// <summary>
+    /// Sets the dialog content inside the MainContent placeholder.
+    /// </summary>
+    /// <param name="content">The content control to display.</param>
+    public void SetDialogContent(Control content)
+    {
+        var mainContent = this.FindControl<ContentControl>("MainContent");
+        if (mainContent != null)
+        {
+            mainContent.Content = content;
+        }
+        else
+        {
+            Content = content;
+        }
+    }
+
     private void OnDragRegionPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)

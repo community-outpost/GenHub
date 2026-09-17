@@ -331,10 +331,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
                     }
                     finally
                     {
-                        if (LocalFilePath == path)
-                        {
-                            IsComputingHash = false;
-                        }
+                        IsComputingHash = false;
                     }
                 }
             }

@@ -1,12 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Providers;
+using GenHub.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
@@ -15,9 +18,16 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for the Add Referral dialog with publisher discovery.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class AddReferralDialogViewModel : ObservableValidator
+public partial class AddReferralDialogViewModel : ObservableValidator, IDisposable
 {
+    private static readonly HttpClient SharedHttpClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
+    {
+        Timeout = TimeSpan.FromSeconds(15),
+    };
+
     private readonly Action<PublisherReferral> _onReferralCreated;
+    private CancellationTokenSource? _discoveryCts;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -90,6 +100,15 @@ public partial class AddReferralDialogViewModel : ObservableValidator
         };
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _discoveryCts?.Cancel();
+        _discoveryCts?.Dispose();
+        _discoveryCts = null;
+        GC.SuppressFinalize(this);
+    }
+
     [RelayCommand]
     private void Close()
     {
@@ -124,18 +143,27 @@ public partial class AddReferralDialogViewModel : ObservableValidator
             return;
         }
 
+        var requestedUrl = CatalogUrl.Trim();
         IsBusy = true;
         ValidationError = null;
         DiscoveredPublisher = null;
 
+        if (_discoveryCts != null)
+        {
+            await _discoveryCts.CancelAsync();
+            _discoveryCts.Dispose();
+        }
+
+        _discoveryCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var ct = _discoveryCts.Token;
+
         try
         {
-            using var client = new System.Net.Http.HttpClient
+            var json = await SharedHttpClient.GetStringAsync(requestedUrl, ct);
+            if (ct.IsCancellationRequested || !string.Equals(CatalogUrl?.Trim(), requestedUrl, StringComparison.Ordinal))
             {
-                Timeout = TimeSpan.FromSeconds(30),
-            };
-
-            var json = await client.GetStringAsync(CatalogUrl);
+                return;
+            }
 
             // Try as Publisher Definition first (Tier 3)
             try
@@ -154,6 +182,10 @@ public partial class AddReferralDialogViewModel : ObservableValidator
 
                     return;
                 }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
@@ -174,12 +206,20 @@ public partial class AddReferralDialogViewModel : ObservableValidator
                     ValidationError = "No valid publisher information found at URL";
                 }
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 ValidationError = $"Failed to parse catalog: {ex.Message}";
             }
         }
-        catch (System.Net.Http.HttpRequestException ex)
+        catch (OperationCanceledException)
+        {
+            ValidationError = "Discovery request timed out or was canceled.";
+        }
+        catch (HttpRequestException ex)
         {
             ValidationError = $"Failed to fetch URL: {ex.Message}";
         }

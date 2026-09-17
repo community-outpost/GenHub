@@ -257,4 +257,19 @@ public static class CatalogConstants
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
     public const string CommunityOutpostCatalogUrl = "https://raw.githubusercontent.com/community-outpost/genhub-catalog/main/catalog.json";
+
+    /// <summary>
+    /// Status badge color for an unreleased or unpublished catalog (#6B7280).
+    /// </summary>
+    public const string CatalogStatusNotPublishedColor = "#6B7280";
+
+    /// <summary>
+    /// Status badge color for a catalog with pending changes (#F59E0B).
+    /// </summary>
+    public const string CatalogStatusPendingColor = "#F59E0B";
+
+    /// <summary>
+    /// Status badge color for an up-to-date published catalog (#10B981).
+    /// </summary>
+    public const string CatalogStatusPublishedColor = "#10B981";
 }

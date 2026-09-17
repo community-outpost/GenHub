@@ -77,28 +77,13 @@ public class CrossPublisherDependencyResolver(
     {
         try
         {
-            var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogUrl);
-            if (string.IsNullOrWhiteSpace(normalizedUrl) ||
-                !Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+            var urlValidation = ValidateCatalogUrl(catalogUrl, out var normalizedUrl);
+            if (!urlValidation.Success)
             {
-                return OperationResult<PublisherCatalog>.CreateFailure("Catalog URL must be a valid absolute HTTP or HTTPS URL.");
+                return OperationResult<PublisherCatalog>.CreateFailure(urlValidation.FirstError ?? "Invalid catalog URL.");
             }
 
-            if (uri.IsLoopback ||
-                uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-                uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-                uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
-            {
-                return OperationResult<PublisherCatalog>.CreateFailure("Loopback and local addresses are not allowed for catalog sources.");
-            }
-
-            if ((IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip)) && !IsSafeIpAddress(ip))
-            {
-                return OperationResult<PublisherCatalog>.CreateFailure("Loopback, private, and local addresses are not allowed for catalog sources.");
-            }
-
-            var httpClient = httpClientFactory.CreateClient();
+            var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(HostingConstants.CatalogFetchTimeoutSeconds));
             var ct = timeoutCts.Token;
@@ -108,36 +93,15 @@ public class CrossPublisherDependencyResolver(
             var response = await httpClient.GetAsync(normalizedUrl, ct);
             response.EnsureSuccessStatusCode();
 
-            // Check size limit with bounded stream read
-            if (response.Content.Headers.ContentLength > CatalogConstants.MaxCatalogSizeBytes)
+            var readResult = await ReadBoundedCatalogStringAsync(response, ct);
+            if (!readResult.Success || readResult.Data == null)
             {
-                return OperationResult<PublisherCatalog>.CreateFailure(
-                    $"External catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+                return OperationResult<PublisherCatalog>.CreateFailure(readResult.FirstError ?? "Failed to read external catalog.");
             }
 
-            using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var memoryStream = new MemoryStream();
-            var buffer = new byte[HostingConstants.StreamCopyBufferSize];
-            long totalRead = 0;
-            var bytesRead = 0;
+            logger.LogDebug("Parsing fetched external catalog ({SizeBytes} bytes)", readResult.Data.Length);
 
-            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
-            {
-                totalRead += bytesRead;
-                if (totalRead > CatalogConstants.MaxCatalogSizeBytes)
-                {
-                    return OperationResult<PublisherCatalog>.CreateFailure(
-                        $"External catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
-                }
-
-                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-            }
-
-            var catalogJson = Encoding.UTF8.GetString(memoryStream.ToArray());
-
-            logger.LogDebug("Parsing fetched external catalog ({SizeBytes} bytes)", totalRead);
-
-            var parseResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
+            var parseResult = await catalogParser.ParseCatalogAsync(readResult.Data, cancellationToken);
             if (!parseResult.Success || parseResult.Data == null)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(
@@ -169,31 +133,22 @@ public class CrossPublisherDependencyResolver(
     {
         try
         {
-            // Extract publisher ID from dependency ID
-            // Dependency ID format: schemaVersion.userVersion.publisher.contentType.contentName
-            var idParts = dependency.Id.Value?.Split('.') ?? [];
-            if (idParts.Length < 5)
+            // Parse dependency ID to find publisher: "publisher:content-name"
+            var parts = dependency.Id.Value?.Split(':');
+            if (parts == null || parts.Length != 2)
             {
-                return OperationResult<ContentSearchResult?>.CreateFailure(
-                    $"Invalid dependency ID format: {dependency.Id.Value}");
+                logger.LogWarning("Dependency ID {DependencyId} is not in publisher:content format", dependency.Id);
+                return OperationResult<ContentSearchResult?>.CreateSuccess(null);
             }
 
-            var publisherId = idParts[2];
-            var contentName = idParts[4];
+            var publisherId = parts[0];
+            var contentName = parts[1];
 
-            logger.LogDebug(
-                "Searching for dependency: Publisher={PublisherId}, Content={ContentName}",
-                publisherId,
-                contentName);
-
-            // Check if we're subscribed to this publisher
+            // Look up publisher subscription
             var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
             if (!subscriptionResult.Success || subscriptionResult.Data == null)
             {
-                logger.LogWarning(
-                    "Not subscribed to publisher {PublisherId} for dependency {DependencyId}",
-                    publisherId,
-                    dependency.Id);
+                logger.LogWarning("Publisher {PublisherId} not found in subscriptions", publisherId);
                 return OperationResult<ContentSearchResult?>.CreateSuccess(null);
             }
 
@@ -222,21 +177,7 @@ public class CrossPublisherDependencyResolver(
                 return OperationResult<ContentSearchResult?>.CreateSuccess(null);
             }
 
-            VersionConstraint? constraint = null;
-            if (!string.IsNullOrEmpty(dependency.ExactVersion))
-            {
-                constraint = VersionConstraint.Exact(dependency.ExactVersion);
-            }
-            else if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion))
-            {
-                constraint = new VersionConstraint
-                {
-                    MinVersion = dependency.MinVersion,
-                    MinInclusive = dependency.MinInclusive,
-                    MaxVersion = dependency.MaxVersion,
-                    MaxInclusive = dependency.MaxInclusive,
-                };
-            }
+            var constraint = CreateVersionConstraint(dependency);
 
             var candidateReleases = matchingContent.Releases
                 .Where(r => constraint == null || constraint.IsSatisfiedBy(r.Version));
@@ -303,16 +244,71 @@ public class CrossPublisherDependencyResolver(
         }
     }
 
-    private static bool IsDependencySatisfied(ContentDependency dependency, string? installedVersion)
+    private static OperationResult<bool> ValidateCatalogUrl(string catalogUrl, out string normalizedUrl)
     {
-        VersionConstraint? installedConstraint = null;
+        normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogUrl);
+        if (string.IsNullOrWhiteSpace(normalizedUrl) ||
+            !Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            return OperationResult<bool>.CreateFailure("Catalog URL must be a valid absolute HTTP or HTTPS URL.");
+        }
+
+        if (uri.IsLoopback ||
+            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<bool>.CreateFailure("Loopback and local addresses are not allowed for catalog sources.");
+        }
+
+        if ((IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip)) && !IsSafeIpAddress(ip))
+        {
+            return OperationResult<bool>.CreateFailure("Loopback, private, and local addresses are not allowed for catalog sources.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static async Task<OperationResult<string>> ReadBoundedCatalogStringAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.Content.Headers.ContentLength > CatalogConstants.MaxCatalogSizeBytes)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"External catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var memoryStream = new MemoryStream();
+        var buffer = new byte[HostingConstants.StreamCopyBufferSize];
+        long totalRead = 0;
+        var bytesRead = 0;
+
+        while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
+        {
+            totalRead += bytesRead;
+            if (totalRead > CatalogConstants.MaxCatalogSizeBytes)
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"External catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+            }
+
+            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+        }
+
+        return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(memoryStream.ToArray()));
+    }
+
+    private static VersionConstraint? CreateVersionConstraint(ContentDependency dependency)
+    {
         if (!string.IsNullOrEmpty(dependency.ExactVersion))
         {
-            installedConstraint = VersionConstraint.Exact(dependency.ExactVersion);
+            return VersionConstraint.Exact(dependency.ExactVersion);
         }
-        else if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion))
+
+        if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion))
         {
-            installedConstraint = new VersionConstraint
+            return new VersionConstraint
             {
                 MinVersion = dependency.MinVersion,
                 MinInclusive = dependency.MinInclusive,
@@ -321,6 +317,12 @@ public class CrossPublisherDependencyResolver(
             };
         }
 
+        return null;
+    }
+
+    private static bool IsDependencySatisfied(ContentDependency dependency, string? installedVersion)
+    {
+        var installedConstraint = CreateVersionConstraint(dependency);
         return installedConstraint == null || installedConstraint.IsSatisfiedBy(installedVersion);
     }
 

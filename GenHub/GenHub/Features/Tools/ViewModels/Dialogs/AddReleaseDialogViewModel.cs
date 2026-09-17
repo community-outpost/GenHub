@@ -185,7 +185,7 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
         IsEditMode = true;
         _originalVersion = existing.Version;
         Version = existing.Version;
-        ReleaseDate = existing.ReleaseDate.HasValue ? new DateTimeOffset(existing.ReleaseDate.Value) : DateTimeOffset.UtcNow;
+        ReleaseDate = existing.ReleaseDate.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(existing.ReleaseDate.Value, DateTimeKind.Utc)) : DateTimeOffset.UtcNow;
         IsLatest = existing.IsLatest;
         IsPrerelease = existing.IsPrerelease;
         IsFeatured = existing.IsFeatured;
@@ -305,7 +305,7 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
         var release = new ContentRelease
         {
             Version = Version.Trim(),
-            ReleaseDate = ReleaseDate.DateTime,
+            ReleaseDate = ReleaseDate.UtcDateTime,
             IsLatest = IsLatest,
             IsPrerelease = IsPrerelease,
             IsFeatured = IsFeatured,

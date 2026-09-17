@@ -23,8 +23,6 @@ namespace GenHub.Features.Tools.Services;
 /// </summary>
 public class PublisherStudioDialogService(IDialogService dialogService) : IPublisherStudioDialogService
 {
-    private readonly IDialogService _dialogService = dialogService;
-
     /// <inheritdoc/>
     public async Task<bool> ShowConfirmationAsync(
         string title,
@@ -33,9 +31,9 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
         string cancelText = "Cancel",
         string? sessionKey = null)
     {
-        if (_dialogService != null)
+        if (dialogService != null)
         {
-            return await _dialogService.ShowConfirmationAsync(title, message, confirmText, cancelText, sessionKey);
+            return await dialogService.ShowConfirmationAsync(title, message, confirmText, cancelText, sessionKey);
         }
 
         return false;
@@ -237,11 +235,12 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
         ];
     }
 
-    private static async Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
-        Func<Action<TResult>, TViewModel> viewModelFactory)
+    private static async Task<TResult?> ShowDialogCoreAsync<TViewModel, TView, TResult>(
+        Func<Action<TResult>, TViewModel> viewModelFactory,
+        string? title = null,
+        TResult? defaultResult = default)
         where TViewModel : class
         where TView : Control, new()
-        where TResult : class
     {
         var tcs = new TaskCompletionSource<TResult?>();
         Window? window = null;
@@ -255,52 +254,19 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
         var viewModel = viewModelFactory(SetResult);
         var view = new TView { DataContext = viewModel };
 
-        window = new ToolDialogWindow
+        var toolWindow = new ToolDialogWindow
         {
-            Content = view,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
-
-        window.Closed += (s, e) => tcs.TrySetResult(null);
-
-        var mainWindow = GetMainWindow();
-        if (mainWindow != null)
+        if (!string.IsNullOrEmpty(title))
         {
-           await window.ShowDialog(mainWindow);
-        }
-        else
-        {
-           tcs.TrySetResult(null);
+            toolWindow.Title = title;
         }
 
-        return await tcs.Task;
-    }
+        toolWindow.SetDialogContent(view);
+        window = toolWindow;
 
-    private static async Task<bool> ShowWizardAsync<TViewModel, TView>(
-        Func<Action<bool>, TViewModel> viewModelFactory)
-        where TViewModel : class
-        where TView : Control, new()
-    {
-        var tcs = new TaskCompletionSource<bool>();
-        Window? window = null;
-
-        void SetResult(bool result)
-        {
-            tcs.TrySetResult(result);
-            window?.Close();
-        }
-
-        var viewModel = viewModelFactory(SetResult);
-        var view = new TView { DataContext = viewModel };
-
-        window = new ToolDialogWindow
-        {
-            Content = view,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Title = "Publisher Setup Wizard",
-        };
-
-        window.Closed += (s, e) => tcs.TrySetResult(false);
+        window.Closed += (s, e) => tcs.TrySetResult(defaultResult);
 
         var mainWindow = GetMainWindow();
         if (mainWindow != null)
@@ -309,10 +275,27 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
         }
         else
         {
-            tcs.TrySetResult(false);
+            tcs.TrySetResult(defaultResult);
         }
 
         return await tcs.Task;
+    }
+
+    private static Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
+        Func<Action<TResult>, TViewModel> viewModelFactory)
+        where TViewModel : class
+        where TView : Control, new()
+        where TResult : class
+    {
+        return ShowDialogCoreAsync<TViewModel, TView, TResult?>(viewModelFactory, null, null);
+    }
+
+    private static Task<bool> ShowWizardAsync<TViewModel, TView>(
+        Func<Action<bool>, TViewModel> viewModelFactory)
+        where TViewModel : class
+        where TView : Control, new()
+    {
+        return ShowDialogCoreAsync<TViewModel, TView, bool>(viewModelFactory, "Publisher Setup Wizard", false);
     }
 
     private static Window? GetMainWindow()

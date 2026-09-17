@@ -1115,7 +1115,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
         var hasLocal = localArtifact is { HasLocalFile: true } || !string.IsNullOrWhiteSpace(art.LocalFilePath);
         var localPath = localArtifact?.LocalFilePath ?? art.LocalFilePath ?? string.Empty;
-        var isExternalCdn = hasUrl && (!hasLocal || !IsCloudProviderUrl(art.DownloadUrl));
+        var isExternalCdn = hasUrl && !IsCloudProviderUrl(art.DownloadUrl);
 
         var artNode = new UploadArtifactNodeViewModel
         {
@@ -1283,6 +1283,22 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task<OperationResult<HostingUploadResult>> UploadCatalogAsync()
     {
+        if (IsUploading)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure("An upload is already in progress.");
+        }
+
+        _uploadCts?.Dispose();
+        _uploadCts = new CancellationTokenSource();
+        var cancellationToken = _uploadCts.Token;
+
+        return await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: true);
+    }
+
+    private async Task<OperationResult<HostingUploadResult>> UploadCatalogCoreAsync(
+        CancellationToken cancellationToken,
+        bool manageUploadingState)
+    {
         if (SelectedHostingProvider == null)
         {
             UploadStatusMessage = PleaseSelectHostingProviderMessage;
@@ -1304,13 +1320,13 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             return OperationResult<HostingUploadResult>.CreateFailure("Please fix validation errors before uploading");
         }
 
-        _uploadCts?.Dispose();
-        _uploadCts = new CancellationTokenSource();
-        var cancellationToken = _uploadCts.Token;
-
         try
         {
-            IsUploading = true;
+            if (manageUploadingState)
+            {
+                IsUploading = true;
+            }
+
             UploadProgress = 0;
             UploadStatusMessage = "Preparing to publish...";
             PublishCompleted = false;
@@ -1382,9 +1398,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            IsUploading = false;
-            _uploadCts?.Dispose();
-            _uploadCts = null;
+            if (manageUploadingState)
+            {
+                IsUploading = false;
+                _uploadCts?.Dispose();
+                _uploadCts = null;
+            }
         }
     }
 
@@ -1672,6 +1691,8 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         {
             await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, cancellationToken);
         }
+
+        RefreshHostedAssets();
     }
 
     private async Task<bool> ExecuteSingleArtifactUploadAsync(IHostingProvider provider, ArtifactUploadTask task, int current, int total, CancellationToken cancellationToken = default)
@@ -2248,9 +2269,14 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             return;
         }
 
+        _uploadCts?.Dispose();
+        _uploadCts = new CancellationTokenSource();
+        var cancellationToken = _uploadCts.Token;
+
         IsUploading = true;
         PublishCompleted = false;
         var publishedAny = false;
+        var succeededCount = 0;
 
         try
         {
@@ -2259,22 +2285,28 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
             foreach (var catalog in _project.Catalogs)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 currentCatalog++;
-                if (await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs))
+                if (await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken))
                 {
                     publishedAny = true;
+                    succeededCount++;
                 }
             }
 
             if (publishedAny)
             {
-                await FinalizePublishAllSuccessAsync(totalCatalogs);
+                await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs);
             }
             else
             {
                 UploadStatusMessage = "Publishing all catalogs failed.";
                 _notificationService?.ShowError("Publish Failed", UploadStatusMessage);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            UploadStatusMessage = "Publishing all catalogs was canceled.";
         }
         catch (Exception ex)
         {
@@ -2284,6 +2316,8 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         finally
         {
             IsUploading = false;
+            _uploadCts?.Dispose();
+            _uploadCts = null;
         }
     }
 
@@ -2305,7 +2339,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         return IsValid;
     }
 
-    private async Task<bool> PublishCatalogItemAsync(NamedCatalog catalog, int currentCatalog, int totalCatalogs)
+    private async Task<bool> PublishCatalogItemAsync(NamedCatalog catalog, int currentCatalog, int totalCatalogs, CancellationToken cancellationToken)
     {
         UploadStatusMessage = $"Publishing catalog {currentCatalog}/{totalCatalogs}: {catalog.Name}";
 
@@ -2313,7 +2347,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         ActiveCatalog = catalog;
         try
         {
-            var res = await UploadCatalogAsync();
+            var res = await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: false);
             if (res.Success)
             {
                 var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalog.Id);
@@ -2335,7 +2369,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task FinalizePublishAllSuccessAsync(int totalCatalogs)
+    private async Task FinalizePublishAllSuccessAsync(int succeededCount, int totalCatalogs)
     {
         // Generate provider definition with all catalogs
         await GenerateProviderDefinitionAsync();
@@ -2346,7 +2380,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             var defResult = await UploadProviderDefinitionAsync();
             if (defResult != null && !defResult.Success)
             {
-                UploadStatusMessage = $"Successfully published {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}";
+                UploadStatusMessage = succeededCount == totalCatalogs
+                    ? $"Successfully published all {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}"
+                    : $"Published {succeededCount} of {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}";
                 _notificationService?.ShowWarning("Publish Warning", UploadStatusMessage);
             }
         }
@@ -2357,7 +2393,9 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
         PublishCompleted = true;
         if (!UploadStatusMessage.StartsWith("Successfully", StringComparison.OrdinalIgnoreCase))
         {
-            UploadStatusMessage = $"Successfully published {totalCatalogs} catalogs!";
+            UploadStatusMessage = succeededCount == totalCatalogs
+                ? $"Successfully published all {totalCatalogs} catalogs!"
+                : $"Published {succeededCount} of {totalCatalogs} catalogs.";
         }
     }
 
