@@ -180,7 +180,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
             if (TryExtractPublisherFromDefinition(json, out var defProfile, out var newCatalogUrl))
             {
                 DiscoveredPublisher = defProfile;
-                PublisherId = defProfile!.Id;
+                PublisherId = defProfile.Id;
                 if (!string.IsNullOrEmpty(newCatalogUrl))
                 {
                     CatalogUrl = newCatalogUrl;
@@ -192,7 +192,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
             if (TryExtractPublisherFromCatalog(json, out var catProfile, out var parseError))
             {
                 DiscoveredPublisher = catProfile;
-                PublisherId = catProfile!.Id;
+                PublisherId = catProfile.Id;
                 return;
             }
 
@@ -235,7 +235,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
 
     private bool TryExtractPublisherFromDefinition(
         string json,
-        out PublisherProfile? profile,
+        [NotNullWhen(true)] out PublisherProfile? profile,
         out string? catalogUrl)
     {
         profile = null;
@@ -261,7 +261,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
 
     private bool TryExtractPublisherFromCatalog(
         string json,
-        out PublisherProfile? profile,
+        [NotNullWhen(true)] out PublisherProfile? profile,
         out string? error)
     {
         profile = null;
