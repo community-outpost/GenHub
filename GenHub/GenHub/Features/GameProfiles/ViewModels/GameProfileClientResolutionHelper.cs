@@ -28,33 +28,11 @@ internal static class GameProfileClientResolutionHelper
         GameClient? existingClient = null)
     {
         var enabledClientItem = enabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
-        GameClient? resolvedClient = enabledClientItem?.GameClient?.Clone();
-
-        if (resolvedClient == null && enabledClientItem?.Manifest != null)
-        {
-            resolvedClient = ProfileContentLoader.CreateGameClientFromManifest(enabledClientItem.Manifest, selectedInstallation?.SourceId);
-        }
-
-        if (resolvedClient == null && enabledClientItem != null && !string.IsNullOrEmpty(enabledClientItem.ManifestId))
-        {
-            resolvedClient = CreateGameClientFromDisplayItem(enabledClientItem, selectedInstallation?.SourceId);
-        }
+        var resolvedClient = ResolveClientFromDisplayItem(enabledClientItem, selectedInstallation?.SourceId);
 
         if (resolvedClient != null)
         {
-            var isGameTypeMatch = selectedInstallation == null ||
-                ((selectedInstallation.GameType == GameType.Unknown || resolvedClient.GameType == selectedInstallation.GameType) &&
-                 (selectedInstallation.GameClient == null || resolvedClient.GameType == selectedInstallation.GameClient.GameType));
-
-            if (isGameTypeMatch)
-            {
-                var installationSourceId = selectedInstallation?.SourceId ?? selectedInstallation?.GameClient?.InstallationId;
-                if (!string.IsNullOrEmpty(installationSourceId))
-                {
-                    resolvedClient.InstallationId = installationSourceId;
-                }
-            }
-
+            ApplyInstallationIdIfCompatible(resolvedClient, selectedInstallation);
             HydrateClientPaths(resolvedClient, selectedInstallation?.GameClient);
             HydrateClientMetadata(resolvedClient, existingClient);
             return resolvedClient;
@@ -195,5 +173,63 @@ internal static class GameProfileClientResolutionHelper
         return !string.Equals(versionSegment, "0", StringComparison.OrdinalIgnoreCase)
             ? versionSegment
             : string.Empty;
+    }
+
+    /// <summary>
+    /// Resolves a game client from an enabled content display item if present.
+    /// </summary>
+    /// <param name="item">The enabled content display item.</param>
+    /// <param name="sourceId">The optional installation source ID.</param>
+    /// <returns>The resolved game client, or null.</returns>
+    private static GameClient? ResolveClientFromDisplayItem(ContentDisplayItem? item, string? sourceId)
+    {
+        if (item == null)
+        {
+            return null;
+        }
+
+        if (item.GameClient != null)
+        {
+            return item.GameClient.Clone();
+        }
+
+        if (item.Manifest != null)
+        {
+            return ProfileContentLoader.CreateGameClientFromManifest(item.Manifest, sourceId);
+        }
+
+        if (!string.IsNullOrEmpty(item.ManifestId))
+        {
+            return CreateGameClientFromDisplayItem(item, sourceId);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Stamps the installation source ID onto the resolved client if compatible with the game type.
+    /// </summary>
+    /// <param name="resolvedClient">The resolved game client.</param>
+    /// <param name="selectedInstallation">The selected installation item.</param>
+    private static void ApplyInstallationIdIfCompatible(GameClient resolvedClient, ContentDisplayItem? selectedInstallation)
+    {
+        if (selectedInstallation == null)
+        {
+            return;
+        }
+
+        var isInstallationMatch = selectedInstallation.GameType == GameType.Unknown ||
+            resolvedClient.GameType == selectedInstallation.GameType;
+        var isClientMatch = selectedInstallation.GameClient == null ||
+            resolvedClient.GameType == selectedInstallation.GameClient.GameType;
+
+        if (isInstallationMatch && isClientMatch)
+        {
+            var installationSourceId = selectedInstallation.SourceId ?? selectedInstallation.GameClient?.InstallationId;
+            if (!string.IsNullOrEmpty(installationSourceId))
+            {
+                resolvedClient.InstallationId = installationSourceId;
+            }
+        }
     }
 }
