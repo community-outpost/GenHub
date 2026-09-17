@@ -161,4 +161,27 @@ public class ProfileSharingCompressionHelperTests
         await Assert.ThrowsAsync<System.IO.InvalidDataException>(async () =>
             await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(compressed));
     }
+
+    /// <summary>
+    /// Verifies that warning codes are returned alongside warning messages.
+    /// </summary>
+    [Fact]
+    public void SanitizeCommandLineArguments_WithCodes_Should_Return_WarningCodes()
+    {
+        // Arrange
+        var dangerousArgs = "-win \"-mod\" %APPDATA% & rm -rf / \t";
+
+        // Act
+        var sanitized = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
+            dangerousArgs,
+            out var warnings,
+            out var codes);
+
+        // Assert
+        Assert.Contains(GenHub.Core.Models.GameProfile.ProfileSecurityWarningCode.SanitizedShellCharacters, codes);
+        Assert.Contains(GenHub.Core.Models.GameProfile.ProfileSecurityWarningCode.SanitizedQuotesOrPercent, codes);
+        Assert.Contains(GenHub.Core.Models.GameProfile.ProfileSecurityWarningCode.SanitizedControlCharacters, codes);
+        Assert.Equal(3, codes.Count);
+        Assert.Equal(3, warnings.Count);
+    }
 }

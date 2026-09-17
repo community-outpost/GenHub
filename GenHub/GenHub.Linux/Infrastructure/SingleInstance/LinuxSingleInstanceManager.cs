@@ -1,16 +1,14 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Infrastructure.SingleInstance;
 using GenHub.Core.Interfaces.SingleInstance;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Win32.SafeHandles;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Pipes;
-using System.Linq;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -36,47 +34,18 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
     private readonly ILogger<LinuxSingleInstanceManager> _logger;
     private readonly FileStream _lockFile;
     private readonly CancellationTokenSource _pipeServerCts;
-    private readonly List<string> _pendingCommands = [];
-    private readonly object _commandLock = new();
+    private readonly SingleInstanceCommandDispatcher _commandDispatcher;
 
     private NamedPipeServerStream? _pipeServer;
     private Task? _pipeListenerTask;
-    private EventHandler<string>? _commandReceived;
 
     /// <summary>
     /// Occurs when a command is received from another instance.
     /// </summary>
     public event EventHandler<string>? CommandReceived
     {
-        add
-        {
-            List<string>? commandsToReplay = null;
-            lock (_commandLock)
-            {
-                _commandReceived += value;
-                if (_pendingCommands.Count > 0)
-                {
-                    commandsToReplay = [.. _pendingCommands];
-                    _pendingCommands.Clear();
-                }
-            }
-
-            if (commandsToReplay != null)
-            {
-                foreach (var cmd in commandsToReplay)
-                {
-                    value?.Invoke(this, cmd);
-                }
-            }
-        }
-
-        remove
-        {
-            lock (_commandLock)
-            {
-                _commandReceived -= value;
-            }
-        }
+        add => _commandDispatcher.CommandReceived += value;
+        remove => _commandDispatcher.CommandReceived -= value;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -97,6 +66,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
     {
         _lockFile = lockFile;
         _logger = logger ?? NullLogger<LinuxSingleInstanceManager>.Instance;
+        _commandDispatcher = new SingleInstanceCommandDispatcher(this, _logger);
         _pipeServerCts = new CancellationTokenSource();
 
         _logger.LogDebug("This is the primary instance on Linux - starting pipe server");
@@ -166,7 +136,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
             }
 
             commandToSend = CommandLineParser.SanitizePayload(commandToSend).Trim();
-            if (!IsValidIpcCommand(commandToSend))
+            if (!SingleInstanceCommandDispatcher.IsValidIpcCommand(commandToSend))
             {
                 logger.LogWarning("Refusing to forward invalid IPC command.");
                 return false;
@@ -222,68 +192,6 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         var userBytes = Encoding.UTF8.GetBytes(rawUser);
         var hash = Convert.ToHexString(SHA256.HashData(userBytes))[..8].ToLowerInvariant();
         return $"{CommandLineConstants.SingleInstancePipePrefix}{hash}_{CommandLineConstants.SingleInstancePipeSuffix}";
-    }
-
-    private static bool IsValidIpcCommand(string command)
-    {
-        if (string.Equals(command, IpcCommands.ActivateCommand, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            var id = command[IpcCommands.LaunchProfilePrefix.Length..].Trim();
-            return !string.IsNullOrEmpty(id) && !id.Contains('/') && !id.Contains('\\') && !id.Contains("..");
-        }
-
-        if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            var url = command[IpcCommands.SubscribePrefix.Length..].Trim();
-            return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-                   (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-        }
-
-        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            var target = command[IpcCommands.ImportProfilePrefix.Length..].Trim();
-            if (target.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
-                target.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (target.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) &&
-                File.Exists(target))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        return false;
-    }
-
-    private static void LogReceivedCommand(ILogger logger, string command)
-    {
-        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportProfilePrefix);
-        }
-        else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.SubscribePrefix);
-        }
-        else if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            var id = command[IpcCommands.LaunchProfilePrefix.Length..];
-            logger.LogInformation("Received IPC command: {Prefix}{ProfileId}", IpcCommands.LaunchProfilePrefix, id);
-        }
-        else
-        {
-            logger.LogInformation("Received IPC command: {Command}", command);
-        }
     }
 
     private void StartPipeServer()
@@ -343,19 +251,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
 
             using var reader = new StreamReader(_pipeServer);
             var rawCommand = await reader.ReadLineAsync(cancellationToken);
-            if (!string.IsNullOrWhiteSpace(rawCommand))
-            {
-                var command = CommandLineParser.SanitizePayload(rawCommand).Trim();
-                if (IsValidIpcCommand(command))
-                {
-                    LogReceivedCommand(_logger, command);
-                    RaiseCommandReceived(command);
-                }
-                else
-                {
-                    _logger.LogWarning("Rejecting unknown or malformed IPC command from secondary Linux instance.");
-                }
-            }
+            _commandDispatcher.TryProcessRawPayload(rawCommand, "Linux");
 
             _pipeServer.Disconnect();
         }
@@ -398,21 +294,5 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
             _logger.LogWarning(ex, "Failed to verify peer credentials on Linux pipe");
             return false;
         }
-    }
-
-    private void RaiseCommandReceived(string command)
-    {
-        EventHandler<string>? handler;
-        lock (_commandLock)
-        {
-            handler = _commandReceived;
-            if (handler == null)
-            {
-                _pendingCommands.Add(command);
-                return;
-            }
-        }
-
-        handler(this, command);
     }
 }

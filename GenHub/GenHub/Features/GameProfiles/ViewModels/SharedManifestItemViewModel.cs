@@ -190,7 +190,7 @@ public partial class SharedManifestItemViewModel(
                 await topLevel.Clipboard.SetTextAsync(Hash);
                 var copiedMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.CopiedToClipboard") ?? "Copied to clipboard!";
                 var title = localizationService?.GetString("GameProfiles.ShareDialog.Title.Notification") ?? "Profile Sharing";
-                notificationService?.ShowSuccess(title, copiedMsg, 2000);
+                notificationService?.ShowSuccess(title, copiedMsg, NotificationDurations.Short);
             }
         }
     }
@@ -215,7 +215,7 @@ public partial class SharedManifestItemViewModel(
                 await topLevel.Clipboard.SetTextAsync(DownloadUrl);
                 var copiedMsg = localizationService?.GetString("GameProfiles.ShareDialog.Status.CopiedToClipboard") ?? "Copied to clipboard!";
                 var title = localizationService?.GetString("GameProfiles.ShareDialog.Title.Notification") ?? "Profile Sharing";
-                notificationService?.ShowSuccess(title, copiedMsg, 2000);
+                notificationService?.ShowSuccess(title, copiedMsg, NotificationDurations.Short);
             }
         }
     }

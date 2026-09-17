@@ -64,6 +64,11 @@ public sealed class SharedProfileInspectionResult
     public required IReadOnlyList<string> SecurityWarnings { get; init; }
 
     /// <summary>
+    /// Gets the list of security warning codes.
+    /// </summary>
+    public IReadOnlyList<ProfileSecurityWarningCode> SecurityWarningCodes { get; init; } = [];
+
+    /// <summary>
     /// Gets the underlying shared package.
     /// </summary>
     public required SharedGameProfilePackage Package { get; init; }

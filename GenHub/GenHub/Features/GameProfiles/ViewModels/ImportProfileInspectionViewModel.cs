@@ -103,6 +103,7 @@ public sealed partial class ImportProfileInspectionViewModel(
 
     [ObservableProperty]
     private bool _hasSecurityWarnings = (inspectionResult?.SecurityWarnings.Count > 0) ||
+                                        (inspectionResult?.SecurityWarningCodes.Count > 0) ||
                                         (inspectionResult != null && CalculateTotalExecutables(inspectionResult) > 0) ||
                                         ((inspectionResult?.MissingManifestCount ?? 0) > 0 && (inspectionResult?.TotalDownloadBytesRequired ?? 0) == 0);
 
@@ -226,7 +227,7 @@ public sealed partial class ImportProfileInspectionViewModel(
             return trimmed;
         }
 
-        if (Path.IsPathRooted(trimmed) || trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
+        if (Path.IsPathRooted(trimmed) || trimmed.StartsWith(@"\", StringComparison.Ordinal) ||
             trimmed.Contains("://", StringComparison.Ordinal) || trimmed.Contains("..", StringComparison.Ordinal))
         {
             return null;
@@ -267,23 +268,53 @@ public sealed partial class ImportProfileInspectionViewModel(
         ILocalizationService? localizationService)
     {
         var warnings = new List<string>();
-        foreach (var warning in result.SecurityWarnings)
+        if (result.SecurityWarningCodes is { Count: > 0 } codes)
         {
-            if (warning.StartsWith("Disallowed special command characters", StringComparison.OrdinalIgnoreCase))
+            foreach (var code in codes)
             {
-                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters") ?? warning);
+                var localized = code switch
+                {
+                    ProfileSecurityWarningCode.SanitizedShellCharacters =>
+                        localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters")
+                        ?? ProfileSharingCompressionHelper.ShellCharactersWarning,
+                    ProfileSecurityWarningCode.SanitizedQuotesOrPercent =>
+                        localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent")
+                        ?? ProfileSharingCompressionHelper.QuotesOrPercentWarning,
+                    ProfileSecurityWarningCode.SanitizedControlCharacters =>
+                        localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters")
+                        ?? ProfileSharingCompressionHelper.ControlCharactersWarning,
+                    ProfileSecurityWarningCode.MissingDownloadSource =>
+                        result.SecurityWarnings.FirstOrDefault(w => w.Contains("download source", StringComparison.OrdinalIgnoreCase))
+                        ?? "Component is not cached locally and has no download source.",
+                    _ => null,
+                };
+
+                if (!string.IsNullOrWhiteSpace(localized))
+                {
+                    warnings.Add(localized);
+                }
             }
-            else if (warning.StartsWith("Quote and percent characters were removed", StringComparison.OrdinalIgnoreCase))
+        }
+        else
+        {
+            foreach (var warning in result.SecurityWarnings)
             {
-                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent") ?? warning);
-            }
-            else if (warning.StartsWith("Control characters were removed", StringComparison.OrdinalIgnoreCase))
-            {
-                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters") ?? warning);
-            }
-            else
-            {
-                warnings.Add(warning);
+                if (warning.StartsWith("Disallowed special command characters", StringComparison.OrdinalIgnoreCase))
+                {
+                    warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters") ?? warning);
+                }
+                else if (warning.StartsWith("Quote and percent characters were removed", StringComparison.OrdinalIgnoreCase))
+                {
+                    warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent") ?? warning);
+                }
+                else if (warning.StartsWith("Control characters were removed", StringComparison.OrdinalIgnoreCase))
+                {
+                    warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters") ?? warning);
+                }
+                else
+                {
+                    warnings.Add(warning);
+                }
             }
         }
 

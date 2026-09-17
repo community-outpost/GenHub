@@ -2011,7 +2011,9 @@ public partial class GameProfileLauncherViewModel(
 
     private IProfileSharingService? GetSharingService() => profileSharingServiceFactory?.Invoke();
 
-    private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item)
+    private Task ShareProfileFromCardAsync(GameProfileItemViewModel item) => ShareProfileFromCardAsync(item, CancellationToken.None);
+
+    private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(item.ProfileId))
         {
@@ -2027,7 +2029,7 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
-        if (!await _shareDialogSemaphore.WaitAsync(0))
+        if (!await _shareDialogSemaphore.WaitAsync(0, cancellationToken))
         {
             return;
         }

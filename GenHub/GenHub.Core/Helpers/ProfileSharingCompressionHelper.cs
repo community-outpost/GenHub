@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.GameProfile;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +16,21 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class ProfileSharingCompressionHelper
 {
+    /// <summary>
+    /// Warning message when dangerous shell characters are stripped from launch arguments.
+    /// </summary>
+    public const string ShellCharactersWarning = "Disallowed special command characters (| & ; > < ` $ ^ ! ( )) were removed from launch arguments.";
+
+    /// <summary>
+    /// Warning message when quote or percent characters are stripped from launch arguments.
+    /// </summary>
+    public const string QuotesOrPercentWarning = "Quote and percent characters were removed from launch arguments. Check arguments if paths with spaces were used.";
+
+    /// <summary>
+    /// Warning message when control characters are stripped from launch arguments.
+    /// </summary>
+    public const string ControlCharactersWarning = "Control characters were removed from launch arguments.";
+
     private static readonly char[] DangerousArgumentCharacters = ['|', '&', ';', '>', '<', '`', '$', '^', '!', '(', ')'];
 
     /// <summary>
@@ -113,10 +129,15 @@ public static class ProfileSharingCompressionHelper
     /// </summary>
     /// <param name="arguments">The raw command line arguments string from the shared package.</param>
     /// <param name="warnings">Output list of warnings if potentially unsafe characters were sanitized.</param>
+    /// <param name="warningCodes">Output list of warning codes if potentially unsafe characters were sanitized.</param>
     /// <returns>The sanitized arguments string.</returns>
-    public static string SanitizeCommandLineArguments(string? arguments, out List<string> warnings)
+    public static string SanitizeCommandLineArguments(
+        string? arguments,
+        out List<string> warnings,
+        out List<ProfileSecurityWarningCode> warningCodes)
     {
         warnings = [];
+        warningCodes = [];
         if (string.IsNullOrWhiteSpace(arguments))
         {
             return string.Empty;
@@ -137,7 +158,7 @@ public static class ProfileSharingCompressionHelper
                 continue;
             }
 
-            if (current is '\"' or '\'' or '%')
+            if (current is '"' or '\'' or '%')
             {
                 removedQuotesOrPercent = true;
                 continue;
@@ -154,20 +175,35 @@ public static class ProfileSharingCompressionHelper
 
         if (removedShellCharacters)
         {
-            warnings.Add("Disallowed special command characters (| & ; > < ` $ ^ ! ( )) were removed from launch arguments.");
+            warnings.Add(ShellCharactersWarning);
+            warningCodes.Add(ProfileSecurityWarningCode.SanitizedShellCharacters);
         }
 
         if (removedQuotesOrPercent)
         {
-            warnings.Add("Quote and percent characters were removed from launch arguments. Check arguments if paths with spaces were used.");
+            warnings.Add(QuotesOrPercentWarning);
+            warningCodes.Add(ProfileSecurityWarningCode.SanitizedQuotesOrPercent);
         }
 
         if (removedControlCharacters)
         {
-            warnings.Add("Control characters were removed from launch arguments.");
+            warnings.Add(ControlCharactersWarning);
+            warningCodes.Add(ProfileSecurityWarningCode.SanitizedControlCharacters);
         }
 
         return new string(buffer, 0, length).Trim();
+    }
+
+    /// <summary>
+    /// Sanitizes command-line arguments to prevent command injection, environment variable
+    /// expansion, argument splitting via control characters, and quote-based flag injection.
+    /// </summary>
+    /// <param name="arguments">The raw command line arguments string from the shared package.</param>
+    /// <param name="warnings">Output list of warnings if potentially unsafe characters were sanitized.</param>
+    /// <returns>The sanitized arguments string.</returns>
+    public static string SanitizeCommandLineArguments(string? arguments, out List<string> warnings)
+    {
+        return SanitizeCommandLineArguments(arguments, out warnings, out _);
     }
 
     /// <summary>

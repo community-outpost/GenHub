@@ -211,7 +211,10 @@ public class ProfileSharingService(
             }
 
             var package = packageResult.Data;
-            _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(package.Profile.CommandLineArguments, out var securityWarnings);
+            _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
+                package.Profile.CommandLineArguments,
+                out var securityWarnings,
+                out var securityWarningCodes);
 
             var manifestDiffResult = await DiffManifestsAgainstPoolAsync(package, cancellationToken);
             if (!manifestDiffResult.Success || manifestDiffResult.Data == null)
@@ -221,7 +224,7 @@ public class ProfileSharingService(
 
             var manifestSummary = manifestDiffResult.Data;
 
-            ValidateMissingDependencySources(manifestSummary.Manifests, securityWarnings);
+            ValidateMissingDependencySources(manifestSummary.Manifests, securityWarnings, securityWarningCodes);
 
             var (compatibleInstallations, matchedInstallationId) = await FindCompatibleInstallationsAsync(package.Profile.GameType, cancellationToken);
             var (suggestedName, hasNameConflict) = await DetermineSuggestedProfileNameAsync(package.Profile.Name, cancellationToken);
@@ -239,6 +242,7 @@ public class ProfileSharingService(
                 HasNameConflict = hasNameConflict,
                 SuggestedProfileName = suggestedName,
                 SecurityWarnings = securityWarnings,
+                SecurityWarningCodes = securityWarningCodes,
                 Package = package,
             };
 
@@ -1300,9 +1304,11 @@ public class ProfileSharingService(
     /// </summary>
     /// <param name="manifests">The manifest dependencies to validate.</param>
     /// <param name="securityWarnings">The list to which any security warnings will be appended.</param>
+    /// <param name="securityWarningCodes">The optional list to which any security warning codes will be appended.</param>
     private static void ValidateMissingDependencySources(
         IEnumerable<SharedManifestDependency> manifests,
-        List<string> securityWarnings)
+        List<string> securityWarnings,
+        List<ProfileSecurityWarningCode>? securityWarningCodes = null)
     {
         foreach (var manifest in manifests)
         {
@@ -1313,6 +1319,7 @@ public class ProfileSharingService(
                 if (!hasPackageUrl && !hasFileUrls)
                 {
                     securityWarnings.Add($"Component '{manifest.DisplayName}' is not cached locally and has no download source. It cannot be acquired.");
+                    securityWarningCodes?.Add(ProfileSecurityWarningCode.MissingDownloadSource);
                 }
             }
         }
@@ -2157,21 +2164,6 @@ public class ProfileSharingService(
                 $"Cannot package local manifest '{manifest.Name}': missing files or upload services.");
         }
 
-        long totalLocalBytes = 0;
-        if (manifest.Files != null)
-        {
-            foreach (var file in manifest.Files)
-            {
-                totalLocalBytes += Math.Max(0, file.Size);
-            }
-        }
-
-        if (totalLocalBytes > ProfileSharingConstants.MaxCloudUploadSizeBytes)
-        {
-            return OperationResult<(string? Url, string? Hash)>.CreateFailure(
-                $"Total size of files in local manifest '{manifest.Name}' ({totalLocalBytes:N0} bytes) exceeds cloud upload limit of {ProfileSharingConstants.MaxCloudUploadSizeBytes:N0} bytes. Use standalone profile export (.ghprofile) instead.");
-        }
-
         var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, ProfileSharingConstants.CloudUploadStagingDirectoryName);
         var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
 
@@ -2203,7 +2195,6 @@ public class ProfileSharingService(
         }
     }
 
-    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipArchiveEntry.Open has no asynchronous OpenAsync method in .NET 8 BCL.")]
     private async Task<string?> CreateLocalManifestArchiveAsync(
         string tempZipPath,
         ContentManifest manifest,
@@ -2215,31 +2206,10 @@ public class ProfileSharingService(
         }
 
         var sortedFiles = manifest.Files.OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
-        var fixedTimestamp = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var written = await WriteLocalManifestArchiveEntriesAsync(tempZipPath, manifest, sortedFiles, cancellationToken);
+        if (!written)
         {
-            using var zipFile = File.Create(tempZipPath);
-            using var archive = new ZipArchive(zipFile, ZipArchiveMode.Create);
-            foreach (var file in sortedFiles)
-            {
-                var contentPathResult = await casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
-                if (!contentPathResult.Success || !File.Exists(contentPathResult.Data))
-                {
-                    (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
-                        "File {RelativePath} ({Hash}) not found in CAS for local manifest {ManifestId}.",
-                        file.RelativePath,
-                        file.Hash,
-                        manifest.Id);
-                    return null;
-                }
-
-                var entryName = file.RelativePath.Replace('\\', '/');
-                var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
-                entry.LastWriteTime = fixedTimestamp;
-
-                await using var sourceStream = File.OpenRead(contentPathResult.Data);
-                await using var entryStream = entry.Open();
-                await sourceStream.CopyToAsync(entryStream, cancellationToken);
-            }
+            return null;
         }
 
         var zipInfo = new FileInfo(tempZipPath);
@@ -2252,6 +2222,41 @@ public class ProfileSharingService(
         await using var readStream = File.OpenRead(tempZipPath);
         var hashBytes = await sha.ComputeHashAsync(readStream, cancellationToken);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipArchiveEntry.Open has no asynchronous OpenAsync method in .NET 8 BCL.")]
+    private async Task<bool> WriteLocalManifestArchiveEntriesAsync(
+        string tempZipPath,
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> sortedFiles,
+        CancellationToken cancellationToken)
+    {
+        var fixedTimestamp = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        using var zipFile = File.Create(tempZipPath);
+        using var archive = new ZipArchive(zipFile, ZipArchiveMode.Create);
+        foreach (var file in sortedFiles)
+        {
+            var contentPathResult = await casService!.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
+            if (!contentPathResult.Success || !File.Exists(contentPathResult.Data))
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
+                    "File {RelativePath} ({Hash}) not found in CAS for local manifest {ManifestId}.",
+                    file.RelativePath,
+                    file.Hash,
+                    manifest.Id);
+                return false;
+            }
+
+            var entryName = file.RelativePath.Replace('\\', '/');
+            var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+            entry.LastWriteTime = fixedTimestamp;
+
+            await using var sourceStream = File.OpenRead(contentPathResult.Data);
+            await using var entryStream = entry.Open();
+            await sourceStream.CopyToAsync(entryStream, cancellationToken);
+        }
+
+        return true;
     }
 
     private async Task<OperationResult<(string? Url, string? Hash)>> UploadLocalManifestPackageAsync(
@@ -3205,8 +3210,8 @@ public class ProfileSharingService(
             }
 
             bool isCached = false;
-            long rawSize = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => f.Size) ?? 0);
-            long missingBytes = Math.Clamp(rawSize, 0, ProfileSharingConstants.MaxDownloadedFileBytes);
+            long rawSize = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => Math.Clamp(f.Size, 0, ProfileSharingConstants.MaxDownloadedFileBytes)) ?? 0);
+            long missingBytes = Math.Max(0, rawSize);
             var acquiredResult = await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
             if (acquiredResult.Success && acquiredResult.Data)
             {
