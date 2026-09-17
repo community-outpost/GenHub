@@ -2068,47 +2068,62 @@ public partial class ReplayManagerViewModel(
             }
             else
             {
-                var error = result.FirstError ?? $"Failed to {operationName.ToLowerInvariant()}.";
-                var failedTitle = LocalizationService != null
-                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationFailed", operationName)
-                    : $"{operationName} Failed";
-                var failedStatus = LocalizationService != null
-                    ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationFailed", operationName)
-                    : $"{operationName} failed.";
-                notificationService.ShowError(failedTitle, error);
-                StatusMessage = failedStatus;
+                HandleLaunchOperationFailure(operationName, result.FirstError);
             }
         }
         catch (OperationCanceledException)
         {
-            var canceledTitle = LocalizationService != null
-                ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationCanceled", operationName)
-                : $"{operationName} Canceled";
-            var canceledDesc = LocalizationService != null
-                ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationCanceledDesc", operationName)
-                : $"{operationName} was canceled.";
-            var canceledStatus = LocalizationService != null
-                ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationCanceled", operationName)
-                : $"{operationName} canceled.";
-            notificationService.ShowInfo(canceledTitle, canceledDesc);
-            StatusMessage = canceledStatus;
+            HandleLaunchOperationCanceled(operationName);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to {OperationName} from checkpoint", operationName.ToLowerInvariant());
-            var errorTitle = LocalizationService != null
-                ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationError", operationName)
-                : $"{operationName} Error";
-            var errorStatus = LocalizationService != null
-                ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationError", operationName)
-                : $"{operationName} error.";
-            notificationService.ShowError(errorTitle, ex.Message);
-            StatusMessage = errorStatus;
+            HandleLaunchOperationException(operationName, ex);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    private void HandleLaunchOperationFailure(string operationName, string? firstError)
+    {
+        var error = firstError ?? $"Failed to {operationName.ToLowerInvariant()}.";
+        var failedTitle = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationFailed", operationName)
+            : $"{operationName} Failed";
+        var failedStatus = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationFailed", operationName)
+            : $"{operationName} failed.";
+        notificationService.ShowError(failedTitle, error);
+        StatusMessage = failedStatus;
+    }
+
+    private void HandleLaunchOperationCanceled(string operationName)
+    {
+        var canceledTitle = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationCanceled", operationName)
+            : $"{operationName} Canceled";
+        var canceledDesc = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationCanceledDesc", operationName)
+            : $"{operationName} was canceled.";
+        var canceledStatus = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationCanceled", operationName)
+            : $"{operationName} canceled.";
+        notificationService.ShowInfo(canceledTitle, canceledDesc);
+        StatusMessage = canceledStatus;
+    }
+
+    private void HandleLaunchOperationException(string operationName, Exception ex)
+    {
+        logger.LogError(ex, "Failed to {OperationName} from checkpoint", operationName.ToLowerInvariant());
+        var errorTitle = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Notify.OperationError", operationName)
+            : $"{operationName} Error";
+        var errorStatus = LocalizationService != null
+            ? LocalizationService.GetString("Tools.ReplayManager.Status.OperationError", operationName)
+            : $"{operationName} error.";
+        notificationService.ShowError(errorTitle, ex.Message);
+        StatusMessage = errorStatus;
     }
 
     /// <summary>
