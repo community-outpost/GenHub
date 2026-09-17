@@ -301,6 +301,69 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         Assert.Empty(removeDeltas);
     }
 
+    /// <summary>
+    /// Verifies that generals.exe alias created for a custom executable is not flagged for removal.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_GeneralsExeAlias_IgnoredFromRemoveDeltasAsync()
+    {
+        // Arrange: Workspace has generals.exe alias, but manifest only specifies generals.ctr
+        var manifest = CreateManifest(ContentType.Mod, "generals.ctr", "hash1");
+        var workspacePath = Path.Combine(_testDirectory, "ws_alias");
+        Directory.CreateDirectory(workspacePath);
+
+        // Create both generals.ctr and the generals.exe alias
+        File.WriteAllText(Path.Combine(workspacePath, "generals.ctr"), "contra executable");
+        File.WriteAllText(Path.Combine(workspacePath, "generals.exe"), "alias copy");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "ws_alias",
+            WorkspacePath = workspacePath,
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws_alias",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert: generals.exe must NOT be flagged as Remove
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.DoesNotContain(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "generals.exe", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that cancellation token is respected and throws when cancellation is requested.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_WhenCanceled_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        var manifest = CreateManifest(ContentType.Mod, "test.big", "hash1");
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws_cancel",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, cancellationToken: cts.Token));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

@@ -472,7 +472,7 @@ public class WorkspaceManager(
         }
 
         // Verify that workspace files match manifests using delta analysis
-        var deltas = await reconciler.AnalyzeWorkspaceDeltaAsync(workspace, configuration);
+        var deltas = await reconciler.AnalyzeWorkspaceDeltaAsync(workspace, configuration, cancellationToken: cancellationToken);
         if (deltas.Any(d => d.Operation != WorkspaceDeltaOperation.Skip))
         {
             var changeCount = deltas.Count(d => d.Operation != WorkspaceDeltaOperation.Skip);

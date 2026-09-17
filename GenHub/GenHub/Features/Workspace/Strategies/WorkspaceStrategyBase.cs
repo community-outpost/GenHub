@@ -680,7 +680,7 @@ public abstract class WorkspaceStrategyBase<T>(
                 logger.LogInformation("Created '{Alias}' alias for custom entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
                 return aliasPath;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to create generals.exe alias for {Target}", resolvedFullPath);
             }
