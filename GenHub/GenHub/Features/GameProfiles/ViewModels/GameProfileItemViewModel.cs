@@ -1009,7 +1009,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
     }
 
-
     private void ResolvePublisherFromGameClient(GameClient gameClient)
     {
         if (!string.IsNullOrEmpty(gameClient.PublisherType))
