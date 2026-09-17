@@ -235,7 +235,15 @@ public class GenLauncherResolver(
             return manifest;
         }
 
-        var yamlUrl = GetMetadata(item.ResolverMetadata, "yamlUrl") ?? item.SourceUrl;
+        var yamlUrl = GetMetadata(item.ResolverMetadata, "yamlUrl");
+        if (string.IsNullOrWhiteSpace(yamlUrl) &&
+            !string.IsNullOrWhiteSpace(item.SourceUrl) &&
+            (item.SourceUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
+             item.SourceUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)))
+        {
+            yamlUrl = item.SourceUrl;
+        }
+
         if (string.IsNullOrWhiteSpace(yamlUrl) || !ImageCacheService.IsSafeRemoteUrl(yamlUrl, out _))
         {
             return null;
@@ -324,6 +332,7 @@ public class GenLauncherResolver(
             var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
             var pageCount = 0;
             const int maxPages = 100;
+            var reachedTerminalPage = false;
 
             while (pageCount++ < maxPages)
             {
@@ -340,10 +349,17 @@ public class GenLauncherResolver(
 
                 if (!hasMore || string.IsNullOrEmpty(marker) || !seenMarkers.Add(marker))
                 {
+                    reachedTerminalPage = true;
                     break;
                 }
 
                 nextMarker = marker;
+            }
+
+            if (!reachedTerminalPage)
+            {
+                logger.LogWarning("S3 pagination exceeded max page limit ({MaxPages}) for {Name}", maxPages, discoveredItem.Name);
+                return false;
             }
 
             manifest.Files.AddRange(s3Files);

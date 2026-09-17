@@ -176,8 +176,8 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
                 searchResult.ResolverMetadata["yamlUrl"] = mod.ModLink;
             }
 
-            searchResult.ResolverMetadata["patchesCount"] = mod.ModPatches.Count.ToString();
-            searchResult.ResolverMetadata["addonsCount"] = mod.ModAddons.Count.ToString();
+            searchResult.ResolverMetadata["patchesCount"] = (mod.ModPatches?.Count ?? 0).ToString();
+            searchResult.ResolverMetadata["addonsCount"] = (mod.ModAddons?.Count ?? 0).ToString();
 
             results.Add(searchResult);
         }
@@ -191,7 +191,7 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
         string gameStr)
     {
         var versionManifest = ParseVersionManifest(catalogContent);
-        if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
+        if (string.IsNullOrWhiteSpace(versionManifest.Name) || versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
         {
             return [];
         }

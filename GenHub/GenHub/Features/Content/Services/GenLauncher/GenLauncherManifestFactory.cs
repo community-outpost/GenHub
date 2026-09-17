@@ -61,6 +61,7 @@ public class GenLauncherManifestFactory(
 
             var manifest = new ContentManifest
             {
+                SchemaVersion = originalManifest.SchemaVersion,
                 Id = originalManifest.Id,
                 Name = originalManifest.Name,
                 Version = originalManifest.Version,
@@ -71,6 +72,13 @@ public class GenLauncherManifestFactory(
                 Dependencies = [.. originalManifest.Dependencies],
                 OriginalProviderName = originalManifest.OriginalProviderName,
                 OriginalContentId = originalManifest.OriginalContentId,
+                SourcePath = Directory.Exists(originalManifest.SourcePath) || File.Exists(originalManifest.SourcePath) ? originalManifest.SourcePath : null,
+                ContentReferences = [.. originalManifest.ContentReferences],
+                KnownAddons = [.. originalManifest.KnownAddons],
+                Variants = originalManifest.Variants,
+                EntryPoint = originalManifest.EntryPoint,
+                RequiredDirectories = [.. originalManifest.RequiredDirectories],
+                InstallationInstructions = originalManifest.InstallationInstructions,
                 Files = [],
             };
 
@@ -111,6 +119,15 @@ public class GenLauncherManifestFactory(
                     SourceType = ContentSourceType.ContentAddressable,
                     IsRequired = true,
                 });
+            }
+
+            if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
+            {
+                var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+                if (entryPointResolution.Success)
+                {
+                    manifest.EntryPoint = entryPointResolution.RelativePath;
+                }
             }
 
             return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);

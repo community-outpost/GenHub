@@ -430,6 +430,10 @@ public class GenLauncherDiscoverer(
             var parentSizeBytes = await TryCalculateDownloadSizeAsync(client, parentManifest, cancellationToken);
             return (parentManifest, parentIconUrl, parentSizeBytes);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to parse parent version manifest for {Name}", modName);
@@ -693,6 +697,12 @@ public class GenLauncherDiscoverer(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to parse child version manifest from {Url}", manifestUrl);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(versionManifest.Name))
+        {
+            logger.LogWarning("Rejecting child manifest from {Url} with missing or empty Name", manifestUrl);
             return null;
         }
 

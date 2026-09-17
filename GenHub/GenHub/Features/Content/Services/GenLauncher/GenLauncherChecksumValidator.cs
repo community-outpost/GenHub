@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,7 +12,7 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 /// <summary>
 /// Validates file checksums against expected ETags for engine extensions.
 /// </summary>
-public static class GenLauncherChecksumValidator
+public static partial class GenLauncherChecksumValidator
 {
     /// <summary>
     /// Checks if a file requires MD5 checksum validation based on its extension.
@@ -69,8 +70,7 @@ public static class GenLauncherChecksumValidator
         }
 
         var cleaned = CleanETag(etag);
-        var dashIndex = cleaned.IndexOf('-');
-        return dashIndex > 0 && int.TryParse(cleaned[(dashIndex + 1)..], out _);
+        return MultipartETagRegex().IsMatch(cleaned);
     }
 
     /// <summary>
@@ -167,4 +167,7 @@ public static class GenLauncherChecksumValidator
         var expectedClean = CleanETag(expectedMd5);
         return string.Equals(actualMd5, expectedClean, StringComparison.OrdinalIgnoreCase);
     }
+
+    [GeneratedRegex("^[a-fA-F0-9]{32}-[1-9][0-9]*$", RegexOptions.None, 1000)]
+    private static partial Regex MultipartETagRegex();
 }

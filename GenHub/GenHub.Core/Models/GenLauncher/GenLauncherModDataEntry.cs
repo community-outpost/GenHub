@@ -16,11 +16,22 @@ public class GenLauncherModDataEntry
     [YamlMember(Alias = "ModLink")]
     public string ModLink { get; set; } = string.Empty;
 
+    private List<string> _modPatches = [];
+    private List<string> _modAddons = [];
+
     /// <summary>Gets or sets the list of patch manifest URLs.</summary>
     [YamlMember(Alias = "ModPatches")]
-    public List<string> ModPatches { get; set; } = [];
+    public List<string> ModPatches
+    {
+        get => _modPatches;
+        set => _modPatches = value ?? [];
+    }
 
     /// <summary>Gets or sets the list of addon manifest URLs.</summary>
     [YamlMember(Alias = "ModAddons")]
-    public List<string> ModAddons { get; set; } = [];
+    public List<string> ModAddons
+    {
+        get => _modAddons;
+        set => _modAddons = value ?? [];
+    }
 }

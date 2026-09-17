@@ -3496,26 +3496,7 @@ public partial class ContentDetailViewModel(
                 continue;
             }
 
-            var relIndex = i;
-            var relVersion = GetEffectiveVersion(rel);
-
-            var candidateUpdate = Releases.FirstOrDefault(other =>
-            {
-                if (other.IsDownloaded || ReferenceEquals(other, rel) || !IsSameReleaseLineage(rel, other))
-                {
-                    return false;
-                }
-
-                var otherVersion = GetEffectiveVersion(other);
-                if (relVersion != null && otherVersion != null)
-                {
-                    return ContentStateService.CompareVersions(otherVersion, relVersion) > 0;
-                }
-
-                var otherIndex = Releases.IndexOf(other);
-                return otherIndex < relIndex && !(other.Version != null && string.Equals(other.Version, rel.Version, StringComparison.OrdinalIgnoreCase));
-            });
-
+            var candidateUpdate = FindCandidateUpdate(rel);
             rel.IsUpdateAvailable = candidateUpdate != null;
         }
 
@@ -3525,6 +3506,29 @@ public partial class ContentDetailViewModel(
         }
 
         RefreshSelectedTargetProperties();
+    }
+
+    private ReleaseItemViewModel? FindCandidateUpdate(ReleaseItemViewModel rel)
+    {
+        var relIndex = Releases.IndexOf(rel);
+        var relVersion = GetEffectiveVersion(rel);
+
+        return Releases.FirstOrDefault(other =>
+        {
+            if (other.IsDownloaded || ReferenceEquals(other, rel) || !IsSameReleaseLineage(rel, other))
+            {
+                return false;
+            }
+
+            var otherVersion = GetEffectiveVersion(other);
+            if (relVersion != null && otherVersion != null)
+            {
+                return ContentStateService.CompareVersions(otherVersion, relVersion) > 0;
+            }
+
+            var otherIndex = Releases.IndexOf(other);
+            return otherIndex < relIndex && !(other.Version != null && string.Equals(other.Version, rel.Version, StringComparison.OrdinalIgnoreCase));
+        });
     }
 
     /// <summary>
@@ -3605,9 +3609,7 @@ public partial class ContentDetailViewModel(
 
         if (SelectedDownloadableItem is ReleaseItemViewModel rel && rel.IsUpdateAvailable)
         {
-            var newerRelease = (Releases.Count > 0 && !Releases[0].IsDownloaded && Releases[0] != rel)
-                ? Releases[0]
-                : Releases.FirstOrDefault(r => !r.IsDownloaded && r != rel);
+            var newerRelease = FindCandidateUpdate(rel);
 
             if (newerRelease?.File != null)
             {

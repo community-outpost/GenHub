@@ -55,8 +55,12 @@ public sealed class GenLauncherChecksumValidatorTests
     [InlineData("\"d41d8cd98f00b204e9800998ecf8427e-2\"", true)]
     [InlineData("d41d8cd98f00b204e9800998ecf8427e", false)]
     [InlineData("abc-def", false)]
+    [InlineData("invalid-1", false)]
+    [InlineData("abc-0", false)]
+    [InlineData("d41d8cd98f00b204e9800998ecf8427e-0", false)]
     [InlineData("", false)]
-    public void IsMultipartETag_IdentifiesMultipartChecksumsCorrectly(string etag, bool expected)
+    [InlineData(null, false)]
+    public void IsMultipartETag_IdentifiesMultipartChecksumsCorrectly(string? etag, bool expected)
     {
         var result = GenLauncherChecksumValidator.IsMultipartETag(etag);
         Assert.Equal(expected, result);
