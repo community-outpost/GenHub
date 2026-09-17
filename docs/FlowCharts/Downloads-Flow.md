@@ -233,7 +233,8 @@ flowchart LR
         P2["⚡ TheSuperHackers (Static)"]
         P3["🔧 Community Outpost (Static)"]
         P4["🐙 GitHub Topics (Dynamic)"]
-        P5["📦 Subscribed Creator Catalogs"]
+        P5["🚀 GenLauncher (Static)"]
+        P6["📦 Subscribed Creator Catalogs"]
     end
 
     subgraph Filter["Filter Panel / Search"]
@@ -247,7 +248,7 @@ flowchart LR
         G3["ContentCardView n..."]
     end
 
-    P1 & P2 & P3 & P4 & P5 --> Filter
+    P1 & P2 & P3 & P4 & P5 & P6 --> Filter
     Filter --> Grid
 ```
 

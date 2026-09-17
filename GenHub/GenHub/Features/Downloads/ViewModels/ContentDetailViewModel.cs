@@ -4153,6 +4153,41 @@ public partial class ContentDetailViewModel(
         return rowSearchResult;
     }
 
+    private bool IsUpdateTarget(DownloadableFile file)
+    {
+        if (_updateTargetSearchResult != null)
+        {
+            if (!string.IsNullOrWhiteSpace(file.DownloadUrl) &&
+                (string.Equals(file.DownloadUrl, _updateTargetSearchResult.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(file.DownloadUrl, _updateTargetSearchResult.SourceUrl, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(file.DownloadUrl, _updateTargetSearchResult.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(file.Name) &&
+                string.Equals(file.Name, _updateTargetSearchResult.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(file.DownloadUrl) &&
+            (string.Equals(file.DownloadUrl, searchResult.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(file.DownloadUrl, searchResult.SourceUrl, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(file.Name) &&
+            string.Equals(file.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     // Note: Row-level downloads intentionally do not link to the view-model's _cts token
     // so that navigating away or closing this detail view allows an in-flight background
     // download to complete acquisition in the coordinator. Caller can pass an explicit cancellationToken.
@@ -4178,9 +4213,13 @@ public partial class ContentDetailViewModel(
                     releaseItem.DownloadedManifestId = manifest.Id.Value;
                     releaseItem.IsDownloaded = true;
                     releaseItem.IsUpdateAvailable = false;
-                    IsUpdateAvailable = false;
-                    _initialIsUpdateAvailable = false;
-                    _updateTargetSearchResult = null;
+                    if (IsUpdateTarget(file))
+                    {
+                        IsUpdateAvailable = false;
+                        _initialIsUpdateAvailable = false;
+                        _updateTargetSearchResult = null;
+                    }
+
                     ReconcileReleases();
                     if (ReferenceEquals(SelectedDownloadableItem, releaseItem))
                     {

@@ -2041,6 +2041,131 @@ public class ContentStateServiceTests
         Assert.Equal(storedManifest.Id.Value, rotrRowManifestId);
     }
 
+    /// <summary>
+    /// Verifies that querying a GenLauncher file row against multiple stored sibling manifests
+    /// sharing the same OriginalContentId matches only the release actually acquired for this row,
+    /// rather than inappropriately matching siblings by parent slug containment.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GenLauncherSiblingReleases_MatchesOnlyTargetSiblingManifestAsync()
+    {
+        var sibling1 = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genlauncherzerohour.mod.riseofthereds186"),
+            Name = "Rise Of The Reds 1.86",
+            Version = "1.86",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GenLauncher,
+            OriginalContentId = "genlauncher-zerohour-riseofthereds",
+            Publisher = new PublisherInfo
+            {
+                Name = "GenLauncher",
+                PublisherType = PublisherTypeConstants.GenLauncher,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "rotr-186/rotr.gib",
+                    DownloadUrl = "http://example.com/rotr186.gib",
+                },
+            ],
+        };
+
+        var sibling2 = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20"),
+            Name = "Rise Of The Reds 1.87 Public Build 2.0",
+            Version = "1.87 Public Build 2.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GenLauncher,
+            OriginalContentId = "genlauncher-zerohour-riseofthereds",
+            Publisher = new PublisherInfo
+            {
+                Name = "GenLauncher",
+                PublisherType = PublisherTypeConstants.GenLauncher,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "rotr-individual-files/rotr187.gib",
+                    DownloadUrl = "http://gen.insave.ovh:9000/rotr/rotr187.gib",
+                },
+            ],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([sibling1, sibling2]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(sibling1.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(sibling2.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Row targeting sibling1
+        var rotr186Row = new ContentSearchResult
+        {
+            Id = "file:http://example.com/rotr186.gib:Rise Of The Reds 1.86",
+            Name = "Rise Of The Reds 1.86",
+            Version = "1.86",
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "http://example.com/rotr186.gib",
+        };
+        rotr186Row.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = "genlauncher-zerohour-riseofthereds";
+
+        var state186 = await service.GetStateAsync(rotr186Row);
+        var manifestId186 = await service.GetLocalManifestIdAsync(rotr186Row);
+
+        Assert.Equal(ContentState.Downloaded, state186);
+        Assert.Equal(sibling1.Id.Value, manifestId186);
+
+        // Row targeting sibling2
+        var rotr187Row = new ContentSearchResult
+        {
+            Id = "file:http://gen.insave.ovh:9000/rotr/rotr187.gib:Rise Of The Reds 1.87 Public Build 2.0",
+            Name = "Rise Of The Reds 1.87 Public Build 2.0",
+            Version = "1.87 Public Build 2.0",
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "http://gen.insave.ovh:9000/rotr/rotr187.gib",
+        };
+        rotr187Row.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = "genlauncher-zerohour-riseofthereds";
+
+        var state187 = await service.GetStateAsync(rotr187Row);
+        var manifestId187 = await service.GetLocalManifestIdAsync(rotr187Row);
+
+        Assert.Equal(ContentState.Downloaded, state187);
+        Assert.Equal(sibling2.Id.Value, manifestId187);
+
+        // Row targeting an un-acquired sibling release
+        var unacquiredRow = new ContentSearchResult
+        {
+            Id = "file:http://example.com/rotr185.gib:Rise Of The Reds 1.85",
+            Name = "Rise Of The Reds 1.85",
+            Version = "1.85",
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "http://example.com/rotr185.gib",
+        };
+        unacquiredRow.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = "genlauncher-zerohour-riseofthereds";
+
+        var unacquiredState = await service.GetStateAsync(unacquiredRow);
+        var unacquiredManifestId = await service.GetLocalManifestIdAsync(unacquiredRow);
+
+        Assert.Equal(ContentState.NotDownloaded, unacquiredState);
+        Assert.Null(unacquiredManifestId);
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

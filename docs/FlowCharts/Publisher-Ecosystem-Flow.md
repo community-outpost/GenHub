@@ -22,6 +22,7 @@ flowchart TD
     CO --> CreateCOContent[Create Content]
     GO --> CreateGOContent[Create Content]
     TSH --> CreateTSHContent[Create Content]
+    GL --> CreateGLContent[Create Content]
 
     CreateCOContent --> COGameClient[GameClient: GenTool
 Type: Code/Executable]
@@ -44,6 +45,13 @@ Type: Data/Assets]
     CreateTSHContent --> TSHAddons[Addons: TSH Tools
 Type: Data/Assets]
 
+    CreateGLContent --> GLGameClient[GameClient: GenLauncher Client
+Type: Code/Executable]
+    CreateGLContent --> GLGamePatch[GamePatch: GenLauncher Patches
+Type: Data/Assets]
+    CreateGLContent --> GLAddons[Addons: GenLauncher Mods
+Type: Data/Assets]
+
     %% Publisher Studio Workflow
     COGameClient --> PublisherStudio[Publisher Studio]
     COGamePatch --> PublisherStudio
@@ -54,6 +62,9 @@ Type: Data/Assets]
     TSHGameClient --> PublisherStudio
     TSHGamePatch --> PublisherStudio
     TSHAddons --> PublisherStudio
+    GLGameClient --> PublisherStudio
+    GLGamePatch --> PublisherStudio
+    GLAddons --> PublisherStudio
 
     PublisherStudio --> CreateManifest[Create Content Manifest]
     CreateManifest --> DefineMetadata[Define Metadata:
@@ -236,9 +247,9 @@ Data from GamePatches]
     classDef user fill:#9C27B0,stroke:#6A1B9A,color:#fff
     classDef system fill:#607D8B,stroke:#37474F,color:#fff
 
-    class CO,GO,TSH publisher
-    class COGameClient,GOGameClient,TSHGameClient,MarkAsCode code
-    class COGamePatch,GOGamePatch,TSHGamePatch,COAddons,GOAddons,TSHAddons,MarkAsData,MarkAsAddon data
+    class CO,GO,TSH,GL publisher
+    class COGameClient,GOGameClient,TSHGameClient,GLGameClient,MarkAsCode code
+    class COGamePatch,GOGamePatch,TSHGamePatch,GLGamePatch,COAddons,GOAddons,TSHAddons,GLAddons,MarkAsData,MarkAsAddon data
     class CustomPatchCreation,CustomPatchExamples,CustomPatchType user
     class ManifestPool,ContentPipeline,WorkspacePrep,ProfileCreation system
 ```

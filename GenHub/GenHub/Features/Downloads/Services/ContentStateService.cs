@@ -1435,11 +1435,12 @@ public sealed partial class ContentStateService(
 
     private static bool FileRowMatchesManifest(ContentManifest manifest, ContentSearchResult item)
     {
-        if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) &&
+        var checkUrl = !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) ? item.SelectedDownloadUrl : item.SourceUrl;
+        if (!string.IsNullOrWhiteSpace(checkUrl) &&
             ((manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
-                                       string.Equals(f.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+                                       string.Equals(f.DownloadUrl, checkUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
              (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
-              string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))))
+              string.Equals(manifest.Publisher.ContentIndexUrl, checkUrl, StringComparison.OrdinalIgnoreCase))))
         {
             return true;
         }
@@ -1459,29 +1460,27 @@ public sealed partial class ContentStateService(
         }
 
         var itemSlug = NormalizeSegment(item.Name);
+        var itemWithVersionSlug = !string.IsNullOrWhiteSpace(item.Version)
+            ? NormalizeSegment($"{item.Name}{item.Version}")
+            : null;
+
         if (manifest.Id.Value.Split('.') is { Length: >= 4 } segments)
         {
             var lastSegment = NormalizeSegment(segments[^1]);
-            if (!string.IsNullOrEmpty(lastSegment) && !string.IsNullOrEmpty(itemSlug) &&
-                string.Equals(lastSegment, itemSlug, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(lastSegment))
             {
-                return true;
+                if (!string.IsNullOrEmpty(itemSlug) &&
+                    string.Equals(lastSegment, itemSlug, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrEmpty(itemWithVersionSlug) &&
+                    string.Equals(lastSegment, itemWithVersionSlug, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
             }
-        }
-
-        if (!string.IsNullOrEmpty(itemSlug) && itemSlug.Length >= 4 &&
-            (manifest.Id.Value.Contains(itemSlug, StringComparison.OrdinalIgnoreCase) ||
-             (!string.IsNullOrEmpty(manifest.OriginalContentId) &&
-              manifest.OriginalContentId.Contains(itemSlug, StringComparison.OrdinalIgnoreCase))))
-        {
-            return true;
-        }
-
-        // If the stored manifest does not specify release-level metadata (Name and Version are blank),
-        // fallback to matching the parent content source.
-        if (string.IsNullOrWhiteSpace(manifest.Name) && string.IsNullOrWhiteSpace(manifest.Version))
-        {
-            return true;
         }
 
         return false;

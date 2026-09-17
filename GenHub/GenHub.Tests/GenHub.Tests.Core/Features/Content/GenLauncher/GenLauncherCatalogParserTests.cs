@@ -112,4 +112,93 @@ S3FolderName: Shockwave_1.2/
         Assert.True(first.RequiresResolution);
         Assert.Equal("https://moddb.com/shockwave.png", first.IconUrl);
     }
+
+    /// <summary>
+    /// Tests that ParseAsync dispatches to root-catalog parsing when modDatas is present and maps properties correctly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseAsync_RootCatalog_MapsPropertiesCorrectly()
+    {
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var provider = new ProviderDefinition
+        {
+            ProviderId = GenLauncherConstants.PublisherId,
+            PublisherType = PublisherTypeConstants.GenLauncher,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var result = await parser.ParseAsync(SampleRootYaml, provider);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var first = Assert.Single(result.Data);
+        Assert.Equal("genlauncher-zerohour-shockwave", first.Id);
+        Assert.Equal("Shockwave", first.Name);
+        Assert.Equal(GenHub.Core.Models.Enums.ContentType.Mod, first.ContentType);
+        Assert.Equal(GameType.ZeroHour, first.TargetGame);
+        Assert.Equal(PublisherTypeConstants.GenLauncher, first.ProviderName);
+        Assert.Equal(GenLauncherConstants.PublisherId, first.ResolverId);
+        Assert.Equal("https://example.com/shockwave.yaml", first.SourceUrl);
+        Assert.True(first.RequiresResolution);
+        Assert.Equal("shockwave", first.VariantGroupId);
+        Assert.Equal("Shockwave", first.VariantFamilyName);
+        Assert.Contains("genlauncher", first.Tags);
+        Assert.Contains("mod", first.Tags);
+        Assert.Contains("zerohour", first.Tags);
+        Assert.Equal("https://example.com/shockwave.yaml", first.ResolverMetadata["modLink"]);
+        Assert.Equal("https://example.com/shockwave.yaml", first.ResolverMetadata["yamlUrl"]);
+        Assert.Equal("1", first.ResolverMetadata["patchesCount"]);
+        Assert.Equal("1", first.ResolverMetadata["addonsCount"]);
+    }
+
+    /// <summary>
+    /// Tests that ParseAsync with empty or whitespace input returns a successful result with an empty list.
+    /// </summary>
+    /// <param name="input">The empty or whitespace input string.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t\r\n")]
+    public async Task ParseAsync_EmptyOrWhitespaceInput_ReturnsSuccessWithEmptyList(string input)
+    {
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var provider = new ProviderDefinition
+        {
+            ProviderId = GenLauncherConstants.PublisherId,
+            PublisherType = PublisherTypeConstants.GenLauncher,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var result = await parser.ParseAsync(input, provider);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data);
+    }
+
+    /// <summary>
+    /// Tests that ParseAsync with malformed YAML returns a failure result.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseAsync_MalformedYaml_ReturnsFailure()
+    {
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var provider = new ProviderDefinition
+        {
+            ProviderId = GenLauncherConstants.PublisherId,
+            PublisherType = PublisherTypeConstants.GenLauncher,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        const string malformedYaml = "modDatas: [invalid yaml content :::";
+        var result = await parser.ParseAsync(malformedYaml, provider);
+
+        Assert.False(result.Success);
+        Assert.NotNull(result.FirstError);
+        Assert.Contains("Failed to parse GenLauncher catalog", result.FirstError);
+    }
 }

@@ -120,7 +120,7 @@ graph TB
 
 ### Active Publishers (PR #443)
 
-The Downloads browser activates four built-in publishers plus dynamic user-subscribed creator catalogs:
+The Downloads browser activates five built-in publishers plus dynamic user-subscribed creator catalogs:
 
 ```mermaid
 flowchart LR
@@ -130,6 +130,7 @@ flowchart LR
         B2["TheSuperHackers (Static)"]
         B3["Community Outpost (Static)"]
         B4["GitHub (Dynamic / Topics)"]
+        B5["GenLauncher (Static)"]
         S1["User Subscribed Catalogs (Dynamic)"]
     end
 
@@ -143,6 +144,7 @@ flowchart LR
 | **TheSuperHackers** | Built-in Static | `GitHubReleasesDiscoverer` | `GitHubResolver` + `SuperHackersManifestFactory` | Game patches, utility tools, client binaries |
 | **Community Outpost** | Built-in Static | `CommunityOutpostDiscoverer` | `CommunityOutpostResolver` | GenPatcher, community fixes, and patches |
 | **GitHub** | Built-in Dynamic | `GitHubTopicsDiscoverer` | `GitHubResolver` | Open-source community projects & mods |
+| **GenLauncher** | Built-in Static | `GenLauncherDiscoverer` | `GenLauncherResolver` + `GenLauncherManifestFactory` | Community mods, addons, and patches from the GenLauncher ecosystem |
 | **Subscribed Creators** | Subscribed Dynamic | `GenericCatalogDiscoverer` | `GenericCatalogResolver` + `GenericCatalogManifestFactory` | Community mods, map packs, and total conversions |
 
 #### Game-Client Variants (TheSuperHackers)

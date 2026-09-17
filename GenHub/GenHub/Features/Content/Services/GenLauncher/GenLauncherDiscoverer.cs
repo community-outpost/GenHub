@@ -192,7 +192,7 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
-        if (rawUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
+        if (rawUrl.StartsWith(ContentConstants.DiscordAttachmentCdnPrefix, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -974,7 +974,7 @@ public class GenLauncherDiscoverer(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to parse S3 page size XML from {Url}", queryUrl);
+            logger.LogWarning(ex, "Failed to parse S3 page size XML for host={Host}, bucket={Bucket}, prefix={Prefix}", manifest.S3HostLink, manifest.S3BucketName, manifest.S3FolderName);
             return null;
         }
     }

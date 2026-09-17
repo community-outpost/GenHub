@@ -280,11 +280,11 @@ public class GenLauncherResolver(
             query.SecretKey);
         if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
         {
-            logger.LogWarning("Rejecting unsafe S3 query URL: {Url}", queryUrl);
+            logger.LogWarning("Rejecting unsafe S3 query URL for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
             return (null, false, null);
         }
 
-        logger.LogInformation("Querying GenLauncher S3 bucket at {Url}", queryUrl);
+        logger.LogInformation("Querying GenLauncher S3 bucket at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
 
         var s3Xml = await client.GetStringAsync(queryUrl, cancellationToken);
         var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
