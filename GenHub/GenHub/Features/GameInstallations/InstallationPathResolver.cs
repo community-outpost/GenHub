@@ -97,20 +97,18 @@ public class InstallationPathResolver(
             // Check if it contains expected game files
             var hasValidFiles = false;
 
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            if (installation.HasGenerals &&
+                !string.IsNullOrEmpty(installation.GeneralsPath) &&
+                InstallationExtensions.HasValidGameExecutable(installation.GeneralsPath))
             {
-                if (InstallationExtensions.HasValidGameExecutable(installation.GeneralsPath))
-                {
-                    hasValidFiles = true;
-                }
+                hasValidFiles = true;
             }
 
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+            if (installation.HasZeroHour &&
+                !string.IsNullOrEmpty(installation.ZeroHourPath) &&
+                InstallationExtensions.HasValidGameExecutable(installation.ZeroHourPath))
             {
-                if (InstallationExtensions.HasValidGameExecutable(installation.ZeroHourPath))
-                {
-                    hasValidFiles = true;
-                }
+                hasValidFiles = true;
             }
 
             // Fallback: If neither GeneralsPath nor ZeroHourPath matched, check InstallationPath directly
@@ -212,67 +210,15 @@ public class InstallationPathResolver(
 
         if (OperatingSystem.IsWindows())
         {
-            // Common installation locations on Windows
-            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            var programFiles64 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-
-            switch (installationType)
-            {
-                case GameInstallationType.Retail:
-                    paths.Add(Path.Combine(programFiles, "EA Games"));
-                    paths.Add(Path.Combine(programFiles64, "EA Games"));
-                    paths.Add(Path.Combine(programFiles, "Electronic Arts"));
-                    paths.Add(Path.Combine(programFiles64, "Electronic Arts"));
-                    break;
-
-                case GameInstallationType.Steam:
-                    paths.Add(Path.Combine(programFiles, "Steam", "steamapps", "common"));
-                    paths.Add(Path.Combine(programFiles64, "Steam", "steamapps", "common"));
-                    paths.Add(Path.Combine("C:\\", "Program Files (x86)", "Steam", "steamapps", "common"));
-                    paths.Add(Path.Combine("C:\\", "Program Files", "Steam", "steamapps", "common"));
-                    break;
-
-                default:
-                    paths.Add(Path.Combine(programFiles, "EA Games"));
-                    paths.Add(Path.Combine(programFiles64, "EA Games"));
-                    break;
-            }
+            paths.AddRange(GetWindowsSearchPaths(installationType));
         }
         else if (OperatingSystem.IsLinux())
         {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrEmpty(home))
-            {
-                if (installationType == GameInstallationType.Steam)
-                {
-                    paths.Add(Path.Combine(home, ".steam", "steam", "steamapps", "common"));
-                    paths.Add(Path.Combine(home, ".steam", "root", "steamapps", "common"));
-                    paths.Add(Path.Combine(home, ".local", "share", "Steam", "steamapps", "common"));
-                    paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps", "common"));
-                    paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam", "steamapps", "common"));
-                    paths.Add(Path.Combine(home, "snap", "steam", "common", ".local", "share", "Steam", "steamapps", "common"));
-                }
-                else
-                {
-                    paths.Add(Path.Combine(home, "Games"));
-                    paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files (x86)", "EA Games"));
-                    paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files", "EA Games"));
-                }
-            }
+            paths.AddRange(GetLinuxSearchPaths(installationType));
         }
         else if (OperatingSystem.IsMacOS())
         {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrEmpty(home))
-            {
-                if (installationType == GameInstallationType.Steam)
-                {
-                    paths.Add(Path.Combine(home, "Library", "Application Support", "Steam", "steamapps", "common"));
-                }
-
-                paths.Add("/Applications");
-                paths.Add(Path.Combine(home, "Applications"));
-            }
+            paths.AddRange(GetMacOSSearchPaths(installationType));
         }
 
         // Also search user's Documents and Desktop as fallback
@@ -289,6 +235,85 @@ public class InstallationPathResolver(
         }
 
         return paths.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private static List<string> GetWindowsSearchPaths(GameInstallationType installationType)
+    {
+        var paths = new List<string>();
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        var programFiles64 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+
+        switch (installationType)
+        {
+            case GameInstallationType.Retail:
+                paths.Add(Path.Combine(programFiles, "EA Games"));
+                paths.Add(Path.Combine(programFiles64, "EA Games"));
+                paths.Add(Path.Combine(programFiles, "Electronic Arts"));
+                paths.Add(Path.Combine(programFiles64, "Electronic Arts"));
+                break;
+
+            case GameInstallationType.Steam:
+                paths.Add(Path.Combine(programFiles, "Steam", "steamapps", "common"));
+                paths.Add(Path.Combine(programFiles64, "Steam", "steamapps", "common"));
+                paths.Add(Path.Combine("C:\\", "Program Files (x86)", "Steam", "steamapps", "common"));
+                paths.Add(Path.Combine("C:\\", "Program Files", "Steam", "steamapps", "common"));
+                break;
+
+            default:
+                paths.Add(Path.Combine(programFiles, "EA Games"));
+                paths.Add(Path.Combine(programFiles64, "EA Games"));
+                break;
+        }
+
+        return paths;
+    }
+
+    private static List<string> GetLinuxSearchPaths(GameInstallationType installationType)
+    {
+        var paths = new List<string>();
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+        {
+            return paths;
+        }
+
+        if (installationType == GameInstallationType.Steam)
+        {
+            paths.Add(Path.Combine(home, ".steam", "steam", "steamapps", "common"));
+            paths.Add(Path.Combine(home, ".steam", "root", "steamapps", "common"));
+            paths.Add(Path.Combine(home, ".local", "share", "Steam", "steamapps", "common"));
+            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps", "common"));
+            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam", "steamapps", "common"));
+            paths.Add(Path.Combine(home, "snap", "steam", "common", ".local", "share", "Steam", "steamapps", "common"));
+        }
+        else
+        {
+            paths.Add(Path.Combine(home, "Games"));
+            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files (x86)", "EA Games"));
+            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files", "EA Games"));
+        }
+
+        return paths;
+    }
+
+    private static List<string> GetMacOSSearchPaths(GameInstallationType installationType)
+    {
+        var paths = new List<string>();
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+        {
+            return paths;
+        }
+
+        if (installationType == GameInstallationType.Steam)
+        {
+            paths.Add(Path.Combine(home, "Library", "Application Support", "Steam", "steamapps", "common"));
+        }
+
+        paths.Add("/Applications");
+        paths.Add(Path.Combine(home, "Applications"));
+
+        return paths;
     }
 
     private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
