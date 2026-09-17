@@ -6978,14 +6978,8 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
     <value>Taking over match as slot {0}...</value>
   </data>
-  <data name="Tools.ReplayManager.Tooltip.CompatibleRequired" xml:space="preserve">
-    <value>A compatible game client is required to watch this replay.</value>
-  </data>
   <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
     <value>Configure or create a game profile to watch this replay.</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.DownloadRequired" xml:space="preserve">
-    <value>Download and set up the required game client to watch this replay.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
     <value>Resume replay from a checkpoint save, or take over and play the match live as any player.</value>
@@ -6995,9 +6989,6 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
     <value>Checkpoint recovery and match takeover require a game client with checkpoint capabilities (e.g. MP-Recovery or modern community engine).</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.WatchCompatible" xml:space="preserve">
-    <value>Watch replay with a compatible game client.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
     <value>Watch replay using profile '{0}'.</value>

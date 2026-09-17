@@ -6884,14 +6884,8 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
     <value>جارٍ تولي التحكم بالمباراة في الخانة {0}...</value>
   </data>
-  <data name="Tools.ReplayManager.Tooltip.CompatibleRequired" xml:space="preserve">
-    <value>يلزم وجود عميل لعبة متوافق لمشاهدة هذه الإعادة.</value>
-  </data>
   <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
     <value>قم بتكوين أو إنشاء ملف تعريف للعبة لمشاهدة هذه الإعادة.</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.DownloadRequired" xml:space="preserve">
-    <value>قم بتنزيل وإعداد عميل اللعبة المطلوب لمشاهدة هذه الإعادة.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
     <value>استئناف الإعادة من نقطة فحص محفوظة، أو تولي اللعب المباشر بالمباراة كأي لاعب.</value>
@@ -6901,9 +6895,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
     <value>يتطلب استرداد نقاط الفحص وتولي التحكم بالمباراة عميل لعبة يدعم قدرات نقاط الفحص (مثل MP-Recovery أو محرك مجتمعي حديث).</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.WatchCompatible" xml:space="preserve">
-    <value>شاهد الإعادة باستخدام عميل لعبة متوافق.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
     <value>شاهد الإعادة باستخدام الملف الشخصي '{0}'.</value>

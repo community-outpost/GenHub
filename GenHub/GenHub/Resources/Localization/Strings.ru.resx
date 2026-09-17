@@ -6884,14 +6884,8 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ReplayManager.Status.TakingOverMatch" xml:space="preserve">
     <value>Перехват матча за слот {0}...</value>
   </data>
-  <data name="Tools.ReplayManager.Tooltip.CompatibleRequired" xml:space="preserve">
-    <value>Для просмотра этого реплея требуется совместимый игровой клиент.</value>
-  </data>
   <data name="Tools.ReplayManager.Tooltip.ConfigureProfile" xml:space="preserve">
     <value>Настройте или создайте профиль игры для просмотра этого реплея.</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.DownloadRequired" xml:space="preserve">
-    <value>Загрузите и настройте необходимый игровой клиент для просмотра этого реплея.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.RecoveryDefault" xml:space="preserve">
     <value>Возобновите реплей из сохранения контрольной точки или перехватите живой матч за любого игрока.</value>
@@ -6901,9 +6895,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ReplayManager.Tooltip.RecoveryWithoutClient" xml:space="preserve">
     <value>Восстановление контрольных точек и перехват управления требуют игрового клиента с поддержкой контрольных точек (например, MP-Recovery или современного движка сообщества).</value>
-  </data>
-  <data name="Tools.ReplayManager.Tooltip.WatchCompatible" xml:space="preserve">
-    <value>Смотреть реплей с совместимым игровым клиентом.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.WatchWithProfile" xml:space="preserve">
     <value>Смотреть реплей с использованием профиля «{0}».</value>
