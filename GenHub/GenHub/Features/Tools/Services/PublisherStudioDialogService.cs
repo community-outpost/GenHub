@@ -81,8 +81,8 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
     /// <inheritdoc/>
     public async Task<ContentRelease?> ShowAddReleaseDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog)
     {
-         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-            callback => new AddReleaseDialogViewModel(contentItem, catalog, callback, this));
+        return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
+           callback => new AddReleaseDialogViewModel(contentItem, catalog, callback, this));
     }
 
     /// <inheritdoc/>
@@ -95,8 +95,8 @@ public class PublisherStudioDialogService(IDialogService dialogService) : IPubli
     /// <inheritdoc/>
     public async Task<ReleaseArtifact?> ShowAddArtifactDialogAsync()
     {
-         return await ShowDialogAsync<AddArtifactDialogViewModel, AddArtifactDialogView, ReleaseArtifact>(
-            callback => new AddArtifactDialogViewModel(callback));
+        return await ShowDialogAsync<AddArtifactDialogViewModel, AddArtifactDialogView, ReleaseArtifact>(
+           callback => new AddArtifactDialogViewModel(callback));
     }
 
     /// <inheritdoc/>
