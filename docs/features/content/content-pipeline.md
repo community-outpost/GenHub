@@ -23,6 +23,7 @@ flowchart TB
         MDP["ModDBContentProvider"]
         CLP["CNCLabsContentProvider"]
         GOP["GeneralsOnlineProvider"]
+        GLP["GenLauncherProvider"]
     end
 
     subgraph "Tier 3: Components"
@@ -111,6 +112,7 @@ public abstract class BaseContentProvider : IContentProvider
 | **Community Outpost** | `CommunityOutpostDiscoverer` | `GenPatcherDatCatalogParser` | `.dat` catalog format |
 | **GitHub** | `GitHubDiscoverer` | GitHub API JSON | Release assets |
 | **Generals Online** | `GeneralsOnlineDiscoverer` | GitHub API | Multi-variant releases |
+| **GenLauncher** | `GenLauncherDiscoverer` | `GenLauncherCatalogParser` | S3 XML catalog and version manifests |
 | **File System** | `FileSystemDiscoverer` | Direct scan | Local manifests |
 
 ---
@@ -234,6 +236,7 @@ Factories create proper `ContentManifest` objects after downloading, handling pu
 | `AODMapsManifestFactory` | AOD Maps | Referer header handling |
 | `GitHubManifestFactory` | GitHub | Release asset handling |
 | `SuperHackersManifestFactory` | The Super Hackers | Multi-game releases (Generals + ZH) |
+| `GenLauncherManifestFactory` | GenLauncher | S3 multipart archives, mod/addon packaging, 5-segment ID |
 
 ---
 

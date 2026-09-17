@@ -4,7 +4,7 @@ This flowchart illustrates the complete ecosystem of publishers creating content
 
 ## Overview
 
-Publishers like CommunityOutpost, GeneralsOnline, and TheSuperHackers create and distribute GameClients (code) and GamePatches (data). Users can create their own custom patches and play on GeneralsOnline servers with other users who have matching GameProfiles (synchronized data and code).
+Publishers like CommunityOutpost, GeneralsOnline, TheSuperHackers, and GenLauncher create and distribute GameClients (code) and GamePatches (data). Users can create their own custom patches and play on GeneralsOnline servers with other users who have matching GameProfiles (synchronized data and code).
 
 ## Flow Diagram
 
@@ -15,6 +15,7 @@ flowchart TD
         CO[CommunityOutpost]
         GO[GeneralsOnline]
         TSH[TheSuperHackers]
+        GL[GenLauncher]
     end
 
     %% Publisher Creates Content
@@ -96,7 +97,8 @@ Type: Data/Assets]
         DownloadsBrowser --> BrowsePublishers[Browse Publishers:
 - CommunityOutpost
 - GeneralsOnline
-- TheSuperHackers]
+- TheSuperHackers
+- GenLauncher]
 
         BrowsePublishers --> SelectContent[Select Content to Install]
         SelectContent --> ContentPipeline[Content Pipeline]

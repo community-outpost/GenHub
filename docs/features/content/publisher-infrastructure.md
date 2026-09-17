@@ -92,13 +92,14 @@ public interface ICatalogParser
 
 ### Static Publishers
 
-Publishers with fixed identity (e.g., CommunityOutpost, GeneralsOnline, TheSuperHackers)
+Publishers with fixed identity (e.g., CommunityOutpost, GeneralsOnline, TheSuperHackers, GenLauncher)
 
 | Publisher | Catalog Format | Metadata Source |
 |----------|---------------|-----------------|
 | CommunityOutpost | `genpatcher-dat` | `GenPatcherContentRegistry` |
 | GeneralsOnline | `json-api` | Parsed from JSON response |
 | TheSuperHackers | `github-releases` | Parsed from GitHub API |
+| GenLauncher | `genlauncher-xml` | Parsed from S3 root XML & version manifests |
 
 ### Dynamic Publishers
 
