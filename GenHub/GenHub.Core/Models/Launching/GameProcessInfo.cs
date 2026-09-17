@@ -7,6 +7,7 @@ public class GameProcessInfo
     public int ProcessId { get; set; }
 
     /// <summary>Gets or sets the manager-assigned identity, which remains distinct when a PID is reused.</summary>
+    /// <remarks><see cref="Guid.Empty"/> means no identity was assigned by the process manager.</remarks>
     public Guid ProcessInstanceId { get; set; }
 
     /// <summary>Gets or sets the executable path.</summary>

@@ -51,7 +51,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DelayedAbortWithMountSentinels_FailsNamingTheArchives()
+    public async Task DelayedAbortWithMountSentinels_FailsNamingTheArchivesAsync()
     {
         if (!OnUnix)
         {
@@ -86,7 +86,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DelayedAbortWithoutSentinel_FailsWithTheStderrTail()
+    public async Task DelayedAbortWithoutSentinel_FailsWithTheStderrTailAsync()
     {
         if (!OnUnix)
         {
@@ -118,7 +118,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FastAbortWithoutSentinel_FailsWithTheStderrTail()
+    public async Task FastAbortWithoutSentinel_FailsWithTheStderrTailAsync()
     {
         if (!OnUnix)
         {
@@ -139,7 +139,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
         Assert.False(result.Success);
 
         var message = string.Join(" ", result.Errors);
-        Assert.Contains("1", message);
+        Assert.Contains("code 1", message);
         Assert.Contains("missing data directory", message);
     }
 
@@ -150,7 +150,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SentinelFromASurvivingProcess_DoesNotFailTheLaunch()
+    public async Task SentinelFromASurvivingProcess_DoesNotFailTheLaunchAsync()
     {
         if (!OnUnix)
         {
@@ -168,11 +168,16 @@ public class PostSpawnFailureDetectionTests : IDisposable
             WorkingDirectory = _tempDir,
         });
 
-        Assert.True(result.Success, $"Launch failed: {string.Join(" ", result.Errors)}");
-
-        if (result.Data is not null)
+        try
         {
-            await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            Assert.True(result.Success, $"Launch failed: {string.Join(" ", result.Errors)}");
+        }
+        finally
+        {
+            if (result.Data is not null)
+            {
+                await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            }
         }
     }
 
@@ -185,7 +190,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ProcessOutlivingTheWindow_LaunchesAndTerminatesWithoutFailureClassification()
+    public async Task ProcessOutlivingTheWindow_LaunchesAndTerminatesWithoutFailureClassificationAsync()
     {
         if (!OnUnix)
         {
@@ -227,7 +232,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task AbortAfterTheWindow_MarksTheRegisteredLaunchFailedNamingTheArchive()
+    public async Task AbortAfterTheWindow_MarksTheRegisteredLaunchFailedNamingTheArchiveAsync()
     {
         if (!OnUnix)
         {
@@ -256,7 +261,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task AbortAfterTheWindowWithoutSentinel_MarksTheLaunchFailedWithTheTail()
+    public async Task AbortAfterTheWindowWithoutSentinel_MarksTheLaunchFailedWithTheTailAsync()
     {
         if (!OnUnix)
         {
@@ -282,7 +287,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CleanExitAfterTheWindow_IsNotMarkedAsAFailure()
+    public async Task CleanExitAfterTheWindow_IsNotMarkedAsAFailureAsync()
     {
         if (!OnUnix)
         {

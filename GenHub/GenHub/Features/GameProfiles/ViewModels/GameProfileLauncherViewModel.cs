@@ -1875,37 +1875,32 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private void OnProcessExited(object? sender, Core.Models.Events.GameProcessExitedEventArgs e)
     {
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        RunOnUi(() =>
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnProcessExited(sender, e));
-            return;
-        }
-
-        try
-        {
-            logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
-
-            // Find the profile that was running this process
-            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId);
-            if (profile != null)
+            try
             {
-                profile.IsProcessRunning = false;
-                profile.ProcessId = 0;
-                logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+                logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
 
-                var failureReason = e.DescribeFailure();
-                if (failureReason != null)
+                // Find the profile that was running this process
+                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId);
+                if (profile != null)
                 {
-                    StatusMessage = $"{profile.Name} exited unexpectedly";
-                    ErrorMessage = failureReason;
-                    notificationService.ShowError("Game Exited Unexpectedly", $"{profile.Name}: {failureReason}");
+                    profile.IsProcessRunning = false;
+                    profile.ProcessId = 0;
+                    logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+
+                    var failureReason = e.DescribeFailure();
+                    if (failureReason != null)
+                    {
+                        notificationService.ShowError("Game Exited Unexpectedly", $"{profile.Name}: {failureReason}");
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error handling process exit event for process {ProcessId}", e.ProcessId);
-        }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling process exit event for process {ProcessId}", e.ProcessId);
+            }
+        });
     }
 
     /// <summary>
