@@ -506,6 +506,13 @@ jobs:
       - name: Create Velopack Package
         run: |
           echo "Packaging macOS app bundle with Velopack..."
+          ICON_ARG=""
+          if [ -f "macos-dist/GenHub.app/Contents/Resources/AppIcon.icns" ]; then
+            ICON_ARG="--icon macos-dist/GenHub.app/Contents/Resources/AppIcon.icns"
+          elif [ -f "GenHub/GenHub/Assets/Icons/generalshub.icns" ]; then
+            ICON_ARG="--icon GenHub/GenHub/Assets/Icons/generalshub.icns"
+          fi
+
           vpk pack \
             --packId GenHub \
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} \
@@ -513,7 +520,7 @@ jobs:
             --mainExe GenHub.MacOS \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
-            --icon GenHub/GenHub/Assets/Icons/generalshub-icon.png \
+            $ICON_ARG \
             --outputDir velopack-release
 
           echo "Velopack macOS artifacts created:"
