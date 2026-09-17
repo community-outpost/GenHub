@@ -5037,12 +5037,16 @@ public partial class ContentDetailViewModel(
     }
 
     private string GetLocalizedString(string key, string fallback) =>
-        localizationService?.GetString(key) ?? fallback;
+        localizationService?.GetString(key) is { Length: > 0 } localized &&
+        !string.Equals(localized, key, StringComparison.Ordinal)
+            ? localized
+            : fallback;
 
     private string FormatLocalizedString(string key, string fallbackFormat, params object[] args)
     {
         var localizedFormat = localizationService?.GetString(key);
-        if (!string.IsNullOrEmpty(localizedFormat))
+        if (!string.IsNullOrEmpty(localizedFormat) &&
+            !string.Equals(localizedFormat, key, StringComparison.Ordinal))
         {
             try
             {
