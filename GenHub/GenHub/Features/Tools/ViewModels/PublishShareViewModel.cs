@@ -1946,8 +1946,12 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             IsUploading = true;
             UploadStatusMessage = "Uploading provider definition...";
 
-            _uploadCts?.Cancel();
-            _uploadCts?.Dispose();
+            if (_uploadCts != null)
+            {
+                await _uploadCts.CancelAsync();
+                _uploadCts.Dispose();
+            }
+
             _uploadCts = new CancellationTokenSource();
             var ct = _uploadCts.Token;
 
