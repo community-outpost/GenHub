@@ -919,7 +919,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
         if (!isPublisherClient || string.IsNullOrEmpty(GameVersion))
         {
-            TryResolveFromPatchManifest(enabledIds);
+            TryResolveFromPatchManifest(enabledIds, isPublisherClient);
         }
     }
 
@@ -933,7 +933,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
     }
 
-    private void TryResolveFromPatchManifest(IReadOnlyList<string> enabledContentIds)
+    private void TryResolveFromPatchManifest(IReadOnlyList<string> enabledContentIds, bool isPublisherClient)
     {
         var patchManifestId = enabledContentIds
             .FirstOrDefault(id => id.Contains(ManifestConstants.PatchManifestSegment, StringComparison.OrdinalIgnoreCase));
@@ -955,7 +955,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             GameVersion = patchVer;
         }
 
-        if (string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
+        if (!isPublisherClient || string.IsNullOrEmpty(Publisher) || string.Equals(Publisher, PublisherInfoConstants.LocalInstallationPublisherName, StringComparison.OrdinalIgnoreCase))
         {
             Publisher = ParsePublisherName(patchPub, patchSegments[2]);
             ApplyPublisherBranding(patchPub);

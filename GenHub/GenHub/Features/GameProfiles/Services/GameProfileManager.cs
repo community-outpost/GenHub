@@ -224,6 +224,10 @@ public class GameProfileManager(
 
             return await SaveAndNotifyProfileUpdatedAsync(profile, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);

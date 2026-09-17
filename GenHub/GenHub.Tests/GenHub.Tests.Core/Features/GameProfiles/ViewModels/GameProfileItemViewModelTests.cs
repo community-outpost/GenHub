@@ -226,6 +226,34 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies that enabling a patch manifest overrides the publisher and version when using a standard non-publisher game client.
+    /// </summary>
+    [Fact]
+    public void Construction_WithStandardClientAndEnabledPatch_OverridesPublisherAndVersion()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-steam-patch",
+            Name = "Steam Patch Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "steam",
+                Name = "Steam Client",
+                PublisherType = "Steam",
+            },
+            EnabledContentIds = ["1.106.communityoutpost.patch.zerohour"],
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-steam-patch", profile, null!, null!);
+
+        // Assert
+        Assert.Equal("Community Outpost", vm.Publisher);
+        Assert.Equal("v1.06", vm.GameVersion);
+    }
+
+    /// <summary>
     /// Verifies that calling UpdateFromProfile updates version and publisher badges when the client changes.
     /// </summary>
     [Fact]
