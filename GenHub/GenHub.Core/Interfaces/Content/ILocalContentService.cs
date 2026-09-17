@@ -2,6 +2,10 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Content;
 
@@ -11,17 +15,23 @@ namespace GenHub.Core.Interfaces.Content;
 public interface ILocalContentService
 {
     /// <summary>
-    /// Creates a ContentManifest from a local directory.
+    /// Gets the list of allowed content types for local content.
     /// </summary>
-    /// <param name="directoryPath">The path to the local directory.</param>
-    /// <param name="name">The display name for the content.</param>
+    IReadOnlyList<ContentType> AllowedContentTypes { get; }
+
+    /// <summary>
+    /// Creates a ContentManifest from a local directory, hashes all files,
+    /// and stores the content in the CAS content store.
+    /// </summary>
+    /// <param name="directoryPath">The path to the local directory containing the content.</param>
+    /// <param name="name">The display name of the content.</param>
     /// <param name="contentType">The type of content.</param>
-    /// <param name="targetGame">The target game for this content.</param>
-    /// <param name="sourcePath">Optional original source path of the content.</param>
-    /// <param name="progress">Optional progress reporter for tracking manifest creation.</param>
+    /// <param name="targetGame">The target game for the content.</param>
+    /// <param name="sourcePath">The original source path of the content if known.</param>
+    /// <param name="progress">Optional progress reporter for content storage operations.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <param name="entryPoint">Optional relative path of the main executable entry point.</param>
-    /// <returns>A result containing the created manifest or errors.</returns>
+    /// <param name="entryPoint">Optional relative path to the primary executable.</param>
+    /// <returns>The created ContentManifest or an error result.</returns>
     Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
         string directoryPath,
         string name,
@@ -33,39 +43,31 @@ public interface ILocalContentService
         string? entryPoint = null);
 
     /// <summary>
-    /// Creates a new content manifest from a local directory with archive normalization control.
+    /// Creates a ContentManifest from a local directory, hashes all files,
+    /// and stores the content in the CAS content store with extended options.
     /// </summary>
-    /// <param name="directoryPath">The path to the local directory.</param>
-    /// <param name="name">The display name for the content.</param>
+    /// <param name="directoryPath">The path to the local directory containing the content.</param>
+    /// <param name="name">The display name of the content.</param>
     /// <param name="contentType">The type of content.</param>
-    /// <param name="targetGame">The target game for this content.</param>
-    /// <param name="sourcePath">Optional original source path of the content.</param>
-    /// <param name="progress">Optional progress reporter for tracking manifest creation.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <param name="entryPoint">Optional relative path of the main executable entry point.</param>
-    /// <param name="normalizeInactiveArchives">Whether to normalize inactive mod archives (.gib, .ctr, .skw) to .big.</param>
-    /// <returns>A result containing the created manifest or errors.</returns>
+    /// <param name="targetGame">The target game for the content.</param>
+    /// <param name="options">Optional configuration options for the operation.</param>
+    /// <returns>The created ContentManifest or an error result.</returns>
     Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
         string directoryPath,
         string name,
         ContentType contentType,
         GameType targetGame,
-        string? sourcePath,
-        IProgress<ContentStorageProgress>? progress,
-        CancellationToken cancellationToken,
-        string? entryPoint,
-        bool normalizeInactiveArchives);
+        LocalContentOptions? options);
 
     /// <summary>
-    /// Adds local content by creating and storing a manifest.
-    /// Wrapper for CreateLocalContentManifestAsync with simplified parameter order.
+    /// Convenience method to create and store local content.
     /// </summary>
-    /// <param name="name">The display name for the content.</param>
-    /// <param name="directoryPath">The path to the local directory.</param>
+    /// <param name="name">The display name of the content.</param>
+    /// <param name="directoryPath">The path to the directory containing the content.</param>
     /// <param name="contentType">The type of content.</param>
-    /// <param name="targetGame">The target game for this content.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A result containing the created manifest or errors.</returns>
+    /// <param name="targetGame">The target game.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The created ContentManifest or an error result.</returns>
     Task<OperationResult<ContentManifest>> AddLocalContentAsync(
         string name,
         string directoryPath,
@@ -74,26 +76,28 @@ public interface ILocalContentService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes local content by removing its manifest and potentially deleting files.
+    /// Deletes local content by removing its manifest and untracking files from CAS.
     /// </summary>
-    /// <param name="manifestId">The manifest ID of the content to delete.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A result indicating success or failure.</returns>
-    Task<OperationResult> DeleteLocalContentAsync(string manifestId, CancellationToken cancellationToken = default);
+    /// <param name="manifestId">The ID of the manifest to delete.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success if deleted, failure otherwise.</returns>
+    Task<OperationResult> DeleteLocalContentAsync(
+        string manifestId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates an existing local content item.
+    /// Updates an existing local content manifest with new contents from a directory.
     /// </summary>
-    /// <param name="existingManifestId">The ID of the manifest to update.</param>
-    /// <param name="name">The new display name.</param>
-    /// <param name="directoryPath">The path to the content directory.</param>
+    /// <param name="existingManifestId">The ID of the manifest being updated.</param>
+    /// <param name="name">The updated display name.</param>
+    /// <param name="directoryPath">The path to the directory with new content.</param>
     /// <param name="contentType">The content type.</param>
     /// <param name="targetGame">The target game.</param>
-    /// <param name="sourcePath">Optional original source path of the content.</param>
+    /// <param name="sourcePath">The original source path of the content if known.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <param name="entryPoint">Optional relative path of the main executable entry point.</param>
-    /// <returns>A result containing the updated manifest.</returns>
+    /// <param name="entryPoint">Optional relative path to the primary executable.</param>
+    /// <returns>The newly created manifest reflecting the updated content.</returns>
     Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
         string existingManifestId,
         string name,
@@ -106,33 +110,20 @@ public interface ILocalContentService
         string? entryPoint = null);
 
     /// <summary>
-    /// Updates an existing local content item with archive normalization control.
+    /// Updates an existing local content manifest with new contents from a directory using extended options.
     /// </summary>
-    /// <param name="existingManifestId">The ID of the manifest to update.</param>
-    /// <param name="name">The new display name.</param>
-    /// <param name="directoryPath">The path to the content directory.</param>
+    /// <param name="existingManifestId">The ID of the manifest being updated.</param>
+    /// <param name="name">The updated display name.</param>
+    /// <param name="directoryPath">The path to the directory with new content.</param>
     /// <param name="contentType">The content type.</param>
     /// <param name="targetGame">The target game.</param>
-    /// <param name="sourcePath">Optional original source path of the content.</param>
-    /// <param name="progress">Optional progress reporter.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <param name="entryPoint">Optional relative path of the main executable entry point.</param>
-    /// <param name="normalizeInactiveArchives">Whether to normalize inactive mod archives (.gib, .ctr, .skw) to .big.</param>
-    /// <returns>A result containing the updated manifest.</returns>
+    /// <param name="options">Optional configuration options for the operation.</param>
+    /// <returns>The newly created manifest reflecting the updated content.</returns>
     Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
         string existingManifestId,
         string name,
         string directoryPath,
         ContentType contentType,
         GameType targetGame,
-        string? sourcePath,
-        IProgress<ContentStorageProgress>? progress,
-        CancellationToken cancellationToken,
-        string? entryPoint,
-        bool normalizeInactiveArchives);
-
-    /// <summary>
-    /// Gets the allowed content types for local content creation.
-    /// </summary>
-    IReadOnlyList<ContentType> AllowedContentTypes { get; }
+        LocalContentOptions? options);
 }

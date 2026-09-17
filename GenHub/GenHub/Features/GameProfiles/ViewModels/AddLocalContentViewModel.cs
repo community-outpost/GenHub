@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
@@ -381,10 +382,10 @@ public partial class AddLocalContentViewModel(
 
             Validate();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
             StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportCancelled", "Import cancelled.");
-            logger?.LogInformation("Import cancelled by user");
+            logger?.LogInformation(ex, "Import cancelled by user");
         }
         catch (Exception ex)
         {
@@ -451,34 +452,8 @@ public partial class AddLocalContentViewModel(
     private static bool IsBigArchiveFile(string filePath) =>
         ArchivePayloadProcessor.IsBigArchiveFile(filePath);
 
-    private static bool IsExecutableFile(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(filePath);
-            if (stream.Length < 2)
-            {
-                return false;
-            }
-
-            Span<byte> header = stackalloc byte[2];
-            if (stream.Read(header) < 2)
-            {
-                return false;
-            }
-
-            return header[0] == (byte)'M' && header[1] == (byte)'Z';
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private static bool IsExecutableFile(string filePath) =>
+        ExecutableFileClassifier.HasExecutableMagicBytes(filePath);
 
     private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir)
         => BuildDirectoryTree(dir, CollectExecutableDirectories(dir));
@@ -626,120 +601,164 @@ public partial class AddLocalContentViewModel(
 
         if (File.Exists(path))
         {
-            var extension = Path.GetExtension(path);
-            var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
+            return await StageFileAsync(path, cancellationToken);
+        }
 
-            var hasCollision = false;
-            if (File.Exists(destFile))
-            {
-                hasCollision = await Task.Run(
-                    () => !FilesHaveIdenticalContent(path, destFile),
-                    cancellationToken);
-            }
+        if (Directory.Exists(path))
+        {
+            return await StageDirectoryAsync(path, cancellationToken);
+        }
+
+        return true;
+    }
+
+    private async Task<bool> StageFileAsync(string filePath, CancellationToken cancellationToken)
+    {
+        var destFile = Path.Combine(_stagingPath, Path.GetFileName(filePath));
+
+        if (File.Exists(destFile))
+        {
+            var hasCollision = await Task.Run(
+                () => !FilesHaveIdenticalContent(filePath, destFile),
+                cancellationToken);
 
             if (hasCollision)
             {
-                logger?.LogWarning("Detected file collision when importing {Source}: file {Dest} already exists with different content.", path, destFile);
-                if (dialogService != null)
+                var canOverwrite = await ConfirmFileCollisionAsync(filePath, destFile);
+                if (!canOverwrite)
                 {
-                    var confirmMessage = string.Format(
-                        GetLocalizedString("Profiles.AddLocalContent.SingleCollisionDialogMessage", "The file '{0}' already exists in staging with different content. Overwrite?"),
-                        Path.GetFileName(path));
-
-                    var overwrite = await dialogService.ShowConfirmationAsync(
-                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogTitle", "File Collisions Detected"),
-                        confirmMessage,
-                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogOverwrite", "Overwrite"),
-                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogCancel", "Skip"));
-
-                    if (!overwrite)
-                    {
-                        logger?.LogInformation("User skipped importing {Path} due to detected file collision.", path);
-                        StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
-                        return false;
-                    }
+                    return false;
                 }
-            }
-
-            File.Copy(path, destFile, true);
-
-            if (archivePayloadProcessor != null)
-            {
-                await archivePayloadProcessor.ProcessPayloadAsync(
-                    _stagingPath,
-                    SelectedContentType,
-                    SelectedGameType,
-                    normalizeInactiveArchives: false,
-                    cancellationToken: cancellationToken);
-            }
-            else if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
-            {
-                await Task.Run(
-                    () =>
-                    {
-                        ZipFile.ExtractToDirectory(destFile, _stagingPath, true);
-                        try
-                        {
-                            File.Delete(destFile);
-                        }
-                        catch
-                        {
-                            // Best effort cleanup of source zip in staging
-                        }
-                    },
-                    cancellationToken);
             }
         }
-        else if (Directory.Exists(path))
+
+        await Task.Run(() => File.Copy(filePath, destFile, true), cancellationToken);
+
+        if (archivePayloadProcessor != null)
         {
-            var dirInfo = new DirectoryInfo(path);
-            logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", path, _stagingPath);
-
-            var collisions = await Task.Run(
-                () => DetectDirectoryCollisions(dirInfo, new DirectoryInfo(_stagingPath), cancellationToken),
-                cancellationToken);
-            if (collisions.Count > 0)
-            {
-                logger?.LogWarning(
-                    "Detected {Count} file collision(s) when importing from {Source} into staging {Staging}: {Collisions}",
-                    collisions.Count,
-                    path,
-                    _stagingPath,
-                    string.Join(", ", collisions));
-
-                if (dialogService != null)
+            await archivePayloadProcessor.ProcessPayloadAsync(
+                _stagingPath,
+                SelectedContentType,
+                SelectedGameType,
+                normalizeInactiveArchives: false,
+                cancellationToken: cancellationToken);
+        }
+        else if (Path.GetExtension(filePath).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            await Task.Run(
+                () =>
                 {
-                    var confirmMessage = string.Format(
-                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogMessage", "Importing '{0}' conflicts with {1} existing file(s). Overwrite existing files?"),
-                        Path.GetFileName(path),
-                        collisions.Count);
-
-                    var overwrite = await dialogService.ShowConfirmationAsync(
-                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogTitle", "File Collisions Detected"),
-                        confirmMessage,
-                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogOverwrite", "Overwrite"),
-                        GetLocalizedString("Profiles.AddLocalContent.CollisionDialogCancel", "Skip"));
-
-                    if (!overwrite)
+                    ZipFile.ExtractToDirectory(destFile, _stagingPath, true);
+                    try
                     {
-                        logger?.LogInformation("User skipped importing {Path} due to detected file collisions.", path);
-                        StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
-                        return false;
+                        File.Delete(destFile);
                     }
-                }
-            }
+                    catch
+                    {
+                        // Best effort cleanup of source zip in staging
+                    }
+                },
+                cancellationToken);
+        }
 
-            await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath), cancellationToken), cancellationToken);
+        return true;
+    }
 
-            if (archivePayloadProcessor != null)
+    private async Task<bool> StageDirectoryAsync(string dirPath, CancellationToken cancellationToken)
+    {
+        var dirInfo = new DirectoryInfo(dirPath);
+        logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", dirPath, _stagingPath);
+
+        var collisions = await Task.Run(
+            () => DetectDirectoryCollisions(dirInfo, new DirectoryInfo(_stagingPath), cancellationToken),
+            cancellationToken);
+
+        if (collisions.Count > 0)
+        {
+            var canOverwrite = await ConfirmDirectoryCollisionsAsync(dirPath, collisions);
+            if (!canOverwrite)
             {
-                await archivePayloadProcessor.ProcessPayloadAsync(
-                    _stagingPath,
-                    SelectedContentType,
-                    SelectedGameType,
-                    normalizeInactiveArchives: false,
-                    cancellationToken: cancellationToken);
+                return false;
             }
+        }
+
+        await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath), cancellationToken), cancellationToken);
+
+        if (archivePayloadProcessor != null)
+        {
+            await archivePayloadProcessor.ProcessPayloadAsync(
+                _stagingPath,
+                SelectedContentType,
+                SelectedGameType,
+                normalizeInactiveArchives: false,
+                cancellationToken: cancellationToken);
+        }
+
+        return true;
+    }
+
+    private async Task<bool> ConfirmFileCollisionAsync(string path, string destFile)
+    {
+        logger?.LogWarning("Detected file collision when importing {Source}: file {Dest} already exists with different content.", path, destFile);
+        if (dialogService == null)
+        {
+            logger?.LogInformation("No dialog service available; skipping import of {Path} to avoid overwriting staged content without confirmation.", path);
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            return false;
+        }
+
+        var confirmMessage = string.Format(
+            GetLocalizedString("Profiles.AddLocalContent.SingleCollisionDialogMessage", "The file '{0}' already exists in staging with different content. Overwrite?"),
+            Path.GetFileName(path));
+
+        var overwrite = await dialogService.ShowConfirmationAsync(
+            GetLocalizedString("Profiles.AddLocalContent.CollisionDialogTitle", "File Collisions Detected"),
+            confirmMessage,
+            GetLocalizedString("Profiles.AddLocalContent.CollisionDialogOverwrite", "Overwrite"),
+            GetLocalizedString("Profiles.AddLocalContent.CollisionDialogCancel", "Skip"));
+
+        if (!overwrite)
+        {
+            logger?.LogInformation("User skipped importing {Path} due to detected file collision.", path);
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<bool> ConfirmDirectoryCollisionsAsync(string path, IReadOnlyList<string> collisions)
+    {
+        logger?.LogWarning(
+            "Detected {Count} file collision(s) when importing from {Source} into staging {Staging}: {Collisions}",
+            collisions.Count,
+            path,
+            _stagingPath,
+            string.Join(", ", collisions));
+
+        if (dialogService == null)
+        {
+            logger?.LogInformation("No dialog service available; skipping import of {Path} to avoid overwriting staged content without confirmation.", path);
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            return false;
+        }
+
+        var confirmMessage = string.Format(
+            GetLocalizedString("Profiles.AddLocalContent.CollisionDialogMessage", "Importing '{0}' conflicts with {1} existing file(s). Overwrite existing files?"),
+            Path.GetFileName(path),
+            collisions.Count);
+
+        var overwrite = await dialogService.ShowConfirmationAsync(
+            GetLocalizedString("Profiles.AddLocalContent.CollisionDialogTitle", "File Collisions Detected"),
+            confirmMessage,
+            GetLocalizedString("Profiles.AddLocalContent.CollisionDialogOverwrite", "Overwrite"),
+            GetLocalizedString("Profiles.AddLocalContent.CollisionDialogCancel", "Skip"));
+
+        if (!overwrite)
+        {
+            logger?.LogInformation("User skipped importing {Path} due to detected file collisions.", path);
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            return false;
         }
 
         return true;
@@ -926,7 +945,8 @@ public partial class AddLocalContentViewModel(
             StatusMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressNormalizingArchives", "Normalizing inactive archives (.ctr / .gib / .skw) to .big...");
             logger?.LogInformation("User triggered archive normalization in staging: {StagingPath}", _stagingPath);
 
-            await Task.Run(NormalizeStagingDirectory, _cts?.Token ?? CancellationToken.None);
+            var token = _cts?.Token ?? CancellationToken.None;
+            await Task.Run(() => NormalizeStagingDirectory(token), token);
 
             await RefreshStagingTreeAsync();
             HasInactiveArchives = CheckForInactiveArchives();
@@ -941,9 +961,9 @@ public partial class AddLocalContentViewModel(
 
             Validate();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger?.LogInformation("Archive normalization cancelled by user");
+            logger?.LogInformation(ex, "Archive normalization cancelled by user");
         }
         catch (Exception ex)
         {
@@ -956,13 +976,14 @@ public partial class AddLocalContentViewModel(
         }
     }
 
-    private void NormalizeStagingDirectory()
+    private void NormalizeStagingDirectory(CancellationToken cancellationToken = default)
     {
         foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
         {
             var searchPattern = "*" + extension;
             foreach (var inactiveFile in Directory.GetFiles(_stagingPath, searchPattern, SearchOption.AllDirectories))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 NormalizeSingleInactiveFile(inactiveFile);
             }
         }
@@ -972,7 +993,7 @@ public partial class AddLocalContentViewModel(
     {
         if (IsExecutableFile(inactiveFile))
         {
-            var exeFile = Path.ChangeExtension(inactiveFile, ".exe");
+            var exeFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.ExeExtension);
             if (!File.Exists(exeFile))
             {
                 File.Move(inactiveFile, exeFile);
@@ -999,26 +1020,7 @@ public partial class AddLocalContentViewModel(
             return;
         }
 
-        var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
-        if (File.Exists(bigFile))
-        {
-            if (FilesHaveIdenticalContent(inactiveFile, bigFile))
-            {
-                File.Delete(inactiveFile);
-                logger?.LogInformation("Removed duplicate identical inactive file '{InactiveFile}' as '{BigFile}' already exists", inactiveFile, bigFile);
-            }
-            else
-            {
-                var nonCollidingBigPath = ArchivePayloadProcessor.GetNonCollidingDestinationPath(bigFile);
-                File.Move(inactiveFile, nonCollidingBigPath);
-                logger?.LogInformation("Preserved differing inactive archive '{InactiveFile}' by renaming to '{NewBigFile}'", inactiveFile, nonCollidingBigPath);
-            }
-        }
-        else
-        {
-            File.Move(inactiveFile, bigFile);
-            logger?.LogInformation("Normalized inactive mod archive '{InactiveFile}' to '{BigFile}'", inactiveFile, bigFile);
-        }
+        ArchivePayloadProcessor.NormalizeInactiveBigArchive(inactiveFile, logger);
     }
 
     [RelayCommand]
@@ -1119,6 +1121,15 @@ public partial class AddLocalContentViewModel(
             // Preserve SourcePath metadata if available
             // Note: We no longer write to "source.path" file to avoid polluting the content.
             // Instead we pass the SourcePath directly to the service.
+            var options = new LocalContentOptions
+            {
+                SourcePath = SourcePath,
+                Progress = progress,
+                CancellationToken = _cts.Token,
+                EntryPoint = entryPoint,
+                NormalizeInactiveArchives = false,
+            };
+
             var result = IsEditing && _originalManifestId != null
                 ? await localContentService.UpdateLocalContentManifestAsync(
                     _originalManifestId,
@@ -1126,21 +1137,13 @@ public partial class AddLocalContentViewModel(
                     _stagingPath,
                     SelectedContentType,
                     targetGame,
-                    SourcePath,
-                    progress,
-                    _cts.Token,
-                    entryPoint,
-                    normalizeInactiveArchives: false)
+                    options)
                 : await localContentService.CreateLocalContentManifestAsync(
                     _stagingPath,
                     ContentName,
                     SelectedContentType,
                     targetGame,
-                    SourcePath,
-                    progress,
-                    _cts.Token,
-                    entryPoint,
-                    normalizeInactiveArchives: false);
+                    options);
 
             if (result.Success)
             {

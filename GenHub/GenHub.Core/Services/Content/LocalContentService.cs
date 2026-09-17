@@ -66,11 +66,14 @@ public class LocalContentService(
             name,
             contentType,
             targetGame,
-            sourcePath,
-            progress,
-            cancellationToken,
-            entryPoint,
-            normalizeInactiveArchives: true);
+            new LocalContentOptions
+            {
+                SourcePath = sourcePath,
+                Progress = progress,
+                CancellationToken = cancellationToken,
+                EntryPoint = entryPoint,
+                NormalizeInactiveArchives = true,
+            });
     }
 
     /// <inheritdoc />
@@ -79,11 +82,7 @@ public class LocalContentService(
         string name,
         ContentType contentType,
         GameType targetGame,
-        string? sourcePath,
-        IProgress<ContentStorageProgress>? progress,
-        CancellationToken cancellationToken,
-        string? entryPoint,
-        bool normalizeInactiveArchives)
+        LocalContentOptions? options)
     {
         try
         {
@@ -102,6 +101,12 @@ public class LocalContentService(
                 return OperationResult<ContentManifest>.CreateFailure(
                     $"Directory not found: {directoryPath}");
             }
+
+            var sourcePath = options?.SourcePath;
+            var progress = options?.Progress;
+            var cancellationToken = options?.CancellationToken ?? default;
+            var entryPoint = options?.EntryPoint;
+            var normalizeInactiveArchives = options?.NormalizeInactiveArchives ?? true;
 
             var sanitizedName = SanitizeForManifestId(name);
             if (string.IsNullOrEmpty(sanitizedName))
@@ -188,48 +193,35 @@ public class LocalContentService(
                     if (metadata.Category == GenPatcherContentCategory.BaseGame)
                     {
                         logger.LogInformation("Using GameInstallation linking for legacy files in '{Code}'", code);
-                        foreach (var file in manifest.Files)
-                        {
-                            file.SourceType = ContentSourceType.GameInstallation;
-                        }
                     }
                 }
             }
 
-            // Override publisher info to mark as local content
-            manifest.Publisher = new PublisherInfo
-            {
-                Name = LocalPublisherName,
-                PublisherType = LocalPublisherType,
-            };
+            // Ingest into CAS storage
+            var storageResult = await contentStorageService.StoreContentAsync(
+                manifest,
+                directoryPath,
+                progress,
+                cancellationToken);
 
-            // Update the manifest ID to use local prefix and compliant format
-            // Format: schemaVersion.userVersion.publisher.contentType.contentName
-            var typeString = contentType.ToString().ToLowerInvariant();
-            manifest.Id = $"1.0.{LocalPublisherType}.{typeString}.{sanitizedName}";
-
-            // Set a dynamic version string based on current time to ensure
-            // WorkspaceManager detects changes even if the name/ID remains the same.
-            manifest.Version = DateTime.UtcNow.ToString("yyyyMMdd.HHmmss.fff");
-
-            logger.LogInformation(
-                "Created local content manifest with ID '{Id}' for '{Name}'",
-                manifest.Id,
-                name);
-
-            // Store content in CAS
-            var storageResult = await contentStorageService.StoreContentAsync(manifest, directoryPath, progress, cancellationToken);
             if (!storageResult.Success)
             {
-                return OperationResult<ContentManifest>.CreateFailure($"Failed to store local content: {storageResult.FirstError}");
+                logger.LogError("Failed to store content in CAS: {Error}", storageResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to store content: {storageResult.FirstError}");
             }
 
-            return OperationResult<ContentManifest>.CreateSuccess(storageResult.Data);
+            logger.LogInformation(
+                "Successfully created and stored local content manifest for '{Name}' (ID: {Id})",
+                name,
+                manifest.Id);
+
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create local content manifest for '{Name}'", name);
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to create manifest: {ex.Message}");
+            logger.LogError(ex, "Error creating local content manifest for '{Name}'", name);
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to create content manifest: {ex.Message}");
         }
     }
 
@@ -241,7 +233,6 @@ public class LocalContentService(
         GameType targetGame,
         CancellationToken cancellationToken = default)
     {
-        // Forward to the main method, swapping name and directoryPath to match expected signature
         return CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, cancellationToken: cancellationToken);
     }
 
@@ -263,11 +254,14 @@ public class LocalContentService(
             directoryPath,
             contentType,
             targetGame,
-            sourcePath,
-            progress,
-            cancellationToken,
-            entryPoint,
-            normalizeInactiveArchives: true);
+            new LocalContentOptions
+            {
+                SourcePath = sourcePath,
+                Progress = progress,
+                CancellationToken = cancellationToken,
+                EntryPoint = entryPoint,
+                NormalizeInactiveArchives = true,
+            });
     }
 
     /// <inheritdoc />
@@ -277,17 +271,15 @@ public class LocalContentService(
         string directoryPath,
         ContentType contentType,
         GameType targetGame,
-        string? sourcePath,
-        IProgress<ContentStorageProgress>? progress,
-        CancellationToken cancellationToken,
-        string? entryPoint,
-        bool normalizeInactiveArchives)
+        LocalContentOptions? options)
     {
         try
         {
+            var cancellationToken = options?.CancellationToken ?? default;
+
             // 1. Create the new manifest/content
             // We do this FIRST to ensure the new content is valid before deleting the old one
-            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken, entryPoint, normalizeInactiveArchives);
+            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, options);
 
             if (!createResult.Success)
             {

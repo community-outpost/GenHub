@@ -252,6 +252,35 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return newDestPath;
     }
 
+    /// <summary>
+    /// Normalizes an inactive BIG archive file (.gib, .ctr, .skw) to a .big extension, handling duplicate collisions.
+    /// </summary>
+    /// <param name="inactiveFile">The path of the inactive archive file.</param>
+    /// <param name="logger">Optional logger instance.</param>
+    internal static void NormalizeInactiveBigArchive(string inactiveFile, ILogger? logger = null)
+    {
+        var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
+        if (File.Exists(bigFile))
+        {
+            if (FilesHaveIdenticalContent(inactiveFile, bigFile))
+            {
+                File.Delete(inactiveFile);
+                logger?.LogInformation("Removed duplicate identical inactive file '{InactiveFile}' as '{BigFile}' already exists", inactiveFile, bigFile);
+            }
+            else
+            {
+                var nonCollidingBigPath = GetNonCollidingDestinationPath(bigFile);
+                File.Move(inactiveFile, nonCollidingBigPath);
+                logger?.LogInformation("Preserved differing inactive file '{InactiveFile}' by renaming to '{NewBigFile}'", inactiveFile, nonCollidingBigPath);
+            }
+        }
+        else
+        {
+            File.Move(inactiveFile, bigFile);
+            logger?.LogInformation("Normalized inactive mod archive '{InactiveFile}' to '{BigFile}'", inactiveFile, bigFile);
+        }
+    }
+
     private static bool ShouldAttemptExecutableExtraction(ContentType? contentType)
     {
         if (!contentType.HasValue)
@@ -2103,7 +2132,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 {
                     if (IsExecutableFile(inactiveFile))
                     {
-                        var exeFile = Path.ChangeExtension(inactiveFile, ".exe");
+                        var exeFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.ExeExtension);
                         if (!File.Exists(exeFile))
                         {
                             File.Move(inactiveFile, exeFile);
@@ -2119,26 +2148,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         continue;
                     }
 
-                    var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
-                    if (File.Exists(bigFile))
-                    {
-                        if (FilesHaveIdenticalContent(inactiveFile, bigFile))
-                        {
-                            File.Delete(inactiveFile);
-                            logger.LogInformation("Removed duplicate identical inactive file '{InactiveFile}' as '{BigFile}' already exists", inactiveFile, bigFile);
-                        }
-                        else
-                        {
-                            var nonCollidingBigPath = GetNonCollidingDestinationPath(bigFile);
-                            File.Move(inactiveFile, nonCollidingBigPath);
-                            logger.LogInformation("Preserved differing inactive file '{InactiveFile}' by renaming to '{NewBigFile}'", inactiveFile, nonCollidingBigPath);
-                        }
-                    }
-                    else
-                    {
-                        File.Move(inactiveFile, bigFile);
-                        logger.LogInformation("Normalized inactive mod archive '{InactiveFile}' to '{BigFile}'", inactiveFile, bigFile);
-                    }
+                    NormalizeInactiveBigArchive(inactiveFile, logger);
                 }
             }
         }

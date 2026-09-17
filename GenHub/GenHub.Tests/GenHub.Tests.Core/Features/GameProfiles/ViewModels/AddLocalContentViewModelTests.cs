@@ -427,13 +427,9 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<ContentType>(),
                 It.IsAny<GameType>(),
-                It.IsAny<string?>(),
-                It.IsAny<IProgress<ContentStorageProgress>?>(),
-                It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
-                (_, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
+                It.IsAny<LocalContentOptions?>()))
+            .Callback<string, string, ContentType, GameType, LocalContentOptions?>(
+                (_, _, _, _, options) => capturedEntryPoint = options?.EntryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.0.local.gameclient.test"),
@@ -478,13 +474,9 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<ContentType>(),
                 It.IsAny<GameType>(),
-                It.IsAny<string?>(),
-                It.IsAny<IProgress<ContentStorageProgress>?>(),
-                It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
-                (_, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
+                It.IsAny<LocalContentOptions?>()))
+            .Callback<string, string, ContentType, GameType, LocalContentOptions?>(
+                (_, _, _, _, options) => capturedEntryPoint = options?.EntryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.0.local.moddingtool.tool"),
@@ -552,13 +544,9 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<ContentType>(),
                 It.IsAny<GameType>(),
-                It.IsAny<string?>(),
-                It.IsAny<IProgress<ContentStorageProgress>?>(),
-                It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>()))
-            .Callback<string, string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
-                (_, _, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
+                It.IsAny<LocalContentOptions?>()))
+            .Callback<string, string, string, ContentType, GameType, LocalContentOptions?>(
+                (_, _, _, _, _, options) => capturedEntryPoint = options?.EntryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
 
         var item = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
@@ -744,13 +732,9 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<ContentType>(),
                 It.IsAny<GameType>(),
-                It.IsAny<string?>(),
-                It.IsAny<IProgress<ContentStorageProgress>?>(),
-                It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
-                (_, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
+                It.IsAny<LocalContentOptions?>()))
+            .Callback<string, string, ContentType, GameType, LocalContentOptions?>(
+                (_, _, _, _, options) => capturedEntryPoint = options?.EntryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.0.local.mod.test"),
@@ -1386,13 +1370,13 @@ public class AddLocalContentViewModelTests : IDisposable
         return path;
     }
 
-    private AddLocalContentViewModel CreateViewModel(ILocalizationService? localizationService = null)
+    private AddLocalContentViewModel CreateViewModel(ILocalizationService? localizationService = null, bool nullDialogService = false)
     {
         var vm = new AddLocalContentViewModel(
             _localContentServiceMock.Object,
             _contentStorageServiceMock.Object,
             _normalizationServiceMock.Object,
-            _dialogServiceMock.Object,
+            nullDialogService ? null : _dialogServiceMock.Object,
             null,
             NullLogger<AddLocalContentViewModel>.Instance,
             localizationService);
