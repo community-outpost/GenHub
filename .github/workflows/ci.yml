@@ -550,14 +550,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload macOS App Bundle
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: genhub-macos-app-${{ steps.buildinfo.outputs.VERSION }}
-          path: macos-dist/
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Upload Launch Log On Failure
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

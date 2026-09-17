@@ -29,6 +29,7 @@ env:
   UI_PROJECT: 'GenHub/GenHub/GenHub.csproj'
   WINDOWS_PROJECT: 'GenHub/GenHub.Windows/GenHub.Windows.csproj'
   LINUX_PROJECT: 'GenHub/GenHub.Linux/GenHub.Linux.csproj'
+  MACOS_PROJECT: 'GenHub/GenHub.MacOS/GenHub.MacOS.csproj'
   TEST_PROJECTS: 'GenHub/GenHub.Tests/**/*.csproj'
 
 jobs:
@@ -130,7 +131,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj |
-            Where-Object { $_.Name -notlike '*Linux*' }
+            Where-Object { $_.Name -notlike '*Linux*' -and $_.Name -notlike '*MacOS*' }
 
           if (-not $testProjects) {
             throw "No Windows-compatible test projects found."
@@ -250,7 +251,7 @@ jobs:
           fi
 
           for test_project in "${test_projects[@]}"; do
-            [[ "$test_project" == *Windows* ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *MacOS* ]] && continue
             dotnet test "$test_project" -c "${{ env.BUILD_CONFIGURATION }}"
           done
 
@@ -288,6 +289,7 @@ jobs:
         run: |
           set -euo pipefail
           test -x linux-publish/GenHub.Linux
+          compgen -G 'velopack-release-linux/*.AppImage' > /dev/null
           compgen -G 'velopack-release-linux/*.nupkg' > /dev/null
           if find velopack-release-linux -type f -size 0 -print -quit | grep -q .; then
             echo "::error::A Linux release asset is empty."
@@ -302,9 +304,141 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  build-macos:
+    name: Build macOS
+    needs: promote
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.promote.outputs.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Extract Build Info
+        id: buildinfo
+        run: |
+          VERSION="${{ needs.promote.outputs.version }}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Run Release Tests
+        run: |
+          dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }}
+
+      - name: Publish macOS App
+        run: |
+          dotnet publish "${{ env.MACOS_PROJECT }}" \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -r osx-arm64 \
+            --self-contained true \
+            -o "macos-publish" \
+            -p:Version="${{ steps.buildinfo.outputs.VERSION }}"
+
+      - name: Create .app Bundle
+        run: |
+          .github/scripts/package-macos-app.sh \
+            macos-publish \
+            macos-dist \
+            "${{ steps.buildinfo.outputs.VERSION }}"
+
+      - name: Smoke Test App Launch
+        run: |
+          APP_BIN="macos-dist/GenHub.app/Contents/MacOS/GenHub.MacOS"
+          "$APP_BIN" > app-launch.log 2>&1 &
+          APP_PID=$!
+
+          SURVIVED=0
+          for _ in $(seq 1 "${MACOS_SMOKE_TEST_SECONDS:-15}"); do
+            sleep 1
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              break
+            fi
+            SURVIVED=$((SURVIVED + 1 ))
+          done
+
+          if kill -0 "$APP_PID" 2>/dev/null; then
+            echo "App stayed up for ${SURVIVED}s"
+            if kill "$APP_PID" 2>/dev/null; then
+              wait "$APP_PID" 2>/dev/null || true
+            else
+              set +e
+              wait "$APP_PID"
+              APP_STATUS=$?
+              set -e
+              echo "::error::GenHub.app exited before CI could stop it (status $APP_STATUS). Log follows."
+              cat app-launch.log
+              exit 1
+            fi
+          else
+            set +e
+            wait "$APP_PID"
+            APP_STATUS=$?
+            set -e
+            echo "::error::GenHub.app exited during startup (status $APP_STATUS). Log follows."
+            cat app-launch.log
+            exit 1
+          fi
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+          MACOS_SMOKE_TEST_SECONDS: '15'
+
+      - name: Install Velopack CLI
+        run: |
+          dotnet tool install -g vpk
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Create Velopack macOS Package
+        run: |
+          echo "Packaging macOS app bundle with Velopack..."
+          ICON_ARG=""
+          if [ -f "macos-dist/GenHub.app/Contents/Resources/AppIcon.icns" ]; then
+            ICON_ARG="--icon macos-dist/GenHub.app/Contents/Resources/AppIcon.icns"
+          elif [ -f "GenHub/GenHub/Assets/Icons/generalshub.icns" ]; then
+            ICON_ARG="--icon GenHub/GenHub/Assets/Icons/generalshub.icns"
+          fi
+
+          vpk pack \
+            --packId GenHub \
+            --packVersion "${{ steps.buildinfo.outputs.VERSION }}" \
+            --packDir macos-dist/GenHub.app \
+            --mainExe GenHub.MacOS \
+            --packTitle "GenHub" \
+            --packAuthors "Community Outpost" \
+            $ICON_ARG \
+            --outputDir velopack-release-macos
+
+          # Rename metadata to prevent collisions with Windows and Linux
+          mv velopack-release-macos/releases.json velopack-release-macos/releases.osx.json || true
+          mv velopack-release-macos/assets.json velopack-release-macos/assets.osx.json || true
+
+      - name: Smoke Test macOS Release Assets
+        run: |
+          set -euo pipefail
+          test -x macos-dist/GenHub.app/Contents/MacOS/GenHub.MacOS
+          compgen -G 'velopack-release-macos/*.pkg' > /dev/null
+          compgen -G 'velopack-release-macos/*.nupkg' > /dev/null
+          if find velopack-release-macos -type f -size 0 -print -quit | grep -q .; then
+            echo "::error::A macOS release asset is empty."
+            exit 1
+          fi
+
+      - name: Upload macOS Release Artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: macos-release
+          path: velopack-release-macos/*
+          if-no-files-found: error
+          retention-days: 1
+
   create-release:
     name: Create GitHub Release
-    needs: [promote, build-windows, build-linux]
+    needs: [promote, build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -345,9 +479,11 @@ jobs:
           # Copy only specific files to avoid duplicates
           # 1. Windows Setup and NuPkgs
           find artifacts/windows-release -type f \( -name "*.exe" -o -name "*.nupkg" -o -name "RELEASES" -o -name "*.json" \) -exec cp {} final-assets/ \;
-          # 2. Linux NuPkgs and Json
-          find artifacts/linux-release -type f \( -name "*.nupkg" -o -name "*.json" \) -exec cp {} final-assets/ \;
-          # 3. Windows Portable (Specific match)
+          # 2. Linux AppImage, NuPkgs and Json
+          find artifacts/linux-release -type f \( -name "*.AppImage" -o -name "*.nupkg" -o -name "RELEASES-*" -o -name "*.json" \) -exec cp {} final-assets/ \;
+          # 3. macOS Setup (.pkg), NuPkgs and Json
+          find artifacts/macos-release -type f \( -name "*.pkg" -o -name "*.nupkg" -o -name "RELEASES-*" -o -name "*.json" \) -exec cp {} final-assets/ \;
+          # 4. Windows Portable (Specific match)
           cp artifacts/windows-portable/*.zip final-assets/
 
           ls -lh final-assets/
@@ -367,6 +503,8 @@ jobs:
             ${{ steps.info.outputs.CHANGELOG }}
 
             ### 🔧 Assets
-            - **Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe) *(supports custom install directory via `--installto <path>` / `-t <path>`)*
-            - **Portable:** [GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip)
+            - **Windows Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe) *(supports custom install directory via `--installto <path>` / `-t <path>`)*
+            - **Windows Portable:** [GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip)
+            - **Linux Installer:** [GenHub.AppImage](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub.AppImage)
+            - **macOS Installer:** [GenHub-osx-Setup.pkg](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-osx-Setup.pkg)
           files: final-assets/*

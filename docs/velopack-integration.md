@@ -261,7 +261,7 @@ Runs on every push and PR:
 
 Triggered by version tags (`v*`):
 
-1. Builds releases for Windows and Linux
+1. Builds releases for Windows, Linux, and macOS
 2. Creates GitHub Release
 3. Uploads installers and packages
 4. Publishes update feed for automatic updates
@@ -287,10 +287,17 @@ After packaging, Velopack generates:
 
 ### Linux
 
-- **GenHub-{Version}-linux-x64.AppImage** - AppImage installer
-- **GenHub-{Version}-full.nupkg** - Full release package
-- **GenHub-{Version}-delta.nupkg** - Delta update package
+- **GenHub.AppImage** - Standalone AppImage installer
+- **GenHub-{Version}-linux-full.nupkg** - Full release package
+- **GenHub-{Version}-linux-delta.nupkg** - Delta update package
 - **releases.linux.json** - Update feed manifest (JSON format)
+
+### macOS
+
+- **GenHub-osx-Setup.pkg** - Standalone macOS PKG installer
+- **GenHub-{Version}-osx-full.nupkg** - Full release package
+- **GenHub-{Version}-osx-delta.nupkg** - Delta update package
+- **releases.osx.json** - Update feed manifest (JSON format)
 
 **Note**: Velopack v0.0.942+ uses JSON format (`releases.*.json`) instead of the legacy `RELEASES` file.
 

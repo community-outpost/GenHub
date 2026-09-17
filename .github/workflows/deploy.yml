@@ -2,7 +2,7 @@ name: Deploy VitePress site to Netlify
 
 on:
   push:
-    branches: [main, development]
+    branches: [main]
     paths:
       - 'docs/**'
       - 'package.json'
