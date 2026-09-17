@@ -27,23 +27,13 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// - High availability and CDN distribution
 /// - Easy setup with GitHub Pages for catalog hosting.
 /// </remarks>
-public class GitHubHostingProvider : IHostingProvider
+public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHostingProvider
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
     private static readonly Regex GistRawShaRegex = new(@"/raw/[0-9a-fA-F]{40}/", RegexOptions.Compiled, RegexTimeout);
 
-    private readonly ILogger<GitHubHostingProvider> _logger;
     private GitHubClient? _client;
     private string? _authenticatedUsername;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GitHubHostingProvider"/> class.
-    /// </summary>
-    /// <param name="logger">The logger.</param>
-    public GitHubHostingProvider(ILogger<GitHubHostingProvider> logger)
-    {
-        _logger = logger;
-    }
 
     /// <inheritdoc/>
     public string ProviderId => HostingConstants.GitHub;
@@ -95,7 +85,7 @@ public class GitHubHostingProvider : IHostingProvider
     {
         // For now, use device flow or personal access token
         // In production, this would use OAuth device flow
-        _logger.LogInformation("Starting GitHub authentication...");
+        logger.LogInformation("Starting GitHub authentication...");
 
         // Create client with product header
         _client = new GitHubClient(new ProductHeaderValue("GenHub"));
@@ -125,7 +115,7 @@ public class GitHubHostingProvider : IHostingProvider
             var user = await _client.User.Current();
             _authenticatedUsername = user.Login;
 
-            _logger.LogInformation("Authenticated with GitHub as {Username}", _authenticatedUsername);
+            logger.LogInformation("Authenticated with GitHub as {Username}", _authenticatedUsername);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -134,12 +124,12 @@ public class GitHubHostingProvider : IHostingProvider
         }
         catch (AuthorizationException authEx)
         {
-            _logger.LogWarning(authEx, "Invalid GitHub token provided");
+            logger.LogWarning(authEx, "Invalid GitHub token provided");
             return OperationResult<bool>.CreateFailure("Invalid GitHub Personal Access Token");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GitHub token authentication failed");
+            logger.LogError(ex, "GitHub token authentication failed");
             return OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}");
         }
     }
@@ -149,7 +139,7 @@ public class GitHubHostingProvider : IHostingProvider
     {
         _client = null;
         _authenticatedUsername = null;
-        _logger.LogInformation("Signed out from GitHub");
+        logger.LogInformation("Signed out from GitHub");
         return Task.CompletedTask;
     }
 
@@ -226,7 +216,7 @@ public class GitHubHostingProvider : IHostingProvider
             var existingAsset = release.Assets.FirstOrDefault(a => a.Name == fileName);
             if (existingAsset != null)
             {
-                _logger.LogInformation("Deleting existing release asset: {FileName}", fileName);
+                logger.LogInformation("Deleting existing release asset: {FileName}", fileName);
                 await _client.Repository.Release.DeleteAsset(owner, repo, existingAsset.Id);
             }
 
@@ -253,7 +243,7 @@ public class GitHubHostingProvider : IHostingProvider
                 FileSize = asset.Size,
             };
 
-            _logger.LogInformation("Uploaded release asset {FileName} to {Owner}/{Repo} release {Tag}", fileName, owner, repo, releaseTag);
+            logger.LogInformation("Uploaded release asset {FileName} to {Owner}/{Repo} release {Tag}", fileName, owner, repo, releaseTag);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -262,17 +252,17 @@ public class GitHubHostingProvider : IHostingProvider
         }
         catch (NotFoundException nfEx)
         {
-            _logger.LogWarning(nfEx, "Release not found: {FolderPath}", folderPath);
+            logger.LogWarning(nfEx, "Release not found: {FolderPath}", folderPath);
             return OperationResult<HostingUploadResult>.CreateFailure($"Release '{folderPath}' not found: {nfEx.Message}");
         }
         catch (ApiException apiEx)
         {
-            _logger.LogError(apiEx, "GitHub API error uploading file: {FileName}", fileName);
+            logger.LogError(apiEx, "GitHub API error uploading file: {FileName}", fileName);
             return OperationResult<HostingUploadResult>.CreateFailure($"GitHub API error: {apiEx.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload file to GitHub: {FileName}", fileName);
+            logger.LogError(ex, "Failed to upload file to GitHub: {FileName}", fileName);
             return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {ex.Message}");
         }
     }
@@ -294,7 +284,7 @@ public class GitHubHostingProvider : IHostingProvider
             // For catalogs, create/update a Gist
             // Gists provide a simple way to host and update JSON files
             var gistName = $"genhub-catalog-{publisherId}.json";
-            _logger.LogInformation("Uploading catalog to GitHub Gist: {GistName}", gistName);
+            logger.LogInformation("Uploading catalog to GitHub Gist: {GistName}", gistName);
 
             progress?.Report(30);
 
@@ -326,7 +316,7 @@ public class GitHubHostingProvider : IHostingProvider
                 FileSize = Encoding.UTF8.GetByteCount(catalogJson),
             };
 
-            _logger.LogInformation("Created GitHub Gist {GistId} for catalog", gist.Id);
+            logger.LogInformation("Created GitHub Gist {GistId} for catalog", gist.Id);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -335,12 +325,12 @@ public class GitHubHostingProvider : IHostingProvider
         }
         catch (ApiException apiEx)
         {
-            _logger.LogError(apiEx, "GitHub API error uploading catalog to Gist");
+            logger.LogError(apiEx, "GitHub API error uploading catalog to Gist");
             return OperationResult<HostingUploadResult>.CreateFailure($"GitHub API error: {apiEx.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload catalog to GitHub Gist");
+            logger.LogError(ex, "Failed to upload catalog to GitHub Gist");
             return OperationResult<HostingUploadResult>.CreateFailure($"Catalog upload failed: {ex.Message}");
         }
     }
@@ -432,7 +422,7 @@ public class GitHubHostingProvider : IHostingProvider
                 FileSize = Encoding.UTF8.GetByteCount(content),
             };
 
-            _logger.LogInformation("Updated file {FileName} in GitHub Gist {GistId}", fileName, fileId);
+            logger.LogInformation("Updated file {FileName} in GitHub Gist {GistId}", fileName, fileId);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -441,12 +431,12 @@ public class GitHubHostingProvider : IHostingProvider
         }
         catch (NotFoundException ex)
         {
-            _logger.LogWarning(ex, "Gist not found for update: {FileId}", fileId);
+            logger.LogWarning(ex, "Gist not found for update: {FileId}", fileId);
             return OperationResult<HostingUploadResult>.CreateFailure($"Gist not found: {fileId}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update file in GitHub Gist");
+            logger.LogError(ex, "Failed to update file in GitHub Gist");
             return OperationResult<HostingUploadResult>.CreateFailure($"Update failed: {ex.Message}");
         }
     }

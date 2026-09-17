@@ -104,6 +104,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
 
     private System.Threading.CancellationTokenSource? _authCts;
     private CancellationTokenSource? _uploadCts;
+    private CancellationTokenSource? _scanCts;
 
     [RelayCommand]
     private void CancelUpload()
@@ -538,10 +539,15 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
     {
         if (disposing)
         {
+            _authCts?.Cancel();
             _authCts?.Dispose();
             _authCts = null;
+            _uploadCts?.Cancel();
             _uploadCts?.Dispose();
             _uploadCts = null;
+            _scanCts?.Cancel();
+            _scanCts?.Dispose();
+            _scanCts = null;
         }
     }
 
@@ -1940,14 +1946,19 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             IsUploading = true;
             UploadStatusMessage = "Uploading provider definition...";
 
+            _uploadCts?.Cancel();
+            _uploadCts?.Dispose();
+            _uploadCts = new CancellationTokenSource();
+            var ct = _uploadCts.Token;
+
             var fileName = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
             var existingDefFileId = _currentHostingState?.Definition?.FileId;
 
             // Upload or update as a file
             using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
             var result = (!string.IsNullOrEmpty(existingDefFileId) && SelectedHostingProvider.SupportsUpdate)
-                ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, stream, fileName, cancellationToken: CancellationToken.None)
-                : await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: CancellationToken.None);
+                ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, stream, fileName, cancellationToken: ct)
+                : await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: ct);
 
             if (result.Success && result.Data != null)
             {
@@ -1961,7 +1972,7 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
                         FileSize = result.Data.FileSize,
                         LastUpdated = DateTime.UtcNow,
                     };
-                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, ct);
                 }
 
                 GenerateSubscriptionUrl(); // Regenerate based on new definition URL
@@ -2556,19 +2567,28 @@ public partial class PublishShareViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (_scanCts != null)
+        {
+            await _scanCts.CancelAsync();
+            _scanCts.Dispose();
+        }
+
+        _scanCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var ct = _scanCts.Token;
+
         IsScanningStorage = true;
         StorageScanStatusMessage = $"Scanning {SelectedHostingProvider.DisplayName} folder for hosted files...";
 
         try
         {
-            var result = await SelectedHostingProvider.RecoverHostingStateAsync(CancellationToken.None);
+            var result = await SelectedHostingProvider.RecoverHostingStateAsync(ct);
             if (result.Success && result.Data != null)
             {
                 MergeCloudHostingState(result.Data);
 
                 if (!string.IsNullOrEmpty(_project.ProjectPath) && _currentHostingState != null)
                 {
-                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, ct);
                 }
 
                 InitializeCatalogStatuses();
