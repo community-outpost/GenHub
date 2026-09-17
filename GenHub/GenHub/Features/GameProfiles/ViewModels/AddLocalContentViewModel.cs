@@ -41,6 +41,9 @@ public partial class AddLocalContentViewModel(
     ILogger<AddLocalContentViewModel>? logger = null,
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
+    private const string StatusImportSkippedCollisionKey = "Profiles.AddLocalContent.StatusImportSkippedCollision";
+    private const string StatusImportSkippedCollisionFallback = "Import skipped due to file collisions.";
+
     /// <summary>
     /// Gets the list of available game types.
     /// </summary>
@@ -703,7 +706,7 @@ public partial class AddLocalContentViewModel(
         if (dialogService == null)
         {
             logger?.LogInformation("No dialog service available; skipping import of {Path} to avoid overwriting staged content without confirmation.", path);
-            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            SetImportSkippedCollisionStatus();
             return false;
         }
 
@@ -720,7 +723,7 @@ public partial class AddLocalContentViewModel(
         if (!overwrite)
         {
             logger?.LogInformation("User skipped importing {Path} due to detected file collision.", path);
-            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            SetImportSkippedCollisionStatus();
             return false;
         }
 
@@ -739,7 +742,7 @@ public partial class AddLocalContentViewModel(
         if (dialogService == null)
         {
             logger?.LogInformation("No dialog service available; skipping import of {Path} to avoid overwriting staged content without confirmation.", path);
-            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            SetImportSkippedCollisionStatus();
             return false;
         }
 
@@ -757,7 +760,7 @@ public partial class AddLocalContentViewModel(
         if (!overwrite)
         {
             logger?.LogInformation("User skipped importing {Path} due to detected file collisions.", path);
-            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportSkippedCollision", "Import skipped due to file collisions.");
+            SetImportSkippedCollisionStatus();
             return false;
         }
 
@@ -1377,6 +1380,9 @@ public partial class AddLocalContentViewModel(
             if (!hasExecutableIfNeeded) logger?.LogDebug("Validate failed: Executable content type requires an executable to be selected.");
         }
     }
+
+    private void SetImportSkippedCollisionStatus() =>
+        StatusMessage = GetLocalizedString(StatusImportSkippedCollisionKey, StatusImportSkippedCollisionFallback);
 
     private string GetLocalizedString(string key, string fallback) =>
         _localizationService?[key] ?? fallback;
